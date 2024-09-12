@@ -272,13 +272,8 @@ impl Object {
         Some(current_obj)
     }
 
-    pub fn check_if_provided_path_exists(&mut self, path: &Path) -> Result<(), String> {
-        if self.get_as_mapping(path).is_none() {
-            return Err(
-                "The provided path could not be found as a mapping inside the object".to_string(),
-            );
-        }
-        Ok(())
+    pub fn check_if_provided_path_exists(&self, path: &Path) -> bool {
+        self.get(path).is_some()
     }
 }
 

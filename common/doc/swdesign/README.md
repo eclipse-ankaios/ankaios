@@ -358,9 +358,10 @@ Needs:
 
 Status: approved
 
-The Common library shall provide functionality for enforcing an agent name that matches <^[a-zA-Z0-9_-]*$>.
+The Common library shall provide functionality for enforcing an agent name to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
 
-Rationale: A consistent naming manner allows a flawless usage of the Ankaios CLI and does not tamper with the internal structure of Ankaios.
+Rationale:
+A consistent naming manner allows a flawless usage of the Ankaios CLI and does not tamper with the internal structure of Ankaios.
 
 Tags:
 - Objects

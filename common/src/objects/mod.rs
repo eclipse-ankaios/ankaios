@@ -18,6 +18,7 @@
 
 mod state;
 pub use state::State;
+pub use state::STR_RE_WORKLOAD;
 
 mod complete_state;
 pub use complete_state::CompleteState;

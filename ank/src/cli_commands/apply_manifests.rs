@@ -16,7 +16,7 @@ use super::{CliCommands, InputSourcePair};
 use crate::cli_commands::State;
 use crate::cli_error::CliError;
 use crate::{cli::ApplyArgs, output_debug};
-use common::objects::CompleteState;
+use common::objects::{CompleteState, STR_RE_WORKLOAD};
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
 
@@ -25,6 +25,8 @@ use self::tests::get_input_sources_mock as get_input_sources;
 
 #[cfg(not(test))]
 use super::get_input_sources;
+
+const WORKLOAD_LEVEL: usize = 1;
 
 // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
@@ -95,16 +97,10 @@ pub fn update_request_obj(
     paths: &[Path],
 ) -> Result<(), String> {
     for workload_path in paths.iter() {
-        let workload_name = &workload_path.parts()[1];
-        cur_obj
-            .clone()
-            .check_if_provided_path_exists(workload_path)
-            .map_err(|err| {
-                format!(
-                    "Got error `{}`. This may be caused by improper naming. Ankaios supports names defined by '^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$'.",
-                    err
-                )
-            })?;
+        let workload_name = &workload_path.parts()[WORKLOAD_LEVEL];
+        if !cur_obj.check_if_provided_path_exists(workload_path) {
+            return Err(format!("The provided path does not exist! This may be caused by improper naming. Ankaios supports names defined by '{}'", STR_RE_WORKLOAD));
+        }
         let cur_workload_spec = cur_obj.get(workload_path).unwrap();
         if req_obj.get(workload_path).is_none() {
             let _ = req_obj.set(workload_path, cur_workload_spec.clone());
