@@ -22,6 +22,11 @@ pub struct AgentHello {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct AgentResource {
+    pub info: String,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentGone {
     pub agent_name: String,
 }

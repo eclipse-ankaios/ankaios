@@ -48,6 +48,7 @@ message ToServer {
         UpdateWorkloadState updateWorkloadState = 2; /// A message to Ankaios server to update the execution state of a workload.
         ank_base.Request request = 3;
         Goodbye goodbye = 4;
+        AgentResource AgentResource = 5;
     }
 }
 
@@ -70,7 +71,12 @@ message AgentHello {
     string agentName = 1; /// A unique agent name.
 }
 
-
+/**
+* A message to the Ankaios server to provide basic node resource availability.
+*/
+message AgentResource {
+    string info = 1; /// A unique agent name.
+}
 
 /**
 * A message to the Ankaios server to signalize a client (agent or cli) is shutting down.

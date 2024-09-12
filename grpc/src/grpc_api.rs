@@ -29,6 +29,12 @@ impl From<AgentHello> for commands::AgentHello {
     }
 }
 
+impl From<AgentResource> for commands::AgentResource {
+    fn from(item: AgentResource) -> Self {
+        commands::AgentResource { info: item.info }
+    }
+}
+
 impl From<commands::UpdateWorkloadState> for UpdateWorkloadState {
     fn from(item: commands::UpdateWorkloadState) -> Self {
         UpdateWorkloadState {
@@ -179,6 +185,9 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
         Ok(match to_server {
             ToServerEnum::AgentHello(protobuf) => {
                 to_server_interface::ToServer::AgentHello(protobuf.into())
+            }
+            ToServerEnum::AgentResource(protobuf) => {
+                to_server_interface::ToServer::AgentResource(protobuf.into())
             }
             ToServerEnum::UpdateWorkloadState(protobuf) => {
                 to_server_interface::ToServer::UpdateWorkloadState(protobuf.into())

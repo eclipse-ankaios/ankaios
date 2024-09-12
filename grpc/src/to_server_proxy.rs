@@ -167,6 +167,11 @@ pub async fn forward_from_ankaios_to_proto(
             ToServer::AgentHello(_) => {
                 panic!("AgentHello was not expected at this point.");
             }
+            ToServer::AgentResource(_) => {
+                log::debug!("Received resource availability info from agent");
+                // TODO: 
+                break;
+            }
             ToServer::AgentGone(_) => {
                 panic!("AgentGone internal messages is not intended to be sent over the network");
             }

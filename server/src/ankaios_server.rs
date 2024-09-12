@@ -183,6 +183,10 @@ impl AnkaiosServer {
                     // [impl->swdd~server-stores-newly-connected-agent~1]
                     self.server_state.add_agent(agent_name);
                 }
+                ToServer::AgentResource(method_obj) => {
+                    log::debug!("Received available resources '{}", method_obj.info);
+                    todo!()
+                }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
                     let agent_name = method_obj.agent_name;
