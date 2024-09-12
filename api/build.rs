@@ -17,6 +17,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(true)
         .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")
         .type_attribute(".", "#[serde(rename_all = \"camelCase\")]")
+        .type_attribute(
+            "ank_base.ConfigItem",
+            "#[serde(into = \"serde_yaml::Value\")]",
+        )
+        .type_attribute(
+            "ank_base.ConfigItem",
+            "#[serde(try_from = \"serde_yaml::Value\")]",
+        )
+        // .type_attribute("ConfigItem", "#[serde(try_from = \"serde_yaml::Value\")]")
         .field_attribute("Workload.tags", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")
         .field_attribute("WorkloadStatesMap.agentStateMap", "#[serde(flatten)]")
