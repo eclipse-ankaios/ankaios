@@ -86,8 +86,8 @@ impl TryFrom<ank_base::State> for State {
                 .ok_or("Missing config map")?
                 .configs
                 .into_iter()
-                .map(|(k, v)| (k, v.into()))
-                .collect(),
+                .map(|(k, v)| Ok((k, v.try_into()?)))
+                .collect::<Result<_, Self::Error>>()?,
         })
     }
 }
