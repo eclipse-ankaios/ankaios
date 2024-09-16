@@ -15,9 +15,12 @@
 use common::communications_client::CommunicationsClient;
 use common::objects::{AgentName, WorkloadState};
 use common::to_server_interface::ToServer;
+use core::time;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use grpc::security::TLSConfig;
+use regex::Regex;
 use std::collections::HashMap;
+use std::thread::sleep;
 use tokio::try_join;
 
 mod agent_manager;
@@ -35,6 +38,7 @@ mod workload_scheduler;
 mod workload_state;
 
 use common::from_server_interface::FromServer;
+use common::objects::state::STR_RE_AGENT;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};
 use grpc::client::GRPCCommunicationsClient;
 
@@ -55,6 +59,18 @@ async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let args = cli::parse();
+
+    let re = Regex::new(STR_RE_AGENT).unwrap();
+    if !re.is_match(args.agent_name.as_str()) {
+        log::info!(
+            "Unsupported agent name. Received '{}', expected to have characters in {}!",
+            args.agent_name,
+            STR_RE_AGENT
+        );
+        sleep(time::Duration::from_millis(10));
+        return;
+    }
+
     let server_url = match args.insecure {
         true => args.server_url.replace("http[s]", "http"),
         false => args.server_url.replace("http[s]", "https"),

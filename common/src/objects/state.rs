@@ -25,7 +25,7 @@ use api::ank_base;
 const CURRENT_API_VERSION: &str = "v0.1";
 const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
 pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]+*$";
-const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
+pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
 
 // [impl->swdd~common-object-representation~1]
 // [impl->swdd~common-object-serialization~1]
@@ -79,6 +79,8 @@ impl TryFrom<ank_base::State> for State {
 }
 
 impl State {
+    // [impl->swdd~common-workload-naming-convention~1]
+    // [impl->swdd~common-agent-naming-convention~1]
     pub fn verify_format(provided_state: &State) -> Result<(), String> {
         if provided_state.api_version != CURRENT_API_VERSION {
             return Err(format!(
@@ -196,6 +198,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~common-workload-naming-convention~1]
     #[test]
     fn utest_state_rejects_incompatible_state_on_workload_name() {
         let workload_name = "nginx.test".to_string();
@@ -212,6 +215,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~common-workload-naming-convention~1]
     #[test]
     fn utest_state_rejects_incompatible_state_on_inordinately_long_workload_name() {
         let workload_name = "workload_name_is_too_long_for_ankaios_to_accept_it_and_I_don_t_know_what_else_to_write".to_string();
@@ -229,6 +233,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~common-agent-naming-convention~1]
     #[test]
     fn utest_state_rejects_incompatible_state_on_agent_name() {
         let agent_name = "agent_A.test".to_string();

@@ -122,6 +122,14 @@ delete it from the state again with:
 ank -k delete workload helloworld
 ```
 
+!!! Note
+
+    In case of workload names, the naming convention states that thier names shall:
+    * contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_"
+    * have a minimal length of 1 character
+    * have a maximal length of 63 characters
+    Also, agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+
 For next steps follow the [tutorial on sending and receiving vehicle data](tutorial-vehicle-signals.md) with workloads orchestrated by Ankaios.
 Then also check the reference documentation for the
 [startup configuration](../reference/startup-configuration.md) including the
