@@ -455,6 +455,7 @@ mod tests {
                     runtime: None,
                     runtime_config: None,
                     control_interface_access: None,
+                    configs: None,
                 },
             ),
             (
@@ -475,6 +476,7 @@ mod tests {
                     runtime: Some(w1.runtime.clone()),
                     runtime_config: Some(w1.runtime_config.clone()),
                     control_interface_access: w1.control_interface_access.into(),
+                    configs: Some(Default::default()),
                 },
             ),
         ];

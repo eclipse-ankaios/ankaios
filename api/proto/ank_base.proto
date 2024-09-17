@@ -244,6 +244,7 @@ message Workload {
     optional string runtime = 5; /// The name of the runtime e.g. podman.
     optional string runtimeConfig  = 6; /// The configuration information specific to the runtime.
     ControlInterfaceAccess controlInterfaceAccess = 7;
+    ConfigMappings configs = 8;
 }
 
 /**
@@ -318,6 +319,14 @@ enum ReadWriteEnum {
   RW_WRITE = 2; // Allow write
   RW_READ_WRITE = 5; // Allow read and write
 }
+
+/**
+* This is a workaround for proto not supporing optional maps
+*/
+message ConfigMappings {
+    map<string, string> configs = 1;
+}
+
 
 /**
 * This is a workaround for proto not supporing optional maps

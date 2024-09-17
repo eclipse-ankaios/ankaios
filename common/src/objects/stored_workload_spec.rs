@@ -38,6 +38,8 @@ pub struct StoredWorkloadSpec {
     pub runtime_config: String,
     #[serde(default)]
     pub control_interface_access: ControlInterfaceAccess,
+    #[serde(default)]
+    pub configs: HashMap<String, String>,
 }
 
 impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
@@ -67,6 +69,7 @@ impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
                 .control_interface_access
                 .unwrap_or_default()
                 .try_into()?,
+            configs: value.configs.ok_or("Missing field configs")?.configs,
         })
     }
 }
@@ -89,6 +92,9 @@ impl From<StoredWorkloadSpec> for ank_base::Workload {
                 tags: workload.tags.into_iter().map(|x| x.into()).collect(),
             }),
             control_interface_access: workload.control_interface_access.into(),
+            configs: Some(ank_base::ConfigMappings {
+                configs: workload.configs,
+            }),
         }
     }
 }
@@ -121,6 +127,7 @@ impl From<WorkloadSpec> for StoredWorkloadSpec {
             tags: value.tags,
             runtime_config: value.runtime_config,
             control_interface_access: value.control_interface_access,
+            configs: Default::default(),
         }
     }
 }
@@ -153,6 +160,11 @@ pub fn generate_test_stored_workload_spec_with_config(
         }],
         runtime_config: runtime_config.into(),
         control_interface_access: Default::default(),
+        configs: [
+            ("ref1".into(), "config.path.1".into()),
+            ("ref2".into(), "config.path.2".into()),
+        ]
+        .into(),
     }
 }
 

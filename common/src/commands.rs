@@ -171,8 +171,9 @@ mod tests {
 
     mod ank_base {
         pub use api::ank_base::{
-            request::RequestContent, CompleteState, CompleteStateRequest, Dependencies, Request,
-            RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload, WorkloadMap,
+            request::RequestContent, CompleteState, CompleteStateRequest, ConfigMappings,
+            Dependencies, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
+            WorkloadMap,
         };
     }
 
@@ -276,6 +277,13 @@ mod tests {
                     }],
                 }),
                 control_interface_access: Default::default(),
+                configs: Some(ank_base::ConfigMappings {
+                    configs: [
+                        ("ref1".into(), "config.path.1".into()),
+                        ("ref2".into(), "config.path.2".into()),
+                    ]
+                    .into(),
+                }),
             }
         };
         (ankaios) => {
@@ -290,6 +298,11 @@ mod tests {
                 runtime: RUNTIME.to_string(),
                 runtime_config: RUNTIME_CONFIG.to_string(),
                 control_interface_access: Default::default(),
+                configs: [
+                    ("ref1".into(), "config.path.1".into()),
+                    ("ref2".into(), "config.path.2".into()),
+                ]
+                .into(),
             }
         };
     }

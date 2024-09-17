@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         // .type_attribute("ConfigItem", "#[serde(try_from = \"serde_yaml::Value\")]")
         .field_attribute("Workload.tags", "#[serde(flatten)]")
+        .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")
         .field_attribute("WorkloadStatesMap.agentStateMap", "#[serde(flatten)]")
         .field_attribute(
