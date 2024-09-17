@@ -65,7 +65,6 @@ pub struct RuntimeManager {
     // [impl->swdd~agent-supports-multiple-runtime-connectors~1]
     runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
     update_state_tx: WorkloadStateSender,
-    // update_resource_tx: ResourceAvailabilitySender,
     workload_queue: WorkloadScheduler,
 }
 
@@ -77,7 +76,6 @@ impl RuntimeManager {
         control_interface_tx: ToServerSender,
         runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
         update_state_tx: WorkloadStateSender,
-        // update_resource_tx: ResourceAvailabilitySender,
     ) -> Self {
         RuntimeManager {
             agent_name,

@@ -14,7 +14,7 @@
 
 use common::{
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{ResourceMeasurement, WorkloadState},
+    objects::WorkloadState,
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -24,10 +24,7 @@ use crate::workload_state::workload_state_store::WorkloadStateStore;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
-use crate::{
-    resource_measurement::{self, ResourceMeasurementReceiver, ResourceMeasurementSender},
-    workload_state::WorkloadStateReceiver,
-};
+use crate::workload_state::WorkloadStateReceiver;
 // [impl->swdd~agent-shall-use-interfaces-to-server~1]
 pub struct AgentManager {
     agent_name: String,
@@ -68,9 +65,10 @@ impl AgentManager {
                         .unwrap_or_exit("Abort");
 
                     if self.execute_from_server_command(from_server).await.is_none() {
+                        log::info!("SAMBAO 1");
                         break;
                     }
-                }
+                },
                 // [impl->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
                 workload_state = self.workload_state_receiver.recv() => {
                     let workload_state = workload_state
@@ -79,9 +77,18 @@ impl AgentManager {
 
                     self.store_and_forward_own_workload_states(workload_state).await;
                 }
+                // else {
+                //     log::info!("SAMBAO 2");
+                //     break;
+                // }
             }
-            self.forward_own_resource_measurement(ResourceMeasurement {})
-                .await;
+
+            self.to_server
+                .agent_resource(self.agent_name.clone())
+                .await
+                .unwrap_or_illegal_state();
+
+            log::info!("SAMBAO 2");
         }
     }
 
@@ -196,16 +203,10 @@ impl AgentManager {
             .update_workload_state(vec![new_workload_state])
             .await
             .unwrap_or_illegal_state();
-    }
-
-    async fn forward_own_resource_measurement(
-        &mut self,
-        mut resource_measurement: ResourceMeasurement,
-    ) {
-        self.to_server
-            .agent_resource("MA CAC IN EA DE TREABA".to_string())
-            .await
-            .unwrap_or_illegal_state();
+        // self.to_server
+        //     .agent_resource(self.agent_name.clone())
+        //     .await
+        //     .unwrap_or_illegal_state();
     }
 }
 

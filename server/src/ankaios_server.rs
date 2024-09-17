@@ -185,7 +185,6 @@ impl AnkaiosServer {
                 }
                 ToServer::AgentResource(method_obj) => {
                     log::info!("Received available resources '{}", method_obj.info);
-                    // todo!()
                     let measurement = method_obj.info;
                     log::info!("Received measurement: '{}'", measurement);
                 }

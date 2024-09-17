@@ -35,6 +35,12 @@ impl From<AgentResource> for commands::AgentResource {
     }
 }
 
+impl From<commands::AgentResource> for AgentResource {
+    fn from(item: commands::AgentResource) -> Self {
+        AgentResource { info: item.info }
+    }
+}
+
 impl From<commands::UpdateWorkloadState> for UpdateWorkloadState {
     fn from(item: commands::UpdateWorkloadState) -> Self {
         UpdateWorkloadState {

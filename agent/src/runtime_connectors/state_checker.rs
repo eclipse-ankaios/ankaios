@@ -5,7 +5,7 @@ use common::objects::{ExecutionState, WorkloadSpec};
 #[cfg(test)]
 use mockall::automock;
 
-use crate::{resource_measurement::ResourceMeasurementSender, workload_state::WorkloadStateSender};
+use crate::workload_state::WorkloadStateSender;
 
 // [impl->swdd~agent-general-runtime-state-getter-interface~1]
 #[async_trait]
