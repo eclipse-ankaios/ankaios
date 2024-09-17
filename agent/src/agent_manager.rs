@@ -14,7 +14,7 @@
 
 use common::{
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::WorkloadState,
+    objects::{ResourceMeasurement, WorkloadState},
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -24,7 +24,10 @@ use crate::workload_state::workload_state_store::WorkloadStateStore;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
-use crate::workload_state::WorkloadStateReceiver;
+use crate::{
+    resource_measurement::{self, ResourceMeasurementReceiver, ResourceMeasurementSender},
+    workload_state::WorkloadStateReceiver,
+};
 // [impl->swdd~agent-shall-use-interfaces-to-server~1]
 pub struct AgentManager {
     agent_name: String,
@@ -77,6 +80,8 @@ impl AgentManager {
                     self.store_and_forward_own_workload_states(workload_state).await;
                 }
             }
+            self.forward_own_resource_measurement(ResourceMeasurement {})
+                .await;
         }
     }
 
@@ -189,6 +194,16 @@ impl AgentManager {
         // [impl->swdd~agent-sends-workload-states-of-its-workloads-to-server~2]
         self.to_server
             .update_workload_state(vec![new_workload_state])
+            .await
+            .unwrap_or_illegal_state();
+    }
+
+    async fn forward_own_resource_measurement(
+        &mut self,
+        mut resource_measurement: ResourceMeasurement,
+    ) {
+        self.to_server
+            .agent_resource("MA CAC IN EA DE TREABA".to_string())
             .await
             .unwrap_or_illegal_state();
     }

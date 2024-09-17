@@ -120,6 +120,12 @@ pub async fn forward_from_proto_to_ankaios(
                 );
                 break;
             }
+
+            ToServerEnum::AgentResource(_agent_resource) => {
+                panic!("AgentResource blahblah");
+                break;
+            }
+
             unknown_message => {
                 log::warn!("Wrong ToServer message: '{:?}'", unknown_message);
             }
@@ -167,11 +173,11 @@ pub async fn forward_from_ankaios_to_proto(
             ToServer::AgentHello(_) => {
                 panic!("AgentHello was not expected at this point.");
             }
-            ToServer::AgentResource(_) => {
-                log::debug!("Received resource availability info from agent");
-                // TODO: 
-                break;
+
+            ToServer::AgentResource(measurement) => {
+                log::info!("AgentResource something. {}", measurement.info);
             }
+
             ToServer::AgentGone(_) => {
                 panic!("AgentGone internal messages is not intended to be sent over the network");
             }

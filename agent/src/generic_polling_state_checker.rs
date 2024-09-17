@@ -3,10 +3,11 @@ use std::time::Duration;
 use tokio::{task::JoinHandle, time};
 
 use crate::{
+    resource_measurement::{ResourceMeasurementSender, ResourceMeasurementSenderInterface},
     runtime_connectors::{RuntimeStateGetter, StateChecker},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
-use common::objects::{ExecutionState, ExecutionStateEnum, WorkloadSpec};
+use common::objects::{ExecutionState, ExecutionStateEnum, ResourceMeasurement, WorkloadSpec};
 
 // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
 const STATUS_CHECK_INTERVAL_MS: u64 = 500;

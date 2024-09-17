@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use common::communications_client::CommunicationsClient;
-use common::objects::{AgentName, WorkloadState};
+use common::objects::{AgentName, ResourceMeasurement, WorkloadState};
 use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use grpc::security::TLSConfig;
@@ -29,6 +29,7 @@ pub mod test_helper;
 mod workload_operation;
 
 mod generic_polling_state_checker;
+mod resource_measurement;
 mod runtime_manager;
 mod workload;
 mod workload_scheduler;
