@@ -11,6 +11,7 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
 use common::{
     from_server_interface::{FromServer, FromServerReceiver},
@@ -56,6 +57,9 @@ impl AgentManager {
 
     pub async fn start(&mut self) {
         log::info!("Awaiting commands from the server ...");
+
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(2));
+
         loop {
             tokio::select! {
                 // [impl->swdd~agent-manager-listens-requests-from-server~1]
@@ -65,7 +69,6 @@ impl AgentManager {
                         .unwrap_or_exit("Abort");
 
                     if self.execute_from_server_command(from_server).await.is_none() {
-                        log::info!("SAMBAO 1");
                         break;
                     }
                 },
@@ -74,21 +77,12 @@ impl AgentManager {
                     let workload_state = workload_state
                         .ok_or("Channel to listen to own workload states closed.".to_string())
                         .unwrap_or_exit("Abort");
-
                     self.store_and_forward_own_workload_states(workload_state).await;
                 }
-                // else {
-                //     log::info!("SAMBAO 2");
-                //     break;
-                // }
+                _ = interval.tick() => {
+                    self.measure_and_forward_resource_availability().await;
+                }
             }
-
-            self.to_server
-                .agent_resource(self.agent_name.clone())
-                .await
-                .unwrap_or_illegal_state();
-
-            log::info!("SAMBAO 2");
         }
     }
 
@@ -203,10 +197,34 @@ impl AgentManager {
             .update_workload_state(vec![new_workload_state])
             .await
             .unwrap_or_illegal_state();
-        // self.to_server
-        //     .agent_resource(self.agent_name.clone())
-        //     .await
-        //     .unwrap_or_illegal_state();
+    }
+
+    async fn measure_and_forward_resource_availability(&mut self) {
+        // let mut s_cpu =
+        //     System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()));
+
+        let mut sys = System::new_with_specifics(
+            RefreshKind::new()
+                .with_cpu(CpuRefreshKind::everything())
+                .with_memory(MemoryRefreshKind::everything()),
+        );
+
+        sys.refresh_all();
+
+        let cpu_usage = sys.global_cpu_usage();
+        let memory_usage = sys.used_memory();
+
+        log::info!(
+            "Agent '{}' reports resource usage: CPU: {:.2}%, Memory: {}",
+            self.agent_name,
+            cpu_usage,
+            memory_usage
+        );
+
+        self.to_server
+            .agent_resource(self.agent_name.clone())
+            .await
+            .unwrap_or_illegal_state();
     }
 }
 
