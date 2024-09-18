@@ -83,7 +83,7 @@ impl TryFrom<ank_base::State> for State {
                 .collect::<Result<HashMap<String, StoredWorkloadSpec>, String>>()?,
             configs: item
                 .configs
-                .ok_or("Missing config map")?
+                .unwrap_or_default()
                 .configs
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))

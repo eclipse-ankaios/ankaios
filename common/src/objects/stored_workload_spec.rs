@@ -69,7 +69,7 @@ impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
                 .control_interface_access
                 .unwrap_or_default()
                 .try_into()?,
-            configs: value.configs.ok_or("Missing field configs")?.configs,
+            configs: value.configs.unwrap_or_default().configs,
         })
     }
 }
