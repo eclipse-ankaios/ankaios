@@ -212,7 +212,7 @@ mod tests {
     use tokio::sync::mpsc;
 
     use crate::grpc_api::{self, to_server::ToServerEnum};
-    use api::ank_base::{self, UpdateStateRequest};
+    use api::ank_base;
 
     #[derive(Default, Clone)]
     struct MockGRPCToServerStreaming {
