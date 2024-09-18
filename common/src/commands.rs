@@ -78,7 +78,7 @@ impl From<RequestContent> for ank_base::request::RequestContent {
                 ank_base::request::RequestContent::CompleteStateRequest(content.into())
             }
             RequestContent::UpdateStateRequest(content) => {
-                ank_base::request::RequestContent::UpdateStateRequest((*content).into())
+                ank_base::request::RequestContent::UpdateStateRequest(Box::new((*content).into()))
             }
         }
     }
@@ -89,7 +89,7 @@ impl TryFrom<ank_base::request::RequestContent> for RequestContent {
     fn try_from(value: ank_base::request::RequestContent) -> Result<Self, Self::Error> {
         Ok(match value {
             ank_base::request::RequestContent::UpdateStateRequest(value) => {
-                RequestContent::UpdateStateRequest(Box::new(value.try_into()?))
+                RequestContent::UpdateStateRequest(Box::new((*value).try_into()?))
             }
             ank_base::request::RequestContent::CompleteStateRequest(value) => {
                 RequestContent::CompleteStateRequest(value.into())
@@ -221,10 +221,10 @@ mod tests {
 
     macro_rules! update_state_request_enum {
         (ank_base) => {
-            ank_base::RequestContent::UpdateStateRequest(ank_base::UpdateStateRequest {
+            ank_base::RequestContent::UpdateStateRequest(Box::new(ank_base::UpdateStateRequest {
                 new_state: complete_state!(ank_base).into(),
                 update_mask: vec![FIELD_1.into(), FIELD_2.into()],
-            })
+            }))
         };
         (ankaios) => {
             ankaios::RequestContent::UpdateStateRequest(Box::new(ankaios::UpdateStateRequest {
