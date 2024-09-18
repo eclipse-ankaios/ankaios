@@ -95,7 +95,9 @@ impl ControlInterfaceTask {
                                     };
                                     let _ = self.forward_from_server(error).await;
                                 };
-                            }
+                            },
+                            // TODO: handle the hello message from a workloads
+                            Ok(ToAnkaios::Hello(_)) => todo!(),
                             Err(error) => {
                                 log::warn!("Could not convert protobuf in internal data structure: '{}'", error);
 

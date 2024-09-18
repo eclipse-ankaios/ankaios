@@ -469,6 +469,7 @@ dependencies = [
  "api",
  "async-trait",
  "log",
+ "semver",
  "serde",
  "serde_yaml",
  "sha256",
@@ -1658,6 +1659,12 @@ dependencies = [
  "ring",
  "untrusted",
 ]
+
+[[package]]
+name = "semver"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
 
 [[package]]
 name = "serde"

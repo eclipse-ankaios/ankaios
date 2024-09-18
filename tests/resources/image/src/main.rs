@@ -324,6 +324,8 @@ impl Connection {
             FromAnkaiosEnum::Response(response) => {
                 common::from_server_interface::FromServer::Response(response)
             }
+            // TODO take care of the connection closed workflow
+            FromAnkaiosEnum::Closed(_) => todo!(),
         })
     }
 
