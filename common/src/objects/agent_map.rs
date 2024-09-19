@@ -16,10 +16,16 @@ use api::ank_base;
 use serde::{Deserialize, Serialize};
 use std::collections::{hash_map::Entry, HashMap};
 
+use crate::commands;
+
 type AgentName = String;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-pub struct AgentAttributes {} // empty for now, but used for future expansion
+pub struct AgentAttributes {
+    pub cpu_usage: u32,
+    pub used_memory: u64,
+    pub total_memory: u64,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct AgentMap(HashMap<AgentName, AgentAttributes>);
@@ -36,6 +42,15 @@ impl AgentMap {
 
     pub fn remove(&mut self, key: &str) {
         self.0.remove(key);
+    }
+
+    pub fn update_resource_availability(&mut self, agent_resource: commands::AgentResource) {
+        (*self.0.get_mut(agent_resource.agent_name.as_str()).unwrap()).cpu_usage =
+            agent_resource.cpu_usage;
+        (*self.0.get_mut(agent_resource.agent_name.as_str()).unwrap()).cpu_usage =
+            agent_resource.cpu_usage;
+        (*self.0.get_mut(agent_resource.agent_name.as_str()).unwrap()).cpu_usage =
+            agent_resource.cpu_usage;
     }
 }
 
@@ -60,7 +75,14 @@ impl From<ank_base::AgentMap> for AgentMap {
         AgentMap(
             item.agents
                 .into_keys()
-                .map(|agent_name| (agent_name, AgentAttributes {}))
+                .map(|agent_name| {
+                    (
+                        agent_name,
+                        AgentAttributes {
+                            ..Default::default()
+                        },
+                    )
+                })
                 .collect(),
         )
     }

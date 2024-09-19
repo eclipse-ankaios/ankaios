@@ -16,6 +16,8 @@ use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec};
 use api::ank_base;
 use serde::{Deserialize, Serialize};
 
+// enum myFloat
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentHello {
     pub agent_name: String,
@@ -23,7 +25,10 @@ pub struct AgentHello {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentResource {
-    pub info: String,
+    pub agent_name: String,
+    pub cpu_usage: u32,
+    pub used_memory: u64,
+    pub total_memory: u64,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

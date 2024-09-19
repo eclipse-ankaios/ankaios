@@ -3,7 +3,7 @@ desiredState:
     nginx:
       runtime: podman
       agent: agent_A
-      restartPolicy: ALWAYS
+      restartPolicy: NEVER
       tags:
         - key: owner
           value: Ankaios team

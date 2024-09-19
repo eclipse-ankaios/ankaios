@@ -50,7 +50,10 @@ impl fmt::Display for ToServerError {
 #[async_trait]
 pub trait ToServerInterface {
     async fn agent_hello(&self, agent_name: String) -> Result<(), ToServerError>;
-    async fn agent_resource(&self, agent_name: String) -> Result<(), ToServerError>;
+    async fn agent_resource(
+        &self,
+        agent_resource: commands::AgentResource,
+    ) -> Result<(), ToServerError>;
     async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError>;
     async fn update_state(
         &self,
@@ -81,12 +84,11 @@ impl ToServerInterface for ToServerSender {
             .await?)
     }
 
-    async fn agent_resource(&self, agent_name: String) -> Result<(), ToServerError> {
-        Ok(self
-            .send(ToServer::AgentResource(commands::AgentResource {
-                info: agent_name,
-            }))
-            .await?)
+    async fn agent_resource(
+        &self,
+        agent_resource: commands::AgentResource,
+    ) -> Result<(), ToServerError> {
+        Ok(self.send(ToServer::AgentResource(agent_resource)).await?)
     }
 
     async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError> {

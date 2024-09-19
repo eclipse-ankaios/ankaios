@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base;
+use common::commands;
 
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
@@ -279,6 +280,10 @@ impl ServerState {
         self.state.agents.remove(agent_name);
     }
 
+    pub fn update_agent_resource_availability(&mut self, agent_resource: commands::AgentResource) {
+        self.state.agents.update_resource_availability(agent_resource);
+    }
+
     // [impl->swdd~server-cleans-up-state~1]
     pub fn cleanup_state(&mut self, new_workload_states: &[WorkloadState]) {
         // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
@@ -302,10 +307,10 @@ mod tests {
     use common::{
         commands::CompleteStateRequest,
         objects::{
-            generate_test_agent_map, generate_test_stored_workload_spec, 
-            generate_test_workload_spec_with_control_interface_access, 
-            generate_test_workload_spec_with_param, AgentMap,
-            CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
+            generate_test_agent_map, generate_test_stored_workload_spec,
+            generate_test_workload_spec_with_control_interface_access,
+            generate_test_workload_spec_with_param, AgentMap, CompleteState, DeletedWorkload,
+            State, WorkloadSpec, WorkloadStatesMap,
         },
         test_utils::{self, generate_test_complete_state},
     };

@@ -122,8 +122,8 @@ pub async fn forward_from_proto_to_ankaios(
             }
 
             ToServerEnum::AgentResource(_agent_resource) => {
-                log::info!("AgentResource blahblah {}", _agent_resource.info);
-                sink.agent_resource(_agent_resource.info).await?;
+                log::trace!("Received AgentResource from {}", _agent_resource.agent_name);
+                sink.agent_resource(_agent_resource.into()).await?;
             }
 
             unknown_message => {
@@ -175,12 +175,18 @@ pub async fn forward_from_ankaios_to_proto(
             }
 
             ToServer::AgentResource(measurement) => {
-                log::info!("AgentResource something. {}", measurement.info);
+                log::trace!(
+                    "Received AgentResource from agent {}",
+                    measurement.agent_name
+                );
                 grpc_tx
                     .send(grpc_api::ToServer {
                         to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentResource(
                             common::commands::AgentResource {
-                                info: measurement.info,
+                                agent_name: measurement.agent_name,
+                                cpu_usage: measurement.cpu_usage,
+                                used_memory: measurement.used_memory,
+                                total_memory: measurement.total_memory,
                             }
                             .into(),
                         )),

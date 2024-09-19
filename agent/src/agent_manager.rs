@@ -14,6 +14,7 @@
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
 use common::{
+    commands::AgentResource,
     from_server_interface::{FromServer, FromServerReceiver},
     objects::WorkloadState,
     std_extensions::{GracefulExitResult, IllegalStateResult},
@@ -211,18 +212,25 @@ impl AgentManager {
 
         sys.refresh_all();
 
-        let cpu_usage = sys.global_cpu_usage();
-        let memory_usage = sys.used_memory();
+        let cpu_usage: u32 = (sys.global_cpu_usage() * 100.0) as u32;
+        let used_memory = sys.used_memory();
+        let total_memory = sys.total_memory();
 
         log::info!(
-            "Agent '{}' reports resource usage: CPU: {:.2}%, Memory: {}",
+            "Agent '{}' reports resource usage: CPU: {:.2}%, Used Memory: {}, Total Memory: {}",
             self.agent_name,
             cpu_usage,
-            memory_usage
+            used_memory,
+            total_memory
         );
 
         self.to_server
-            .agent_resource(self.agent_name.clone())
+            .agent_resource(AgentResource {
+                agent_name: self.agent_name.clone(),
+                cpu_usage,
+                used_memory,
+                total_memory,
+            })
             .await
             .unwrap_or_illegal_state();
     }

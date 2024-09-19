@@ -75,7 +75,10 @@ message AgentHello {
 * A message to the Ankaios server to provide basic node resource availability.
 */
 message AgentResource {
-    string info = 1; /// A unique agent name.
+    string agent_name = 1; /// A unique agent name.
+    uint32  cpu_load = 2;
+    uint64 used_memory = 3;
+    uint64 total_memory = 4;
 }
 
 /**

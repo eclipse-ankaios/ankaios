@@ -184,9 +184,13 @@ impl AnkaiosServer {
                     self.server_state.add_agent(agent_name);
                 }
                 ToServer::AgentResource(method_obj) => {
-                    log::info!("Received available resources '{}", method_obj.info);
-                    let measurement = method_obj.info;
-                    log::info!("Received measurement: '{}'", measurement);
+                    log::trace!(
+                        "Received available resources from agent '{}'",
+                        method_obj.agent_name
+                    );
+                    // TODO: process and store
+                    self.server_state
+                        .update_agent_resource_availability(method_obj);
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);

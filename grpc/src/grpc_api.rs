@@ -31,13 +31,23 @@ impl From<AgentHello> for commands::AgentHello {
 
 impl From<AgentResource> for commands::AgentResource {
     fn from(item: AgentResource) -> Self {
-        commands::AgentResource { info: item.info }
+        commands::AgentResource {
+            agent_name: item.agent_name,
+            cpu_usage: item.cpu_load,
+            used_memory: item.used_memory,
+            total_memory: item.total_memory,
+        }
     }
 }
 
 impl From<commands::AgentResource> for AgentResource {
     fn from(item: commands::AgentResource) -> Self {
-        AgentResource { info: item.info }
+        AgentResource {
+            agent_name: item.agent_name,
+            cpu_load: item.cpu_usage,
+            used_memory: item.used_memory,
+            total_memory: item.total_memory,
+        }
     }
 }
 
