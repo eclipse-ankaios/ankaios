@@ -216,7 +216,7 @@ impl AgentManager {
         let used_memory = sys.used_memory();
         let total_memory = sys.total_memory();
 
-        log::info!(
+        log::trace!(
             "Agent '{}' reports resource usage: CPU: {:.2}%, Used Memory: {}, Total Memory: {}",
             self.agent_name,
             cpu_usage,

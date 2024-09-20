@@ -45,12 +45,12 @@ impl AgentMap {
     }
 
     pub fn update_resource_availability(&mut self, agent_resource: commands::AgentResource) {
-        (*self.0.get_mut(agent_resource.agent_name.as_str()).unwrap()).cpu_usage =
-            agent_resource.cpu_usage;
-        (*self.0.get_mut(agent_resource.agent_name.as_str()).unwrap()).cpu_usage =
-            agent_resource.cpu_usage;
-        (*self.0.get_mut(agent_resource.agent_name.as_str()).unwrap()).cpu_usage =
-            agent_resource.cpu_usage;
+        self.0.entry(agent_resource.agent_name).and_modify(|e| {
+            e.cpu_usage = agent_resource.cpu_usage;
+            e.used_memory = agent_resource.used_memory;
+            e.total_memory = agent_resource.total_memory;
+        });
+        log::info!("SELF: {:?}", self);
     }
 }
 
@@ -63,8 +63,17 @@ impl From<AgentMap> for Option<ank_base::AgentMap> {
         Some(ank_base::AgentMap {
             agents: item
                 .0
-                .into_keys()
-                .map(|agent_name| (agent_name, ank_base::AgentAttributes {}))
+                .into_iter()
+                .map(|(agent_name, agent_attributes)| {
+                    (
+                        agent_name,
+                        ank_base::AgentAttributes {
+                            cpu_usage: agent_attributes.cpu_usage,
+                            used_memory: agent_attributes.used_memory,
+                            total_memory: agent_attributes.total_memory,
+                        },
+                    )
+                })
                 .collect(),
         })
     }

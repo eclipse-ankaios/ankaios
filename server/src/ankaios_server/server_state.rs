@@ -281,7 +281,9 @@ impl ServerState {
     }
 
     pub fn update_agent_resource_availability(&mut self, agent_resource: commands::AgentResource) {
-        self.state.agents.update_resource_availability(agent_resource);
+        self.state
+            .agents
+            .update_resource_availability(agent_resource);
     }
 
     // [impl->swdd~server-cleans-up-state~1]

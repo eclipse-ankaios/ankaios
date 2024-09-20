@@ -15,6 +15,7 @@ use super::CliCommands;
 use crate::{
     cli_commands::{agent_table_row::AgentTableRow, cli_table::CliTable},
     cli_error::CliError,
+    filtered_complete_state::FilteredAgentAttributes,
     output_debug,
 };
 
@@ -35,9 +36,10 @@ impl CliCommands {
 
         let connected_agents = filtered_complete_state
             .agents
-            .and_then(|agents| agents.agents)
+            .unwrap()
+            .agents
             .unwrap_or_default()
-            .into_keys();
+            .into_iter();
 
         let agent_table_rows = transform_into_table_rows(connected_agents, &workload_states_map);
 
@@ -49,11 +51,11 @@ impl CliCommands {
 }
 
 fn transform_into_table_rows(
-    agents_map: impl Iterator<Item = String>,
+    agents_map: impl Iterator<Item = (String, FilteredAgentAttributes)>,
     workload_states_map: &WorkloadStatesMap,
 ) -> Vec<AgentTableRow> {
     let mut agent_table_rows: Vec<AgentTableRow> = agents_map
-        .map(|agent_name| {
+        .map(|(agent_name, agent_attributes)| {
             let workload_states_count = workload_states_map
                 .get_workload_state_for_agent(&agent_name)
                 .len() as u32;
@@ -61,6 +63,9 @@ fn transform_into_table_rows(
             AgentTableRow {
                 agent_name,
                 workloads: workload_states_count,
+                cpu_usage: agent_attributes.cpu_usage.unwrap(),
+                used_memory: agent_attributes.used_memory.unwrap(),
+                total_memory: agent_attributes.total_memory.unwrap(),
             }
         })
         .collect();

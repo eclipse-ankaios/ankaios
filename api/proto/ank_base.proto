@@ -201,7 +201,11 @@ message AgentMap {
 /**
 * A message that has not yet been implemented but will contain attributes of the agent in the future.
 */
-message AgentAttributes {}
+message AgentAttributes {
+    uint32 cpu_usage = 1;
+    uint64 used_memory = 2;
+    uint64 total_memory = 3;
+}
 
 /**
 * A message containing the information about the workload state.
