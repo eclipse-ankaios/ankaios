@@ -74,19 +74,45 @@ mock! {
 pub struct WaitList<T> {
     pub added_workloads: HashSet<WorkloadInstanceName>,
     pub deleted_workloads: HashSet<WorkloadInstanceName>,
+    connected_agents: HashSet<String>,
     display: T,
 }
 
 impl<T: WaitListDisplayTrait> WaitList<T> {
-    pub fn new(value: ParsedUpdateStateSuccess, display: T) -> Self {
+    pub fn new(
+        value: ParsedUpdateStateSuccess,
+        connected_agents: HashSet<String>,
+        display: T,
+    ) -> Self {
         Self {
             added_workloads: value.added_workloads.into_iter().collect(),
             deleted_workloads: value.deleted_workloads.into_iter().collect(),
+            connected_agents,
             display,
         }
     }
 
     pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadState>) {
+        // prevent infinite waiting for added workloads with disconnected agent
+        self.added_workloads.retain(|added_wl| {
+            if !self.connected_agents.contains(added_wl.agent_name()) {
+                self.display.set_complete(added_wl);
+                false
+            } else {
+                true
+            }
+        });
+
+        // prevent infinite waiting for deleted workloads with disconnected agent
+        self.deleted_workloads.retain(|deleted_wl| {
+            if !self.connected_agents.contains(deleted_wl.agent_name()) {
+                self.display.set_complete(deleted_wl);
+                false
+            } else {
+                true
+            }
+        });
+
         for workload_state in values.into_iter() {
             self.display.update(&workload_state);
             // [impl->swdd~cli-checks-for-final-workload-state~2]

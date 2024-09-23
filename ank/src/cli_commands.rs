@@ -39,7 +39,7 @@ mod set_state;
 use common::{
     communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServer,
-    objects::{CompleteState, State, WorkloadInstanceName, WorkloadState},
+    objects::{CompleteState, State, WorkloadInstanceName, WorkloadState, WorkloadStatesMap},
 };
 
 use wait_list_display::WaitListDisplay;
@@ -47,8 +47,10 @@ use wait_list_display::WaitListDisplay;
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
 use crate::{
-    cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError,
-    filtered_complete_state::FilteredWorkloadSpec, output, output_debug,
+    cli_commands::wait_list::ParsedUpdateStateSuccess,
+    cli_error::CliError,
+    filtered_complete_state::{FilteredCompleteState, FilteredWorkloadSpec},
+    output, output_debug,
 };
 
 #[cfg(test)]
@@ -114,10 +116,10 @@ impl IntoIterator for WorkloadInfos {
     }
 }
 
-impl From<Vec<WorkloadState>> for WorkloadInfos {
-    fn from(workload_states: Vec<WorkloadState>) -> Self {
+impl From<WorkloadStatesMap> for WorkloadInfos {
+    fn from(workload_states_map: WorkloadStatesMap) -> Self {
         WorkloadInfos(
-            workload_states
+            Vec::<WorkloadState>::from(workload_states_map)
                 .into_iter()
                 .map(|wl_state| {
                     (
@@ -173,18 +175,26 @@ impl CliCommands {
             .get_complete_state(&Vec::new())
             .await?;
 
-        let wl_states = res_complete_state.workload_states.unwrap_or_default();
-        let workload_infos = WorkloadInfos::from(Vec::<WorkloadState>::from(wl_states));
+        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
+        let workload_infos_with_runtime = self.transform_into_workload_infos(res_complete_state);
+
+        Ok(workload_infos_with_runtime)
+    }
+
+    fn transform_into_workload_infos(
+        &self,
+        complete_state: FilteredCompleteState,
+    ) -> WorkloadInfos {
+        let workload_states_map = complete_state.workload_states.unwrap_or_default();
+        let workload_infos = WorkloadInfos::from(workload_states_map);
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        let desired_state_workloads = res_complete_state
+        let desired_state_workloads = complete_state
             .desired_state
             .and_then(|desired_state| desired_state.workloads)
             .unwrap_or_default();
 
-        let workload_infos_with_runtime =
-            self.add_runtime_name_to_workload_infos(workload_infos, desired_state_workloads);
-        Ok(workload_infos_with_runtime)
+        self.add_runtime_name_to_workload_infos(workload_infos, desired_state_workloads)
     }
 
     fn add_runtime_name_to_workload_infos(
@@ -250,7 +260,7 @@ impl CliCommands {
     async fn wait_for_complete(
         &mut self,
         update_state_success: ParsedUpdateStateSuccess,
-        current_workload_infos: BTreeMap<WorkloadInstanceName, WorkloadTableRow>,
+        previous_workload_infos: BTreeMap<WorkloadInstanceName, WorkloadTableRow>,
     ) -> Result<(), CliError> {
         output_debug!("updated state success: {:?}", update_state_success);
 
@@ -265,27 +275,42 @@ impl CliCommands {
             output!("Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n");
         }
 
-        let added_workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> = self
-            .get_workloads()
-            .await?
-            .into_iter()
-            .filter(|new_workload_info| {
-                update_state_success
-                    .added_workloads
-                    .contains(&new_workload_info.0)
-                    && !current_workload_infos.contains_key(&new_workload_info.0)
-            })
+        let mut new_complete_state = self
+            .server_connection
+            .get_complete_state(&Vec::new())
+            .await?;
+
+        let connected_agents: HashSet<String> = new_complete_state
+            .agents
+            .take()
+            .and_then(|agents| agents.agents)
+            .unwrap_or_default()
+            .into_keys()
             .collect();
 
-        let mut states_of_changed_workloads = current_workload_infos
+        let new_workload_infos = self.transform_into_workload_infos(new_complete_state);
+
+        let added_workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> =
+            new_workload_infos
+                .into_iter()
+                .filter(|new_workload_info| {
+                    update_state_success
+                        .added_workloads
+                        .contains(&new_workload_info.0)
+                        && !previous_workload_infos.contains_key(&new_workload_info.0)
+                })
+                .collect();
+
+        let mut states_of_changed_workloads = previous_workload_infos
             .into_iter()
-            .filter(|x| changed_workloads.contains(&x.0))
+            .filter(|(instance_name, _)| changed_workloads.contains(instance_name))
             .collect::<Vec<_>>();
 
         states_of_changed_workloads.extend(added_workload_infos);
 
         let mut wait_list = WaitList::new(
             update_state_success,
+            connected_agents,
             WaitListDisplay {
                 data: states_of_changed_workloads.into_iter().collect(),
                 spinner: Default::default(),
