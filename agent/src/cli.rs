@@ -26,10 +26,10 @@ const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
 const RUNFOLDER_SUFFIX: &str = "_io";
 
 // [impl->swdd~agent-naming-convention~1]
-fn validate_agent_name(name: &str) -> Result<(), String> {
+fn validate_agent_name(name: &str) -> Result<String, String> {
     let re = Regex::new(STR_RE_AGENT).unwrap();
     if re.is_match(name) {
-        Ok(())
+        Ok(name.to_string())
     } else {
         Err(format!(
             "Agent name '{}' is invalid. It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.",
@@ -46,7 +46,7 @@ fn validate_agent_name(name: &str) -> Result<(), String> {
         about="Ankaios - your friendly automotive workload orchestrator.\nWhat can the agent do for you?")
 ]
 pub struct Arguments {
-    #[clap(short = 'n', long = "name", value_parser = validate_agent_name)]
+    #[clap(short = 'n', long = "name", value_parser = clap::builder::ValueParser::new(validate_agent_name))]
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
     /// Agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
     pub agent_name: String,
