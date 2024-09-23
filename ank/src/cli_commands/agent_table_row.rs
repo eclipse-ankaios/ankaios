@@ -23,8 +23,6 @@ pub struct AgentTableRow {
     pub workloads: u32,
     #[tabled(rename = "CPU USAGE")]
     pub cpu_usage: u32,
-    #[tabled(rename = "USED MEMORY")]
-    pub used_memory: u64,
-    #[tabled(rename = "TOTAL MEMORY")]
-    pub total_memory: u64,
+    #[tabled(rename = "FREE MEMORY")]
+    pub free_memory: u64,
 }

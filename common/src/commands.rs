@@ -27,8 +27,7 @@ pub struct AgentHello {
 pub struct AgentResource {
     pub agent_name: String,
     pub cpu_usage: u32,
-    pub used_memory: u64,
-    pub total_memory: u64,
+    pub free_memory: u64,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

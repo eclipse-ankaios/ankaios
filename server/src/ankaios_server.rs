@@ -185,11 +185,10 @@ impl AnkaiosServer {
                 }
                 ToServer::AgentResource(method_obj) => {
                     log::trace!(
-                        "Received available resources from agent '{}': CPU: {:.2}%, Used Memory: {}, Total Memory: {}",
+                        "Received available resources from agent '{}': CPU: {:.2}%, Free Memory: {}",
                         method_obj.agent_name,
                         method_obj.cpu_usage,
-                        method_obj.used_memory,
-                        method_obj.total_memory,
+                        method_obj.free_memory,
                     );
                     // TODO: process and store
                     self.server_state

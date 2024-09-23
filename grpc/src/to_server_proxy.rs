@@ -185,8 +185,7 @@ pub async fn forward_from_ankaios_to_proto(
                             common::commands::AgentResource {
                                 agent_name: measurement.agent_name,
                                 cpu_usage: measurement.cpu_usage,
-                                used_memory: measurement.used_memory,
-                                total_memory: measurement.total_memory,
+                                free_memory: measurement.free_memory,
                             }
                             .into(),
                         )),

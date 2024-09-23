@@ -75,9 +75,7 @@ pub struct FilteredAgentAttributes {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpu_usage: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub used_memory: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub total_memory: Option<u64>,
+    pub free_memory: Option<u64>,
 } // empty for now, but used for future expansion
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -172,8 +170,7 @@ impl From<ank_base::AgentMap> for FilteredAgentMap {
                             agent_name,
                             FilteredAgentAttributes {
                                 cpu_usage: Some(agent_attributes.cpu_usage),
-                                used_memory: Some(agent_attributes.used_memory),
-                                total_memory: Some(agent_attributes.total_memory),
+                                free_memory: Some(agent_attributes.free_memory),
                             },
                         )
                     })

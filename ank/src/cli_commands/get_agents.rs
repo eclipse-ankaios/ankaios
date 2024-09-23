@@ -64,8 +64,7 @@ fn transform_into_table_rows(
                 agent_name,
                 workloads: workload_states_count,
                 cpu_usage: agent_attributes.cpu_usage.unwrap(),
-                used_memory: agent_attributes.used_memory.unwrap(),
-                total_memory: agent_attributes.total_memory.unwrap(),
+                free_memory: agent_attributes.free_memory.unwrap(),
             }
         })
         .collect();

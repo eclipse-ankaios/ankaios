@@ -213,23 +213,20 @@ impl AgentManager {
         sys.refresh_all();
 
         let cpu_usage: u32 = (sys.global_cpu_usage() * 100.0) as u32;
-        let used_memory = sys.used_memory();
-        let total_memory = sys.total_memory();
+        let free_memory = sys.free_memory();
 
         log::trace!(
-            "Agent '{}' reports resource usage: CPU: {:.2}%, Used Memory: {}, Total Memory: {}",
+            "Agent '{}' reports resource usage: CPU: {:.2}%, Free Memory: {} MB",
             self.agent_name,
             cpu_usage,
-            used_memory,
-            total_memory
+            free_memory,
         );
 
         self.to_server
             .agent_resource(AgentResource {
                 agent_name: self.agent_name.clone(),
                 cpu_usage,
-                used_memory,
-                total_memory,
+                free_memory,
             })
             .await
             .unwrap_or_illegal_state();

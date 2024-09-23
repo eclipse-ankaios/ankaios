@@ -34,8 +34,7 @@ impl From<AgentResource> for commands::AgentResource {
         commands::AgentResource {
             agent_name: item.agent_name,
             cpu_usage: item.cpu_load,
-            used_memory: item.used_memory,
-            total_memory: item.total_memory,
+            free_memory: item.free_memory,
         }
     }
 }
@@ -45,8 +44,7 @@ impl From<commands::AgentResource> for AgentResource {
         AgentResource {
             agent_name: item.agent_name,
             cpu_load: item.cpu_usage,
-            used_memory: item.used_memory,
-            total_memory: item.total_memory,
+            free_memory: item.free_memory,
         }
     }
 }

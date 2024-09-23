@@ -203,8 +203,7 @@ message AgentMap {
 */
 message AgentAttributes {
     uint32 cpu_usage = 1;
-    uint64 used_memory = 2;
-    uint64 total_memory = 3;
+    uint64 free_memory = 2;
 }
 
 /**
