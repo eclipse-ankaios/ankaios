@@ -886,8 +886,6 @@ Needs:
 - impl
 - utest
 
-####
-
 ## Data view
 
 ## Error management view
