@@ -1,4 +1,5 @@
 desiredState:
+  apiVersion: v0.1
   workloads:
     nginx:
       runtime: podman
