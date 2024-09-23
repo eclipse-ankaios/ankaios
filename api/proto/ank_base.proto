@@ -211,13 +211,6 @@ message WorkloadState {
     ExecutionState executionState = 2; /// The workload execution state.
 }
 
-/**
-* In case of workload names, the naming convention states that thier names shall:
-*  - contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_"
-*  - have a minimal length of 1 character
-*  - have a maximal length of 63 characters
-* Also, agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
-*/
 message WorkloadInstanceName {
     string workloadName = 1; /// The name of the workload.
     string agentName = 2; /// The name of the owning Agent.
@@ -234,6 +227,7 @@ message State {
 
 /**
 * This is a workaround for proto not supporing optional maps
+* Workload names shall not be shorter than 1 symbol longer then 63 symbols and can contain only regular characters, digits, the "-" and "_" symbols.
 */
 message WorkloadMap {
     map<string, Workload> workloads = 1;

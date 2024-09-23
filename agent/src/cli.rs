@@ -25,6 +25,7 @@ use common::DEFAULT_SERVER_ADDRESS;
 const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
 const RUNFOLDER_SUFFIX: &str = "_io";
 
+// [impl->swdd~agent-naming-convention~1]
 fn validate_agent_name(name: &str) -> Result<(), String> {
     let re = Regex::new(STR_RE_AGENT).unwrap();
     if re.is_match(name) {

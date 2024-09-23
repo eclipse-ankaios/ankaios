@@ -245,8 +245,7 @@ impl AnkaiosServer {
 
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
                         // [impl->swdd~update-desired-state-with-missing-version~1]
-                        // [impl->swdd~common-workload-naming-convention~1]
-                        // [impl->swdd~common-agent-naming-convention~1]
+                        // [impl->swdd~server-naming-convention~1]
                         if let Err(error_message) =
                             State::verify_format(&update_state_request.state.desired_state)
                         {

@@ -610,6 +610,23 @@ Needs:
 - utest
 - stest
 
+##### Checking naming conventions
+`swdd~server-naming-convention~1`
+
+Status: approved
+
+When the Ankaios Server gets an UpdateStateRequest, the server shall enforce the naming constraints defined in the common library.
+
+Comment:
+We need to check the names of both the workload and agent names in order to ensure the proper function of the filtering.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- stest
+
 ### Update Current State
 
 The behavioral diagram of the updating current state is shown in the chapter "UpdateState interface".
@@ -868,6 +885,8 @@ Tags:
 Needs:
 - impl
 - utest
+
+####
 
 ## Data view
 
