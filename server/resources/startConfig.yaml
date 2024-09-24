@@ -27,7 +27,7 @@ workloads:
       commandArgs: [ "echo", "Hello Ankaios"]
   hello2:
     runtime: podman
-    agent: agent_B
+    agent: agent_A
     restartPolicy: ON_FAILURE
     tags:
       - key: owner
@@ -35,7 +35,7 @@ workloads:
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
-      commandArgs: [ "-c", "echo 'Restarted on failure.'; sleep 2"]
+      commandArgs: [ "-c", "echo 'Restarted on failure.'; sleep 100"]
   hello-pod:
     runtime: podman-kube
     agent: agent_B
