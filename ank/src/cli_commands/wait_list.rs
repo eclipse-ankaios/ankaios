@@ -94,24 +94,18 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
 
     pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadState>) {
         // prevent infinite waiting for added workloads with disconnected agent
-        self.added_workloads.retain(|added_wl| {
-            if !self.connected_agents.contains(added_wl.agent_name()) {
-                self.display.set_complete(added_wl);
-                false
-            } else {
-                true
-            }
-        });
+        Self::retain_workloads_of_connected_agents(
+            &mut self.added_workloads,
+            &mut self.display,
+            &self.connected_agents,
+        );
 
         // prevent infinite waiting for deleted workloads with disconnected agent
-        self.deleted_workloads.retain(|deleted_wl| {
-            if !self.connected_agents.contains(deleted_wl.agent_name()) {
-                self.display.set_complete(deleted_wl);
-                false
-            } else {
-                true
-            }
-        });
+        Self::retain_workloads_of_connected_agents(
+            &mut self.deleted_workloads,
+            &mut self.display,
+            &self.connected_agents,
+        );
 
         for workload_state in values.into_iter() {
             self.display.update(&workload_state);
@@ -135,6 +129,15 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
                         self.display.set_complete(&workload_state.instance_name)
                     }
                 }
+                common::objects::ExecutionStateEnum::AgentDisconnected => {
+                    if self.added_workloads.remove(&workload_state.instance_name) {
+                        self.display.set_complete(&workload_state.instance_name)
+                    }
+
+                    if self.deleted_workloads.remove(&workload_state.instance_name) {
+                        self.display.set_complete(&workload_state.instance_name)
+                    }
+                }
                 _ => {}
             };
         }
@@ -149,6 +152,21 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
 
     pub fn is_empty(&self) -> bool {
         self.added_workloads.is_empty() && self.deleted_workloads.is_empty()
+    }
+
+    fn retain_workloads_of_connected_agents(
+        workload_instance_names: &mut HashSet<WorkloadInstanceName>,
+        display: &mut T,
+        connected_agents: &HashSet<String>,
+    ) {
+        workload_instance_names.retain(|instance_name| {
+            if !connected_agents.contains(instance_name.agent_name()) {
+                display.set_complete(instance_name);
+                false
+            } else {
+                true
+            }
+        });
     }
 }
 
@@ -165,17 +183,20 @@ fn generate_test_wait_list(
     my_mock: MockMyWaitListDisplay,
     added_workloads: Vec<WorkloadInstanceName>,
     deleted_workloads: Vec<WorkloadInstanceName>,
+    connected_agents: HashSet<String>,
 ) -> WaitList<MockMyWaitListDisplay> {
     let update_state_list = ParsedUpdateStateSuccess {
         added_workloads,
         deleted_workloads,
     };
 
-    WaitList::new(update_state_list, my_mock)
+    WaitList::new(update_state_list, connected_agents, my_mock)
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use common::objects::{generate_test_workload_instance_name, ExecutionState, WorkloadState};
     use mockall::predicate::eq;
 
@@ -234,6 +255,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -259,6 +281,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -284,6 +307,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -309,6 +333,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -334,6 +359,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -359,6 +385,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);

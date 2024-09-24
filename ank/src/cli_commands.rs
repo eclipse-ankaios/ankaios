@@ -175,7 +175,6 @@ impl CliCommands {
             .get_complete_state(&Vec::new())
             .await?;
 
-        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         let workload_infos_with_runtime = self.transform_into_workload_infos(res_complete_state);
 
         Ok(workload_infos_with_runtime)
@@ -275,9 +274,10 @@ impl CliCommands {
             output!("Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n");
         }
 
+        let field_mask_whole_complete_state = Vec::new();
         let mut new_complete_state = self
             .server_connection
-            .get_complete_state(&Vec::new())
+            .get_complete_state(&field_mask_whole_complete_state)
             .await?;
 
         let connected_agents: HashSet<String> = new_complete_state
@@ -301,18 +301,18 @@ impl CliCommands {
                 })
                 .collect();
 
-        let mut states_of_changed_workloads = previous_workload_infos
+        let mut changed_workload_infos = previous_workload_infos
             .into_iter()
             .filter(|(instance_name, _)| changed_workloads.contains(instance_name))
             .collect::<Vec<_>>();
 
-        states_of_changed_workloads.extend(added_workload_infos);
+        changed_workload_infos.extend(added_workload_infos);
 
         let mut wait_list = WaitList::new(
             update_state_success,
             connected_agents,
             WaitListDisplay {
-                data: states_of_changed_workloads.into_iter().collect(),
+                data: changed_workload_infos.into_iter().collect(),
                 spinner: Default::default(),
                 not_completed: changed_workloads,
             },
