@@ -8,7 +8,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]
   pending_initial_workload:
     runtime: podman
@@ -18,5 +18,5 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: docker.io/nginx:latest
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: ["-p", "8081:80"]

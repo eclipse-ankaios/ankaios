@@ -13,8 +13,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 *** Settings ***
-Documentation       Tests to verify that Ankaios creates and deletes workloads
-...                 with inter-workload dependencies properly.
+Documentation       Tests to verify that Ankaios deletes workloads of disconnected agents properly
 
 Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
