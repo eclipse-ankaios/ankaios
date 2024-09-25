@@ -29,7 +29,7 @@ Test Ankaios workload successful start-up without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "{agent_name}" have an initial execution state
     # Actions
@@ -42,11 +42,11 @@ Test Ankaios workload restart after update without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/startConfig.yaml"
+    Given Ankaios server is started with config "${CONFIGS_DIR}/simple_with_control.yaml"
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "{agent_name}" have an initial execution state
     # Actions
-    When user triggers "ank -k apply ${CONFIGS_DIR}/default.yaml"
+    When user triggers "ank -k apply ${CONFIGS_DIR}/simple.yaml"
     # Asserts
     Then the mount point has not been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
@@ -56,12 +56,12 @@ Test Ankaios workload restart after update with a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "{agent_name}" have an initial execution state
     And the mount point has not been generated for ${agent_name}
     # Actions
-    When user triggers "ank apply ${CONFIGS_DIR}/startConfig.yaml"
+    When user triggers "ank apply ${CONFIGS_DIR}/simple_with_control.yaml"
     # Asserts
     Then the mount point has been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
