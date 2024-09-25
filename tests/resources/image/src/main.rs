@@ -13,11 +13,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::response::ResponseContent;
-use api::ank_base::{State, UpdateStateRequest};
+use api::ank_base::{Response, State, UpdateStateRequest};
 
 use api::control_api::{from_ankaios::FromAnkaiosEnum, FromAnkaios};
 
-use common::from_server_interface::FromServer;
 use prost::Message;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -53,6 +52,12 @@ struct Command {
 enum CommandEnum {
     UpdateState(UpdateState),
     GetState(GetState),
+    SendHello(Version),
+}
+
+#[derive(Deserialize)]
+struct Version {
+    version: String,
 }
 
 #[derive(Deserialize)]
@@ -77,6 +82,7 @@ enum TestResultEnum {
     UpdateStateResult(TagSerializedResult<UpdateStateResult>),
     GetStateResult(TagSerializedResult<Option<State>>),
     NoApi,
+    SendHelloResult(TagSerializedResult<()>),
 }
 
 #[derive(Serialize)]
@@ -129,14 +135,9 @@ fn main() {
             .map(|x| connection.handle_command(x))
             .collect::<Result<Vec<_>, _>>()
     } else {
-        commands
-            .into_iter()
-            .map(|_| {
-                Ok(TestResult {
-                    result: TestResultEnum::NoApi,
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()
+        Ok(vec![TestResult {
+            result: TestResultEnum::NoApi,
+        }])
     };
 
     match result {
@@ -197,22 +198,34 @@ impl Connection {
         Ok(TestResult {
             result: match command.command {
                 CommandEnum::UpdateState(update_state_command) => {
-                    TestResultEnum::UpdateStateResult(
-                        self.handle_update_state_command(update_state_command)
-                            .into(),
-                    )
+                    self.handle_update_state_command(update_state_command)?
                 }
-                CommandEnum::GetState(get_state_command) => TestResultEnum::GetStateResult(
-                    self.handle_get_state_command(get_state_command).into(),
-                ),
+                CommandEnum::GetState(get_state_command) => {
+                    self.handle_get_state_command(get_state_command)?
+                }
+                CommandEnum::SendHello(Version { version }) => self.send_hello(version)?,
             },
         })
+    }
+
+    fn send_hello(&mut self, protocol_version: String) -> Result<TestResultEnum, String> {
+        let proto = api::control_api::ToAnkaios {
+            to_ankaios_enum: Some(api::control_api::to_ankaios::ToAnkaiosEnum::Hello(
+                api::control_api::Hello { protocol_version },
+            )),
+        };
+
+        Ok(TestResultEnum::SendHelloResult(TagSerializedResult::Ok(
+            self.output
+                .write_all(&proto.encode_length_delimited_to_vec())
+                .map_err(|err| err.to_string())?,
+        )))
     }
 
     pub fn handle_update_state_command(
         &mut self,
         update_state_command: UpdateState,
-    ) -> Result<UpdateStateResult, String> {
+    ) -> Result<TestResultEnum, String> {
         let request_id = self.get_next_id();
 
         let state: common::objects::CompleteState =
@@ -240,22 +253,25 @@ impl Connection {
             .unwrap();
 
         let response = self.wait_for_response(request_id)?;
-        let ResponseContent::UpdateStateSuccess(response) = response else {
-            return Err(format!(
-                "Received wrong response type, expected UpdateStateSuccess: '{:?}'",
-                response
-            ));
-        };
-        Ok(UpdateStateResult {
-            added_workloads: response.added_workloads,
-            deleted_workloads: response.deleted_workloads,
-        })
+
+        Ok(TestResultEnum::UpdateStateResult(match response {
+            ResponseContent::UpdateStateSuccess(response) => {
+                TagSerializedResult::Ok(UpdateStateResult {
+                    added_workloads: response.added_workloads,
+                    deleted_workloads: response.deleted_workloads,
+                })
+            }
+            response_content => TagSerializedResult::Err(format!(
+                "Received wrong response type. Expected UpdateStateSuccess, received: '{:?}'",
+                response_content
+            )),
+        }))
     }
 
     pub fn handle_get_state_command(
         &mut self,
         get_state_command: GetState,
-    ) -> Result<Option<State>, String> {
+    ) -> Result<TestResultEnum, String> {
         let request_id = self.get_next_id();
 
         let request = common::commands::Request {
@@ -279,54 +295,57 @@ impl Connection {
 
         let response = self.wait_for_response(request_id)?;
 
-        let ResponseContent::CompleteState(response) = response else {
-            return Err(format!(
-                "Received wrong response type, expected CompleteState: '{:?}'",
-                response
-            ));
-        };
-        Ok(response.desired_state)
+        Ok(TestResultEnum::GetStateResult(match response {
+            ResponseContent::CompleteState(complete_state) => {
+                TagSerializedResult::Ok(complete_state.desired_state)
+            }
+            response_content => TagSerializedResult::Err(format!(
+                "Received wrong response type. Expected CompleteState, received: '{:?}'",
+                response_content
+            )),
+        }))
     }
 
-    fn wait_for_response(&mut self, request_id: String) -> Result<ResponseContent, String> {
+    fn wait_for_response(&mut self, target_request_id: String) -> Result<ResponseContent, String> {
         loop {
             let message = self.read_message()?;
-            let FromServer::Response(response) = message else {
-                logging::log(&format!("Received message: '{:?}'", message));
-                continue;
-            };
-            if response.request_id == request_id {
-                let Some(response_content) = response.response_content else {
-                    return Err(format!(
-                        "Received Response with correct request_id, but without content: '{:?}'",
-                        response
-                    ));
-                };
-                return Ok(response_content);
-            } else {
-                logging::log(&format!(
+
+            match message {
+                FromAnkaiosEnum::Response(Response {
+                    request_id,
+                    response_content: Some(response_content),
+                }) if request_id.eq(&target_request_id) => return Ok(response_content),
+                FromAnkaiosEnum::Response(Response {
+                    request_id,
+                    response_content: Some(_response_content),
+                }) => logging::log(&format!(
                     "Received unexpected response for request {:}",
-                    response.request_id
-                ));
+                    request_id
+                )),
+                FromAnkaiosEnum::Response(Response {
+                    request_id,
+                    response_content: None,
+                }) => {
+                    return Err(format!(
+                        "Received Response with correct request_id, but without content. Request Id: '{:?}'",
+                        request_id
+                    ))
+                }
+                FromAnkaiosEnum::ConnectionClosed(_) => {
+                    return Err("Control Interface connection closed by Ankaios.".into())
+                }
             }
         }
     }
 
-    fn read_message(&mut self) -> Result<common::from_server_interface::FromServer, String> {
+    fn read_message(&mut self) -> Result<FromAnkaiosEnum, String> {
         let binary = self
             .read_protobuf_data()
             .map_err(|err| format!("Failed to read message from input stream: '{}'", err))?;
-        let from_ankaios = FromAnkaios::decode(&mut Box::new(binary.as_ref()))
+        FromAnkaios::decode(&mut Box::new(binary.as_ref()))
             .map_err(|err| format!("Could not decode proto received from input: '{}'", err))?
             .from_ankaios_enum
-            .ok_or_else(|| "The field FromAnkaiosEnum not set".to_string())?;
-        Ok(match from_ankaios {
-            FromAnkaiosEnum::Response(response) => {
-                common::from_server_interface::FromServer::Response(response)
-            }
-            // TODO take care of the connection closed workflow
-            FromAnkaiosEnum::Closed(_) => todo!(),
-        })
+            .ok_or_else(|| "The field FromAnkaiosEnum not set".to_string())
     }
 
     fn read_protobuf_data(&mut self) -> Result<Box<[u8]>, io::Error> {

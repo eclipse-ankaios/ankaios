@@ -52,7 +52,7 @@ message Hello {
 message FromAnkaios {
   oneof FromAnkaiosEnum {
     ank_base.Response response = 3; /// A message containing a response to a previous request.
-    ConnectionClosed closed = 5; /// A message send by Ankaios to inform a workload that the connection to Anakios was closed.
+    ConnectionClosed connectionClosed = 5; /// A message send by Ankaios to inform a workload that the connection to Anakios was closed.
   }
 }
 

@@ -236,7 +236,7 @@ def json_to_dict(raw):
 
 def find_control_interface_test_tag():
     global control_interface_tester_tag
-    control_interface_tester_tag = "manual-build-2"
+    control_interface_tester_tag = "manual-build-3"
 
 def prepare_test_control_interface_workload():
     global control_interface_workload_config
@@ -288,6 +288,15 @@ def internal_add_update_state_command(manifest, update_mask):
             "type": "UpdateState",
             "manifest_file": path.join("/data", internal_manifest_name),
             "update_mask": update_mask
+        }
+    })
+
+def internal_send_initial_hello(version):
+    global control_interface_workload_config
+    control_interface_workload_config.append({
+        "command": {
+            "type": "SendHello",
+            "version": version
         }
     })
 
@@ -344,9 +353,10 @@ def internal_check_all_control_interface_requests_succeeded(tmp_folder):
 def internal_check_all_control_interface_requests_failed(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
     for test_number,test_result in enumerate(output):
-        test_result = test_result["result"]["value"]["type"] != "Ok"
-        assert test_result, \
-            f"Expected request {test_number + 1} to fail, but it succeeded"
+        if test_result["result"]["type"] != "SendHelloResult":
+            test_result = test_result["result"]["value"]["type"] != "Ok"
+            assert test_result, \
+                f"Expected request {test_number + 1} to fail, but it succeeded"
 
 def internal_check_no_access_to_control_interface(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))

@@ -511,19 +511,29 @@ Setup Ankaios for Control Interface test
     Prepare Test Control Interface Workload
 
 The controller workload has no access rights
-    empty_keyword
+    The controller workload sends initial hello with correct version
 
 The controller workload is allowed to ${operation}
     Control interface allows to ${operation} on ${EMPTY}
+    The controller workload sends initial hello with correct version
 
 The controller workload is allowed to ${operation} on ${filter_mask}
     internal_allow_control_interface    ${operation}     ${filter_mask}
+    The controller workload sends initial hello with correct version
 
 The controller workload is forbidden to ${operation}
     Control interface denies to ${operation} on ${EMPTY}
+    The controller workload sends initial hello with correct version
 
 The controller workload is forbidden to ${operation} on ${filter_mask}
     internal_deny_control_interface    ${operation}     ${filter_mask}
+    The controller workload sends initial hello with correct version
+
+The controller workload sends initial hello with correct version
+    internal_send_initial_hello    0.4.0
+
+The controller workload sends initial hello with version    ${version}
+    internal_send_initial_hello    ${version}
 
 The controller workload updates the state with manifest "${manifest}"
     The controller workload updates the state with manifest "${manifest}" and update mask ${EMPTY}

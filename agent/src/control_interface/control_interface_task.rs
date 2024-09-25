@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use crate::control_interface::ToAnkaios;
+use crate::control_interface::{to_ankaios, ToAnkaios};
 
 #[cfg_attr(test, mockall_double::double)]
 use super::authorizer::Authorizer;
@@ -22,6 +22,7 @@ use super::authorizer::Authorizer;
 use super::reopen_file::ReopenFile;
 use api::{ank_base, control_api};
 use common::{
+    check_version_compatibility,
     from_server_interface::{FromServer, FromServerReceiver},
     to_server_interface::{ToServer, ToServerSender},
 };
@@ -63,7 +64,30 @@ impl ControlInterfaceTask {
             authorizer,
         }
     }
+
+    async fn check_initial_hello(&mut self) -> Result<(), String> {
+        if let Ok(to_ankaios) = decode_to_server(self.input_stream.read_protobuf_data().await) {
+            match to_ankaios.try_into() {
+                Ok(ToAnkaios::Hello(to_ankaios::Hello { protocol_version })) => {
+                    check_version_compatibility(protocol_version)?
+                }
+                unexpected => {
+                    return Err(format!(
+                        "Protocol error: no initial Hello received: '{unexpected:?};."
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub async fn run(mut self) {
+        if let Err(message) = self.check_initial_hello().await {
+            log::warn!("{message}");
+            let _ = self.send_connection_closed(message).await;
+            return;
+        }
+
         loop {
             select! {
                 // [impl->swdd~agent-ensures-control-interface-output-pipe-read~1]
@@ -96,11 +120,16 @@ impl ControlInterfaceTask {
                                     let _ = self.forward_from_server(error).await;
                                 };
                             },
-                            // TODO: handle the hello message from a workloads
-                            Ok(ToAnkaios::Hello(_)) => todo!(),
+                            Ok(ToAnkaios::Hello(to_ankaios::Hello{protocol_version})) => {
+                                log::warn!("Received a second Hello with protocol version '{protocol_version}'");
+                                if let Err(message) = check_version_compatibility(protocol_version) {
+                                    log::warn!("{message}");
+                                    let _ = self.send_connection_closed(message).await;
+                                    return;
+                                }
+                            }
                             Err(error) => {
                                 log::warn!("Could not convert protobuf in internal data structure: '{}'", error);
-
                             }
                         }
                     } else {
@@ -118,6 +147,21 @@ impl ControlInterfaceTask {
     #[cfg_attr(test, allow(dead_code))]
     pub fn run_task(self) -> JoinHandle<()> {
         tokio::spawn(self.run())
+    }
+
+    async fn send_connection_closed(&mut self, reason: String) -> io::Result<()> {
+        use control_api::from_ankaios::FromAnkaiosEnum;
+        let message = control_api::FromAnkaios {
+            from_ankaios_enum: Some(FromAnkaiosEnum::ConnectionClosed(
+                control_api::ConnectionClosed { reason },
+            )),
+        };
+
+        // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
+        let binary = message.encode_length_delimited_to_vec();
+        self.output_stream.write_all(&binary).await?;
+
+        Ok(())
     }
 
     async fn forward_from_server(&mut self, response: ank_base::Response) -> io::Result<()> {
