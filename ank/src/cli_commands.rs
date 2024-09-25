@@ -119,6 +119,7 @@ impl IntoIterator for WorkloadInfos {
 impl From<WorkloadStatesMap> for WorkloadInfos {
     fn from(workload_states_map: WorkloadStatesMap) -> Self {
         WorkloadInfos(
+            // invoking this from is cheaper then repeating the code to flatten the wl state map
             Vec::<WorkloadState>::from(workload_states_map)
                 .into_iter()
                 .map(|wl_state| {
