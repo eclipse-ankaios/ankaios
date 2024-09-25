@@ -19,9 +19,7 @@ use std::{
 
 use common::objects::WorkloadInstanceName;
 
-use crate::{
-    cli_commands::workload_table_row::WorkloadTableRowWithSpinner, output_debug, output_warn,
-};
+use crate::{cli_commands::workload_table_row::WorkloadTableRowWithSpinner, output_warn};
 
 use super::cli_table::CliTable;
 use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};
@@ -77,11 +75,6 @@ impl WaitListDisplayTrait for WaitListDisplay {
         if let Some(entry) = self.data.get_mut(&workload_state.instance_name) {
             entry.execution_state = workload_state.execution_state.state.to_string();
             entry.set_additional_info(&workload_state.execution_state.additional_info);
-        } else {
-            output_debug!(
-                "Could not find workload instance name in wait list display: '{}'",
-                workload_state.instance_name
-            );
         }
     }
 
