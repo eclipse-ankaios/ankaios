@@ -637,16 +637,18 @@ Needs:
 - utest
 
 #### CLI checks for final state of a workload
-`swdd~cli-checks-for-final-workload-state~2`
+`swdd~cli-checks-for-final-workload-state~3`
 
 Status: approved
 
-When the CLI checks if a workload has reached its final expected workload execution state, the CLI shall regard the state for final if the state is one of:
+When the CLI checks if a workload has reached its final expected state, the CLI shall regard the state for final if the agent managing that workload is disconnected or the execution state is one of:
 * Running(Ok)
 * Succeeded(Ok)
 * Failed(ExecFailed)
+* NotScheduled
 * Removed
 * Pending(StartingFailed)
+* AgentDisconnected
 
 Tags:
 - CliCommands
