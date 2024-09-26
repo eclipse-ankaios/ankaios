@@ -388,7 +388,10 @@ impl AnkaiosServer {
             .contains_connected_agent(deleted_workload.instance_name.agent_name())
             && self
                 .workload_states_map
-                .workload_is_pending_initial(&deleted_workload.instance_name)
+                .get_workload_state_for_workload(&deleted_workload.instance_name)
+                .map_or(false, |current_execution_state| {
+                    current_execution_state.is_pending_initial()
+                })
     }
 }
 
