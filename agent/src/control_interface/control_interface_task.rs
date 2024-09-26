@@ -30,7 +30,7 @@ use common::{
 use prost::Message;
 use tokio::{io, select, task::JoinHandle};
 
-fn decode_to_server(protobuf_data: io::Result<Box<[u8]>>) -> io::Result<control_api::ToAnkaios> {
+fn decode_to_server(protobuf_data: io::Result<Vec<u8>>) -> io::Result<control_api::ToAnkaios> {
     Ok(control_api::ToAnkaios::decode(&mut Box::new(
         protobuf_data?.as_ref(),
     ))?)
@@ -291,13 +291,19 @@ mod tests {
         let mut mockall_seq = Sequence::new();
 
         let mut input_stream_mock = MockReopenFile::default();
-        let mut x = [0; 12];
-        x.clone_from_slice(&test_output_request_binary[..]);
+
+        let workload_hello_binary = prepare_workload_hello_binary_message(common::ANKAIOS_VERSION);
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .returning(move || Ok(Box::new(x)));
+            .return_once(move || Ok(workload_hello_binary));
+
+        input_stream_mock
+            .expect_read_protobuf_data()
+            .once()
+            .in_sequence(&mut mockall_seq)
+            .return_once(move || Ok(test_output_request_binary));
 
         input_stream_mock
             .expect_read_protobuf_data()
@@ -348,6 +354,18 @@ mod tests {
         assert!(output_pipe_receiver.recv().await.is_none());
     }
 
+    fn prepare_workload_hello_binary_message(version: impl Into<String>) -> Vec<u8> {
+        let workload_hello = control_api::ToAnkaios {
+            to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Hello(
+                control_api::Hello {
+                    protocol_version: version.into(),
+                },
+            )),
+        };
+
+        workload_hello.encode_to_vec()
+    }
+
     // [utest->swdd~agent-listens-for-requests-from-pipe~1]
     // [utest->swdd~agent-ensures-control-interface-output-pipe-read~1]
     // [utest->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
@@ -375,13 +393,19 @@ mod tests {
         let mut mockall_seq = Sequence::new();
 
         let mut input_stream_mock = MockReopenFile::default();
-        let mut x = [0; 42];
-        x.clone_from_slice(&test_output_request_binary[..]);
+
+        let workload_hello_binary = prepare_workload_hello_binary_message(common::ANKAIOS_VERSION);
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .returning(move || Ok(Box::new(x)));
+            .return_once(move || Ok(workload_hello_binary));
+
+        input_stream_mock
+            .expect_read_protobuf_data()
+            .once()
+            .in_sequence(&mut mockall_seq)
+            .return_once(move || Ok(test_output_request_binary));
 
         input_stream_mock
             .expect_read_protobuf_data()
