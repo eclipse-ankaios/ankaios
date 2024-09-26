@@ -54,6 +54,7 @@ async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let args = cli::parse();
+
     let server_url = match args.insecure {
         true => args.server_url.replace("http[s]", "http"),
         false => args.server_url.replace("http[s]", "https"),
