@@ -262,6 +262,7 @@ impl ServerState {
                     self.state = new_state;
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
+                    self.state = new_state;
                     Ok(None)
                 }
             }
