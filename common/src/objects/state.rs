@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
@@ -23,6 +24,9 @@ use crate::objects::StoredWorkloadSpec;
 use api::ank_base;
 
 const CURRENT_API_VERSION: &str = "v0.1";
+const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
+pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]+*$";
+pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
 
 // [impl->swdd~common-object-representation~1]
 // [impl->swdd~common-object-serialization~1]
@@ -93,8 +97,43 @@ impl TryFrom<ank_base::State> for State {
 }
 
 impl State {
-    pub fn is_compatible_format(api_version: &String) -> bool {
-        api_version == CURRENT_API_VERSION
+    // [impl->swdd~common-workload-naming-convention~1]
+    // [impl->swdd~common-agent-naming-convention~1]
+    pub fn verify_format(provided_state: &State) -> Result<(), String> {
+        if provided_state.api_version != CURRENT_API_VERSION {
+            return Err(format!(
+                "Unsupported API version. Received '{}', expected '{}'",
+                provided_state.api_version,
+                State::default().api_version
+            ));
+        }
+
+        let re_workloads = Regex::new(STR_RE_WORKLOAD).unwrap();
+        let re_agent = Regex::new(STR_RE_AGENT).unwrap();
+
+        for (workload_name, workload_spec) in &provided_state.workloads {
+            if !re_workloads.is_match(workload_name.as_str()) {
+                return Err(format!(
+                    "Unsupported workload name. Received '{}', expected to have characters in {}",
+                    workload_name, STR_RE_WORKLOAD
+                ));
+            }
+            if workload_name.len() > MAX_CHARACTERS_WORKLOAD_NAME {
+                return Err(format!(
+                    "Workload name length {} exceeds the maximum limit of {} characters",
+                    workload_name.len(),
+                    MAX_CHARACTERS_WORKLOAD_NAME
+                ));
+            }
+            if !re_agent.is_match(workload_spec.agent.as_str()) {
+                return Err(format!(
+                    "Unsupported agent name. Received '{}', expected to have characters in {}",
+                    workload_spec.agent, STR_RE_AGENT
+                ));
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -112,12 +151,12 @@ impl State {
 #[cfg(test)]
 mod tests {
 
+    use super::{CURRENT_API_VERSION, MAX_CHARACTERS_WORKLOAD_NAME, STR_RE_AGENT, STR_RE_WORKLOAD};
+    use api::ank_base;
     use std::collections::HashMap;
 
-    use api::ank_base;
-
     use crate::{
-        objects::State,
+        objects::{State, StoredWorkloadSpec},
         test_utils::{generate_test_proto_state, generate_test_state},
     };
 
@@ -158,20 +197,81 @@ mod tests {
         let state_compatible_version = State {
             ..Default::default()
         };
-        assert!(State::is_compatible_format(
-            &state_compatible_version.api_version
-        ));
+        assert_eq!(State::verify_format(&state_compatible_version), Ok(()));
     }
 
     #[test]
-    fn utest_state_rejects_incompatible_state() {
+    fn utest_state_rejects_incompatible_state_on_api_version() {
+        let api_version = "incompatible_version".to_string();
         let state_incompatible_version = State {
-            api_version: "incompatible_version".to_string(),
+            api_version: api_version.clone(),
             ..Default::default()
         };
-        assert!(!State::is_compatible_format(
-            &state_incompatible_version.api_version
-        ));
+        assert_eq!(
+            State::verify_format(&state_incompatible_version),
+            Err(format!(
+                "Unsupported API version. Received '{}', expected '{}'",
+                api_version, CURRENT_API_VERSION
+            ))
+        );
+    }
+
+    // [utest->swdd~common-workload-naming-convention~1]
+    #[test]
+    fn utest_state_rejects_incompatible_state_on_workload_name() {
+        let workload_name = "nginx.test".to_string();
+        let state_incompatible_version = State {
+            api_version: "v0.1".to_string(),
+            workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
+        };
+        assert_eq!(
+            State::verify_format(&state_incompatible_version),
+            Err(format!(
+                "Unsupported workload name. Received '{}', expected to have characters in {}",
+                workload_name, STR_RE_WORKLOAD
+            ))
+        );
+    }
+
+    // [utest->swdd~common-workload-naming-convention~1]
+    #[test]
+    fn utest_state_rejects_incompatible_state_on_inordinately_long_workload_name() {
+        let workload_name = "workload_name_is_too_long_for_ankaios_to_accept_it_and_I_don_t_know_what_else_to_write".to_string();
+        let state_incompatible_version = State {
+            api_version: "v0.1".to_string(),
+            workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
+        };
+        assert_eq!(
+            State::verify_format(&state_incompatible_version),
+            Err(format!(
+                "Workload name length {} exceeds the maximum limit of {} characters",
+                workload_name.len(),
+                MAX_CHARACTERS_WORKLOAD_NAME
+            ))
+        );
+    }
+
+    // [utest->swdd~common-agent-naming-convention~1]
+    #[test]
+    fn utest_state_rejects_incompatible_state_on_agent_name() {
+        let agent_name = "agent_A.test".to_string();
+        let state_incompatible_version = State {
+            api_version: "v0.1".to_string(),
+            workloads: HashMap::from([(
+                "sample".to_string(),
+                StoredWorkloadSpec {
+                    agent: agent_name.clone(),
+                    ..Default::default()
+                },
+            )]),
+        };
+        assert_eq!(
+            State::verify_format(&state_incompatible_version),
+            Err(format!(
+                "Unsupported agent name. Received '{}', expected to have characters in {}",
+                agent_name, STR_RE_AGENT
+            ))
+        );
     }
 
     #[test]

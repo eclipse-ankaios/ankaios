@@ -16,8 +16,9 @@
 
 // [impl->swdd~common-conversions-between-ankaios-and-proto~1]
 
-mod state;
+pub mod state;
 pub use state::State;
+pub use state::{STR_RE_AGENT, STR_RE_WORKLOAD};
 
 mod complete_state;
 pub use complete_state::CompleteState;
@@ -57,6 +58,7 @@ mod workload_spec;
 #[cfg(any(feature = "test_utils", test))]
 pub use workload_spec::{
     generate_test_runtime_config, generate_test_workload_spec,
+    generate_test_workload_spec_with_control_interface_access,
     generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
     generate_test_workload_spec_with_runtime_config,
 };

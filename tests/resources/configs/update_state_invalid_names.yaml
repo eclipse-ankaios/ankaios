@@ -1,0 +1,23 @@
+desiredState:
+  apiVersion: v0.1
+  workloads:
+    nginx.test:
+      runtime: podman
+      agent: agent_A
+      restartPolicy: ALWAYS
+      tags:
+        - key: owner
+          value: Ankaios team
+      runtimeConfig: |
+        image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+        commandOptions: ["-p", "8081:80", "--name", "test_workload1"]
+    nginx:
+        runtime: podman
+        agent: agent_A.test
+        restartPolicy: ALWAYS
+        tags:
+          - key: owner
+            value: Ankaios team
+        runtimeConfig: |
+          image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+          commandOptions: ["-p", "8081:80", "--name", "test_workload1"]

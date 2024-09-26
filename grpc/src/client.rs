@@ -141,6 +141,12 @@ impl CommunicationsClient for GRPCCommunicationsClient {
                                 "The connection to the Ankaios Server was interrupted: '{err}'"
                             );
                         }
+                        Err(GrpcMiddlewareError::CertificateError(err)) => {
+                            return Err(CommunicationMiddlewareError(format!(
+                                "Certificate error: '{}'.",
+                                err
+                            )));
+                        }
                         _ => {
                             log::debug!("The connection to the Ankaios Server was closed.");
                         }

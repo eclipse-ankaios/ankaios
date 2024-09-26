@@ -228,6 +228,7 @@ message State {
 
 /**
 * This is a workaround for proto not supporing optional maps
+* Workload names shall not be shorter than 1 symbol longer then 63 symbols and can contain only regular characters, digits, the "-" and "_" symbols.
 */
 message WorkloadMap {
     map<string, Workload> workloads = 1;

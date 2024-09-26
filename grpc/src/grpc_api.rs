@@ -50,6 +50,15 @@ impl TryFrom<from_server_interface::FromServer> for FromServer {
 
     fn try_from(item: from_server_interface::FromServer) -> Result<Self, Self::Error> {
         match item {
+            from_server_interface::FromServer::ServerHello(ankaios) => Ok(FromServer {
+                from_server_enum: Some(from_server::FromServerEnum::ServerHello(ServerHello {
+                    added_workloads: ankaios
+                        .added_workloads
+                        .into_iter()
+                        .map(|x| x.into())
+                        .collect(),
+                })),
+            }),
             from_server_interface::FromServer::UpdateWorkload(ankaios) => Ok(FromServer {
                 from_server_enum: Some(from_server::FromServerEnum::UpdateWorkload(
                     UpdateWorkload {

@@ -305,11 +305,11 @@ Needs:
 - impl
 
 #### AnkaiosServer sends all workloads on start
-`swdd~server-sends-all-workloads-on-start~1`
+`swdd~server-sends-all-workloads-on-start~2`
 
 Status: approved
 
-When an Agent connects to the Server, the Ankaios Server shall send a list of all scheduled Workloads to this Agent as `AddedWorkload` message.
+When an Agent connects to the Server, the Ankaios Server shall send a list of all scheduled Workloads to this Agent as `ServerHello` message.
 
 Tags:
 - AnkaiosServer
@@ -608,6 +608,23 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
+
+##### Checking naming conventions
+`swdd~server-naming-convention~1`
+
+Status: approved
+
+When the Ankaios Server gets an UpdateStateRequest, the server shall enforce the naming constraints defined in the common library.
+
+Comment:
+We need to check the names of both the workload and agent names in order to ensure the proper function of the filtering.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
 - stest
 
 ### Update Current State
