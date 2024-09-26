@@ -67,14 +67,7 @@ impl AnkaiosServer {
 
     pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
         if let Some(state) = startup_state {
-            if !State::is_compatible_format(&state.desired_state.api_version) {
-                let message = format!(
-                    "Unsupported API version. Received '{}', expected '{}'",
-                    state.desired_state.api_version,
-                    State::default().api_version
-                );
-                return Err(message);
-            }
+            State::verify_format(&state.desired_state)?;
 
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
@@ -252,21 +245,14 @@ impl AnkaiosServer {
 
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
                         // [impl->swdd~update-desired-state-with-missing-version~1]
-                        if !State::is_compatible_format(
-                            &update_state_request.state.desired_state.api_version,
-                        ) {
-                            log::warn!("The CompleteState in the request has wrong format. Received '{}', expected '{}' -> ignoring the request.",
-                                update_state_request.state.desired_state.api_version, State::default().api_version);
+                        // [impl->swdd~server-naming-convention~1]
+                        if let Err(error_message) =
+                            State::verify_format(&update_state_request.state.desired_state)
+                        {
+                            log::warn!("The CompleteState in the request has wrong format. {} -> ignoring the request", error_message);
 
                             self.to_agents
-                                .error(
-                                    request_id,
-                                    format!(
-                                        "Unsupported API version. Received '{}', expected '{}'",
-                                        update_state_request.state.desired_state.api_version,
-                                        State::default().api_version
-                                    ),
-                                )
+                                .error(request_id, error_message)
                                 .await
                                 .unwrap_or_illegal_state();
                             continue;
@@ -430,7 +416,7 @@ mod tests {
 
         let startup_state = CompleteState {
             desired_state: State {
-                workloads: HashMap::from([("workload A".to_string(), workload)]),
+                workloads: HashMap::from([("workload_A".to_string(), workload)]),
                 ..Default::default()
             },
             ..Default::default()
@@ -494,7 +480,7 @@ mod tests {
         it contains a self cycle in the inter workload dependencies config */
         let mut updated_workload = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
-            "workload A".to_string(),
+            "workload_A".to_string(),
             RUNTIME_NAME.to_string(),
         );
 
