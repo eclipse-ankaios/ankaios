@@ -785,7 +785,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios server distributes `DeletedWorkload` message and either the deleted workload is not scheduled (agent is empty) or its assigned agent is not connected, the Ankaios server shall handle the deletion.
+When the Ankaios server distributes `DeletedWorkload` message and either the deleted workload is not scheduled (agent is empty) or its execution state is `Pending(Initial)` and its agent is disconnected, the Ankaios server shall handle the deletion.
 
 Rationale:
 There is no agent that can take care of the operation so the sever has to handle it.
