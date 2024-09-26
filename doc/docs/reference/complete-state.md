@@ -88,6 +88,14 @@ desiredState:
       restartPolicy: ALWAYS
 ```
 
+!!! Note
+
+    In case of workload names, the naming convention states that thier names shall:
+    * contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_"
+    * have a minimal length of 1 character
+    * have a maximal length of 63 characters
+    Also, agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+
 ## Object field mask
 
 With the object field mask only specific parts of the Ankaios state could be retrieved or updated.

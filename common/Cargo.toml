@@ -24,6 +24,7 @@ serde_yaml = "0.9"
 log = "0.4"
 sha256 = "1.5"
 semver = "1.0"
+regex = "1.10"
 
 [features]
 default = []

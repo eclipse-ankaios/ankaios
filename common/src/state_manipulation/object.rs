@@ -271,6 +271,10 @@ impl Object {
         }
         Some(current_obj)
     }
+
+    pub fn check_if_provided_path_exists(&self, path: &Path) -> bool {
+        self.get(path).is_some()
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
