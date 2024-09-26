@@ -223,6 +223,7 @@ mod tests {
         let state_incompatible_version = State {
             api_version: "v0.1".to_string(),
             workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
+            ..Default::default()
         };
         assert_eq!(
             State::verify_format(&state_incompatible_version),
@@ -240,6 +241,7 @@ mod tests {
         let state_incompatible_version = State {
             api_version: "v0.1".to_string(),
             workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
+            ..Default::default()
         };
         assert_eq!(
             State::verify_format(&state_incompatible_version),
@@ -264,6 +266,7 @@ mod tests {
                     ..Default::default()
                 },
             )]),
+            ..Default::default()
         };
         assert_eq!(
             State::verify_format(&state_incompatible_version),
