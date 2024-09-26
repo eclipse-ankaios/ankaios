@@ -570,11 +570,13 @@ Needs:
 - utest
 
 #### CLI requests update state with watch
-`swdd~cli-requests-update-state-with-watch~1`
+`swdd~cli-requests-update-state-with-watch~2`
 
 Status: approved
 
-When the CLI executes an update of the Ankaios state including a watch on the updated workloads, the CLI shall request an update of the state from the Ankaios server.
+When the CLI executes an update of the Ankaios state including a watch on the updated workloads, the CLI shall:
+* request the current CompleteState from the Ankaios server
+* request an update of the state from the Ankaios server
 
 Tags:
 - CliCommands
@@ -620,7 +622,7 @@ Needs:
 Status: approved
 
 When the CLI watches a list of workloads, the CLI shall:
-* get the desired state from the Ankaios server
+* get the CompleteState from the Ankaios server
 * filter only the workloads specified to watch
 * sort the workload list alphabetically
 * present the list of workloads to the user
