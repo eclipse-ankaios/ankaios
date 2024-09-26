@@ -21,9 +21,14 @@ use crate::commands;
 type AgentName = String;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-pub struct AgentAttributes {
+pub struct AgentResources {
     pub cpu_usage: u32,
     pub free_memory: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct AgentAttributes {
+    pub agent_resources: AgentResources,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
@@ -43,12 +48,10 @@ impl AgentMap {
         self.0.remove(key);
     }
 
-    pub fn update_resource_availability(&mut self, agent_resource: commands::AgentResource) {
+    pub fn update_resource_availability(&mut self, agent_resource: commands::AgentResourceCommand) {
         self.0.entry(agent_resource.agent_name).and_modify(|e| {
-            e.cpu_usage = agent_resource.cpu_usage;
-            e.free_memory = agent_resource.free_memory;
+            e.agent_resources = agent_resource.agent_resources;
         });
-        log::info!("SELF: {:?}", self);
     }
 }
 
@@ -66,8 +69,10 @@ impl From<AgentMap> for Option<ank_base::AgentMap> {
                     (
                         agent_name,
                         ank_base::AgentAttributes {
-                            cpu_usage: agent_attributes.cpu_usage,
-                            free_memory: agent_attributes.free_memory,
+                            agent_resources: Some(ank_base::AgentResources {
+                                cpu_usage: agent_attributes.agent_resources.cpu_usage,
+                                free_memory: agent_attributes.agent_resources.free_memory,
+                            }),
                         },
                     )
                 })

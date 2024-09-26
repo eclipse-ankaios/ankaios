@@ -29,22 +29,24 @@ impl From<AgentHello> for commands::AgentHello {
     }
 }
 
-impl From<AgentResource> for commands::AgentResource {
+impl From<AgentResource> for commands::AgentResourceCommand {
     fn from(item: AgentResource) -> Self {
-        commands::AgentResource {
+        commands::AgentResourceCommand {
             agent_name: item.agent_name,
-            cpu_usage: item.cpu_load,
-            free_memory: item.free_memory,
+            agent_resources: objects::AgentResources {
+                cpu_usage: item.cpu_load,
+                free_memory: item.free_memory,
+            },
         }
     }
 }
 
-impl From<commands::AgentResource> for AgentResource {
-    fn from(item: commands::AgentResource) -> Self {
+impl From<commands::AgentResourceCommand> for AgentResource {
+    fn from(item: commands::AgentResourceCommand) -> Self {
         AgentResource {
             agent_name: item.agent_name,
-            cpu_load: item.cpu_usage,
-            free_memory: item.free_memory,
+            cpu_load: item.agent_resources.cpu_usage,
+            free_memory: item.agent_resources.free_memory,
         }
     }
 }

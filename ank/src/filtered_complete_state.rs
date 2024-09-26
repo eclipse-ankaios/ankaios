@@ -71,12 +71,19 @@ pub struct FilteredAgentMap {
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FilteredAgentAttributes {
+pub struct FilteredAgentResources {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpu_usage: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub free_memory: Option<u64>,
-} // empty for now, but used for future expansion
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FilteredAgentAttributes {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_resources: Option<FilteredAgentResources>,
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -169,8 +176,18 @@ impl From<ank_base::AgentMap> for FilteredAgentMap {
                         (
                             agent_name,
                             FilteredAgentAttributes {
-                                cpu_usage: Some(agent_attributes.cpu_usage),
-                                free_memory: Some(agent_attributes.free_memory),
+                                agent_resources: Some(FilteredAgentResources {
+                                    cpu_usage: Some(
+                                        agent_attributes
+                                            .agent_resources
+                                            .clone()
+                                            .unwrap_or_else(|| output_and_error!("Could not get agent resources. Check the Ankaios component compatibility."))
+                                            .cpu_usage,
+                                    ),
+                                    free_memory: Some(
+                                        agent_attributes.agent_resources.unwrap_or_else(|| output_and_error!("Could not get agent resources. Check the Ankaios component compatibility.")).free_memory,
+                                    ),
+                                }),
                             },
                         )
                     })

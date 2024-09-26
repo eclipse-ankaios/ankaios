@@ -36,8 +36,7 @@ impl CliCommands {
 
         let connected_agents = filtered_complete_state
             .agents
-            .unwrap()
-            .agents
+            .and_then(|agents| agents.agents)
             .unwrap_or_default()
             .into_iter();
 
@@ -63,8 +62,17 @@ fn transform_into_table_rows(
             AgentTableRow {
                 agent_name,
                 workloads: workload_states_count,
-                cpu_usage: agent_attributes.cpu_usage.unwrap(),
-                free_memory: agent_attributes.free_memory.unwrap(),
+                cpu_usage: agent_attributes
+                    .agent_resources
+                    .clone()
+                    .unwrap()
+                    .cpu_usage
+                    .unwrap(),
+                free_memory: agent_attributes
+                    .agent_resources
+                    .unwrap()
+                    .free_memory
+                    .unwrap(),
             }
         })
         .collect();
@@ -143,9 +151,9 @@ mod tests {
         let table_output_result = cmd.get_agents().await;
 
         let expected_table_output = [
-            "NAME      WORKLOADS",
-            "agent_A   1        ",
-            "agent_B   1        ",
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   1           0           0          ",
+            "agent_B   1           0           0          ",
         ]
         .join("\n");
 
@@ -180,7 +188,7 @@ mod tests {
 
         let table_output_result = cmd.get_agents().await;
 
-        let expected_table_output = "NAME   WORKLOADS".to_string();
+        let expected_table_output = "NAME   WORKLOADS   CPU USAGE   FREE MEMORY".to_string();
 
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
@@ -207,7 +215,11 @@ mod tests {
 
         let table_output_result = cmd.get_agents().await;
 
-        let expected_table_output = ["NAME      WORKLOADS", "agent_A   0        "].join("\n");
+        let expected_table_output = [
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   0           0           0          ",
+        ]
+        .join("\n");
 
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
@@ -269,7 +281,11 @@ mod tests {
 
         let table_output_result = cmd.get_agents().await;
 
-        let expected_table_output = ["NAME      WORKLOADS", "agent_A   1        "].join("\n");
+        let expected_table_output = [
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   1           0           0          ",
+        ]
+        .join("\n");
 
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
@@ -302,7 +318,11 @@ mod tests {
 
         let table_output_result = cmd.get_agents().await;
 
-        let expected_table_output = ["NAME      WORKLOADS", "agent_A   1        "].join("\n");
+        let expected_table_output = [
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   1           0           0          ",
+        ]
+        .join("\n");
 
         assert_eq!(Ok(expected_table_output), table_output_result);
     }

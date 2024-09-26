@@ -24,7 +24,7 @@ use tokio::sync::mpsc::error::SendError;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ToServer {
     AgentHello(commands::AgentHello),
-    AgentResource(commands::AgentResource),
+    AgentResource(commands::AgentResourceCommand),
     AgentGone(commands::AgentGone),
     Request(commands::Request),
     UpdateWorkloadState(commands::UpdateWorkloadState),
@@ -32,6 +32,7 @@ pub enum ToServer {
     Goodbye(commands::Goodbye),
 }
 
+#[derive(Debug)]
 pub struct ToServerError(String);
 
 impl From<SendError<ToServer>> for ToServerError {
@@ -52,7 +53,7 @@ pub trait ToServerInterface {
     async fn agent_hello(&self, agent_name: String) -> Result<(), ToServerError>;
     async fn agent_resource(
         &self,
-        agent_resource: commands::AgentResource,
+        agent_resource: commands::AgentResourceCommand,
     ) -> Result<(), ToServerError>;
     async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError>;
     async fn update_state(
@@ -86,7 +87,7 @@ impl ToServerInterface for ToServerSender {
 
     async fn agent_resource(
         &self,
-        agent_resource: commands::AgentResource,
+        agent_resource: commands::AgentResourceCommand,
     ) -> Result<(), ToServerError> {
         Ok(self.send(ToServer::AgentResource(agent_resource)).await?)
     }

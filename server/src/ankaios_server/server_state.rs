@@ -280,7 +280,10 @@ impl ServerState {
         self.state.agents.remove(agent_name);
     }
 
-    pub fn update_agent_resource_availability(&mut self, agent_resource: commands::AgentResource) {
+    pub fn update_agent_resource_availability(
+        &mut self,
+        agent_resource: commands::AgentResourceCommand,
+    ) {
         self.state
             .agents
             .update_resource_availability(agent_resource);

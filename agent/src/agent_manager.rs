@@ -14,9 +14,9 @@
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
 use common::{
-    commands::AgentResource,
+    commands::AgentResourceCommand,
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::WorkloadState,
+    objects::{AgentResources, WorkloadState},
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -59,7 +59,7 @@ impl AgentManager {
     pub async fn start(&mut self) {
         log::info!("Awaiting commands from the server ...");
 
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(2));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(20));
 
         loop {
             tokio::select! {
@@ -223,10 +223,12 @@ impl AgentManager {
         );
 
         self.to_server
-            .agent_resource(AgentResource {
+            .agent_resource(AgentResourceCommand {
                 agent_name: self.agent_name.clone(),
-                cpu_usage,
-                free_memory,
+                agent_resources: AgentResources {
+                    cpu_usage,
+                    free_memory,
+                },
             })
             .await
             .unwrap_or_illegal_state();
@@ -256,6 +258,7 @@ mod tests {
         objects::{generate_test_workload_spec_with_param, ExecutionState},
         to_server_interface::ToServer,
     };
+    use grpc::from_server;
     use mockall::predicate::eq;
     use tokio::{join, sync::mpsc::channel};
 
@@ -537,6 +540,37 @@ mod tests {
         );
 
         // Terminate the infinite receiver loop
+        to_manager.stop().await.unwrap();
+        assert!(join!(handle).0.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_agent_manager_sends_available_resources() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store);
+
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, mut server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let mut mock_runtime_manager = RuntimeManager::default();
+        mock_runtime_manager.expect_handle_update_workload().never();
+
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        let handle = tokio::spawn(async move { agent_manager.start().await });
+
+        assert!(server_receiver.recv().await.is_some());
+
         to_manager.stop().await.unwrap();
         assert!(join!(handle).0.is_ok());
     }

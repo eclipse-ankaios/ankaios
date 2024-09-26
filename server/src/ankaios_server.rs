@@ -187,10 +187,9 @@ impl AnkaiosServer {
                     log::trace!(
                         "Received available resources from agent '{}': CPU: {:.2}%, Free Memory: {}",
                         method_obj.agent_name,
-                        method_obj.cpu_usage,
-                        method_obj.free_memory,
+                        method_obj.agent_resources.cpu_usage,
+                        method_obj.agent_resources.free_memory,
                     );
-                    // TODO: process and store
                     self.server_state
                         .update_agent_resource_availability(method_obj);
                 }
