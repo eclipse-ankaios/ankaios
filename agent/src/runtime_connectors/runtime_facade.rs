@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use common::{
     objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState},
@@ -14,6 +16,7 @@ use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 use crate::{
     runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
+    workload_operation::ReusableWorkloadSpec,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
@@ -26,17 +29,22 @@ use crate::workload::WorkloadCommandSender;
 
 use tokio::task::JoinHandle;
 
+pub struct ReusableWorkloadState {
+    pub workload_state: WorkloadState,
+    pub workload_id: Option<String>,
+}
+
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait RuntimeFacade: Send + Sync + 'static {
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadState>, RuntimeError>;
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError>;
 
     fn create_workload(
         &self,
-        runtime_workload: WorkloadSpec,
+        runtime_workload: ReusableWorkloadSpec,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload;
@@ -57,7 +65,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 }
 
 pub struct GenericRuntimeFacade<
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync,
 > {
     runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
@@ -65,7 +73,7 @@ pub struct GenericRuntimeFacade<
 
 impl<WorkloadId, StChecker> GenericRuntimeFacade<WorkloadId, StChecker>
 where
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     pub fn new(runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>) -> Self {
@@ -75,7 +83,7 @@ where
 
 #[async_trait]
 impl<
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     > RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
 {
@@ -83,7 +91,7 @@ impl<
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadState>, RuntimeError> {
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
         log::debug!(
             "Searching for reusable '{}' workloads on agent '{}'.",
             self.runtime.name(),
@@ -95,13 +103,13 @@ impl<
     // [impl->swdd~agent-create-workload~2]
     fn create_workload(
         &self,
-        workload_spec: WorkloadSpec,
+        reusable_workload_spec: ReusableWorkloadSpec,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let (_task_handle, workload) = Self::create_workload_non_blocking(
             self,
-            workload_spec,
+            reusable_workload_spec,
             control_interface_info,
             update_state_tx,
         );
@@ -142,17 +150,23 @@ impl<
 }
 
 impl<
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     > GenericRuntimeFacade<WorkloadId, StChecker>
 {
     // [impl->swdd~agent-create-workload~2]
     fn create_workload_non_blocking(
         &self,
-        workload_spec: WorkloadSpec,
+        reusable_workload_spec: ReusableWorkloadSpec,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
+        let workload_spec = reusable_workload_spec.workload_spec;
+        let workload_id = reusable_workload_spec.workload_id.map(|id| {
+            WorkloadId::from_str(&id)
+                .map_err(|_| "Cannot decode workload id")
+                .unwrap()
+        });
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
@@ -205,6 +219,7 @@ impl<
 
             let control_loop_state = ControlLoopState::builder()
                 .workload_spec(workload_spec)
+                .workload_id(workload_id)
                 .control_interface_path(control_interface_path)
                 .workload_state_sender(update_state_tx)
                 .runtime(runtime)

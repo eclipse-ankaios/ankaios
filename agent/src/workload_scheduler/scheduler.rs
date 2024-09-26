@@ -14,10 +14,12 @@
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::dependency_state_validator::DependencyStateValidator;
-use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
+use crate::{
+    workload_operation::ReusableWorkloadSpec,
+    workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
+};
 use common::objects::{DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec};
 use std::{collections::HashMap, fmt::Display};
-
 
 use crate::workload_operation::WorkloadOperation;
 #[cfg_attr(test, mockall_double::double)]
@@ -28,7 +30,7 @@ use mockall::automock;
 
 #[derive(Debug, Clone, PartialEq)]
 enum PendingEntry {
-    Create(WorkloadSpec),
+    Create(ReusableWorkloadSpec),
     Delete(DeletedWorkload),
     UpdateCreate(WorkloadSpec, DeletedWorkload),
     UpdateDelete(WorkloadSpec, DeletedWorkload),
@@ -188,22 +190,29 @@ impl WorkloadScheduler {
     // [impl->swdd~agent-enqueues-unfulfilled-create~1]
     async fn enqueue_pending_create(
         &mut self,
-        new_workload_spec: WorkloadSpec,
+        new_workload_spec: ReusableWorkloadSpec,
         workload_state_db: &WorkloadStateStore,
         notify_on_new_entry: bool,
     ) -> Vec<WorkloadOperation> {
         let mut ready_workload_operations = Vec::new();
         // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
-        if DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db) {
+        if DependencyStateValidator::create_fulfilled(
+            &new_workload_spec.workload_spec,
+            workload_state_db,
+        ) {
             ready_workload_operations.push(WorkloadOperation::Create(new_workload_spec));
         } else {
             if notify_on_new_entry {
-                self.report_pending_create_state(&new_workload_spec.instance_name)
+                self.report_pending_create_state(&new_workload_spec.workload_spec.instance_name)
                     .await;
             }
 
             self.put_on_queue(
-                new_workload_spec.instance_name.workload_name().to_owned(),
+                new_workload_spec
+                    .workload_spec
+                    .instance_name
+                    .workload_name()
+                    .to_owned(),
                 PendingEntry::Create(new_workload_spec),
             );
         }

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use async_trait::async_trait;
 
 use common::objects::{ExecutionState, WorkloadSpec};
@@ -12,7 +14,7 @@ use crate::workload_state::WorkloadStateSender;
 #[cfg_attr(test, automock)]
 pub trait RuntimeStateGetter<WorkloadId>: Send + Sync + 'static
 where
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     // [impl->swdd~allowed-workload-states~2]
     async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionState;
@@ -22,7 +24,7 @@ where
 #[async_trait]
 pub trait StateChecker<WorkloadId>
 where
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn start_checker(
         workload_spec: &WorkloadSpec,

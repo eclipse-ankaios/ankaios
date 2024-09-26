@@ -37,6 +37,12 @@ pub struct PodmanRunConfig {
     pub command_args: Vec<String>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct PodmanStartConfig {
+    pub general_options: Vec<String>,
+    pub container_id: String,
+}
+
 impl From<PodmanContainerInfo> for ContainerState {
     fn from(value: PodmanContainerInfo) -> Self {
         match value.state.to_lowercase().as_str() {
@@ -331,6 +337,31 @@ impl PodmanCli {
         args.append(&mut run_config.command_args);
 
         log::debug!("The args are: '{:?}'", args);
+        let id = CliCommand::new(PODMAN_CMD)
+            .args(&args.iter().map(|x| &**x).collect::<Vec<&str>>())
+            .exec()
+            .await?
+            .trim()
+            .to_string();
+        Ok(id)
+    }
+
+    pub async fn podman_start(
+        start_config: PodmanStartConfig,
+        workload_name: &str,
+    ) -> Result<String, String> {
+        log::debug!(
+            "Starting the workload '{}' with id '{}'",
+            workload_name,
+            start_config.container_id
+        );
+
+        let mut args = start_config.general_options;
+
+        args.push("start".into());
+
+        args.push(start_config.container_id);
+
         let id = CliCommand::new(PODMAN_CMD)
             .args(&args.iter().map(|x| &**x).collect::<Vec<&str>>())
             .exec()

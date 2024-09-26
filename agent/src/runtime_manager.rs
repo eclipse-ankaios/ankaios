@@ -41,7 +41,7 @@ use crate::workload_scheduler::scheduler::WorkloadScheduler;
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 use crate::{
     runtime_connectors::RuntimeFacade,
-    workload_operation::WorkloadOperation,
+    workload_operation::{ReusableWorkloadSpec, WorkloadOperation},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
@@ -53,10 +53,14 @@ use mockall::automock;
 
 fn flatten(
     mut runtime_workload_map: HashMap<String, HashMap<String, WorkloadSpec>>,
-) -> Vec<WorkloadSpec> {
+) -> Vec<ReusableWorkloadSpec> {
     runtime_workload_map
         .drain()
-        .flat_map(|(_, mut v)| v.drain().map(|(_, y)| y).collect::<Vec<_>>())
+        .flat_map(|(_, mut v)| {
+            v.drain()
+                .map(|(_, y)| ReusableWorkloadSpec::new(y, None))
+                .collect::<Vec<_>>()
+        })
         .collect::<Vec<_>>()
 }
 
@@ -111,7 +115,7 @@ impl RuntimeManager {
     // [impl->swdd~agent-handles-update-workload-requests~1]
     pub async fn handle_update_workload(
         &mut self,
-        mut added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
         workload_state_db: &WorkloadStateStore,
     ) {
@@ -121,6 +125,7 @@ impl RuntimeManager {
             deleted_workloads.len()
         );
 
+        let new_added_workloads;
         if !self.initial_workload_list_received {
             self.initial_workload_list_received = true;
             if !deleted_workloads.is_empty() {
@@ -131,13 +136,18 @@ impl RuntimeManager {
             }
 
             // [impl->swdd~agent-initial-list-existing-workloads~1]
-            added_workloads = self
+            new_added_workloads = self
                 .resume_and_remove_from_added_workloads(added_workloads)
                 .await;
+        } else {
+            new_added_workloads = added_workloads
+                .into_iter()
+                .map(|w| ReusableWorkloadSpec::new(w, None))
+                .collect();
         }
 
         let workload_operations: Vec<WorkloadOperation> =
-            self.transform_into_workload_operations(added_workloads, deleted_workloads);
+            self.transform_into_workload_operations(new_added_workloads, deleted_workloads);
 
         // [impl->swdd~agent-handles-new-workload-operations]
         // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
@@ -176,7 +186,7 @@ impl RuntimeManager {
     async fn resume_and_remove_from_added_workloads(
         &mut self,
         added_workloads: Vec<WorkloadSpec>,
-    ) -> Vec<WorkloadSpec> {
+    ) -> Vec<ReusableWorkloadSpec> {
         log::debug!("Handling initial workload list.");
 
         // create a list per runtime
@@ -212,7 +222,9 @@ impl RuntimeManager {
                         runtime_name,
                     );
 
-                    for workload_state in workload_states {
+                    for reusable_workload_state in workload_states {
+                        let workload_state = reusable_workload_state.workload_state;
+                        let workload_id = reusable_workload_state.workload_id;
                         if let Some(new_workload_spec) = added_workloads_per_runtime
                             .get_mut(runtime_name)
                             .and_then(|map| {
@@ -255,6 +267,11 @@ impl RuntimeManager {
                                         &self.update_state_tx,
                                     ),
                                 );
+                            } else if Self::is_reusable_workload(&workload_state, &workload_id) {
+                                new_added_workloads.push(ReusableWorkloadSpec::new(
+                                    new_workload_spec,
+                                    workload_id,
+                                ));
                             } else {
                                 // [impl->swdd~agent-existing-workloads-replace-updated~2]
 
@@ -273,7 +290,8 @@ impl RuntimeManager {
                                     &self.update_state_tx,
                                     REPORT_WORKLOAD_STATES_FOR_WORKLOAD,
                                 );
-                                new_added_workloads.push(new_workload_spec);
+                                new_added_workloads
+                                    .push(ReusableWorkloadSpec::new(new_workload_spec, None));
                             }
                         } else {
                             // No added workload matches the found running one => delete it
@@ -311,21 +329,35 @@ impl RuntimeManager {
                 .eq(new_instance_name)
     }
 
+    fn is_reusable_workload(
+        workload_state_existing_workload: &WorkloadState,
+        workload_id_existing_workload: &Option<String>,
+    ) -> bool {
+        workload_state_existing_workload
+            .execution_state
+            .is_succeeded()
+            && workload_id_existing_workload.is_some()
+    }
+
     // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
     fn transform_into_workload_operations(
         &self,
-        added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<ReusableWorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) -> Vec<WorkloadOperation> {
         let mut workload_operations: Vec<WorkloadOperation> = Vec::new();
         // transform into a hashmap to be able to search for updates
         // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
-        let mut added_workloads: HashMap<String, WorkloadSpec> = added_workloads
+        let mut added_workloads: HashMap<String, ReusableWorkloadSpec> = added_workloads
             .into_iter()
-            .map(|workload_spec| {
+            .map(|reusable_workload_spec| {
                 (
-                    workload_spec.instance_name.workload_name().to_owned(),
-                    workload_spec,
+                    reusable_workload_spec
+                        .workload_spec
+                        .instance_name
+                        .workload_name()
+                        .to_owned(),
+                    reusable_workload_spec,
                 )
             })
             .collect();
@@ -337,7 +369,7 @@ impl RuntimeManager {
             {
                 // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
                 workload_operations.push(WorkloadOperation::Update(
-                    updated_workload,
+                    updated_workload.workload_spec,
                     deleted_workload,
                 ));
             } else {
@@ -346,8 +378,11 @@ impl RuntimeManager {
             }
         }
 
-        for (_, workload_spec) in added_workloads {
-            let workload_name = workload_spec.instance_name.workload_name();
+        for (_, reusable_workload_spec) in added_workloads {
+            let workload_name = reusable_workload_spec
+                .workload_spec
+                .instance_name
+                .workload_name();
             if self.workloads.contains_key(workload_name) {
                 log::warn!(
                     "Added workload '{}' already exists. Updating without considering delete dependencies.",
@@ -355,6 +390,7 @@ impl RuntimeManager {
                 );
                 // We know this workload, seems the server is sending it again, try an update
                 // [impl->swdd~agent-update-on-add-known-workload~1]
+                let workload_spec = reusable_workload_spec.workload_spec;
                 let instance_name = workload_spec.instance_name.clone();
                 workload_operations.push(WorkloadOperation::Update(
                     workload_spec,
@@ -365,7 +401,7 @@ impl RuntimeManager {
                 ));
             } else {
                 // [impl->swdd~agent-added-creates-workload~1]
-                workload_operations.push(WorkloadOperation::Create(workload_spec));
+                workload_operations.push(WorkloadOperation::Create(reusable_workload_spec));
             }
         }
 
@@ -375,9 +411,9 @@ impl RuntimeManager {
     async fn execute_workload_operations(&mut self, workload_operations: Vec<WorkloadOperation>) {
         for wl_operation in workload_operations {
             match wl_operation {
-                WorkloadOperation::Create(workload_spec) => {
+                WorkloadOperation::Create(reusable_workload_spec) => {
                     // [impl->swdd~agent-executes-create-workload-operation~1]
-                    self.add_workload(workload_spec).await
+                    self.add_workload(reusable_workload_spec).await
                 }
                 WorkloadOperation::Update(new_workload_spec, _) => {
                     // [impl->swdd~agent-executes-update-workload-operation~1]
@@ -395,7 +431,8 @@ impl RuntimeManager {
         }
     }
 
-    async fn add_workload(&mut self, workload_spec: WorkloadSpec) {
+    async fn add_workload(&mut self, reusable_workload_spec: ReusableWorkloadSpec) {
+        let workload_spec = &reusable_workload_spec.workload_spec;
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
         let control_interface_info = ControlInterfaceInfo::new(
             &self.run_folder,
@@ -409,7 +446,7 @@ impl RuntimeManager {
         if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
             // [impl->swdd~agent-executes-create-workload-operation~1]
             let workload = runtime.create_workload(
-                workload_spec,
+                reusable_workload_spec,
                 Some(control_interface_info),
                 &self.update_state_tx,
             );
@@ -478,7 +515,8 @@ impl RuntimeManager {
                 workload_name
             );
             // [impl->swdd~agent-add-on-update-missing-workload~1]
-            self.add_workload(workload_spec).await;
+            self.add_workload(ReusableWorkloadSpec::new(workload_spec, None))
+                .await;
         }
     }
 

@@ -1,10 +1,13 @@
-use std::{fmt::Display, path::PathBuf};
+use std::{fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
-use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec, WorkloadState};
+use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec};
 
-use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
+use crate::{
+    runtime_connectors::{ReusableWorkloadState, StateChecker},
+    workload_state::WorkloadStateSender,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -34,18 +37,19 @@ impl Display for RuntimeError {
 pub trait RuntimeConnector<WorkloadId, StChecker>: Sync + Send
 where
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn name(&self) -> String;
 
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadState>, RuntimeError>;
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError>;
 
     async fn create_workload(
         &self,
         runtime_workload_config: WorkloadSpec,
+        reusable_workload_id: Option<WorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
     ) -> Result<(WorkloadId, StChecker), RuntimeError>;
@@ -68,7 +72,7 @@ where
 pub trait OwnableRuntime<WorkloadId, StChecker>: RuntimeConnector<WorkloadId, StChecker>
 where
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>>;
 }
@@ -77,7 +81,7 @@ impl<R, WorkloadId, StChecker> OwnableRuntime<WorkloadId, StChecker> for R
 where
     R: RuntimeConnector<WorkloadId, StChecker> + Clone + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>> {
         Box::new(self.clone())

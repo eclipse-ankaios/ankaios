@@ -27,7 +27,7 @@ pub use runtime_connector::{OwnableRuntime, RuntimeConnector, RuntimeError};
 pub use runtime_connector::test;
 
 mod runtime_facade;
-pub use runtime_facade::{GenericRuntimeFacade, RuntimeFacade};
+pub use runtime_facade::{GenericRuntimeFacade, ReusableWorkloadState, RuntimeFacade};
 
 #[cfg(test)]
 pub use runtime_facade::MockRuntimeFacade;

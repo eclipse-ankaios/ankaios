@@ -1,4 +1,4 @@
-use std::{cmp::min, fmt::Display, path::PathBuf};
+use std::{cmp::min, fmt::Display, path::PathBuf, str::FromStr};
 
 use common::objects::{
     AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
@@ -16,7 +16,8 @@ use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        podman_cli, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
+        podman_cli, ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter,
+        StateChecker,
     },
     workload_state::WorkloadStateSender,
 };
@@ -51,19 +52,31 @@ impl Display for PodmanKubeWorkloadId {
     }
 }
 
+impl FromStr for PodmanKubeWorkloadId {
+    type Err = String;
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        // Not implemented as we cannot restart workloads
+        Err("Not implemented for PodmanKubeWorkloadId".to_string())
+    }
+}
+
 impl PodmanKubeRuntime {
     async fn workload_instance_names_to_workload_states(
         &self,
         workload_instance_names: &Vec<WorkloadInstanceName>,
-    ) -> Result<Vec<WorkloadState>, RuntimeError> {
-        let mut workload_states = Vec::<WorkloadState>::default();
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
+        let mut workload_states = Vec::<ReusableWorkloadState>::default();
         for instance_name in workload_instance_names {
             let execution_state = self
                 .get_state(&self.get_workload_id(instance_name).await?)
                 .await;
-            workload_states.push(WorkloadState {
-                instance_name: instance_name.clone(),
-                execution_state,
+            workload_states.push(ReusableWorkloadState {
+                workload_state: WorkloadState {
+                    instance_name: instance_name.clone(),
+                    execution_state,
+                },
+                // For the podman-kube runtime we cannot recreate/restart workloads and thus return  None as as workload_id
+                workload_id: None,
             });
         }
         Ok(workload_states)
@@ -82,7 +95,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadState>, RuntimeError> {
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
         let name_filter = format!(
             "{}{}$",
             agent_name.get_filter_suffix(),
@@ -119,6 +132,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
     async fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
+        _reusable_workload_id: Option<PodmanKubeWorkloadId>,
         _control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {

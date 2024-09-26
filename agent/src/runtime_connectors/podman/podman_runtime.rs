@@ -1,4 +1,4 @@
-use std::{fmt::Display, path::PathBuf};
+use std::{fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
@@ -9,7 +9,10 @@ use common::{
 
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
-    runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker},
+    runtime_connectors::{
+        podman_cli::PodmanStartConfig, ReusableWorkloadState, RuntimeConnector, RuntimeError,
+        RuntimeStateGetter, StateChecker,
+    },
     workload_state::WorkloadStateSender,
 };
 
@@ -38,6 +41,13 @@ pub struct PodmanWorkloadId {
 impl Display for PodmanWorkloadId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.id.to_owned())
+    }
+}
+
+impl FromStr for PodmanWorkloadId {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(PodmanWorkloadId { id: s.to_string() })
     }
 }
 
@@ -81,14 +91,17 @@ impl PodmanRuntime {
     async fn workload_instance_names_to_workload_states(
         &self,
         workload_instance_names: &Vec<WorkloadInstanceName>,
-    ) -> Result<Vec<WorkloadState>, RuntimeError> {
-        let mut workload_states = Vec::<WorkloadState>::default();
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
+        let mut workload_states = Vec::<ReusableWorkloadState>::default();
         for instance_name in workload_instance_names {
-            match PodmanCli::list_states_by_id(&self.get_workload_id(instance_name).await?.id).await
-            {
-                Ok(Some(execution_state)) => workload_states.push(WorkloadState {
-                    instance_name: instance_name.clone(),
-                    execution_state,
+            let workload_id = &self.get_workload_id(instance_name).await?.id;
+            match PodmanCli::list_states_by_id(workload_id).await {
+                Ok(Some(execution_state)) => workload_states.push(ReusableWorkloadState {
+                    workload_state: WorkloadState {
+                        instance_name: instance_name.clone(),
+                        execution_state,
+                    },
+                    workload_id: Some(workload_id.to_string()),
                 }),
                 Ok(None) => {
                     return Err(RuntimeError::List(format!(
@@ -114,7 +127,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadState>, RuntimeError> {
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
         // [impl->swdd~podman-list-of-existing-workloads-uses-labels~1]
         let res = PodmanCli::list_workload_names_by_label("agent", agent_name.get())
             .await
@@ -135,20 +148,34 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
     async fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
+        reusable_workload_id: Option<PodmanWorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
     ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
         let workload_cfg = PodmanRuntimeConfig::try_from(&workload_spec)
             .map_err(|err| RuntimeError::Create(err.into()))?;
 
-        match PodmanCli::podman_run(
-            workload_cfg.into(),
-            &workload_spec.instance_name.to_string(),
-            workload_spec.instance_name.agent_name(),
-            control_interface_path,
-        )
-        .await
-        {
+        let cli_result = match reusable_workload_id {
+            Some(workload_id) => {
+                let start_config = PodmanStartConfig {
+                    general_options: workload_cfg.general_options,
+                    container_id: workload_id.id,
+                };
+                PodmanCli::podman_start(start_config, &workload_spec.instance_name.to_string())
+                    .await
+            }
+            None => {
+                PodmanCli::podman_run(
+                    workload_cfg.into(),
+                    &workload_spec.instance_name.to_string(),
+                    workload_spec.instance_name.agent_name(),
+                    control_interface_path,
+                )
+                .await
+            }
+        };
+
+        match cli_result {
             Ok(workload_id) => {
                 log::debug!(
                     "The workload '{}' has been created with internal id '{}'",
@@ -166,7 +193,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
             }
             Err(err) => {
                 // [impl->swdd~podman-create-workload-deletes-failed-container~1]
-                log::debug!("Creating container failed, cleaning up. Error: '{err}'");
+                log::debug!("Creating/starting container failed, cleaning up. Error: '{err}'");
                 match PodmanCli::remove_workloads_by_id(&workload_spec.instance_name.to_string())
                     .await
                 {
