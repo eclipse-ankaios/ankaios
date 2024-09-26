@@ -538,7 +538,7 @@ mod tests {
         generate_test_control_interface_access,
         generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
-        AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
+        AddCondition, AgentAttributes, WorkloadInstanceNameBuilder, WorkloadState,
     };
     use common::test_utils::{
         self, generate_test_complete_state, generate_test_deleted_workload,
@@ -1945,9 +1945,9 @@ mod tests {
         });
 
         complete_state.agents = Some(ank_base::AgentMap {
-            agents: HashMap::from([(AGENT_NAME.to_owned(), Default::default())]),
+            agents: HashMap::from([(AGENT_NAME.to_owned(), AgentAttributes::default().into())]),
         });
-
+        println!("complete_state: {:?}", complete_state);
         let expected_response = ank_base::Response {
             request_id,
             response_content: Some(ResponseContent::CompleteState(complete_state)),
@@ -1966,6 +1966,15 @@ mod tests {
         runtime_manager
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
+
+        let response_content =
+            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
+                AGENT_NAME.to_string(),
+                WORKLOAD_1_NAME.to_string(),
+                RUNTIME_NAME.to_string(),
+            )]);
+
+        println!("response_content: {:?}", response_content);
 
         runtime_manager
             .forward_response(ank_base::Response {

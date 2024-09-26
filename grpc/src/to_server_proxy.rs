@@ -237,6 +237,7 @@ mod tests {
         objects::generate_test_workload_spec_with_param,
         to_server_interface::{ToServer, ToServerInterface},
     };
+    use mockall::predicate;
     use tokio::sync::mpsc;
 
     use crate::grpc_api::{self, to_server::ToServerEnum};
@@ -260,6 +261,86 @@ mod tests {
                 Err(tonic::Status::new(tonic::Code::Unknown, "test"))
             }
         }
+    }
+
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_ankaios_to_proto_agent_resources() {
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+        let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
+
+        let agent_resources = common::objects::AgentResources {
+            cpu_usage: 42,
+            free_memory: 42,
+        };
+        let agent_name = "agent_A".to_string();
+        let agent_resources_command = common::commands::AgentResourceCommand {
+            agent_name: agent_name.clone(),
+            agent_resources,
+        };
+
+        let agent_resource_result = server_tx
+            .agent_resource(agent_resources_command.clone())
+            .await;
+        assert!(agent_resource_result.is_ok());
+
+        tokio::spawn(async move {
+            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+        });
+
+        // The receiver in the agent receives the message and terminates the infinite waiting-loop.
+        drop(server_tx);
+
+        let result = grpc_rx.recv().await.unwrap();
+
+        assert!(matches!(
+            result.to_server_enum,
+            Some(ToServerEnum::AgentResource(grpc_api::AgentResource {
+                agent_name,
+                cpu_load,
+                free_memory
+            }))
+            if agent_name == agent_name && cpu_load == 42 && free_memory == 42));
+    }
+
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
+        let agent_resources = common::objects::AgentResources {
+            cpu_usage: 42,
+            free_memory: 42,
+        };
+        let agent_name = "agent_A".to_string();
+        let agent_resources_command = common::commands::AgentResourceCommand {
+            agent_name: agent_name.clone(),
+            agent_resources,
+        };
+
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCToServerStreaming::new(LinkedList::from([
+                Some(grpc_api::ToServer {
+                    to_server_enum: Some(ToServerEnum::AgentResource(
+                        agent_resources_command.clone().into(),
+                    )),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = forward_from_proto_to_ankaios(
+            agent_name.clone(),
+            &mut mock_grpc_ex_request_streaming,
+            server_tx,
+        )
+        .await;
+
+        assert!(forward_result.is_ok());
+
+        let result = server_rx.recv().await.unwrap();
+
+        assert!(
+            matches!(result, ToServer::AgentResource(measurement) if measurement == agent_resources_command)
+        );
     }
 
     // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]

@@ -258,7 +258,6 @@ mod tests {
         objects::{generate_test_workload_spec_with_param, ExecutionState},
         to_server_interface::ToServer,
     };
-    use grpc::from_server;
     use mockall::predicate::eq;
     use tokio::{join, sync::mpsc::channel};
 

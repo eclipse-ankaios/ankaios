@@ -55,6 +55,28 @@ impl AgentMap {
     }
 }
 
+impl From<AgentAttributes> for ank_base::AgentAttributes {
+    fn from(item: AgentAttributes) -> ank_base::AgentAttributes {
+        ank_base::AgentAttributes {
+            agent_resources: Some(ank_base::AgentResources {
+                cpu_usage: item.agent_resources.cpu_usage,
+                free_memory: item.agent_resources.free_memory,
+            }),
+        }
+    }
+}
+
+impl From<ank_base::AgentAttributes> for AgentAttributes {
+    fn from(item: ank_base::AgentAttributes) -> Self {
+        AgentAttributes {
+            agent_resources: AgentResources {
+                cpu_usage: item.agent_resources.clone().unwrap().cpu_usage,
+                free_memory: item.agent_resources.unwrap().free_memory,
+            },
+        }
+    }
+}
+
 impl From<AgentMap> for Option<ank_base::AgentMap> {
     fn from(item: AgentMap) -> Option<ank_base::AgentMap> {
         if item.0.is_empty() {

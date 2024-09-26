@@ -270,8 +270,8 @@ mod tests {
 
     use crate::{
         from_server::FromServerEnum, generate_test_proto_deleted_workload, to_server::ToServerEnum,
-        AddedWorkload, AgentHello, DeletedWorkload, FromServer, ToServer, UpdateWorkload,
-        UpdateWorkloadState,
+        AddedWorkload, AgentHello, AgentResource, DeletedWorkload, FromServer, ToServer,
+        UpdateWorkload, UpdateWorkloadState,
     };
 
     use api::ank_base::{self, Dependencies};
@@ -301,6 +301,38 @@ mod tests {
         };
 
         let ankaios_command = ankaios::ToServer::AgentHello(ankaios::AgentHello { agent_name });
+
+        assert_eq!(
+            ankaios::ToServer::try_from(proto_request),
+            Ok(ankaios_command)
+        );
+    }
+
+    #[test]
+    fn utest_convert_proto_to_server_agent_resource() {
+        let agent_resources = common::commands::AgentResourceCommand {
+            agent_name: "agent_A".to_string(),
+            agent_resources: common::objects::AgentResources {
+                cpu_usage: 42,
+                free_memory: 42,
+            },
+        };
+
+        let proto_request = ToServer {
+            to_server_enum: Some(ToServerEnum::AgentResource(AgentResource {
+                agent_name: agent_resources.agent_name.clone(),
+                cpu_load: agent_resources.agent_resources.cpu_usage,
+                free_memory: agent_resources.agent_resources.free_memory,
+            })),
+        };
+
+        let ankaios_command = ankaios::ToServer::AgentResource(ankaios::AgentResourceCommand {
+            agent_name: agent_resources.agent_name,
+            agent_resources: ankaios::AgentResources {
+                cpu_usage: agent_resources.agent_resources.cpu_usage,
+                free_memory: agent_resources.agent_resources.free_memory,
+            },
+        });
 
         assert_eq!(
             ankaios::ToServer::try_from(proto_request),

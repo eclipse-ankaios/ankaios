@@ -160,8 +160,11 @@ impl ToServerInterface for ToServerSender {
 #[cfg(test)]
 mod tests {
     use crate::{
-        commands::{self, RequestContent},
-        objects::{generate_test_workload_spec, generate_test_workload_state, ExecutionState},
+        commands::{self, AgentResourceCommand, RequestContent},
+        objects::{
+            generate_test_workload_spec, generate_test_workload_state, AgentResources,
+            ExecutionState,
+        },
         test_utils::generate_test_complete_state,
         to_server_interface::{ToServer, ToServerInterface},
     };
@@ -173,6 +176,10 @@ mod tests {
     const AGENT_NAME: &str = "agent_A";
     const REQUEST_ID: &str = "emkw489ejf89ml";
     const FIELD_MASK: &str = "desiredState.bla_bla";
+    const AGENT_RESOURCES: AgentResources = AgentResources {
+        cpu_usage: 42,
+        free_memory: 42,
+    };
 
     #[tokio::test]
     async fn utest_to_server_send_agent_hello() {
@@ -185,6 +192,28 @@ mod tests {
             rx.recv().await.unwrap(),
             ToServer::AgentHello(commands::AgentHello {
                 agent_name: AGENT_NAME.to_string()
+            })
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_to_server_send_agent_resource() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        assert!(tx
+            .agent_resource(AgentResourceCommand {
+                agent_name: AGENT_NAME.to_string(),
+                agent_resources: AGENT_RESOURCES.clone(),
+            })
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::AgentResource(AgentResourceCommand {
+                agent_name: AGENT_NAME.to_string(),
+                agent_resources: AGENT_RESOURCES.clone(),
             })
         )
     }

@@ -406,12 +406,13 @@ mod tests {
     use super::ank_base;
     use api::ank_base::WorkloadMap;
     use common::commands::{
-        CompleteStateRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
+        AgentResourceCommand, CompleteStateRequest, ServerHello, UpdateWorkload,
+        UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
     use common::objects::{
-        generate_test_stored_workload_spec, generate_test_workload_spec_with_param, CompleteState,
-        DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
+        generate_test_stored_workload_spec, generate_test_workload_spec_with_param, AgentResources,
+        CompleteState, DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
         WorkloadInstanceName, WorkloadState,
     };
     use common::test_utils::generate_test_proto_workload_with_param;
@@ -1666,5 +1667,56 @@ mod tests {
         ));
 
         assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_server_recieves_agent_resource_availability_info() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let complete_state = ank_base::CompleteState::default();
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_get_complete_state_by_field_mask()
+            .with(
+                mockall::predicate::function(|request_compl_state| {
+                    request_compl_state == &CompleteStateRequest { field_mask: vec![] }
+                }),
+                mockall::predicate::always(),
+            )
+            .once()
+            .return_const(Ok(complete_state.clone()));
+        mock_server_state
+            .expect_update_agent_resource_availability()
+            .with(mockall::predicate::function(|agent_resource| {
+                agent_resource
+                    == &AgentResourceCommand {
+                        agent_name: AGENT_A.to_string(),
+                        agent_resources: AgentResources {
+                            cpu_usage: 42,
+                            free_memory: 42,
+                        },
+                    }
+            }))
+            .once();
+        server.server_state = mock_server_state;
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        let agent_resource_result = to_server
+            .agent_resource(AgentResourceCommand {
+                agent_name: AGENT_A.to_string(),
+                agent_resources: AgentResources {
+                    cpu_usage: 42,
+                    free_memory: 42,
+                },
+            })
+            .await;
+        assert!(agent_resource_result.is_ok());
+
+        server_task.abort();
     }
 }
