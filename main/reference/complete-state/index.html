@@ -1492,6 +1492,14 @@
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>nginx:
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">      </span>restartPolicy:<span class="w"> </span>ALWAYS
 </code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In case of workload names, the naming convention states that thier names shall:
+* contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "<em>"
+* have a minimal length of 1 character
+* have a maximal length of 63 characters
+Also, agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "</em>".</p>
+</div>
 <h2 id="object-field-mask">Object field mask<a class="headerlink" href="#object-field-mask" title="Permanent link">&para;</a></h2>
 <p>With the object field mask only specific parts of the Ankaios state could be retrieved or updated.
 The object field mask can be constructed using the field names of the <a href="../_ankaios.proto/#completestate">CompleteState</a> data structure:</p>
