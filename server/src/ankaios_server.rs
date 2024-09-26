@@ -369,6 +369,10 @@ impl AnkaiosServer {
             true
         });
         if !deleted_states.is_empty() {
+            log::debug!(
+                "Send UpdateWorkloadState for not started deleted workloads: '{:?}'",
+                deleted_states
+            );
             self.to_agents
                 .update_workload_state(deleted_states)
                 .await
