@@ -447,6 +447,26 @@ Needs:
 - impl
 - utest
 
+#### CLI processes CompleteState to list workloads
+`swdd~processes-complete-state-to-list-workloads~1`
+
+Status: approved
+
+When the CLI is requested to retrieve the list of workloads from the Ankaios Server, the CLI shall:
+* request the whole CompleteState
+* create a list entry for each workload state of the CompleteState with empty runtime name
+* replace the empty runtime name for each list entry by extracting it from the corresponding workload configuration inside the CompleteState
+
+Rational:
+A workload state is not responsible for containing the runtime name of a workload.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
 #### CLI shall sort the list of workloads
 `swdd~cli-shall-sort-list-of-workloads~1`
 

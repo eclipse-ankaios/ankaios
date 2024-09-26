@@ -93,20 +93,6 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
     }
 
     pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadState>) {
-        // prevent infinite waiting for added workloads with disconnected agent
-        Self::retain_workloads_of_connected_agents(
-            &mut self.added_workloads,
-            &mut self.display,
-            &self.connected_agents,
-        );
-
-        // prevent infinite waiting for deleted workloads with disconnected agent
-        Self::retain_workloads_of_connected_agents(
-            &mut self.deleted_workloads,
-            &mut self.display,
-            &self.connected_agents,
-        );
-
         for workload_state in values.into_iter() {
             self.display.update(&workload_state);
             // [impl->swdd~cli-checks-for-final-workload-state~2]
@@ -141,6 +127,20 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
                 _ => {}
             };
         }
+
+        // prevent infinite waiting for added workloads with disconnected agent
+        Self::retain_workloads_of_connected_agents(
+            &mut self.added_workloads,
+            &mut self.display,
+            &self.connected_agents,
+        );
+
+        // prevent infinite waiting for deleted workloads with disconnected agent
+        Self::retain_workloads_of_connected_agents(
+            &mut self.deleted_workloads,
+            &mut self.display,
+            &self.connected_agents,
+        );
 
         output_update!("{}", &self.display);
     }

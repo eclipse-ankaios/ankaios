@@ -129,6 +129,7 @@ mod tests {
     }
 
     // [utest->swdd~cli-provides-list-of-workloads~1]
+    // [utest->swdd~processes-complete-state-to-list-workloads~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-list-workloads~1]
     // [utest->swdd~cli-shall-present-list-of-workloads~1]
     // [utest->swdd~cli-shall-present-workloads-as-table~1]

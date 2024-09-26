@@ -170,17 +170,17 @@ impl CliCommands {
         self.server_connection.shut_down().await
     }
 
+    // [impl->swdd~processes-complete-state-to-list-workloads~1]
     async fn get_workloads(&mut self) -> Result<WorkloadInfos, CliError> {
         let res_complete_state = self
             .server_connection
             .get_complete_state(&Vec::new())
             .await?;
 
-        let workload_infos_with_runtime = self.transform_into_workload_infos(res_complete_state);
-
-        Ok(workload_infos_with_runtime)
+        Ok(self.transform_into_workload_infos(res_complete_state))
     }
 
+    // [impl->swdd~processes-complete-state-to-list-workloads~1]
     fn transform_into_workload_infos(
         &self,
         complete_state: FilteredCompleteState,
@@ -188,7 +188,6 @@ impl CliCommands {
         let workload_states_map = complete_state.workload_states.unwrap_or_default();
         let workload_infos = WorkloadInfos::from(workload_states_map);
 
-        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         let desired_state_workloads = complete_state
             .desired_state
             .and_then(|desired_state| desired_state.workloads)
@@ -197,6 +196,7 @@ impl CliCommands {
         self.add_runtime_name_to_workload_infos(workload_infos, desired_state_workloads)
     }
 
+    // [impl->swdd~processes-complete-state-to-list-workloads~1]
     fn add_runtime_name_to_workload_infos(
         &self,
         mut workload_infos: WorkloadInfos,
