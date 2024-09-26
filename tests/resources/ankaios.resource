@@ -530,7 +530,7 @@ The controller workload is forbidden to ${operation} on ${filter_mask}
     The controller workload sends initial hello with correct version
 
 The controller workload sends initial hello with correct version
-    internal_send_initial_hello    0.4.0
+    internal_send_initial_hello    0.5.0-pre
 
 The controller workload sends initial hello with version    ${version}
     internal_send_initial_hello    ${version}
