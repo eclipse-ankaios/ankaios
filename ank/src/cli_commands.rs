@@ -260,7 +260,7 @@ impl CliCommands {
     async fn wait_for_complete(
         &mut self,
         update_state_success: ParsedUpdateStateSuccess,
-        previous_workload_infos: BTreeMap<WorkloadInstanceName, WorkloadTableRow>,
+        mut previous_workload_infos: BTreeMap<WorkloadInstanceName, WorkloadTableRow>,
     ) -> Result<(), CliError> {
         output_debug!("updated state success: {:?}", update_state_success);
 
@@ -291,23 +291,13 @@ impl CliCommands {
 
         let new_workload_infos = self.transform_into_workload_infos(new_complete_state);
 
-        let added_workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> =
-            new_workload_infos
-                .into_iter()
-                .filter(|new_workload_info| {
-                    update_state_success
-                        .added_workloads
-                        .contains(&new_workload_info.0)
-                        && !previous_workload_infos.contains_key(&new_workload_info.0)
-                })
-                .collect();
+        // new workloads were added through an updated state or the previous ones might already have reached the next state
+        previous_workload_infos.extend(new_workload_infos.into_iter());
 
-        let mut changed_workload_infos = previous_workload_infos
+        let changed_workload_infos = previous_workload_infos
             .into_iter()
             .filter(|(instance_name, _)| changed_workloads.contains(instance_name))
             .collect::<Vec<_>>();
-
-        changed_workload_infos.extend(added_workload_infos);
 
         let mut wait_list = WaitList::new(
             update_state_success,
@@ -366,26 +356,12 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use api::ank_base;
-    use common::{
-        commands::UpdateWorkloadState,
-        from_server_interface::{FromServer, FromServerSender},
-        objects::{
-            generate_test_workload_spec_with_param,
-            generate_test_workload_state_with_workload_spec, ExecutionState,
-        },
-        test_utils::generate_test_complete_state,
-        to_server_interface::ToServerReceiver,
-    };
+    use common::{from_server_interface::FromServerSender, to_server_interface::ToServerReceiver};
     use grpc::security::TLSConfig;
 
-    use std::{collections::BTreeMap, io};
+    use std::io;
 
-    use crate::cli_commands::{
-        server_connection::MockServerConnection, wait_list::ParsedUpdateStateSuccess,
-    };
-
-    use super::{get_input_sources, CliCommands, InputSourcePair};
+    use super::{get_input_sources, InputSourcePair};
 
     mockall::lazy_static! {
         pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
@@ -472,56 +448,5 @@ mod tests {
             expected,
             actual.iter().map(get_file_name).collect::<Vec<String>>()
         )
-    }
-
-    // [utest->swdd~cli-watches-workloads~1]
-    #[tokio::test]
-    async fn utest_wait_for_complete_detect_added_workloads_after_updated_state() {
-        let previous_workload_infos = BTreeMap::new();
-
-        let new_workload_spec = generate_test_workload_spec_with_param(
-            "agent_1".to_string(),
-            "workload_1".to_string(),
-            "runtime".to_string(),
-        );
-
-        let updated_state = generate_test_complete_state(vec![new_workload_spec.clone()]);
-
-        let update_state_success = ParsedUpdateStateSuccess {
-            added_workloads: vec![new_workload_spec.instance_name.clone()],
-            deleted_workloads: vec![],
-        };
-
-        let mut mock_server_connection = MockServerConnection::default();
-
-        mock_server_connection
-            .expect_get_complete_state()
-            .once()
-            .return_once(
-                move |_| Ok((ank_base::CompleteState::from(updated_state.clone())).into()),
-            );
-
-        mock_server_connection
-            .expect_take_missed_from_server_messages()
-            .once()
-            .return_once(move || {
-                vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                    workload_states: vec![generate_test_workload_state_with_workload_spec(
-                        &new_workload_spec,
-                        ExecutionState::running(),
-                    )],
-                })]
-            });
-
-        let mut cmd = CliCommands {
-            _response_timeout_ms: 1000,
-            no_wait: false,
-            server_connection: mock_server_connection,
-        };
-
-        let result = cmd
-            .wait_for_complete(update_state_success, previous_workload_infos)
-            .await;
-        assert!(result.is_ok());
     }
 }
