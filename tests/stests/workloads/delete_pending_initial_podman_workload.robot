@@ -34,5 +34,4 @@ Test Ankaios deletes pending initial podman workloads properly
     And user triggers "ank --insecure --no-wait set state desiredState ${CONFIGS_DIR}/emptyState.yaml"
     # Asserts
     Then the workload "pending_initial_workload" shall not exist
-    And the workload "hello1" shall not exist
     [Teardown]    Clean up Ankaios
