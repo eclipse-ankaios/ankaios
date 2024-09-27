@@ -60,6 +60,10 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     # Cleanup
     && rm -rf /var/lib/apt/lists/*
 
+# Workaround for podman not being able to stop containers, see https://bugs.launchpad.net/ubuntu/noble/+source/libpod/+bug/2040483
+RUN mkdir -p /etc/containers/containers.conf.d \
+    && printf '[CONTAINERS]\napparmor_profile=""\n' > /etc/containers/containers.conf.d/disable-apparmor.conf
+
 # User management
 RUN (userdel -r ubuntu || true) \
     && groupadd rustlang \
@@ -94,6 +98,19 @@ VOLUME /var/lib/containers
 COPY containers.conf /etc/containers/containers.conf
 RUN chmod 644 /etc/containers/containers.conf
 
+# install just
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        ITEMARCH="x86_64"; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        ITEMARCH="aarch64"; \
+    else \
+        exit 1; \
+    fi; \
+    curl -sL https://github.com/casey/just/releases/download/1.35.0/just-1.35.0-${ITEMARCH}-unknown-linux-musl.tar.gz | \
+    tar xz --directory=/usr/local/bin just \
+    && echo 'source <(just --completions bash)' >> /home/${USERNAME}/.bashrc \
+    && echo 'source <(just --completions zsh)' >> /home/${USERNAME}/.zshrc
+
 # install grpcurl
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
         ITEMARCH="x86_64"; \
@@ -113,7 +130,7 @@ RUN curl -sL https://github.com/plantuml/plantuml/releases/download/v1.2024.0/pl
 COPY plantuml /usr/local/bin
 
 # MkDocs Material
-RUN PIP_BREAK_SYSTEM_PACKAGES=1 pip install mkdocs-material pillow cairosvg mike robotframework
+RUN PIP_BREAK_SYSTEM_PACKAGES=1 pip install mkdocs-material pillow cairosvg mike robotframework==7.0.1
 
 # protoc-gen-doc
 RUN curl -sL https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_${TARGETARCH}.tar.gz | tar xz --directory=/usr/local/bin protoc-gen-doc

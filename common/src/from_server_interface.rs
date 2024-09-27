@@ -35,6 +35,7 @@ impl From<SendError<FromServer>> for FromServerInterfaceError {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FromServer {
+    ServerHello(commands::ServerHello),
     UpdateWorkload(commands::UpdateWorkload),
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Response(ank_base::Response),
@@ -44,6 +45,11 @@ pub enum FromServer {
 // [impl->swdd~from-server-channel~1]
 #[async_trait]
 pub trait FromServerInterface {
+    async fn server_hello(
+        &self,
+        agent_name: Option<String>,
+        added_workloads: Vec<WorkloadSpec>,
+    ) -> Result<(), FromServerInterfaceError>;
     async fn update_workload(
         &self,
         added_workloads: Vec<WorkloadSpec>,
@@ -78,6 +84,20 @@ pub type FromServerReceiver = tokio::sync::mpsc::Receiver<FromServer>;
 
 #[async_trait]
 impl FromServerInterface for FromServerSender {
+    async fn server_hello(
+        &self,
+        // This is a workaround for not having a request-response model dedicated for the communication middleware
+        agent_name: Option<String>,
+        added_workloads: Vec<WorkloadSpec>,
+    ) -> Result<(), FromServerInterfaceError> {
+        Ok(self
+            .send(FromServer::ServerHello(commands::ServerHello {
+                agent_name,
+                added_workloads,
+            }))
+            .await?)
+    }
+
     async fn update_workload(
         &self,
         added_workloads: Vec<WorkloadSpec>,

@@ -41,3 +41,18 @@ Test Ankaios CLI lists connected agents
     Then the last command shall list the connected agent "agent_A"
 
     [Teardown]    Clean up Ankaios
+
+# [stest->swdd~agent-naming-convention~1]
+Test Ankaios CLI enforces agent naming convention
+    [Setup]        Setup Ankaios
+    # Preconditions
+    # This test assumes that all containers in Podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And Ankaios agent is started with name "agent.A"
+    # Actions
+    When user triggers "ank -k get agents"
+    ${result}=  Run Keyword And Return Status    the last command shall list the connected agent "agent.A"
+    # Asserts
+    Pass Execution If    ${result} == False    The agent name "agent.A" is not allowed
+    [Teardown]    Clean up Ankaios
