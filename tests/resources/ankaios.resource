@@ -30,11 +30,17 @@ ${CURRENT_RESULT}       ${EMPTY}
 ${SERVER_PROCESS_HANDLE}       ${EMPTY}
 ${TEST_FOLDER_NAME}    ${EMPTY}
 &{ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
+${ANKAIOS_VERSION}    ${EMPTY}
 
 *** Keywords ***
 Get MTLS Enabled
     ${result}=    Get Environment Variable    name=MTLS_ENABLED    default=False
     RETURN    ${result}
+
+Retrieve current Ankaios version
+    ${run_result}=    Run Process    command=ank-server --version    shell=True
+    ${ANKAIOS_VERSION}=    Evaluate    '${run_result.stdout}'.split(' ')[1]
+    Set Global Variable    ${ANKAIOS_VERSION}
 
 Setup Ankaios without MTLS Setup
     ${run_result}=    Run Process    command=mktemp -d    shell=True
@@ -509,6 +515,7 @@ the last command shall list the connected agent "${agent_name}"
 Setup Ankaios for Control Interface test
     Setup Ankaios
     Prepare Test Control Interface Workload
+    Retrieve current Ankaios version
 
 The controller workload has no access rights
     The controller workload sends initial hello with correct version
@@ -530,10 +537,7 @@ The controller workload is forbidden to ${operation} on ${filter_mask}
     The controller workload sends initial hello with correct version
 
 The controller workload sends initial hello with correct version
-    internal_send_initial_hello    0.5.0-pre
-
-The controller workload sends initial hello with version    ${version}
-    internal_send_initial_hello    ${version}
+    internal_send_initial_hello    ${ANKAIOS_VERSION}
 
 The controller workload updates the state with manifest "${manifest}"
     The controller workload updates the state with manifest "${manifest}" and update mask ${EMPTY}

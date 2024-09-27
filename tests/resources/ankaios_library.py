@@ -360,7 +360,7 @@ def internal_check_all_control_interface_requests_failed(tmp_folder):
 
 def internal_check_no_access_to_control_interface(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
-    for _, test_result in enumerate(output):
+    for test_result in output:
         assert test_result["result"]["type"] == "NoApi", "Expect type is different to NoApi"
 
 def empty_keyword():
