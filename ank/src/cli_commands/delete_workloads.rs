@@ -152,6 +152,7 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
+            .once()
             .returning(|_| Ok(FilteredCompleteState::default()));
         mock_server_connection
             .expect_update_state()
