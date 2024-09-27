@@ -578,6 +578,12 @@ When the CLI executes an update of the Ankaios state including a watch on the up
 * request the current CompleteState from the Ankaios server
 * request an update of the state from the Ankaios server
 
+Comment:
+The requested CompleteState is used to handle the watch on the updated workloads, not for constructing the updated state.
+
+Rationale:
+Requesting the CompleteState before updating the state is required in order to handle the wait mode properly when a workload is deleted that was not initially started due to a disconnected agent.
+
 Tags:
 - CliCommands
 
