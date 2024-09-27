@@ -24,4 +24,3 @@ desiredState:
       runtimeConfig: |
         image: ghcr.io/eclipse-ankaios/tests/alpine:latest
         commandArgs: ["echo", "backend succeeded"]
-workloadStates: []
