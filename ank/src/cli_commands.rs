@@ -229,6 +229,9 @@ impl CliCommands {
         new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), CliError> {
+        /* to keep track of deleted not initially started workloads in the wait mode
+        the current workloads before the update must be stored in an ordered map. Affects only user output.
+        The updated state is created directly, independent of fetching the current workloads. */
         let current_workload_infos: BTreeMap<WorkloadInstanceName, WorkloadTableRow> =
             self.get_workloads().await?.into_iter().collect();
 
