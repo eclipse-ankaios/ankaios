@@ -20,6 +20,10 @@ build:
 build-release:
     cargo build --release
 
+clean:
+    cargo clean
+    ./tools/dev_scripts/ankaios-clean
+
 check-licenses:
     cargo deny check licenses
 
