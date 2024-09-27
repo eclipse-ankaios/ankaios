@@ -38,7 +38,7 @@ Get MTLS Enabled
     RETURN    ${result}
 
 Retrieve current Ankaios version
-    ${run_result}=    Run Process    command=ank-server --version    shell=True
+    ${run_result}=    Run Process    command=%{ANK_BIN_DIR}${/}ank-server --version    shell=True
     ${ANKAIOS_VERSION}=    Evaluate    '${run_result.stdout}'.split(' ')[1]
     Set Global Variable    ${ANKAIOS_VERSION}
 
