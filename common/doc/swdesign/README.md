@@ -228,8 +228,8 @@ Needs:
 Status: approved
 
 The AgentMap provides the following functionalities:
-* inserting an agent name with empty attributes
-* removing an agent name
+* inserting an agent name with default attributes
+* removing an agent name and its associated attributes
 
 Comment:
 The AgentMap is actually the object exposed to the external interfaces, but provides some additional functionality.

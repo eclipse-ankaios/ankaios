@@ -201,9 +201,6 @@ impl AgentManager {
     }
 
     async fn measure_and_forward_resource_availability(&mut self) {
-        // let mut s_cpu =
-        //     System::new_with_specifics(RefreshKind::new().with_cpu(CpuRefreshKind::everything()));
-
         let mut sys = System::new_with_specifics(
             RefreshKind::new()
                 .with_cpu(CpuRefreshKind::everything())

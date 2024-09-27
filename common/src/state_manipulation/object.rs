@@ -732,7 +732,15 @@ mod tests {
                 )
                 .entry(
                     "agents",
-                    Mapping::default().entry(agent_name, Mapping::default()),
+                    Mapping::default().entry(
+                        agent_name,
+                        Mapping::default().entry(
+                            "agent_resources",
+                            Mapping::default()
+                                .entry("cpu_usage", 0)
+                                .entry("free_memory", 0),
+                        ),
+                    ),
                 )
         }
 
