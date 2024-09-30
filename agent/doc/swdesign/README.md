@@ -84,6 +84,11 @@ Stores information which the Agent gets from the Server. Currently the storage s
 
 The ControlInterface is responsible for setting up the communication interface between a workload and the Ankaios agent. It translates between the provided to the workload pipes and the internal Ankaios communication channels.
 
+### Authorizer
+
+The Authorizer checks for every request send from a workload to the Ankaios agent,
+if the workload is allowed to execute this request.
+
 ### RuntimeConnectorInterfaces
 
 This is not really a component but a collection of traits that define the "requirements" towards specific runtime connectors s.t. they can be used by Ankaios. The following three traits specify the interface of the connectors where for one of them (state checker) a reusable default implementation is provided:
