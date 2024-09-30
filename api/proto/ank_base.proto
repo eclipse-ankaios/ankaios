@@ -223,7 +223,7 @@ message WorkloadInstanceName {
 message State {
     string apiVersion = 1; /// The current version of the API.
     WorkloadMap workloads = 2; /// A mapping from workload names to workload configurations.
-    ConfigMap configs = 3; /// Configurations values which can be referenced in workload configurations.
+    ConfigMap configs = 3; /// Configuration values which can be referenced in workload configurations.
 }
 
 /**
@@ -245,7 +245,7 @@ message Workload {
     optional string runtime = 5; /// The name of the runtime e.g. podman.
     optional string runtimeConfig  = 6; /// The configuration information specific to the runtime.
     ControlInterfaceAccess controlInterfaceAccess = 7;
-    ConfigMappings configs = 8;
+    ConfigMappings configs = 8; /// A mapping containing the configurations assigned to the workload.
 }
 
 /**

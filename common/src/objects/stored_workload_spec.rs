@@ -38,7 +38,7 @@ pub struct StoredWorkloadSpec {
     pub runtime_config: String,
     #[serde(default)]
     pub control_interface_access: ControlInterfaceAccess,
-    #[serde(default)]
+    #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub configs: HashMap<String, String>,
 }
 

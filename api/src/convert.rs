@@ -220,13 +220,13 @@ mod tests {
     }
 
     #[test]
-    fn utest_convert_with_uncovertable_object_value_fails() {
+    fn utest_convert_with_not_convertible_object_value_fails() {
         let parsed_config = serde_yaml::from_str::<ConfigItem>("key: 32");
         assert!(parsed_config.is_err());
     }
 
     #[test]
-    fn utest_convert_with_uncovertable_array_value_fails() {
+    fn utest_convert_with_not_convertible_array_value_fails() {
         let parsed_config = serde_yaml::from_str::<ConfigItem>("- 32");
         assert!(parsed_config.is_err());
     }

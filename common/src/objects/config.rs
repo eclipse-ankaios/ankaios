@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 pub enum ConfigItem {
     String(String),
     ConfigArray(Vec<ConfigItem>),
-    ConfigObject(HashMap<String, ConfigItem>),
+    ConfigObject(#[serde(serialize_with = "serialize_to_ordered_map")] HashMap<String, ConfigItem>),
 }
 
 impl From<ConfigItem> for ank_base::ConfigItem {
@@ -183,9 +183,9 @@ mod tests {
     #[test]
     fn convert_from_proto_to_internal() {
         let proto_config = sample_config!(proto);
-        let expected_config = sample_config!(internal);
+        let expected_config = Ok(sample_config!(internal));
 
-        let converted_config = ConfigItem::try_from(proto_config).unwrap();
+        let converted_config = ConfigItem::try_from(proto_config);
 
         assert_eq!(converted_config, expected_config);
     }

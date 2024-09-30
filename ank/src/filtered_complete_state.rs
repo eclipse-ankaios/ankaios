@@ -128,7 +128,7 @@ impl From<ank_base::State> for FilteredState {
                         match value.try_into() {
                             Ok(value) => Some((key, value)),
                             Err(err) => {
-                                output_warn!("One config item could not be converted: {}", err);
+                                output_warn!("Config item could not be converted: {}", err);
                                 None
                             }
                         }
