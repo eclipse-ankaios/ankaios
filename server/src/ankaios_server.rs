@@ -162,7 +162,7 @@ impl AnkaiosServer {
                     let added_workloads = self.server_state.get_workloads_for_agent(&agent_name);
 
                     log::debug!(
-                        "Sending initial UpdateWorkload to agent '{}' with added workloads: '{:?}'",
+                        "Sending initial ServerHello to agent '{}' with added workloads: '{:?}'",
                         agent_name,
                         added_workloads,
                     );
