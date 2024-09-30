@@ -230,6 +230,8 @@ Status: approved
 The AgentMap provides the following functionalities:
 * inserting an agent name with default attributes
 * removing an agent name and its associated attributes
+* storing the agent attributes
+* updating an agent's node resource availability
 
 Comment:
 The AgentMap is actually the object exposed to the external interfaces, but provides some additional functionality.

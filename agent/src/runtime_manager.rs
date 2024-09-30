@@ -1947,7 +1947,6 @@ mod tests {
         complete_state.agents = Some(ank_base::AgentMap {
             agents: HashMap::from([(AGENT_NAME.to_owned(), AgentAttributes::default().into())]),
         });
-        println!("complete_state: {:?}", complete_state);
         let expected_response = ank_base::Response {
             request_id,
             response_content: Some(ResponseContent::CompleteState(complete_state)),
@@ -1973,8 +1972,6 @@ mod tests {
                 WORKLOAD_1_NAME.to_string(),
                 RUNTIME_NAME.to_string(),
             )]);
-
-        println!("response_content: {:?}", response_content);
 
         runtime_manager
             .forward_response(ank_base::Response {

@@ -181,6 +181,7 @@ mod tests {
         free_memory: 42,
     };
 
+    // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_agent_hello() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
@@ -196,6 +197,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_agent_resource() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =

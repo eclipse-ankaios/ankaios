@@ -903,9 +903,9 @@ Status: approved
 
 When the Ankaios CLI presents connected Ankaios agents to the user, the Ankaios CLI shall present the agents as rows in a table with the following content:
 
-| NAME                     | WORKLOADS                        |
-| ------------------------ | -------------------------------- |
-| `<agent_name>` as text   | `<assigned_workloads>` as number |
+| NAME                     | WORKLOADS                        | CPU USAGE                | FREE MEMORY                      |
+| ------------------------ | -------------------------------- | ------------------------ | -------------------------------- |
+| `<agent_name>` as text   | `<assigned_workloads>` as number | `<cpu_usage>` as percent | `<assigned_workloads>` as number |
 
 Tags:
 - CliCommands

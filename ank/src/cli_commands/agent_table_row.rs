@@ -24,5 +24,5 @@ pub struct AgentTableRow {
     #[tabled(rename = "CPU USAGE")]
     pub cpu_usage: u32,
     #[tabled(rename = "FREE MEMORY")]
-    pub free_memory: u64,
+    pub free_memory: f32,
 }

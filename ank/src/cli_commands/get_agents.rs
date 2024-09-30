@@ -68,11 +68,12 @@ fn transform_into_table_rows(
                     .unwrap()
                     .cpu_usage
                     .unwrap(),
-                free_memory: agent_attributes
+                free_memory: (agent_attributes
                     .agent_resources
                     .unwrap()
                     .free_memory
-                    .unwrap(),
+                    .unwrap()
+                    / 100) as f32,
             }
         })
         .collect();

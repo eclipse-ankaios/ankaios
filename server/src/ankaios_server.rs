@@ -190,6 +190,7 @@ impl AnkaiosServer {
                         method_obj.agent_resources.cpu_usage,
                         method_obj.agent_resources.free_memory,
                     );
+                    // [impl->swdd~server-receives-resource-availability~1]
                     self.server_state
                         .update_agent_resource_availability(method_obj);
                 }
@@ -1669,12 +1670,12 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-receives-resource-availability~1]
     #[tokio::test]
     async fn utest_server_recieves_agent_resource_availability_info() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
-        let (to_agents, mut comm_middle_ware_receiver) =
-            create_from_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _) = create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let complete_state = ank_base::CompleteState::default();
 

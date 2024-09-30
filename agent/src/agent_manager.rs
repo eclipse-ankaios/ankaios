@@ -27,6 +27,9 @@ use crate::workload_state::workload_state_store::WorkloadStateStore;
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
 use crate::workload_state::WorkloadStateReceiver;
+
+const RESOURCE_MEASUREMENT_INTERVAL_TICK: std::time::Duration = tokio::time::Duration::from_secs(2);
+
 // [impl->swdd~agent-shall-use-interfaces-to-server~1]
 pub struct AgentManager {
     agent_name: String,
@@ -59,7 +62,7 @@ impl AgentManager {
     pub async fn start(&mut self) {
         log::info!("Awaiting commands from the server ...");
 
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(20));
+        let mut interval = tokio::time::interval(RESOURCE_MEASUREMENT_INTERVAL_TICK);
 
         loop {
             tokio::select! {
@@ -80,6 +83,7 @@ impl AgentManager {
                         .unwrap_or_exit("Abort");
                     self.store_and_forward_own_workload_states(workload_state).await;
                 }
+                // [impl->swdd~agent-sends-node-resource-availability-to-server~1]
                 _ = interval.tick() => {
                     self.measure_and_forward_resource_availability().await;
                 }
@@ -200,6 +204,7 @@ impl AgentManager {
             .unwrap_or_illegal_state();
     }
 
+    // [impl->swdd~agent-sends-node-resource-availability-to-server~1]
     async fn measure_and_forward_resource_availability(&mut self) {
         let mut sys = System::new_with_specifics(
             RefreshKind::new()
@@ -540,6 +545,7 @@ mod tests {
         assert!(join!(handle).0.is_ok());
     }
 
+    // [utest->swdd~agent-sends-node-resource-availability-to-server~1]
     #[tokio::test]
     async fn utest_agent_manager_sends_available_resources() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

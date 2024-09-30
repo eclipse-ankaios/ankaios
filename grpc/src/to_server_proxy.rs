@@ -263,6 +263,7 @@ mod tests {
         }
     }
 
+    // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
     #[tokio::test]
     async fn utest_to_server_command_forward_from_ankaios_to_proto_agent_resources() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
@@ -302,6 +303,7 @@ mod tests {
             if agent_name == agent_name && cpu_load == 42 && free_memory == 42));
     }
 
+    // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
         let agent_resources = common::objects::AgentResources {

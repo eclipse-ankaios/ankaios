@@ -2742,6 +2742,22 @@ Needs:
 - impl
 - utest
 
+#### AgentManager sends the node resource availability to the server
+`swdd~agent-sends-node-resource-availability-to-server~1`
+
+Status: approved
+
+When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send an `AgentResource` message to the Ankaios server, containing the available resources.
+
+Rationale: The Ankaios server workloads scheduler shall necessitate in the future the knowledge of available resources.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
 ### Forwarding the Control Interface
 
 The Ankaios Agent is responsible to forward Control Interface requests from a Workload to the Ankaios Server and to forward Control Interface responses from the Ankaios Server to the Workload.

@@ -280,6 +280,7 @@ impl ServerState {
         self.state.agents.remove(agent_name);
     }
 
+    // [impl->swdd~server-receives-resource-availability~1]
     pub fn update_agent_resource_availability(
         &mut self,
         agent_resource: commands::AgentResourceCommand,
@@ -1045,6 +1046,7 @@ mod tests {
         assert!(added_deleted_workloads.is_some());
     }
 
+    // [utest->swdd~server-receives-resource-availability~1]
     #[test]
     fn utest_server_state_update_agent_resource_availability() {
         let w1 = generate_test_workload_spec_with_param(

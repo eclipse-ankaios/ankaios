@@ -16,8 +16,6 @@ use crate::objects::{AgentResources, CompleteState, DeletedWorkload, WorkloadSpe
 use api::ank_base;
 use serde::{Deserialize, Serialize};
 
-// enum myFloat
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentHello {
     pub agent_name: String,
