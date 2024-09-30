@@ -80,7 +80,7 @@ impl TryFrom<ank_base::State> for State {
             api_version: item.api_version,
             workloads: item
                 .workloads
-                .ok_or("Missing workloads map")?
+                .unwrap_or_default()
                 .workloads
                 .into_iter()
                 .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))
