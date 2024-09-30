@@ -12,16 +12,31 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use regex::Regex;
 use std::path::Path;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::Directory;
 use crate::control_interface::FileSystemError;
 use clap::Parser;
+use common::objects::state::STR_RE_AGENT;
 use common::DEFAULT_SERVER_ADDRESS;
 
 const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
 const RUNFOLDER_SUFFIX: &str = "_io";
+
+// [impl->swdd~agent-naming-convention~1]
+fn validate_agent_name(name: &str) -> Result<String, String> {
+    let re = Regex::new(STR_RE_AGENT).unwrap();
+    if re.is_match(name) {
+        Ok(name.to_string())
+    } else {
+        Err(format!(
+            "Agent name '{}' is invalid. It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.",
+            name
+        ))
+    }
+}
 
 // [impl->swdd~agent-supports-cli-argument-for-insecure-communication~1]
 // [impl->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
@@ -31,8 +46,9 @@ const RUNFOLDER_SUFFIX: &str = "_io";
         about="Ankaios - your friendly automotive workload orchestrator.\nWhat can the agent do for you?")
 ]
 pub struct Arguments {
-    #[clap(short = 'n', long = "name")]
+    #[clap(short = 'n', long = "name", value_parser = clap::builder::ValueParser::new(validate_agent_name))]
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
+    /// Agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
     pub agent_name: String,
     #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.to_string())]
     /// The server url.

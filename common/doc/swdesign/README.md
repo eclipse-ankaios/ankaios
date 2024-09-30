@@ -297,6 +297,20 @@ Needs:
 - impl
 - utest
 
+#### Provide a method that checks if the workload requires control interface
+`swdd~common-workload-needs-control-interface~1`
+
+Status: approved
+
+When allow rules for the Control Interface access are specified in the workload specification, the Common library shall approve the creation of a Control Interface.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
 #### Naming of Workload execution instances
 `swdd~common-workload-execution-instance-naming~1`
 
@@ -317,6 +331,45 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### Workload naming convention
+`swdd~common-workload-naming-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing a workload name to:
+* contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_"
+* have a minimal length of 1 character
+* have a maximal length of 63 characters
+
+Rationale:
+A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure and compliance to internet standards (RFC-1123).
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent naming convention
+`swdd~common-agent-naming-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing an agent name to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+
+Rationale:
+A consistent naming manner allows a flawless usage of the Ankaios CLI and does not tamper with the internal structure of Ankaios.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+- stest
 
 #### Provide common conversions between Ankaios and protobuf
 `swdd~common-conversions-between-ankaios-and-proto~1`

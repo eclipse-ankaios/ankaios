@@ -29,9 +29,6 @@ use common::{
 };
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterface;
-
-#[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -68,7 +65,6 @@ pub struct RuntimeManager {
     agent_name: AgentName,
     run_folder: PathBuf,
     control_interface_tx: ToServerSender,
-    initial_workload_list_received: bool,
     workloads: HashMap<String, Workload>,
     // [impl->swdd~agent-supports-multiple-runtime-connectors~1]
     runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
@@ -89,7 +85,6 @@ impl RuntimeManager {
             agent_name,
             run_folder,
             control_interface_tx,
-            initial_workload_list_received: false,
             workloads: HashMap::new(),
             runtime_map,
             update_state_tx: update_state_tx.clone(),
@@ -112,6 +107,45 @@ impl RuntimeManager {
         }
     }
 
+    pub async fn execute_workloads(
+        &mut self,
+        added_workloads: Vec<ReusableWorkloadSpec>,
+        deleted_workloads: Vec<DeletedWorkload>,
+        workload_state_db: &WorkloadStateStore,
+    ) {
+        let workload_operations: Vec<WorkloadOperation> =
+            self.transform_into_workload_operations(added_workloads, deleted_workloads);
+
+        // [impl->swdd~agent-handles-new-workload-operations]
+        // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
+        let ready_workload_operations = self
+            .workload_queue
+            .enqueue_filtered_workload_operations(workload_operations, workload_state_db)
+            .await;
+
+        self.execute_workload_operations(ready_workload_operations)
+            .await;
+    }
+
+    // [impl->swdd~agent-initial-list-existing-workloads~1]
+    pub async fn handle_server_hello(
+        &mut self,
+        added_workloads: Vec<WorkloadSpec>,
+        workload_state_db: &WorkloadStateStore,
+    ) {
+        log::info!(
+            "Received the server hello with '{}' added workloads.",
+            added_workloads.len()
+        );
+
+        let new_added_workloads = self
+            .resume_and_remove_from_added_workloads(added_workloads)
+            .await;
+
+        self.execute_workloads(new_added_workloads, vec![], workload_state_db)
+            .await;
+    }
+
     // [impl->swdd~agent-handles-update-workload-requests~1]
     pub async fn handle_update_workload(
         &mut self,
@@ -125,38 +159,12 @@ impl RuntimeManager {
             deleted_workloads.len()
         );
 
-        let new_added_workloads;
-        if !self.initial_workload_list_received {
-            self.initial_workload_list_received = true;
-            if !deleted_workloads.is_empty() {
-                log::error!(
-                    "Received an initial workload list with delete workload commands: '{:?}'",
-                    deleted_workloads
-                );
-            }
+        let new_added_workloads = added_workloads
+            .into_iter()
+            .map(|w| ReusableWorkloadSpec::new(w, None))
+            .collect();
 
-            // [impl->swdd~agent-initial-list-existing-workloads~1]
-            new_added_workloads = self
-                .resume_and_remove_from_added_workloads(added_workloads)
-                .await;
-        } else {
-            new_added_workloads = added_workloads
-                .into_iter()
-                .map(|w| ReusableWorkloadSpec::new(w, None))
-                .collect();
-        }
-
-        let workload_operations: Vec<WorkloadOperation> =
-            self.transform_into_workload_operations(new_added_workloads, deleted_workloads);
-
-        // [impl->swdd~agent-handles-new-workload-operations]
-        // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
-        let ready_workload_operations = self
-            .workload_queue
-            .enqueue_filtered_workload_operations(workload_operations, workload_state_db)
-            .await;
-
-        self.execute_workload_operations(ready_workload_operations)
+        self.execute_workloads(new_added_workloads, deleted_workloads, workload_state_db)
             .await;
     }
 
@@ -236,22 +244,12 @@ impl RuntimeManager {
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
-                                let control_interface = match ControlInterface::new(
+                                let control_interface_info = Some(ControlInterfaceInfo::new(
                                     &self.run_folder,
-                                    &new_workload_spec.instance_name,
                                     self.control_interface_tx.clone(),
+                                    &new_instance_name,
                                     Authorizer::from(&new_workload_spec.control_interface_access),
-                                ) {
-                                    Ok(control_interface) => Some(control_interface),
-                                    Err(err) => {
-                                        log::warn!(
-                                            "Could not reuse or create control interface when resuming workload '{}': '{}'",
-                                            new_workload_spec.instance_name,
-                                            err
-                                        );
-                                        None
-                                    }
-                                };
+                                ));
 
                                 log::info!(
                                     "Resuming workload '{}'",
@@ -263,7 +261,7 @@ impl RuntimeManager {
                                     new_instance_name.workload_name().to_owned(),
                                     runtime.resume_workload(
                                         new_workload_spec,
-                                        control_interface,
+                                        control_interface_info,
                                         &self.update_state_tx,
                                     ),
                                 );
@@ -439,12 +437,21 @@ impl RuntimeManager {
     async fn add_workload(&mut self, reusable_workload_spec: ReusableWorkloadSpec) {
         let workload_spec = &reusable_workload_spec.workload_spec;
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
-        let control_interface_info = ControlInterfaceInfo::new(
-            &self.run_folder,
-            self.control_interface_tx.clone(),
-            &workload_spec.instance_name,
-            Authorizer::from(&workload_spec.control_interface_access),
-        );
+        // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
+        let control_interface_info = if workload_spec.needs_control_interface() {
+            Some(ControlInterfaceInfo::new(
+                &self.run_folder,
+                self.control_interface_tx.clone(),
+                &workload_spec.instance_name,
+                Authorizer::from(&workload_spec.control_interface_access),
+            ))
+        } else {
+            log::info!(
+                "No control interface access specified for workload '{}'",
+                workload_name
+            );
+            None
+        };
 
         // [impl->swdd~agent-uses-specified-runtime~1]
         // [impl->swdd~agent-skips-unknown-runtime~1]
@@ -452,7 +459,7 @@ impl RuntimeManager {
             // [impl->swdd~agent-executes-create-workload-operation~1]
             let workload = runtime.create_workload(
                 reusable_workload_spec,
-                Some(control_interface_info),
+                control_interface_info,
                 &self.update_state_tx,
             );
             // [impl->swdd~agent-stores-running-workload~1]
@@ -501,15 +508,24 @@ impl RuntimeManager {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
 
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
-            let control_interface_info = ControlInterfaceInfo::new(
-                &self.run_folder,
-                self.control_interface_tx.clone(),
-                &workload_spec.instance_name,
-                Authorizer::from(&workload_spec.control_interface_access),
-            );
+            // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
+            let control_interface_info = if workload_spec.needs_control_interface() {
+                Some(ControlInterfaceInfo::new(
+                    &self.run_folder,
+                    self.control_interface_tx.clone(),
+                    &workload_spec.instance_name,
+                    Authorizer::from(&workload_spec.control_interface_access),
+                ))
+            } else {
+                log::info!(
+                    "No control interface access specified for updated workload '{}'",
+                    workload_name
+                );
+                None
+            };
             // [impl->swdd~agent-executes-update-workload-operation~1]
             if let Err(err) = workload
-                .update(Some(workload_spec), Some(control_interface_info))
+                .update(Some(workload_spec), control_interface_info)
                 .await
             {
                 log::error!("Failed to update workload '{}': '{}'", workload_name, err);
@@ -562,6 +578,8 @@ mod tests {
     use crate::workload_state::WorkloadStateReceiver;
     use ank_base::response::ResponseContent;
     use common::objects::{
+        generate_test_control_interface_access,
+        generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
         AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
     };
@@ -627,25 +645,25 @@ mod tests {
         let control_interface_info_mock = MockControlInterfaceInfo::new_context();
         control_interface_info_mock
             .expect()
-            .times(2)
+            .times(1)
             .returning(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload_1 = generate_test_workload_spec_with_param(
+        let new_workload_access = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
 
-        let new_workload_2 = generate_test_workload_spec_with_param(
+        let new_workload_no_access = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_2_NAME.to_string(),
             RUNTIME_NAME_2.to_string(),
         );
 
-        let added_workloads = vec![new_workload_1.clone(), new_workload_2.clone()];
+        let added_workloads = vec![new_workload_access.clone(), new_workload_no_access.clone()];
         let workload_operations = vec![
-            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload_1, None)),
-            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload_2, None)),
+            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload_access, None)),
+            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload_no_access, None)),
         ];
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -694,10 +712,9 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
     }
@@ -716,11 +733,12 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let workload_with_unknown_runtime = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            "unknown_runtime1".to_string(),
-        );
+        let workload_with_unknown_runtime =
+            generate_test_workload_spec_with_control_interface_access(
+                AGENT_NAME.to_string(),
+                WORKLOAD_1_NAME.to_string(),
+                "unknown_runtime1".to_string(),
+            );
         let added_workloads = vec![workload_with_unknown_runtime.clone()];
 
         let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
@@ -756,10 +774,9 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.is_empty());
     }
 
@@ -777,7 +794,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let workload = generate_test_workload_spec_with_param(
+        let workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -834,12 +851,63 @@ mod tests {
                 .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+    }
+
+    // [utest->swdd~agent-control-interface-created-for-eligible-workloads~1]
+    #[tokio::test]
+    async fn utest_update_workload_test_control_interface_creation() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut mock_workload_scheduler = MockWorkloadScheduler::default();
+        mock_workload_scheduler
+            .expect_enqueue_filtered_workload_operations()
+            .never();
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| mock_workload_scheduler);
+
+        let authorizer_mock = MockAuthorizer::from_context();
+        authorizer_mock
+            .expect()
+            .once()
+            .returning(|_| MockAuthorizer::new());
+
+        let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
+
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default().build();
+
+        control_interface_info_new_context
+            .expect()
+            .once()
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
+        let workload_spec_no_access = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+        runtime_manager
+            .update_workload(workload_spec_no_access)
+            .await;
+
+        control_interface_info_new_context.expect().never();
+        let workload_spec_has_access = generate_test_workload_spec_with_control_interface_access(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+        runtime_manager
+            .update_workload(workload_spec_has_access)
+            .await;
     }
 
     // [utest->swdd~agent-existing-workloads-resume-existing~2]
@@ -852,11 +920,11 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let control_interface_new_context = MockControlInterface::new_context();
-        control_interface_new_context
+        let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
+        control_interface_info_new_context
             .expect()
             .once()
-            .returning(move |_, _, _, _| Ok(MockControlInterface::default()));
+            .returning(move |_, _, _, _| MockControlInterfaceInfo::default());
 
         let workload_operations = vec![];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -871,7 +939,7 @@ mod tests {
             .once()
             .return_once(|_| mock_workload_scheduler);
 
-        let existing_workload = generate_test_workload_spec_with_param(
+        let existing_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -912,10 +980,9 @@ mod tests {
 
         let added_workloads = vec![existing_workload];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
@@ -926,7 +993,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let existing_workload = generate_test_workload_spec_with_param(
+        let existing_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1112,10 +1179,9 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(vec![], vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(vec![], &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.is_empty());
     }
 
@@ -1162,11 +1228,62 @@ mod tests {
                 .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.is_empty());
+    }
+
+    // [utest->swdd~agent-control-interface-created-for-eligible-workloads~1]
+    #[tokio::test]
+    async fn utest_add_workload_test_control_interface_creation() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut mock_workload_scheduler = MockWorkloadScheduler::default();
+        mock_workload_scheduler
+            .expect_enqueue_filtered_workload_operations()
+            .never();
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| mock_workload_scheduler);
+
+        let authorizer_mock = MockAuthorizer::from_context();
+        authorizer_mock
+            .expect()
+            .once()
+            .returning(|_| MockAuthorizer::new());
+
+        let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
+
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default().build();
+
+        control_interface_info_new_context
+            .expect()
+            .once()
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
+        let workload_spec_no_access = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+        runtime_manager
+            .add_workload(ReusableWorkloadSpec::new(workload_spec_no_access, None))
+            .await;
+
+        control_interface_info_new_context.expect().never();
+        let workload_spec_has_access = generate_test_workload_spec_with_control_interface_access(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+        runtime_manager
+            .add_workload(ReusableWorkloadSpec::new(workload_spec_has_access, None))
+            .await;
     }
 
     // [utest->swdd~agent-existing-workloads-replace-updated~2]
@@ -1239,10 +1356,9 @@ mod tests {
 
         let added_workloads = vec![existing_workload];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
@@ -1255,7 +1371,7 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1295,8 +1411,6 @@ mod tests {
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
-
-        runtime_manager.initial_workload_list_received = true;
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
@@ -1351,7 +1465,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_2_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1409,8 +1523,6 @@ mod tests {
                 )
                 .build();
 
-        runtime_manager.initial_workload_list_received = true;
-
         runtime_manager
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
@@ -1445,7 +1557,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1483,7 +1595,6 @@ mod tests {
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
-        runtime_manager.initial_workload_list_received = true;
 
         let added_workloads = vec![new_workload];
         let deleted_workloads = vec![deleted_workload];
@@ -1506,7 +1617,7 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1547,8 +1658,6 @@ mod tests {
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
-
-        runtime_manager.initial_workload_list_received = true;
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
@@ -1594,7 +1703,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1638,8 +1747,6 @@ mod tests {
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
-
-        runtime_manager.initial_workload_list_received = true;
 
         let added_workloads = vec![new_workload];
         runtime_manager
@@ -1688,8 +1795,6 @@ mod tests {
             RUNTIME_NAME.to_string(),
         )];
 
-        runtime_manager.initial_workload_list_received = true;
-
         runtime_manager
             .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
@@ -1736,8 +1841,6 @@ mod tests {
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
-
-        runtime_manager.initial_workload_list_received = true;
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
@@ -1791,8 +1894,6 @@ mod tests {
 
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
-
-        runtime_manager.initial_workload_list_received = true;
 
         let mut workload_mock = MockWorkload::default();
         workload_mock.expect_delete().never();
@@ -2035,19 +2136,22 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let control_interface_mock = MockControlInterfaceInfo::new_context();
-        control_interface_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
+        let mut workload_spec = generate_test_workload_spec_with_dependencies(
+            AGENT_NAME,
+            WORKLOAD_1_NAME,
+            RUNTIME_NAME,
+            HashMap::from([(WORKLOAD_2_NAME.to_string(), AddCondition::AddCondRunning)]),
+        );
+        workload_spec.control_interface_access = generate_test_control_interface_access();
+
         let next_workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
-            generate_test_workload_spec_with_dependencies(
-                AGENT_NAME,
-                WORKLOAD_1_NAME,
-                RUNTIME_NAME,
-                HashMap::from([(WORKLOAD_2_NAME.to_string(), AddCondition::AddCondRunning)]),
-            ),
+            workload_spec,
             None,
         ))];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -2381,7 +2485,7 @@ mod tests {
                 )
                 .build();
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_owned(),
             WORKLOAD_1_NAME.to_owned(),
             RUNTIME_NAME.to_owned(),
@@ -2486,12 +2590,6 @@ mod tests {
             WORKLOAD_1_NAME.to_owned(),
             RUNTIME_NAME.to_owned(),
         );
-
-        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
-        control_interface_info_mock
-            .expect()
-            .once()
-            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let mut workload_mock = MockWorkload::default();
         workload_mock

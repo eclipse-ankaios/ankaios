@@ -1,10 +1,10 @@
 desiredState:
   apiVersion: v0.1
   workloads:
-    nginx:
+    nginx_workload_with_a_really_long_name_that_will_cause_test_failure:
       runtime: podman
       agent: agent_A
-      restartPolicy: NEVER
+      restartPolicy: ALWAYS
       tags:
         - key: owner
           value: Ankaios team

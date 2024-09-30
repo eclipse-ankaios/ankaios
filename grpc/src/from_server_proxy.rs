@@ -62,6 +62,18 @@ pub async fn forward_from_proto_to_ankaios(
                 .ok_or(GrpcMiddlewareError::ReceiveError(
                     "Missing AgentReply.".to_string(),
                 ))? {
+                FromServerEnum::ServerHello(obj) => {
+                    agent_tx
+                        .server_hello(
+                            None,
+                            obj.added_workloads
+                                .into_iter()
+                                .map(|added_workload| added_workload.try_into())
+                                .collect::<Result<Vec<WorkloadSpec>, _>>()
+                                .map_err(GrpcMiddlewareError::ConversionError)?,
+                        )
+                        .await?;
+                }
                 FromServerEnum::UpdateWorkload(obj) => {
                     agent_tx
                         .update_workload(
@@ -109,6 +121,35 @@ pub async fn forward_from_ankaios_to_proto(
 ) {
     while let Some(from_server_msg) = receiver.recv().await {
         match from_server_msg {
+            FromServer::ServerHello(method_obj) => {
+                log::trace!("Received ServerHello from server: {:?}.", method_obj);
+
+                let agent_name = method_obj.agent_name.unwrap_or(String::default());
+
+                if let Some(sender) = agent_senders.get(&agent_name) {
+                    let result = sender
+                        .send(Ok(grpc_api::FromServer {
+                            from_server_enum: Some(FromServerEnum::ServerHello(
+                                grpc_api::ServerHello {
+                                    added_workloads: method_obj
+                                        .added_workloads
+                                        .into_iter()
+                                        .map(|x| x.into())
+                                        .collect(),
+                                },
+                            )),
+                        }))
+                        .await;
+                    if result.is_err() {
+                        log::warn!(
+                            "Could not send added workloads to started agent '{}'",
+                            agent_name,
+                        );
+                    }
+                } else {
+                    log::warn!("Unknown agent with name: '{}'", agent_name);
+                }
+            }
             FromServer::UpdateWorkload(method_obj) => {
                 log::trace!("Received UpdateWorkload from server: {:?}.", method_obj);
 
