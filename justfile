@@ -23,6 +23,7 @@ build-release:
 clean:
     cargo clean
     ./tools/dev_scripts/ankaios-clean
+    rm -rf build
 
 check-licenses:
     cargo deny check licenses
@@ -32,7 +33,7 @@ check-test-images:
     test -z "$(find tests/resources/configs -type f -exec grep -H -P 'image: (?!ghcr\.io/|image_typo:latest)' {} \;)"
 
 test:
-    cargo test
+    cargo nextest run
 
 # Build debug and run all system tests
 stest: build stest-only
