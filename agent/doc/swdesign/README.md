@@ -132,6 +132,9 @@ Status: approved
 
 The Ankaios CLI shall enforce agent names which respect the naming convention defined in the common library.
 
+Comment:
+We need to check the agent names in order to ensure the proper function of the filtering.
+
 Tags:
 - AgentManager
 
