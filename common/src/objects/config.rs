@@ -17,10 +17,6 @@ use std::collections::HashMap;
 use api::ank_base::{self, config_item};
 use serde::{Deserialize, Serialize};
 
-// #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct ConfigItem {}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum ConfigItem {
