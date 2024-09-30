@@ -3,7 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SEARCH_DIR="$SCRIPT_DIR/.."
 
-COPYRIGHT_REGEX="Copyright[[:space:]]\\(c\\)[[:space:]]20+[0-9]{2}"
+COPYRIGHT_REGEX="^.{1,3}[[:space:]]Copyright[[:space:]]\\(c\\)[[:space:]]20+[0-9]{2}"
 # List of extensions to search for
 FILE_EXT=(
     "*.rs"
