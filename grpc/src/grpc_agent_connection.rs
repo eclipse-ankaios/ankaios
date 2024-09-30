@@ -122,6 +122,7 @@ impl AgentConnection for GRPCAgentConnection {
             }) => {
                 log::trace!("Received a hello from '{}'", agent_name);
 
+                // [impl->swdd~grpc-agent-connection-checks-version-compatibility~1]
                 check_version_compatibility(&protocol_version).map_err(|err| {
                     log::warn!("Refused connection from agent '{agent_name}' due to unsupported version: '{protocol_version}'");
                     Status::failed_precondition(err)})?;

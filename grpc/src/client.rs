@@ -182,6 +182,7 @@ impl GRPCCommunicationsClient {
         let (grpc_tx, grpc_rx) =
             tokio::sync::mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
+        // [impl->swdd~grpc-client-sends-supported-version~1]
         match self.connection_type {
             ConnectionType::Agent => {
                 grpc_tx

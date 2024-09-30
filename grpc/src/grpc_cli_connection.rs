@@ -59,6 +59,7 @@ impl CliConnection for GRPCCliConnection {
     ) -> Result<Response<Self::ConnectCliStream>, Status> {
         let mut stream = request.into_inner();
 
+        // [impl->swdd~grpc-commander-connection-creates-from-server-channel~1]
         let (new_sender, new_receiver) = tokio::sync::mpsc::channel::<
             Result<grpc_api::FromServer, tonic::Status>,
         >(common::CHANNEL_CAPACITY);
@@ -80,11 +81,14 @@ impl CliConnection for GRPCCliConnection {
             ToServerEnum::CommanderHello(grpc_api::CommanderHello { protocol_version }) => {
                 log::trace!("Received a hello from a cli/commander application.");
 
+                // [impl->swdd~grpc-commander-connection-checks-version-compatibility~1]
                 check_version_compatibility(&protocol_version).map_err(|err| {
                     log::warn!("Refused cli/commander connection due to unsupported version: '{protocol_version}'");
                     Status::failed_precondition(err)})?;
 
+                // [impl->swdd~grpc-commander-connection-stores-from-server-channel-tx~1]
                 self.cli_senders.insert(&cli_connection_name, new_sender);
+                // [impl->swdd~grpc-commander-connection-forwards-commands-to-server~1]
                 let _x = tokio::spawn(async move {
                     let mut stream = GRPCToServerStreaming::new(stream);
                     let result = forward_from_proto_to_ankaios(
@@ -109,6 +113,8 @@ impl CliConnection for GRPCCliConnection {
             }
             _ => Err::<(), &str>("No CommanderHello received.").unwrap_or_exit("Protocol error."),
         }
+
+        // [impl->swdd~grpc-commander-connection-responds-with-from-server-channel-rx~1]
         Ok(Response::new(Box::pin(ReceiverStream::new(new_receiver))))
     }
 }

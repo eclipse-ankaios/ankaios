@@ -66,7 +66,7 @@ Test Ankaios workload restart after update with a Control Interface access
     Then the mount point has been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
 
-# TODO: link stests
+# [stest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
 Test Control Interface closes connection when initial hello missing
     [Setup]           Run Keywords    Setup Ankaios for Control Interface test
     Given the controller workload does not send hello

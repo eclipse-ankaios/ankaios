@@ -67,6 +67,7 @@ impl ControlInterfaceTask {
         }
     }
 
+    // [impl->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
     async fn check_initial_hello(&mut self) -> Result<(), String> {
         if let Ok(to_ankaios) = decode_to_server(self.input_stream.read_protobuf_data().await) {
             match to_ankaios.try_into() {
@@ -83,6 +84,7 @@ impl ControlInterfaceTask {
     }
 
     pub async fn run(mut self) {
+        // [impl->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
         if let Err(message) = self.check_initial_hello().await {
             log::warn!("{message}");
             let _ = self.send_connection_closed(message).await;
@@ -388,6 +390,7 @@ mod tests {
     // [utest->swdd~agent-listens-for-requests-from-pipe~1]
     // [utest->swdd~agent-ensures-control-interface-output-pipe-read~1]
     // [utest->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
+    // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_access_allowed() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -461,7 +464,7 @@ mod tests {
         );
     }
 
-    // TODO add requirements tracing
+    // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_no_hello() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -515,7 +518,7 @@ mod tests {
         assert!(output_pipe_receiver.recv().await.is_none());
     }
 
-    // TODO add requirements tracing
+    // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_hello_unsupported_version() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
