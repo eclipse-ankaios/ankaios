@@ -1092,6 +1092,50 @@ mod tests {
         assert_eq!(res, Ok("test_id".to_string()));
     }
 
+    #[tokio::test]
+    async fn utest_start_container_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        static ID: &str = "test_id";
+
+        super::CliCommand::reset();
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["--remote", "start", ID])
+                .exec_returns(Ok(ID.to_string())),
+        );
+
+        let start_config = super::PodmanStartConfig {
+            general_options: vec!["--remote".into()],
+            container_id: ID.into(),
+        };
+        let res = PodmanCli::podman_start(start_config, "test_workload_name").await;
+        assert_eq!(res, Ok(ID.to_string()));
+    }
+
+    #[tokio::test]
+    async fn utest_start_container_fail() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        static ID: &str = "unknown_id";
+
+        super::CliCommand::reset();
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["start", ID])
+                .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
+        );
+
+        let start_config = super::PodmanStartConfig {
+            general_options: vec![],
+            container_id: ID.into(),
+        };
+        let res = PodmanCli::podman_start(start_config, "test_workload_name").await;
+        assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
+    }
+
     // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
