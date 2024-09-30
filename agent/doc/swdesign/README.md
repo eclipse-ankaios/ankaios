@@ -2829,7 +2829,7 @@ When the Ankaios Agents receives a Control Interface request from a Workload, th
 Tags:
 - AgentManager
 - ControlInterface
-- Authorization
+- Authorizer
 
 Needs:
 - impl
@@ -2846,7 +2846,7 @@ If the Ankaios Agents receives a Control Interface request from a Workload and t
 Tags:
 - AgentManager
 - ControlInterface
-- Authorization
+- Authorizer
 
 Needs:
 - impl
@@ -2863,7 +2863,7 @@ the response shall contain the same request_id as the denied request.
 Tags:
 - AgentManager
 - ControlInterface
-- Authorization
+- Authorizer
 
 Needs:
 - impl
@@ -2879,7 +2879,7 @@ When the Ankaios Agents receives a Control Interface request from a Workload and
 Tags:
 - AgentManager
 - ControlInterface
-- Authorization
+- Authorizer
 -
 Needs:
 - impl
@@ -3005,7 +3005,7 @@ the Ankaios Agent shall use:
 Tags:
 - AgentManager
 - ControlInterface
-- Authorization
+- Authorizer
 -
 Needs:
 - impl
@@ -3025,7 +3025,7 @@ a UpdateStateRequest with an empty update mask or a CompleteStateRequest with an
 Tags:
 - AgentManager
 - ControlInterface
-- Authorization
+- Authorizer
 -
 Needs:
 - impl
@@ -3043,7 +3043,7 @@ the Ankaios Agent shall allow the request.
 Tags:
 - AgentManager
 - ControlInterface
-- Authorization
+- Authorizer
 -
 Needs:
 - impl
@@ -3063,7 +3063,7 @@ the Ankaios Agent shall allow this element if all of the following is true:
 Tags:
 - AgentManager
 - ControlInterface
-- Authorization
+- Authorizer
 
 Needs:
 - impl
@@ -3082,7 +3082,7 @@ An allow rule matches, if it is the same or a prefix of the request's update/fie
 Tags:
 - AgentManager
 - ControlInterface
-- Authorization
+- Authorizer
 -
 Needs:
 - impl
@@ -3101,7 +3101,7 @@ A deny rule matches, if the request's update/field mask is the same or a prefix 
 Tags:
 - AgentManager
 - ControlInterface
-- Authorization
+- Authorizer
 
 Needs:
 - impl
@@ -3121,7 +3121,7 @@ it shall consider them matching if one of the following is true:
 Tags:
 - AgentManager
 - ControlInterface
-- Authorization
+- Authorizer
 -
 Needs:
 - impl
