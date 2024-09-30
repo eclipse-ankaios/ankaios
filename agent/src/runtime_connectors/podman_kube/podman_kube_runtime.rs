@@ -70,14 +70,14 @@ impl PodmanKubeRuntime {
             let execution_state = self
                 .get_state(&self.get_workload_id(instance_name).await?)
                 .await;
-            workload_states.push(ReusableWorkloadState {
-                workload_state: WorkloadState {
+            workload_states.push(ReusableWorkloadState::new(
+                WorkloadState {
                     instance_name: instance_name.clone(),
                     execution_state,
                 },
                 // For the podman-kube runtime we cannot recreate/restart workloads and thus return  None as as workload_id
-                workload_id: None,
-            });
+                None,
+            ));
         }
         Ok(workload_states)
     }
@@ -469,8 +469,24 @@ mod tests {
 
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
-        assert!(
-            matches!(workloads, Ok(res) if res.iter().map(|x| x.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance_1.try_into().unwrap(), workload_instance_2.try_into().unwrap()])
+        let workloads = workloads.unwrap();
+
+        assert_eq!(
+            workloads
+                .iter()
+                .filter(|&x| x.workload_id.is_some())
+                .count(),
+            0
+        );
+        assert_eq!(
+            workloads
+                .iter()
+                .map(|x| x.workload_state.instance_name.clone())
+                .collect::<Vec<WorkloadInstanceName>>(),
+            [
+                workload_instance_1.try_into().unwrap(),
+                workload_instance_2.try_into().unwrap()
+            ]
         );
     }
 
@@ -515,7 +531,7 @@ mod tests {
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
         assert!(
-            matches!(workloads, Ok(res) if res.iter().map(|x| x.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
+            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
         );
     }
 
@@ -555,7 +571,7 @@ mod tests {
         println!("{:?}", workloads);
 
         assert!(
-            matches!(workloads, Ok(res) if res.iter().map(|x| x.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
+            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
         );
     }
 
@@ -600,7 +616,9 @@ mod tests {
         );
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
-        let workload = runtime.create_workload(workload_spec, None, sender).await;
+        let workload = runtime
+            .create_workload(workload_spec, None, None, sender)
+            .await;
         // [utest->swdd~podman-kube-create-workload-returns-workload-id~1]
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
@@ -648,7 +666,9 @@ mod tests {
         );
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
-        let workload = runtime.create_workload(workload_spec, None, sender).await;
+        let workload = runtime
+            .create_workload(workload_spec, None, None, sender)
+            .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
@@ -695,7 +715,9 @@ mod tests {
         );
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
-        let workload = runtime.create_workload(workload_spec, None, sender).await;
+        let workload = runtime
+            .create_workload(workload_spec, None, None, sender)
+            .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
@@ -756,7 +778,9 @@ mod tests {
         );
 
         let (sender, mut receiver) = tokio::sync::mpsc::channel(1);
-        let _workload = runtime.create_workload(workload_spec, None, sender).await;
+        let _workload = runtime
+            .create_workload(workload_spec, None, None, sender)
+            .await;
 
         receiver.recv().await;
     }
@@ -791,7 +815,9 @@ mod tests {
         );
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
-        let workload = runtime.create_workload(workload_spec, None, sender).await;
+        let workload = runtime
+            .create_workload(workload_spec, None, None, sender)
+            .await;
 
         assert!(matches!(workload, Err(RuntimeError::Create(msg)) if msg == SAMPLE_ERROR));
     }

@@ -268,6 +268,11 @@ impl RuntimeManager {
                                     ),
                                 );
                             } else if Self::is_reusable_workload(&workload_state, &workload_id) {
+                                log::info!(
+                                    "Re-starting workload '{}'",
+                                    new_instance_name.workload_name()
+                                );
+
                                 new_added_workloads.push(ReusableWorkloadSpec::new(
                                     new_workload_spec,
                                     workload_id,
@@ -549,8 +554,9 @@ mod tests {
         authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
         MockControlInterface,
     };
-    use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
+    use crate::runtime_connectors::{MockRuntimeFacade, ReusableWorkloadState, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
+    use crate::workload_operation::ReusableWorkloadSpec;
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
     use crate::workload_state::WorkloadStateReceiver;
@@ -638,8 +644,8 @@ mod tests {
 
         let added_workloads = vec![new_workload_1.clone(), new_workload_2.clone()];
         let workload_operations = vec![
-            WorkloadOperation::Create(new_workload_1),
-            WorkloadOperation::Create(new_workload_2),
+            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload_1, None)),
+            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload_2, None)),
         ];
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -717,7 +723,10 @@ mod tests {
         );
         let added_workloads = vec![workload_with_unknown_runtime.clone()];
 
-        let workload_operations = vec![WorkloadOperation::Create(workload_with_unknown_runtime)];
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+            workload_with_unknown_runtime,
+            None,
+        ))];
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
@@ -775,7 +784,9 @@ mod tests {
         );
         let added_workloads = vec![workload.clone()];
 
-        let workload_operations = vec![WorkloadOperation::Create(workload)];
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+            workload, None,
+        ))];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
             .expect_enqueue_filtered_workload_operations()
@@ -803,8 +814,12 @@ mod tests {
         runtime_facade_mock
             .expect_create_workload()
             .once()
-            .withf(|workload_spec, control_interface, to_server| {
-                workload_spec.instance_name.workload_name() == WORKLOAD_1_NAME
+            .withf(|reusable_workload_spec, control_interface, to_server| {
+                reusable_workload_spec
+                    .workload_spec
+                    .instance_name
+                    .workload_name()
+                    == WORKLOAD_1_NAME
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -872,7 +887,14 @@ mod tests {
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![workload_state_running]) }));
+            .return_once(|_| {
+                Box::pin(async {
+                    Ok(vec![ReusableWorkloadState::new(
+                        workload_state_running,
+                        None,
+                    )])
+                })
+            });
 
         runtime_facade_mock
             .expect_resume_workload()
@@ -934,7 +956,14 @@ mod tests {
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![workload_state_running]) }));
+            .return_once(|_| {
+                Box::pin(async {
+                    Ok(vec![ReusableWorkloadState::new(
+                        workload_state_running,
+                        None,
+                    )])
+                })
+            });
 
         runtime_facade_mock
             .expect_delete_workload()
@@ -948,7 +977,11 @@ mod tests {
             )
             .build();
 
-        let expected_new_added_workloads = added_workloads.clone();
+        let expected_new_added_workloads: Vec<ReusableWorkloadSpec> = added_workloads
+            .clone()
+            .into_iter()
+            .map(|w| ReusableWorkloadSpec::new(w, None))
+            .collect();
         let new_added_workloads = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
@@ -986,7 +1019,14 @@ mod tests {
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![workload_state_succeeded]) }));
+            .return_once(|_| {
+                Box::pin(async {
+                    Ok(vec![ReusableWorkloadState::new(
+                        workload_state_succeeded,
+                        None,
+                    )])
+                })
+            });
         runtime_facade_mock
             .expect_delete_workload()
             .once()
@@ -999,7 +1039,11 @@ mod tests {
             )
             .build();
 
-        let expected_added_workloads = added_workloads.clone();
+        let expected_added_workloads: Vec<ReusableWorkloadSpec> = added_workloads
+            .clone()
+            .into_iter()
+            .map(|w| ReusableWorkloadSpec::new(w, None))
+            .collect();
         let new_added_workloads = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
@@ -1045,10 +1089,13 @@ mod tests {
             .once()
             .return_once(|_| {
                 Box::pin(async move {
-                    Ok(vec![WorkloadState {
-                        instance_name: existing_workload_with_other_config,
-                        ..Default::default()
-                    }])
+                    Ok(vec![ReusableWorkloadState::new(
+                        WorkloadState {
+                            instance_name: existing_workload_with_other_config,
+                            ..Default::default()
+                        },
+                        None,
+                    )])
                 })
             });
 
@@ -1165,10 +1212,13 @@ mod tests {
             .once()
             .return_once(|_| {
                 Box::pin(async {
-                    Ok(vec![WorkloadState {
-                        instance_name: existing_workload_with_other_config,
-                        ..Default::default()
-                    }])
+                    Ok(vec![ReusableWorkloadState::new(
+                        WorkloadState {
+                            instance_name: existing_workload_with_other_config,
+                            ..Default::default()
+                        },
+                        None,
+                    )])
                 })
             });
 
@@ -1312,7 +1362,7 @@ mod tests {
 
         let workload_operations = vec![
             WorkloadOperation::Delete(deleted_workload.clone()),
-            WorkloadOperation::Create(new_workload.clone()),
+            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload.clone(), None)),
         ];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
@@ -1339,8 +1389,12 @@ mod tests {
         runtime_facade_mock
             .expect_create_workload()
             .once()
-            .withf(|workload_spec, control_interface, to_server| {
-                workload_spec.instance_name.workload_name() == WORKLOAD_2_NAME
+            .withf(|reusable_workload_spec, control_interface, to_server| {
+                reusable_workload_spec
+                    .workload_spec
+                    .instance_name
+                    .workload_name()
+                    == WORKLOAD_2_NAME
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -1400,7 +1454,10 @@ mod tests {
         let deleted_workload =
             generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
 
-        let workload_operations = vec![WorkloadOperation::Create(new_workload.clone())];
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+            new_workload.clone(),
+            None,
+        ))];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
             .expect_enqueue_filtered_workload_operations()
@@ -1543,7 +1600,10 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let workload_operations = vec![WorkloadOperation::Create(new_workload.clone())];
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+            new_workload.clone(),
+            None,
+        ))];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
             .expect_enqueue_filtered_workload_operations()
@@ -1560,8 +1620,12 @@ mod tests {
         runtime_facade_mock
             .expect_create_workload()
             .once()
-            .withf(|workload_spec, control_interface, to_server| {
-                workload_spec.instance_name.workload_name() == WORKLOAD_1_NAME
+            .withf(|resuable_workload_spec, control_interface, to_server| {
+                resuable_workload_spec
+                    .workload_spec
+                    .instance_name
+                    .workload_name()
+                    == WORKLOAD_1_NAME
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -1977,14 +2041,15 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let next_workload_operations = vec![WorkloadOperation::Create(
+        let next_workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
             generate_test_workload_spec_with_dependencies(
                 AGENT_NAME,
                 WORKLOAD_1_NAME,
                 RUNTIME_NAME,
                 HashMap::from([(WORKLOAD_2_NAME.to_string(), AddCondition::AddCondRunning)]),
             ),
-        )];
+            None,
+        ))];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
             .expect_next_workload_operations()
@@ -2206,13 +2271,16 @@ mod tests {
             WORKLOAD_1_NAME.to_owned(),
             RUNTIME_NAME.to_owned(),
         );
-        let added_workloads = vec![new_workload.clone()];
+        let added_workloads = vec![ReusableWorkloadSpec::new(new_workload.clone(), None)];
         let deleted_workloads = vec![];
         let workload_operations =
             runtime_manager.transform_into_workload_operations(added_workloads, deleted_workloads);
 
         assert_eq!(
-            vec![WorkloadOperation::Create(new_workload)],
+            vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+                new_workload,
+                None
+            ))],
             workload_operations
         );
     }
@@ -2266,7 +2334,7 @@ mod tests {
             WORKLOAD_1_NAME.to_owned(),
             RUNTIME_NAME.to_owned(),
         );
-        let added_workloads = vec![new_workload.clone()];
+        let added_workloads = vec![ReusableWorkloadSpec::new(new_workload.clone(), None)];
         let deleted_workload =
             generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
         let deleted_workloads = vec![deleted_workload.clone()];
@@ -2318,7 +2386,10 @@ mod tests {
             WORKLOAD_1_NAME.to_owned(),
             RUNTIME_NAME.to_owned(),
         );
-        let workload_operations = vec![WorkloadOperation::Create(new_workload)];
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+            new_workload,
+            None,
+        ))];
         runtime_manager
             .execute_workload_operations(workload_operations)
             .await;

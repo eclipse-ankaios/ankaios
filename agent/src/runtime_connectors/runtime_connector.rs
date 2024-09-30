@@ -101,13 +101,11 @@ pub mod test {
     use std::{collections::VecDeque, path::PathBuf, sync::Arc};
 
     use async_trait::async_trait;
-    use common::objects::{
-        AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
-    };
+    use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
     use tokio::sync::Mutex;
 
     use crate::{
-        runtime_connectors::{RuntimeStateGetter, StateChecker},
+        runtime_connectors::{ReusableWorkloadState, RuntimeStateGetter, StateChecker},
         workload_state::WorkloadStateSender,
     };
 
@@ -165,7 +163,7 @@ pub mod test {
 
     #[derive(Debug)]
     pub enum RuntimeCall {
-        GetReusableWorkloads(AgentName, Result<Vec<WorkloadState>, RuntimeError>),
+        GetReusableWorkloads(AgentName, Result<Vec<ReusableWorkloadState>, RuntimeError>),
         CreateWorkload(
             WorkloadSpec,
             Option<PathBuf>,
@@ -283,7 +281,7 @@ pub mod test {
         async fn get_reusable_workloads(
             &self,
             agent_name: &AgentName,
-        ) -> Result<Vec<WorkloadState>, RuntimeError> {
+        ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::GetReusableWorkloads(expected_agent_name, result)
                     if expected_agent_name == *agent_name =>
@@ -300,6 +298,7 @@ pub mod test {
         async fn create_workload(
             &self,
             runtime_workload_config: WorkloadSpec,
+            _reusable_workload_id: Option<String>,
             control_interface_path: Option<PathBuf>,
             _update_state_tx: WorkloadStateSender,
         ) -> Result<(String, StubStateChecker), RuntimeError> {

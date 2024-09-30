@@ -96,13 +96,13 @@ impl PodmanRuntime {
         for instance_name in workload_instance_names {
             let workload_id = &self.get_workload_id(instance_name).await?.id;
             match PodmanCli::list_states_by_id(workload_id).await {
-                Ok(Some(execution_state)) => workload_states.push(ReusableWorkloadState {
-                    workload_state: WorkloadState {
+                Ok(Some(execution_state)) => workload_states.push(ReusableWorkloadState::new(
+                    WorkloadState {
                         instance_name: instance_name.clone(),
                         execution_state,
                     },
-                    workload_id: Some(workload_id.to_string()),
-                }),
+                    Some(workload_id.to_string()),
+                )),
                 Ok(None) => {
                     return Err(RuntimeError::List(format!(
                         "Could not get execution state for workload '{}'",
@@ -340,10 +340,9 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(res.len(), 2);
         assert_eq!(
             res.iter()
-                .map(|x| x.instance_name.clone())
+                .map(|x| x.workload_state.instance_name.clone())
                 .collect::<Vec<WorkloadInstanceName>>(),
             vec![
                 "container1.hash.dummy_agent".try_into().unwrap(),
@@ -411,6 +410,7 @@ mod tests {
         let res = podman_runtime
             .create_workload(
                 workload_spec,
+                None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
             )
@@ -457,6 +457,7 @@ mod tests {
         let res = podman_runtime
             .create_workload(
                 workload_spec,
+                None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
             )
@@ -512,6 +513,7 @@ mod tests {
         let res = podman_runtime
             .create_workload(
                 workload_spec,
+                None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
             )
@@ -546,6 +548,7 @@ mod tests {
         let res = podman_runtime
             .create_workload(
                 workload_spec,
+                None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
             )
@@ -571,6 +574,7 @@ mod tests {
         let res = podman_runtime
             .create_workload(
                 workload_spec,
+                None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
             )
