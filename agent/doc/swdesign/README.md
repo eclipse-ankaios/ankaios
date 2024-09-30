@@ -919,11 +919,14 @@ Needs:
 - utest
 
 ##### Workload compares control interface metadata
-`swdd~agent-compares-control-interface-metadata~1`
+`swdd~agent-compares-control-interface-metadata~2`
 
 Status: approved
 
-When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the existing file path with the new file path of the control interface.
+When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the control inferface's:
+
+* file path
+* authorizer
 
 Tags:
 - Workload
