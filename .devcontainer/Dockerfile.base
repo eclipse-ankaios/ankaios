@@ -12,13 +12,26 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-FROM mcr.microsoft.com/devcontainers/rust:1-1-bookworm
+FROM ubuntu:24.04
 
-ARG USERNAME=vscode
 ARG TARGETARCH
+ARG USERNAME=vscode
 
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install \
+# All the packages we need
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt update && \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        apt install -y gcc-aarch64-linux-gnu; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        apt install -y gcc-x86-64-linux-gnu; \
+    fi \
+    && apt -y install \
+    # Basics
+    git \
+    zsh \
+    curl \
+    iputils-ping \
+    sudo \
     # java for plantuml
     default-jre \
     graphviz \
@@ -35,7 +48,6 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     # Others
     protobuf-compiler \
     protobuf-compiler-grpc \
-    gcc-aarch64-linux-gnu \
     tmux \
     vim \
     uidmap \
@@ -45,13 +57,59 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     podman \
     # TLS
     musl-tools \
-    && \
-    rm -rf /var/lib/apt/lists/*
+    # Cleanup
+    && rm -rf /var/lib/apt/lists/*
+
+# Workaround for podman not being able to stop containers, see https://bugs.launchpad.net/ubuntu/noble/+source/libpod/+bug/2040483
+RUN mkdir -p /etc/containers/containers.conf.d \
+    && printf '[CONTAINERS]\napparmor_profile=""\n' > /etc/containers/containers.conf.d/disable-apparmor.conf
+
+# User management
+RUN (userdel -r ubuntu || true) \
+    && groupadd rustlang \
+    && useradd -s /bin/bash -d /home/${USERNAME} -m -G rustlang ${USERNAME} \
+    && echo "${USERNAME} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME}
+
+# Prepare shells
+USER ${USERNAME}
+COPY --chown=${USERNAME}:${USERNAME} dot_bashrc /home/${USERNAME}/.bashrc
+COPY --chown=${USERNAME}:${USERNAME} dot_zshrc /home/${USERNAME}/.zshrc
+COPY --chown=${USERNAME}:${USERNAME} dot_tmux.conf /home/${USERNAME}/.tmux.conf
+RUN curl -sS https://starship.rs/install.sh | sh -s -- -y \
+    && echo 'eval "$(starship init bash)"' >> /home/${USERNAME}/.bashrc \
+    && echo 'eval "$(starship init zsh)"' >> /home/${USERNAME}/.zshrc
+COPY --chown=${USERNAME}:${USERNAME} starship.toml /home/${USERNAME}/.config/
+USER root
+
+# Rust
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH=/usr/local/cargo/bin:$PATH
+RUN mkdir -p -m 2777 $RUSTUP_HOME \
+    && chgrp rustlang $RUSTUP_HOME \
+    && mkdir -p -m 2777 $CARGO_HOME \
+    && chgrp rustlang $CARGO_HOME \
+    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+       sh -s -- -y --default-toolchain 1.80.1 --target x86_64-unknown-linux-musl aarch64-unknown-linux-musl --no-modify-path \
+    && chmod -R ag+w $RUSTUP_HOME $CARGO_HOME
 
 VOLUME /var/lib/containers
 
 COPY containers.conf /etc/containers/containers.conf
 RUN chmod 644 /etc/containers/containers.conf
+
+# install just
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        ITEMARCH="x86_64"; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        ITEMARCH="aarch64"; \
+    else \
+        exit 1; \
+    fi; \
+    curl -sL https://github.com/casey/just/releases/download/1.35.0/just-1.35.0-${ITEMARCH}-unknown-linux-musl.tar.gz | \
+    tar xz --directory=/usr/local/bin just \
+    && echo 'source <(just --completions bash)' >> /home/${USERNAME}/.bashrc \
+    && echo 'source <(just --completions zsh)' >> /home/${USERNAME}/.zshrc
 
 # install grpcurl
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
@@ -72,7 +130,7 @@ RUN curl -sL https://github.com/plantuml/plantuml/releases/download/v1.2024.0/pl
 COPY plantuml /usr/local/bin
 
 # MkDocs Material
-RUN PIP_BREAK_SYSTEM_PACKAGES=1 pip install mkdocs-material pillow cairosvg mike robotframework
+RUN PIP_BREAK_SYSTEM_PACKAGES=1 pip install mkdocs-material pillow cairosvg mike robotframework==7.0.1
 
 # protoc-gen-doc
 RUN curl -sL https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_${TARGETARCH}.tar.gz | tar xz --directory=/usr/local/bin protoc-gen-doc
@@ -89,9 +147,5 @@ RUN cargo install cargo-llvm-cov --locked; \
     cargo install cargo-nextest --locked; \
     cargo install cargo-deny --locked; \
     cargo install cargo-about --locked
-
-# Install required cargo targets and toolchains
-RUN rustup target add x86_64-unknown-linux-musl \
-    && rustup target add aarch64-unknown-linux-musl
 
 USER root

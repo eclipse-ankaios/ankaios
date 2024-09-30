@@ -55,6 +55,7 @@ async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let args = cli::parse();
+
     let server_url = match args.insecure {
         true => args.server_url.replace("http[s]", "http"),
         false => args.server_url.replace("http[s]", "https"),
@@ -107,7 +108,9 @@ async fn main() {
         workload_state_sender,
     );
 
-    if let Err(err_message) = TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem) {
+    if let Err(err_message) =
+        TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem)
+    {
         log::warn!("{}", err_message);
     }
 

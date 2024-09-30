@@ -85,6 +85,18 @@ impl AgentManager {
         log::debug!("Process command received from server.");
 
         match from_server_msg {
+            FromServer::ServerHello(method_obj) => {
+                log::debug!(
+                    "Agent '{}' received ServerHello:\n\tAdded workloads: {:?}",
+                    self.agent_name,
+                    method_obj.added_workloads
+                );
+
+                self.runtime_manager
+                    .handle_server_hello(method_obj.added_workloads, &self.workload_state_store)
+                    .await;
+                Some(())
+            }
             FromServer::UpdateWorkload(method_obj) => {
                 log::debug!("Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
                     self.agent_name,
@@ -192,7 +204,7 @@ impl AgentManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::RuntimeManager;
     use crate::agent_manager::AgentManager;
     use crate::workload_state::{
         workload_state_store::{mock_parameter_storage_new_returns, MockWorkloadStateStore},
@@ -205,7 +217,7 @@ mod tests {
         objects::{generate_test_workload_spec_with_param, ExecutionState},
         to_server_interface::ToServer,
     };
-    use mockall::predicate::*;
+    use mockall::predicate::eq;
     use tokio::{join, sync::mpsc::channel};
 
     const BUFFER_SIZE: usize = 20;

@@ -501,6 +501,11 @@ the pod "${pod_name}" of workload "${workload_name}" shall have a different id b
 
     Should Be True    ${id_changed}    msg='Workload ${pod_name}' has the same pod id '${pod_id}' and the same configuration on podman kube runtime!
 
+the last command shall list the connected agent "${agent_name}"
+    ${table_as_list}=    Table To List    ${CURRENT_RESULT.stdout}
+    ${table_as_dict}=    Table To Dict    ${table_as_list}    NAME
+    Dictionary Should Contain Key    ${table_as_dict}    ${agent_name}
+
 Setup Ankaios for Control Interface test
     Setup Ankaios
     Prepare Test Control Interface Workload
@@ -539,6 +544,20 @@ The controller workload requests shall all fail
     Ankaios agent is started with name "agent_A"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     internal_check_all_control_interface_requests_failed    ${ankaios_config_folder.name}
+
+The controller workload has no access to Control Interface
+    ${ankaios_config_folder}=    create_control_interface_config_for_test
+    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios agent is started with name "agent_A"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    internal_check_no_access_to_control_interface    ${ankaios_config_folder.name}
+
+the mount point has not been generated for ${agent_name}
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json
+    check_if_mount_point_has_not_been_generated_for    ${agent_name}    ${command_result}
+
+the mount point has been generated for ${agent_name}
+    Run Keyword And Expect Error    the mount point has been generated    the mount point has not been generated for ${agent_name}
 
 
 # ALIASES
@@ -584,4 +603,3 @@ the last command shall finish with an error
 
 the last command shall finish with exit code "${exit_code}"
     the last command finished with exit code "${exit_code}"
-

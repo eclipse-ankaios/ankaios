@@ -31,7 +31,7 @@ server_connection -> server_connection ++: wait for the response
 communications_client <<- server --++: changed workloads
 server_connection <<- communications_client --: changed workloads
 deactivate server_connection
-cli_commands <<- server_connection--: changed workloads
+cli_commands <<-- server_connection--: changed workloads
 
 == wait for workloads and print state ==
 

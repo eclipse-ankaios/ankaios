@@ -601,6 +601,7 @@ mod tests {
     use std::time::Duration;
 
     use common::objects::{
+        generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
     };
     use common::objects::{generate_test_workload_state_with_workload_spec, RestartPolicy};
@@ -1843,7 +1844,7 @@ mod tests {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),

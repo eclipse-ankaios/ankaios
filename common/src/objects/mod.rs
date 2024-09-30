@@ -16,11 +16,17 @@
 
 // [impl->swdd~common-conversions-between-ankaios-and-proto~1]
 
-mod state;
+pub mod state;
 pub use state::State;
+pub use state::{STR_RE_AGENT, STR_RE_WORKLOAD};
 
 mod complete_state;
 pub use complete_state::CompleteState;
+
+mod agent_map;
+#[cfg(any(feature = "test_utils", test))]
+pub use agent_map::{generate_test_agent_map, generate_test_agent_map_from_specs};
+pub use agent_map::{AgentAttributes, AgentMap};
 
 mod workload_states_map;
 pub use workload_states_map::WorkloadStatesMap;
@@ -52,6 +58,7 @@ mod workload_spec;
 #[cfg(any(feature = "test_utils", test))]
 pub use workload_spec::{
     generate_test_runtime_config, generate_test_workload_spec,
+    generate_test_workload_spec_with_control_interface_access,
     generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
     generate_test_workload_spec_with_runtime_config,
 };
@@ -73,6 +80,8 @@ mod agent_name;
 pub use agent_name::AgentName;
 
 mod control_interface_access;
+#[cfg(any(feature = "test_utils", test))]
+pub use control_interface_access::generate_test_control_interface_access;
 pub use control_interface_access::{
     AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum, StateRule,
 };

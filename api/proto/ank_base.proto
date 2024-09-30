@@ -84,6 +84,7 @@ message UpdateStateSuccess {
 message CompleteState {
     State desiredState = 1; /// The state the user wants to reach.
     WorkloadStatesMap workloadStates = 2; /// The current execution states of the workloads.
+    AgentMap agents = 3; /// The agents currently connected to the Ankaios cluster.
 }
 
 /**
@@ -190,6 +191,19 @@ enum Failed {
 }
 
 /**
+* A nested map that provides the names of the connected agents and their optional attributes.
+* The first level allows searches by agent name.
+*/
+message AgentMap {
+    map<string, AgentAttributes> agents = 1;
+}
+
+/**
+* A message that has not yet been implemented but will contain attributes of the agent in the future.
+*/
+message AgentAttributes {}
+
+/**
 * A message containing the information about the workload state.
 */
 message WorkloadState {
@@ -213,6 +227,7 @@ message State {
 
 /**
 * This is a workaround for proto not supporing optional maps
+* Workload names shall not be shorter than 1 symbol longer then 63 symbols and can contain only regular characters, digits, the "-" and "_" symbols.
 */
 message WorkloadMap {
     map<string, Workload> workloads = 1;

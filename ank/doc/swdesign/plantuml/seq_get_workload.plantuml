@@ -31,7 +31,7 @@ server_connection -> server_connection ++: wait for the response
 communications_client <<- server --++: complete state
 server_connection <<- communications_client --: complete state
 deactivate server_connection
-cli_commands <<- server_connection --: complete state
+cli_commands <<-- server_connection --: complete state
 
 cli_commands -> cli_commands ++: filter workloads
 cli_commands -> cli_commands ++: format output text
@@ -41,6 +41,6 @@ deactivate cli_commands
 deactivate cli_commands
 
 main -> main: print text
-user <- main -- : exit
+user <<-- main -- : exit
 
 @enduml

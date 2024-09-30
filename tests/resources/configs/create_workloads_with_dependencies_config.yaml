@@ -10,7 +10,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: docker.io/alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
       commandArgs: [ "1" ]
   storage_provider:
@@ -23,7 +23,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: docker.io/alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
       commandArgs: [ "-c", "sleep 2; exit 1" ]
   filesystem_init:
@@ -34,7 +34,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: docker.io/alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
       commandArgs: [ "1" ]
   error_notifier:
@@ -47,5 +47,5 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: docker.io/alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "echo", "Send error notifications."]

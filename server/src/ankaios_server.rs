@@ -67,14 +67,7 @@ impl AnkaiosServer {
 
     pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
         if let Some(state) = startup_state {
-            if !State::is_compatible_format(&state.desired_state.api_version) {
-                let message = format!(
-                    "Unsupported API version. Received '{}', expected '{}'",
-                    state.desired_state.api_version,
-                    State::default().api_version
-                );
-                return Err(message);
-            }
+            State::verify_format(&state.desired_state)?;
 
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
@@ -142,15 +135,17 @@ impl AnkaiosServer {
                 ToServer::AgentHello(method_obj) => {
                     log::info!("Received AgentHello from '{}'", method_obj.agent_name);
 
+                    let agent_name = method_obj.agent_name;
+
                     // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
                     let workload_states = self
                         .workload_states_map
-                        .get_workload_state_excluding_agent(&method_obj.agent_name);
+                        .get_workload_state_excluding_agent(&agent_name);
 
                     if !workload_states.is_empty() {
                         log::debug!(
                             "Sending initial UpdateWorkloadState to agent '{}' with workload states: '{:?}'",
-                            method_obj.agent_name,
+                            agent_name,
                             workload_states,
                         );
 
@@ -164,38 +159,39 @@ impl AnkaiosServer {
 
                     // Send this agent all workloads in the current state which are assigned to him
                     // [impl->swdd~agent-from-agent-field~1]
-                    let added_workloads = self
-                        .server_state
-                        .get_workloads_for_agent(&method_obj.agent_name);
+                    let added_workloads = self.server_state.get_workloads_for_agent(&agent_name);
 
                     log::debug!(
                         "Sending initial UpdateWorkload to agent '{}' with added workloads: '{:?}'",
-                        method_obj.agent_name,
+                        agent_name,
                         added_workloads,
                     );
 
-                    // [impl->swdd~server-sends-all-workloads-on-start~1]
+                    // [impl->swdd~server-sends-all-workloads-on-start~2]
                     self.to_agents
-                        .update_workload(
-                            added_workloads,
-                            // It's a newly connected agent, no need to delete anything.
-                            vec![],
-                        )
+                        .server_hello(Some(agent_name.clone()), added_workloads)
                         .await
                         .unwrap_or_illegal_state();
+
+                    // [impl->swdd~server-stores-newly-connected-agent~1]
+                    self.server_state.add_agent(agent_name);
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
+                    let agent_name = method_obj.agent_name;
+
+                    // [impl->swdd~server-removes-disconnected-agents-from-state~1]
+                    self.server_state.remove_agent(&agent_name);
+
                     // [impl->swdd~server-set-workload-state-on-disconnect~1]
-                    self.workload_states_map
-                        .agent_disconnected(&method_obj.agent_name);
+                    self.workload_states_map.agent_disconnected(&agent_name);
 
                     // communicate the workload execution states to other agents
                     // [impl->swdd~server-distribute-workload-state-on-disconnect~1]
                     self.to_agents
                         .update_workload_state(
                             self.workload_states_map
-                                .get_workload_state_for_agent(&method_obj.agent_name),
+                                .get_workload_state_for_agent(&agent_name),
                         )
                         .await
                         .unwrap_or_illegal_state();
@@ -205,7 +201,7 @@ impl AnkaiosServer {
                     request_id,
                     request_content,
                 }) => match request_content {
-                    // [impl->swdd~server-provides-interface-get-complete-state~1]
+                    // [impl->swdd~server-provides-interface-get-complete-state~2]
                     // [impl->swdd~server-includes-id-in-control-interface-response~1]
                     common::commands::RequestContent::CompleteStateRequest(
                         complete_state_request,
@@ -249,21 +245,14 @@ impl AnkaiosServer {
 
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
                         // [impl->swdd~update-desired-state-with-missing-version~1]
-                        if !State::is_compatible_format(
-                            &update_state_request.state.desired_state.api_version,
-                        ) {
-                            log::warn!("The CompleteState in the request has wrong format. Received '{}', expected '{}' -> ignoring the request.",
-                                update_state_request.state.desired_state.api_version, State::default().api_version);
+                        // [impl->swdd~server-naming-convention~1]
+                        if let Err(error_message) =
+                            State::verify_format(&update_state_request.state.desired_state)
+                        {
+                            log::warn!("The CompleteState in the request has wrong format. {} -> ignoring the request", error_message);
 
                             self.to_agents
-                                .error(
-                                    request_id,
-                                    format!(
-                                        "Unsupported API version. Received '{}', expected '{}'",
-                                        update_state_request.state.desired_state.api_version,
-                                        State::default().api_version
-                                    ),
-                                )
+                                .error(request_id, error_message)
                                 .await
                                 .unwrap_or_illegal_state();
                             continue;
@@ -392,7 +381,9 @@ mod tests {
 
     use super::ank_base;
     use api::ank_base::WorkloadMap;
-    use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
+    use common::commands::{
+        CompleteStateRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
+    };
     use common::from_server_interface::FromServer;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param, CompleteState,
@@ -401,6 +392,7 @@ mod tests {
     };
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
+    use mockall::predicate;
 
     const AGENT_A: &str = "agent_A";
     const AGENT_B: &str = "agent_B";
@@ -424,7 +416,7 @@ mod tests {
 
         let startup_state = CompleteState {
             desired_state: State {
-                workloads: HashMap::from([("workload A".to_string(), workload)]),
+                workloads: HashMap::from([("workload_A".to_string(), workload)]),
                 ..Default::default()
             },
             ..Default::default()
@@ -488,7 +480,7 @@ mod tests {
         it contains a self cycle in the inter workload dependencies config */
         let mut updated_workload = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
-            "workload A".to_string(),
+            "workload_A".to_string(),
             RUNTIME_NAME.to_string(),
         );
 
@@ -675,9 +667,10 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-sends-all-workloads-on-start~1]
+    // [utest->swdd~server-sends-all-workloads-on-start~2]
     // [utest->swdd~agent-from-agent-field~1]
     // [utest->swdd~server-starts-without-startup-config~1]
+    // [utest->swdd~server-stores-newly-connected-agent~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -712,11 +705,26 @@ mod tests {
             .return_const(vec![w1.clone()]);
 
         mock_server_state
+            .expect_add_agent()
+            .with(predicate::eq(AGENT_A.to_owned()))
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(());
+
+        mock_server_state
             .expect_get_workloads_for_agent()
             .with(mockall::predicate::eq(AGENT_B.to_string()))
             .once()
             .in_sequence(&mut seq)
             .return_const(vec![w2.clone()]);
+
+        mock_server_state
+            .expect_add_agent()
+            .with(predicate::eq(AGENT_B.to_owned()))
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(());
+
         server.server_state = mock_server_state;
 
         let server_task = tokio::spawn(async move { server.start(None).await });
@@ -728,9 +736,9 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            FromServer::UpdateWorkload(UpdateWorkload {
+            FromServer::ServerHello(ServerHello {
+                agent_name: Some(AGENT_A.to_string()),
                 added_workloads: vec![w1],
-                deleted_workloads: vec![],
             }),
             from_server_command
         );
@@ -771,9 +779,9 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            FromServer::UpdateWorkload(UpdateWorkload {
+            FromServer::ServerHello(ServerHello {
+                agent_name: Some(AGENT_B.to_string()),
                 added_workloads: vec![w2],
-                deleted_workloads: vec![]
             }),
             from_server_command
         );
@@ -1038,7 +1046,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
@@ -1112,7 +1120,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
@@ -1173,6 +1181,7 @@ mod tests {
     // [utest->swdd~server-set-workload-state-on-disconnect~1]
     // [utest->swdd~server-distribute-workload-state-on-disconnect~1]
     // [utest->swdd~server-starts-without-startup-config~1]
+    // [utest->swdd~server-removes-disconnected-agents-from-state~1]
     #[tokio::test]
     async fn utest_server_start_distributes_workload_states_after_agent_disconnect() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1185,6 +1194,12 @@ mod tests {
         mock_server_state
             .expect_cleanup_state()
             .once()
+            .return_const(());
+
+        mock_server_state
+            .expect_remove_agent()
+            .once()
+            .with(predicate::eq(AGENT_A))
             .return_const(());
 
         server.server_state = mock_server_state;
@@ -1295,6 +1310,11 @@ mod tests {
             .return_const(vec![w1.clone()]);
 
         mock_server_state
+            .expect_add_agent()
+            .times(2)
+            .return_const(());
+
+        mock_server_state
             .expect_get_workloads_for_agent()
             .with(mockall::predicate::eq(AGENT_B.to_string()))
             .once()
@@ -1331,18 +1351,18 @@ mod tests {
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            FromServer::UpdateWorkload(UpdateWorkload {
-                added_workloads: vec![w1.clone()],
-                deleted_workloads: vec![]
+            FromServer::ServerHello(ServerHello {
+                agent_name: Some(AGENT_A.to_string()),
+                added_workloads: vec![w1.clone()]
             }),
             from_server_command
         );
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            FromServer::UpdateWorkload(UpdateWorkload {
+            FromServer::ServerHello(ServerHello {
+                agent_name: Some(AGENT_B.to_string()),
                 added_workloads: vec![w2],
-                deleted_workloads: vec![]
             }),
             from_server_command
         );

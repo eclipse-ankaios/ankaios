@@ -20,20 +20,20 @@ use common::{objects::WorkloadInstanceName, to_server_interface::ToServerSender}
 use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
-use super::authorizer::Authorizer;
+use crate::control_interface::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
-use super::PipesChannelContext;
+use crate::control_interface::ControlInterface;
 
-#[derive(Debug)]
-pub struct PipesChannelContextInfo {
+pub struct ControlInterfaceInfo {
     run_folder: PathBuf,
     workload_instance_name: WorkloadInstanceName,
+    #[cfg_attr(test, allow(dead_code))]
     control_interface_to_server_sender: ToServerSender,
     authorizer: Authorizer,
 }
 
 #[cfg_attr(test, automock)]
-impl PipesChannelContextInfo {
+impl ControlInterfaceInfo {
     pub fn new(
         run_folder: &Path,
         control_interface_to_server_sender: ToServerSender,
@@ -52,7 +52,21 @@ impl PipesChannelContextInfo {
         &self.run_folder
     }
 
-    pub fn has_same_configuration(&self, other: &PipesChannelContext) -> bool {
+    pub fn get_to_server_sender(&self) -> ToServerSender {
+        self.control_interface_to_server_sender.clone()
+    }
+
+    #[cfg_attr(test, allow(dead_code))]
+    pub fn get_instance_name(&self) -> &WorkloadInstanceName {
+        &self.workload_instance_name
+    }
+
+    #[cfg_attr(test, allow(dead_code))]
+    pub fn move_authorizer(self) -> Authorizer {
+        self.authorizer
+    }
+
+    pub fn has_same_configuration(&self, other: &ControlInterface) -> bool {
         let self_location = self
             .workload_instance_name
             .pipes_folder_name(&self.run_folder);
@@ -66,18 +80,6 @@ impl PipesChannelContextInfo {
 
         self_authorizer == other_authorizer
     }
-
-    pub fn create_control_interface(self) -> Option<PipesChannelContext> {
-        match PipesChannelContext::new(
-            &self.run_folder,
-            &self.workload_instance_name,
-            self.control_interface_to_server_sender.clone(),
-            self.authorizer,
-        ) {
-            Ok(res) => Some(res),
-            _ => None,
-        }
-    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -90,10 +92,10 @@ impl PipesChannelContextInfo {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{ControlInterfaceInfo, Path, PathBuf, WorkloadInstanceName};
 
-    use crate::control_interface::MockPipesChannelContext;
-    use crate::control_interface::PipesChannelContextError;
+    use crate::control_interface::{authorizer::MockAuthorizer, MockControlInterface};
+
     use common::to_server_interface::ToServer;
 
     const WORKLOAD_1_NAME: &str = "workload1";
@@ -105,11 +107,11 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
-        let new_context_info = PipesChannelContextInfo::new(
+        let new_context_info = ControlInterfaceInfo::new(
             Path::new(PIPES_LOCATION),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
-            Authorizer::default(),
+            MockAuthorizer::default(),
         );
 
         assert_eq!(
@@ -125,16 +127,32 @@ mod tests {
     #[test]
     fn utest_get_run_folder() {
         let path = &Path::new(PIPES_LOCATION);
-        let new_context_info = PipesChannelContextInfo::new(
+        let new_context_info = ControlInterfaceInfo::new(
             path,
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &WorkloadInstanceName::builder()
                 .workload_name(WORKLOAD_1_NAME)
                 .build(),
-            Authorizer::default(),
+            MockAuthorizer::default(),
         );
 
         assert_eq!(&path.to_path_buf(), new_context_info.get_run_folder());
+    }
+
+    #[test]
+    fn utest_get_to_server_sender() {
+        let path = &Path::new(PIPES_LOCATION);
+        let (to_server_sender, _) = tokio::sync::mpsc::channel::<ToServer>(1);
+        let new_context_info = ControlInterfaceInfo::new(
+            path,
+            to_server_sender.clone(),
+            &WorkloadInstanceName::builder()
+                .workload_name(WORKLOAD_1_NAME)
+                .build(),
+            MockAuthorizer::default(),
+        );
+
+        assert!(to_server_sender.same_channel(&new_context_info.get_to_server_sender()));
     }
 
     #[test]
@@ -144,18 +162,18 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
         let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);
-        let mut context_info_authorizer = Authorizer::default();
-        let other_context_authorizer = Authorizer::default();
+        let mut context_info_authorizer = MockAuthorizer::default();
+        let other_context_authorizer = MockAuthorizer::default();
         context_info_authorizer.expect_eq().return_const(true);
 
-        let context_info = PipesChannelContextInfo::new(
+        let context_info = ControlInterfaceInfo::new(
             run_folder,
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             context_info_authorizer,
         );
 
-        let mut other_context = PipesChannelContext::default();
+        let mut other_context = MockControlInterface::default();
         other_context
             .expect_get_api_location()
             .once()
@@ -175,14 +193,14 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
-        let context_info = PipesChannelContextInfo::new(
+        let context_info = ControlInterfaceInfo::new(
             run_folder,
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
-            Authorizer::default(),
+            MockAuthorizer::default(),
         );
 
-        let mut other_context = PipesChannelContext::default();
+        let mut other_context = MockControlInterface::default();
         other_context
             .expect_get_api_location()
             .once()
@@ -198,18 +216,18 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
         let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);
-        let mut context_info_authorizer = Authorizer::default();
-        let other_context_authorizer = Authorizer::default();
+        let mut context_info_authorizer = MockAuthorizer::default();
+        let other_context_authorizer = MockAuthorizer::default();
         context_info_authorizer.expect_eq().return_const(false);
 
-        let context_info = PipesChannelContextInfo::new(
+        let context_info = ControlInterfaceInfo::new(
             run_folder,
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             context_info_authorizer,
         );
 
-        let mut other_context = PipesChannelContext::default();
+        let mut other_context = MockControlInterface::default();
         other_context
             .expect_get_api_location()
             .once()
@@ -220,57 +238,5 @@ mod tests {
             .return_const(other_context_authorizer);
 
         assert!(!context_info.has_same_configuration(&other_context));
-    }
-
-    #[tokio::test]
-    async fn utest_create_control_interface_ok() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let new_context_info = PipesChannelContextInfo::new(
-            Path::new(PIPES_LOCATION),
-            tokio::sync::mpsc::channel::<ToServer>(1).0,
-            &WorkloadInstanceName::builder()
-                .workload_name(WORKLOAD_1_NAME)
-                .build(),
-            Authorizer::default(),
-        );
-
-        let pipes_channel_context_mock = MockPipesChannelContext::new_context();
-        pipes_channel_context_mock
-            .expect()
-            .once()
-            .return_once(|_, _, _, _| Ok(MockPipesChannelContext::default()));
-
-        assert!(new_context_info.create_control_interface().is_some());
-    }
-
-    #[tokio::test]
-    async fn utest_create_control_interface_failed() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let new_context_info = PipesChannelContextInfo::new(
-            Path::new(PIPES_LOCATION),
-            tokio::sync::mpsc::channel::<ToServer>(1).0,
-            &WorkloadInstanceName::builder()
-                .workload_name(WORKLOAD_1_NAME)
-                .build(),
-            Authorizer::default(),
-        );
-
-        let pipes_channel_context_mock = MockPipesChannelContext::new_context();
-        pipes_channel_context_mock
-            .expect()
-            .once()
-            .return_once(|_, _, _, _| {
-                Err(PipesChannelContextError::CouldNotCreateFifo(String::from(
-                    "error",
-                )))
-            });
-
-        assert!(new_context_info.create_control_interface().is_none());
     }
 }

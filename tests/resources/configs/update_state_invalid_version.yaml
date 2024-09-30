@@ -9,5 +9,5 @@ desiredState:
         - key: owner
           value: Ankaios team
       runtimeConfig: |
-        image: docker.io/nginx:latest
+        image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
         commandOptions: ["-p", "8081:80", "--name", "test_workload1"]

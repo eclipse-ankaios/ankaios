@@ -111,6 +111,15 @@ async fn main() {
                     Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
                 }
             }
+            // [impl->swdd~cli-provides-list-of-agents~1]
+            Some(cli::GetCommands::Agent {}) => {
+                output_debug!("Received get agent.");
+
+                match cmd.get_agents().await {
+                    Ok(out_text) => output_and_exit!("{}", out_text),
+                    Err(error) => output_and_error!("Failed to get agents: '{}'", error),
+                }
+            }
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Set(set_args) => match set_args.command {
@@ -124,8 +133,8 @@ async fn main() {
                     object_field_mask,
                     state_object_file
                 );
-                // [impl -> swdd~cli-provides-set-desired-state~1]
-                // [impl -> swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
+
+                // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
                 if let Err(err) = cmd.set_state(object_field_mask, state_object_file).await {
                     output_and_error!("Failed to set state: '{}'", err)
                 }
@@ -181,6 +190,5 @@ async fn main() {
             }
         }
     }
-
     cmd.shut_down().await;
 }

@@ -2,13 +2,13 @@
 
 ## CompleteState
 
-The complete state data structure [CompleteState](./_ankaios.proto.md#completestate) is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the `desiredState` which describes the state of the Ankaios system the user wants to have and the `workloadStates` which gives the information about the execution state of all the workloads. By using of [CompleteState](./_ankaios.proto.md#completestate) in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.
+The complete state data structure [CompleteState](./_ankaios.proto.md#completestate) is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the `desiredState` which describes the state of the Ankaios system the user wants to have, the `workloadStates` which gives the information about the execution state of all the workloads and the `agents` field containing the names of the Ankaios agents that are currently connected to the Ankaios server. By using of [CompleteState](./_ankaios.proto.md#completestate) in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.
 
 Example: `ank -k get state` returns the complete state of Ankaios system:
 
 !!! Note
 
-    The instructions assume the default installation without mutual TLS (mTLS) for communication. With `-k` or `--insecure` the `ank` CLI will connect without mTLS. Alternatively, set the environment variable `ANK_INSECURE=true` to avoid passing the argument to each `ank` CLI command. For an Ankaios setup with mTLS, see [here](./mtls-setup.md).
+    The instructions assume the default installation without mutual TLS (mTLS) for communication. With `-k` or `--insecure` the `ank` CLI will connect without mTLS. Alternatively, set the environment variable `ANK_INSECURE=true` to avoid passing the argument to each `ank` CLI command. For an Ankaios setup with mTLS, see [here](../usage/mtls-setup.md).
 
 ```bash
 desiredState:
@@ -76,6 +76,7 @@ desiredState:
         image: docker.io/nginx:latest
         commandOptions: ["-p", "8081:80"]
 workloadStates: []
+agents: {}
 ```
 
 It is not necessary to provide the whole structure of the the [CompleteState](./_ankaios.proto.md#completestate) data structure when using it in conjunction with the [object field mask](#object-field-mask). It is sufficient to provide the relevant branch of the [CompleteState](./_ankaios.proto.md#completestate) object. As an example, to change the restart behavior of the nginx workload, only the relevant branch of the [CompleteState](./_ankaios.proto.md#completestate) needs to be provided:
@@ -86,6 +87,14 @@ desiredState:
     nginx:
       restartPolicy: ALWAYS
 ```
+
+!!! Note
+
+    In case of workload names, the naming convention states that thier names shall:
+    * contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_"
+    * have a minimal length of 1 character
+    * have a maximal length of 63 characters
+    Also, agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
 
 ## Object field mask
 
@@ -100,6 +109,7 @@ The object field mask can be constructed using the field names of the [CompleteS
 
    ```yaml
     desiredState:
+      apiVersion: v0.1
       workloads:
         nginx:
           agent: agent_A
@@ -118,6 +128,7 @@ The object field mask can be constructed using the field names of the [CompleteS
 
    ```yaml
    desiredState:
+     apiVersion: v0.1
      workloads:
        nginx:
          runtimeConfig: |
@@ -125,7 +136,7 @@ The object field mask can be constructed using the field names of the [CompleteS
            commandOptions: ["-p", "8081:80"]
    ```
 
-3. Example `ank -k set state -f new-state.yaml desiredState.workloads.nginx.restartPolicy` changes the restart behavior of nginx workload to `NEVER`:
+3. Example `ank -k set state desiredState.workloads.nginx.restartPolicy new-state.yaml` changes the restart behavior of nginx workload to `NEVER`:
 
    ```yaml title="new-state.yaml"
    desiredState:

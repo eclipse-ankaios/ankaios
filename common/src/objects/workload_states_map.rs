@@ -34,7 +34,7 @@ impl WorkloadStatesMap {
         WorkloadStatesMap(HashMap::new())
     }
 
-    pub fn entry(
+    fn entry(
         &mut self,
         key: String,
     ) -> Entry<'_, String, HashMap<String, HashMap<String, ExecutionState>>> {
@@ -162,12 +162,6 @@ impl From<WorkloadStatesMap> for Vec<WorkloadState> {
                     })
             })
             .collect()
-    }
-}
-
-impl From<HashMap<String, HashMap<String, HashMap<String, ExecutionState>>>> for WorkloadStatesMap {
-    fn from(value: HashMap<String, HashMap<String, HashMap<String, ExecutionState>>>) -> Self {
-        WorkloadStatesMap(value)
     }
 }
 

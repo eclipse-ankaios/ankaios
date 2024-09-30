@@ -43,7 +43,7 @@ No rules
     And the controller workload gets the state of fields desiredState.workloads.simple_existing.tags
     And the controller workload gets the state of fields desiredState.workloads.controller
 
-    Then the controller workload requests shall all fail
+    Then the controller workload has no access to Control Interface
 
 Allow write rule with empty string allows all writes
     Given the controller workload is allowed to write on ${EMPTY}
