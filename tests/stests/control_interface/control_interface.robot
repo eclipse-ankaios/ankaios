@@ -65,3 +65,11 @@ Test Ankaios workload restart after update with a Control Interface access
     # Asserts
     Then the mount point has been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
+
+# TODO: link stests
+Test Control Interface closes connection when initial hello missing
+    [Setup]           Run Keywords    Setup Ankaios for Control Interface test
+    Given the controller workload does not send hello
+    And the controller workload gets the state
+    Then The controller workload shall get a closed connection
+    [Teardown]    Clean up Ankaios

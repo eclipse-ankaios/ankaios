@@ -47,6 +47,11 @@ struct Command {
     command: CommandEnum,
 }
 
+enum CommandError {
+    ConnectionClosed(String),
+    GenericError(String),
+}
+
 #[derive(Deserialize)]
 #[serde(tag = "type")]
 enum CommandEnum {
@@ -83,6 +88,7 @@ enum TestResultEnum {
     GetStateResult(TagSerializedResult<Option<State>>),
     NoApi,
     SendHelloResult(TagSerializedResult<()>),
+    ConnectionClosed,
 }
 
 #[derive(Serialize)]
@@ -142,20 +148,36 @@ fn main() {
 
     match result {
         Ok(result) => {
-            let output_file = File::create(output_path).unwrap_or_else(|err| {
-                logging::log(&format!("Could not open output file: '{}'", err));
-                exit(1);
-            });
-            serde_json::to_writer(output_file, &result).unwrap_or_else(|err| {
-                logging::log(&format!("Could write to open output file: '{}'", err));
-                exit(1);
-            });
+            write_result(output_path, result);
         }
-        Err(err) => {
+        Err(CommandError::ConnectionClosed(err)) => {
+            logging::log(&format!(
+                "Connection to Ankaios server was closed: '{}'",
+                err
+            ));
+            write_result(
+                output_path,
+                vec![TestResult {
+                    result: TestResultEnum::ConnectionClosed,
+                }],
+            );
+        }
+        Err(CommandError::GenericError(err)) => {
             logging::log(&format!("Failed during test execution: {}", err));
-            exit(1);
+            exit(3);
         }
     }
+}
+
+fn write_result(output_path: String, result: Vec<TestResult>) {
+    let output_file = File::create(output_path).unwrap_or_else(|err| {
+        logging::log(&format!("Could not open output file: '{}'", err));
+        exit(4);
+    });
+    serde_json::to_writer(output_file, &result).unwrap_or_else(|err| {
+        logging::log(&format!("Could write to open output file: '{}'", err));
+        exit(5);
+    });
 }
 
 struct Connection {
@@ -194,7 +216,7 @@ impl Connection {
         })
     }
 
-    fn handle_command(&mut self, command: Command) -> Result<TestResult, String> {
+    fn handle_command(&mut self, command: Command) -> Result<TestResult, CommandError> {
         Ok(TestResult {
             result: match command.command {
                 CommandEnum::UpdateState(update_state_command) => {
@@ -208,7 +230,7 @@ impl Connection {
         })
     }
 
-    fn send_hello(&mut self, protocol_version: String) -> Result<TestResultEnum, String> {
+    fn send_hello(&mut self, protocol_version: String) -> Result<TestResultEnum, CommandError> {
         let proto = api::control_api::ToAnkaios {
             to_ankaios_enum: Some(api::control_api::to_ankaios::ToAnkaiosEnum::Hello(
                 api::control_api::Hello { protocol_version },
@@ -218,18 +240,19 @@ impl Connection {
         Ok(TestResultEnum::SendHelloResult(TagSerializedResult::Ok(
             self.output
                 .write_all(&proto.encode_length_delimited_to_vec())
-                .map_err(|err| err.to_string())?,
+                .map_err(|err| CommandError::GenericError(err.to_string()))?,
         )))
     }
 
     pub fn handle_update_state_command(
         &mut self,
         update_state_command: UpdateState,
-    ) -> Result<TestResultEnum, String> {
+    ) -> Result<TestResultEnum, CommandError> {
         let request_id = self.get_next_id();
 
         let state: common::objects::CompleteState =
-            read_yaml_file(Path::new(&update_state_command.manifest_file))?;
+            read_yaml_file(Path::new(&update_state_command.manifest_file))
+                .map_err(CommandError::GenericError)?;
 
         let request = common::commands::Request {
             request_id: request_id.clone(),
@@ -238,7 +261,8 @@ impl Connection {
                     new_state: Some(state.into()),
                     update_mask: update_state_command.update_mask,
                 }
-                .try_into()?,
+                .try_into()
+                .map_err(CommandError::GenericError)?,
             )),
         };
 
@@ -271,7 +295,7 @@ impl Connection {
     pub fn handle_get_state_command(
         &mut self,
         get_state_command: GetState,
-    ) -> Result<TestResultEnum, String> {
+    ) -> Result<TestResultEnum, CommandError> {
         let request_id = self.get_next_id();
 
         let request = common::commands::Request {
@@ -306,9 +330,12 @@ impl Connection {
         }))
     }
 
-    fn wait_for_response(&mut self, target_request_id: String) -> Result<ResponseContent, String> {
+    fn wait_for_response(
+        &mut self,
+        target_request_id: String,
+    ) -> Result<ResponseContent, CommandError> {
         loop {
-            let message = self.read_message()?;
+            let message = self.read_message().map_err(CommandError::GenericError)?;
 
             match message {
                 FromAnkaiosEnum::Response(Response {
@@ -326,13 +353,13 @@ impl Connection {
                     request_id,
                     response_content: None,
                 }) => {
-                    return Err(format!(
+                    return Err(CommandError::GenericError(format!(
                         "Received Response with correct request_id, but without content. Request Id: '{:?}'",
                         request_id
-                    ))
+                    )))
                 }
                 FromAnkaiosEnum::ConnectionClosed(_) => {
-                    return Err("Control Interface connection closed by Ankaios.".into())
+                    return Err(CommandError::ConnectionClosed("Control Interface connection closed by Ankaios.".into()))
                 }
             }
         }

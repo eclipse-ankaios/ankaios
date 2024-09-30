@@ -363,6 +363,11 @@ def internal_check_no_access_to_control_interface(tmp_folder):
     for test_result in output:
         assert test_result["result"]["type"] == "NoApi", "Expect type is different to NoApi"
 
+def internal_check_control_interface_closed(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    for test_result in output:
+        assert test_result["result"]["type"] == "ConnectionClosed", "Expect type is different to ConnectionClosed"
+
 def empty_keyword():
     pass
 

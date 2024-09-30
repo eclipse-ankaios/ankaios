@@ -520,21 +520,16 @@ Setup Ankaios for Control Interface test
 The controller workload has no access rights
     The controller workload sends initial hello with correct version
 
-The controller workload is allowed to ${operation}
-    Control interface allows to ${operation} on ${EMPTY}
-    The controller workload sends initial hello with correct version
-
 The controller workload is allowed to ${operation} on ${filter_mask}
     internal_allow_control_interface    ${operation}     ${filter_mask}
-    The controller workload sends initial hello with correct version
-
-The controller workload is forbidden to ${operation}
-    Control interface denies to ${operation} on ${EMPTY}
     The controller workload sends initial hello with correct version
 
 The controller workload is forbidden to ${operation} on ${filter_mask}
     internal_deny_control_interface    ${operation}     ${filter_mask}
     The controller workload sends initial hello with correct version
+
+The controller workload does not send hello
+    internal_allow_control_interface    read    ${EMPTY}
 
 The controller workload sends initial hello with correct version
     internal_send_initial_hello    ${ANKAIOS_VERSION}
@@ -564,6 +559,13 @@ The controller workload requests shall all fail
     Ankaios agent is started with name "agent_A"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     internal_check_all_control_interface_requests_failed    ${ankaios_config_folder.name}
+
+The controller workload shall get a closed connection
+    ${ankaios_config_folder}=    create_control_interface_config_for_test
+    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios agent is started with name "agent_A"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    internal_check_control_interface_closed    ${ankaios_config_folder.name}
 
 The controller workload has no access to Control Interface
     ${ankaios_config_folder}=    create_control_interface_config_for_test
