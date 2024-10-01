@@ -12,19 +12,31 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base;
-
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-use common::objects::{WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
+use api::ank_base;
+use common::objects::{
+    ConfigItem, StoredWorkloadSpec, WorkloadInstanceName, WorkloadState, WorkloadStatesMap,
+};
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
     objects::{CompleteState, DeletedWorkload, State, WorkloadSpec},
     state_manipulation::{Object, Path},
 };
+use handlebars::Handlebars;
+use std::collections::HashMap;
 use std::fmt::Display;
+
+// struct WrappedState {
+//     workloads: HashMap<String, WrappedWorkloadSpec>,
+// }
+
+// struct WrappedWorkloadSpec {
+//     raw_spec: StoredWorkloadSpec,
+//     rendered_spec: WorkloadSpec,
+// }
 
 #[cfg(test)]
 use mockall::automock;
@@ -182,6 +194,8 @@ impl ServerState {
             let current_complete_state: Object =
                 current_complete_state.try_into().unwrap_or_illegal_state();
             let mut return_state = Object::default();
+
+            log::debug!("Current state: {:?}", current_complete_state);
             for field in &filters {
                 if let Some(value) = current_complete_state.get(&field.into()) {
                     return_state.set(&field.into(), value.to_owned())?;
@@ -226,6 +240,14 @@ impl ServerState {
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         match update_state(&self.state, new_state, update_mask) {
             Ok(new_state) => {
+                let mut render_engine = Handlebars::new();
+                render_engine.set_strict_mode(true); // enable throwing render errors if context data is valid
+
+                if !new_state.desired_state.configs.is_empty() {
+                    self.render_templates(&new_state.desired_state, &render_engine)
+                        .map_err(UpdateStateError::ResultInvalid)?;
+                }
+
                 let cmd = extract_added_and_deleted_workloads(
                     &self.state.desired_state,
                     &new_state.desired_state,
@@ -286,6 +308,67 @@ impl ServerState {
         self.delete_graph
             .remove_deleted_workloads_from_delete_graph(new_workload_states);
     }
+
+    fn render_templates(
+        &self,
+        state: &State,
+        template_engine: &Handlebars<'static>,
+    ) -> Result<State, String> {
+        let mut expanded_state = state.clone();
+        for (workload_name, workload) in &mut expanded_state.workloads {
+            let wl_config_map = self.create_config_map_for_workload(workload, &state.configs);
+
+            if wl_config_map.is_empty() {
+                continue;
+            }
+
+            log::debug!(
+                "Expanding workload '{}' with config '{:?}'",
+                workload_name,
+                wl_config_map
+            );
+            let rendered_runtime_config = template_engine
+                .render_template(&workload.runtime_config, &wl_config_map)
+                .map_err(|err| {
+                    format!(
+                        "Failed to expand runtime config template for workload '{}': '{}'",
+                        workload_name, err
+                    )
+                })?;
+
+            let rendered_agent_name = template_engine
+                .render_template(&workload.agent, &wl_config_map)
+                .map_err(|err| {
+                    format!(
+                        "Failed to expand template for workload '{}': '{}'",
+                        workload_name, err
+                    )
+                })?;
+
+            // assign rendered config to all necessary fields
+            workload.runtime_config = rendered_runtime_config;
+            workload.agent = rendered_agent_name;
+        }
+        log::debug!("Expanded state: {:?}", expanded_state);
+        Ok(expanded_state)
+    }
+
+    fn create_config_map_for_workload<'a>(
+        &self,
+        workload_spec: &'a StoredWorkloadSpec,
+        configs: &'a HashMap<String, ConfigItem>,
+    ) -> HashMap<&'a String, &'a ConfigItem> {
+        workload_spec.configs.iter().fold(
+            HashMap::new(),
+            |mut wl_config_map, (config_alias, config_key)| {
+                if let Some(config_value) = configs.get(config_key) {
+                    wl_config_map.insert(config_key, config_value);
+                    wl_config_map.insert(config_alias, config_value);
+                }
+                wl_config_map
+            },
+        )
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -303,10 +386,10 @@ mod tests {
     use common::{
         commands::CompleteStateRequest,
         objects::{
-            generate_test_agent_map, generate_test_stored_workload_spec, 
-            generate_test_workload_spec_with_control_interface_access, 
-            generate_test_workload_spec_with_param, AgentMap,
-            CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
+            generate_test_agent_map, generate_test_stored_workload_spec,
+            generate_test_workload_spec_with_control_interface_access,
+            generate_test_workload_spec_with_param, AgentMap, CompleteState, DeletedWorkload,
+            State, WorkloadSpec, WorkloadStatesMap,
         },
         test_utils::{self, generate_test_complete_state},
     };
