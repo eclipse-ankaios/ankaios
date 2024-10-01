@@ -18,8 +18,9 @@ use api::ank_base::{self, ConfigMappings, Dependencies, Tags, WorkloadMap};
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    generate_test_runtime_config, generate_test_stored_workload_spec_with_config, DeleteCondition,
-    DeletedWorkload, State, StoredWorkloadSpec, WorkloadInstanceName, WorkloadSpec,
+    generate_test_runtime_config, generate_test_stored_workload_spec_with_config, ConfigItem,
+    DeleteCondition, DeletedWorkload, State, StoredWorkloadSpec, WorkloadInstanceName,
+    WorkloadSpec,
 };
 
 const RUNTIME_NAME: &str = "runtime";
@@ -37,14 +38,19 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
                 let name = v.instance_name.workload_name().to_owned();
                 let mut w = StoredWorkloadSpec::from(v);
                 w.configs = [
-                    ("ref1".into(), "config.path.1".into()),
-                    ("ref2".into(), "config.path.2".into()),
+                    ("ref1".into(), "config_1".into()),
+                    ("ref2".into(), "config_2".into()),
                 ]
                 .into();
                 (name, w)
             })
             .collect(),
-        configs: HashMap::new(),
+        configs: [
+            ("config_1".into(), ConfigItem::String("value 1".into())),
+            ("config_2".into(), ConfigItem::String("value 2".into())),
+            ("config_3".into(), ConfigItem::String("value 3".into())),
+        ]
+        .into(),
     }
 }
 
@@ -172,8 +178,8 @@ pub fn generate_test_proto_workload_with_param(
         }]}),
         control_interface_access: Default::default(),
         configs: Some(ConfigMappings{configs: [
-            ("ref1".into(), "config.path.1".into()),
-            ("ref2".into(), "config.path.2".into()),
+            ("ref1".into(), "config_1".into()),
+            ("ref2".into(), "config_2".into()),
         ].into()})
     }
 }
@@ -192,8 +198,8 @@ pub fn generate_test_proto_workload() -> ank_base::Workload {
         }]}),
         control_interface_access: Default::default(),
         configs: Some(ConfigMappings{configs: [
-            ("ref1".into(), "config.path.1".into()),
-            ("ref2".into(), "config.path.2".into()),
+            ("ref1".into(), "config_1".into()),
+            ("ref2".into(), "config_2".into()),
         ].into()})
     }
 }

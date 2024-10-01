@@ -428,8 +428,8 @@ mod tests {
                         control_interface_access: None,
                         configs: Some(ank_base::ConfigMappings {
                             configs: [
-                                ("ref1".into(), "config.path.1".into()),
-                                ("ref2".into(), "config.path.2".into()),
+                                ("ref1".into(), "config_1".into()),
+                                ("ref2".into(), "config_2".into()),
                             ]
                             .into(),
                         }),
@@ -459,8 +459,8 @@ mod tests {
                     control_interface_access: None,
                     configs: Some(ank_base::ConfigMappings {
                         configs: [
-                            ("ref1".into(), "config.path.1".into()),
-                            ("ref2".into(), "config.path.2".into()),
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
                         ]
                         .into()
                     })
@@ -542,8 +542,8 @@ mod tests {
                         control_interface_access: None,
                         configs: Some(ank_base::ConfigMappings {
                             configs: [
-                                ("ref1".into(), "config.path.1".into()),
-                                ("ref2".into(), "config.path.2".into()),
+                                ("ref1".into(), "config_1".into()),
+                                ("ref2".into(), "config_2".into()),
                             ]
                             .into(),
                         }),
@@ -577,8 +577,8 @@ mod tests {
                         control_interface_access: None,
                         configs: Some(ank_base::ConfigMappings {
                             configs: [
-                                ("ref1".into(), "config.path.1".into()),
-                                ("ref2".into(), "config.path.2".into()),
+                                ("ref1".into(), "config_1".into()),
+                                ("ref2".into(), "config_2".into()),
                             ]
                             .into(),
                         }),
@@ -608,8 +608,8 @@ mod tests {
                     control_interface_access: None,
                     configs: Some(ank_base::ConfigMappings {
                         configs: [
-                            ("ref1".into(), "config.path.1".into()),
-                            ("ref2".into(), "config.path.2".into()),
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
                         ]
                         .into()
                     })
@@ -656,8 +656,8 @@ mod tests {
                         control_interface_access: None,
                         configs: Some(ank_base::ConfigMappings {
                             configs: [
-                                ("ref1".into(), "config.path.1".into()),
-                                ("ref2".into(), "config.path.2".into()),
+                                ("ref1".into(), "config_1".into()),
+                                ("ref2".into(), "config_2".into()),
                             ]
                             .into(),
                         }),
@@ -687,8 +687,8 @@ mod tests {
                     control_interface_access: None,
                     configs: Some(ank_base::ConfigMappings {
                         configs: [
-                            ("ref1".into(), "config.path.1".into()),
-                            ("ref2".into(), "config.path.2".into()),
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
                         ]
                         .into()
                     })
@@ -840,8 +840,8 @@ mod tests {
                         control_interface_access: None,
                         configs: Some(ank_base::ConfigMappings {
                             configs: [
-                                ("ref1".into(), "config.path.1".into()),
-                                ("ref2".into(), "config.path.2".into()),
+                                ("ref1".into(), "config_1".into()),
+                                ("ref2".into(), "config_2".into()),
                             ]
                             .into(),
                         }),

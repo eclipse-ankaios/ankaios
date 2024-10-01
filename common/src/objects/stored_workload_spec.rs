@@ -161,8 +161,8 @@ pub fn generate_test_stored_workload_spec_with_config(
         runtime_config: runtime_config.into(),
         control_interface_access: Default::default(),
         configs: [
-            ("ref1".into(), "config.path.1".into()),
-            ("ref2".into(), "config.path.2".into()),
+            ("ref1".into(), "config_1".into()),
+            ("ref2".into(), "config_2".into()),
         ]
         .into(),
     }

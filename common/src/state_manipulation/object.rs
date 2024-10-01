@@ -774,12 +774,18 @@ mod tests {
                             .entry(
                                 "configs",
                                 Mapping::default()
-                                .entry("ref1", "config.path.1")
-                                .entry("ref2", "config.path.2")
+                                    .entry("ref1", "config_1")
+                                    .entry("ref2", "config_2")
                             ),
                     ),
                 )
-                .entry("configs", Mapping::default())
+                .entry(
+                    "configs",
+                    Mapping::default()
+                        .entry("config_1", "value 1")
+                        .entry("config_2", "value 2")
+                        .entry("config_3", "value 3")
+                )
         }
 
         pub fn generate_test_value_object() -> Value {

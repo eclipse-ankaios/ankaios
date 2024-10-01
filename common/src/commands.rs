@@ -285,8 +285,8 @@ mod tests {
                 control_interface_access: Default::default(),
                 configs: Some(ank_base::ConfigMappings {
                     configs: [
-                        ("ref1".into(), "config.path.1".into()),
-                        ("ref2".into(), "config.path.2".into()),
+                        ("ref1".into(), "config_1".into()),
+                        ("ref2".into(), "config_2".into()),
                     ]
                     .into(),
                 }),
@@ -305,8 +305,8 @@ mod tests {
                 runtime_config: RUNTIME_CONFIG.to_string(),
                 control_interface_access: Default::default(),
                 configs: [
-                    ("ref1".into(), "config.path.1".into()),
-                    ("ref2".into(), "config.path.2".into()),
+                    ("ref1".into(), "config_1".into()),
+                    ("ref2".into(), "config_2".into()),
                 ]
                 .into(),
             }
