@@ -770,8 +770,21 @@ mod tests {
                                 Mapping::default()
                                     .entry("allowRules", vec![] as Vec<Value>)
                                     .entry("denyRules", vec![] as Vec<Value>),
+                            )
+                            .entry(
+                                "configs",
+                                Mapping::default()
+                                    .entry("ref1", "config_1")
+                                    .entry("ref2", "config_2")
                             ),
                     ),
+                )
+                .entry(
+                    "configs",
+                    Mapping::default()
+                        .entry("config_1", "value 1")
+                        .entry("config_2", "value 2")
+                        .entry("config_3", "value 3")
                 )
         }
 

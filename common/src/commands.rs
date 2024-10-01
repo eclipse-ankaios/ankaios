@@ -78,7 +78,7 @@ impl From<RequestContent> for ank_base::request::RequestContent {
                 ank_base::request::RequestContent::CompleteStateRequest(content.into())
             }
             RequestContent::UpdateStateRequest(content) => {
-                ank_base::request::RequestContent::UpdateStateRequest((*content).into())
+                ank_base::request::RequestContent::UpdateStateRequest(Box::new((*content).into()))
             }
         }
     }
@@ -89,7 +89,7 @@ impl TryFrom<ank_base::request::RequestContent> for RequestContent {
     fn try_from(value: ank_base::request::RequestContent) -> Result<Self, Self::Error> {
         Ok(match value {
             ank_base::request::RequestContent::UpdateStateRequest(value) => {
-                RequestContent::UpdateStateRequest(Box::new(value.try_into()?))
+                RequestContent::UpdateStateRequest(Box::new((*value).try_into()?))
             }
             ank_base::request::RequestContent::CompleteStateRequest(value) => {
                 RequestContent::CompleteStateRequest(value.into())
@@ -177,8 +177,9 @@ mod tests {
 
     mod ank_base {
         pub use api::ank_base::{
-            request::RequestContent, CompleteState, CompleteStateRequest, Dependencies, Request,
-            RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload, WorkloadMap,
+            request::RequestContent, CompleteState, CompleteStateRequest, ConfigMappings,
+            Dependencies, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
+            WorkloadMap,
         };
     }
 
@@ -226,10 +227,10 @@ mod tests {
 
     macro_rules! update_state_request_enum {
         (ank_base) => {
-            ank_base::RequestContent::UpdateStateRequest(ank_base::UpdateStateRequest {
+            ank_base::RequestContent::UpdateStateRequest(Box::new(ank_base::UpdateStateRequest {
                 new_state: complete_state!(ank_base).into(),
                 update_mask: vec![FIELD_1.into(), FIELD_2.into()],
-            })
+            }))
         };
         (ankaios) => {
             ankaios::RequestContent::UpdateStateRequest(Box::new(ankaios::UpdateStateRequest {
@@ -245,6 +246,7 @@ mod tests {
                 desired_state: ankaios::State {
                     api_version: "v0.1".into(),
                     workloads: HashMap::from([("desired".into(), workload!(ankaios))]),
+                    configs: HashMap::new(),
                 }
                 .into(),
                 workload_states: workload_states_map!(ankaios),
@@ -258,6 +260,7 @@ mod tests {
                     workloads: Some(ank_base::WorkloadMap {
                         workloads: HashMap::from([("desired".to_string(), workload!(ank_base))]),
                     }),
+                    configs: Some(Default::default()),
                 }),
                 workload_states: workload_states_map!(ank_base),
                 agents: agent_map!(ank_base),
@@ -280,6 +283,13 @@ mod tests {
                     }],
                 }),
                 control_interface_access: Default::default(),
+                configs: Some(ank_base::ConfigMappings {
+                    configs: [
+                        ("ref1".into(), "config_1".into()),
+                        ("ref2".into(), "config_2".into()),
+                    ]
+                    .into(),
+                }),
             }
         };
         (ankaios) => {
@@ -294,6 +304,11 @@ mod tests {
                 runtime: RUNTIME.to_string(),
                 runtime_config: RUNTIME_CONFIG.to_string(),
                 control_interface_access: Default::default(),
+                configs: [
+                    ("ref1".into(), "config_1".into()),
+                    ("ref2".into(), "config_2".into()),
+                ]
+                .into(),
             }
         };
     }
@@ -368,6 +383,7 @@ mod tests {
                 workloads: Some(ank_base::WorkloadMap {
                     workloads: HashMap::new(),
                 }),
+                configs: Some(Default::default()),
             }),
             ..Default::default()
         });
@@ -409,6 +425,7 @@ mod tests {
             workloads: Some(ank_base::WorkloadMap {
                 workloads: HashMap::new(),
             }),
+            configs: Some(Default::default()),
         });
 
         let ankaios::RequestContent::UpdateStateRequest(ankaios_request_content) =
