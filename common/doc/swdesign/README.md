@@ -334,6 +334,45 @@ Needs:
 - impl
 - utest
 
+#### Workload naming convention
+`swdd~common-workload-naming-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing a workload name to:
+* contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_"
+* have a minimal length of 1 character
+* have a maximal length of 63 characters
+
+Rationale:
+A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent naming convention
+`swdd~common-agent-naming-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing an agent name to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+
+Rationale:
+A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Provide common conversions between Ankaios and protobuf
 `swdd~common-conversions-between-ankaios-and-proto~1`
 

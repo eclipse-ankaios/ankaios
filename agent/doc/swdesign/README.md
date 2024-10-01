@@ -125,6 +125,23 @@ The following diagram shows the startup sequence of the Ankaios Agent:
 
 ![Startup](plantuml/seq_startup.svg)
 
+#### Agent naming convention
+`swdd~agent-naming-convention~1`
+
+Status: approved
+
+The Ankaios CLI shall enforce agent names which respect the naming convention defined in the common library.
+
+Comment:
+We need to check the agent names in order to ensure the proper function of the filtering.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- stest
+
 #### Agent communicates only with the Server
 `swdd~agent-shall-use-interfaces-to-server~1`
 
