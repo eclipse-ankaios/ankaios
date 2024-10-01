@@ -24,7 +24,7 @@ use tokio::sync::mpsc::error::SendError;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ToServer {
     AgentHello(commands::AgentHello),
-    AgentResource(commands::AgentResourceCommand),
+    AgentLoadStatus(commands::AgentLoadStatus),
     AgentGone(commands::AgentGone),
     Request(commands::Request),
     UpdateWorkloadState(commands::UpdateWorkloadState),
@@ -51,9 +51,9 @@ impl fmt::Display for ToServerError {
 #[async_trait]
 pub trait ToServerInterface {
     async fn agent_hello(&self, agent_name: String) -> Result<(), ToServerError>;
-    async fn agent_resource(
+    async fn agent_load_status(
         &self,
-        agent_resource: commands::AgentResourceCommand,
+        agent_resource: commands::AgentLoadStatus,
     ) -> Result<(), ToServerError>;
     async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError>;
     async fn update_state(
@@ -85,11 +85,11 @@ impl ToServerInterface for ToServerSender {
             .await?)
     }
 
-    async fn agent_resource(
+    async fn agent_load_status(
         &self,
-        agent_resource: commands::AgentResourceCommand,
+        agent_resource: commands::AgentLoadStatus,
     ) -> Result<(), ToServerError> {
-        Ok(self.send(ToServer::AgentResource(agent_resource)).await?)
+        Ok(self.send(ToServer::AgentLoadStatus(agent_resource)).await?)
     }
 
     async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError> {
@@ -160,10 +160,9 @@ impl ToServerInterface for ToServerSender {
 #[cfg(test)]
 mod tests {
     use crate::{
-        commands::{self, AgentResourceCommand, RequestContent},
+        commands::{self, AgentLoadStatus, RequestContent},
         objects::{
-            generate_test_workload_spec, generate_test_workload_state, AgentResources,
-            ExecutionState,
+            generate_test_workload_spec, generate_test_workload_state, AgentLoad, ExecutionState,
         },
         test_utils::generate_test_complete_state,
         to_server_interface::{ToServer, ToServerInterface},
@@ -176,7 +175,7 @@ mod tests {
     const AGENT_NAME: &str = "agent_A";
     const REQUEST_ID: &str = "emkw489ejf89ml";
     const FIELD_MASK: &str = "desiredState.bla_bla";
-    const AGENT_RESOURCES: AgentResources = AgentResources {
+    const AGENT_RESOURCES: AgentLoad = AgentLoad {
         cpu_usage: 42,
         free_memory: 42,
     };
@@ -199,12 +198,12 @@ mod tests {
 
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
-    async fn utest_to_server_send_agent_resource() {
+    async fn utest_to_server_send_agent_load_status() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
         assert!(tx
-            .agent_resource(AgentResourceCommand {
+            .agent_load_status(AgentLoadStatus {
                 agent_name: AGENT_NAME.to_string(),
                 agent_resources: AGENT_RESOURCES.clone(),
             })
@@ -213,7 +212,7 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::AgentResource(AgentResourceCommand {
+            ToServer::AgentLoadStatus(AgentLoadStatus {
                 agent_name: AGENT_NAME.to_string(),
                 agent_resources: AGENT_RESOURCES.clone(),
             })

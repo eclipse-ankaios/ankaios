@@ -14,9 +14,9 @@
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
 use common::{
-    commands::AgentResourceCommand,
+    commands::AgentLoadStatus,
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{AgentResources, WorkloadState},
+    objects::{AgentLoad, WorkloadState},
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -225,9 +225,9 @@ impl AgentManager {
         );
 
         self.to_server
-            .agent_resource(AgentResourceCommand {
+            .agent_load_status(AgentLoadStatus {
                 agent_name: self.agent_name.clone(),
-                agent_resources: AgentResources {
+                agent_resources: AgentLoad {
                     cpu_usage,
                     free_memory,
                 },

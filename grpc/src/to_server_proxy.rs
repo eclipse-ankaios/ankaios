@@ -122,9 +122,12 @@ pub async fn forward_from_proto_to_ankaios(
                 break;
             }
 
-            ToServerEnum::AgentResource(_agent_resource) => {
-                log::trace!("Received AgentResource from {}", _agent_resource.agent_name);
-                sink.agent_resource(_agent_resource.into()).await?;
+            ToServerEnum::AgentLoadStatus(_agent_resource) => {
+                log::trace!(
+                    "Received AgentLoadStatus from {}",
+                    _agent_resource.agent_name
+                );
+                sink.agent_load_status(_agent_resource.into()).await?;
             }
 
             unknown_message => {
@@ -175,19 +178,16 @@ pub async fn forward_from_ankaios_to_proto(
                 panic!("AgentHello was not expected at this point.");
             }
 
-            ToServer::AgentResource(measurement) => {
-                log::trace!(
-                    "Received AgentResource from agent {}",
-                    measurement.agent_name
-                );
+            ToServer::AgentLoadStatus(status) => {
+                log::trace!("Received AgentResource from agent {}", status.agent_name);
                 grpc_tx
                     .send(grpc_api::ToServer {
-                        to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentResource(
-                            common::commands::AgentResourceCommand {
-                                agent_name: measurement.agent_name,
-                                agent_resources: objects::AgentResources {
-                                    cpu_usage: measurement.agent_resources.cpu_usage,
-                                    free_memory: measurement.agent_resources.free_memory,
+                        to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentLoadStatus(
+                            common::commands::AgentLoadStatus {
+                                agent_name: status.agent_name,
+                                agent_resources: objects::AgentLoad {
+                                    cpu_usage: status.agent_resources.cpu_usage,
+                                    free_memory: status.agent_resources.free_memory,
                                 },
                             }
                             .into(),
@@ -237,7 +237,6 @@ mod tests {
         objects::generate_test_workload_spec_with_param,
         to_server_interface::{ToServer, ToServerInterface},
     };
-    use mockall::predicate;
     use tokio::sync::mpsc;
 
     use crate::grpc_api::{self, to_server::ToServerEnum};
@@ -269,18 +268,18 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let agent_resources = common::objects::AgentResources {
+        let agent_resources = common::objects::AgentLoad {
             cpu_usage: 42,
             free_memory: 42,
         };
         let agent_name = "agent_A".to_string();
-        let agent_resources_command = common::commands::AgentResourceCommand {
+        let agent_resources_command = common::commands::AgentLoadStatus {
             agent_name: agent_name.clone(),
             agent_resources,
         };
 
         let agent_resource_result = server_tx
-            .agent_resource(agent_resources_command.clone())
+            .agent_load_status(agent_resources_command.clone())
             .await;
         assert!(agent_resource_result.is_ok());
 
@@ -295,7 +294,7 @@ mod tests {
 
         assert!(matches!(
             result.to_server_enum,
-            Some(ToServerEnum::AgentResource(grpc_api::AgentResource {
+            Some(ToServerEnum::AgentLoadStatus(grpc_api::AgentLoadStatus {
                 agent_name,
                 cpu_load,
                 free_memory
@@ -306,12 +305,12 @@ mod tests {
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
-        let agent_resources = common::objects::AgentResources {
+        let agent_resources = common::objects::AgentLoad {
             cpu_usage: 42,
             free_memory: 42,
         };
         let agent_name = "agent_A".to_string();
-        let agent_resources_command = common::commands::AgentResourceCommand {
+        let agent_resources_command = common::commands::AgentLoadStatus {
             agent_name: agent_name.clone(),
             agent_resources,
         };
@@ -321,7 +320,7 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::AgentResource(
+                    to_server_enum: Some(ToServerEnum::AgentLoadStatus(
                         agent_resources_command.clone().into(),
                     )),
                 }),
@@ -341,7 +340,7 @@ mod tests {
         let result = server_rx.recv().await.unwrap();
 
         assert!(
-            matches!(result, ToServer::AgentResource(measurement) if measurement == agent_resources_command)
+            matches!(result, ToServer::AgentLoadStatus(measurement) if measurement == agent_resources_command)
         );
     }
 

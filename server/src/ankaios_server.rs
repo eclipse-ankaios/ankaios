@@ -183,9 +183,9 @@ impl AnkaiosServer {
                     // [impl->swdd~server-stores-newly-connected-agent~1]
                     self.server_state.add_agent(agent_name);
                 }
-                ToServer::AgentResource(method_obj) => {
+                ToServer::AgentLoadStatus(method_obj) => {
                     log::trace!(
-                        "Received available resources from agent '{}': CPU: {:.2}%, Free Memory: {}",
+                        "Received load status from agent '{}': CPU: {:.2}%, Free Memory: {}",
                         method_obj.agent_name,
                         method_obj.agent_resources.cpu_usage,
                         method_obj.agent_resources.free_memory,
@@ -407,12 +407,11 @@ mod tests {
     use super::ank_base;
     use api::ank_base::WorkloadMap;
     use common::commands::{
-        AgentResourceCommand, CompleteStateRequest, ServerHello, UpdateWorkload,
-        UpdateWorkloadState,
+        AgentLoadStatus, CompleteStateRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
     use common::objects::{
-        generate_test_stored_workload_spec, generate_test_workload_spec_with_param, AgentResources,
+        generate_test_stored_workload_spec, generate_test_workload_spec_with_param, AgentLoad,
         CompleteState, DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
         WorkloadInstanceName, WorkloadState,
     };
@@ -1673,51 +1672,33 @@ mod tests {
     // [utest->swdd~server-receives-resource-availability~1]
     #[tokio::test]
     async fn utest_server_recieves_agent_resource_availability_info() {
+        let payload = AgentLoadStatus {
+            agent_name: AGENT_A.to_string(),
+            agent_resources: AgentLoad {
+                cpu_usage: 42,
+                free_memory: 42,
+            },
+        };
+
         let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
-        let (to_agents, _) = create_from_server_channel(common::CHANNEL_CAPACITY);
-
-        let complete_state = ank_base::CompleteState::default();
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
-            .expect_get_complete_state_by_field_mask()
-            .with(
-                mockall::predicate::function(|request_compl_state| {
-                    request_compl_state == &CompleteStateRequest { field_mask: vec![] }
-                }),
-                mockall::predicate::always(),
-            )
-            .once()
-            .return_const(Ok(complete_state.clone()));
-        mock_server_state
             .expect_update_agent_resource_availability()
-            .with(mockall::predicate::function(|agent_resource| {
-                agent_resource
-                    == &AgentResourceCommand {
-                        agent_name: AGENT_A.to_string(),
-                        agent_resources: AgentResources {
-                            cpu_usage: 42,
-                            free_memory: 42,
-                        },
-                    }
-            }))
-            .once();
+            .with(mockall::predicate::eq(payload.clone()))
+            .return_const(());
         server.server_state = mock_server_state;
-        let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let agent_resource_result = to_server
-            .agent_resource(AgentResourceCommand {
-                agent_name: AGENT_A.to_string(),
-                agent_resources: AgentResources {
-                    cpu_usage: 42,
-                    free_memory: 42,
-                },
-            })
-            .await;
+        let agent_resource_result = to_server.agent_load_status(payload).await;
         assert!(agent_resource_result.is_ok());
 
-        server_task.abort();
+        drop(to_server);
+        let result = server.start(None).await;
+
+        assert!(result.is_ok());
     }
 }

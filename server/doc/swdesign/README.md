@@ -806,7 +806,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server receives new resources availability info, then the Ankaios Server shall trigger the ServerState to update its internal info regarding the connected agents' resource availability.
+When the Ankaios Server receives new a new agent load status, then the Ankaios Server shall trigger the ServerState to update its internal info regarding the connected agents' resource availability.
 
 Rationale:
 The server state shall need in the future the resource availability info for scheduling tasks.

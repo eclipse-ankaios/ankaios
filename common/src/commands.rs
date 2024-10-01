@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::objects::{AgentResources, CompleteState, DeletedWorkload, WorkloadSpec};
+use crate::objects::{AgentLoad, CompleteState, DeletedWorkload, WorkloadSpec};
 use api::ank_base;
 use serde::{Deserialize, Serialize};
 
@@ -22,9 +22,9 @@ pub struct AgentHello {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct AgentResourceCommand {
+pub struct AgentLoadStatus {
     pub agent_name: String,
-    pub agent_resources: AgentResources,
+    pub agent_resources: AgentLoad,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

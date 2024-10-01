@@ -1966,13 +1966,6 @@ mod tests {
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
 
-        let response_content =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                AGENT_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )]);
-
         runtime_manager
             .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),

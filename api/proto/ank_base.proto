@@ -201,7 +201,7 @@ message AgentMap {
 /**
 * A message that has not yet been implemented but will contain attributes of the agent in the future.
 */
-message AgentResources {
+message AgentLoad {
     uint32 cpu_usage = 1;
     uint64 free_memory = 2;
 }
@@ -210,7 +210,7 @@ message AgentResources {
 * A message that contains attributes of the agent.
 */
 message AgentAttributes {
-    AgentResources agent_resources = 1;
+    AgentLoad agent_resources = 1;
 }
 
 /**

@@ -283,7 +283,7 @@ impl ServerState {
     // [impl->swdd~server-receives-resource-availability~1]
     pub fn update_agent_resource_availability(
         &mut self,
-        agent_resource: commands::AgentResourceCommand,
+        agent_resource: commands::AgentLoadStatus,
     ) {
         self.state
             .agents
@@ -311,12 +311,12 @@ mod tests {
 
     use api::ank_base::{self, Dependencies, Tags};
     use common::{
-        commands::{AgentResourceCommand, CompleteStateRequest},
+        commands::{AgentLoadStatus, CompleteStateRequest},
         objects::{
             generate_test_agent_map, generate_test_stored_workload_spec,
             generate_test_workload_spec_with_control_interface_access,
-            generate_test_workload_spec_with_param, AgentAttributes, AgentMap, AgentResources,
-            CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
+            generate_test_workload_spec_with_param, AgentLoad, AgentMap, CompleteState,
+            DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
         },
         test_utils::{self, generate_test_complete_state},
     };
@@ -1054,7 +1054,7 @@ mod tests {
             WORKLOAD_NAME_1.to_string(),
             RUNTIME.to_string(),
         );
-        let agent_resources = AgentResources {
+        let agent_resources = AgentLoad {
             cpu_usage: 42,
             free_memory: 42,
         };
@@ -1063,7 +1063,7 @@ mod tests {
             state: generate_test_complete_state(vec![w1.clone()]),
             ..Default::default()
         };
-        server_state.update_agent_resource_availability(AgentResourceCommand {
+        server_state.update_agent_resource_availability(AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
             agent_resources: agent_resources.clone(),
         });

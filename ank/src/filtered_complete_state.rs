@@ -71,7 +71,7 @@ pub struct FilteredAgentMap {
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FilteredAgentResources {
+pub struct FilteredAgentLoad {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpu_usage: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -82,7 +82,7 @@ pub struct FilteredAgentResources {
 #[serde(rename_all = "camelCase")]
 pub struct FilteredAgentAttributes {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_resources: Option<FilteredAgentResources>,
+    pub agent_resources: Option<FilteredAgentLoad>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -176,7 +176,7 @@ impl From<ank_base::AgentMap> for FilteredAgentMap {
                         (
                             agent_name,
                             FilteredAgentAttributes {
-                                agent_resources: Some(FilteredAgentResources {
+                                agent_resources: Some(FilteredAgentLoad {
                                     cpu_usage: Some(
                                         agent_attributes
                                             .agent_resources

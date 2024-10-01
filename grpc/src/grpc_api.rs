@@ -29,11 +29,11 @@ impl From<AgentHello> for commands::AgentHello {
     }
 }
 
-impl From<AgentResource> for commands::AgentResourceCommand {
-    fn from(item: AgentResource) -> Self {
-        commands::AgentResourceCommand {
+impl From<AgentLoadStatus> for commands::AgentLoadStatus {
+    fn from(item: AgentLoadStatus) -> Self {
+        commands::AgentLoadStatus {
             agent_name: item.agent_name,
-            agent_resources: objects::AgentResources {
+            agent_resources: objects::AgentLoad {
                 cpu_usage: item.cpu_load,
                 free_memory: item.free_memory,
             },
@@ -41,9 +41,9 @@ impl From<AgentResource> for commands::AgentResourceCommand {
     }
 }
 
-impl From<commands::AgentResourceCommand> for AgentResource {
-    fn from(item: commands::AgentResourceCommand) -> Self {
-        AgentResource {
+impl From<commands::AgentLoadStatus> for AgentLoadStatus {
+    fn from(item: commands::AgentLoadStatus) -> Self {
+        AgentLoadStatus {
             agent_name: item.agent_name,
             cpu_load: item.agent_resources.cpu_usage,
             free_memory: item.agent_resources.free_memory,
@@ -202,8 +202,8 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
             ToServerEnum::AgentHello(protobuf) => {
                 to_server_interface::ToServer::AgentHello(protobuf.into())
             }
-            ToServerEnum::AgentResource(protobuf) => {
-                to_server_interface::ToServer::AgentResource(protobuf.into())
+            ToServerEnum::AgentLoadStatus(protobuf) => {
+                to_server_interface::ToServer::AgentLoadStatus(protobuf.into())
             }
             ToServerEnum::UpdateWorkloadState(protobuf) => {
                 to_server_interface::ToServer::UpdateWorkloadState(protobuf.into())
@@ -270,7 +270,7 @@ mod tests {
 
     use crate::{
         from_server::FromServerEnum, generate_test_proto_deleted_workload, to_server::ToServerEnum,
-        AddedWorkload, AgentHello, AgentResource, DeletedWorkload, FromServer, ToServer,
+        AddedWorkload, AgentHello, AgentLoadStatus, DeletedWorkload, FromServer, ToServer,
         UpdateWorkload, UpdateWorkloadState,
     };
 
@@ -310,25 +310,25 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_to_server_agent_resource() {
-        let agent_resources = common::commands::AgentResourceCommand {
+        let agent_resources = common::commands::AgentLoadStatus {
             agent_name: "agent_A".to_string(),
-            agent_resources: common::objects::AgentResources {
+            agent_resources: common::objects::AgentLoad {
                 cpu_usage: 42,
                 free_memory: 42,
             },
         };
 
         let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::AgentResource(AgentResource {
+            to_server_enum: Some(ToServerEnum::AgentLoadStatus(AgentLoadStatus {
                 agent_name: agent_resources.agent_name.clone(),
                 cpu_load: agent_resources.agent_resources.cpu_usage,
                 free_memory: agent_resources.agent_resources.free_memory,
             })),
         };
 
-        let ankaios_command = ankaios::ToServer::AgentResource(ankaios::AgentResourceCommand {
+        let ankaios_command = ankaios::ToServer::AgentLoadStatus(ankaios::AgentLoadStatus {
             agent_name: agent_resources.agent_name,
-            agent_resources: ankaios::AgentResources {
+            agent_resources: ankaios::AgentLoad {
                 cpu_usage: agent_resources.agent_resources.cpu_usage,
                 free_memory: agent_resources.agent_resources.free_memory,
             },

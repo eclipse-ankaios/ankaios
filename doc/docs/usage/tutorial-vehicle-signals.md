@@ -146,10 +146,10 @@ ank -k get agents
 
 It should print:
 
-```text
-NAME           WORKLOADS
-agent_A        2
-infotainment   0
+```text        NAME           NAME           NAME
+NAME           WORKLOADS      CPU USAGE      FREE MEMORY
+agent_A        2              <>             <>
+infotainment   0              <>             <>
 ```
 
 Since `agent_A` is already managing the `databroker` and the `speed-provider` workloads, the `WORKLOADS` column contains the number `2`. The Ankaios agent `infotainment` has recently been started and does not yet manage any workloads.

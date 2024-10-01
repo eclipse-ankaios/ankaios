@@ -2747,7 +2747,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send an `AgentResource` message to the Ankaios server, containing the available resources.
+When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send an `AgentLoadStatus` message to the Ankaios server, containing the available resources.
 
 Rationale: The Ankaios server workloads scheduler shall necessitate in the future the knowledge of available resources.
 
