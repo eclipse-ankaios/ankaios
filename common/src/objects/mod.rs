@@ -85,3 +85,6 @@ pub use control_interface_access::generate_test_control_interface_access;
 pub use control_interface_access::{
     AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum, StateRule,
 };
+
+mod config;
+pub use config::ConfigItem;

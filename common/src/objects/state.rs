@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::helpers::serialize_to_ordered_map;
+use crate::objects::ConfigItem;
 use crate::objects::StoredWorkloadSpec;
 
 use api::ank_base;
@@ -35,6 +36,8 @@ pub struct State {
     pub api_version: String,
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub workloads: HashMap<String, StoredWorkloadSpec>,
+    #[serde(default)]
+    pub configs: HashMap<String, ConfigItem>,
 }
 
 impl Default for State {
@@ -42,6 +45,7 @@ impl Default for State {
         Self {
             api_version: CURRENT_API_VERSION.into(),
             workloads: Default::default(),
+            configs: Default::default(),
         }
     }
 }
@@ -57,6 +61,13 @@ impl From<State> for ank_base::State {
                     .map(|(k, v)| (k, v.into()))
                     .collect(),
             }),
+            configs: Some(ank_base::ConfigMap {
+                configs: item
+                    .configs
+                    .into_iter()
+                    .map(|(key, config_item)| (key, config_item.into()))
+                    .collect(),
+            }),
         }
     }
 }
@@ -69,11 +80,18 @@ impl TryFrom<ank_base::State> for State {
             api_version: item.api_version,
             workloads: item
                 .workloads
-                .ok_or("Missing workloads map")?
+                .unwrap_or_default()
                 .workloads
                 .into_iter()
                 .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))
                 .collect::<Result<HashMap<String, StoredWorkloadSpec>, String>>()?,
+            configs: item
+                .configs
+                .unwrap_or_default()
+                .configs
+                .into_iter()
+                .map(|(k, v)| Ok((k, v.try_into()?)))
+                .collect::<Result<_, Self::Error>>()?,
         })
     }
 }
@@ -205,6 +223,7 @@ mod tests {
         let state_incompatible_version = State {
             api_version: "v0.1".to_string(),
             workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
+            ..Default::default()
         };
         assert_eq!(
             State::verify_format(&state_incompatible_version),
@@ -222,6 +241,7 @@ mod tests {
         let state_incompatible_version = State {
             api_version: "v0.1".to_string(),
             workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
+            ..Default::default()
         };
         assert_eq!(
             State::verify_format(&state_incompatible_version),
@@ -246,6 +266,7 @@ mod tests {
                     ..Default::default()
                 },
             )]),
+            ..Default::default()
         };
         assert_eq!(
             State::verify_format(&state_incompatible_version),
@@ -262,6 +283,9 @@ mod tests {
             api_version: "".into(),
             workloads: Some(ank_base::WorkloadMap {
                 workloads: HashMap::new(),
+            }),
+            configs: Some(ank_base::ConfigMap {
+                configs: HashMap::new(),
             }),
         };
         let state_ankaios_no_version = State::try_from(state_proto_no_version).unwrap();

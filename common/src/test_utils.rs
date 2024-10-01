@@ -14,12 +14,13 @@
 
 use std::collections::HashMap;
 
-use api::ank_base::{self, Dependencies, Tags, WorkloadMap};
+use api::ank_base::{self, ConfigMappings, Dependencies, Tags, WorkloadMap};
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    generate_test_workload_spec_with_param, DeleteCondition, DeletedWorkload, State,
-    WorkloadInstanceName, WorkloadSpec,
+    generate_test_runtime_config, generate_test_stored_workload_spec_with_config, ConfigItem,
+    DeleteCondition, DeletedWorkload, State, StoredWorkloadSpec, WorkloadInstanceName,
+    WorkloadSpec,
 };
 
 const RUNTIME_NAME: &str = "runtime";
@@ -33,8 +34,23 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
         api_version: API_VERSION.into(),
         workloads: workloads
             .into_iter()
-            .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
+            .map(|v| {
+                let name = v.instance_name.workload_name().to_owned();
+                let mut w = StoredWorkloadSpec::from(v);
+                w.configs = [
+                    ("ref1".into(), "config_1".into()),
+                    ("ref2".into(), "config_2".into()),
+                ]
+                .into();
+                (name, w)
+            })
             .collect(),
+        configs: [
+            ("config_1".into(), ConfigItem::String("value 1".into())),
+            ("config_2".into(), ConfigItem::String("value 2".into())),
+            ("config_3".into(), ConfigItem::String("value 3".into())),
+        ]
+        .into(),
     }
 }
 
@@ -50,6 +66,7 @@ pub fn generate_test_proto_complete_state(
                     .map(|(x, y)| (x.to_string(), y.clone()))
                     .collect(),
             }),
+            configs: Some(Default::default()),
         }),
         workload_states: None,
         agents: None,
@@ -71,6 +88,7 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::obje
                 .into_iter()
                 .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
                 .collect(),
+            configs: HashMap::new(),
         },
         workload_states: generate_test_workload_states_map_from_specs(workloads),
         agents,
@@ -83,24 +101,25 @@ pub fn generate_test_state() -> State {
 
     let mut ankaios_workloads = HashMap::new();
 
-    let workload_1 = generate_test_workload_spec_with_param(
+    let workload_1 = generate_test_stored_workload_spec_with_config(
         AGENT_NAME.to_owned(),
-        WORKLOAD_1_NAME.to_owned(),
         RUNTIME_NAME.to_owned(),
+        generate_test_runtime_config(),
     );
 
-    let workload_2 = generate_test_workload_spec_with_param(
+    let workload_2 = generate_test_stored_workload_spec_with_config(
         AGENT_NAME.to_owned(),
-        WORKLOAD_2_NAME.to_owned(),
         RUNTIME_NAME.to_owned(),
+        generate_test_runtime_config(),
     );
 
-    ankaios_workloads.insert(workload_name_1, workload_1.into());
-    ankaios_workloads.insert(workload_name_2, workload_2.into());
+    ankaios_workloads.insert(workload_name_1, workload_1);
+    ankaios_workloads.insert(workload_name_2, workload_2);
 
     State {
         api_version: API_VERSION.into(),
         workloads: ankaios_workloads,
+        configs: HashMap::new(),
     }
 }
 
@@ -116,6 +135,7 @@ pub fn generate_test_proto_state() -> ank_base::State {
     ank_base::State {
         api_version: API_VERSION.into(),
         workloads: proto_workloads,
+        configs: Some(Default::default()),
     }
 }
 
@@ -156,7 +176,11 @@ pub fn generate_test_proto_workload_with_param(
             key: "key".into(),
             value: "value".into(),
         }]}),
-        control_interface_access: Default::default()
+        control_interface_access: Default::default(),
+        configs: Some(ConfigMappings{configs: [
+            ("ref1".into(), "config_1".into()),
+            ("ref2".into(), "config_2".into()),
+        ].into()})
     }
 }
 
@@ -172,7 +196,11 @@ pub fn generate_test_proto_workload() -> ank_base::Workload {
             key: "key".into(),
             value: "value".into(),
         }]}),
-        control_interface_access: Default::default()
+        control_interface_access: Default::default(),
+        configs: Some(ConfigMappings{configs: [
+            ("ref1".into(), "config_1".into()),
+            ("ref2".into(), "config_2".into()),
+        ].into()})
     }
 }
 
