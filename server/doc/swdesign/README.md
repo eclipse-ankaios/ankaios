@@ -78,6 +78,10 @@ The Communication Middleware is responsible for:
 The ServerState is a data structure for maintaining the state of the Ankaios server. It prevents invariants when updating the state, by doing checks on the new state
 before applying it or when a view on the state is requested.
 
+### ConfigRenderer
+
+The ConfigRenderer is responsible for rendering the templated configuration of workloads with their corresponding configuration items provided inside the CompleteState.
+
 ## Behavioral view
 
 ### Startup sequence
@@ -704,6 +708,23 @@ Needs:
 - impl
 - utest
 - itest
+
+#### ServerState triggers configuration rendering of workloads
+`swdd~server-state-triggers-configuration-rendering-of-workloads~1`
+
+Status: approved
+
+When the ServerState is requested to update its State, the ServerState shall trigger the ConfigRenderer to render the workloads of the new CompleteState with their corresponding config.
+
+Rationale: Rendering consumes resources and shall only be done once in case of an update of the state.
+
+Tags:
+- ServerState
+- ConfigRenderer
+-
+Needs:
+- impl
+- utest
 
 #### ServerState rejects state with cycle
 `swdd~server-state-rejects-state-with-cyclic-dependencies~1`

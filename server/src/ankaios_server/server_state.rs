@@ -12,31 +12,20 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use super::config_renderer::ConfigRenderer;
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
 use api::ank_base;
-use common::objects::{
-    ConfigItem, StoredWorkloadSpec, WorkloadInstanceName, WorkloadState, WorkloadStatesMap,
-};
+use common::objects::{WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
     objects::{CompleteState, DeletedWorkload, State, WorkloadSpec},
     state_manipulation::{Object, Path},
 };
-use handlebars::Handlebars;
 use std::collections::HashMap;
 use std::fmt::Display;
-
-// struct WrappedState {
-//     workloads: HashMap<String, WrappedWorkloadSpec>,
-// }
-
-// struct WrappedWorkloadSpec {
-//     raw_spec: StoredWorkloadSpec,
-//     rendered_spec: WorkloadSpec,
-// }
 
 #[cfg(test)]
 use mockall::automock;
@@ -158,6 +147,7 @@ impl Display for UpdateStateError {
 #[derive(Default)]
 pub struct ServerState {
     state: CompleteState,
+    rendered_workloads: HashMap<String, WorkloadSpec>,
     delete_graph: DeleteGraph,
 }
 
@@ -240,13 +230,17 @@ impl ServerState {
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         match update_state(&self.state, new_state, update_mask) {
             Ok(new_state) => {
-                let mut render_engine = Handlebars::new();
-                render_engine.set_strict_mode(true); // enable throwing render errors if context data is valid
+                let config_renderer = ConfigRenderer::new();
 
-                if !new_state.desired_state.configs.is_empty() {
-                    self.render_templates(&new_state.desired_state, &render_engine)
-                        .map_err(UpdateStateError::ResultInvalid)?;
-                }
+                // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
+                let new_rendered_workloads = config_renderer
+                    .render_workloads(
+                        &new_state.desired_state.workloads,
+                        &new_state.desired_state.configs,
+                    )
+                    .map_err(UpdateStateError::ResultInvalid)?;
+
+                self.rendered_workloads = new_rendered_workloads;
 
                 let cmd = extract_added_and_deleted_workloads(
                     &self.state.desired_state,
@@ -284,7 +278,17 @@ impl ServerState {
                     self.state = new_state;
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
+                    let config_renderer = ConfigRenderer::new();
+                    // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
+                    let new_rendered_workloads = config_renderer
+                        .render_workloads(
+                            &new_state.desired_state.workloads,
+                            &new_state.desired_state.configs,
+                        )
+                        .map_err(UpdateStateError::ResultInvalid)?;
+
                     self.state = new_state;
+                    self.rendered_workloads = new_rendered_workloads;
                     Ok(None)
                 }
             }
@@ -307,67 +311,6 @@ impl ServerState {
         // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
         self.delete_graph
             .remove_deleted_workloads_from_delete_graph(new_workload_states);
-    }
-
-    fn render_templates(
-        &self,
-        state: &State,
-        template_engine: &Handlebars<'static>,
-    ) -> Result<State, String> {
-        let mut expanded_state = state.clone();
-        for (workload_name, workload) in &mut expanded_state.workloads {
-            let wl_config_map = self.create_config_map_for_workload(workload, &state.configs);
-
-            if wl_config_map.is_empty() {
-                continue;
-            }
-
-            log::debug!(
-                "Expanding workload '{}' with config '{:?}'",
-                workload_name,
-                wl_config_map
-            );
-            let rendered_runtime_config = template_engine
-                .render_template(&workload.runtime_config, &wl_config_map)
-                .map_err(|err| {
-                    format!(
-                        "Failed to expand runtime config template for workload '{}': '{}'",
-                        workload_name, err
-                    )
-                })?;
-
-            let rendered_agent_name = template_engine
-                .render_template(&workload.agent, &wl_config_map)
-                .map_err(|err| {
-                    format!(
-                        "Failed to expand template for workload '{}': '{}'",
-                        workload_name, err
-                    )
-                })?;
-
-            // assign rendered config to all necessary fields
-            workload.runtime_config = rendered_runtime_config;
-            workload.agent = rendered_agent_name;
-        }
-        log::debug!("Expanded state: {:?}", expanded_state);
-        Ok(expanded_state)
-    }
-
-    fn create_config_map_for_workload<'a>(
-        &self,
-        workload_spec: &'a StoredWorkloadSpec,
-        configs: &'a HashMap<String, ConfigItem>,
-    ) -> HashMap<&'a String, &'a ConfigItem> {
-        workload_spec.configs.iter().fold(
-            HashMap::new(),
-            |mut wl_config_map, (config_alias, config_key)| {
-                if let Some(config_value) = configs.get(config_key) {
-                    wl_config_map.insert(config_key, config_value);
-                    wl_config_map.insert(config_alias, config_value);
-                }
-                wl_config_map
-            },
-        )
     }
 }
 
