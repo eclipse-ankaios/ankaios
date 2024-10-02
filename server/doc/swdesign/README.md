@@ -24,6 +24,31 @@ The following diagram shows a high level view of an Ankaios Server in its contex
 
 ### Design decisions
 
+The following section holds the design decisions taken during the development of the Ankaios server.
+
+#### Delegate template rendering of workload configs to the handlebars external library
+`swdd~server-delegate-template-render-to-external-library~1`
+
+Status: approved
+
+Ankaios uses the handlebars crate to render the configs provided for a workload.
+
+Rationale:
+
+The handlebars crate provides all the functionality needed to render the configs with templates, reducing implementation and integration effort. It is actively maintained and widely deployed. It is not overloaded with features, instead it supports the minimum amount of features needed to cover the use cases of workload configs. In addition, its rendering capabilities are extensible if a desired feature is missing in the future.
+
+Needs:
+- impl
+
+Assumptions:
+
+No assumptions were taken.
+
+Considered alternatives:
+
+- Askama: does not support rendering templates at runtime, mainly used for generating code based on templates
+- Tera: Jinja2 template engine contains too many features beyond the use case
+
 ## Structural view
 
 The following diagram shows the structural view of the Ankaios Server:
