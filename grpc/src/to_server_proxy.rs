@@ -71,10 +71,11 @@ pub async fn forward_from_proto_to_ankaios(
                     "Request content empty for request ID: '{}'",
                     request_id
                 )))? {
-                    RequestContent::UpdateStateRequest(UpdateStateRequest {
-                        new_state,
-                        update_mask,
-                    }) => {
+                    RequestContent::UpdateStateRequest(update_state_request) => {
+                        let UpdateStateRequest {
+                            new_state,
+                            update_mask,
+                        } = *update_state_request;
                         log::debug!("Received UpdateStateRequest from '{}'", agent_name);
                         match new_state.unwrap_or_default().try_into() {
                             Ok(new_state) => {
@@ -211,7 +212,7 @@ mod tests {
     use tokio::sync::mpsc;
 
     use crate::grpc_api::{self, to_server::ToServerEnum};
-    use api::ank_base::{self, UpdateStateRequest};
+    use api::ank_base;
 
     #[derive(Default, Clone)]
     struct MockGRPCToServerStreaming {
@@ -270,8 +271,8 @@ mod tests {
 
         assert!(matches!(
             result.to_server_enum,
-            Some(ToServerEnum::Request(ank_base::Request{request_id, request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(UpdateStateRequest{new_state, update_mask}))}))
-            if request_id == "request_id" && new_state == Some(proto_state) && update_mask == update_mask));
+            Some(ToServerEnum::Request(ank_base::Request{request_id, request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(update_state_request))}))
+            if request_id == "request_id" && update_state_request.new_state == Some(proto_state) && update_state_request.update_mask == update_mask));
     }
 
     // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
@@ -407,12 +408,12 @@ mod tests {
                     to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
                         request_id: "request_id".to_owned(),
                         request_content: Some(
-                            ank_base::request::RequestContent::UpdateStateRequest(
+                            ank_base::request::RequestContent::UpdateStateRequest(Box::new(
                                 ank_base::UpdateStateRequest {
                                     new_state: Some(ankaios_state),
                                     update_mask: ankaios_update_mask.clone(),
                                 },
-                            ),
+                            )),
                         ),
                     })),
                 }),
@@ -451,12 +452,12 @@ mod tests {
                     to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
                         request_id: "my_request_id".to_owned(),
                         request_content: Some(
-                            ank_base::request::RequestContent::UpdateStateRequest(
+                            ank_base::request::RequestContent::UpdateStateRequest(Box::new(
                                 ank_base::UpdateStateRequest {
                                     new_state: Some(ankaios_state.clone().into()),
                                     update_mask: ankaios_update_mask.clone(),
                                 },
-                            ),
+                            )),
                         ),
                     })),
                 }),

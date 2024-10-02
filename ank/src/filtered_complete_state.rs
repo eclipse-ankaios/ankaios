@@ -17,11 +17,13 @@ use std::collections::HashMap;
 use api::ank_base;
 use common::{
     helpers::serialize_to_ordered_map,
-    objects::{AddCondition, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap},
+    objects::{
+        AddCondition, ConfigItem, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap,
+    },
 };
 use serde::{Deserialize, Serialize, Serializer};
 
-use crate::output_and_error;
+use crate::{output_and_error, output_warn};
 
 pub fn serialize_option_to_ordered_map<S, T: Serialize>(
     value: &Option<HashMap<String, T>>,
@@ -59,6 +61,9 @@ pub struct FilteredState {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
     pub workloads: Option<HashMap<String, FilteredWorkloadSpec>>,
+    #[serde(serialize_with = "serialize_option_to_ordered_map")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub configs: Option<HashMap<String, ConfigItem>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -91,6 +96,9 @@ pub struct FilteredWorkloadSpec {
     pub runtime_config: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub control_interface_access: Option<ControlInterfaceAccess>,
+    #[serde(serialize_with = "serialize_option_to_ordered_map")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub configs: Option<HashMap<String, String>>,
 }
 
 impl From<ank_base::CompleteState> for FilteredCompleteState {
@@ -111,6 +119,20 @@ impl From<ank_base::State> for FilteredState {
                 x.workloads
                     .into_iter()
                     .map(|(k, v)| (k, v.into()))
+                    .collect()
+            }),
+            configs: value.configs.map(|x| {
+                x.configs
+                    .into_iter()
+                    .filter_map(|(key, value)| -> Option<(String, ConfigItem)> {
+                        match value.try_into() {
+                            Ok(value) => Some((key, value)),
+                            Err(err) => {
+                                output_warn!("Config item could not be converted: {}", err);
+                                None
+                            }
+                        }
+                    })
                     .collect()
             }),
         }
@@ -149,6 +171,7 @@ impl From<ank_base::Workload> for FilteredWorkloadSpec {
                 .map(|x| x.try_into().unwrap_or_else(|error| {
                     output_and_error!("Could not convert the ControlInterfaceAccess.\nError: '{error}'. Check the Ankaios component compatibility.")
                 })),
+            configs: value.configs.map(|x| x.configs)
         }
     }
 }

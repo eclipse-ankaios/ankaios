@@ -1919,6 +1919,8 @@ mod tests {
                                 runtime: Some("runtime1".to_string()),
                                 runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()),
                                 control_interface_access: None,
+                                configs: Some(ank_base::ConfigMappings {
+                                    configs: Default::default()})
                             })];
         let mut complete_state = test_utils::generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {

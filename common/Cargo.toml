@@ -26,6 +26,9 @@ sha256 = "1.5"
 semver = "1.0"
 regex = "1.10"
 
+[dev-dependencies]
+common = { path = ".", features = ["test_utils"] }
+
 [features]
 default = []
 test_utils = []
