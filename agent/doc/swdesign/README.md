@@ -2764,7 +2764,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send an `AgentLoadStatus` message to the Ankaios server, containing the available resources.
+At an interval of 2 seconds the AgentManager measures the available resources and sends them to the Ankaios server via an `AgentLoadStatus` message.
 
 Rationale: The Ankaios server workloads scheduler shall necessitate in the future the knowledge of available resources.
 
