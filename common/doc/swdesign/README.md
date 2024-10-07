@@ -229,7 +229,7 @@ Status: approved
 
 The AgentMap provides the following functionalities:
 * inserting an agent name with default attributes
-* removing an agent name and its associated attributes
+* removing an agent name with its associated attributes
 * storing the agent attributes
 * updating an agent's node resource availability
 
