@@ -61,6 +61,8 @@ jobs:
         run: cargo clippy --all-targets --no-deps --all-features -- -D warnings
       - name: Prevent docker.io images in test
         run: just check-test-images
+      - name: Check copyright headers
+        run: just check-copyright-headers
         # If the next step fails, then a license used by a new dependency is currently
         # not part of the whitelist in deny.toml. If the new license fits to the project
         # then it should be added to the whitelist otherwise the dependency needs to be
