@@ -39,7 +39,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredCompleteState {
     #[serde(skip_serializing_if = "Option::is_none")]

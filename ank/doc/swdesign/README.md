@@ -447,6 +447,26 @@ Needs:
 - impl
 - utest
 
+#### CLI processes CompleteState to list workloads
+`swdd~processes-complete-state-to-list-workloads~1`
+
+Status: approved
+
+When the CLI is requested to retrieve the list of workloads from the Ankaios Server, the CLI shall:
+* request the whole CompleteState
+* create a list entry for each workload state of the CompleteState with empty runtime name
+* replace the empty runtime name for each list entry by extracting it from the corresponding workload configuration inside the CompleteState
+
+Rational:
+A workload state is not responsible for containing the runtime name of a workload.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
 #### CLI shall sort the list of workloads
 `swdd~cli-shall-sort-list-of-workloads~1`
 
@@ -550,11 +570,19 @@ Needs:
 - utest
 
 #### CLI requests update state with watch
-`swdd~cli-requests-update-state-with-watch~1`
+`swdd~cli-requests-update-state-with-watch~2`
 
 Status: approved
 
-When the CLI executes an update of the Ankaios state including a watch on the updated workloads, the CLI shall request an update of the state from the Ankaios server.
+When the CLI executes an update of the Ankaios state including a watch on the updated workloads, the CLI shall:
+* request the current CompleteState from the Ankaios server
+* request an update of the state from the Ankaios server
+
+Comment:
+The requested CompleteState is used to handle the watch on the updated workloads, not for constructing the updated state.
+
+Rationale:
+Requesting the CompleteState before updating the state is required in order to handle the wait mode properly when a workload is deleted that was not initially started due to a disconnected agent.
 
 Tags:
 - CliCommands
@@ -600,7 +628,7 @@ Needs:
 Status: approved
 
 When the CLI watches a list of workloads, the CLI shall:
-* get the desired state from the Ankaios server
+* get the CompleteState from the Ankaios server
 * filter only the workloads specified to watch
 * sort the workload list alphabetically
 * present the list of workloads to the user
@@ -615,16 +643,18 @@ Needs:
 - utest
 
 #### CLI checks for final state of a workload
-`swdd~cli-checks-for-final-workload-state~2`
+`swdd~cli-checks-for-final-workload-state~3`
 
 Status: approved
 
-When the CLI checks if a workload has reached its final expected workload execution state, the CLI shall regard the state for final if the state is one of:
+When the CLI checks if a workload has reached its final expected state, the CLI shall regard the state for final if the agent managing that workload is disconnected or the execution state is one of:
 * Running(Ok)
 * Succeeded(Ok)
 * Failed(ExecFailed)
+* NotScheduled
 * Removed
 * Pending(StartingFailed)
+* AgentDisconnected
 
 Tags:
 - CliCommands

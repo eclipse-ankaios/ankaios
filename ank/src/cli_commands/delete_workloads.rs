@@ -58,7 +58,10 @@ mod tests {
     };
     use mockall::predicate::eq;
 
-    use crate::cli_commands::{server_connection::MockServerConnection, CliCommands};
+    use crate::{
+        cli_commands::{server_connection::MockServerConnection, CliCommands},
+        filtered_complete_state::FilteredCompleteState,
+    };
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
@@ -92,10 +95,14 @@ mod tests {
                     ],
                 })
             });
+
         mock_server_connection
             .expect_get_complete_state()
+            .times(2)
             .with(eq(vec![]))
-            .return_once(|_| Ok((ank_base::CompleteState::from(complete_state_update)).into()));
+            .returning(move |_| {
+                Ok((ank_base::CompleteState::from(complete_state_update.clone())).into())
+            });
 
         mock_server_connection
             .expect_take_missed_from_server_messages()
@@ -143,6 +150,10 @@ mod tests {
         let complete_state_update = CompleteState::default();
 
         let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .once()
+            .returning(|_| Ok(FilteredCompleteState::default()));
         mock_server_connection
             .expect_update_state()
             .with(

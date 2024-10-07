@@ -24,7 +24,7 @@ pub struct AgentAttributes {} // empty for now, but used for future expansion
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct AgentMap(HashMap<AgentName, AgentAttributes>);
 
-// [impl->swdd~agent-map-manages-agent-names-with-agent-attributes~1]
+// [impl->swdd~agent-map-manages-agent-names-with-agent-attributes~2]
 impl AgentMap {
     pub fn new() -> Self {
         Self(HashMap::new())
@@ -32,6 +32,10 @@ impl AgentMap {
 
     pub fn entry(&mut self, key: String) -> Entry<'_, String, AgentAttributes> {
         self.0.entry(key)
+    }
+
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.0.contains_key(key)
     }
 
     pub fn remove(&mut self, key: &str) {
