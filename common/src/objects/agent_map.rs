@@ -59,8 +59,8 @@ impl From<AgentAttributes> for ank_base::AgentAttributes {
     fn from(item: AgentAttributes) -> ank_base::AgentAttributes {
         ank_base::AgentAttributes {
             agent_resources: Some(ank_base::AgentLoad {
-                cpu_usage: item.agent_resources.clone().unwrap().cpu_usage,
-                free_memory: item.agent_resources.unwrap().free_memory,
+                cpu_usage: item.agent_resources.clone().unwrap_or_default().cpu_usage,
+                free_memory: item.agent_resources.unwrap_or_default().free_memory,
             }),
         }
     }
@@ -87,24 +87,7 @@ impl From<AgentMap> for Option<ank_base::AgentMap> {
             agents: item
                 .0
                 .into_iter()
-                .map(|(agent_name, agent_attributes)| {
-                    (
-                        agent_name,
-                        ank_base::AgentAttributes {
-                            agent_resources: Some(ank_base::AgentLoad {
-                                cpu_usage: agent_attributes
-                                    .agent_resources
-                                    .clone()
-                                    .unwrap_or_default()
-                                    .cpu_usage,
-                                free_memory: agent_attributes
-                                    .agent_resources
-                                    .unwrap_or_default()
-                                    .free_memory,
-                            }),
-                        },
-                    )
-                })
+                .map(|(agent_name, agent_attributes)| (agent_name, agent_attributes.into()))
                 .collect(),
         })
     }
@@ -114,15 +97,8 @@ impl From<ank_base::AgentMap> for AgentMap {
     fn from(item: ank_base::AgentMap) -> Self {
         AgentMap(
             item.agents
-                .into_keys()
-                .map(|agent_name| {
-                    (
-                        agent_name,
-                        AgentAttributes {
-                            ..Default::default()
-                        },
-                    )
-                })
+                .into_iter()
+                .map(|(agent_name, agent_attributes)| (agent_name, agent_attributes.into()))
                 .collect(),
         )
     }
@@ -139,7 +115,11 @@ impl From<ank_base::AgentMap> for AgentMap {
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMap {
     let mut agent_map = AgentMap::new();
-    agent_map.entry(agent_name.into()).or_default();
+    agent_map
+        .entry(agent_name.into())
+        .or_insert(AgentAttributes {
+            agent_resources: Some(AgentLoad::default()),
+        });
     agent_map
 }
 
@@ -149,7 +129,11 @@ pub fn generate_test_agent_map_from_specs(workloads: &[crate::objects::WorkloadS
         .iter()
         .fold(AgentMap::new(), |mut agent_map, spec| {
             let agent_name = spec.instance_name.agent_name();
-            agent_map.entry(agent_name.to_owned()).or_default();
+            agent_map
+                .entry(agent_name.to_owned())
+                .or_insert(AgentAttributes {
+                    agent_resources: Some(AgentLoad::default()),
+                });
             agent_map
         })
 }

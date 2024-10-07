@@ -18,7 +18,9 @@ use common::commands;
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-use common::objects::{WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
+use common::objects::{
+    AgentAttributes, AgentLoad, WorkloadInstanceName, WorkloadState, WorkloadStatesMap,
+};
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
@@ -273,7 +275,12 @@ impl ServerState {
 
     // [impl->swdd~server-state-stores-agent-in-complete-state~1]
     pub fn add_agent(&mut self, agent_name: String) {
-        self.state.agents.entry(agent_name).or_default();
+        self.state
+            .agents
+            .entry(agent_name)
+            .or_insert(AgentAttributes {
+                agent_resources: Some(AgentLoad::default()),
+            });
     }
 
     // [impl->swdd~server-state-removes-agent-from-complete-state~1]
@@ -1085,7 +1092,7 @@ mod tests {
             .or_default()
             .to_owned();
 
-        assert_eq!(stored_state.agent_resources, agent_resources)
+        assert_eq!(stored_state.agent_resources, Some(agent_resources))
     }
 
     // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
