@@ -61,5 +61,5 @@ message FromAnkaios {
 * No more messages will be processed by Ankaios after this message is sent.
 */
 message ConnectionClosed {
-    string reason = 1; /// A string containing the reason for slocing the connection.
+    string reason = 1; /// A string containing the reason for closing the connection.
 }
