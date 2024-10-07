@@ -15,15 +15,15 @@ EXCLUDE_PATHS=(
 
 function check_copyright_headers() {
     local file_ext_cmd=""
-    file_ext_cmd=$(printf " -o -name %s" "${FILE_EXT[@]}")
+    file_ext_cmd=$(printf " -o -name '%s'" "${FILE_EXT[@]}")
     file_ext_cmd="${file_ext_cmd:4}"  # Remove the leading ' -o'
 
     local exclude_paths_cmd=""
     for path in "${EXCLUDE_PATHS[@]}"; do
-        exclude_paths_cmd="$exclude_paths_cmd -not -path \"$path\""
+        exclude_paths_cmd="$exclude_paths_cmd -not -path '$path'"
     done
 
-    local cmd="find \"$SEARCH_DIR\" -type f $file_ext_cmd $exclude_paths_cmd -print"
+    local cmd="find \"$SEARCH_DIR\" -type f \\( $file_ext_cmd \\) $exclude_paths_cmd"
     missing_files=$(eval "$cmd" | xargs grep -L -E "$COPYRIGHT_REGEX")
 
     if [ -n "$missing_files" ]; then
