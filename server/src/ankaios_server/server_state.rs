@@ -240,8 +240,6 @@ impl ServerState {
                     )
                     .map_err(UpdateStateError::ResultInvalid)?;
 
-                self.rendered_workloads = new_rendered_workloads;
-
                 let cmd = extract_added_and_deleted_workloads(
                     &self.state.desired_state,
                     &new_state.desired_state,
@@ -276,6 +274,7 @@ impl ServerState {
                         .apply_delete_conditions_to(&mut deleted_workloads);
 
                     self.state = new_state;
+                    self.rendered_workloads = new_rendered_workloads;
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
                     let config_renderer = ConfigRenderer::new();
