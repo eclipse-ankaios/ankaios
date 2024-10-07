@@ -721,7 +721,7 @@ Rationale: Rendering consumes resources and shall only be done once in case of a
 Tags:
 - ServerState
 - ConfigRenderer
--
+
 Needs:
 - impl
 - utest

@@ -38,7 +38,7 @@ impl ConfigRenderer {
     ) -> Result<RenderedWorkloads, String> {
         let mut rendered_workloads = HashMap::new();
         for (workload_name, workload) in workloads {
-            let wl_config_map = self.create_config_map_for_workload(workload, &configs);
+            let wl_config_map = self.create_config_map_for_workload(workload, configs);
 
             if wl_config_map.is_empty() {
                 continue;
