@@ -14,6 +14,7 @@
 
 use std::pin::Pin;
 
+use common::check_version_compatibility;
 use common::std_extensions::GracefulExitResult;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
@@ -115,8 +116,16 @@ impl AgentConnection for GRPCAgentConnection {
             .to_server_enum
             .ok_or_else(invalid_argument_empty)?
         {
-            ToServerEnum::AgentHello(grpc_api::AgentHello { agent_name }) => {
+            ToServerEnum::AgentHello(grpc_api::AgentHello {
+                agent_name,
+                protocol_version,
+            }) => {
                 log::trace!("Received a hello from '{}'", agent_name);
+
+                // [impl->swdd~grpc-agent-connection-checks-version-compatibility~1]
+                check_version_compatibility(&protocol_version).map_err(|err| {
+                    log::warn!("Refused connection from agent '{agent_name}' due to unsupported version: '{protocol_version}'");
+                    Status::failed_precondition(err)})?;
 
                 if sans.is_empty()
                     || sans.contains(&agent_name)
@@ -163,17 +172,13 @@ impl AgentConnection for GRPCAgentConnection {
                         }
                     });
                 } else {
-                    let err_message = format!(
+                    return Err(Status::unauthenticated(format!(
                         "Agent name '{agent_name}' does not match SAN {:?} in agent certificates!",
                         sans
-                    );
-                    // log::error!(err_message);
-                    return Err(Status::unauthenticated(err_message));
+                    )));
                 }
             }
-            _ => {
-                panic!("No AgentHello received.");
-            }
+            _ => Err::<(), &str>("No AgentHello received.").unwrap_or_exit("Protocol error."),
         }
 
         // [impl->swdd~grpc-agent-connection-responds-with-from-server-channel-rx~1]
