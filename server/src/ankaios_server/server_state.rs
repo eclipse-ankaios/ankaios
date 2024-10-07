@@ -12,19 +12,18 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::config_renderer::ConfigRenderer;
+use super::config_renderer::{ConfigRenderer, RenderedWorkloads};
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
 use api::ank_base;
-use common::objects::{WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
+use common::objects::{WorkloadState, WorkloadStatesMap};
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
-    objects::{CompleteState, DeletedWorkload, State, WorkloadSpec},
+    objects::{CompleteState, DeletedWorkload, WorkloadSpec},
     state_manipulation::{Object, Path},
 };
-use std::collections::HashMap;
 use std::fmt::Display;
 
 #[cfg(test)]
@@ -69,44 +68,42 @@ fn update_state(
 }
 
 fn extract_added_and_deleted_workloads(
-    desired_state: &State,
-    new_state: &State,
+    current_rendered_workloads: &RenderedWorkloads,
+    new_rendered_workloads: &RenderedWorkloads,
 ) -> Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>)> {
     let mut added_workloads: Vec<WorkloadSpec> = Vec::new();
     let mut deleted_workloads: Vec<DeletedWorkload> = Vec::new();
 
     // find updated or deleted workloads
-    desired_state.workloads.iter().for_each(|(wl_name, wls)| {
-        if let Some(new_wls) = new_state.workloads.get(wl_name) {
-            // The new workload is identical with existing or updated. Lets check if it is an update.
-            if wls != new_wls {
-                // [impl->swdd~server-detects-changed-workload~1]
-                added_workloads.push(WorkloadSpec::from((wl_name.to_owned(), new_wls.clone())));
+    current_rendered_workloads
+        .iter()
+        .for_each(|(wl_name, wls)| {
+            if let Some(new_wls) = new_rendered_workloads.get(wl_name) {
+                // The new workload is identical with existing or updated. Lets check if it is an update.
+                if wls != new_wls {
+                    // [impl->swdd~server-detects-changed-workload~1]
+                    added_workloads.push(new_wls.clone());
+                    deleted_workloads.push(DeletedWorkload {
+                        instance_name: wls.instance_name.clone(),
+                        ..Default::default()
+                    });
+                }
+            } else {
+                // [impl->swdd~server-detects-deleted-workload~1]
                 deleted_workloads.push(DeletedWorkload {
-                    instance_name: WorkloadInstanceName::from((wl_name.to_owned(), wls)),
+                    instance_name: wls.instance_name.clone(),
                     ..Default::default()
                 });
             }
-        } else {
-            // [impl->swdd~server-detects-deleted-workload~1]
-            deleted_workloads.push(DeletedWorkload {
-                instance_name: WorkloadInstanceName::from((wl_name.to_owned(), wls)),
-                ..Default::default()
-            });
-        }
-    });
+        });
 
     // find new workloads
     // [impl->swdd~server-detects-new-workload~1]
-    new_state
-        .workloads
+    new_rendered_workloads
         .iter()
         .for_each(|(new_wl_name, new_wls)| {
-            if !desired_state.workloads.contains_key(new_wl_name) {
-                added_workloads.push(WorkloadSpec::from((
-                    new_wl_name.to_owned(),
-                    new_wls.clone(),
-                )));
+            if !current_rendered_workloads.contains_key(new_wl_name) {
+                added_workloads.push(new_wls.clone());
             }
         });
 
@@ -147,7 +144,7 @@ impl Display for UpdateStateError {
 #[derive(Default)]
 pub struct ServerState {
     state: CompleteState,
-    rendered_workloads: HashMap<String, WorkloadSpec>,
+    rendered_workloads: RenderedWorkloads,
     delete_graph: DeleteGraph,
 }
 
@@ -210,14 +207,10 @@ impl ServerState {
 
     // [impl->swdd~agent-from-agent-field~1]
     pub fn get_workloads_for_agent(&self, agent_name: &str) -> Vec<WorkloadSpec> {
-        self.state
-            .desired_state
-            .workloads
+        self.rendered_workloads
             .iter()
-            .filter(|(_, workload)| workload.agent.eq(agent_name))
-            .map(|(workload_name, workload)| {
-                WorkloadSpec::from((workload_name.clone(), workload.clone()))
-            })
+            .filter(|(_, workload)| workload.instance_name.agent_name().eq(agent_name))
+            .map(|(_, workload)| workload.clone())
             .collect()
     }
 
@@ -241,8 +234,8 @@ impl ServerState {
                     .map_err(UpdateStateError::ResultInvalid)?;
 
                 let cmd = extract_added_and_deleted_workloads(
-                    &self.state.desired_state,
-                    &new_state.desired_state,
+                    &self.rendered_workloads,
+                    &new_rendered_workloads,
                 );
 
                 if let Some((added_workloads, mut deleted_workloads)) = cmd {

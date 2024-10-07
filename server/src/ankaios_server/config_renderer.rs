@@ -38,53 +38,24 @@ impl ConfigRenderer {
         configs: &HashMap<String, ConfigItem>,
     ) -> Result<RenderedWorkloads, String> {
         let mut rendered_workloads = HashMap::new();
-        for (workload_name, workload) in workloads {
-            let wl_config_map = self.create_config_map_for_workload(workload, configs);
-
-            if wl_config_map.is_empty() {
-                continue;
-            }
-
-            log::debug!(
-                "Expanding workload '{}' with config '{:?}'",
-                workload_name,
-                wl_config_map
-            );
-            let rendered_runtime_config = self
-                .template_engine
-                .render_template(&workload.runtime_config, &wl_config_map)
-                .map_err(|err| {
-                    format!(
-                        "Failed to expand runtime config template for workload '{}': '{}'",
-                        workload_name, err
-                    )
-                })?;
-
-            let rendered_agent_name = self
-                .template_engine
-                .render_template(&workload.agent, &wl_config_map)
-                .map_err(|err| {
-                    format!(
-                        "Failed to expand agent name template for workload '{}': '{}'",
-                        workload_name, err
-                    )
-                })?;
-
-            let rendered_workload_spec = WorkloadSpec {
-                instance_name: WorkloadInstanceName::builder()
-                    .workload_name(workload_name)
-                    .agent_name(rendered_agent_name)
-                    .config(&rendered_runtime_config)
-                    .build(),
-                runtime: workload.runtime.clone(),
-                runtime_config: rendered_runtime_config,
-                tags: workload.tags.clone(),
-                dependencies: workload.dependencies.clone(),
-                restart_policy: workload.restart_policy.clone(),
-                control_interface_access: workload.control_interface_access.clone(),
+        for (workload_name, stored_workload) in workloads {
+            let wl_config_map = self.create_config_map_for_workload(stored_workload, configs);
+            let workload_spec = if wl_config_map.is_empty() {
+                log::debug!(
+                    "Skipping workload '{}' expansion as no config is available",
+                    workload_name
+                );
+                WorkloadSpec::from((workload_name.to_owned(), stored_workload.clone()))
+            } else {
+                log::debug!(
+                    "Expanding workload '{}' with config '{:?}'",
+                    workload_name,
+                    wl_config_map
+                );
+                self.render_workload_fields(workload_name, stored_workload, &wl_config_map)?
             };
 
-            rendered_workloads.insert(workload_name.clone(), rendered_workload_spec);
+            rendered_workloads.insert(workload_name.clone(), workload_spec);
         }
         log::debug!("Expanded state: {:?}", rendered_workloads);
         Ok(rendered_workloads)
@@ -106,5 +77,47 @@ impl ConfigRenderer {
                 wl_config_map
             },
         )
+    }
+
+    // [impl->swdd~config-renderer-renders-workload-configuration~1]
+    fn render_workload_fields(
+        &self,
+        workload_name: &str,
+        workload: &StoredWorkloadSpec,
+        wl_config_map: &HashMap<&String, &ConfigItem>,
+    ) -> Result<WorkloadSpec, String> {
+        let rendered_runtime_config = self
+            .template_engine
+            .render_template(&workload.runtime_config, &wl_config_map)
+            .map_err(|err| {
+                format!(
+                    "Failed to expand runtime config template for workload '{}': '{}'",
+                    workload_name, err
+                )
+            })?;
+
+        let rendered_agent_name = self
+            .template_engine
+            .render_template(&workload.agent, &wl_config_map)
+            .map_err(|err| {
+                format!(
+                    "Failed to expand agent name template for workload '{}': '{}'",
+                    workload_name, err
+                )
+            })?;
+
+        Ok(WorkloadSpec {
+            instance_name: WorkloadInstanceName::builder()
+                .workload_name(workload_name)
+                .agent_name(rendered_agent_name)
+                .config(&rendered_runtime_config)
+                .build(),
+            runtime: workload.runtime.clone(),
+            runtime_config: rendered_runtime_config,
+            tags: workload.tags.clone(),
+            dependencies: workload.dependencies.clone(),
+            restart_policy: workload.restart_policy.clone(),
+            control_interface_access: workload.control_interface_access.clone(),
+        })
     }
 }
