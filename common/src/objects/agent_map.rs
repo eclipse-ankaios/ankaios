@@ -28,7 +28,7 @@ pub struct AgentLoad {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct AgentAttributes {
-    pub agent_resources: AgentLoad,
+    pub agent_resources: Option<AgentLoad>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
@@ -50,7 +50,7 @@ impl AgentMap {
 
     pub fn update_resource_availability(&mut self, agent_resource: commands::AgentLoadStatus) {
         self.0.entry(agent_resource.agent_name).and_modify(|e| {
-            e.agent_resources = agent_resource.agent_resources;
+            e.agent_resources = Some(agent_resource.agent_resources);
         });
     }
 }
@@ -59,8 +59,8 @@ impl From<AgentAttributes> for ank_base::AgentAttributes {
     fn from(item: AgentAttributes) -> ank_base::AgentAttributes {
         ank_base::AgentAttributes {
             agent_resources: Some(ank_base::AgentLoad {
-                cpu_usage: item.agent_resources.cpu_usage,
-                free_memory: item.agent_resources.free_memory,
+                cpu_usage: item.agent_resources.clone().unwrap().cpu_usage,
+                free_memory: item.agent_resources.unwrap().free_memory,
             }),
         }
     }
@@ -69,10 +69,10 @@ impl From<AgentAttributes> for ank_base::AgentAttributes {
 impl From<ank_base::AgentAttributes> for AgentAttributes {
     fn from(item: ank_base::AgentAttributes) -> Self {
         AgentAttributes {
-            agent_resources: AgentLoad {
-                cpu_usage: item.agent_resources.clone().unwrap().cpu_usage,
-                free_memory: item.agent_resources.unwrap().free_memory,
-            },
+            agent_resources: Some(AgentLoad {
+                cpu_usage: item.agent_resources.clone().unwrap_or_default().cpu_usage,
+                free_memory: item.agent_resources.unwrap_or_default().free_memory,
+            }),
         }
     }
 }
@@ -92,8 +92,15 @@ impl From<AgentMap> for Option<ank_base::AgentMap> {
                         agent_name,
                         ank_base::AgentAttributes {
                             agent_resources: Some(ank_base::AgentLoad {
-                                cpu_usage: agent_attributes.agent_resources.cpu_usage,
-                                free_memory: agent_attributes.agent_resources.free_memory,
+                                cpu_usage: agent_attributes
+                                    .agent_resources
+                                    .clone()
+                                    .unwrap_or_default()
+                                    .cpu_usage,
+                                free_memory: agent_attributes
+                                    .agent_resources
+                                    .unwrap_or_default()
+                                    .free_memory,
                             }),
                         },
                     )
