@@ -31,6 +31,7 @@ impl ConfigRenderer {
         Self { template_engine }
     }
 
+    // [impl->swdd~config-renderer-renders-workload-configuration~1]
     pub fn render_workloads(
         &self,
         workloads: &HashMap<String, StoredWorkloadSpec>,
@@ -89,6 +90,7 @@ impl ConfigRenderer {
         Ok(rendered_workloads)
     }
 
+    // [impl->swdd~config-renderer-renders-workload-configuration~1]
     fn create_config_map_for_workload<'a>(
         &self,
         workload_spec: &'a StoredWorkloadSpec,

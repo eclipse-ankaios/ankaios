@@ -714,12 +714,32 @@ Needs:
 
 Status: approved
 
-When the ServerState is requested to update its State, the ServerState shall trigger the ConfigRenderer to render the workloads of the new CompleteState with their corresponding config.
+When the ServerState is requested to update its State, the ServerState shall trigger the ConfigRenderer to render the workloads with the configuration items in the CompleteState.
 
-Rationale: Rendering consumes resources and shall only be done once in case of an update of the state.
+Rationale: Rendering consumes resources and shall be done only once when updating the state.
 
 Tags:
 - ServerState
+- ConfigRenderer
+
+Needs:
+- impl
+- utest
+
+#### ConfigRenderer renders workload configuration
+`swdd~config-renderer-renders-workload-configuration~1`
+
+Status: approved
+
+When the ConfigRenderer is requested to render the workloads with configuration items, for each provided workload the ConfigRenderer shall:
+* create a data structure containing the configuration items of the CompleteState referenced inside the workload's configuration
+* render the workload's `agent` and `runtimeConfig` fields by replacing each template string with the referenced configuration item
+* create a new workload configuration containing the rendered fields and the new instance name
+
+Comment:
+In case of a render error, the workload configuration remains unrendered and an error is thrown.
+
+Tags:
 - ConfigRenderer
 
 Needs:
