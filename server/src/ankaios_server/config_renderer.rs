@@ -12,12 +12,34 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 use common::objects::{ConfigItem, StoredWorkloadSpec, WorkloadInstanceName, WorkloadSpec};
 use handlebars::Handlebars;
 
 pub type RenderedWorkloads = HashMap<String, WorkloadSpec>;
+
+#[derive(Debug)]
+pub struct ConfigRenderError {
+    field: String,
+    reason: String,
+}
+
+impl ConfigRenderError {
+    pub fn new(field: String, reason: String) -> Self {
+        Self { field, reason }
+    }
+}
+
+impl fmt::Display for ConfigRenderError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Failed to render field '{}': '{}'",
+            self.field, self.reason
+        )
+    }
+}
 
 // [impl->swdd~server-delegate-template-render-to-external-library~1]
 pub struct ConfigRenderer {
@@ -36,19 +58,19 @@ impl ConfigRenderer {
         &self,
         workloads: &HashMap<String, StoredWorkloadSpec>,
         configs: &HashMap<String, ConfigItem>,
-    ) -> Result<RenderedWorkloads, String> {
+    ) -> Result<RenderedWorkloads, ConfigRenderError> {
         let mut rendered_workloads = HashMap::new();
         for (workload_name, stored_workload) in workloads {
-            let wl_config_map = self.create_config_map_for_workload(stored_workload, configs);
-            let workload_spec = if wl_config_map.is_empty() {
+            let workload_spec = if stored_workload.configs.is_empty() {
                 log::debug!(
-                    "Skipping workload '{}' expansion as no config is available",
+                    "Skipping to render workload '{}' as no config is assigned to the workload",
                     workload_name
                 );
                 WorkloadSpec::from((workload_name.to_owned(), stored_workload.clone()))
             } else {
+                let wl_config_map = self.create_config_map_for_workload(stored_workload, configs);
                 log::debug!(
-                    "Expanding workload '{}' with config '{:?}'",
+                    "Rendering workload '{}' with config '{:?}'",
                     workload_name,
                     wl_config_map
                 );
@@ -57,7 +79,7 @@ impl ConfigRenderer {
 
             rendered_workloads.insert(workload_name.clone(), workload_spec);
         }
-        log::debug!("Expanded state: {:?}", rendered_workloads);
+        log::debug!("Rendered CompleteState: {:?}", rendered_workloads);
         Ok(rendered_workloads)
     }
 
@@ -85,26 +107,16 @@ impl ConfigRenderer {
         workload_name: &str,
         workload: &StoredWorkloadSpec,
         wl_config_map: &HashMap<&String, &ConfigItem>,
-    ) -> Result<WorkloadSpec, String> {
+    ) -> Result<WorkloadSpec, ConfigRenderError> {
         let rendered_runtime_config = self
             .template_engine
             .render_template(&workload.runtime_config, &wl_config_map)
-            .map_err(|err| {
-                format!(
-                    "Failed to expand runtime config template for workload '{}': '{}'",
-                    workload_name, err
-                )
-            })?;
+            .map_err(|err| ConfigRenderError::new("runtimeConfig".to_owned(), err.to_string()))?;
 
         let rendered_agent_name = self
             .template_engine
             .render_template(&workload.agent, &wl_config_map)
-            .map_err(|err| {
-                format!(
-                    "Failed to expand agent name template for workload '{}': '{}'",
-                    workload_name, err
-                )
-            })?;
+            .map_err(|err| ConfigRenderError::new("agent".to_owned(), err.to_string()))?;
 
         Ok(WorkloadSpec {
             instance_name: WorkloadInstanceName::builder()

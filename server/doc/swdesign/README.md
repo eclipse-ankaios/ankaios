@@ -737,7 +737,7 @@ When the ConfigRenderer is requested to render the workloads with configuration 
 * create a new workload configuration containing the rendered fields and the new instance name
 
 Comment:
-In case of a render error, the workload configuration remains unrendered and an error is thrown.
+In case of a render error, the workload configuration remains unrendered and an error is thrown. If a workload does not reference a configuration item, the rendering of that workload is skipped.
 
 Tags:
 - ConfigRenderer

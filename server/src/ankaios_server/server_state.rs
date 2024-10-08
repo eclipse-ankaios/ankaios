@@ -227,7 +227,7 @@ impl ServerState {
                         &new_state.desired_state.workloads,
                         &new_state.desired_state.configs,
                     )
-                    .map_err(UpdateStateError::ResultInvalid)?;
+                    .map_err(|err| UpdateStateError::ResultInvalid(err.to_string()))?;
 
                 let cmd = extract_added_and_deleted_workloads(
                     &self.rendered_workloads,
@@ -266,17 +266,6 @@ impl ServerState {
                     self.rendered_workloads = new_rendered_workloads;
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
-                    let config_renderer = ConfigRenderer::new();
-                    // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
-                    let new_rendered_workloads = config_renderer
-                        .render_workloads(
-                            &new_state.desired_state.workloads,
-                            &new_state.desired_state.configs,
-                        )
-                        .map_err(UpdateStateError::ResultInvalid)?;
-
-                    self.state = new_state;
-                    self.rendered_workloads = new_rendered_workloads;
                     Ok(None)
                 }
             }
