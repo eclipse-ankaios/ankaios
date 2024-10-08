@@ -247,7 +247,9 @@ impl AgentManager {
 
 #[cfg(test)]
 mod tests {
-    use super::RuntimeManager;
+    use core::panic;
+
+    use super::{AgentLoad, AgentLoadStatus, RuntimeManager};
     use crate::agent_manager::AgentManager;
     use crate::workload_state::{
         workload_state_store::{mock_parameter_storage_new_returns, MockWorkloadStateStore},
@@ -560,6 +562,12 @@ mod tests {
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager.expect_handle_update_workload().never();
+        mock_runtime_manager.expect_forward_response().never();
+        mock_runtime_manager.expect_execute_workloads().never();
+        mock_runtime_manager.expect_handle_server_hello().never();
+        mock_runtime_manager
+            .expect_update_workloads_on_fulfilled_dependencies()
+            .never();
 
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
@@ -571,7 +579,14 @@ mod tests {
 
         let handle = tokio::spawn(async move { agent_manager.start().await });
 
-        assert!(server_receiver.recv().await.is_some());
+        let result = server_receiver.recv().await.unwrap();
+        if let ToServer::AgentLoadStatus(load_status) = result {
+            assert_eq!(load_status.agent_name, AGENT_NAME.to_string());
+            assert_ne!(load_status.agent_resources.cpu_usage, 0);
+            assert_ne!(load_status.agent_resources.free_memory, 0);
+        } else {
+            panic!("Expected AgentLoadStatus, got something else");
+        }
 
         to_manager.stop().await.unwrap();
         assert!(join!(handle).0.is_ok());
