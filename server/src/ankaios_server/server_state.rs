@@ -266,6 +266,7 @@ impl ServerState {
                     self.rendered_workloads = new_rendered_workloads;
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
+                    // update state with changed fields not affecting workloads, e.g. config items
                     self.state = new_state;
                     Ok(None)
                 }
