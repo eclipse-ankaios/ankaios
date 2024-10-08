@@ -46,13 +46,15 @@ pub struct ConfigRenderer {
     template_engine: Handlebars<'static>,
 }
 
-impl ConfigRenderer {
-    pub fn new() -> Self {
+impl Default for ConfigRenderer {
+    fn default() -> Self {
         let mut template_engine = Handlebars::new();
         template_engine.set_strict_mode(true); // enable throwing render errors if context data is valid
         Self { template_engine }
     }
+}
 
+impl ConfigRenderer {
     // [impl->swdd~config-renderer-renders-workload-configuration~1]
     pub fn render_workloads(
         &self,

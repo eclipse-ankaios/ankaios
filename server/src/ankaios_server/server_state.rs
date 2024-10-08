@@ -142,6 +142,7 @@ pub struct ServerState {
     state: CompleteState,
     rendered_workloads: RenderedWorkloads,
     delete_graph: DeleteGraph,
+    config_renderer: ConfigRenderer,
 }
 
 pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>)>;
@@ -219,10 +220,9 @@ impl ServerState {
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         match update_state(&self.state, new_state, update_mask) {
             Ok(new_state) => {
-                let config_renderer = ConfigRenderer::new();
-
                 // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
-                let new_rendered_workloads = config_renderer
+                let new_rendered_workloads = self
+                    .config_renderer
                     .render_workloads(
                         &new_state.desired_state.workloads,
                         &new_state.desired_state.configs,
