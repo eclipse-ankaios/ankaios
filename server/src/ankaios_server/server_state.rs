@@ -68,44 +68,40 @@ fn update_state(
 }
 
 fn extract_added_and_deleted_workloads(
-    current_rendered_workloads: &RenderedWorkloads,
-    new_rendered_workloads: &RenderedWorkloads,
+    current_workloads: &RenderedWorkloads,
+    new_workloads: &RenderedWorkloads,
 ) -> Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>)> {
     let mut added_workloads: Vec<WorkloadSpec> = Vec::new();
     let mut deleted_workloads: Vec<DeletedWorkload> = Vec::new();
 
     // find updated or deleted workloads
-    current_rendered_workloads
-        .iter()
-        .for_each(|(wl_name, wls)| {
-            if let Some(new_wls) = new_rendered_workloads.get(wl_name) {
-                // The new workload is identical with existing or updated. Lets check if it is an update.
-                if wls != new_wls {
-                    // [impl->swdd~server-detects-changed-workload~1]
-                    added_workloads.push(new_wls.clone());
-                    deleted_workloads.push(DeletedWorkload {
-                        instance_name: wls.instance_name.clone(),
-                        ..Default::default()
-                    });
-                }
-            } else {
-                // [impl->swdd~server-detects-deleted-workload~1]
+    current_workloads.iter().for_each(|(wl_name, wls)| {
+        if let Some(new_wls) = new_workloads.get(wl_name) {
+            // The new workload is identical with existing or updated. Lets check if it is an update.
+            if wls != new_wls {
+                // [impl->swdd~server-detects-changed-workload~1]
+                added_workloads.push(new_wls.clone());
                 deleted_workloads.push(DeletedWorkload {
                     instance_name: wls.instance_name.clone(),
                     ..Default::default()
                 });
             }
-        });
+        } else {
+            // [impl->swdd~server-detects-deleted-workload~1]
+            deleted_workloads.push(DeletedWorkload {
+                instance_name: wls.instance_name.clone(),
+                ..Default::default()
+            });
+        }
+    });
 
     // find new workloads
     // [impl->swdd~server-detects-new-workload~1]
-    new_rendered_workloads
-        .iter()
-        .for_each(|(new_wl_name, new_wls)| {
-            if !current_rendered_workloads.contains_key(new_wl_name) {
-                added_workloads.push(new_wls.clone());
-            }
-        });
+    new_workloads.iter().for_each(|(new_wl_name, new_wls)| {
+        if !current_workloads.contains_key(new_wl_name) {
+            added_workloads.push(new_wls.clone());
+        }
+    });
 
     if added_workloads.is_empty() && deleted_workloads.is_empty() {
         return None;
