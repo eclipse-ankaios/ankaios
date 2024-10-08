@@ -118,7 +118,7 @@ impl Workload {
         });
     }
 
-    // [impl->swdd~agent-compares-control-interface-metadata~1]
+    // [impl->swdd~agent-compares-control-interface-metadata~2]
     fn is_control_interface_changed(
         &self,
         control_interface_info: &Option<ControlInterfaceInfo>,
@@ -263,7 +263,7 @@ mod tests {
         ));
     }
 
-    // [utest->swdd~agent-compares-control-interface-metadata~1]
+    // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_is_control_interface_changed_set_from_none_to_new_returns_true() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
@@ -276,7 +276,7 @@ mod tests {
             .is_control_interface_changed(&Some(MockControlInterfaceInfo::default())));
     }
 
-    // [utest->swdd~agent-compares-control-interface-metadata~1]
+    // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_is_control_interface_changed_set_from_existing_to_none_returns_true() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
@@ -290,7 +290,7 @@ mod tests {
         assert!(test_workload_with_control_interface.is_control_interface_changed(&None));
     }
 
-    // [utest->swdd~agent-compares-control-interface-metadata~1]
+    // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_is_control_interface_changed_set_from_none_to_none_returns_false() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
@@ -304,7 +304,7 @@ mod tests {
         assert!(!test_workload_with_control_interface.is_control_interface_changed(&None));
     }
 
-    // [utest->swdd~agent-compares-control-interface-metadata~1]
+    // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_is_control_interface_changed_returns_true() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
@@ -325,7 +325,7 @@ mod tests {
             .is_control_interface_changed(&Some(control_interface_info_mock)));
     }
 
-    // [utest->swdd~agent-compares-control-interface-metadata~1]
+    // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_is_control_interface_changed_returns_false() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
