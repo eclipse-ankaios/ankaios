@@ -49,3 +49,7 @@ stest-only:
 # Run clippy code checks
 clippy:
     cargo clippy --all-targets --no-deps --all-features -- -D warnings
+
+# Generate test coverage report
+coverage:
+    tools/generate_test_coverage_report.sh test --html

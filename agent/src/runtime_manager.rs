@@ -1119,6 +1119,68 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    #[tokio::test]
+    async fn utest_reuse_existing_succeeded_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let existing_workload = generate_test_workload_spec_with_control_interface_access(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let added_workloads = vec![existing_workload.clone()];
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| MockWorkloadScheduler::default());
+
+        let workload_state_succeeded = WorkloadState {
+            instance_name: existing_workload.instance_name.clone(),
+            execution_state: ExecutionState::succeeded(),
+        };
+
+        const WORKLOAD_ID: &str = "workload_id_1";
+
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        runtime_facade_mock
+            .expect_get_reusable_workloads()
+            .once()
+            .return_once(|_| {
+                Box::pin(async {
+                    Ok(vec![ReusableWorkloadState::new(
+                        workload_state_succeeded,
+                        Some(WORKLOAD_ID.to_string()),
+                    )])
+                })
+            });
+
+        runtime_facade_mock.expect_delete_workload().never();
+
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let expected_new_added_workloads: Vec<ReusableWorkloadSpec> = added_workloads
+            .clone()
+            .into_iter()
+            .map(|w| ReusableWorkloadSpec::new(w, Some(WORKLOAD_ID.to_string())))
+            .collect();
+        let new_added_workloads = runtime_manager
+            .resume_and_remove_from_added_workloads(added_workloads)
+            .await;
+
+        assert_eq!(expected_new_added_workloads, new_added_workloads);
+        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+    }
+
     // [utest->swdd~agent-existing-workloads-delete-unneeded~1]
     #[tokio::test]
     async fn utest_handle_update_workload_initial_call_delete_unneeded() {

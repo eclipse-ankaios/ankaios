@@ -478,13 +478,15 @@ mod tests {
             .get_lock_async()
             .await;
 
+        const WORKLOAD_ID: &str = "workload_id_1";
+
         let reusable_workload_spec = ReusableWorkloadSpec::new(
             generate_test_workload_spec_with_control_interface_access(
                 AGENT_NAME.to_string(),
                 WORKLOAD_1_NAME.to_string(),
                 RUNTIME_NAME.to_string(),
             ),
-            None,
+            Some(WORKLOAD_ID.to_string()),
         );
 
         let control_interface_mock = MockControlInterface::default();

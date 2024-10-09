@@ -279,6 +279,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+    use std::str::FromStr;
 
     use common::objects::{
         generate_test_workload_spec_with_param, AgentName, ExecutionState, WorkloadInstanceName,
@@ -420,6 +421,43 @@ mod tests {
 
         // [utest->swdd~podman-create-workload-returns-workload-id~1]
         assert_eq!(workload_id.id, "test_id".to_string());
+    }
+
+    #[tokio::test]
+    async fn utest_create_workload_with_existing_workload_id_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let reusable_workload_id = "test_id";
+
+        let start_context = PodmanCli::podman_start_context();
+        start_context
+            .expect()
+            .returning(|start_config, _| Ok(start_config.container_id));
+
+        let resest_cache_context = PodmanCli::reset_ps_cache_context();
+        resest_cache_context.expect().return_const(());
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            PODMAN_RUNTIME_NAME.to_string(),
+        );
+        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
+
+        let podman_runtime = PodmanRuntime {};
+        let res = podman_runtime
+            .create_workload(
+                workload_spec,
+                Some(PodmanWorkloadId::from_str(reusable_workload_id).unwrap()),
+                Some(PathBuf::from("run_folder")),
+                state_change_tx,
+            )
+            .await;
+
+        let (workload_id, _checker) = res.unwrap();
+
+        // [utest->swdd~podman-create-workload-returns-workload-id~1]
+        assert_eq!(workload_id.id, reusable_workload_id);
     }
 
     // [utest->swdd~podman-state-getter-reset-cache~1]
