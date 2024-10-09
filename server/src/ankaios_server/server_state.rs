@@ -19,7 +19,7 @@ use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
 use common::objects::{
-    AgentAttributes, AgentLoad, WorkloadInstanceName, WorkloadState, WorkloadStatesMap,
+    AgentAttributes, CpuLoad, FreeMemory, WorkloadInstanceName, WorkloadState, WorkloadStatesMap,
 };
 use common::std_extensions::IllegalStateResult;
 use common::{
@@ -279,7 +279,8 @@ impl ServerState {
             .agents
             .entry(agent_name)
             .or_insert(AgentAttributes {
-                agent_resources: Some(AgentLoad::default()),
+                cpu_load: Some(CpuLoad::default()),
+                free_memory: Some(FreeMemory::default()),
             });
     }
 
@@ -291,11 +292,11 @@ impl ServerState {
     // [impl->swdd~server-receives-resource-availability~1]
     pub fn update_agent_resource_availability(
         &mut self,
-        agent_resource: commands::AgentLoadStatus,
+        agent_load_status: commands::AgentLoadStatus,
     ) {
         self.state
             .agents
-            .update_resource_availability(agent_resource);
+            .update_resource_availability(agent_load_status);
     }
 
     // [impl->swdd~server-cleans-up-state~1]
@@ -323,8 +324,8 @@ mod tests {
         objects::{
             generate_test_agent_map, generate_test_stored_workload_spec,
             generate_test_workload_spec_with_control_interface_access,
-            generate_test_workload_spec_with_param, AgentLoad, AgentMap, CompleteState,
-            DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
+            generate_test_workload_spec_with_param, AgentMap, CompleteState, CpuLoad,
+            DeletedWorkload, FreeMemory, State, WorkloadSpec, WorkloadStatesMap,
         },
         test_utils::{self, generate_test_complete_state},
     };
@@ -1071,18 +1072,17 @@ mod tests {
             WORKLOAD_NAME_1.to_string(),
             RUNTIME.to_string(),
         );
-        let agent_resources = AgentLoad {
-            cpu_usage: 42,
-            free_memory: 42,
-        };
 
         let mut server_state = ServerState {
             state: generate_test_complete_state(vec![w1.clone()]),
             ..Default::default()
         };
+        let cpu_load = CpuLoad { cpu_load: 42 };
+        let free_memory = FreeMemory { free_memory: 42 };
         server_state.update_agent_resource_availability(AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
-            agent_resources: agent_resources.clone(),
+            cpu_load: cpu_load.clone(),
+            free_memory: free_memory.clone(),
         });
 
         let stored_state = server_state
@@ -1092,7 +1092,8 @@ mod tests {
             .or_default()
             .to_owned();
 
-        assert_eq!(stored_state.agent_resources, Some(agent_resources))
+        assert_eq!(stored_state.cpu_load, Some(cpu_load));
+        assert_eq!(stored_state.free_memory, Some(free_memory));
     }
 
     // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]

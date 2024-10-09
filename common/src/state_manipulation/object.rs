@@ -366,6 +366,8 @@ mod tests {
             ),
             agents: agent_map,
         };
+        println!("{:?}", object);
+        println!("{:?}", expected);
         let actual: CompleteState = object.try_into().unwrap();
 
         assert_eq!(actual, expected);
@@ -738,12 +740,9 @@ mod tests {
                     "agents",
                     Mapping::default().entry(
                         agent_name,
-                        Mapping::default().entry(
-                            "agent_resources",
-                            Mapping::default()
-                                .entry("cpu_usage", 0)
-                                .entry("free_memory", 0),
-                        ),
+                        Mapping::default()
+                            .entry("cpu_load", Mapping::default().entry("cpu_load", 0))
+                            .entry("free_memory", Mapping::default().entry("free_memory", 0)),
                     ),
                 )
         }

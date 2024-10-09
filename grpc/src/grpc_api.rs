@@ -33,10 +33,8 @@ impl From<AgentLoadStatus> for commands::AgentLoadStatus {
     fn from(item: AgentLoadStatus) -> Self {
         commands::AgentLoadStatus {
             agent_name: item.agent_name,
-            agent_resources: objects::AgentLoad {
-                cpu_usage: item.cpu_load,
-                free_memory: item.free_memory,
-            },
+            cpu_load: item.cpu_load.unwrap_or_default().into(),
+            free_memory: item.free_memory.unwrap_or_default().into(),
         }
     }
 }
@@ -45,8 +43,8 @@ impl From<commands::AgentLoadStatus> for AgentLoadStatus {
     fn from(item: commands::AgentLoadStatus) -> Self {
         AgentLoadStatus {
             agent_name: item.agent_name,
-            cpu_load: item.agent_resources.cpu_usage,
-            free_memory: item.agent_resources.free_memory,
+            cpu_load: Some(item.cpu_load.into()),
+            free_memory: Some(item.free_memory.into()),
         }
     }
 }
@@ -276,7 +274,7 @@ mod tests {
 
     use api::ank_base::{self, Dependencies};
     use common::{
-        objects::{generate_test_workload_spec, ConfigHash},
+        objects::{generate_test_workload_spec, ConfigHash, CpuLoad, FreeMemory},
         test_utils::{self, generate_test_deleted_workload},
     };
 
@@ -310,28 +308,24 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_to_server_agent_resource() {
-        let agent_resources = common::commands::AgentLoadStatus {
+        let agent_load_status = common::commands::AgentLoadStatus {
             agent_name: "agent_A".to_string(),
-            agent_resources: common::objects::AgentLoad {
-                cpu_usage: 42,
-                free_memory: 42,
-            },
+            cpu_load: CpuLoad { cpu_load: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
         };
 
         let proto_request = ToServer {
             to_server_enum: Some(ToServerEnum::AgentLoadStatus(AgentLoadStatus {
-                agent_name: agent_resources.agent_name.clone(),
-                cpu_load: agent_resources.agent_resources.cpu_usage,
-                free_memory: agent_resources.agent_resources.free_memory,
+                agent_name: agent_load_status.agent_name.clone(),
+                cpu_load: Some(agent_load_status.cpu_load.clone().into()),
+                free_memory: Some(agent_load_status.free_memory.clone().into()),
             })),
         };
 
         let ankaios_command = ankaios::ToServer::AgentLoadStatus(ankaios::AgentLoadStatus {
-            agent_name: agent_resources.agent_name,
-            agent_resources: ankaios::AgentLoad {
-                cpu_usage: agent_resources.agent_resources.cpu_usage,
-                free_memory: agent_resources.agent_resources.free_memory,
-            },
+            agent_name: agent_load_status.agent_name,
+            cpu_load: agent_load_status.cpu_load.into(),
+            free_memory: agent_load_status.free_memory.into(),
         });
 
         assert_eq!(

@@ -58,23 +58,21 @@ fn transform_into_table_rows(
             let workload_states_count = workload_states_map
                 .get_workload_state_for_agent(&agent_name)
                 .len() as u32;
-
-            AgentTableRow {
+            // let agent_resources = agent_attributes.agent_resources.unwrap_or_default();
+            let mut agent_table_row = AgentTableRow {
                 agent_name,
                 workloads: workload_states_count,
-                cpu_usage: agent_attributes
-                    .agent_resources
-                    .clone()
-                    .unwrap()
-                    .cpu_usage
-                    .unwrap(),
-                free_memory: (agent_attributes
-                    .agent_resources
-                    .unwrap()
-                    .free_memory
-                    .unwrap()
-                    / 100) as f32,
+                cpu_usage: "".to_string(),
+                free_memory: "".to_string(),
+            };
+            if let Some(cpu_load_value) = agent_attributes.cpu_load.unwrap().cpu_load {
+                agent_table_row.cpu_usage = format!("{}", cpu_load_value);
+                if let Some(free_memory_value) = agent_attributes.free_memory.unwrap().free_memory {
+                    agent_table_row.free_memory = format!("{}", free_memory_value);
+                }
             }
+
+            agent_table_row
         })
         .collect();
 

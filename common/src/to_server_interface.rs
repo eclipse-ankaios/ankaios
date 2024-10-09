@@ -87,9 +87,11 @@ impl ToServerInterface for ToServerSender {
 
     async fn agent_load_status(
         &self,
-        agent_resource: commands::AgentLoadStatus,
+        agent_load_status: commands::AgentLoadStatus,
     ) -> Result<(), ToServerError> {
-        Ok(self.send(ToServer::AgentLoadStatus(agent_resource)).await?)
+        Ok(self
+            .send(ToServer::AgentLoadStatus(agent_load_status))
+            .await?)
     }
 
     async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError> {
@@ -162,7 +164,8 @@ mod tests {
     use crate::{
         commands::{self, AgentLoadStatus, RequestContent},
         objects::{
-            generate_test_workload_spec, generate_test_workload_state, AgentLoad, ExecutionState,
+            generate_test_workload_spec, generate_test_workload_state, CpuLoad, ExecutionState,
+            FreeMemory,
         },
         test_utils::generate_test_complete_state,
         to_server_interface::{ToServer, ToServerInterface},
@@ -175,10 +178,8 @@ mod tests {
     const AGENT_NAME: &str = "agent_A";
     const REQUEST_ID: &str = "emkw489ejf89ml";
     const FIELD_MASK: &str = "desiredState.bla_bla";
-    const AGENT_RESOURCES: AgentLoad = AgentLoad {
-        cpu_usage: 42,
-        free_memory: 42,
-    };
+    const CPU_LOAD: CpuLoad = CpuLoad { cpu_load: 42 };
+    const FREE_MEMORY: FreeMemory = FreeMemory { free_memory: 42 };
 
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
@@ -205,7 +206,8 @@ mod tests {
         assert!(tx
             .agent_load_status(AgentLoadStatus {
                 agent_name: AGENT_NAME.to_string(),
-                agent_resources: AGENT_RESOURCES.clone(),
+                cpu_load: CPU_LOAD.clone(),
+                free_memory: FREE_MEMORY.clone(),
             })
             .await
             .is_ok());
@@ -214,7 +216,8 @@ mod tests {
             rx.recv().await.unwrap(),
             ToServer::AgentLoadStatus(AgentLoadStatus {
                 agent_name: AGENT_NAME.to_string(),
-                agent_resources: AGENT_RESOURCES.clone(),
+                cpu_load: CPU_LOAD.clone(),
+                free_memory: FREE_MEMORY.clone(),
             })
         )
     }

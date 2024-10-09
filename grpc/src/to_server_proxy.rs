@@ -20,7 +20,6 @@ use api::ank_base::{
     self, request::RequestContent, CompleteStateRequest, Request, UpdateStateRequest,
 };
 
-use common::objects;
 use common::request_id_prepending::prepend_request_id;
 use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender};
 
@@ -186,10 +185,8 @@ pub async fn forward_from_ankaios_to_proto(
                         to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentLoadStatus(
                             common::commands::AgentLoadStatus {
                                 agent_name: status.agent_name,
-                                agent_resources: objects::AgentLoad {
-                                    cpu_usage: status.agent_resources.cpu_usage,
-                                    free_memory: status.agent_resources.free_memory,
-                                },
+                                cpu_load: status.cpu_load,
+                                free_memory: status.free_memory,
                             }
                             .into(),
                         )),
@@ -233,6 +230,7 @@ mod tests {
 
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios, GRPCStreaming};
     use async_trait::async_trait;
+    use common::objects::{CpuLoad, FreeMemory};
     use common::test_utils::generate_test_complete_state;
     use common::{
         objects::generate_test_workload_spec_with_param,
@@ -269,19 +267,14 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let agent_resources = common::objects::AgentLoad {
-            cpu_usage: 42,
-            free_memory: 42,
-        };
         let agent_name = "agent_A".to_string();
-        let agent_resources_command = common::commands::AgentLoadStatus {
+        let agent_load_status = common::commands::AgentLoadStatus {
             agent_name: agent_name.clone(),
-            agent_resources,
+            cpu_load: CpuLoad { cpu_load: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
         };
 
-        let agent_resource_result = server_tx
-            .agent_load_status(agent_resources_command.clone())
-            .await;
+        let agent_resource_result = server_tx.agent_load_status(agent_load_status.clone()).await;
         assert!(agent_resource_result.is_ok());
 
         tokio::spawn(async move {
@@ -300,20 +293,17 @@ mod tests {
                 cpu_load,
                 free_memory
             }))
-            if agent_name == agent_name && cpu_load == 42 && free_memory == 42));
+            if agent_name == agent_name && cpu_load.clone().unwrap().cpu_load == 42 && free_memory.clone().unwrap().free_memory == 42));
     }
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
-        let agent_resources = common::objects::AgentLoad {
-            cpu_usage: 42,
-            free_memory: 42,
-        };
         let agent_name = "agent_A".to_string();
-        let agent_resources_command = common::commands::AgentLoadStatus {
+        let agent_load_status = common::commands::AgentLoadStatus {
             agent_name: agent_name.clone(),
-            agent_resources,
+            cpu_load: CpuLoad { cpu_load: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
         };
 
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
@@ -322,7 +312,7 @@ mod tests {
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
                     to_server_enum: Some(ToServerEnum::AgentLoadStatus(
-                        agent_resources_command.clone().into(),
+                        agent_load_status.clone().into(),
                     )),
                 }),
                 None,
@@ -341,7 +331,7 @@ mod tests {
         let result = server_rx.recv().await.unwrap();
 
         assert!(
-            matches!(result, ToServer::AgentLoadStatus(measurement) if measurement == agent_resources_command)
+            matches!(result, ToServer::AgentLoadStatus(measurement) if measurement == agent_load_status)
         );
     }
 

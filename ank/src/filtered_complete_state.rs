@@ -74,11 +74,16 @@ pub struct FilteredAgentMap {
     pub agents: Option<HashMap<String, FilteredAgentAttributes>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct FilteredAgentLoad {
+pub struct FilteredCpuLoad {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cpu_usage: Option<u32>,
+    pub cpu_load: Option<u32>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct FilteredFreeMemory {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub free_memory: Option<u64>,
 }
@@ -87,7 +92,9 @@ pub struct FilteredAgentLoad {
 #[serde(rename_all = "camelCase")]
 pub struct FilteredAgentAttributes {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_resources: Option<FilteredAgentLoad>,
+    pub cpu_load: Option<FilteredCpuLoad>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub free_memory: Option<FilteredFreeMemory>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -195,27 +202,34 @@ impl From<ank_base::AgentMap> for FilteredAgentMap {
                 value
                     .agents
                     .into_iter()
-                    .map(|(agent_name, agent_attributes)| {
-                        (
-                            agent_name,
-                            FilteredAgentAttributes {
-                                agent_resources: Some(FilteredAgentLoad {
-                                    cpu_usage: Some(
-                                        agent_attributes
-                                            .agent_resources
-                                            .clone()
-                                            .unwrap_or_else(|| output_and_error!("Could not get agent resources. Check the Ankaios component compatibility."))
-                                            .cpu_usage,
-                                    ),
-                                    free_memory: Some(
-                                        agent_attributes.agent_resources.unwrap_or_else(|| output_and_error!("Could not get agent resources. Check the Ankaios component compatibility.")).free_memory,
-                                    ),
-                                }),
-                            },
-                        )
-                    })
+                    .map(|(agent_name, agent_attributes)| (agent_name, agent_attributes.into()))
                     .collect(),
             ),
+        }
+    }
+}
+
+impl From<ank_base::AgentAttributes> for FilteredAgentAttributes {
+    fn from(value: ank_base::AgentAttributes) -> Self {
+        FilteredAgentAttributes {
+            cpu_load: Some(value.cpu_load.unwrap_or_default().into()),
+            free_memory: Some(value.free_memory.unwrap_or_default().into()),
+        }
+    }
+}
+
+impl From<ank_base::CpuLoad> for FilteredCpuLoad {
+    fn from(value: ank_base::CpuLoad) -> Self {
+        FilteredCpuLoad {
+            cpu_load: Some(value.cpu_load),
+        }
+    }
+}
+
+impl From<ank_base::FreeMemory> for FilteredFreeMemory {
+    fn from(value: ank_base::FreeMemory) -> Self {
+        FilteredFreeMemory {
+            free_memory: Some(value.free_memory),
         }
     }
 }

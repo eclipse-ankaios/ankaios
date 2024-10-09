@@ -20,15 +20,30 @@ use crate::commands;
 
 type AgentName = String;
 
+pub const MULTIPLYING_FACTOR: f32 = 100.0;
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-pub struct AgentLoad {
-    pub cpu_usage: u32,
+pub struct CpuLoad {
+    pub cpu_load: u32,
+}
+
+impl CpuLoad {
+    pub fn new(cpu_load: f32) -> Self {
+        Self {
+            cpu_load: (cpu_load * MULTIPLYING_FACTOR) as u32,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct FreeMemory {
     pub free_memory: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct AgentAttributes {
-    pub agent_resources: Option<AgentLoad>,
+    pub cpu_load: Option<CpuLoad>,
+    pub free_memory: Option<FreeMemory>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
@@ -48,19 +63,54 @@ impl AgentMap {
         self.0.remove(key);
     }
 
-    pub fn update_resource_availability(&mut self, agent_resource: commands::AgentLoadStatus) {
-        self.0.entry(agent_resource.agent_name).and_modify(|e| {
-            e.agent_resources = Some(agent_resource.agent_resources);
+    pub fn update_resource_availability(&mut self, agent_load_status: commands::AgentLoadStatus) {
+        self.0.entry(agent_load_status.agent_name).and_modify(|e| {
+            e.cpu_load = Some(agent_load_status.cpu_load);
+            e.free_memory = Some(agent_load_status.free_memory);
         });
+    }
+}
+
+impl From<CpuLoad> for ank_base::CpuLoad {
+    fn from(item: CpuLoad) -> ank_base::CpuLoad {
+        ank_base::CpuLoad {
+            cpu_load: item.cpu_load,
+        }
+    }
+}
+
+impl From<ank_base::CpuLoad> for CpuLoad {
+    fn from(item: ank_base::CpuLoad) -> Self {
+        CpuLoad {
+            cpu_load: item.cpu_load,
+        }
+    }
+}
+
+impl From<FreeMemory> for ank_base::FreeMemory {
+    fn from(item: FreeMemory) -> ank_base::FreeMemory {
+        ank_base::FreeMemory {
+            free_memory: item.free_memory,
+        }
+    }
+}
+
+impl From<ank_base::FreeMemory> for FreeMemory {
+    fn from(item: ank_base::FreeMemory) -> Self {
+        FreeMemory {
+            free_memory: item.free_memory,
+        }
     }
 }
 
 impl From<AgentAttributes> for ank_base::AgentAttributes {
     fn from(item: AgentAttributes) -> ank_base::AgentAttributes {
         ank_base::AgentAttributes {
-            agent_resources: Some(ank_base::AgentLoad {
-                cpu_usage: item.agent_resources.clone().unwrap_or_default().cpu_usage,
-                free_memory: item.agent_resources.unwrap_or_default().free_memory,
+            cpu_load: Some(ank_base::CpuLoad {
+                cpu_load: item.cpu_load.unwrap_or_default().cpu_load,
+            }),
+            free_memory: Some(ank_base::FreeMemory {
+                free_memory: item.free_memory.unwrap_or_default().free_memory,
             }),
         }
     }
@@ -69,9 +119,11 @@ impl From<AgentAttributes> for ank_base::AgentAttributes {
 impl From<ank_base::AgentAttributes> for AgentAttributes {
     fn from(item: ank_base::AgentAttributes) -> Self {
         AgentAttributes {
-            agent_resources: Some(AgentLoad {
-                cpu_usage: item.agent_resources.clone().unwrap_or_default().cpu_usage,
-                free_memory: item.agent_resources.unwrap_or_default().free_memory,
+            cpu_load: Some(CpuLoad {
+                cpu_load: item.cpu_load.unwrap_or_default().cpu_load,
+            }),
+            free_memory: Some(FreeMemory {
+                free_memory: item.free_memory.unwrap_or_default().free_memory,
             }),
         }
     }
@@ -118,7 +170,9 @@ pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMap {
     agent_map
         .entry(agent_name.into())
         .or_insert(AgentAttributes {
-            agent_resources: Some(AgentLoad::default()),
+            // agent_resources: Some(AgentLoad::default()),
+            cpu_load: Some(CpuLoad::default()),
+            free_memory: Some(FreeMemory::default()),
         });
     agent_map
 }
@@ -132,7 +186,8 @@ pub fn generate_test_agent_map_from_specs(workloads: &[crate::objects::WorkloadS
             agent_map
                 .entry(agent_name.to_owned())
                 .or_insert(AgentAttributes {
-                    agent_resources: Some(AgentLoad::default()),
+                    cpu_load: Some(CpuLoad::default()),
+                    free_memory: Some(FreeMemory::default()),
                 });
             agent_map
         })
