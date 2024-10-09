@@ -19,6 +19,7 @@ use crate::helpers::serialize_to_ordered_map;
 use crate::objects::Tag;
 
 use super::control_interface_access::ControlInterfaceAccess;
+use super::file::File;
 use super::ExecutionState;
 use super::WorkloadInstanceName;
 
@@ -43,6 +44,7 @@ pub struct WorkloadSpec {
     pub restart_policy: RestartPolicy,
     pub runtime: String,
     pub runtime_config: String,
+    pub files: Vec<File>,
     pub control_interface_access: ControlInterfaceAccess,
 }
 

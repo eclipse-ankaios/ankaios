@@ -131,6 +131,7 @@ impl ConfigRenderer {
             tags: workload.tags.clone(),
             dependencies: workload.dependencies.clone(),
             restart_policy: workload.restart_policy.clone(),
+            files: workload.files.clone(),
             control_interface_access: workload.control_interface_access.clone(),
         })
     }

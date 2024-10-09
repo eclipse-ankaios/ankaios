@@ -146,6 +146,11 @@ impl TryFrom<AddedWorkload> for objects::WorkloadSpec {
                 .control_interface_access
                 .unwrap_or_default()
                 .try_into()?,
+            files: workload
+                .files
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
         })
     }
 }
@@ -164,6 +169,7 @@ impl From<objects::WorkloadSpec> for AddedWorkload {
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            files: workload.files.into_iter().map(Into::into).collect(),
             control_interface_access: workload.control_interface_access.into(),
         }
     }

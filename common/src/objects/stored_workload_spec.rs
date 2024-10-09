@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use crate::helpers::serialize_to_ordered_map;
 
 use super::{
-    control_interface_access::ControlInterfaceAccess, AddCondition, RestartPolicy, Tag,
+    control_interface_access::ControlInterfaceAccess, file::File, AddCondition, RestartPolicy, Tag,
     WorkloadInstanceName, WorkloadSpec,
 };
 
@@ -40,6 +40,8 @@ pub struct StoredWorkloadSpec {
     pub control_interface_access: ControlInterfaceAccess,
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub configs: HashMap<String, String>,
+    #[serde(default)]
+    pub files: Vec<File>,
 }
 
 impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
@@ -70,6 +72,13 @@ impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
                 .unwrap_or_default()
                 .try_into()?,
             configs: value.configs.unwrap_or_default().configs,
+            files: value
+                .files
+                .unwrap_or_default()
+                .files
+                .into_iter()
+                .map(|file| file.try_into())
+                .collect::<Result<Vec<File>, String>>()?,
         })
     }
 }
@@ -89,11 +98,14 @@ impl From<StoredWorkloadSpec> for ank_base::Workload {
             runtime: workload.runtime.into(),
             runtime_config: workload.runtime_config.into(),
             tags: Some(ank_base::Tags {
-                tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+                tags: workload.tags.into_iter().map(Into::into).collect(),
             }),
             control_interface_access: workload.control_interface_access.into(),
             configs: Some(ank_base::ConfigMappings {
                 configs: workload.configs,
+            }),
+            files: Some(ank_base::Files {
+                files: workload.files.into_iter().map(Into::into).collect(),
             }),
         }
     }
@@ -112,6 +124,7 @@ impl From<(String, StoredWorkloadSpec)> for WorkloadSpec {
             restart_policy: spec.restart_policy,
             runtime: spec.runtime,
             runtime_config: spec.runtime_config,
+            files: spec.files,
             control_interface_access: spec.control_interface_access,
         }
     }
@@ -128,6 +141,7 @@ impl From<WorkloadSpec> for StoredWorkloadSpec {
             runtime_config: value.runtime_config,
             control_interface_access: value.control_interface_access,
             configs: Default::default(),
+            files: value.files,
         }
     }
 }
