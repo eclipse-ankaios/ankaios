@@ -22,7 +22,7 @@ pub type RenderedWorkloads = HashMap<String, WorkloadSpec>;
 #[cfg(test)]
 use mockall::mock;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ConfigRenderError {
     field: String,
     reason: String,
@@ -159,4 +159,197 @@ mock! {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::collections::HashMap;
+
+    use common::objects::{
+        generate_test_stored_workload_spec_with_config,
+        generate_test_workload_spec_with_runtime_config, ConfigItem,
+    };
+
+    use crate::ankaios_server::config_renderer::RenderedWorkloads;
+
+    use super::ConfigRenderer;
+
+    const WORKLOAD_NAME_1: &str = "workload_1";
+    const AGENT_A: &str = "agent_A";
+    const RUNTIME: &str = "runtime";
+
+    fn generate_test_configs() -> HashMap<String, ConfigItem> {
+        HashMap::from([(
+            "config_1".to_string(),
+            ConfigItem::ConfigObject(HashMap::from([
+                (
+                    "values".to_string(),
+                    ConfigItem::ConfigObject(HashMap::from([
+                        (
+                            "value_1".to_string(),
+                            ConfigItem::String("value123".to_string()),
+                        ),
+                        (
+                            "value_2".to_string(),
+                            ConfigItem::ConfigArray(vec![
+                                ConfigItem::String("list_value_1".to_string()),
+                                ConfigItem::String("list_value_2".to_string()),
+                            ]),
+                        ),
+                    ])),
+                ),
+                (
+                    "agent_name".to_string(),
+                    ConfigItem::String(AGENT_A.to_owned()),
+                ),
+            ])),
+        )])
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    #[test]
+    fn utest_render_workloads_render_required_fields_successfully() {
+        let templated_runtime_config =
+            "some_value_1: {{config_1.values.value_1}}\nsome_value_2: {{ref1.values.value_2.0}}";
+        let templated_agent_name = "{{ref1.agent_name}}";
+        let stored_workload = generate_test_stored_workload_spec_with_config(
+            templated_agent_name,
+            RUNTIME,
+            templated_runtime_config,
+        );
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = generate_test_configs();
+        let renderer = ConfigRenderer::default();
+
+        let expected_workload_spec = generate_test_workload_spec_with_runtime_config(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+            "some_value_1: value123\nsome_value_2: list_value_1".to_owned(),
+        );
+
+        let result = renderer.render_workloads(&workloads, &configs);
+
+        assert_eq!(
+            Ok(RenderedWorkloads::from([(
+                WORKLOAD_NAME_1.to_owned(),
+                expected_workload_spec
+            )])),
+            result
+        );
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    #[test]
+    fn utest_render_workloads_not_rendering_workloads_with_no_assigned_configs() {
+        let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
+        let templated_agent_name = "{{config_1.agent_name}}";
+        let mut stored_workload = generate_test_stored_workload_spec_with_config(
+            templated_agent_name,
+            RUNTIME,
+            templated_runtime_config,
+        );
+
+        stored_workload.configs.clear(); // no configs assigned
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = generate_test_configs();
+        let renderer = ConfigRenderer::default();
+
+        let expected_workload_spec = generate_test_workload_spec_with_runtime_config(
+            templated_agent_name.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+            templated_runtime_config.to_owned(),
+        );
+
+        let result = renderer.render_workloads(&workloads, &configs);
+
+        assert_eq!(
+            Ok(RenderedWorkloads::from([(
+                WORKLOAD_NAME_1.to_owned(),
+                expected_workload_spec
+            )])),
+            result
+        );
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    #[test]
+    fn utest_render_workloads_fails_workload_references_not_existing_configs() {
+        let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
+        let templated_agent_name = "{{config_1.agent_name}}";
+        let mut stored_workload = generate_test_stored_workload_spec_with_config(
+            templated_agent_name,
+            RUNTIME,
+            templated_runtime_config,
+        );
+
+        stored_workload.configs = HashMap::from([
+            ("ref1".to_owned(), "not_existing_config_key".to_owned()),
+            ("config_A".to_owned(), "not_existing_config_key".to_owned()),
+        ]);
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = generate_test_configs();
+        let renderer = ConfigRenderer::default();
+
+        assert!(renderer.render_workloads(&workloads, &configs).is_err());
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    #[test]
+    fn utest_render_workloads_fails_runtime_config_contains_non_existing_config() {
+        let templated_runtime_config = "config_1: {{config_1.values.not_existing_key}}";
+        let stored_workload = generate_test_stored_workload_spec_with_config(
+            AGENT_A,
+            RUNTIME,
+            templated_runtime_config,
+        );
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = generate_test_configs();
+        let renderer = ConfigRenderer::default();
+
+        let result = renderer.render_workloads(&workloads, &configs);
+
+        assert!(result.is_err());
+        let render_error = result.unwrap_err();
+        assert_eq!(render_error.field, "runtimeConfig".to_string());
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    #[test]
+    fn utest_render_workloads_fails_agent_contains_non_existing_config() {
+        let stored_workload = generate_test_stored_workload_spec_with_config(
+            "{{config_1.not_existing_key}}",
+            RUNTIME,
+            "some runtime config",
+        );
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = generate_test_configs();
+        let renderer = ConfigRenderer::default();
+
+        let result = renderer.render_workloads(&workloads, &configs);
+
+        assert!(result.is_err());
+        let render_error = result.unwrap_err();
+        assert_eq!(render_error.field, "agent".to_string());
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    #[test]
+    fn utest_render_workloads_fails_workload_references_empty_configs() {
+        let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
+        let stored_workload = generate_test_stored_workload_spec_with_config(
+            AGENT_A,
+            RUNTIME,
+            templated_runtime_config,
+        );
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = HashMap::default();
+        let renderer = ConfigRenderer::default();
+
+        assert!(renderer.render_workloads(&workloads, &configs).is_err());
+    }
+}
