@@ -19,6 +19,9 @@ use handlebars::Handlebars;
 
 pub type RenderedWorkloads = HashMap<String, WorkloadSpec>;
 
+#[cfg(test)]
+use mockall::mock;
+
 #[derive(Debug)]
 pub struct ConfigRenderError {
     field: String,
@@ -135,3 +138,25 @@ impl ConfigRenderer {
         })
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mock! {
+    pub ConfigRenderer {
+        pub fn render_workloads(
+            &self,
+            workloads: &HashMap<String, StoredWorkloadSpec>,
+            configs: &HashMap<String, ConfigItem>,
+        ) -> Result<RenderedWorkloads, ConfigRenderError>;
+    }
+}
+
+#[cfg(test)]
+mod tests {}
