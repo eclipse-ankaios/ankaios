@@ -426,6 +426,13 @@ mod tests {
                         restart_policy: Some(ank_base::RestartPolicy::Never as i32),
                         runtime_config: Some(String::default()),
                         control_interface_access: None,
+                        configs: Some(ank_base::ConfigMappings {
+                            configs: [
+                                ("ref1".into(), "config_1".into()),
+                                ("ref2".into(), "config_2".into()),
+                            ]
+                            .into(),
+                        }),
                     },
                 )]),
             ),
@@ -449,7 +456,14 @@ mod tests {
                     }),
                     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
                     runtime_config: Some("".to_string()),
-                    control_interface_access: None
+                    control_interface_access: None,
+                    configs: Some(ank_base::ConfigMappings {
+                        configs: [
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
+                        ]
+                        .into()
+                    })
                 },
             )])
             .into())
@@ -526,6 +540,13 @@ mod tests {
                         restart_policy: Some(ank_base::RestartPolicy::Never as i32),
                         runtime_config: Some("".to_string()),
                         control_interface_access: None,
+                        configs: Some(ank_base::ConfigMappings {
+                            configs: [
+                                ("ref1".into(), "config_1".into()),
+                                ("ref2".into(), "config_2".into()),
+                            ]
+                            .into(),
+                        }),
                     },
                 )]),
             )),
@@ -554,6 +575,13 @@ mod tests {
                         restart_policy: Some(ank_base::RestartPolicy::Never as i32),
                         runtime_config: Some("".to_string()),
                         control_interface_access: None,
+                        configs: Some(ank_base::ConfigMappings {
+                            configs: [
+                                ("ref1".into(), "config_1".into()),
+                                ("ref2".into(), "config_2".into()),
+                            ]
+                            .into(),
+                        }),
                     },
                 )]),
             ),
@@ -577,7 +605,14 @@ mod tests {
                     }),
                     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
                     runtime_config: Some("".to_string()),
-                    control_interface_access: None
+                    control_interface_access: None,
+                    configs: Some(ank_base::ConfigMappings {
+                        configs: [
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
+                        ]
+                        .into()
+                    })
                 },
             )])
             .into())
@@ -619,6 +654,13 @@ mod tests {
                         restart_policy: Some(ank_base::RestartPolicy::Never as i32),
                         runtime_config: Some("".to_string()),
                         control_interface_access: None,
+                        configs: Some(ank_base::ConfigMappings {
+                            configs: [
+                                ("ref1".into(), "config_1".into()),
+                                ("ref2".into(), "config_2".into()),
+                            ]
+                            .into(),
+                        }),
                     },
                 )]),
             ),
@@ -642,7 +684,14 @@ mod tests {
                     }),
                     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
                     runtime_config: Some("".to_string()),
-                    control_interface_access: None
+                    control_interface_access: None,
+                    configs: Some(ank_base::ConfigMappings {
+                        configs: [
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
+                        ]
+                        .into()
+                    })
                 },
             )])
             .into())
@@ -789,6 +838,13 @@ mod tests {
                         restart_policy: Some(ank_base::RestartPolicy::Never as i32),
                         runtime_config: Some("".to_string()),
                         control_interface_access: None,
+                        configs: Some(ank_base::ConfigMappings {
+                            configs: [
+                                ("ref1".into(), "config_1".into()),
+                                ("ref2".into(), "config_2".into()),
+                            ]
+                            .into(),
+                        }),
                     },
                 )]),
             )),

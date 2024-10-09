@@ -223,6 +223,7 @@ message WorkloadInstanceName {
 message State {
     string apiVersion = 1; /// The current version of the API.
     WorkloadMap workloads = 2; /// A mapping from workload names to workload configurations.
+    ConfigMap configs = 3; /// Configuration values which can be referenced in workload configurations.
 }
 
 /**
@@ -244,6 +245,7 @@ message Workload {
     optional string runtime = 5; /// The name of the runtime e.g. podman.
     optional string runtimeConfig  = 6; /// The configuration information specific to the runtime.
     ControlInterfaceAccess controlInterfaceAccess = 7;
+    ConfigMappings configs = 8; /// A mapping containing the configurations assigned to the workload.
 }
 
 /**
@@ -319,3 +321,39 @@ enum ReadWriteEnum {
   RW_READ_WRITE = 5; // Allow read and write
 }
 
+/**
+* This is a workaround for proto not supporing optional maps
+*/
+message ConfigMappings {
+    map<string, string> configs = 1;
+}
+
+
+/**
+* This is a workaround for proto not supporing optional maps
+*/
+message ConfigMap {
+    map<string, ConfigItem> configs = 1;
+}
+
+
+
+/**
+* An enum type describing possible configuration objects.
+*/
+message ConfigItem {
+    oneof ConfigItem {
+        string String = 1;
+        ConfigArray array = 2;
+        ConfigObject object = 3;
+    }
+}
+
+
+message ConfigArray {
+    repeated ConfigItem values = 1;
+}
+
+message ConfigObject {
+    map<string, ConfigItem> fields = 1;
+}

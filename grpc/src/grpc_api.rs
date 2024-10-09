@@ -351,13 +351,13 @@ mod tests {
             to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
                 request_id: "requeset_id".to_owned(),
                 request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(
-                    ank_base::UpdateStateRequest {
+                    Box::new(ank_base::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(test_utils::generate_test_proto_complete_state(&[(
                             "test_workload",
                             workloads,
                         )])),
-                    },
+                    }),
                 )),
             })),
         };

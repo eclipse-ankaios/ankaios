@@ -343,7 +343,7 @@ The Common library shall provide functionality for enforcing a workload name to:
 * have a maximal length of 63 characters
 
 Rationale:
-A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure and compliance to internet standards (RFC-1123).
+A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
 
 Tags:
 - Objects
@@ -361,7 +361,7 @@ Status: approved
 The Common library shall provide functionality for enforcing an agent name to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
 
 Rationale:
-A consistent naming manner allows a flawless usage of the Ankaios CLI and does not tamper with the internal structure of Ankaios.
+A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
 
 Tags:
 - Objects
