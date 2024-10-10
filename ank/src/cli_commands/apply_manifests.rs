@@ -54,38 +54,29 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
 // [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
 pub fn handle_agent_overwrite(
     filter_masks: &Vec<common::state_manipulation::Path>,
-    desired_agent: &Option<String>,
+    cli_specified_agent_name: &Option<String>,
     mut state_obj: Object,
 ) -> Result<State, String> {
-    // No agent name specified through cli!
-    if desired_agent.is_none() {
-        // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
-        for field in filter_masks {
-            let path = &format!("{}.agent", String::from(field));
-            if state_obj.get(&path.into()).is_none() {
+    for mask_path in filter_masks {
+        if mask_path.parts().starts_with(&["workloads".into()]) {
+            let workload_agent_mask: Path = format!("{}.agent", String::from(mask_path)).into();
+            if let Some(agent_name) = cli_specified_agent_name {
+                // An agent name specified through cli -> do an agent name overwrite!
+                state_obj
+                    .set(
+                        &workload_agent_mask,
+                        serde_yaml::Value::String(agent_name.to_owned()),
+                    )
+                    .map_err(|_| "Could not find workload to update.".to_owned())?;
+            } else if state_obj.get(&workload_agent_mask).is_none() {
+                // No agent name specified through cli and inside workload configuration!
+                // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
                 return Err(
                     "No agent name specified -> use '--agent' option to specify!".to_owned(),
                 );
             }
         }
     }
-    // An agent name specified through cli -> do an agent name overwrite!
-    else {
-        let desired_agent_name = desired_agent.as_ref().unwrap().to_string();
-        for field in filter_masks {
-            let path = &format!("{}.agent", String::from(field));
-            if state_obj
-                .set(
-                    &path.into(),
-                    serde_yaml::Value::String(desired_agent_name.to_owned()),
-                )
-                .is_err()
-            {
-                return Err("Could not find workload to update.".to_owned());
-            }
-        }
-    }
-
     state_obj
         .try_into()
         .map_err(|err| format!("Invalid manifest data provided: {}", err))
@@ -147,7 +138,7 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     if req_paths.is_empty() {
         return Err("No workload provided in manifests!".to_owned());
     }
-
+    output_debug!("req_paths:\n{:?}\n", req_paths);
     let filter_masks = create_filter_masks_from_paths(&req_paths, "desiredState");
     output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
 
@@ -483,6 +474,38 @@ mod tests {
                 &vec!["workloads.wl1".into()],
                 &Some("overwritten_agent_name".to_string()),
                 obj,
+            )
+            .unwrap(),
+            expected_state
+        );
+    }
+
+    // [utest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
+    #[test]
+    fn utest_handle_agent_overwrite_considers_only_workloads() {
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        let expected_state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        let cli_specified_agent_name = None;
+
+        assert_eq!(
+            handle_agent_overwrite(
+                &vec!["workloads.wl1".into(), "configs.config_key".into()],
+                &cli_specified_agent_name,
+                state.try_into().unwrap(),
             )
             .unwrap(),
             expected_state
