@@ -36,7 +36,7 @@ use std::fmt::Display;
 #[cfg(test)]
 use mockall::automock;
 
-fn update_state(
+fn generate_new_state(
     desired_state: &CompleteState,
     updated_state: CompleteState,
     update_mask: Vec<String>,
@@ -225,7 +225,7 @@ impl ServerState {
     ) -> Result<AddedDeletedWorkloads, UpdateStateError> {
         // [impl->swdd~update-desired-state-with-update-mask~1]
         // [impl->swdd~update-desired-state-empty-update-mask~1]
-        match update_state(&self.state, new_state, update_mask) {
+        match generate_new_state(&self.state, new_state, update_mask) {
             Ok(new_state) => {
                 // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
                 let new_rendered_workloads = self
