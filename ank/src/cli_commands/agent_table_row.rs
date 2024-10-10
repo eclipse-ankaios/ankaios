@@ -21,4 +21,8 @@ pub struct AgentTableRow {
     pub agent_name: String,
     #[tabled(rename = "WORKLOADS")]
     pub workloads: u32,
+    #[tabled(rename = "CPU USAGE")]
+    pub cpu_usage: String,
+    #[tabled(rename = "FREE MEMORY")]
+    pub free_memory: String,
 }
