@@ -39,7 +39,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredCompleteState {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -66,7 +66,7 @@ pub struct FilteredState {
     pub configs: Option<HashMap<String, ConfigItem>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredAgentMap {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -74,7 +74,7 @@ pub struct FilteredAgentMap {
     pub agents: Option<HashMap<String, FilteredAgentAttributes>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredCpuLoad {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -88,7 +88,7 @@ pub struct FilteredFreeMemory {
     pub free_memory: Option<u64>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredAgentAttributes {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -212,8 +212,8 @@ impl From<ank_base::AgentMap> for FilteredAgentMap {
 impl From<ank_base::AgentAttributes> for FilteredAgentAttributes {
     fn from(value: ank_base::AgentAttributes) -> Self {
         FilteredAgentAttributes {
-            cpu_load: Some(value.cpu_load.unwrap_or_default().into()),
-            free_memory: Some(value.free_memory.unwrap_or_default().into()),
+            cpu_load: value.cpu_load.map(Into::into),
+            free_memory: value.free_memory.map(Into::into),
         }
     }
 }

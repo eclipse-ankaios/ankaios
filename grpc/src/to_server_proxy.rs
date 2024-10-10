@@ -122,12 +122,12 @@ pub async fn forward_from_proto_to_ankaios(
                 break;
             }
 
-            ToServerEnum::AgentLoadStatus(_agent_resource) => {
+            ToServerEnum::AgentLoadStatus(agent_load_status) => {
                 log::trace!(
                     "Received AgentLoadStatus from {}",
-                    _agent_resource.agent_name
+                    agent_load_status.agent_name
                 );
-                sink.agent_load_status(_agent_resource.into()).await?;
+                sink.agent_load_status(agent_load_status.into()).await?;
             }
 
             unknown_message => {
@@ -286,14 +286,13 @@ mod tests {
 
         let result = grpc_rx.recv().await.unwrap();
 
-        assert!(matches!(
-            result.to_server_enum,
-            Some(ToServerEnum::AgentLoadStatus(grpc_api::AgentLoadStatus {
-                agent_name,
-                cpu_load,
-                free_memory
-            }))
-            if agent_name == agent_name && cpu_load.clone().unwrap().cpu_load == 42 && free_memory.clone().unwrap().free_memory == 42));
+        let expected = ToServerEnum::AgentLoadStatus(grpc_api::AgentLoadStatus {
+            agent_name: agent_name.clone(),
+            cpu_load: Some(ank_base::CpuLoad { cpu_load: 42 }),
+            free_memory: Some(ank_base::FreeMemory { free_memory: 42 }),
+        });
+
+        assert_eq!(result.to_server_enum, Some(expected));
     }
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]

@@ -1657,7 +1657,7 @@ mod tests {
 
     // [utest->swdd~server-receives-resource-availability~1]
     #[tokio::test]
-    async fn utest_server_recieves_agent_resource_availability_info() {
+    async fn utest_server_receives_agent_status_load() {
         let payload = AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
             cpu_load: CpuLoad { cpu_load: 42 },
