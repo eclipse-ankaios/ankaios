@@ -480,7 +480,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
+    // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_considers_only_workloads() {
         let state = test_utils::generate_test_state_from_workloads(vec![
