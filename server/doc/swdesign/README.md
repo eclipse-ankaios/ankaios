@@ -656,9 +656,9 @@ Needs:
 - impl
 - stest
 
-### Update Current State
+### Update Desired State
 
-The behavioral diagram of the updating current state is shown in the chapter "UpdateState interface".
+The behavioral diagram of updating the desired state is shown in the chapter "UpdateState interface".
 
 #### Server detects new workload
 `swdd~server-detects-new-workload~1`
@@ -708,6 +708,23 @@ Needs:
 - impl
 - utest
 - itest
+
+#### ServerState updates its state on unmodified workloads
+`swdd~server-state-updates-state-on-unmodified-workloads~1`
+
+Status: approved
+
+When the ServerState is requested to update its State and the ServerState detects no change of workloads in its State, the ServerState shall update its State with the new State.
+
+Rationale:
+The State must also be updated in other cases, such as when the config items are changed.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
 
 #### ServerState triggers configuration rendering of workloads
 `swdd~server-state-triggers-configuration-rendering-of-workloads~1`

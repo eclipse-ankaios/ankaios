@@ -87,4 +87,6 @@ pub use control_interface_access::{
 };
 
 mod config;
+#[cfg(any(feature = "test_utils", test))]
+pub use config::generate_test_configs;
 pub use config::ConfigItem;

@@ -274,6 +274,7 @@ impl ServerState {
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
                     // update state with changed fields not affecting workloads, e.g. config items
+                    // [impl->swdd~server-state-updates-state-on-unmodified-workloads~1]
                     self.state = new_state;
                     Ok(None)
                 }
@@ -315,13 +316,14 @@ mod tests {
     use common::{
         commands::CompleteStateRequest,
         objects::{
-            generate_test_agent_map, generate_test_stored_workload_spec,
+            generate_test_agent_map, generate_test_configs, generate_test_stored_workload_spec,
             generate_test_workload_spec_with_control_interface_access,
             generate_test_workload_spec_with_param, AgentMap, CompleteState, DeletedWorkload,
             State, WorkloadSpec, WorkloadStatesMap,
         },
         test_utils::{self, generate_test_complete_state},
     };
+    use mockall::predicate;
 
     use crate::ankaios_server::{
         config_renderer::MockConfigRenderer, config_renderer::RenderedWorkloads,
@@ -780,6 +782,55 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
+    // [utest->swdd~server-state-updates-state-on-unmodified-workloads~1]
+    #[test]
+    fn utest_server_state_update_state_update_configs_not_affecting_workloads() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let old_state = generate_test_old_state();
+        let mut state_with_updated_config = old_state.clone();
+        state_with_updated_config.desired_state.configs = generate_test_configs();
+
+        let update_mask = vec!["desiredState".to_string()];
+
+        let mut delete_graph_mock = MockDeleteGraph::new();
+        delete_graph_mock.expect_insert().never();
+
+        delete_graph_mock
+            .expect_apply_delete_conditions_to()
+            .never();
+
+        let mut mock_config_renderer = MockConfigRenderer::new();
+        let cloned_state_with_updated_config = state_with_updated_config.desired_state.clone();
+        mock_config_renderer
+            .expect_render_workloads()
+            .once()
+            .with(
+                predicate::eq(state_with_updated_config.desired_state.workloads.clone()),
+                predicate::eq(state_with_updated_config.desired_state.configs.clone()),
+            )
+            .returning(move |_, _| {
+                Ok(generate_rendered_workloads_from_state(
+                    &cloned_state_with_updated_config,
+                ))
+            });
+
+        let mut server_state = ServerState {
+            state: old_state.clone(),
+            rendered_workloads: generate_rendered_workloads_from_state(&old_state.desired_state),
+            delete_graph: delete_graph_mock,
+            config_renderer: mock_config_renderer,
+        };
+
+        let expected = state_with_updated_config.clone();
+
+        assert!(server_state
+            .update(state_with_updated_config, update_mask)
+            .is_ok());
+
+        assert_eq!(expected, server_state.state);
+    }
+
+    // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_update_state_remove_workload() {
         let old_state = generate_test_old_state();
@@ -869,10 +920,14 @@ mod tests {
             .expect_apply_delete_conditions_to()
             .never();
 
+        let mut mock_config_renderer = MockConfigRenderer::new();
+        mock_config_renderer.expect_render_workloads().never();
+
         let mut server_state = ServerState {
             state: old_state.clone(),
+            rendered_workloads: generate_rendered_workloads_from_state(&old_state.desired_state),
             delete_graph: delete_graph_mock,
-            ..Default::default()
+            config_renderer: mock_config_renderer,
         };
         let result = server_state.update(update_state, update_mask);
 

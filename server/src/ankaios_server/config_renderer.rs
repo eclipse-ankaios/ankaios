@@ -163,8 +163,8 @@ mod tests {
     use std::collections::HashMap;
 
     use common::objects::{
-        generate_test_stored_workload_spec_with_config,
-        generate_test_workload_spec_with_runtime_config, ConfigItem,
+        generate_test_configs, generate_test_stored_workload_spec_with_config,
+        generate_test_workload_spec_with_runtime_config,
     };
 
     use crate::ankaios_server::config_renderer::RenderedWorkloads;
@@ -174,34 +174,6 @@ mod tests {
     const WORKLOAD_NAME_1: &str = "workload_1";
     const AGENT_A: &str = "agent_A";
     const RUNTIME: &str = "runtime";
-
-    fn generate_test_configs() -> HashMap<String, ConfigItem> {
-        HashMap::from([(
-            "config_1".to_string(),
-            ConfigItem::ConfigObject(HashMap::from([
-                (
-                    "values".to_string(),
-                    ConfigItem::ConfigObject(HashMap::from([
-                        (
-                            "value_1".to_string(),
-                            ConfigItem::String("value123".to_string()),
-                        ),
-                        (
-                            "value_2".to_string(),
-                            ConfigItem::ConfigArray(vec![
-                                ConfigItem::String("list_value_1".to_string()),
-                                ConfigItem::String("list_value_2".to_string()),
-                            ]),
-                        ),
-                    ])),
-                ),
-                (
-                    "agent_name".to_string(),
-                    ConfigItem::String(AGENT_A.to_owned()),
-                ),
-            ])),
-        )])
-    }
 
     // [utest->swdd~config-renderer-renders-workload-configuration~1]
     #[test]
