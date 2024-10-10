@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{cmp::min, fmt::Display, path::PathBuf};
+use std::{cmp::min, fmt::Display, path::PathBuf, str::FromStr};
 
 use common::objects::{
     AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
@@ -30,7 +30,8 @@ use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        podman_cli, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
+        podman_cli, ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter,
+        StateChecker,
     },
     workload_state::WorkloadStateSender,
 };
@@ -65,20 +66,32 @@ impl Display for PodmanKubeWorkloadId {
     }
 }
 
+impl FromStr for PodmanKubeWorkloadId {
+    type Err = String;
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        // Not implemented as we cannot restart workloads
+        Err("Not implemented for PodmanKubeWorkloadId".to_string())
+    }
+}
+
 impl PodmanKubeRuntime {
     async fn workload_instance_names_to_workload_states(
         &self,
         workload_instance_names: &Vec<WorkloadInstanceName>,
-    ) -> Result<Vec<WorkloadState>, RuntimeError> {
-        let mut workload_states = Vec::<WorkloadState>::default();
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
+        let mut workload_states = Vec::<ReusableWorkloadState>::default();
         for instance_name in workload_instance_names {
             let execution_state = self
                 .get_state(&self.get_workload_id(instance_name).await?)
                 .await;
-            workload_states.push(WorkloadState {
-                instance_name: instance_name.clone(),
-                execution_state,
-            });
+            workload_states.push(ReusableWorkloadState::new(
+                WorkloadState {
+                    instance_name: instance_name.clone(),
+                    execution_state,
+                },
+                // For the podman-kube runtime we cannot recreate/restart workloads and thus return  None as as workload_id
+                None,
+            ));
         }
         Ok(workload_states)
     }
@@ -96,7 +109,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadState>, RuntimeError> {
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
         let name_filter = format!(
             "{}{}$",
             agent_name.get_filter_suffix(),
@@ -133,6 +146,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
     async fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
+        _reusable_workload_id: Option<PodmanKubeWorkloadId>,
         _control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
@@ -469,8 +483,24 @@ mod tests {
 
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
-        assert!(
-            matches!(workloads, Ok(res) if res.iter().map(|x| x.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance_1.try_into().unwrap(), workload_instance_2.try_into().unwrap()])
+        let workloads = workloads.unwrap();
+
+        assert_eq!(
+            workloads
+                .iter()
+                .filter(|&x| x.workload_id.is_some())
+                .count(),
+            0
+        );
+        assert_eq!(
+            workloads
+                .iter()
+                .map(|x| x.workload_state.instance_name.clone())
+                .collect::<Vec<WorkloadInstanceName>>(),
+            [
+                workload_instance_1.try_into().unwrap(),
+                workload_instance_2.try_into().unwrap()
+            ]
         );
     }
 
@@ -515,7 +545,7 @@ mod tests {
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
         assert!(
-            matches!(workloads, Ok(res) if res.iter().map(|x| x.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
+            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
         );
     }
 
@@ -555,7 +585,7 @@ mod tests {
         println!("{:?}", workloads);
 
         assert!(
-            matches!(workloads, Ok(res) if res.iter().map(|x| x.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
+            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
         );
     }
 
@@ -600,7 +630,9 @@ mod tests {
         );
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
-        let workload = runtime.create_workload(workload_spec, None, sender).await;
+        let workload = runtime
+            .create_workload(workload_spec, None, None, sender)
+            .await;
         // [utest->swdd~podman-kube-create-workload-returns-workload-id~1]
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
@@ -648,7 +680,9 @@ mod tests {
         );
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
-        let workload = runtime.create_workload(workload_spec, None, sender).await;
+        let workload = runtime
+            .create_workload(workload_spec, None, None, sender)
+            .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
@@ -695,7 +729,9 @@ mod tests {
         );
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
-        let workload = runtime.create_workload(workload_spec, None, sender).await;
+        let workload = runtime
+            .create_workload(workload_spec, None, None, sender)
+            .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
@@ -756,7 +792,9 @@ mod tests {
         );
 
         let (sender, mut receiver) = tokio::sync::mpsc::channel(1);
-        let _workload = runtime.create_workload(workload_spec, None, sender).await;
+        let _workload = runtime
+            .create_workload(workload_spec, None, None, sender)
+            .await;
 
         receiver.recv().await;
     }
@@ -791,7 +829,9 @@ mod tests {
         );
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
-        let workload = runtime.create_workload(workload_spec, None, sender).await;
+        let workload = runtime
+            .create_workload(workload_spec, None, None, sender)
+            .await;
 
         assert!(matches!(workload, Err(RuntimeError::Create(msg)) if msg == SAMPLE_ERROR));
     }

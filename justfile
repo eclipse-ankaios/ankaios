@@ -12,11 +12,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-all: check-test-images check-licenses test stest build-release
+all: check-test-images check-licenses clippy test stest build-release
 
+# Perform debug build
 build:
     cargo build
 
+# Perform release build
 build-release:
     cargo build --release
 
@@ -25,6 +27,7 @@ clean:
     ./tools/dev_scripts/ankaios-clean
     rm -rf build
 
+# Check licenses of dependencies
 check-licenses:
     cargo deny check licenses
 
@@ -35,12 +38,21 @@ check-test-images:
 check-copyright-headers:
 	./tools/check_copyright_headers.sh
 
+# Run unit tests
 test:
     cargo nextest run
 
 # Build debug and run all system tests
 stest: build stest-only
 
-# only execute the stests without building
+# Only execute the stests without building
 stest-only:
     ./tools/run_robot_tests.sh tests
+
+# Run clippy code checks
+clippy:
+    cargo clippy --all-targets --no-deps --all-features -- -D warnings
+
+# Generate test coverage report
+coverage:
+    tools/generate_test_coverage_report.sh test --html

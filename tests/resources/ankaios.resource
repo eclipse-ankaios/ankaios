@@ -477,6 +477,28 @@ the container of workload "${workload_name}" shall have a different id but same 
 
     Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' and the same configuration on podman!
 
+the container of workload "${workload_name}" shall have the same id
+    ${id_changed}=    Set Variable    ${False}
+    ${start_time}=    Get Time Secs
+    WHILE    True
+        ${current_secs}=    Get Time Secs
+        ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+        IF    ${elapsed_secs} >= 20    BREAK
+        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Podman    ${workload_name}
+        IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
+            CONTINUE
+        END
+
+        ${workload_id}=    Get From Dictionary    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    ${current_ankaios_instance_name}
+
+        IF    '${current_workload_id}' != '${workload_id}'
+            ${id_changed}=    Set Variable    ${True}
+            BREAK
+        END
+    END
+
+    Should Not Be True    ${id_changed}    msg=Workload '${workload_name}' has a different '${workload_id}' on podman!
+
 the pod "${pod_name}" of workload "${workload_name}" shall have a different id but same configuration on the podman kube runtime
     ${id_changed}=    Set Variable    ${False}
     ${start_time}=    Get Time Secs
