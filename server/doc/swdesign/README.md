@@ -24,6 +24,31 @@ The following diagram shows a high level view of an Ankaios Server in its contex
 
 ### Design decisions
 
+The following section holds the design decisions taken during the development of the Ankaios server.
+
+#### Delegate template rendering of workload configs to the handlebars external library
+`swdd~server-delegate-template-render-to-external-library~1`
+
+Status: approved
+
+Ankaios uses the handlebars crate to render the configs provided for a workload.
+
+Rationale:
+
+The handlebars crate provides all the functionality needed to render the configs with templates, reducing implementation and integration effort. It is actively maintained and widely deployed. It is not overloaded with features, instead it supports the minimum amount of features needed to cover the use cases of workload configs. In addition, its rendering capabilities are extensible if a desired feature is missing in the future.
+
+Needs:
+- impl
+
+Assumptions:
+
+No assumptions were taken.
+
+Considered alternatives:
+
+- Askama: does not support rendering templates at runtime, mainly used for generating code based on templates
+- Tera: Jinja2 template engine contains too many features beyond the use case
+
 ## Structural view
 
 The following diagram shows the structural view of the Ankaios Server:
@@ -52,6 +77,10 @@ The Communication Middleware is responsible for:
 
 The ServerState is a data structure for maintaining the state of the Ankaios server. It prevents invariants when updating the state, by doing checks on the new state
 before applying it or when a view on the state is requested.
+
+### ConfigRenderer
+
+The ConfigRenderer is responsible for rendering the templated configuration of workloads with their corresponding configuration items provided inside the CompleteState.
 
 ## Behavioral view
 
@@ -627,9 +656,9 @@ Needs:
 - impl
 - stest
 
-### Update Current State
+### Update Desired State
 
-The behavioral diagram of the updating current state is shown in the chapter "UpdateState interface".
+The behavioral diagram of updating the desired state is shown in the chapter "UpdateState interface".
 
 #### Server detects new workload
 `swdd~server-detects-new-workload~1`
@@ -679,6 +708,60 @@ Needs:
 - impl
 - utest
 - itest
+
+#### ServerState updates its state on unmodified workloads
+`swdd~server-state-updates-state-on-unmodified-workloads~1`
+
+Status: approved
+
+When the ServerState is requested to update its State and the ServerState detects no change of workloads in its State, the ServerState shall update its State with the new State.
+
+Rationale:
+The State must also be updated in other cases, such as when the config items are changed.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### ServerState triggers configuration rendering of workloads
+`swdd~server-state-triggers-configuration-rendering-of-workloads~1`
+
+Status: approved
+
+When the ServerState is requested to update its State, the ServerState shall trigger the ConfigRenderer to render the workloads with the configuration items in the CompleteState.
+
+Rationale: Rendering consumes resources and shall be done only once when updating the state.
+
+Tags:
+- ServerState
+- ConfigRenderer
+
+Needs:
+- impl
+- utest
+
+#### ConfigRenderer renders workload configuration
+`swdd~config-renderer-renders-workload-configuration~1`
+
+Status: approved
+
+When the ConfigRenderer is requested to render the workloads with configuration items, for each provided workload the ConfigRenderer shall:
+* create a data structure containing the configuration items of the CompleteState referenced inside the workload's configuration
+* render the workload's `agent` and `runtimeConfig` fields by replacing each template string with the referenced configuration item
+* create a new workload configuration containing the rendered fields and the new instance name
+
+Comment:
+In case of a render error, the workload configuration remains unrendered and an error is thrown. If a workload does not reference a configuration item, the rendering of that workload is skipped.
+
+Tags:
+- ConfigRenderer
+
+Needs:
+- impl
+- utest
 
 #### ServerState rejects state with cycle
 `swdd~server-state-rejects-state-with-cyclic-dependencies~1`

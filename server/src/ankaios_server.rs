@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+mod config_renderer;
 mod cycle_check;
 mod delete_graph;
 mod server_state;
