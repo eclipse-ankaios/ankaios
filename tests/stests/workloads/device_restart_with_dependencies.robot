@@ -49,7 +49,7 @@ Test Ankaios restarts exited workloads on device restart with considering inter-
     # Asserts
     Then the workload "web_service" shall have the execution state "Pending(WaitingToStart)" on agent "agent_B"
     And the workload "web_service" shall have the execution state "Running(Ok)" on agent "agent_B"
-    And the container of workload "filesystem_init" shall have a different id but same configuration on the podman runtime
-    And the container of workload "web_service_init" shall have a different id but same configuration on the podman runtime
-    And the container of workload "web_service" shall have a different id but same configuration on the podman runtime
+    And the container of workload "filesystem_init" shall have the same id
+    And the container of workload "web_service_init" shall have the same id
+    And the container of workload "web_service" shall have the same id
     [Teardown]    Clean up Ankaios
