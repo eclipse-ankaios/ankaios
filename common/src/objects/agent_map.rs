@@ -170,9 +170,8 @@ pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMap {
     agent_map
         .entry(agent_name.into())
         .or_insert(AgentAttributes {
-            // agent_resources: Some(AgentLoad::default()),
-            cpu_load: Some(CpuLoad::default()),
-            free_memory: Some(FreeMemory::default()),
+            cpu_load: Some(CpuLoad { cpu_load: 42 }),
+            free_memory: Some(FreeMemory { free_memory: 42 }),
         });
     agent_map
 }
@@ -186,8 +185,8 @@ pub fn generate_test_agent_map_from_specs(workloads: &[crate::objects::WorkloadS
             agent_map
                 .entry(agent_name.to_owned())
                 .or_insert(AgentAttributes {
-                    cpu_load: Some(CpuLoad::default()),
-                    free_memory: Some(FreeMemory::default()),
+                    cpu_load: Some(CpuLoad { cpu_load: 42 }),
+                    free_memory: Some(FreeMemory { free_memory: 42 }),
                 });
             agent_map
         })

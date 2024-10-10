@@ -202,7 +202,7 @@ message AgentMap {
 * A message containing the cpu load information of the agent.
 */
 message CpuLoad {
-    uint32 cpu_load = 1; // expressed in percent, the formula for calculating this can be found in agent/doc
+    uint32 cpu_load = 1; // expressed in percent, the formula for calculating: cpu_load = (new_work_time - old_work_time) / (new_total_time - old_total_time) * 100
 }
 
 /**

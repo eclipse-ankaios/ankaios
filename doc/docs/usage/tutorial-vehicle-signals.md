@@ -146,7 +146,7 @@ ank -k get agents
 
 It should print:
 
-```text        NAME           NAME           NAME
+```text
 NAME           WORKLOADS      CPU USAGE      FREE MEMORY
 agent_A        2              <>             <>
 infotainment   0              <>             <>

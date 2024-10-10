@@ -324,8 +324,8 @@ mod tests {
 
         let ankaios_command = ankaios::ToServer::AgentLoadStatus(ankaios::AgentLoadStatus {
             agent_name: agent_load_status.agent_name,
-            cpu_load: agent_load_status.cpu_load.into(),
-            free_memory: agent_load_status.free_memory.into(),
+            cpu_load: agent_load_status.cpu_load,
+            free_memory: agent_load_status.free_memory,
         });
 
         assert_eq!(

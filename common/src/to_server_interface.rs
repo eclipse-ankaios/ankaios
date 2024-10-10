@@ -213,12 +213,12 @@ mod tests {
             .is_ok());
 
         assert_eq!(
-            rx.recv().await.unwrap(),
-            ToServer::AgentLoadStatus(AgentLoadStatus {
+            rx.recv().await,
+            Some(ToServer::AgentLoadStatus(AgentLoadStatus {
                 agent_name: AGENT_NAME.to_string(),
                 cpu_load: CPU_LOAD.clone(),
                 free_memory: FREE_MEMORY.clone(),
-            })
+            }))
         )
     }
 

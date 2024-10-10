@@ -58,7 +58,6 @@ fn transform_into_table_rows(
             let workload_states_count = workload_states_map
                 .get_workload_state_for_agent(&agent_name)
                 .len() as u32;
-            // let agent_resources = agent_attributes.agent_resources.unwrap_or_default();
             let mut agent_table_row = AgentTableRow {
                 agent_name,
                 workloads: workload_states_count,
@@ -151,8 +150,8 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   1           0           0          ",
-            "agent_B   1           0           0          ",
+            "agent_A   1           42          42         ",
+            "agent_B   1           42          42         ",
         ]
         .join("\n");
 
@@ -216,7 +215,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   0           0           0          ",
+            "agent_A   0           42          42         ",
         ]
         .join("\n");
 
@@ -282,7 +281,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   1           0           0          ",
+            "agent_A   1           42          42         ",
         ]
         .join("\n");
 
@@ -319,7 +318,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   1           0           0          ",
+            "agent_A   1           42          42         ",
         ]
         .join("\n");
 

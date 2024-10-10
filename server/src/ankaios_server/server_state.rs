@@ -1120,6 +1120,11 @@ mod tests {
     fn utest_add_agent() {
         let mut server_state = ServerState::default();
         server_state.add_agent(AGENT_A.to_string());
+        server_state.update_agent_resource_availability(AgentLoadStatus {
+            agent_name: AGENT_A.to_string(),
+            cpu_load: CpuLoad { cpu_load: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
+        });
 
         let expected_agent_map = generate_test_agent_map(AGENT_A);
 
