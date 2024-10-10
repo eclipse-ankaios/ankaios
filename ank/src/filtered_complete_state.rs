@@ -39,7 +39,18 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub fn serialize_to_floating_point<S>(value: &Option<u32>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    if let Some(value) = value {
+        serializer.serialize_f32(*value as f32 / 100.0)
+    } else {
+        serializer.serialize_none()
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredCompleteState {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -59,14 +70,14 @@ pub struct FilteredState {
     // [impl->swdd~cli-returns-api-version-with-desired-state~1]
     pub api_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
+    #[serde(serialize_with = "serialize_option_to_ordered_map")]
     pub workloads: Option<HashMap<String, FilteredWorkloadSpec>>,
     #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub configs: Option<HashMap<String, ConfigItem>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredAgentMap {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -74,10 +85,10 @@ pub struct FilteredAgentMap {
     pub agents: Option<HashMap<String, FilteredAgentAttributes>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredCpuLoad {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(serialize_with = "serialize_to_floating_point")]
     pub cpu_load: Option<u32>,
 }
 
@@ -88,7 +99,7 @@ pub struct FilteredFreeMemory {
     pub free_memory: Option<u64>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredAgentAttributes {
     #[serde(skip_serializing_if = "Option::is_none")]
