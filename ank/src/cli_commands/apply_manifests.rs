@@ -15,6 +15,7 @@
 use super::{CliCommands, InputSourcePair};
 use crate::cli_commands::State;
 use crate::cli_error::CliError;
+use crate::output_and_exit;
 use crate::{cli::ApplyArgs, output_debug};
 use common::objects::{CompleteState, STR_RE_WORKLOAD};
 use common::state_manipulation::{Object, Path};
@@ -136,8 +137,9 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     }
 
     if req_paths.is_empty() {
-        return Err("No workload provided in manifests!".to_owned());
+        output_and_exit!("Nothing to update.");
     }
+
     output_debug!("req_paths:\n{:?}\n", req_paths);
     let filter_masks = create_filter_masks_from_paths(&req_paths, "desiredState");
     output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
