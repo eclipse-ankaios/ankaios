@@ -30,7 +30,7 @@ pub struct CpuLoad {
 impl CpuLoad {
     pub fn new(cpu_load: f32) -> Self {
         Self {
-            cpu_load: (cpu_load * MULTIPLYING_FACTOR) as u32,
+            cpu_load: (cpu_load * MULTIPLYING_FACTOR).trunc() as u32,
         }
     }
 }

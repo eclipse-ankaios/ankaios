@@ -505,6 +505,9 @@ the last command shall list the connected agent "${agent_name}"
     ${table_as_list}=    Table To List    ${CURRENT_RESULT.stdout}
     ${table_as_dict}=    Table To Dict    ${table_as_list}    NAME
     Dictionary Should Contain Key    ${table_as_dict}    ${agent_name}
+    ${agent_dict}=    Get Agent Dict    ${table_as_dict}    ${agent_name}
+    Dictionary Should Contain Key    ${agent_dict}    CPU LOAD
+    Dictionary Should Contain Key    ${agent_dict}    FREE MEMORY
 
 Setup Ankaios for Control Interface test
     Setup Ankaios

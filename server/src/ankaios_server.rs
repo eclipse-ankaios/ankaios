@@ -176,6 +176,7 @@ impl AnkaiosServer {
                     // [impl->swdd~server-stores-newly-connected-agent~1]
                     self.server_state.add_agent(agent_name);
                 }
+                // [impl->swdd~server-receives-resource-availability~1]
                 ToServer::AgentLoadStatus(method_obj) => {
                     log::trace!(
                         "Received load status from agent '{}': CPU: {:.2}%, Free Memory: {}",
@@ -183,7 +184,8 @@ impl AnkaiosServer {
                         method_obj.cpu_load.cpu_load,
                         method_obj.free_memory.free_memory,
                     );
-                    // [impl->swdd~server-receives-resource-availability~1]
+
+                    // [impl->swdd~server-updates-resource-availability~1]
                     self.server_state
                         .update_agent_resource_availability(method_obj);
                 }
