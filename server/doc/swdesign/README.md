@@ -836,18 +836,14 @@ Needs:
 - impl
 - utest
 
-#### Server updates agent node resource availability
+#### ServerState updates agent node resource availability
 `swdd~server-updates-resource-availability~1`
 
 Status: approved
 
-When the Ankaios server receives a new agent load status, the Ankaios server shall update its internal state with agent node resource availability information regarding the cpu load and the free memory.
-
-Rationale:
-The server state shall need in the future the resource availability info for scheduling tasks.
+When the ServerState receives a new agent load status, the ServerState shall update its internal state with agent node resource availability information regarding the cpu load and the free memory.
 
 Tags:
-- AnkaiosServer
 - ServerState
 
 Needs:
