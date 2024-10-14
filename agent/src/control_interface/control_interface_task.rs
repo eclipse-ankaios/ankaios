@@ -170,7 +170,7 @@ impl ControlInterfaceTask {
     async fn forward_from_server(&mut self, response: ank_base::Response) -> io::Result<()> {
         use control_api::from_ankaios::FromAnkaiosEnum;
         let message = control_api::FromAnkaios {
-            from_ankaios_enum: Some(FromAnkaiosEnum::Response(response)),
+            from_ankaios_enum: Some(FromAnkaiosEnum::Response(Box::new(response))),
         };
 
         // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
@@ -268,7 +268,7 @@ mod tests {
 
         let test_command_binary = control_api::FromAnkaios {
             from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
-                response.clone(),
+                Box::new(response.clone()),
             )),
         }
         .encode_length_delimited_to_vec();
@@ -355,7 +355,7 @@ mod tests {
 
         let test_input_command_binary = control_api::FromAnkaios {
             from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
-                error.clone(),
+                Box::new(error.clone()),
             )),
         }
         .encode_length_delimited_to_vec();

@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::response::ResponseContent;
-use api::ank_base::{Response, State, UpdateStateRequest};
+use api::ank_base::{State, UpdateStateRequest};
 
 use api::control_api::{from_ankaios::FromAnkaiosEnum, FromAnkaios};
 
@@ -338,28 +338,27 @@ impl Connection {
             let message = self.read_message().map_err(CommandError::GenericError)?;
 
             match message {
-                FromAnkaiosEnum::Response(Response {
-                    request_id,
-                    response_content: Some(response_content),
-                }) if request_id.eq(&target_request_id) => return Ok(response_content),
-                FromAnkaiosEnum::Response(Response {
-                    request_id,
-                    response_content: Some(_response_content),
-                }) => logging::log(&format!(
-                    "Received unexpected response for request {:}",
-                    request_id
-                )),
-                FromAnkaiosEnum::Response(Response {
-                    request_id,
-                    response_content: None,
-                }) => {
-                    return Err(CommandError::GenericError(format!(
-                        "Received Response with correct request_id, but without content. Request Id: '{:?}'",
-                        request_id
-                    )))
+                FromAnkaiosEnum::Response(response) => {
+                    if response.request_id.eq(&target_request_id) {
+                        if let Some(response_content) = response.response_content {
+                            return Ok(response_content);
+                        } else {
+                            return Err(CommandError::GenericError(format!(
+                                "Received Response with correct request_id, but without content. Request Id: '{:?}'",
+                                response.request_id
+                            )));
+                        }
+                    } else {
+                        logging::log(&format!(
+                            "Received unexpected response for request {:}",
+                            response.request_id
+                        ));
+                    }
                 }
                 FromAnkaiosEnum::ConnectionClosed(_) => {
-                    return Err(CommandError::ConnectionClosed("Control Interface connection closed by Ankaios.".into()))
+                    return Err(CommandError::ConnectionClosed(
+                        "Control Interface connection closed by Ankaios.".into(),
+                    ))
                 }
             }
         }
