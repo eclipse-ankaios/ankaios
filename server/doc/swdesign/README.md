@@ -826,7 +826,7 @@ Status: approved
 When the Ankaios server receives a new agent load status, the Ankaios server shall trigger the ServerState to update the connected agent's resource availability with the provided new agent load status.
 
 Rationale:
-The server state shall need in the future the resource availability info for scheduling tasks.
+The resource availability can be used for scheduling, e.g. done by controller workloads.
 
 Tags:
 - AnkaiosServer
