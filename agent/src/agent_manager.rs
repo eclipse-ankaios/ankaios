@@ -218,7 +218,7 @@ impl AgentManager {
         let free_memory = sys.free_memory();
 
         log::trace!(
-            "Agent '{}' reports resource usage: CPU Load: {:.2}%, Free Memory: {} MB",
+            "Agent '{}' reports resource usage: CPU Load: {:.2}%, Free Memory: {} B",
             self.agent_name,
             cpu_load,
             free_memory,

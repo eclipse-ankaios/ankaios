@@ -872,25 +872,6 @@ Needs:
 - impl
 - utest
 
-#### Server cleans up state
-`swdd~server-cleans-up-state~1`
-
-Status: approved
-
-When the Ankaios Server receives new workload states, then the Ankaios Server shall trigger the ServerState to cleanup its internal state providing it the new workload states.
-
-Rationale:
-The server state should not have any obsolete entries.
-
-Tags:
-- AnkaiosServer
-- ServerState
-
-Needs:
-- impl
-- utest
-
-
 #### Server removes obsolete entries from delete graph
 `swdd~server-removes-obsolete-delete-graph-entires~1`
 
