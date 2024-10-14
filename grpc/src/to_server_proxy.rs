@@ -329,9 +329,9 @@ mod tests {
 
         let result = server_rx.recv().await.unwrap();
 
-        assert!(
-            matches!(result, ToServer::AgentLoadStatus(measurement) if measurement == agent_load_status)
-        );
+        let expected = ToServer::AgentLoadStatus(agent_load_status);
+
+        assert_eq!(result, expected);
     }
 
     // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]

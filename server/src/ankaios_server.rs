@@ -185,7 +185,6 @@ impl AnkaiosServer {
                         method_obj.free_memory.free_memory,
                     );
 
-                    // [impl->swdd~server-updates-resource-availability~1]
                     self.server_state
                         .update_agent_resource_availability(method_obj);
                 }

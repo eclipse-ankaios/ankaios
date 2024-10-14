@@ -20,7 +20,7 @@ use crate::commands;
 
 type AgentName = String;
 
-pub const MULTIPLYING_FACTOR: f32 = 100.0;
+pub const PERCENTAGE_BASE: f32 = 100.0;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct CpuLoad {

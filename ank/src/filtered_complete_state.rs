@@ -39,7 +39,10 @@ where
     }
 }
 
-pub fn serialize_percent_as_proportion<S>(value: &Option<u32>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize_percent_as_proportion<S>(
+    value: &Option<u32>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -88,7 +91,7 @@ pub struct FilteredAgentMap {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredCpuLoad {
-    #[serde(serialize_with = "serialize_to_floating_point")]
+    #[serde(serialize_with = "serialize_percent_as_proportion")]
     pub cpu_load: Option<u32>,
 }
 
