@@ -198,6 +198,7 @@ impl ServerState {
                     )
                     .map_err(|err| UpdateStateError::ResultInvalid(err.to_string()))?;
 
+                // [impl->swdd~server-state-compares-rendered-workloads~1]
                 let cmd = extract_added_and_deleted_workloads(
                     &self.rendered_workloads,
                     &new_rendered_workloads,
@@ -901,6 +902,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
+    // [utest->swdd~server-state-compares-rendered-workloads~1]
     #[test]
     fn utest_server_state_update_state_update_workload_on_changed_configs() {
         let mut old_state = generate_test_old_state();

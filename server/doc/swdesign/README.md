@@ -665,7 +665,7 @@ The behavioral diagram of updating the desired state is shown in the chapter "Up
 
 Status: approved
 
-When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present only in the New State,
+When the Ankaios Server gets the `ToServer` message `UpdateStateRequest` and detects a change of the state where a workload is present only in the New State,
 the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agent to add the workload.
 
 Tags:
@@ -681,7 +681,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present only in the Current State,
+When the Ankaios Server gets the `ToServer` message `UpdateStateRequest` and detects a change of the state where a workload is present only in the Current State,
 the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agent to delete the workload.
 
 Tags:
@@ -697,7 +697,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present in both states
+When the Ankaios Server gets the `ToServer` message `UpdateStateRequest` and detects a change of the state where a workload is present in both states
 and at least one field of the workload is different,
 the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agents to delete and add the workload.
 
@@ -708,6 +708,23 @@ Needs:
 - impl
 - utest
 - itest
+
+#### ServerState compares rendered workload configurations
+`swdd~server-state-compares-rendered-workloads~1`
+
+Status: approved
+
+When the ServerState determines changes in its State, the ServerState shall compare the rendered workload configurations of its current and new DesiredState.
+
+Rationale:
+This ensures that the system recognizes a workload as changed when a configuration item referenced by that workload is updated.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
 
 #### ServerState updates its desired state on unmodified workloads
 `swdd~server-state-updates-state-on-unmodified-workloads~1`
