@@ -714,10 +714,10 @@ Needs:
 
 Status: approved
 
-When the ServerState is requested to update its State and the ServerState detects no change of workloads in its State, the ServerState shall update its State with the new State.
+When the ServerState is requested to update its State and the ServerState detects no change of workloads in its State, the ServerState shall replace its current DesiredState with the new DesiredState.
 
 Rationale:
-The State must also be updated in other cases, such as when the config items are changed.
+The DesiredState must also be updated in other cases, such as when the config items are changed.
 
 Tags:
 - ServerState

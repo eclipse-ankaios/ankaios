@@ -269,13 +269,13 @@ impl ServerState {
                     self.delete_graph
                         .apply_delete_conditions_to(&mut deleted_workloads);
 
-                    self.state = new_state;
+                    self.set_state(new_state);
                     self.rendered_workloads = new_rendered_workloads;
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
                     // update state with changed fields not affecting workloads, e.g. config items
                     // [impl->swdd~server-state-updates-state-on-unmodified-workloads~1]
-                    self.state = new_state;
+                    self.set_state(new_state);
                     Ok(None)
                 }
             }
@@ -298,6 +298,10 @@ impl ServerState {
         // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
         self.delete_graph
             .remove_deleted_workloads_from_delete_graph(new_workload_states);
+    }
+
+    fn set_state(&mut self, new_state: CompleteState) {
+        self.state.desired_state = new_state.desired_state;
     }
 }
 
@@ -674,7 +678,7 @@ mod tests {
             .update(update_state.clone(), update_mask)
             .unwrap();
 
-        assert_eq!(update_state, server_state.state);
+        assert_eq!(update_state.desired_state, server_state.state.desired_state);
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
@@ -1235,7 +1239,7 @@ mod tests {
 
         let expected_deleted_workloads: Vec<DeletedWorkload> = Vec::new();
         assert_eq!(deleted_workloads, expected_deleted_workloads);
-        assert_eq!(server_state.state, new_state);
+        assert_eq!(server_state.state.desired_state, new_state.desired_state);
     }
 
     // [utest->swdd~update-desired-state-empty-update-mask~1]
@@ -1299,7 +1303,7 @@ mod tests {
         });
         assert_eq!(deleted_workloads, expected_deleted_workloads);
 
-        assert_eq!(server_state.state, CompleteState::default());
+        assert_eq!(server_state.state.desired_state, State::default());
     }
 
     // [utest->swdd~update-desired-state-empty-update-mask~1]
