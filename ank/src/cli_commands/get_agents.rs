@@ -54,24 +54,17 @@ fn transform_into_table_rows(
     workload_states_map: &WorkloadStatesMap,
 ) -> Vec<AgentTableRow> {
     let mut agent_table_rows: Vec<AgentTableRow> = agents_map
-        .map(|(agent_name, agent_attributes)| {
+        .map(|(agent_name, mut agent_attributes)| {
             let workload_states_count = workload_states_map
                 .get_workload_state_for_agent(&agent_name)
                 .len() as u32;
-            let mut agent_table_row = AgentTableRow {
+
+            AgentTableRow {
                 agent_name,
                 workloads: workload_states_count,
-                cpu_load: "".to_string(),
-                free_memory: "".to_string(),
-            };
-            if let Some(cpu_load_value) = agent_attributes.cpu_load.unwrap().cpu_load {
-                agent_table_row.cpu_load = format!("{}", cpu_load_value);
+                cpu_load: agent_attributes.get_cpu_load_as_string(),
+                free_memory: agent_attributes.get_free_memory_as_string(),
             }
-            if let Some(free_memory_value) = agent_attributes.free_memory.unwrap().free_memory {
-                agent_table_row.free_memory = format!("{}", free_memory_value);
-            }
-
-            agent_table_row
         })
         .collect();
 
@@ -150,8 +143,8 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU LOAD   FREE MEMORY",
-            "agent_A   1           42         42         ",
-            "agent_B   1           42         42         ",
+            "agent_A   1           0.42 %     42 B       ",
+            "agent_B   1           0.42 %     42 B       ",
         ]
         .join("\n");
 
@@ -215,7 +208,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU LOAD   FREE MEMORY",
-            "agent_A   0           42         42         ",
+            "agent_A   0           0.42 %     42 B       ",
         ]
         .join("\n");
 
@@ -281,7 +274,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU LOAD   FREE MEMORY",
-            "agent_A   1           42         42         ",
+            "agent_A   1           0.42 %     42 B       ",
         ]
         .join("\n");
 
@@ -318,7 +311,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU LOAD   FREE MEMORY",
-            "agent_A   1           42         42         ",
+            "agent_A   1           0.42 %     42 B       ",
         ]
         .join("\n");
 

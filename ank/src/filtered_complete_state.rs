@@ -25,6 +25,8 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{output_and_error, output_warn};
 
+const PERCENTAGE_BASE: u32 = 100;
+
 pub fn serialize_option_to_ordered_map<S, T: Serialize>(
     value: &Option<HashMap<String, T>>,
     serializer: S,
@@ -47,7 +49,7 @@ where
     S: Serializer,
 {
     if let Some(value) = value {
-        serializer.serialize_f32(*value as f32 / 100.0)
+        serializer.serialize_f32((*value as f32) / (PERCENTAGE_BASE as f32))
     } else {
         serializer.serialize_none()
     }
@@ -109,6 +111,36 @@ pub struct FilteredAgentAttributes {
     pub cpu_load: Option<FilteredCpuLoad>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub free_memory: Option<FilteredFreeMemory>,
+}
+
+impl FilteredAgentAttributes {
+    pub fn get_cpu_load_as_string(&mut self) -> String {
+        if let Some(cpu_load) = &self.cpu_load {
+            if let Some(cpu_load_value) = cpu_load.cpu_load {
+                format!(
+                    "{}.{} %",
+                    cpu_load_value / PERCENTAGE_BASE,
+                    cpu_load_value % PERCENTAGE_BASE
+                )
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        }
+    }
+
+    pub fn get_free_memory_as_string(&mut self) -> String {
+        if let Some(free_memory) = &self.free_memory {
+            if let Some(free_memory_value) = free_memory.free_memory {
+                format!("{} B", free_memory_value)
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
