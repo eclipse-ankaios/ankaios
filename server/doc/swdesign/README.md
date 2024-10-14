@@ -709,7 +709,7 @@ Needs:
 - utest
 - itest
 
-#### ServerState updates its state on unmodified workloads
+#### ServerState updates its desired state on unmodified workloads
 `swdd~server-state-updates-state-on-unmodified-workloads~1`
 
 Status: approved

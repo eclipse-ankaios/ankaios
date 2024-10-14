@@ -24,7 +24,7 @@ use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
 use api::ank_base;
-use common::objects::{WorkloadState, WorkloadStatesMap};
+use common::objects::{State, WorkloadState, WorkloadStatesMap};
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
@@ -35,44 +35,6 @@ use std::fmt::Display;
 
 #[cfg(test)]
 use mockall::automock;
-
-fn generate_new_state(
-    desired_state: &CompleteState,
-    updated_state: CompleteState,
-    update_mask: Vec<String>,
-) -> Result<CompleteState, UpdateStateError> {
-    // [impl->swdd~update-desired-state-empty-update-mask~1]
-    if update_mask.is_empty() {
-        return Ok(updated_state);
-    }
-
-    // [impl->swdd~update-desired-state-with-update-mask~1]
-    let mut new_state: Object = desired_state.try_into().map_err(|err| {
-        UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{}'", err))
-    })?;
-    let state_from_update: Object = updated_state.try_into().map_err(|err| {
-        UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{}'", err))
-    })?;
-
-    for field in update_mask {
-        let field: Path = field.into();
-        if let Some(field_from_update) = state_from_update.get(&field) {
-            if new_state.set(&field, field_from_update.to_owned()).is_err() {
-                return Err(UpdateStateError::FieldNotFound(field.into()));
-            }
-        } else if new_state.remove(&field).is_err() {
-            return Err(UpdateStateError::FieldNotFound(field.into()));
-        }
-    }
-
-    if let Ok(new_state) = new_state.try_into() {
-        Ok(new_state)
-    } else {
-        Err(UpdateStateError::ResultInvalid(
-            "Could not parse into CompleteState.".to_string(),
-        ))
-    }
-}
 
 fn extract_added_and_deleted_workloads(
     current_workloads: &RenderedWorkloads,
@@ -225,14 +187,14 @@ impl ServerState {
     ) -> Result<AddedDeletedWorkloads, UpdateStateError> {
         // [impl->swdd~update-desired-state-with-update-mask~1]
         // [impl->swdd~update-desired-state-empty-update-mask~1]
-        match generate_new_state(&self.state, new_state, update_mask) {
-            Ok(new_state) => {
+        match self.generate_new_state(new_state, update_mask) {
+            Ok(new_templated_state) => {
                 // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
                 let new_rendered_workloads = self
                     .config_renderer
                     .render_workloads(
-                        &new_state.desired_state.workloads,
-                        &new_state.desired_state.configs,
+                        &new_templated_state.desired_state.workloads,
+                        &new_templated_state.desired_state.configs,
                     )
                     .map_err(|err| UpdateStateError::ResultInvalid(err.to_string()))?;
 
@@ -255,7 +217,7 @@ impl ServerState {
 
                     // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
                     if let Some(workload_part_of_cycle) =
-                        cycle_check::dfs(&new_state.desired_state, Some(start_nodes))
+                        cycle_check::dfs(&new_templated_state.desired_state, Some(start_nodes))
                     {
                         return Err(UpdateStateError::CycleInDependencies(
                             workload_part_of_cycle,
@@ -269,13 +231,13 @@ impl ServerState {
                     self.delete_graph
                         .apply_delete_conditions_to(&mut deleted_workloads);
 
-                    self.set_state(new_state);
+                    self.set_desired_state(new_templated_state.desired_state);
                     self.rendered_workloads = new_rendered_workloads;
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
                     // update state with changed fields not affecting workloads, e.g. config items
                     // [impl->swdd~server-state-updates-state-on-unmodified-workloads~1]
-                    self.set_state(new_state);
+                    self.set_desired_state(new_templated_state.desired_state);
                     Ok(None)
                 }
             }
@@ -300,8 +262,42 @@ impl ServerState {
             .remove_deleted_workloads_from_delete_graph(new_workload_states);
     }
 
-    fn set_state(&mut self, new_state: CompleteState) {
-        self.state.desired_state = new_state.desired_state;
+    fn generate_new_state(
+        &mut self,
+        updated_state: CompleteState,
+        update_mask: Vec<String>,
+    ) -> Result<CompleteState, UpdateStateError> {
+        // [impl->swdd~update-desired-state-empty-update-mask~1]
+        if update_mask.is_empty() {
+            return Ok(updated_state);
+        }
+
+        // [impl->swdd~update-desired-state-with-update-mask~1]
+        let mut new_state: Object = (&self.state).try_into().map_err(|err| {
+            UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{}'", err))
+        })?;
+        let state_from_update: Object = updated_state.try_into().map_err(|err| {
+            UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{}'", err))
+        })?;
+
+        for field in update_mask {
+            let field: Path = field.into();
+            if let Some(field_from_update) = state_from_update.get(&field) {
+                if new_state.set(&field, field_from_update.to_owned()).is_err() {
+                    return Err(UpdateStateError::FieldNotFound(field.into()));
+                }
+            } else if new_state.remove(&field).is_err() {
+                return Err(UpdateStateError::FieldNotFound(field.into()));
+            }
+        }
+
+        new_state.try_into().map_err(|_| {
+            UpdateStateError::ResultInvalid("Could not parse into CompleteState.".to_string())
+        })
+    }
+
+    fn set_desired_state(&mut self, new_desired_state: State) {
+        self.state.desired_state = new_desired_state;
     }
 }
 
