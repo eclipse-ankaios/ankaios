@@ -30,6 +30,7 @@ pub enum GrpcMiddlewareError {
     ConnectionInterrupted(String),
     CertificateError(String),
     TLSError(String),
+    VersionMismatch(String),
 }
 
 impl From<GrpcMiddlewareError> for CommunicationMiddlewareError {
@@ -64,7 +65,12 @@ impl From<SendError<Result<FromServer, tonic::Status>>> for GrpcMiddlewareError 
 
 impl From<tonic::Status> for GrpcMiddlewareError {
     fn from(err: tonic::Status) -> Self {
-        GrpcMiddlewareError::ConnectionInterrupted(err.to_string())
+        match err.code() {
+            tonic::Code::FailedPrecondition => {
+                GrpcMiddlewareError::VersionMismatch(err.to_string())
+            }
+            _ => GrpcMiddlewareError::ConnectionInterrupted(err.to_string()),
+        }
     }
 }
 
@@ -96,6 +102,9 @@ impl fmt::Display for GrpcMiddlewareError {
             }
             GrpcMiddlewareError::TLSError(message) => {
                 write!(f, "TLS error: '{message}'")
+            }
+            GrpcMiddlewareError::VersionMismatch(message) => {
+                write!(f, "Version mismatch: '{message}'")
             }
         }
     }

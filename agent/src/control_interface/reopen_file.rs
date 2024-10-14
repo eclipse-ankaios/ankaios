@@ -67,7 +67,7 @@ impl ReopenFile {
         tokio::spawn(async move { open_options.open(path).await })
     }
 
-    pub async fn read_protobuf_data(&mut self) -> io::Result<Box<[u8]>> {
+    pub async fn read_protobuf_data(&mut self) -> io::Result<Vec<u8>> {
         loop {
             let file = self.ensure_file().await?;
             match Self::try_read_protobuf_data(file).await {
@@ -82,7 +82,7 @@ impl ReopenFile {
     }
 
     // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
-    async fn try_read_protobuf_data(file: &mut BufReader<File>) -> Result<Box<[u8]>, Error> {
+    async fn try_read_protobuf_data(file: &mut BufReader<File>) -> Result<Vec<u8>, Error> {
         let varint_data = Self::try_read_varint_data(file).await?;
         let mut varint_data = Box::new(&varint_data[..]);
 
@@ -90,7 +90,7 @@ impl ReopenFile {
 
         let mut buf = vec![0; size];
         file.read_exact(&mut buf[..]).await?;
-        Ok(buf.into_boxed_slice())
+        Ok(buf)
     }
 
     async fn try_read_varint_data(
@@ -153,8 +153,8 @@ mockall::mock! {
     pub ReopenFile {
         pub fn open(path: &Path) -> Self;
         pub fn create(path: &Path) -> Self;
-        pub async fn read_protobuf_data(&mut self) -> io::Result<Box<[u8]>>;
-        async fn try_read_protobuf_data(file: &mut BufReader<File>) -> Result<Box<[u8]>, Error>;
+        pub async fn read_protobuf_data(&mut self) -> io::Result<Vec<u8>>;
+        async fn try_read_protobuf_data(file: &mut BufReader<File>) -> Result<Vec<u8>, Error>;
         pub async fn write_all(&mut self, buf: &[u8]) -> io::Result<()>;
         async fn try_write_all(&mut self, buf: &[u8]) -> io::Result<()>;
     }
@@ -192,7 +192,7 @@ mod tests {
         let jh = tokio::spawn(async move {
             let mut f = super::ReopenFile::open(&fifo2);
             let data = f.read_protobuf_data().await.unwrap();
-            assert_eq!(data, vec![17].into_boxed_slice());
+            assert_eq!(data, vec![17]);
         });
 
         let mut f = std::fs::File::create(&fifo).unwrap();
@@ -213,7 +213,7 @@ mod tests {
         let jh = tokio::spawn(async move {
             let mut f = super::ReopenFile::open(&fifo2);
             let data = f.read_protobuf_data().await.unwrap();
-            assert_eq!(data, vec![17; 128].into_boxed_slice());
+            assert_eq!(data, vec![17; 128]);
         });
 
         let mut f = std::fs::File::create(&fifo).unwrap();
@@ -235,7 +235,7 @@ mod tests {
         let jh = tokio::spawn(async move {
             let mut f = super::ReopenFile::open(&fifo2);
             let data = f.read_protobuf_data().await.unwrap();
-            assert_eq!(data, vec![17].into_boxed_slice());
+            assert_eq!(data, vec![17]);
         });
 
         {
@@ -265,7 +265,7 @@ mod tests {
         let jh = tokio::spawn(async move {
             let mut f = super::ReopenFile::open(&fifo2);
             let data = f.read_protobuf_data().await.unwrap();
-            assert_eq!(data, vec![17].into_boxed_slice());
+            assert_eq!(data, vec![17]);
         });
 
         {
@@ -318,7 +318,7 @@ mod tests {
         let jh = tokio::spawn(async move {
             let mut f = super::ReopenFile::open(&fifo2);
             let data = f.read_protobuf_data().await.unwrap();
-            assert_eq!(data, vec![].into_boxed_slice());
+            assert_eq!(data, Vec::<u8>::new());
         });
 
         let mut f = std::fs::File::create(&fifo).unwrap();

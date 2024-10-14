@@ -17,6 +17,7 @@ RUN curl --proto '=https' --tlsv1.2 -sS https://sh.rustup.rs | sh -s -- -y > /de
 COPY api ${WORKSPACE_DIR}/api
 COPY examples/rust_control_interface ${WORKSPACE_DIR}
 WORKDIR ${WORKSPACE_DIR}
+ENV ANKAIOS_VERSION=0.5.0-pre
 RUN --mount=type=cache,target=${WORKSPACE_DIR}/target/release cargo build --release \
     && cp ${WORKSPACE_DIR}/target/release/control_interface_example /usr/local/bin/
 
@@ -24,4 +25,5 @@ RUN --mount=type=cache,target=${WORKSPACE_DIR}/target/release cargo build --rele
 FROM docker.io/alpine:3.18.4
 COPY --from=compile /usr/local/bin/control_interface_example /usr/local/bin/control_interface_example
 RUN chmod +x /usr/local/bin/control_interface_example
+
 ENTRYPOINT ["/usr/local/bin/control_interface_example"]
