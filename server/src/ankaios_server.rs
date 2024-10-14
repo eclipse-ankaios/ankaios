@@ -179,9 +179,9 @@ impl AnkaiosServer {
                 // [impl->swdd~server-receives-resource-availability~1]
                 ToServer::AgentLoadStatus(method_obj) => {
                     log::trace!(
-                        "Received load status from agent '{}': CPU: {:.2}%, Free Memory: {}",
+                        "Received load status from agent '{}': CPU usage: {:.2}%, Free Memory: {}",
                         method_obj.agent_name,
-                        method_obj.cpu_load.cpu_load,
+                        method_obj.cpu_usage.cpu_usage,
                         method_obj.free_memory.free_memory,
                     );
 
@@ -399,7 +399,7 @@ mod tests {
     use common::from_server_interface::FromServer;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param, CompleteState,
-        CpuLoad, DeletedWorkload, ExecutionState, ExecutionStateEnum, FreeMemory, PendingSubstate,
+        CpuUsage, DeletedWorkload, ExecutionState, ExecutionStateEnum, FreeMemory, PendingSubstate,
         State, WorkloadInstanceName, WorkloadState,
     };
     use common::test_utils::generate_test_proto_workload_with_param;
@@ -1661,7 +1661,7 @@ mod tests {
     async fn utest_server_receives_agent_status_load() {
         let payload = AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
-            cpu_load: CpuLoad { cpu_load: 42 },
+            cpu_usage: CpuUsage { cpu_usage: 42 },
             free_memory: FreeMemory { free_memory: 42 },
         };
 

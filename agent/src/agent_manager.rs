@@ -16,7 +16,7 @@ use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 use common::{
     commands::AgentLoadStatus,
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{CpuLoad, FreeMemory, WorkloadState},
+    objects::{CpuUsage, FreeMemory, WorkloadState},
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -214,20 +214,20 @@ impl AgentManager {
 
         sys.refresh_all();
 
-        let cpu_load = sys.global_cpu_usage();
+        let cpu_usage = sys.global_cpu_usage();
         let free_memory = sys.free_memory();
 
         log::trace!(
-            "Agent '{}' reports resource usage: CPU Load: {:.2}%, Free Memory: {} B",
+            "Agent '{}' reports resource usage: CPU Usage: {:.2}%, Free Memory: {} B",
             self.agent_name,
-            cpu_load,
+            cpu_usage,
             free_memory,
         );
 
         self.to_server
             .agent_load_status(AgentLoadStatus {
                 agent_name: self.agent_name.clone(),
-                cpu_load: CpuLoad::new(cpu_load),
+                cpu_usage: CpuUsage::new(cpu_usage),
                 free_memory: FreeMemory { free_memory },
             })
             .await
@@ -580,8 +580,8 @@ mod tests {
         let result = server_receiver.recv().await.unwrap();
         if let ToServer::AgentLoadStatus(load_status) = result {
             assert_eq!(load_status.agent_name, AGENT_NAME.to_string());
-            assert_ne!(load_status.cpu_load.cpu_load, 0);
-            assert_ne!(load_status.cpu_load.cpu_load, 0);
+            assert_ne!(load_status.cpu_usage.cpu_usage, 0);
+            assert_ne!(load_status.cpu_usage.cpu_usage, 0);
         } else {
             panic!("Expected AgentLoadStatus, got something else");
         }

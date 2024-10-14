@@ -199,10 +199,10 @@ message AgentMap {
 }
 
 /**
-* A message containing the CPU load information of the agent.
+* A message containing the CPU usage information of the agent.
 */
-message CpuLoad {
-    uint32 cpu_load = 1; // expressed in percent, the formula for calculating: cpu_load = (new_work_time - old_work_time) / (new_total_time - old_total_time) * 100
+message CpuUsage {
+    uint32 cpu_usage = 1; // expressed in percent, the formula for calculating: cpu_usage = (new_work_time - old_work_time) / (new_total_time - old_total_time) * 100
 }
 
 /**
@@ -216,7 +216,7 @@ message FreeMemory {
 * A message that contains attributes of the agent.
 */
 message AgentAttributes {
-    CpuLoad cpu_load = 1; /// The cpu load of the agent.
+    CpuUsage cpu_usage = 1; /// The cpu usage of the agent.
     FreeMemory free_memory = 2; /// The amount of free memory of the agent.
 }
 

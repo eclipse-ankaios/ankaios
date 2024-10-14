@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::objects::{CompleteState, CpuLoad, DeletedWorkload, FreeMemory, WorkloadSpec};
+use crate::objects::{CompleteState, CpuUsage, DeletedWorkload, FreeMemory, WorkloadSpec};
 use api::ank_base;
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +24,7 @@ pub struct AgentHello {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentLoadStatus {
     pub agent_name: String,
-    pub cpu_load: CpuLoad,
+    pub cpu_usage: CpuUsage,
     pub free_memory: FreeMemory,
 }
 

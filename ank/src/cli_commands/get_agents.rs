@@ -62,7 +62,7 @@ fn transform_into_table_rows(
             AgentTableRow {
                 agent_name,
                 workloads: workload_states_count,
-                cpu_load: agent_attributes.get_cpu_load_as_string(),
+                cpu_usage: agent_attributes.get_cpu_usage_as_string(),
                 free_memory: agent_attributes.get_free_memory_as_string(),
             }
         })
@@ -142,9 +142,9 @@ mod tests {
         let table_output_result = cmd.get_agents().await;
 
         let expected_table_output = [
-            "NAME      WORKLOADS   CPU LOAD   FREE MEMORY",
-            "agent_A   1           0.42 %     42 B       ",
-            "agent_B   1           0.42 %     42 B       ",
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   1           42 %        42 B       ",
+            "agent_B   1           42 %        42 B       ",
         ]
         .join("\n");
 
@@ -179,7 +179,7 @@ mod tests {
 
         let table_output_result = cmd.get_agents().await;
 
-        let expected_table_output = "NAME   WORKLOADS   CPU LOAD   FREE MEMORY".to_string();
+        let expected_table_output = "NAME   WORKLOADS   CPU USAGE   FREE MEMORY".to_string();
 
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
@@ -207,8 +207,8 @@ mod tests {
         let table_output_result = cmd.get_agents().await;
 
         let expected_table_output = [
-            "NAME      WORKLOADS   CPU LOAD   FREE MEMORY",
-            "agent_A   0           0.42 %     42 B       ",
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   0           42 %        42 B       ",
         ]
         .join("\n");
 
@@ -273,8 +273,8 @@ mod tests {
         let table_output_result = cmd.get_agents().await;
 
         let expected_table_output = [
-            "NAME      WORKLOADS   CPU LOAD   FREE MEMORY",
-            "agent_A   1           0.42 %     42 B       ",
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   1           42 %        42 B       ",
         ]
         .join("\n");
 
@@ -310,8 +310,8 @@ mod tests {
         let table_output_result = cmd.get_agents().await;
 
         let expected_table_output = [
-            "NAME      WORKLOADS   CPU LOAD   FREE MEMORY",
-            "agent_A   1           0.42 %     42 B       ",
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   1           42 %        42 B       ",
         ]
         .join("\n");
 

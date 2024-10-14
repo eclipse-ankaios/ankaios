@@ -841,7 +841,7 @@ Needs:
 
 Status: approved
 
-When the ServerState receives a new agent load status, the ServerState shall update its internal state with agent node resource availability information regarding the cpu load and the free memory.
+When the ServerState receives a new agent load status, the ServerState shall update its internal state with agent node resource availability information regarding the cpu usage and the free memory.
 
 Tags:
 - ServerState

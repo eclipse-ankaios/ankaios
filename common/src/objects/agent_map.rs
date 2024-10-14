@@ -20,17 +20,15 @@ use crate::commands;
 
 type AgentName = String;
 
-pub const PERCENTAGE_BASE: f32 = 100.0;
-
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-pub struct CpuLoad {
-    pub cpu_load: u32,
+pub struct CpuUsage {
+    pub cpu_usage: u32,
 }
 
-impl CpuLoad {
-    pub fn new(cpu_load: f32) -> Self {
+impl CpuUsage {
+    pub fn new(cpu_usage: f32) -> Self {
         Self {
-            cpu_load: (cpu_load * PERCENTAGE_BASE).trunc() as u32,
+            cpu_usage: cpu_usage.round() as u32,
         }
     }
 }
@@ -42,7 +40,7 @@ pub struct FreeMemory {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct AgentAttributes {
-    pub cpu_load: Option<CpuLoad>,
+    pub cpu_usage: Option<CpuUsage>,
     pub free_memory: Option<FreeMemory>,
 }
 
@@ -65,24 +63,24 @@ impl AgentMap {
 
     pub fn update_resource_availability(&mut self, agent_load_status: commands::AgentLoadStatus) {
         self.0.entry(agent_load_status.agent_name).and_modify(|e| {
-            e.cpu_load = Some(agent_load_status.cpu_load);
+            e.cpu_usage = Some(agent_load_status.cpu_usage);
             e.free_memory = Some(agent_load_status.free_memory);
         });
     }
 }
 
-impl From<CpuLoad> for ank_base::CpuLoad {
-    fn from(item: CpuLoad) -> ank_base::CpuLoad {
-        ank_base::CpuLoad {
-            cpu_load: item.cpu_load,
+impl From<CpuUsage> for ank_base::CpuUsage {
+    fn from(item: CpuUsage) -> ank_base::CpuUsage {
+        ank_base::CpuUsage {
+            cpu_usage: item.cpu_usage,
         }
     }
 }
 
-impl From<ank_base::CpuLoad> for CpuLoad {
-    fn from(item: ank_base::CpuLoad) -> Self {
-        CpuLoad {
-            cpu_load: item.cpu_load,
+impl From<ank_base::CpuUsage> for CpuUsage {
+    fn from(item: ank_base::CpuUsage) -> Self {
+        CpuUsage {
+            cpu_usage: item.cpu_usage,
         }
     }
 }
@@ -106,8 +104,8 @@ impl From<ank_base::FreeMemory> for FreeMemory {
 impl From<AgentAttributes> for ank_base::AgentAttributes {
     fn from(item: AgentAttributes) -> ank_base::AgentAttributes {
         ank_base::AgentAttributes {
-            cpu_load: Some(ank_base::CpuLoad {
-                cpu_load: item.cpu_load.unwrap_or_default().cpu_load,
+            cpu_usage: Some(ank_base::CpuUsage {
+                cpu_usage: item.cpu_usage.unwrap_or_default().cpu_usage,
             }),
             free_memory: Some(ank_base::FreeMemory {
                 free_memory: item.free_memory.unwrap_or_default().free_memory,
@@ -119,8 +117,8 @@ impl From<AgentAttributes> for ank_base::AgentAttributes {
 impl From<ank_base::AgentAttributes> for AgentAttributes {
     fn from(item: ank_base::AgentAttributes) -> Self {
         AgentAttributes {
-            cpu_load: Some(CpuLoad {
-                cpu_load: item.cpu_load.unwrap_or_default().cpu_load,
+            cpu_usage: Some(CpuUsage {
+                cpu_usage: item.cpu_usage.unwrap_or_default().cpu_usage,
             }),
             free_memory: Some(FreeMemory {
                 free_memory: item.free_memory.unwrap_or_default().free_memory,
@@ -170,7 +168,7 @@ pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMap {
     agent_map
         .entry(agent_name.into())
         .or_insert(AgentAttributes {
-            cpu_load: Some(CpuLoad { cpu_load: 42 }),
+            cpu_usage: Some(CpuUsage { cpu_usage: 42 }),
             free_memory: Some(FreeMemory { free_memory: 42 }),
         });
     agent_map
@@ -185,7 +183,7 @@ pub fn generate_test_agent_map_from_specs(workloads: &[crate::objects::WorkloadS
             agent_map
                 .entry(agent_name.to_owned())
                 .or_insert(AgentAttributes {
-                    cpu_load: Some(CpuLoad { cpu_load: 42 }),
+                    cpu_usage: Some(CpuUsage { cpu_usage: 42 }),
                     free_memory: Some(FreeMemory { free_memory: 42 }),
                 });
             agent_map

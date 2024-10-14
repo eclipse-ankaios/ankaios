@@ -1950,7 +1950,7 @@ mod tests {
             agents: HashMap::from([(
                 AGENT_NAME.to_owned(),
                 objects::AgentAttributes {
-                    cpu_load: Some(objects::CpuLoad { cpu_load: 42 }),
+                    cpu_usage: Some(objects::CpuUsage { cpu_usage: 42 }),
                     free_memory: Some(objects::FreeMemory { free_memory: 42 }),
                 }
                 .into(),

@@ -164,7 +164,7 @@ mod tests {
     use crate::{
         commands::{self, AgentLoadStatus, RequestContent},
         objects::{
-            generate_test_workload_spec, generate_test_workload_state, CpuLoad, ExecutionState,
+            generate_test_workload_spec, generate_test_workload_state, CpuUsage, ExecutionState,
             FreeMemory,
         },
         test_utils::generate_test_complete_state,
@@ -178,7 +178,7 @@ mod tests {
     const AGENT_NAME: &str = "agent_A";
     const REQUEST_ID: &str = "emkw489ejf89ml";
     const FIELD_MASK: &str = "desiredState.bla_bla";
-    const CPU_LOAD: CpuLoad = CpuLoad { cpu_load: 42 };
+    const CPU_USAGE: CpuUsage = CpuUsage { cpu_usage: 42 };
     const FREE_MEMORY: FreeMemory = FreeMemory { free_memory: 42 };
 
     // [utest->swdd~to-server-channel~1]
@@ -206,7 +206,7 @@ mod tests {
         assert!(tx
             .agent_load_status(AgentLoadStatus {
                 agent_name: AGENT_NAME.to_string(),
-                cpu_load: CPU_LOAD.clone(),
+                cpu_usage: CPU_USAGE.clone(),
                 free_memory: FREE_MEMORY.clone(),
             })
             .await
@@ -216,7 +216,7 @@ mod tests {
             rx.recv().await,
             Some(ToServer::AgentLoadStatus(AgentLoadStatus {
                 agent_name: AGENT_NAME.to_string(),
-                cpu_load: CPU_LOAD.clone(),
+                cpu_usage: CPU_USAGE.clone(),
                 free_memory: FREE_MEMORY.clone(),
             }))
         )

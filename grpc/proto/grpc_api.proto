@@ -76,7 +76,7 @@ message AgentHello {
 */
 message AgentLoadStatus {
     string agent_name = 1; /// A unique agent name.
-    ank_base.CpuLoad cpu_load = 2; /// The cpu load of the agent.
+    ank_base.CpuUsage cpu_usage = 2; /// The cpu usage of the agent.
     ank_base.FreeMemory free_memory = 3; /// The amount of free memory of the agent.
 }
 

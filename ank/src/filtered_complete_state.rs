@@ -25,8 +25,6 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use crate::{output_and_error, output_warn};
 
-const PERCENTAGE_BASE: u32 = 100;
-
 pub fn serialize_option_to_ordered_map<S, T: Serialize>(
     value: &Option<HashMap<String, T>>,
     serializer: S,
@@ -36,20 +34,6 @@ where
 {
     if let Some(value) = value {
         serialize_to_ordered_map(value, serializer)
-    } else {
-        serializer.serialize_none()
-    }
-}
-
-pub fn serialize_percent_as_proportion<S>(
-    value: &Option<u32>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    if let Some(value) = value {
-        serializer.serialize_f32((*value as f32) / (PERCENTAGE_BASE as f32))
     } else {
         serializer.serialize_none()
     }
@@ -92,9 +76,9 @@ pub struct FilteredAgentMap {
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct FilteredCpuLoad {
-    #[serde(serialize_with = "serialize_percent_as_proportion")]
-    pub cpu_load: Option<u32>,
+pub struct FilteredCpuUsage {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_usage: Option<u32>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
@@ -108,20 +92,16 @@ pub struct FilteredFreeMemory {
 #[serde(rename_all = "camelCase")]
 pub struct FilteredAgentAttributes {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cpu_load: Option<FilteredCpuLoad>,
+    pub cpu_usage: Option<FilteredCpuUsage>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub free_memory: Option<FilteredFreeMemory>,
 }
 
 impl FilteredAgentAttributes {
-    pub fn get_cpu_load_as_string(&mut self) -> String {
-        if let Some(cpu_load) = &self.cpu_load {
-            if let Some(cpu_load_value) = cpu_load.cpu_load {
-                format!(
-                    "{}.{} %",
-                    cpu_load_value / PERCENTAGE_BASE,
-                    cpu_load_value % PERCENTAGE_BASE
-                )
+    pub fn get_cpu_usage_as_string(&mut self) -> String {
+        if let Some(cpu_usage) = &self.cpu_usage {
+            if let Some(cpu_usage_value) = cpu_usage.cpu_usage {
+                format!("{} %", cpu_usage_value)
             } else {
                 "".to_string()
             }
@@ -258,16 +238,16 @@ impl From<ank_base::AgentMap> for FilteredAgentMap {
 impl From<ank_base::AgentAttributes> for FilteredAgentAttributes {
     fn from(value: ank_base::AgentAttributes) -> Self {
         FilteredAgentAttributes {
-            cpu_load: value.cpu_load.map(Into::into),
+            cpu_usage: value.cpu_usage.map(Into::into),
             free_memory: value.free_memory.map(Into::into),
         }
     }
 }
 
-impl From<ank_base::CpuLoad> for FilteredCpuLoad {
-    fn from(value: ank_base::CpuLoad) -> Self {
-        FilteredCpuLoad {
-            cpu_load: Some(value.cpu_load),
+impl From<ank_base::CpuUsage> for FilteredCpuUsage {
+    fn from(value: ank_base::CpuUsage) -> Self {
+        FilteredCpuUsage {
+            cpu_usage: Some(value.cpu_usage),
         }
     }
 }

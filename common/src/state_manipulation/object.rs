@@ -739,7 +739,7 @@ mod tests {
                     Mapping::default().entry(
                         agent_name,
                         Mapping::default()
-                            .entry("cpu_load", Mapping::default().entry("cpu_load", 42))
+                            .entry("cpu_usage", Mapping::default().entry("cpu_usage", 42))
                             .entry("free_memory", Mapping::default().entry("free_memory", 42)),
                     ),
                 )

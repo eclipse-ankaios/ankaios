@@ -185,7 +185,7 @@ pub async fn forward_from_ankaios_to_proto(
                         to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentLoadStatus(
                             common::commands::AgentLoadStatus {
                                 agent_name: status.agent_name,
-                                cpu_load: status.cpu_load,
+                                cpu_usage: status.cpu_usage,
                                 free_memory: status.free_memory,
                             }
                             .into(),
@@ -230,7 +230,7 @@ mod tests {
 
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios, GRPCStreaming};
     use async_trait::async_trait;
-    use common::objects::{CpuLoad, FreeMemory};
+    use common::objects::{CpuUsage, FreeMemory};
     use common::test_utils::generate_test_complete_state;
     use common::{
         objects::generate_test_workload_spec_with_param,
@@ -270,7 +270,7 @@ mod tests {
         let agent_name = "agent_A".to_string();
         let agent_load_status = common::commands::AgentLoadStatus {
             agent_name: agent_name.clone(),
-            cpu_load: CpuLoad { cpu_load: 42 },
+            cpu_usage: CpuUsage { cpu_usage: 42 },
             free_memory: FreeMemory { free_memory: 42 },
         };
 
@@ -288,7 +288,7 @@ mod tests {
 
         let expected = ToServerEnum::AgentLoadStatus(grpc_api::AgentLoadStatus {
             agent_name: agent_name.clone(),
-            cpu_load: Some(ank_base::CpuLoad { cpu_load: 42 }),
+            cpu_usage: Some(ank_base::CpuUsage { cpu_usage: 42 }),
             free_memory: Some(ank_base::FreeMemory { free_memory: 42 }),
         });
 
@@ -301,7 +301,7 @@ mod tests {
         let agent_name = "agent_A".to_string();
         let agent_load_status = common::commands::AgentLoadStatus {
             agent_name: agent_name.clone(),
-            cpu_load: CpuLoad { cpu_load: 42 },
+            cpu_usage: CpuUsage { cpu_usage: 42 },
             free_memory: FreeMemory { free_memory: 42 },
         };
 
