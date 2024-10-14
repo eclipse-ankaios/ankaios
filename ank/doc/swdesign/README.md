@@ -905,7 +905,7 @@ When the Ankaios CLI presents connected Ankaios agents to the user, the Ankaios 
 
 | NAME                     | WORKLOADS                        | CPU USAGE                | FREE MEMORY                      |
 | ------------------------ | -------------------------------- | ------------------------ | -------------------------------- |
-| `<agent_name>` as text   | `<assigned_workloads>` as number | `<cpu_usage>` as percent | `<free_memory>` as floating point number |
+| `<agent_name>` as text   | `<assigned_workloads>` as number | `<cpu_usage>` as load in percent | `<free_memory>` in bytes |
 
 Tags:
 - CliCommands

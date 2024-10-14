@@ -39,7 +39,7 @@ where
     }
 }
 
-pub fn serialize_to_floating_point<S>(value: &Option<u32>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize_percent_as_proportion<S>(value: &Option<u32>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {

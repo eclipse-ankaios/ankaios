@@ -2764,9 +2764,10 @@ Needs:
 
 Status: approved
 
-At an interval of 2 seconds the AgentManager measures the global cpu load and the available free memory and sends them to the Ankaios server via an `AgentLoadStatus` message.
+At an interval of 2 seconds, the AgentManager measures the global CPU load and the available free memory and sends them to the Ankaios server via an `AgentLoadStatus` message.
 
-Rationale: The Ankaios server workloads scheduler shall necessitate in the future the knowledge of available resources.
+Rationale:
+Available resources must be available in the cluster in order to enable dynamic scheduling, e.g., done by a workload.
 
 Tags:
 - AgentManager
