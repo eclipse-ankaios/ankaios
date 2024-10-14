@@ -21,7 +21,7 @@ To push the new image to GitHub container registry, you will need to generate an
 podman login ghcr.io
 ```
 
-Afterwards athe push can be done with:
+Afterwards the push can be done with:
 
 ```bash
 podman push ghcr.io/eclipse-ankaios/control_interface_tester:manual-build-<new version number>
