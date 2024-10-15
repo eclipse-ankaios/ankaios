@@ -760,6 +760,23 @@ Needs:
 - impl
 - utest
 
+#### ServerState triggers validation of workload fields
+`swdd~server-state-triggers-validation-of-workload-fields~1`
+
+Status: approved
+
+When the ServerState receives successfully rendered workloads from the ConfigRenderer, the ServerState shall trigger the workload to validate the format of its internal fields.
+
+Rationale:
+Some workload fields only contain the final content after rendering.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
 #### ConfigRenderer renders workload configuration
 `swdd~config-renderer-renders-workload-configuration~1`
 

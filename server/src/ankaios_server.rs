@@ -68,7 +68,7 @@ impl AnkaiosServer {
 
     pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
         if let Some(state) = startup_state {
-            State::verify_format(&state.desired_state)?;
+            State::verify_api_format(&state.desired_state)?;
 
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
@@ -247,8 +247,9 @@ impl AnkaiosServer {
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
                         // [impl->swdd~update-desired-state-with-missing-version~1]
                         // [impl->swdd~server-naming-convention~1]
-                        if let Err(error_message) =
-                            State::verify_format(&update_state_request.state.desired_state)
+                        let updated_desired_state = &update_state_request.state.desired_state;
+                        if let Err(error_message) = State::verify_api_format(&updated_desired_state)
+                            .and_then(|_| State::verify_configs_format(&updated_desired_state))
                         {
                             log::warn!("The CompleteState in the request has wrong format. {} -> ignoring the request", error_message);
 

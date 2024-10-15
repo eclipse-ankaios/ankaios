@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use regex::Regex;
 use std::collections::HashMap;
 
 use api::ank_base;
@@ -23,6 +24,8 @@ use super::{
     control_interface_access::ControlInterfaceAccess, AddCondition, RestartPolicy, Tag,
     WorkloadInstanceName, WorkloadSpec,
 };
+
+pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
 
 #[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -40,6 +43,30 @@ pub struct StoredWorkloadSpec {
     pub control_interface_access: ControlInterfaceAccess,
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub configs: HashMap<String, String>,
+}
+
+impl StoredWorkloadSpec {
+    pub fn verify_config_reference_format(
+        config_references: &HashMap<String, String>,
+    ) -> Result<(), String> {
+        let re_config_references = Regex::new(STR_RE_CONFIG_REFERENCES).unwrap();
+        for (config_alias, referenced_config) in config_references {
+            if !re_config_references.is_match(config_alias) {
+                return Err(format!(
+                    "Unsupported config alias. Received '{}', expected to have characters in {}",
+                    config_alias, STR_RE_CONFIG_REFERENCES
+                ));
+            }
+
+            if !re_config_references.is_match(referenced_config) {
+                return Err(format!(
+                    "Unsupported referenced config. Received '{}', expected to have characters in {}",
+                    referenced_config, STR_RE_CONFIG_REFERENCES
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {

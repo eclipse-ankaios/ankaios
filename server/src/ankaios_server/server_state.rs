@@ -198,6 +198,9 @@ impl ServerState {
                     )
                     .map_err(|err| UpdateStateError::ResultInvalid(err.to_string()))?;
 
+                // [impl->swdd~server-state-triggers-validation-of-workload-fields~1]
+                self.verify_workload_fields_format(&new_rendered_workloads)?;
+
                 // [impl->swdd~server-state-compares-rendered-workloads~1]
                 let cmd = extract_added_and_deleted_workloads(
                     &self.rendered_workloads,
@@ -299,6 +302,18 @@ impl ServerState {
 
     fn set_desired_state(&mut self, new_desired_state: State) {
         self.state.desired_state = new_desired_state;
+    }
+
+    // [impl->swdd~server-state-triggers-validation-of-workload-fields~1]
+    fn verify_workload_fields_format(
+        &self,
+        workloads: &RenderedWorkloads,
+    ) -> Result<(), UpdateStateError> {
+        for workload_spec in workloads.values() {
+            WorkloadSpec::verify_fields_format(workload_spec)
+                .map_err(UpdateStateError::ResultInvalid)?;
+        }
+        Ok(())
     }
 }
 
