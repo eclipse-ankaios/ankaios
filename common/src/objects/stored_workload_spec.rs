@@ -176,8 +176,8 @@ pub fn generate_test_stored_workload_spec_with_config(
     StoredWorkloadSpec {
         agent: agent.into(),
         dependencies: HashMap::from([
-            (String::from("workload A"), AddCondition::AddCondRunning),
-            (String::from("workload C"), AddCondition::AddCondSucceeded),
+            (String::from("workload_A"), AddCondition::AddCondRunning),
+            (String::from("workload_C"), AddCondition::AddCondSucceeded),
         ]),
         restart_policy: RestartPolicy::Always,
         runtime: runtime_name.into(),

@@ -396,7 +396,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .dependencies
-            .get_mut(&String::from("workload A"))
+            .get_mut(&String::from("workload_A"))
             .unwrap() = -1;
 
         let ankaios_update_mask = vec!["bla".into()];

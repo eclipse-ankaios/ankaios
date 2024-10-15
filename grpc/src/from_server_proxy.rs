@@ -490,7 +490,7 @@ mod tests {
 
         *workload
             .dependencies
-            .get_mut(&String::from("workload A"))
+            .get_mut(&String::from("workload_A"))
             .unwrap() = -1;
 
         // simulate the reception of an update workload grpc from server message

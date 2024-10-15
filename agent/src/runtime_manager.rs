@@ -1901,11 +1901,11 @@ mod tests {
                                 dependencies: Some(ank_base::Dependencies {
                                     dependencies: HashMap::from([
                                         (
-                                            "workload A".to_string(),
+                                            "workload_A".to_string(),
                                             AddCondition::AddCondRunning as i32,
                                         ),
                                         (
-                                            "workload C".to_string(),
+                                            "workload_C".to_string(),
                                             AddCondition::AddCondSucceeded as i32,
                                         ),
                                     ]),

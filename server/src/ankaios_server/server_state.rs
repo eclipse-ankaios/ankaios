@@ -590,7 +590,7 @@ mod tests {
 
         let workload = generate_test_stored_workload_spec(AGENT_A.to_string(), RUNTIME.to_string());
 
-        // workload has a self cycle to workload A
+        // workload has a self cycle to workload_A
         let new_workload_1 =
             generate_test_stored_workload_spec(AGENT_A.to_string(), RUNTIME.to_string());
 
@@ -609,7 +609,7 @@ mod tests {
         let rejected_new_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([
-                    ("workload A".to_string(), new_workload_1),
+                    ("workload_A".to_string(), new_workload_1),
                     (WORKLOAD_NAME_1.to_string(), new_workload_2),
                 ]),
                 ..Default::default()
@@ -645,7 +645,7 @@ mod tests {
         assert_eq!(
             result,
             Err(UpdateStateError::CycleInDependencies(
-                "workload A".to_string()
+                "workload_A".to_string()
             ))
         );
 

@@ -264,8 +264,8 @@ use crate::objects::generate_test_control_interface_access;
 #[cfg(any(feature = "test_utils", test))]
 fn generate_test_dependencies() -> HashMap<String, AddCondition> {
     HashMap::from([
-        (String::from("workload A"), AddCondition::AddCondRunning),
-        (String::from("workload C"), AddCondition::AddCondSucceeded),
+        (String::from("workload_A"), AddCondition::AddCondRunning),
+        (String::from("workload_C"), AddCondition::AddCondSucceeded),
     ])
 }
 
@@ -481,14 +481,14 @@ mod tests {
             generate_test_deleted_workload("agent X".to_string(), "workload X".to_string());
 
         deleted_workload.dependencies.insert(
-            "workload C".to_string(),
+            "workload_C".to_string(),
             DeleteCondition::DelCondNotPendingNorRunning,
         );
 
         let serialized_deleted_workload = serde_yaml::to_string(&deleted_workload).unwrap();
         let indices = [
-            serialized_deleted_workload.find("workload A").unwrap(),
-            serialized_deleted_workload.find("workload C").unwrap(),
+            serialized_deleted_workload.find("workload_A").unwrap(),
+            serialized_deleted_workload.find("workload_C").unwrap(),
         ];
         assert!(
             indices.windows(2).all(|window| window[0] < window[1]),
@@ -599,8 +599,8 @@ mod tests {
         assert_eq!(
             WorkloadSpec::verify_fields_format(&spec_with_wrong_agent_name),
             Err(format!(
-                "Unsupported workload name. Received '{}', expected to have characters in {}",
-                spec_with_wrong_agent_name.instance_name.workload_name(),
+                "Unsupported agent name. Received '{}', expected to have characters in {}",
+                spec_with_wrong_agent_name.instance_name.agent_name(),
                 super::STR_RE_AGENT
             ))
         );

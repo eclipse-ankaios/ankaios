@@ -413,7 +413,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        // contains a self cycle to workload A
+        // contains a self cycle to workload_A
         let workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME_NAME);
 
         let startup_state = CompleteState {
@@ -519,7 +519,7 @@ mod tests {
             .once()
             .in_sequence(&mut seq)
             .return_const(Err(UpdateStateError::CycleInDependencies(
-                "workload A".to_string(),
+                "workload_A".to_string(),
             )));
 
         let added_workloads = vec![updated_workload.clone()];
