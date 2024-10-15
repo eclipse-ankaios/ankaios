@@ -364,6 +364,7 @@ pub fn generate_test_workload_spec_with_dependencies(
 mod tests {
     use crate::objects::*;
     use crate::test_utils::*;
+    const RUNTIME: &str = "runtime";
 
     #[test]
     fn utest_get_workloads_per_agent_one_agent_one_workload() {
@@ -574,7 +575,7 @@ mod tests {
         let spec_with_wrong_workload_name = generate_test_workload_spec_with_param(
             "agent_A".to_owned(),
             "incompatible.workload_name".to_owned(),
-            "runtime".to_owned(),
+            RUNTIME.to_owned(),
         );
 
         assert_eq!(
@@ -593,7 +594,7 @@ mod tests {
         let spec_with_wrong_agent_name = generate_test_workload_spec_with_param(
             "incompatible.agent_name".to_owned(),
             "workload_1".to_owned(),
-            "runtime".to_owned(),
+            RUNTIME.to_owned(),
         );
 
         assert_eq!(
