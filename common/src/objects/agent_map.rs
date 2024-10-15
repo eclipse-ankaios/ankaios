@@ -47,7 +47,7 @@ pub struct AgentAttributes {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct AgentMap(HashMap<AgentName, AgentAttributes>);
 
-// [impl->swdd~agent-map-manages-agent-names-with-agent-attributes~1]
+// [impl->swdd~agent-map-manages-agent-names-with-agent-attributes~2]
 impl AgentMap {
     pub fn new() -> Self {
         Self(HashMap::new())

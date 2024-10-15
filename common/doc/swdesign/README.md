@@ -223,7 +223,7 @@ Needs:
 - utest
 
 #### AgentMap manages agent names along with agent attributes
-`swdd~agent-map-manages-agent-names-with-agent-attributes~1`
+`swdd~agent-map-manages-agent-names-with-agent-attributes~2`
 
 Status: approved
 

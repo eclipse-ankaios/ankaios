@@ -44,7 +44,7 @@ impl CliCommands {
 
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
-        // [impl->swdd~cli-presents-connected-agents-as-table~1]
+        // [impl->swdd~cli-presents-connected-agents-as-table~2]
         Ok(CliTable::new(&agent_table_rows).create_default_table())
     }
 }
@@ -106,7 +106,7 @@ mod tests {
     const WORKLOAD_NAME_2: &str = "workload_2";
     const RUNTIME_NAME: &str = "runtime";
 
-    // [utest->swdd~cli-presents-connected-agents-as-table~1]
+    // [utest->swdd~cli-presents-connected-agents-as-table~2]
     // [utest->swdd~cli-provides-list-of-agents~1]
     // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     #[tokio::test]
