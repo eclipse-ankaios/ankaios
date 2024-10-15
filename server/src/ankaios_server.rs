@@ -179,7 +179,7 @@ impl AnkaiosServer {
                 // [impl->swdd~server-receives-resource-availability~1]
                 ToServer::AgentLoadStatus(method_obj) => {
                     log::trace!(
-                        "Received load status from agent '{}': CPU usage: {} %, Free Memory: {}",
+                        "Received load status from agent '{}': CPU usage: {}%, Free Memory: {}B",
                         method_obj.agent_name,
                         method_obj.cpu_usage.cpu_usage,
                         method_obj.free_memory.free_memory,

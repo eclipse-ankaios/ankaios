@@ -59,7 +59,7 @@ pub struct FilteredState {
     // [impl->swdd~cli-returns-api-version-with-desired-state~1]
     pub api_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(serialize_with = "serialize_option_to_ordered_map")]
+    #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
     pub workloads: Option<HashMap<String, FilteredWorkloadSpec>>,
     #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -101,7 +101,7 @@ impl FilteredAgentAttributes {
     pub fn get_cpu_usage_as_string(&mut self) -> String {
         if let Some(cpu_usage) = &self.cpu_usage {
             if let Some(cpu_usage_value) = cpu_usage.cpu_usage {
-                format!("{} %", cpu_usage_value)
+                format!("{}%", cpu_usage_value)
             } else {
                 "".to_string()
             }
@@ -113,7 +113,7 @@ impl FilteredAgentAttributes {
     pub fn get_free_memory_as_string(&mut self) -> String {
         if let Some(free_memory) = &self.free_memory {
             if let Some(free_memory_value) = free_memory.free_memory {
-                format!("{} B", free_memory_value)
+                format!("{}B", free_memory_value)
             } else {
                 "".to_string()
             }

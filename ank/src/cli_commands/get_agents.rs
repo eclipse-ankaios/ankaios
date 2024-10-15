@@ -143,8 +143,8 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   1           42 %        42 B       ",
-            "agent_B   1           42 %        42 B       ",
+            "agent_A   1           42%         42B        ",
+            "agent_B   1           42%         42B        ",
         ]
         .join("\n");
 
@@ -208,7 +208,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   0           42 %        42 B       ",
+            "agent_A   0           42%         42B        ",
         ]
         .join("\n");
 
@@ -274,7 +274,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   1           42 %        42 B       ",
+            "agent_A   1           42%         42B        ",
         ]
         .join("\n");
 
@@ -311,7 +311,7 @@ mod tests {
 
         let expected_table_output = [
             "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
-            "agent_A   1           42 %        42 B       ",
+            "agent_A   1           42%         42B        ",
         ]
         .join("\n");
 
