@@ -289,7 +289,7 @@ impl RuntimeManager {
                                     workload_state.instance_name.workload_name()
                                 );
 
-                                /* Temporary workaround until direct start of bundles is implemented to prevent
+                                /* Workaround to prevent
                                 workload states from being overwritten by the delete. The decoupled create and a potential enqueue
                                 on unmet inter-workload dependencies might run earlier than the delete and the delete overwrites the
                                 pending workload states.*/
