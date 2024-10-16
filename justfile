@@ -56,3 +56,8 @@ clippy:
 # Generate test coverage report
 coverage:
     tools/generate_test_coverage_report.sh test --html
+
+# Create requirement tracing report
+trace-requirements report="build/req/req_tracing_report.html":
+    mkdir -p $(dirname "{{ report }}")
+    oft trace $(find . -type d \( -name "src" -o -name "doc" -o -name "tests" \) -not -path './doc') -a swdd,impl,utest,itest,stest -o html -f "{{ report }}" || true

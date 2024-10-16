@@ -1837,16 +1837,37 @@ Needs:
 - utest
 
 ##### Podman create workload runs the workload object
-`swdd~podman-create-workload-runs-workload~1`
+`swdd~podman-create-workload-runs-workload~2`
 
 Status: approved
 
-When the podman runtime connector is called to create workload, the podman runtime connector shall:
+When the podman runtime connector is called to create a workload and no existing workload id is provided, the podman runtime connector shall:
 
 * pull the workload image specified in the runtime configuration if the image is not already available locally
 * create the container
 * start the container in the detached mode
 * start a `GenericPollingStateChecker` to check the workload state
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
+##### Podman create workload starts an existing the workload object
+`swdd~podman-create-workload-starts-existing-workload~1`
+
+Status: approved
+
+When the podman runtime connector is called to create a workload and an existing workload id is provided, the podman runtime connector shall:
+
+* start the existing container
+* start a `GenericPollingStateChecker` to check the workload state
+
+Rationale:
+Starting a stopped container is much faster than creating a new container bundle and starting that. Short startup times are ususally crucial for automotive.
 
 Tags:
 - PodmanRuntimeConnector
@@ -1891,11 +1912,11 @@ Needs:
 - utest
 
 ##### Podman create workload creates labels
-`swdd~podman-create-workload-creates-labels~1`
+`swdd~podman-create-workload-creates-labels~2`
 
 Status: approved
 
-When the podman runtime connector is called to create workload, the podman runtime connector shall create following labels in the workload:
+When the podman runtime connector is called without an existing workload id to create a new workload, the podman runtime connector shall create following labels in the workload:
 
 * `name` as the key and workload execution name as the value
 * `agent` as the key and the agent name where the workload is being created as the value
@@ -1908,11 +1929,11 @@ Needs:
 - utest
 
 ##### Podman create workload sets optionally container name
-`swdd~podman-create-workload-sets-optionally-container-name~1`
+`swdd~podman-create-workload-sets-optionally-container-name~2`
 
 Status: approved
 
-When the podman runtime connector is called to create workload and the workload name is not set in the runtime configuration,
+When the podman runtime connector is called is called without an existing workload id to create a new workload and the workload name is not set in the runtime configuration,
 the podman runtime connector shall set the workload execution name as the workload name.
 
 Tags:

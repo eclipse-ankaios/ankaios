@@ -158,7 +158,8 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
             .await
     }
 
-    // [impl->swdd~podman-create-workload-runs-workload~1]
+    // [impl->swdd~podman-create-workload-runs-workload~2]
+    // [impl->swdd~podman-create-workload-starts-existing-workload~1]
     async fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
@@ -403,7 +404,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~podman-create-workload-runs-workload~1]
+    // [utest->swdd~podman-create-workload-runs-workload~2]
     #[tokio::test]
     async fn utest_create_workload_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -437,6 +438,7 @@ mod tests {
         assert_eq!(workload_id.id, "test_id".to_string());
     }
 
+    // [utest->swdd~podman-create-workload-starts-existing-workload~1]
     #[tokio::test]
     async fn utest_create_workload_with_existing_workload_id_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;

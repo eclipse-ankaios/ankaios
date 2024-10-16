@@ -24,6 +24,7 @@ Resource            ../../resources/variables.resource
 # [stest->swdd~agent-existing-workloads-replace-updated~2]
 # [stest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
 # [stest->swdd~agent-enqueues-unfulfilled-create~1]
+# [stest->swdd~podman-create-workload-starts-existing-workload~1]
 Test Ankaios restarts exited workloads on device restart with considering inter-workload dependencies
     [Documentation]    Restart not running workloads after a device restart with considering inter-workload dependencies
     [Setup]    Run Keywords    Setup Ankaios

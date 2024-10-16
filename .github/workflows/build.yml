@@ -163,8 +163,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.1
       - run: |
-          mkdir -p dist
-          oft trace $(find . -type d -name "src" -o -name "doc") -a swdd,utest,itest,stest,impl -o html -f dist/req_tracing_report.html || true
+          just trace-requirements dist/req_tracing_report.html
       - uses: actions/upload-artifact@v4.3.3
         with:
           name: requirement-tracing-report
