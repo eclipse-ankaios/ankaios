@@ -13,11 +13,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base;
+use common::commands;
 
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-use common::objects::{WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
+use common::objects::{
+    AgentAttributes, CpuUsage, FreeMemory, WorkloadInstanceName, WorkloadState, WorkloadStatesMap,
+};
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
@@ -272,12 +275,28 @@ impl ServerState {
 
     // [impl->swdd~server-state-stores-agent-in-complete-state~1]
     pub fn add_agent(&mut self, agent_name: String) {
-        self.state.agents.entry(agent_name).or_default();
+        self.state
+            .agents
+            .entry(agent_name)
+            .or_insert(AgentAttributes {
+                cpu_usage: Some(CpuUsage::default()),
+                free_memory: Some(FreeMemory::default()),
+            });
     }
 
     // [impl->swdd~server-state-removes-agent-from-complete-state~1]
     pub fn remove_agent(&mut self, agent_name: &str) {
         self.state.agents.remove(agent_name);
+    }
+
+    // [impl->swdd~server-updates-resource-availability~1]
+    pub fn update_agent_resource_availability(
+        &mut self,
+        agent_load_status: commands::AgentLoadStatus,
+    ) {
+        self.state
+            .agents
+            .update_resource_availability(agent_load_status);
     }
 
     // [impl->swdd~server-cleans-up-state~1]
@@ -301,12 +320,12 @@ mod tests {
 
     use api::ank_base::{self, Dependencies, Tags};
     use common::{
-        commands::CompleteStateRequest,
+        commands::{AgentLoadStatus, CompleteStateRequest},
         objects::{
-            generate_test_agent_map, generate_test_stored_workload_spec, 
-            generate_test_workload_spec_with_control_interface_access, 
-            generate_test_workload_spec_with_param, AgentMap,
-            CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
+            generate_test_agent_map, generate_test_stored_workload_spec,
+            generate_test_workload_spec_with_control_interface_access,
+            generate_test_workload_spec_with_param, AgentMap, CompleteState, CpuUsage,
+            DeletedWorkload, FreeMemory, State, WorkloadSpec, WorkloadStatesMap,
         },
         test_utils::{self, generate_test_complete_state},
     };
@@ -1045,6 +1064,38 @@ mod tests {
         assert!(added_deleted_workloads.is_some());
     }
 
+    // [utest->swdd~server-updates-resource-availability~1]
+    #[test]
+    fn utest_server_state_update_agent_resource_availability() {
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut server_state = ServerState {
+            state: generate_test_complete_state(vec![w1.clone()]),
+            ..Default::default()
+        };
+        let cpu_usage = CpuUsage { cpu_usage: 42 };
+        let free_memory = FreeMemory { free_memory: 42 };
+        server_state.update_agent_resource_availability(AgentLoadStatus {
+            agent_name: AGENT_A.to_string(),
+            cpu_usage: cpu_usage.clone(),
+            free_memory: free_memory.clone(),
+        });
+
+        let stored_state = server_state
+            .state
+            .agents
+            .entry(AGENT_A.to_string())
+            .or_default()
+            .to_owned();
+
+        assert_eq!(stored_state.cpu_usage, Some(cpu_usage));
+        assert_eq!(stored_state.free_memory, Some(free_memory));
+    }
+
     // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
     #[test]
     fn utest_remove_deleted_workloads_from_delete_graph() {
@@ -1069,6 +1120,11 @@ mod tests {
     fn utest_add_agent() {
         let mut server_state = ServerState::default();
         server_state.add_agent(AGENT_A.to_string());
+        server_state.update_agent_resource_availability(AgentLoadStatus {
+            agent_name: AGENT_A.to_string(),
+            cpu_usage: CpuUsage { cpu_usage: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
+        });
 
         let expected_agent_map = generate_test_agent_map(AGENT_A);
 

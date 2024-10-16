@@ -65,6 +65,13 @@ def table_to_dict(input_list, key):
     logger.trace(out_dict)
     return out_dict
 
+def get_agent_dict(table_dict, agent_name):
+    agent_dict = table_dict.get(agent_name)
+    assert agent_dict, f"Agent {agent_name} does not provide availabe resources information"
+    logger.trace(agent_dict)
+    return agent_dict
+
+
 def to_x_dot_y_format(x, y):
     return f"{x}.{y}"
 
