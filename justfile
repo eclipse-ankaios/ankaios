@@ -46,8 +46,8 @@ test:
 stest: build stest-only
 
 # Only execute the stests without building
-stest-only:
-    ./tools/run_robot_tests.sh tests
+stest-only tests="tests":
+    ./tools/run_robot_tests.sh {{ tests }}
 
 # Run clippy code checks
 clippy:

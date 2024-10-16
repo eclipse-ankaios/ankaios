@@ -1106,6 +1106,7 @@ mod tests {
         assert_eq!(res, Ok("test_id".to_string()));
     }
 
+    // [utest->swdd~podman-create-workload-starts-existing-workload~1]
     #[tokio::test]
     async fn utest_start_container_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1128,6 +1129,7 @@ mod tests {
         assert_eq!(res, Ok(ID.to_string()));
     }
 
+    // [utest->swdd~podman-create-workload-starts-existing-workload~1]
     #[tokio::test]
     async fn utest_start_container_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;

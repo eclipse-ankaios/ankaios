@@ -265,7 +265,13 @@ impl RuntimeManager {
                                         &self.update_state_tx,
                                     ),
                                 );
-                            } else if Self::is_reusable_workload(&workload_state, &workload_id) {
+                            } else if Self::is_reusable_workload(
+                                &workload_state,
+                                &workload_id,
+                                &new_instance_name,
+                            ) {
+                                // [impl->swdd~agent-existing-workloads-reuse-unmodified~1]
+
                                 log::info!(
                                     "Re-starting workload '{}'",
                                     new_instance_name.workload_name()
@@ -276,7 +282,7 @@ impl RuntimeManager {
                                     workload_id,
                                 ));
                             } else {
-                                // [impl->swdd~agent-existing-workloads-replace-updated~2]
+                                // [impl->swdd~agent-existing-workloads-replace-updated~3]
 
                                 log::info!(
                                     "Replacing existing workload '{}'.",
@@ -335,11 +341,15 @@ impl RuntimeManager {
     fn is_reusable_workload(
         workload_state_existing_workload: &WorkloadState,
         workload_id_existing_workload: &Option<String>,
+        new_instance_name: &WorkloadInstanceName,
     ) -> bool {
         workload_state_existing_workload
             .execution_state
             .is_succeeded()
             && workload_id_existing_workload.is_some()
+            && workload_state_existing_workload
+                .instance_name
+                .eq(new_instance_name)
     }
 
     // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
@@ -986,7 +996,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-existing-workloads-replace-updated~2]
+    // [utest->swdd~agent-existing-workloads-replace-updated~3]
     #[tokio::test]
     async fn utest_replace_existing_workload_with_different_config() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1057,7 +1067,7 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-existing-workloads-replace-updated~2]
+    // [utest->swdd~agent-existing-workloads-replace-updated~3]
     #[tokio::test]
     async fn utest_replace_existing_not_running_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1119,6 +1129,7 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-existing-workloads-reuse-unmodified~1]
     #[tokio::test]
     async fn utest_reuse_existing_succeeded_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1348,7 +1359,7 @@ mod tests {
             .await;
     }
 
-    // [utest->swdd~agent-existing-workloads-replace-updated~2]
+    // [utest->swdd~agent-existing-workloads-replace-updated~3]
     #[tokio::test]
     async fn utest_handle_update_workload_initial_call_replace_workload_with_unfulfilled_dependencies(
     ) {
