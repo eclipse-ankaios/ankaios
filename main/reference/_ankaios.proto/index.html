@@ -1158,6 +1158,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#cpuusage" class="md-nav__link">
+    <span class="md-ellipsis">
+      CpuUsage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#dependencies" class="md-nav__link">
     <span class="md-ellipsis">
       Dependencies
@@ -1224,6 +1233,15 @@
   <a href="#executionsstatesofworkloadwlnamestatemapentry" class="md-nav__link">
     <span class="md-ellipsis">
       ExecutionsStatesOfWorkload.WlNameStateMapEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#freememory" class="md-nav__link">
+    <span class="md-ellipsis">
+      FreeMemory
     </span>
   </a>
   
@@ -2047,6 +2065,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#cpuusage" class="md-nav__link">
+    <span class="md-ellipsis">
+      CpuUsage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#dependencies" class="md-nav__link">
     <span class="md-ellipsis">
       Dependencies
@@ -2113,6 +2140,15 @@
   <a href="#executionsstatesofworkloadwlnamestatemapentry" class="md-nav__link">
     <span class="md-ellipsis">
       ExecutionsStatesOfWorkload.WlNameStateMapEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#freememory" class="md-nav__link">
+    <span class="md-ellipsis">
+      FreeMemory
     </span>
   </a>
   
@@ -2418,6 +2454,7 @@
 <li><a href="#ank_base-ConfigObject">ConfigObject</a></li>
 <li><a href="#ank_base-ConfigObject-FieldsEntry">ConfigObject.FieldsEntry</a></li>
 <li><a href="#ank_base-ControlInterfaceAccess">ControlInterfaceAccess</a></li>
+<li><a href="#ank_base-CpuUsage">CpuUsage</a></li>
 <li><a href="#ank_base-Dependencies">Dependencies</a></li>
 <li><a href="#ank_base-Dependencies-DependenciesEntry">Dependencies.DependenciesEntry</a></li>
 <li><a href="#ank_base-Error">Error</a></li>
@@ -2426,6 +2463,7 @@
 <li><a href="#ank_base-ExecutionsStatesForId-IdStateMapEntry">ExecutionsStatesForId.IdStateMapEntry</a></li>
 <li><a href="#ank_base-ExecutionsStatesOfWorkload">ExecutionsStatesOfWorkload</a></li>
 <li><a href="#ank_base-ExecutionsStatesOfWorkload-WlNameStateMapEntry">ExecutionsStatesOfWorkload.WlNameStateMapEntry</a></li>
+<li><a href="#ank_base-FreeMemory">FreeMemory</a></li>
 <li><a href="#ank_base-Request">Request</a></li>
 <li><a href="#ank_base-Response">Response</a></li>
 <li><a href="#ank_base-State">State</a></li>
@@ -2545,7 +2583,31 @@
 </table>
 <p><a name="ank_base-AgentAttributes"></a></p>
 <h3 id="agentattributes">AgentAttributes<a class="headerlink" href="#agentattributes" title="Permanent link">&para;</a></h3>
-<p>A message that has not yet been implemented but will contain attributes of the agent in the future.</p>
+<p>A message that contains attributes of the agent.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cpu_usage</td>
+<td><a href="#ank_base-CpuUsage">CpuUsage</a></td>
+<td></td>
+<td>The cpu usage of the agent.</td>
+</tr>
+<tr>
+<td>free_memory</td>
+<td><a href="#ank_base-FreeMemory">FreeMemory</a></td>
+<td></td>
+<td>The amount of free memory of the agent.</td>
+</tr>
+</tbody>
+</table>
 <p><a name="ank_base-AgentMap"></a></p>
 <h3 id="agentmap">AgentMap<a class="headerlink" href="#agentmap" title="Permanent link">&para;</a></h3>
 <p>A nested map that provides the names of the connected agents and their optional attributes.
@@ -2872,6 +2934,27 @@ Only if a matching allow rule is found, and no matching deny rules is found, the
 </tr>
 </tbody>
 </table>
+<p><a name="ank_base-CpuUsage"></a></p>
+<h3 id="cpuusage">CpuUsage<a class="headerlink" href="#cpuusage" title="Permanent link">&para;</a></h3>
+<p>A message containing the CPU usage information of the agent.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cpu_usage</td>
+<td><a href="#uint32">uint32</a></td>
+<td></td>
+<td>expressed in percent, the formula for calculating: cpu_usage = (new_work_time - old_work_time) / (new_total_time - old_total_time) * 100</td>
+</tr>
+</tbody>
+</table>
 <p><a name="ank_base-Dependencies"></a></p>
 <h3 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h3>
 <p>This is a workaround for proto not supporing optional maps</p>
@@ -3100,6 +3183,27 @@ This level is needed as a workload could be running more than once on one agent 
 <td><a href="#ank_base-ExecutionsStatesForId">ExecutionsStatesForId</a></td>
 <td></td>
 <td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-FreeMemory"></a></p>
+<h3 id="freememory">FreeMemory<a class="headerlink" href="#freememory" title="Permanent link">&para;</a></h3>
+<p>A message containing the amount of free memory of the agent.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>free_memory</td>
+<td><a href="#uint64">uint64</a></td>
+<td></td>
+<td>expressed in bytes</td>
 </tr>
 </tbody>
 </table>

@@ -1623,9 +1623,9 @@ Ankaios does not need root privileges and can be started as any user.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>agents
 </code></pre></div>
 <p>It should print:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>NAME           WORKLOADS
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>agent_A        2
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>infotainment   0
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>NAME           WORKLOADS      CPU USAGE      FREE MEMORY
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>agent_A        2              42.42%         42B
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>infotainment   0              42.42%         42B
 </code></pre></div>
 <p>Since <code>agent_A</code> is already managing the <code>databroker</code> and the <code>speed-provider</code> workloads, the <code>WORKLOADS</code> column contains the number <code>2</code>. The Ankaios agent <code>infotainment</code> has recently been started and does not yet manage any workloads.</p>
 <div class="admonition note">
