@@ -725,6 +725,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### ServerState updates its desired state on unmodified workloads
 `swdd~server-state-updates-state-on-unmodified-workloads~1`
@@ -782,13 +783,13 @@ Needs:
 
 Status: approved
 
-When the ConfigRenderer is requested to render the workloads with configuration items, for each provided workload the ConfigRenderer shall:
-* create a data structure containing the configuration items of the CompleteState referenced inside the workload's configuration
-* render the workload's `agent` and `runtimeConfig` fields by replacing each template string with the referenced configuration item
+When the ConfigRenderer is requested to render the workloads with configuration items, for each provided workload that references config items inside its `configs` field, the ConfigRenderer shall:
+* create a data structure containing memory references to the config items of the CompleteState referenced inside its `configs` field
+* render the workload's `agent` and `runtimeConfig` fields by replacing each template string with the referenced configuration item content
 * create a new workload configuration containing the rendered fields and the new instance name
 
 Comment:
-In case of a render error, the workload configuration remains unrendered and an error is thrown. If a workload does not reference a configuration item, the rendering of that workload is skipped.
+In case of a render error, the workload configuration remains unrendered and an error is thrown. If a workload does not reference a configuration item, the rendering of that workload is skipped and its fields remain unrendered.
 
 Tags:
 - ConfigRenderer

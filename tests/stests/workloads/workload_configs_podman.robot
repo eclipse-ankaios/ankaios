@@ -27,8 +27,8 @@ ${new_state_yaml_file}          ${EMPTY}
 
 
 *** Test Cases ***
-# [itest->swdd~cli-standalone-application~1]
-Test Ankaios CLI start up with templated Ankaios manifest and update state with updated config item
+# [stest->swdd~server-state-compares-rendered-workloads~1]
+Test Ankaios start up with templated Ankaios manifest and update state with updated config item
     [Setup]    Run Keywords    Setup Ankaios
     ...    AND    Set Global Variable    ${start_up_yaml_file}    ${CONFIGS_DIR}/manifest_with_configs.yaml
     ...    AND    Set Global Variable    ${new_state_yaml_file}   ${CONFIGS_DIR}/update_state_updated_config_item.yaml
@@ -44,4 +44,17 @@ Test Ankaios CLI start up with templated Ankaios manifest and update state with 
     # Asserts
     Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     And the command "curl localhost:8082" shall finish with exit code "0" within "10" seconds
+    [Teardown]    Clean up Ankaios
+
+# [stest->swdd~server-fails-on-invalid-startup-state~1]
+Test Ankaios start up fails with invalid templated Ankaios manifest
+    [Setup]    Run Keywords    Setup Ankaios
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    # Actions
+    # Manifest contains invalid template string syntax
+    And Ankaios server is started with an invalid config "${CONFIGS_DIR}/invalid_templated_manifest.yaml"
+    # Asserts
+    Then the Ankaios server shall exit with an error code
     [Teardown]    Clean up Ankaios
