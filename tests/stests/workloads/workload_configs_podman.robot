@@ -46,6 +46,23 @@ Test Ankaios start up with templated Ankaios manifest and update state with upda
     And the command "curl localhost:8082" shall finish with exit code "0" within "10" seconds
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~common-config-item-key-naming-convention~1]
+# [stest->swdd~server-naming-convention~1]
+Test Ankaios update configs with invalid config item key
+    [Setup]    Run Keywords    Setup Ankaios
+
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started without config
+    And Ankaios agent is started with name "agent_A"
+    # Actions
+    Then the configs field inside the state shall be empty
+    When user triggers "ank -k set state desiredState.configs ${CONFIGS_DIR}/update_state_invalid_config_keys.yaml"
+    Then the configs field inside the state shall be empty
+
+    [Teardown]    Clean up Ankaios
+
 # [stest->swdd~server-fails-on-invalid-startup-state~1]
 Test Ankaios start up fails with invalid templated Ankaios manifest
     [Setup]    Run Keywords    Setup Ankaios

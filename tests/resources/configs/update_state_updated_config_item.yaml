@@ -34,18 +34,4 @@ desiredState:
       name: Chris Smith
     web_server_config:
       access_port: '8082'
-workloadStates:
-  agent_A:
-    greeting_persons:
-      cebafc537b62418bd7cd8220c5d09954ce01c70e9b826d328876f7b7dfa0dc7c:
-        state: Succeeded
-        subState: Ok
-        additionalInfo: ''
-    nginx:
-      32e369e966e79ccda3ec5c95bffe5f0763d2415203d8d5362c17458047effddf:
-        state: Running
-        subState: Ok
-        additionalInfo: ''
-agents:
-  agent_A: {}
 

@@ -389,13 +389,14 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### Config aliases and referenced config keys naming convention
 `swdd~common-config-aliases-and-config-reference-keys-naming-convention~1`
 
 Status: approved
 
-The Common library shall provide functionality for enforcing a workload's config aliases and referenced config items to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+The Common library shall provide functionality for enforcing a workload's config reference key value pairs to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
 
 Rationale:
 A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
