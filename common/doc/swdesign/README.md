@@ -373,6 +373,40 @@ Needs:
 - utest
 - stest
 
+#### Config item key naming convention
+`swdd~common-config-item-key-naming-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing a config item key to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+
+Rationale:
+A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
+#### Config aliases and referenced config keys naming convention
+`swdd~common-config-aliases-and-config-reference-keys-naming-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing a workload's config aliases and referenced config items to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+
+Rationale:
+A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
 #### Provide common conversions between Ankaios and protobuf
 `swdd~common-conversions-between-ankaios-and-proto~1`
 

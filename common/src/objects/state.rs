@@ -105,6 +105,7 @@ impl State {
         }
     }
 
+    // [swdd->swdd~common-config-item-key-naming-convention~1]
     pub fn verify_configs_format(provided_state: &State) -> Result<(), String> {
         let re_config_items = Regex::new(STR_RE_CONFIG_REFERENCES).unwrap();
         for config_key in provided_state.configs.keys() {
@@ -117,6 +118,7 @@ impl State {
         }
 
         for workload in provided_state.workloads.values() {
+            // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
             StoredWorkloadSpec::verify_config_reference_format(&workload.configs)?;
         }
         Ok(())
@@ -140,9 +142,14 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{
-        objects::State,
+        objects::{generate_test_configs, generate_test_stored_workload_spec, ConfigItem, State},
         test_utils::{generate_test_proto_state, generate_test_state},
     };
+
+    const WORKLOAD_NAME_1: &str = "workload_1";
+    const AGENT_A: &str = "agent_A";
+    const RUNTIME: &str = "runtime";
+    const INVALID_CONFIG_KEY: &str = "invalid%key";
 
     #[test]
     fn utest_converts_to_proto_state() {
@@ -219,5 +226,64 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert_eq!(deserialization_result, "missing field `apiVersion`");
+    }
+
+    // [utest->swdd~common-config-item-key-naming-convention~1]
+    #[test]
+    fn utest_verify_configs_format_compatible_config_item_keys_and_config_references() {
+        let workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME);
+        let state = State {
+            api_version: super::CURRENT_API_VERSION.into(),
+            workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+            configs: generate_test_configs(),
+        };
+
+        assert_eq!(State::verify_configs_format(&state), Ok(()));
+    }
+
+    // [utest->swdd~common-config-item-key-naming-convention~1]
+    #[test]
+    fn utest_verify_configs_format_incompatible_config_item_key() {
+        let state = State {
+            api_version: super::CURRENT_API_VERSION.into(),
+            configs: HashMap::from([(
+                INVALID_CONFIG_KEY.to_owned(),
+                ConfigItem::String("value".to_string()),
+            )]),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            State::verify_configs_format(&state),
+            Err(format!(
+                "Unsupported config item key. Received '{}', expected to have characters in {}",
+                INVALID_CONFIG_KEY,
+                super::STR_RE_CONFIG_REFERENCES
+            ))
+        );
+    }
+
+    // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    #[test]
+    fn utest_verify_configs_format_incompatible_config_reference_key() {
+        let mut workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME);
+        workload
+            .configs
+            .insert(INVALID_CONFIG_KEY.to_owned(), "config_1".to_string());
+
+        let state = State {
+            api_version: super::CURRENT_API_VERSION.into(),
+            workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            State::verify_configs_format(&state),
+            Err(format!(
+                "Unsupported config alias. Received '{}', expected to have characters in {}",
+                INVALID_CONFIG_KEY,
+                super::STR_RE_CONFIG_REFERENCES
+            ))
+        );
     }
 }

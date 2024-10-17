@@ -46,6 +46,7 @@ pub struct StoredWorkloadSpec {
 }
 
 impl StoredWorkloadSpec {
+    // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
     pub fn verify_config_reference_format(
         config_references: &HashMap<String, String>,
     ) -> Result<(), String> {
@@ -210,4 +211,27 @@ pub fn generate_test_stored_workload_spec(
 
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::StoredWorkloadSpec;
+    use std::collections::HashMap;
+
+    // one test for a failing case, other cases are tested on the caller side to not repeat test code
+    // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    #[test]
+    fn utest_verify_config_reference_format_invalid_config_reference_key() {
+        let invalid_config_reference_key = "invalid%key";
+        let mut configs = HashMap::new();
+        configs.insert(
+            invalid_config_reference_key.to_owned(),
+            "config_1".to_owned(),
+        );
+        assert_eq!(
+            StoredWorkloadSpec::verify_config_reference_format(&configs),
+            Err(format!(
+                "Unsupported config alias. Received '{}', expected to have characters in {}",
+                invalid_config_reference_key,
+                super::STR_RE_CONFIG_REFERENCES
+            ))
+        );
+    }
+}
