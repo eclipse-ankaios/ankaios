@@ -18,10 +18,11 @@ use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
 use crate::BUFFER_SIZE;
 use common::objects::{WorkloadInstanceName, WorkloadSpec, WorkloadState};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 pub struct ControlLoopState<WorkloadId, StChecker>
 where
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     pub workload_spec: WorkloadSpec,
@@ -39,7 +40,7 @@ where
 
 impl<WorkloadId, StChecker> ControlLoopState<WorkloadId, StChecker>
 where
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     pub fn builder() -> ControlLoopStateBuilder<WorkloadId, StChecker> {
@@ -53,10 +54,11 @@ where
 
 pub struct ControlLoopStateBuilder<WorkloadId, StChecker>
 where
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     workload_spec: Option<WorkloadSpec>,
+    workload_id: Option<WorkloadId>,
     control_interface_path: Option<PathBuf>,
     workload_state_sender: Option<WorkloadStateSender>,
     runtime: Option<Box<dyn RuntimeConnector<WorkloadId, StChecker>>>,
@@ -67,12 +69,13 @@ where
 
 impl<WorkloadId, StChecker> ControlLoopStateBuilder<WorkloadId, StChecker>
 where
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     pub fn new() -> Self {
         ControlLoopStateBuilder {
             workload_spec: None,
+            workload_id: None,
             control_interface_path: None,
             workload_state_sender: None,
             runtime: None,
@@ -84,6 +87,11 @@ where
 
     pub fn workload_spec(mut self, workload_spec: WorkloadSpec) -> Self {
         self.workload_spec = Some(workload_spec);
+        self
+    }
+
+    pub fn workload_id(mut self, workload_id: Option<WorkloadId>) -> Self {
+        self.workload_id = workload_id;
         self
     }
 
@@ -122,7 +130,7 @@ where
                 .workload_spec
                 .ok_or_else(|| "WorkloadSpec is not set".to_string())?,
             control_interface_path: self.control_interface_path,
-            workload_id: None,
+            workload_id: self.workload_id,
             state_checker: None,
             to_agent_workload_state_sender: self
                 .workload_state_sender

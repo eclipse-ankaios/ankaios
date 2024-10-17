@@ -531,7 +531,6 @@ Tags:
 - CliCommands
 
 Needs:
-- swdd
 - impl
 - utest
 
