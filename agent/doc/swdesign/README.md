@@ -2759,6 +2759,23 @@ Needs:
 - impl
 - utest
 
+#### AgentManager sends the node resource availability to the server
+`swdd~agent-sends-node-resource-availability-to-server~1`
+
+Status: approved
+
+At an interval of 2 seconds, the AgentManager measures the global CPU usage and the available free memory and sends them to the Ankaios server via an `AgentLoadStatus` message.
+
+Rationale:
+Available resources must be available in the cluster in order to enable dynamic scheduling, e.g., done by a workload.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
 ### Forwarding the Control Interface
 
 The Ankaios Agent is responsible to forward Control Interface requests from a Workload to the Ankaios Server and to forward Control Interface responses from the Ankaios Server to the Workload.

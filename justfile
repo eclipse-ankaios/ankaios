@@ -32,6 +32,9 @@ check-licenses:
 check-test-images:
     test -z "$(find tests/resources/configs -type f -exec grep -H -P 'image: (?!ghcr\.io/|image_typo:latest)' {} \;)"
 
+check-copyright-headers:
+	./tools/check_copyright_headers.sh
+
 test:
     cargo nextest run
 

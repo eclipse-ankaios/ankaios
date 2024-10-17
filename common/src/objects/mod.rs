@@ -25,7 +25,7 @@ pub use complete_state::CompleteState;
 mod agent_map;
 #[cfg(any(feature = "test_utils", test))]
 pub use agent_map::{generate_test_agent_map, generate_test_agent_map_from_specs};
-pub use agent_map::{AgentAttributes, AgentMap};
+pub use agent_map::{AgentAttributes, AgentMap, CpuUsage, FreeMemory};
 
 mod workload_states_map;
 pub use workload_states_map::WorkloadStatesMap;

@@ -935,6 +935,38 @@ Needs:
 - impl
 - utest
 
+#### Server receives agent node resource availability
+`swdd~server-receives-resource-availability~1`
+
+Status: approved
+
+When the Ankaios server receives a new agent load status, the Ankaios server shall trigger the ServerState to update the connected agent's resource availability with the provided new agent load status.
+
+Rationale:
+The resource availability can be used for scheduling, e.g. done by controller workloads.
+
+Tags:
+- AnkaiosServer
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### ServerState updates agent node resource availability
+`swdd~server-updates-resource-availability~1`
+
+Status: approved
+
+When the ServerState receives a new agent load status, the ServerState shall update its internal state with agent node resource availability information regarding the cpu usage and the free memory.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
 #### Server cleans up state
 `swdd~server-cleans-up-state~1`
 
