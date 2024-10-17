@@ -858,10 +858,11 @@ mod tests {
 
         let expected = state_with_updated_config.clone();
 
-        assert!(server_state
+        let added_deleted_workloads = server_state
             .update(state_with_updated_config, update_mask)
-            .is_ok());
+            .unwrap();
 
+        assert!(added_deleted_workloads.is_none());
         assert_eq!(expected, server_state.state);
     }
 
