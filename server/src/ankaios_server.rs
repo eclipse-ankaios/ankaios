@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+mod config_renderer;
 mod cycle_check;
 mod delete_graph;
 mod server_state;
@@ -67,7 +68,7 @@ impl AnkaiosServer {
 
     pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
         if let Some(state) = startup_state {
-            State::verify_format(&state.desired_state)?;
+            State::verify_api_format(&state.desired_state)?;
 
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
@@ -258,8 +259,9 @@ impl AnkaiosServer {
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
                         // [impl->swdd~update-desired-state-with-missing-version~1]
                         // [impl->swdd~server-naming-convention~1]
-                        if let Err(error_message) =
-                            State::verify_format(&update_state_request.state.desired_state)
+                        let updated_desired_state = &update_state_request.state.desired_state;
+                        if let Err(error_message) = State::verify_api_format(updated_desired_state)
+                            .and_then(|_| State::verify_configs_format(updated_desired_state))
                         {
                             log::warn!("The CompleteState in the request has wrong format. {} -> ignoring the request", error_message);
 
@@ -423,7 +425,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        // contains a self cycle to workload A
+        // contains a self cycle to workload_A
         let workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME_NAME);
 
         let startup_state = CompleteState {
@@ -529,7 +531,7 @@ mod tests {
             .once()
             .in_sequence(&mut seq)
             .return_const(Err(UpdateStateError::CycleInDependencies(
-                "workload A".to_string(),
+                "workload_A".to_string(),
             )));
 
         let added_workloads = vec![updated_workload.clone()];
