@@ -91,9 +91,9 @@ pub struct FilteredFreeMemory {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredAgentAttributes {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub cpu_usage: Option<FilteredCpuUsage>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub free_memory: Option<FilteredFreeMemory>,
 }
 
