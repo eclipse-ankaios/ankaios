@@ -603,26 +603,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn utest_generate_state_obj_and_filter_masks_from_manifests_no_workload_provided() {
-        let manifest_file_name = "manifest.yaml";
-        let manifest_content = io::Cursor::new(b"apiVersion: \"v0.1\"");
-        let mut manifests: Vec<InputSourcePair> =
-            vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
-
-        assert_eq!(
-            Ok(None),
-            generate_state_obj_and_filter_masks_from_manifests(
-                &mut manifests[..],
-                &ApplyArgs {
-                    agent_name: None,
-                    manifest_files: vec![manifest_file_name.to_string()],
-                    delete_mode: true,
-                },
-            )
-        );
-    }
-
     //[utest->swdd~cli-apply-send-update-state~1]
     // [utest->swdd~cli-watches-workloads~1]
     #[tokio::test]
@@ -886,7 +866,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(b"apiVersion: \"v0.1\"\nworkloads: {}");
+        let manifest_content = io::Cursor::new(b"apiVersion: \"v0.1\"");
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection.expect_update_state().never();
