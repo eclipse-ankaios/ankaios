@@ -31,6 +31,7 @@ use prost::Message;
 use tokio::{io, select, task::JoinHandle};
 
 const INITIAL_HELLO_MISSING_MSG: &str = "Initial Hello missing!";
+const PROTOBUF_DECODE_ERROR_MSG: &str = "Could not decode protobuf data";
 
 fn decode_to_server(protobuf_data: io::Result<Vec<u8>>) -> io::Result<control_api::ToAnkaios> {
     Ok(control_api::ToAnkaios::decode(&mut Box::new(
@@ -69,15 +70,18 @@ impl ControlInterfaceTask {
 
     // [impl->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
     async fn check_initial_hello(&mut self) -> Result<(), String> {
-        if let Ok(to_ankaios) = decode_to_server(self.input_stream.read_protobuf_data().await) {
-            match to_ankaios.try_into() {
-                Ok(ToAnkaios::Hello(to_ankaios::Hello { protocol_version })) => {
-                    check_version_compatibility(protocol_version)?
-                }
-                unexpected => {
-                    log::debug!("Expected initial Hello, received: '{unexpected:?}'.");
-                    return Err(INITIAL_HELLO_MISSING_MSG.into());
-                }
+        let to_ankaios =
+            decode_to_server(self.input_stream.read_protobuf_data().await).map_err(|err| {
+                log::debug!("{}: '{:?}'", PROTOBUF_DECODE_ERROR_MSG, err);
+                PROTOBUF_DECODE_ERROR_MSG.to_string()
+            })?;
+        match to_ankaios.try_into() {
+            Ok(ToAnkaios::Hello(to_ankaios::Hello { protocol_version })) => {
+                check_version_compatibility(protocol_version)?
+            }
+            unexpected => {
+                log::debug!("Expected initial Hello, received: '{unexpected:?}'.");
+                return Err(INITIAL_HELLO_MISSING_MSG.into());
             }
         }
         Ok(())
