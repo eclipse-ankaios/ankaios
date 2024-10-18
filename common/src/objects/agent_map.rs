@@ -57,6 +57,10 @@ impl AgentMap {
         self.0.entry(key)
     }
 
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.0.contains_key(key)
+    }
+
     pub fn remove(&mut self, key: &str) {
         self.0.remove(key);
     }

@@ -101,7 +101,10 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use super::{io, process_inputs, CliCommands};
-    use crate::cli_commands::server_connection::MockServerConnection;
+    use crate::{
+        cli_commands::server_connection::MockServerConnection,
+        filtered_complete_state::FilteredCompleteState,
+    };
     use api::ank_base::UpdateStateSuccess;
     use common::{
         objects::{CompleteState, RestartPolicy, State, StoredWorkloadSpec, Tag},
@@ -201,6 +204,10 @@ mod tests {
             ..Default::default()
         };
         let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .once()
+            .returning(|_| Ok(FilteredCompleteState::default()));
         mock_server_connection
             .expect_update_state()
             .with(eq(updated_state), eq(update_mask.clone()))

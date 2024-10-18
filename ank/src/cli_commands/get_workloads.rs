@@ -32,22 +32,28 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         if let Some(agent_name) = agent_name {
-            workload_infos.retain(|wi| wi.1.agent == agent_name);
+            workload_infos
+                .get_mut()
+                .retain(|wi| wi.1.agent == agent_name);
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         if let Some(state) = state {
-            workload_infos.retain(|wi| wi.1.execution_state.to_lowercase() == state.to_lowercase());
+            workload_infos
+                .get_mut()
+                .retain(|wi| wi.1.execution_state.to_lowercase() == state.to_lowercase());
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         if !workload_name.is_empty() {
-            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.1.name));
+            workload_infos
+                .get_mut()
+                .retain(|wi| workload_name.iter().any(|wn| wn == &wi.1.name));
         }
 
         // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
         // [impl->swdd~cli-shall-sort-list-of-workloads~1]
-        workload_infos.sort_by_key(|wi| wi.1.name.clone());
+        workload_infos.get_mut().sort_by_key(|wi| wi.1.name.clone());
 
         output_debug!("The table after filtering:\n{:?}", workload_infos);
 
@@ -123,6 +129,7 @@ mod tests {
     }
 
     // [utest->swdd~cli-provides-list-of-workloads~1]
+    // [utest->swdd~processes-complete-state-to-list-workloads~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-list-workloads~1]
     // [utest->swdd~cli-shall-present-list-of-workloads~1]
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
