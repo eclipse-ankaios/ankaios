@@ -105,7 +105,7 @@ impl State {
         }
     }
 
-    // [swdd->swdd~common-config-item-key-naming-convention~1]
+    // [impl->swdd~common-config-item-key-naming-convention~1]
     pub fn verify_configs_format(provided_state: &State) -> Result<(), String> {
         let re_config_items = Regex::new(STR_RE_CONFIG_REFERENCES).unwrap();
         for config_key in provided_state.configs.keys() {
@@ -265,7 +265,7 @@ mod tests {
 
     // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
     #[test]
-    fn utest_verify_configs_format_incompatible_config_reference_key() {
+    fn utest_verify_configs_format_incompatible_workload_config_alias() {
         let mut workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME);
         workload
             .configs

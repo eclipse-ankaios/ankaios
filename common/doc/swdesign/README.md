@@ -407,6 +407,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### Provide common conversions between Ankaios and protobuf
 `swdd~common-conversions-between-ankaios-and-proto~1`

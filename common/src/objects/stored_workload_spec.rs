@@ -61,7 +61,7 @@ impl StoredWorkloadSpec {
 
             if !re_config_references.is_match(referenced_config) {
                 return Err(format!(
-                    "Unsupported referenced config. Received '{}', expected to have characters in {}",
+                    "Unsupported config reference key. Received '{}', expected to have characters in {}",
                     referenced_config, STR_RE_CONFIG_REFERENCES
                 ));
             }
@@ -222,13 +222,13 @@ mod tests {
         let invalid_config_reference_key = "invalid%key";
         let mut configs = HashMap::new();
         configs.insert(
+            "config_alias_1".to_owned(),
             invalid_config_reference_key.to_owned(),
-            "config_1".to_owned(),
         );
         assert_eq!(
             StoredWorkloadSpec::verify_config_reference_format(&configs),
             Err(format!(
-                "Unsupported config alias. Received '{}', expected to have characters in {}",
+                "Unsupported config reference key. Received '{}', expected to have characters in {}",
                 invalid_config_reference_key,
                 super::STR_RE_CONFIG_REFERENCES
             ))
