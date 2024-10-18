@@ -927,15 +927,15 @@ Needs:
 - stest
 
 #### CLI shall present connected agents as table
-`swdd~cli-presents-connected-agents-as-table~1`
+`swdd~cli-presents-connected-agents-as-table~2`
 
 Status: approved
 
 When the Ankaios CLI presents connected Ankaios agents to the user, the Ankaios CLI shall present the agents as rows in a table with the following content:
 
-| NAME                     | WORKLOADS                        |
-| ------------------------ | -------------------------------- |
-| `<agent_name>` as text   | `<assigned_workloads>` as number |
+| NAME                     | WORKLOADS                          | CPU USAGE                           | FREE MEMORY                |
+| ------------------------ | ---------------------------------- | ----------------------------------- | -------------------------- |
+| `<agent_name>` as text   | `<assigned_workloads>` as number   | `<cpu_usage>` as usage in percent   | `<free_memory>` in bytes   |
 
 Tags:
 - CliCommands
@@ -951,7 +951,7 @@ Status: approved
 
 When the user invokes the CLI with a request to provide the list of connected Ankaios agents, the Ankaios CLI shall:
 * request the whole CompleteState of Ankaios server
-* create a table row for each Ankaios agent listed inside the CompleteState's `agents` field with the agent name and the amount of workload states of its managed workloads
+* create a table row for each Ankaios agent listed inside the CompleteState's `agents` field with the agent name and the amount of workload states of its managed workloads as well as the agent resource availability
 
 Rationale:
 Counting the workload states, rather than the assigned workloads in the desired state for each agent, ensures the correct number of workloads, even if a workload has been deleted from the desired state, but the actual deletion has not yet been scheduled.

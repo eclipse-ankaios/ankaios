@@ -15,6 +15,7 @@ use super::CliCommands;
 use crate::{
     cli_commands::{agent_table_row::AgentTableRow, cli_table::CliTable},
     cli_error::CliError,
+    filtered_complete_state::FilteredAgentAttributes,
     output_debug,
 };
 
@@ -37,23 +38,23 @@ impl CliCommands {
             .agents
             .and_then(|agents| agents.agents)
             .unwrap_or_default()
-            .into_keys();
+            .into_iter();
 
         let agent_table_rows = transform_into_table_rows(connected_agents, &workload_states_map);
 
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
-        // [impl->swdd~cli-presents-connected-agents-as-table~1]
+        // [impl->swdd~cli-presents-connected-agents-as-table~2]
         Ok(CliTable::new(&agent_table_rows).create_default_table())
     }
 }
 
 fn transform_into_table_rows(
-    agents_map: impl Iterator<Item = String>,
+    agents_map: impl Iterator<Item = (String, FilteredAgentAttributes)>,
     workload_states_map: &WorkloadStatesMap,
 ) -> Vec<AgentTableRow> {
     let mut agent_table_rows: Vec<AgentTableRow> = agents_map
-        .map(|agent_name| {
+        .map(|(agent_name, mut agent_attributes)| {
             let workload_states_count = workload_states_map
                 .get_workload_state_for_agent(&agent_name)
                 .len() as u32;
@@ -61,6 +62,8 @@ fn transform_into_table_rows(
             AgentTableRow {
                 agent_name,
                 workloads: workload_states_count,
+                cpu_usage: agent_attributes.get_cpu_usage_as_string(),
+                free_memory: agent_attributes.get_free_memory_as_string(),
             }
         })
         .collect();
@@ -103,7 +106,7 @@ mod tests {
     const WORKLOAD_NAME_2: &str = "workload_2";
     const RUNTIME_NAME: &str = "runtime";
 
-    // [utest->swdd~cli-presents-connected-agents-as-table~1]
+    // [utest->swdd~cli-presents-connected-agents-as-table~2]
     // [utest->swdd~cli-provides-list-of-agents~1]
     // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     #[tokio::test]
@@ -139,9 +142,9 @@ mod tests {
         let table_output_result = cmd.get_agents().await;
 
         let expected_table_output = [
-            "NAME      WORKLOADS",
-            "agent_A   1        ",
-            "agent_B   1        ",
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   1           42%         42B        ",
+            "agent_B   1           42%         42B        ",
         ]
         .join("\n");
 
@@ -176,7 +179,7 @@ mod tests {
 
         let table_output_result = cmd.get_agents().await;
 
-        let expected_table_output = "NAME   WORKLOADS".to_string();
+        let expected_table_output = "NAME   WORKLOADS   CPU USAGE   FREE MEMORY".to_string();
 
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
@@ -203,7 +206,11 @@ mod tests {
 
         let table_output_result = cmd.get_agents().await;
 
-        let expected_table_output = ["NAME      WORKLOADS", "agent_A   0        "].join("\n");
+        let expected_table_output = [
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   0           42%         42B        ",
+        ]
+        .join("\n");
 
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
@@ -265,7 +272,11 @@ mod tests {
 
         let table_output_result = cmd.get_agents().await;
 
-        let expected_table_output = ["NAME      WORKLOADS", "agent_A   1        "].join("\n");
+        let expected_table_output = [
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   1           42%         42B        ",
+        ]
+        .join("\n");
 
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
@@ -298,7 +309,11 @@ mod tests {
 
         let table_output_result = cmd.get_agents().await;
 
-        let expected_table_output = ["NAME      WORKLOADS", "agent_A   1        "].join("\n");
+        let expected_table_output = [
+            "NAME      WORKLOADS   CPU USAGE   FREE MEMORY",
+            "agent_A   1           42%         42B        ",
+        ]
+        .join("\n");
 
         assert_eq!(Ok(expected_table_output), table_output_result);
     }

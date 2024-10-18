@@ -535,7 +535,7 @@ mod tests {
     use crate::workload_state::WorkloadStateReceiver;
     use ank_base::response::ResponseContent;
     use common::objects::{
-        generate_test_control_interface_access,
+        self, generate_test_control_interface_access,
         generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
         AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
@@ -1919,6 +1919,8 @@ mod tests {
                                 runtime: Some("runtime1".to_string()),
                                 runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()),
                                 control_interface_access: None,
+                                configs: Some(ank_base::ConfigMappings {
+                                    configs: Default::default()})
                             })];
         let mut complete_state = test_utils::generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
@@ -1945,9 +1947,15 @@ mod tests {
         });
 
         complete_state.agents = Some(ank_base::AgentMap {
-            agents: HashMap::from([(AGENT_NAME.to_owned(), Default::default())]),
+            agents: HashMap::from([(
+                AGENT_NAME.to_owned(),
+                objects::AgentAttributes {
+                    cpu_usage: Some(objects::CpuUsage { cpu_usage: 42 }),
+                    free_memory: Some(objects::FreeMemory { free_memory: 42 }),
+                }
+                .into(),
+            )]),
         });
-
         let expected_response = ank_base::Response {
             request_id,
             response_content: Some(ResponseContent::CompleteState(complete_state)),

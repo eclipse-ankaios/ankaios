@@ -29,6 +29,26 @@ impl From<AgentHello> for commands::AgentHello {
     }
 }
 
+impl From<AgentLoadStatus> for commands::AgentLoadStatus {
+    fn from(item: AgentLoadStatus) -> Self {
+        commands::AgentLoadStatus {
+            agent_name: item.agent_name,
+            cpu_usage: item.cpu_usage.unwrap_or_default().into(),
+            free_memory: item.free_memory.unwrap_or_default().into(),
+        }
+    }
+}
+
+impl From<commands::AgentLoadStatus> for AgentLoadStatus {
+    fn from(item: commands::AgentLoadStatus) -> Self {
+        AgentLoadStatus {
+            agent_name: item.agent_name,
+            cpu_usage: Some(item.cpu_usage.into()),
+            free_memory: Some(item.free_memory.into()),
+        }
+    }
+}
+
 impl From<commands::UpdateWorkloadState> for UpdateWorkloadState {
     fn from(item: commands::UpdateWorkloadState) -> Self {
         UpdateWorkloadState {
@@ -180,6 +200,9 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
             ToServerEnum::AgentHello(protobuf) => {
                 to_server_interface::ToServer::AgentHello(protobuf.into())
             }
+            ToServerEnum::AgentLoadStatus(protobuf) => {
+                to_server_interface::ToServer::AgentLoadStatus(protobuf.into())
+            }
             ToServerEnum::UpdateWorkloadState(protobuf) => {
                 to_server_interface::ToServer::UpdateWorkloadState(protobuf.into())
             }
@@ -245,13 +268,13 @@ mod tests {
 
     use crate::{
         from_server::FromServerEnum, generate_test_proto_deleted_workload, to_server::ToServerEnum,
-        AddedWorkload, AgentHello, DeletedWorkload, FromServer, ToServer, UpdateWorkload,
-        UpdateWorkloadState,
+        AddedWorkload, AgentHello, AgentLoadStatus, DeletedWorkload, FromServer, ToServer,
+        UpdateWorkload, UpdateWorkloadState,
     };
 
     use api::ank_base::{self, Dependencies};
     use common::{
-        objects::{generate_test_workload_spec, ConfigHash},
+        objects::{generate_test_workload_spec, ConfigHash, CpuUsage, FreeMemory},
         test_utils::{self, generate_test_deleted_workload},
     };
 
@@ -276,6 +299,34 @@ mod tests {
         };
 
         let ankaios_command = ankaios::ToServer::AgentHello(ankaios::AgentHello { agent_name });
+
+        assert_eq!(
+            ankaios::ToServer::try_from(proto_request),
+            Ok(ankaios_command)
+        );
+    }
+
+    #[test]
+    fn utest_convert_proto_to_server_agent_resource() {
+        let agent_load_status = common::commands::AgentLoadStatus {
+            agent_name: "agent_A".to_string(),
+            cpu_usage: CpuUsage { cpu_usage: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
+        };
+
+        let proto_request = ToServer {
+            to_server_enum: Some(ToServerEnum::AgentLoadStatus(AgentLoadStatus {
+                agent_name: agent_load_status.agent_name.clone(),
+                cpu_usage: Some(agent_load_status.cpu_usage.clone().into()),
+                free_memory: Some(agent_load_status.free_memory.clone().into()),
+            })),
+        };
+
+        let ankaios_command = ankaios::ToServer::AgentLoadStatus(ankaios::AgentLoadStatus {
+            agent_name: agent_load_status.agent_name,
+            cpu_usage: agent_load_status.cpu_usage,
+            free_memory: agent_load_status.free_memory,
+        });
 
         assert_eq!(
             ankaios::ToServer::try_from(proto_request),
@@ -351,13 +402,13 @@ mod tests {
             to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
                 request_id: "requeset_id".to_owned(),
                 request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(
-                    ank_base::UpdateStateRequest {
+                    Box::new(ank_base::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(test_utils::generate_test_proto_complete_state(&[(
                             "test_workload",
                             workloads,
                         )])),
-                    },
+                    }),
                 )),
             })),
         };

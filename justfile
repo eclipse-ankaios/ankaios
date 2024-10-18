@@ -12,17 +12,35 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# Note:
-#
-# This Makefile is work in progress. Currently it contains only a small subset
-# of all steps.
+all: check-test-images check-licenses test stest build-release
 
-all: check-test-images check-licenses
+build:
+    cargo build
+
+build-release:
+    cargo build --release
+
+clean:
+    cargo clean
+    ./tools/dev_scripts/ankaios-clean
+    rm -rf build
 
 check-licenses:
-	cargo deny check licenses
+    cargo deny check licenses
 
 # Prevent non ghcr.io images to be used in test due to rate limit problem
 check-test-images:
-	test -z "$(shell find tests/resources/configs -type f -exec grep -H -P 'image: (?!ghcr\.io/|image_typo:latest)' {} \;)"
+    test -z "$(find tests/resources/configs -type f -exec grep -H -P 'image: (?!ghcr\.io/|image_typo:latest)' {} \;)"
 
+check-copyright-headers:
+	./tools/check_copyright_headers.sh
+
+test:
+    cargo nextest run
+
+# Build debug and run all system tests
+stest: build stest-only
+
+# only execute the stests without building
+stest-only:
+    ./tools/run_robot_tests.sh tests

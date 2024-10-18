@@ -199,6 +199,7 @@ mod tests {
             desired_state: State {
                 workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
                 api_version: "api_version".into(),
+                ..Default::default()
             },
             ..Default::default()
         };

@@ -134,7 +134,7 @@ impl AnkaiosServer {
                     let added_workloads = self.server_state.get_workloads_for_agent(&agent_name);
 
                     log::debug!(
-                        "Sending initial UpdateWorkload to agent '{}' with added workloads: '{:?}'",
+                        "Sending initial ServerHello to agent '{}' with added workloads: '{:?}'",
                         agent_name,
                         added_workloads,
                     );
@@ -147,6 +147,18 @@ impl AnkaiosServer {
 
                     // [impl->swdd~server-stores-newly-connected-agent~1]
                     self.server_state.add_agent(agent_name);
+                }
+                // [impl->swdd~server-receives-resource-availability~1]
+                ToServer::AgentLoadStatus(method_obj) => {
+                    log::trace!(
+                        "Received load status from agent '{}': CPU usage: {}%, Free Memory: {}B",
+                        method_obj.agent_name,
+                        method_obj.cpu_usage.cpu_usage,
+                        method_obj.free_memory.free_memory,
+                    );
+
+                    self.server_state
+                        .update_agent_resource_availability(method_obj);
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
@@ -400,13 +412,13 @@ mod tests {
     use super::ank_base;
     use api::ank_base::WorkloadMap;
     use common::commands::{
-        CompleteStateRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
+        AgentLoadStatus, CompleteStateRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
-        generate_test_workload_states_map_with_data, CompleteState, DeletedWorkload,
-        ExecutionState, ExecutionStateEnum, PendingSubstate, State, WorkloadInstanceName,
+        generate_test_workload_states_map_with_data, CompleteState, CpuUsage, DeletedWorkload,
+        ExecutionState, ExecutionStateEnum, FreeMemory, PendingSubstate, State, WorkloadInstanceName,
         WorkloadState,
     };
     use common::test_utils::generate_test_proto_workload_with_param;
@@ -1669,6 +1681,37 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-receives-resource-availability~1]
+    #[tokio::test]
+    async fn utest_server_receives_agent_status_load() {
+        let payload = AgentLoadStatus {
+            agent_name: AGENT_A.to_string(),
+            cpu_usage: CpuUsage { cpu_usage: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
+        };
+
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_update_agent_resource_availability()
+            .with(mockall::predicate::eq(payload.clone()))
+            .return_const(());
+        server.server_state = mock_server_state;
+
+        let agent_resource_result = to_server.agent_load_status(payload).await;
+        assert!(agent_resource_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+
+        assert!(result.is_ok());
+    }
+
     // [utest->swdd~server-handles-not-started-deleted-workloads~1]
     #[tokio::test]
     async fn utest_server_handles_pending_initial_deleted_workload_on_not_connected_agent() {
@@ -1679,7 +1722,8 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
-        mock_server_state
+        mock_server_state  
+      
             .expect_contains_connected_agent()
             .once()
             .return_const(false);

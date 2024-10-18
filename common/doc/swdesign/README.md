@@ -229,9 +229,11 @@ Needs:
 Status: approved
 
 The AgentMap provides the following functionalities:
-* inserting an agent name with empty attributes
+* inserting an agent name with default attributes
 * checking whether an entry for an agent exists
-* removing an agent name
+* removing an agent name with its associated attributes
+* storing the agent attributes
+* updating an agent's node resource availability
 
 Comment:
 The AgentMap is actually the object exposed to the external interfaces, but provides some additional functionality.
@@ -345,7 +347,7 @@ The Common library shall provide functionality for enforcing a workload name to:
 * have a maximal length of 63 characters
 
 Rationale:
-A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure and compliance to internet standards (RFC-1123).
+A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
 
 Tags:
 - Objects
@@ -363,7 +365,7 @@ Status: approved
 The Common library shall provide functionality for enforcing an agent name to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
 
 Rationale:
-A consistent naming manner allows a flawless usage of the Ankaios CLI and does not tamper with the internal structure of Ankaios.
+A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
 
 Tags:
 - Objects

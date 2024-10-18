@@ -15,9 +15,19 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .build_server(true)
+        .boxed("Request.RequestContent.updateStateRequest")
         .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")
         .type_attribute(".", "#[serde(rename_all = \"camelCase\")]")
+        .type_attribute(
+            "ank_base.ConfigItem",
+            "#[serde(into = \"serde_yaml::Value\")]",
+        )
+        .type_attribute(
+            "ank_base.ConfigItem",
+            "#[serde(try_from = \"serde_yaml::Value\")]",
+        )
         .field_attribute("Workload.tags", "#[serde(flatten)]")
+        .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")
         .field_attribute("WorkloadStatesMap.agentStateMap", "#[serde(flatten)]")
         .field_attribute(
@@ -28,6 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .field_attribute("ExecutionsStatesForId.idStateMap", "#[serde(flatten)]")
         .field_attribute("WorkloadMap.workloads", "#[serde(flatten)]")
         .field_attribute("AgentMap.agents", "#[serde(flatten)]")
+        .field_attribute("ConfigMap.configs", "#[serde(flatten)]")
         .field_attribute(
             "ControlInterfaceAccess.allowRules",
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
