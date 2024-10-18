@@ -1,0 +1,16 @@
+desiredState:
+  apiVersion: v0.1
+  workloads:
+    workload_invalid_config_alias:
+      agent: agent_A
+      dependencies: {}
+      restartPolicy: NEVER
+      runtime: podman
+      runtimeConfig: |
+        image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+        commandOptions: [ "echo", "Port: {{web_config.port}}"]
+      configs:
+        web.$_config: web_server_config
+  configs:
+    web_server_config:
+      port: '8085'
