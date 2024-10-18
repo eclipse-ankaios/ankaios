@@ -15,7 +15,7 @@
 use super::{CliCommands, InputSourcePair};
 use crate::cli_commands::State;
 use crate::cli_error::CliError;
-use crate::output_and_exit;
+use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
 use common::objects::{CompleteState, STR_RE_WORKLOAD};
 use common::state_manipulation::{Object, Path};
@@ -125,7 +125,7 @@ pub fn create_filter_masks_from_paths(
 pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
-) -> Result<(CompleteState, Vec<String>), String> {
+) -> Result<Option<(CompleteState, Vec<String>)>, String> {
     let mut req_obj: Object = State::default().try_into().unwrap();
     let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
     for manifest in manifests.iter_mut() {
@@ -137,7 +137,7 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     }
 
     if req_paths.is_empty() {
-        output_and_exit!("Nothing to update.");
+        return Ok(None);
     }
 
     output_debug!("req_paths:\n{:?}\n", req_paths);
@@ -158,7 +158,7 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     };
     output_debug!("\nstate_obj:\n{:?}\n", complete_state_req_obj);
 
-    Ok((complete_state_req_obj, filter_masks))
+    Ok(Some((complete_state_req_obj, filter_masks)))
 }
 
 impl CliCommands {
@@ -166,13 +166,17 @@ impl CliCommands {
     pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<(), CliError> {
         match get_input_sources(&apply_args.manifest_files) {
             Ok(mut manifests) => {
-                let (complete_state_req_obj, filter_masks) =
+                if let Some((complete_state_req_obj, filter_masks)) =
                     generate_state_obj_and_filter_masks_from_manifests(&mut manifests, &apply_args)
-                        .map_err(CliError::ExecutionError)?;
-
-                // [impl->swdd~cli-apply-send-update-state~1]
-                self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
-                    .await
+                        .map_err(CliError::ExecutionError)?
+                {
+                    // [impl->swdd~cli-apply-send-update-state~1]
+                    self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
+                        .await
+                } else {
+                    output!("Nothing to update.");
+                    Ok(())
+                }
             }
             Err(err) => Err(CliError::ExecutionError(err.to_string())),
         }
@@ -550,7 +554,7 @@ mod tests {
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
 
         assert_eq!(
-            Ok((expected_complete_state_obj, expected_filter_masks)),
+            Ok(Some((expected_complete_state_obj, expected_filter_masks))),
             generate_state_obj_and_filter_masks_from_manifests(
                 &mut manifests[..],
                 &ApplyArgs {
@@ -587,7 +591,7 @@ mod tests {
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
 
         assert_eq!(
-            Ok((expected_complete_state_obj, expected_filter_masks)),
+            Ok(Some((expected_complete_state_obj, expected_filter_masks))),
             generate_state_obj_and_filter_masks_from_manifests(
                 &mut manifests[..],
                 &ApplyArgs {
@@ -607,7 +611,7 @@ mod tests {
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
 
         assert_eq!(
-            Err("No workload provided in manifests!".to_string()),
+            Ok(None),
             generate_state_obj_and_filter_masks_from_manifests(
                 &mut manifests[..],
                 &ApplyArgs {
@@ -706,7 +710,7 @@ mod tests {
     //[utest->swdd~cli-apply-send-update-state~1]
     // [utest->swdd~cli-watches-workloads~1]
     #[tokio::test]
-    async fn utest_apply_manifests_ok() {
+    async fn utest_apply_manifests_workloads_updated_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -785,6 +789,117 @@ mod tests {
                     }],
                 })
             });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        FAKE_GET_INPUT_SOURCE_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Ok(vec![(
+                "manifest.yml".to_string(),
+                Box::new(manifest_content),
+            )]));
+
+        let apply_result = cmd
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: false,
+                manifest_files: vec!["manifest_yaml".to_string()],
+            })
+            .await;
+        assert!(apply_result.is_ok());
+    }
+
+    // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+    // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+    //[utest->swdd~cli-apply-send-update-state~1]
+    #[tokio::test]
+    async fn utest_apply_manifests_only_configs_to_update_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v0.1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1",
+        );
+
+        let mut manifest_data = String::new();
+        let _ = manifest_content.clone().read_to_string(&mut manifest_data);
+
+        let updated_state = CompleteState {
+            desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
+            ..Default::default()
+        };
+
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(updated_state.clone()),
+                eq(vec!["desiredState.configs.config_1".to_string()]),
+            )
+            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
+
+        mock_server_connection.expect_get_complete_state().never();
+
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .never();
+
+        mock_server_connection
+            .expect_read_next_update_workload_state()
+            .never();
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        FAKE_GET_INPUT_SOURCE_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Ok(vec![(
+                "manifest.yml".to_string(),
+                Box::new(manifest_content),
+            )]));
+
+        let apply_result = cmd
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: false,
+                manifest_files: vec!["manifest_yaml".to_string()],
+            })
+            .await;
+        assert!(apply_result.is_ok());
+    }
+
+    // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+    // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+    #[tokio::test]
+    async fn utest_apply_manifests_nothing_to_update_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let manifest_content = io::Cursor::new(b"apiVersion: \"v0.1\"\nworkloads: {}");
+
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection.expect_update_state().never();
+
+        mock_server_connection.expect_get_complete_state().never();
+
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .never();
+
+        mock_server_connection
+            .expect_read_next_update_workload_state()
+            .never();
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
