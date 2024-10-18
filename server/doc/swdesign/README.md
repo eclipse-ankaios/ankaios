@@ -918,7 +918,7 @@ Needs:
 - impl
 - utest
 
-#### ServerState provides check for existence of an connected agent inside the complete state
+#### ServerState provides check for existence of a connected agent inside the complete state
 `swdd~server-state-provides-connected-agent-exists-check~1`
 
 Status: approved
