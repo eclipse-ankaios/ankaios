@@ -501,7 +501,7 @@ impl Display for ExecutionState {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadState {
-    // [impl->swdd~common-workload-state-identification~1s]
+    // [impl->swdd~common-workload-state-identification~1]
     pub instance_name: WorkloadInstanceName,
     pub execution_state: ExecutionState,
 }
