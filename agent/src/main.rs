@@ -18,7 +18,6 @@ use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use grpc::security::TLSConfig;
 use std::collections::HashMap;
-use tokio::try_join;
 
 mod agent_manager;
 mod cli;
@@ -35,7 +34,7 @@ mod workload_scheduler;
 mod workload_state;
 
 use common::from_server_interface::FromServer;
-use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};
+use common::std_extensions::GracefulExitResult;
 use grpc::client::GRPCCommunicationsClient;
 
 use agent_manager::AgentManager;
@@ -119,12 +118,13 @@ async fn main() {
     // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
     let tls_config = TLSConfig::new(args.insecure, args.ca_pem, args.crt_pem, args.key_pem);
 
-    let communications_client = GRPCCommunicationsClient::new_agent_communication(
+    let mut communications_client = GRPCCommunicationsClient::new_agent_communication(
         args.agent_name.clone(),
         server_url,
         // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
         tls_config.unwrap_or_exit("Missing certificate file"),
-    );
+    )
+    .unwrap_or_exit("Failed to create communications client.");
 
     let mut agent_manager = AgentManager::new(
         args.agent_name,
@@ -134,17 +134,14 @@ async fn main() {
         workload_state_receiver,
     );
 
-    let manager_task = tokio::spawn(async move { agent_manager.start().await });
-    // [impl->swdd~agent-sends-hello~1]
-    // [impl->swdd~agent-default-communication-grpc~1]
-    let communications_task = tokio::spawn(async move {
-        communications_client?
-            .run(server_receiver, to_manager.clone())
-            .await
-    });
-
-    let (_, communication_task_result) =
-        try_join!(manager_task, communications_task).unwrap_or_illegal_state();
-
-    communication_task_result.unwrap_or_unreachable();
+    tokio::select! {
+        // [impl->swdd~agent-sends-hello~1]
+        // [impl->swdd~agent-default-communication-grpc~1]
+        communication_result = communications_client.run(server_receiver, to_manager) => {
+            communication_result.unwrap_or_exit("agent error")
+        }
+        _agent_mgr_result = agent_manager.start() => {
+            log::info!("AgentManager exited.");
+        }
+    }
 }

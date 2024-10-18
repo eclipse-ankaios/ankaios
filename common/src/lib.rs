@@ -16,6 +16,7 @@ pub const CHANNEL_CAPACITY: usize = 20;
 pub const DEFAULT_SOCKET_ADDRESS: &str = "127.0.0.1:25551";
 pub const DEFAULT_SERVER_ADDRESS: &str = "http[s]://127.0.0.1:25551";
 pub const PATH_SEPARATOR: char = '.';
+pub const ANKAIOS_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod commands;
 pub mod communications_client;
@@ -23,6 +24,7 @@ pub mod communications_error;
 pub mod communications_server;
 pub mod from_server_interface;
 pub mod helpers;
+pub use helpers::check_version_compatibility;
 pub mod objects;
 pub mod request_id_prepending;
 pub mod state_manipulation;

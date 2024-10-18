@@ -19,6 +19,7 @@ use common::commands;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ToAnkaios {
     Request(commands::Request),
+    Hello(Hello)
 }
 
 // [impl->swdd~agent-converts-control-interface-message-to-ankaios-object~1]
@@ -33,7 +34,35 @@ impl TryFrom<control_api::ToAnkaios> for ToAnkaios {
 
         Ok(match to_ankaios {
             ToAnkaiosEnum::Request(content) => ToAnkaios::Request(content.try_into()?),
+            ToAnkaiosEnum::Hello(content) => ToAnkaios::Hello(content.into()),
         })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Hello {
+    pub protocol_version: String,
+}
+
+impl From<control_api::Hello> for Hello {
+    fn from(item: control_api::Hello) -> Self {
+        Hello {
+            protocol_version: item.protocol_version,
+        }
+    }
+}
+
+impl Hello {
+    pub fn new() -> Self {
+        Hello {
+            protocol_version: common::ANKAIOS_VERSION.into(),
+        }
+    }
+}
+
+impl Default for Hello {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -5,6 +5,7 @@ from google.protobuf.internal.decoder import _DecodeVarint
 import threading
 import time
 import logging
+import os
 
 ANKAIOS_CONTROL_INTERFACE_BASE_PATH = "/run/ankaios/control_interface"
 WAITING_TIME_IN_SEC = 5
@@ -21,6 +22,14 @@ def create_logger():
     return logger
 
 logger = create_logger()
+
+def create_hello_message():
+    """Create a Hello message to initialize the session."""
+    return control_api.ToAnkaios (
+        hello=control_api.Hello(
+            protocolVersion=os.environ['ANKAIOS_VERSION'],
+        ),
+    )
 
 def create_request_to_add_new_workload():
     """Create the Request containing an UpdateStateRequest
@@ -106,6 +115,14 @@ def write_to_control_interface():
     """
 
     with open(f"{ANKAIOS_CONTROL_INTERFACE_BASE_PATH}/output", "ab") as f:
+        hello_message = create_hello_message()
+        hello_message_len = hello_message.ByteSize() # Length of the msg
+        proto_hello_message = hello_message.SerializeToString() # Serialized proto msg
+        logger.info(f'Sending initial Hello message:\n{hello_message}')
+        f.write(_VarintBytes(hello_message_len)) # Send the byte length of the proto msg
+        f.write(proto_hello_message) # Send the proto msg itself
+        f.flush()
+
         update_workload_request = create_request_to_add_new_workload()
         update_workload_request_byte_len = update_workload_request.ByteSize() # Length of the msg
         proto_update_workload_request_msg = update_workload_request.SerializeToString() # Serialized proto msg

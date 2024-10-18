@@ -14,7 +14,6 @@
 
 use std::path::Path;
 
-use crate::from_server_proxy;
 use crate::from_server_proxy::GRPCFromServerStreaming;
 use crate::grpc_api::{
     self, agent_connection_client::AgentConnectionClient,
@@ -23,6 +22,7 @@ use crate::grpc_api::{
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use crate::security::{read_pem_file, TLSConfig};
 use crate::to_server_proxy;
+use crate::{from_server_proxy, CommanderHello};
 
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
@@ -118,6 +118,14 @@ impl CommunicationsClient for GRPCCommunicationsClient {
         loop {
             let result = self.run_internal(&mut server_rx, &agent_tx).await;
 
+            // Take care of general errors
+            if let Err(GrpcMiddlewareError::VersionMismatch(err)) = result {
+                return Err(CommunicationMiddlewareError(format!(
+                    "Ankaios version mismatch: '{}'.",
+                    err
+                )));
+            }
+
             match self.connection_type {
                 ConnectionType::Agent => {
                     log::warn!("Connection to server interrupted: '{:?}'", result);
@@ -174,17 +182,22 @@ impl GRPCCommunicationsClient {
         let (grpc_tx, grpc_rx) =
             tokio::sync::mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
+        // [impl->swdd~grpc-client-sends-supported-version~1]
         match self.connection_type {
             ConnectionType::Agent => {
                 grpc_tx
                     .send(grpc_api::ToServer {
-                        to_server_enum: Some(ToServerEnum::AgentHello(AgentHello {
-                            agent_name: self.name.to_owned(),
-                        })),
+                        to_server_enum: Some(ToServerEnum::AgentHello(AgentHello::new(&self.name))),
                     })
                     .await?;
             }
-            ConnectionType::Cli => (), //no need to send AgentHello for Cli connection
+            ConnectionType::Cli => {
+                grpc_tx
+                    .send(grpc_api::ToServer {
+                        to_server_enum: Some(ToServerEnum::CommanderHello(CommanderHello::new())),
+                    })
+                    .await?;
+            }
         }
 
         // [impl->swdd~grpc-client-connects-with-agent-hello~1]

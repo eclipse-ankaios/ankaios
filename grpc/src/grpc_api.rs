@@ -21,10 +21,27 @@ use std::collections::HashMap;
 // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
 tonic::include_proto!("grpc_api"); // The string specified here must match the proto package name
 
+impl AgentHello {
+    pub fn new(agent_name: impl Into<String>) -> Self {
+        AgentHello {
+            agent_name: agent_name.into(),
+            protocol_version: common::ANKAIOS_VERSION.into(),
+        }
+    }
+}
+
 impl From<AgentHello> for commands::AgentHello {
     fn from(item: AgentHello) -> Self {
         commands::AgentHello {
             agent_name: item.agent_name,
+        }
+    }
+}
+
+impl CommanderHello {
+    pub fn new() -> Self {
+        CommanderHello {
+            protocol_version: common::ANKAIOS_VERSION.into(),
         }
     }
 }
@@ -197,6 +214,9 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
         let to_server = item.to_server_enum.ok_or("ToServer is None.".to_string())?;
 
         Ok(match to_server {
+            ToServerEnum::CommanderHello(_) => {
+                return Err("The 'CommanderHello' message cannot be forwarded to Ankaios.".into());
+            }
             ToServerEnum::AgentHello(protobuf) => {
                 to_server_interface::ToServer::AgentHello(protobuf.into())
             }
@@ -293,9 +313,9 @@ mod tests {
         let agent_name = "agent_A".to_string();
 
         let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::AgentHello(AgentHello {
-                agent_name: agent_name.clone(),
-            })),
+            to_server_enum: Some(ToServerEnum::AgentHello(AgentHello::new(
+                &agent_name,
+            ))),
         };
 
         let ankaios_command = ankaios::ToServer::AgentHello(ankaios::AgentHello { agent_name });

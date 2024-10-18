@@ -8,6 +8,26 @@ const REQUEST_ID = "dynamic_nginx@nodejs_control_interface"
 let ToAnkaios;
 let FromAnkaios;
 
+function create_hello_message(root) {
+    /* Create a Hello message to initialize the session. */
+
+    ToAnkaios = root.lookupType("control_api.ToAnkaios");
+
+    let payload = {
+        hello: {
+            protocolVersion: process.env.ANKAIOS_VERSION,
+        }
+    }
+
+    const errMsg = ToAnkaios.verify(payload);
+    if (errMsg) {
+        throw Error(errMsg);
+    }
+
+    return ToAnkaios.create(payload);
+}
+
+
 function create_request_to_add_new_workload(root) {
     /* Create the Request containing an UpdateStateRequest
     that contains the details for adding the new workload and
@@ -113,6 +133,11 @@ async function main() {
         if (err) throw err;
 
         read_from_control_interface(root, decode_from_server_response_message);
+
+        // Send the initial Hello message to initialize the session
+        const hello = create_hello_message(root);
+        console.log(`[${new Date().toISOString()}] Sending initial Hello message:\n`, util.inspect(hello.toJSON(), { depth: null }));
+        write_to_control_interface(root, hello);
 
         // Send request to add the new workload dynamic_nginx to Ankaios Server
         const message = create_request_to_add_new_workload(root);
