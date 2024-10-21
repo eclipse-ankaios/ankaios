@@ -62,3 +62,16 @@ workloads:
             command:
             - echo
             - "Hello from a container in a pod"
+configs:
+    dashboard_configs:
+      echo_value: "Hello Ankaios"
+      json_data_file_content: |
+        {
+          some: {
+            random: string
+            object: "5"
+          }
+        }
+      some_data: dGhpcyBpcyBhIGJpbmFyeSBmaWxl
+    ports:
+      access_port: "8081"

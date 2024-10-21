@@ -208,6 +208,7 @@ pub enum GetCommands {
     /// For automation use "ank get state -o json" and process the agents
     #[clap(visible_alias("agents"), verbatim_doc_comment)]
     Agent {},
+    Config {},
 }
 
 /// Update the state of Ankaios system
@@ -248,6 +249,11 @@ pub enum DeleteCommands {
         /// One or more workload(s) to be deleted
         #[arg(required = true, add = ArgValueCompleter::new(workload_completer))]
         workload_name: Vec<String>,
+    },
+    Config {
+        /// One or more config(s) to be deleted
+        #[arg(required = true)]
+        config_name: Vec<String>,
     },
 }
 
