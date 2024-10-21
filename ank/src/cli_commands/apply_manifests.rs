@@ -835,7 +835,7 @@ mod tests {
 
         mock_server_connection
             .expect_get_complete_state()
-            .return_once(|_| Ok(ank_base::CompleteState::default().into()));
+            .return_once(|_| Ok(FilteredCompleteState::default()));
 
         mock_server_connection
             .expect_take_missed_from_server_messages()
