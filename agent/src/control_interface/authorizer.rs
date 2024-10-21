@@ -56,15 +56,18 @@ mock! {
 }
 
 impl Authorizer {
+    // [impl->swdd~agent-authorizing-request-operations~1]
+    // [impl->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     pub fn authorize(&self, request: &Request) -> bool {
         match &request.request_content {
             common::commands::RequestContent::CompleteStateRequest(r) => {
-                let default_mask = vec!["".into()];
                 let field_mask = if r.field_mask.is_empty() {
-                    &default_mask
+                    // [impl->swdd~agent-authorizing-request-without-filter-mask~1]
+                    &vec!["".into()]
                 } else {
                     &r.field_mask
                 };
+                // [impl->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
                 field_mask.iter().all(|path_string| {
                     let path = path_string.as_str().into();
                     let allow_reason = if let (true, reason) =
@@ -109,12 +112,13 @@ impl Authorizer {
                 })
             }
             common::commands::RequestContent::UpdateStateRequest(r) => {
-                let default_mask = vec!["".into()];
                 let update_mask: &Vec<_> = if r.update_mask.is_empty() {
-                    &default_mask
+                    // [impl->swdd~agent-authorizing-request-without-filter-mask~1]
+                    &vec!["".into()]
                 } else {
                     &r.update_mask
                 };
+                // [impl->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
                 update_mask.iter().all(|path_string| {
                     let path = path_string.as_str().into();
                     let allow_reason = if let (true, reason) =
@@ -235,6 +239,8 @@ mod test {
     use super::{path::Path, path_pattern::PathPattern, Authorizer};
 
     const MATCHING_PATH: &str = "matching.path";
+    const MATCHING_PATH_2: &str = "matching.path.2";
+    const NON_MATCHING_PATH: &str = "non.matching.path";
 
     enum RuleType {
         AllowWrite,
@@ -264,7 +270,10 @@ mod test {
 
     impl<T> PathPattern for MockRule<T> {
         fn matches(&self, path: &Path) -> (bool, String) {
-            if path.to_string() == MATCHING_PATH || path.sections.is_empty() {
+            if path.to_string() == MATCHING_PATH
+                || path.to_string() == MATCHING_PATH_2
+                || path.sections.is_empty()
+            {
                 (true, "".into())
             } else {
                 (false, "".into())
@@ -291,6 +300,7 @@ mod test {
         res
     }
 
+    // [utest->swdd~agent-authorizing-request-without-filter-mask~1]
     #[test]
     fn utest_denies_empty_request() {
         let authorizer = create_authorizer(&[]);
@@ -314,6 +324,7 @@ mod test {
         assert!(!authorizer.authorize(&request));
     }
 
+    // [utest->swdd~agent-authorizing-request-without-filter-mask~1]
     #[test]
     fn utest_allow_empty_request() {
         let authorizer = create_authorizer(&[RuleType::AllowReadWrite]);
@@ -337,8 +348,10 @@ mod test {
         assert!(authorizer.authorize(&request));
     }
 
+    // [utest->swdd~agent-authorizing-request-operations~1]
+    // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
-    fn utest_read_requests() {
+    fn utest_read_requests_operations() {
         let request = Request {
             request_id: "".into(),
             request_content: common::commands::RequestContent::CompleteStateRequest(
@@ -364,8 +377,10 @@ mod test {
         assert!(authorizer.authorize(&request));
     }
 
+    // [utest->swdd~agent-authorizing-request-operations~1]
+    // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
-    fn utest_write_requests() {
+    fn utest_write_requests_operations() {
         let request = Request {
             request_id: "".into(),
             request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
@@ -390,6 +405,60 @@ mod test {
         assert!(!authorizer.authorize(&request));
         let authorizer = create_authorizer(&[RuleType::AllowWrite, RuleType::DenyRead]);
         assert!(authorizer.authorize(&request));
+    }
+
+    // [utest->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
+    #[test]
+    fn utest_matches_all_filter_entries() {
+        let authorizer = create_authorizer(&[RuleType::AllowReadWrite]);
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest {
+                    field_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
+                },
+            ),
+        };
+        assert!(authorizer.authorize(&request));
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    update_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
+                    state: Default::default(),
+                },
+            )),
+        };
+        assert!(authorizer.authorize(&request));
+    }
+
+    // [utest->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
+    #[test]
+    fn utest_matches_not_all_filter_entries() {
+        let authorizer = create_authorizer(&[RuleType::AllowReadWrite]);
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest {
+                    field_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
+                },
+            ),
+        };
+        assert!(!authorizer.authorize(&request));
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    update_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
+                    state: Default::default(),
+                },
+            )),
+        };
+        assert!(!authorizer.authorize(&request));
     }
 
     #[test]
