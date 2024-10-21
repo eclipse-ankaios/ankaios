@@ -268,6 +268,11 @@ impl ServerState {
         self.state.agents.remove(agent_name);
     }
 
+    // [impl->swdd~server-state-provides-connected-agent-exists-check~1]
+    pub fn contains_connected_agent(&self, agent_name: &str) -> bool {
+        self.state.agents.contains_key(agent_name)
+    }
+
     // [impl->swdd~server-updates-resource-availability~1]
     pub fn update_agent_resource_availability(
         &mut self,
@@ -1571,6 +1576,21 @@ mod tests {
 
         let expected_agent_map = AgentMap::default();
         assert_eq!(server_state.state.agents, expected_agent_map);
+    }
+
+    // [utest->swdd~server-state-provides-connected-agent-exists-check~1]
+    #[test]
+    fn utest_contains_connected_agent() {
+        let server_state = ServerState {
+            state: CompleteState {
+                agents: generate_test_agent_map(AGENT_A),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        assert!(server_state.contains_connected_agent(AGENT_A));
+        assert!(!server_state.contains_connected_agent(AGENT_B));
     }
 
     fn generate_test_old_state() -> CompleteState {

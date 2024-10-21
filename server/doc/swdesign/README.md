@@ -915,12 +915,12 @@ Needs:
 - impl
 - utest
 
-#### Server handles deleted workloads for empty agent
-`swdd~server-handles-deleted-workload-for-empty-agent~1`
+#### Server handles deletes for not started workloads
+`swdd~server-handles-not-started-deleted-workloads~1`
 
 Status: approved
 
-When the Ankaios server distributes `DeletedWorkload` message and a deleted workload is not scheduled (agent is empty), the Ankaios server shall handle the deletion.
+When the Ankaios server distributes `DeletedWorkload` message and either the deleted workload is not scheduled (agent is empty) or its execution state is `Pending(Initial)` and its agent is disconnected, the Ankaios server shall handle the deletion.
 
 Rationale:
 There is no agent that can take care of the operation so the sever has to handle it.
@@ -929,8 +929,8 @@ Comment:
 Handling the operation includes deleting the workload, its state and notifying other agents about the change.
 
 Tags:
+- AnkaiosServer
 - ServerState
-- DeleteGraph
 
 Needs:
 - impl
@@ -1028,6 +1028,20 @@ Needs:
 Status: approved
 
 When the ServerState is triggered to remove the agent from its state, the ServerState shall remove the entry of the agent in the `agents` field of the `CompleteState`.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### ServerState provides check for existence of a connected agent inside the complete state
+`swdd~server-state-provides-connected-agent-exists-check~1`
+
+Status: approved
+
+When the ServerState is triggered to check if an agent is part of its state, the ServerState shall check if the `agents` field of the `CompleteState` contains the agent name passed as argument.
 
 Tags:
 - ServerState
