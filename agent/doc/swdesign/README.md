@@ -690,7 +690,7 @@ Needs:
 - utest
 
 ##### RuntimeFacade creates workload
-`swdd~agent-create-workload~2`
+`swdd~agent-create-workload~3`
 
 Status: approved
 
@@ -897,7 +897,7 @@ Needs:
 - utest
 
 ##### Workload handles update command
-`swdd~agent-workload-obj-update-command~2`
+`swdd~agent-workload-obj-update-command~3`
 
 Status: approved
 

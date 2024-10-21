@@ -106,7 +106,7 @@ impl<
         self.runtime.get_reusable_workloads(agent_name).await
     }
 
-    // [impl->swdd~agent-create-workload~2]
+    // [impl->swdd~agent-create-workload~3]
     fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
@@ -160,7 +160,7 @@ impl<
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     > GenericRuntimeFacade<WorkloadId, StChecker>
 {
-    // [impl->swdd~agent-create-workload~2]
+    // [impl->swdd~agent-create-workload~3]
     fn create_workload_non_blocking(
         &self,
         workload_spec: WorkloadSpec,
@@ -445,7 +445,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-create-workload~2]
+    // [utest->swdd~agent-create-workload~3]
     #[tokio::test]
     async fn utest_runtime_facade_create_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
