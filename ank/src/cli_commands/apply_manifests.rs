@@ -836,7 +836,7 @@ mod tests {
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
-            no_wait: false,
+            no_wait: true,
             server_connection: mock_server_connection,
         };
 
