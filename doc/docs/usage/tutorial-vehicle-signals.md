@@ -340,3 +340,74 @@ dependencies:
 ```
 
 The next time the Ankaios server and the two agents will be started, this startup config will be applied.
+
+## Define re-usable configuration
+
+Let's improve the previous startup manifest by introducing templated configuration for workloads to not repeat configuration and having a single point of change. The supported fields and syntax are described [here](../reference/startup-configuration.md).
+
+```yaml title="/etc/ankaios/state.yaml" hl_lines="5-8 12 15 18-21 25-28 34-36 40-54"
+apiVersion: v0.1
+workloads:
+  databroker:
+    runtime: podman
+    agent: "{{agent.name}}" # (1)!
+    configs:
+      agent: agents # (2)!
+      network: network # (3)!
+    runtimeConfig: | # (4)!
+      image: ghcr.io/eclipse/kuksa.val/databroker:0.4.1
+      commandArgs: ["--insecure"]
+      commandOptions: ["--net={{network}}"]
+  speed-provider:
+    runtime: podman
+    agent: "{{agent.name}}"
+    dependencies:
+      databroker: ADD_COND_RUNNING
+    configs:
+      agent: agents
+      net: network
+      env: env_vars # (5)!
+    runtimeConfig: | # (6)!
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1
+      commandOptions:
+        - "--net={{net}}"
+        {{#each env.provider}}
+        - "-e {{this.key}}={{this.value}}"
+        {{/each}}
+  speed-consumer:
+    runtime: podman
+    agent: infotainment
+    dependencies:
+      databroker: ADD_COND_RUNNING
+    configs:
+      network: network
+      env: env_vars # (7)!
+    runtimeConfig: | # (8)!
+      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.2
+      commandOptions:
+        - "--net={{network}}"
+        {{#each env.consumer}}
+        - "-e {{this.key}}={{this.value}}"
+        {{/each}}
+configs: # (9)!
+  network: host
+  env_vars:
+    consumer:
+      - key: KUKSA_DATA_BROKER_ADDR
+        value: "127.0.0.1"
+    provider:
+      - key: SPEED_PROVIDER_MODE
+        value: auto
+  agents:
+    name: agent_A
+```
+
+1. The agent name is templated and rendered with the configuration value that the 'agent' alias refers to, which is 'agent_A'.
+2. The configuration item 'agents' is assigned to the workload with alias 'agent'.
+3. The configuration item 'network' is assigned to the workload with alias 'network'.
+4. The runtimeConfig contains a template string accessing the assigned network configuration item. It is rendered with the configuration value that the 'network' alias refers to, which is 'host'.
+5. The configuration item 'env_vars' is assigned to the workload with alias 'env'.
+6. In addition to the templated string for the network, the runtimeConfig contains a templated loop to assign all environment variables that the 'env' alias refers to, which is 'SPEED_PROVIDER_MODE' with value 'auto'.
+7. The configuration item 'env_vars' is assigned to the workload with alias 'env'.
+8. In addition to the templated string for the network, the runtimeConfig contains a templated loop to assign all environment variables that the 'env' alias refers to, which is 'KUKSA_DATA_BROKER_ADDR' with value '127.0.0.1'.
+9. The configuration items with are defined as key-value pairs.
