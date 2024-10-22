@@ -495,7 +495,7 @@ The CompleteState includes:
 - Agents
 
 Comment:
-The field `Agents` is an associative data structure with the name of a connected agent as key and an associative data structure as value to store attributes of the agent by key/value pairs.
+The field `Agents` is an associative data structure with the name of a connected agent as key and an associative data structure as value to store attributes of the agent by key/value pairs. If the DesiredState contains fields with templated strings, it is returned unrendered.
 
 Tags:
 - AnkaiosServer
@@ -513,6 +513,9 @@ Status: approved
 
 When the Ankaios Server responses to a GetCompleteState request and the request contains a `field_mask`,
 the response includes the filed `api_version` and the fields listed in the `field_mask`.
+
+Comment:
+If the fields listed in the `field_mask` contain templated strings, they are returned unrendered.
 
 Tags:
 - ControlInterface
