@@ -406,7 +406,7 @@ Tags:
 Needs:
 - impl
 
-### Helper methods
+### Common Helpers
 
 Different helper methods used by other components of Ankaios. For example regarding error handling or testing.
 
