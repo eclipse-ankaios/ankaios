@@ -160,12 +160,13 @@ Needs:
 - utest
 
 #### Workload states map allows managing workload execution states
-`swdd~state-map-for-workload-execution-states~1`
+`swdd~state-map-for-workload-execution-states~2`
 
 Status: approved
 
 The WorkloadStatesMap represents the current execution states of the managed by Ankaios workloads and allows performant management of the states by providing the following functionalities:
 * getting all workload states for an agent
+* getting the workload state of a workload
 * getting all workload states except the ones for a specific agent
 * marking all states of an agent as agent disconnected
 * adding an initial state for a list of workloads
@@ -229,6 +230,7 @@ Status: approved
 
 The AgentMap provides the following functionalities:
 * inserting an agent name with default attributes
+* checking whether an entry for an agent exists
 * removing an agent name with its associated attributes
 * storing the agent attributes
 * updating an agent's node resource availability
