@@ -18,6 +18,7 @@ use clap::{command, CommandFactory, Parser, Subcommand, ValueHint};
 
 use clap_complete::{ArgValueCompleter, CompleteEnv, CompletionCandidate};
 use common::DEFAULT_SERVER_ADDRESS;
+use tabled::settings::format;
 
 use crate::filtered_complete_state::FilteredCompleteState;
 
@@ -55,15 +56,43 @@ fn completions_workloads(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandi
         .collect()
 }
 
+fn completions_configs(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
+    let mut result = Vec::new();
+
+    let Ok(state) = serde_json::from_slice::<FilteredCompleteState>(&state) else {
+        return vec![];
+    };
+
+    if let Some(desired_state) = state.desired_state {
+        if let Some(configs) = desired_state.configs {
+            for config_name in configs.keys() {
+                result.push(config_name.clone());
+            }
+        }
+    }
+
+    let cur = current.to_str().unwrap_or("");
+    result
+        .into_iter()
+        .filter(|s| s.to_string().starts_with(cur))
+        .map(CompletionCandidate::new)
+        .collect()
+}
+
 // [impl->swdd~cli-shell-completion~1]
 fn workload_completer(current: &OsStr) -> Vec<CompletionCandidate> {
     completions_workloads(state_from_command("desiredState.workloads"), current)
+}
+
+fn config_completer(current: &OsStr) -> Vec<CompletionCandidate> {
+    completions_configs(state_from_command("desiredState.configs"), current)
 }
 
 fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
     const DESIRED_STATE: &str = "desiredState";
     const WORKLOADS: &str = "workloads";
     const WORKLOAD_STATES: &str = "workloadStates";
+    const CONFIGS: &str = "configs";
 
     let mut result = Vec::new();
 
@@ -77,6 +106,13 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
             result.push(format!("{}.{}", DESIRED_STATE, WORKLOADS));
             for workload_name in workloads.keys() {
                 result.push(format!("{}.{}.{}", DESIRED_STATE, WORKLOADS, workload_name));
+            }
+        }
+        result.push(CONFIGS.to_string());
+        if let Some(configs) = desired_state.configs {
+            result.push(format!("{}.{}", DESIRED_STATE, CONFIGS));
+            for config_name in configs.keys() {
+                result.push(format!("{}.{}.{}", DESIRED_STATE, CONFIGS, config_name));
             }
         }
     }
@@ -208,6 +244,7 @@ pub enum GetCommands {
     /// For automation use "ank get state -o json" and process the agents
     #[clap(visible_alias("agents"), verbatim_doc_comment)]
     Agent {},
+    #[clap(visible_alias("configs"), verbatim_doc_comment)]
     Config {},
 }
 
@@ -250,9 +287,10 @@ pub enum DeleteCommands {
         #[arg(required = true, add = ArgValueCompleter::new(workload_completer))]
         workload_name: Vec<String>,
     },
+    #[clap(visible_alias("configs"))]
     Config {
         /// One or more config(s) to be deleted
-        #[arg(required = true)]
+        #[arg(required = true, add = ArgValueCompleter::new(config_completer))]
         config_name: Vec<String>,
     },
 }

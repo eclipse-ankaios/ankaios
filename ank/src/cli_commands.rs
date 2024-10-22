@@ -224,9 +224,6 @@ impl CliCommands {
             output!("Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n");
         }
 
-        // TODO: add a prompt for deleted configs
-        todo!("Prompt for deleted configs");
-
         let states_of_all_workloads = self.get_workloads().await?;
         let states_of_changed_workloads = states_of_all_workloads
             .into_iter()
