@@ -34,7 +34,13 @@ impl CliCommands {
             update_mask
         );
 
-        self.update_state_and_wait_for_complete(complete_state_update, update_mask)
+        self.server_connection
+            .update_state(complete_state_update, update_mask)
             .await
+            .map_err(|error| {
+                CliError::ExecutionError(format!("Failed to delete configs: {:?}", error))
+            })?;
+
+        Ok(())
     }
 }

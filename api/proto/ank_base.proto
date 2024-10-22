@@ -75,7 +75,6 @@ message UpdateStateRequest {
 message UpdateStateSuccess {
     repeated string addedWorkloads = 1; /// Workload istance names of workloads which will be started
     repeated string deletedWorkloads = 2; /// Workload instance names of workloads which will be stopped
-    repeated string deletedConfigs = 3; /// Config names of configs which will be deleted
 }
 
 /**
