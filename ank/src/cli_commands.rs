@@ -185,7 +185,7 @@ impl CliCommands {
         new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), CliError> {
-        let update_state_success: api::ank_base::UpdateStateSuccess = self
+        let update_state_success = self
             .server_connection
             .update_state(new_state, update_mask)
             .await?;

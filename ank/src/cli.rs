@@ -18,7 +18,6 @@ use clap::{command, CommandFactory, Parser, Subcommand, ValueHint};
 
 use clap_complete::{ArgValueCompleter, CompleteEnv, CompletionCandidate};
 use common::DEFAULT_SERVER_ADDRESS;
-use tabled::settings::format;
 
 use crate::filtered_complete_state::FilteredCompleteState;
 
