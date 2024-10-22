@@ -40,7 +40,7 @@ message ToAnkaios {
 }
 
 /**
-* This message is the first one that needs to be sent whena new connection to the Ankaios cluster is established. Without this message being sent all further request are rejected.
+* This message is the first one that needs to be sent when a new connection to the Ankaios cluster is established. Without this message being sent all further request are rejected.
 */
 message Hello {
     string protocolVersion = 2; /// The protocol version used by the calling component.
