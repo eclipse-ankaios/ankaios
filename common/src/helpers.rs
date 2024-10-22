@@ -51,7 +51,7 @@ pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), Strin
             "Could not parse incoming string '{}' as semantic version.",
             version.as_ref()
         );
-    };
+    }
 
     Err(format!(
         "Unsupported protocol version '{}'. Currently supported '{ANKAIOS_VERSION}'",
