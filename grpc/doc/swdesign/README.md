@@ -261,10 +261,10 @@ Needs:
 
 Status: approved
 
-The gRPC Client shall send the Ankaios version it was build with in the first message to the gRPC server.
+The gRPC Client shall send the Ankaios version it was built with in the first message to the gRPC Server.
 
 Comment:
-The gRPC Client shall also handle the case where the connection is closed to a version mismatch error.
+The gRPC Client shall also handle the case where the connection is closed due to a version mismatch error.
 
 Tags:
 - gRPC_Client
@@ -292,7 +292,9 @@ Needs:
 
 Status: approved
 
-For each received connection request, the gRPC Agent Connection shall check the received version for compatibility and refuse the connection if the version is not provided or is not supported.
+For each received connection request, the gRPC Agent Connection shall:
+* check the received version for compatibility
+* refuse the connection if the version is not provided or is not supported.
 
 Tags:
 - gRPC_Agent_Connection
@@ -365,7 +367,9 @@ Needs:
 
 Status: approved
 
-For each received connection request, the gRPC Commander Connection shall check the received version for compatibility and refuse the connection if the version is not provided or is not supported.
+For each received connection request, the gRPC Commander Connection shall:
+* check the received version for compatibility
+* refuse the connection if the version is not provided or is not supported.
 
 Tags:
 - gRPC_Commander_Connection
@@ -374,7 +378,7 @@ Needs:
 - impl
 - itest
 
-#### gRPC Commander Connection stores from server channel tx
+#### gRPC Commander Connection stores from server channel sender
 `swdd~grpc-commander-connection-stores-from-server-channel-tx~1`
 
 Status: approved
@@ -388,7 +392,7 @@ Needs:
 - impl
 - itest
 
-#### gRPC Commander Connection responds to client with from server channel rx
+#### gRPC Commander Connection responds to client with from server channel receiver
 `swdd~grpc-commander-connection-responds-with-from-server-channel-rx~1`
 
 Status: approved

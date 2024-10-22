@@ -175,7 +175,7 @@ fn write_result(output_path: String, result: Vec<TestResult>) {
         exit(4);
     });
     serde_json::to_writer(output_file, &result).unwrap_or_else(|err| {
-        logging::log(&format!("Could write to open output file: '{}'", err));
+        logging::log(&format!("Could not write to open output file: '{}'", err));
         exit(5);
     });
 }
@@ -371,7 +371,7 @@ impl Connection {
         FromAnkaios::decode(&mut Box::new(binary.as_ref()))
             .map_err(|err| format!("Could not decode proto received from input: '{}'", err))?
             .from_ankaios_enum
-            .ok_or_else(|| "The field FromAnkaiosEnum not set".to_string())
+            .ok_or_else(|| "The field FromAnkaiosEnum is not set".to_string())
     }
 
     fn read_protobuf_data(&mut self) -> Result<Box<[u8]>, io::Error> {

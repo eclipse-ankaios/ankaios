@@ -36,6 +36,7 @@ where
     ordered.serialize(serializer)
 }
 
+// [impl->swdd~common-version-checking~1]
 pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), String> {
     let ank_version = Version::parse(ANKAIOS_VERSION).unwrap_or_illegal_state();
     if let Ok(input_version) = Version::parse(version.as_ref()) {

@@ -1,11 +1,11 @@
 # Control Interface Tester workload
 
-The Control Interface Tester workload is used in system test to verify the correct execution of the Ankaios Control Interface.
-The workload reads a commands file, executes the commands and writes an output file containing the result of the commands.
+The Control Interface Tester workload is used in system tests to verify the correct execution of the Ankaios Control Interface.
+The workload reads commands from a file, executes them and writes an output file containing the results of the commands.
 
-In case a Control Interface instance was not provided to the workload, a `NoAPI` result is written. If the Control Interface was preliminary closed by Ankaios, e.g., due to a protocol error, a `ConnectionClosed` result is provided.
+If no Control Interface instance was provided to the workload, a `NoAPI` result is written. If the Control Interface was preliminary closed by Ankaios, e.g., due to a protocol error, a `ConnectionClosed` result is provided.
 
-## Building ans pushing a new image
+## Building and pushing a new image
 
 It is planned to automate the process of building and pushing a new version of the container, but for now the process is done manually.
 
@@ -21,7 +21,7 @@ To push the new image to GitHub container registry, you will need to generate an
 podman login ghcr.io
 ```
 
-Afterwards the push can be done with:
+Afterwards the new image can be published with:
 
 ```bash
 podman push ghcr.io/eclipse-ankaios/control_interface_tester:manual-build-<new version number>

@@ -128,7 +128,7 @@ impl ControlInterfaceTask {
                                 };
                             },
                             Ok(ToAnkaios::Hello(to_ankaios::Hello{protocol_version})) => {
-                                log::warn!("Received a second Hello with protocol version '{protocol_version}'");
+                                log::warn!("Received yet another Hello with protocol version '{protocol_version}'");
                                 if let Err(message) = check_version_compatibility(protocol_version) {
                                     log::warn!("{message}");
                                     let _ = self.send_connection_closed(message).await;

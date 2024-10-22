@@ -154,8 +154,6 @@ void writeToControlInterface()
     // write length-delimited protobuf message into output fifo to initialize the session
     google::protobuf::util::SerializeDelimitedToOstream(hello, &output);
     output.flush();
-
-
     const auto requestToAddNewWorkload = createRequestToAddNewWorkload();
     logging::log(std::cout,
                  "Sending Request containing details for adding the dynamic workload \"dynamic_nginx\":\n",
