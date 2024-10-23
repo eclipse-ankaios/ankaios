@@ -243,6 +243,8 @@ pub enum GetCommands {
     /// For automation use "ank get state -o json" and process the agents
     #[clap(visible_alias("agents"), verbatim_doc_comment)]
     Agent {},
+    /// Information about the Ankaios configs present in the Ankaios system
+    /// For automation use "ank get state -o json" and process the agents
     #[clap(visible_alias("configs"), verbatim_doc_comment)]
     Config {},
 }
@@ -500,6 +502,7 @@ mod tests {
         assert_eq!(
             completions,
             vec![
+                CompletionCandidate::new("configs"),
                 CompletionCandidate::new("desiredState"),
                 CompletionCandidate::new("desiredState.workloads"),
                 CompletionCandidate::new("desiredState.workloads.databroker"),

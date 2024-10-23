@@ -44,3 +44,102 @@ impl CliCommands {
         Ok(())
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+    use api::ank_base::UpdateStateSuccess;
+    use common::objects::CompleteState;
+    use mockall::predicate::eq;
+
+    use crate::cli_commands::{server_connection::MockServerConnection, CliCommands};
+
+    const RESPONSE_TIMEOUT_MS: u64 = 3000;
+    const CONFIG_1: &str = "config_1";
+    const CONFIG_2: &str = "config_2";
+
+    #[tokio::test]
+    async fn utest_delete_configs_two_configs() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        // let complete_state_update = test_utils::generate_test_complete_state_with_configs(vec![
+        //     CONFIG_1.to_string(),
+        //     CONFIG_2.to_string(),
+        // ]);
+
+        let mut mock_server_connection = MockServerConnection::default();
+
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(CompleteState::default()),
+                eq(vec![
+                    ["desiredState.configs.", CONFIG_1].join(""),
+                    ["desiredState.configs.", CONFIG_2].join(""),
+                ]),
+            )
+            .return_once(|_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec![],
+                    deleted_workloads: vec![],
+                })
+            });
+
+        // mock_server_connection
+        //     .expect_get_complete_state()
+        //     .with(eq(vec![]))
+        //     // .return_once(|_| Ok((ank_base::CompleteState::from(complete_state_update)).into()));
+        //     // .return_once(|_| Ok(ank_base::CompleteState::from(CompleteState::default()).into()));
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let delete_result = cmd
+            .delete_configs(vec![CONFIG_1.to_string(), CONFIG_2.to_string()])
+            .await;
+        assert!(delete_result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_delete_configs_unknown_config() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let complete_state_update = CompleteState::default();
+
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(complete_state_update),
+                eq(vec!["desiredState.configs.unknown_config".to_string()]),
+            )
+            .return_once(|_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec![],
+                    deleted_workloads: vec![],
+                })
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let delete_result = cmd.delete_configs(vec!["unknown_config".to_string()]).await;
+        assert!(delete_result.is_ok());
+    }
+}
