@@ -85,7 +85,11 @@ The Proxy functions also do conversion of the transferred objects to the appropr
 
 ### gRPC Agent Connection
 
-One gRPC Agent Connection is created by the gRPC Server at startup. The gRPC Server then spawns a tonic gRPC service in a new green thread and all calls to the service are handled in tasks by the gRPCAgentConnection.
+One gRPC Agent Connection is created by the gRPC Server at startup. The gRPC Server then spawns a tonic gRPC service in a new green thread and all calls to the service are handled in tasks by the gRPC Agent Connection.
+
+### gRPC Commander Connection
+
+One gRPC Commander Connection is created by the gRPC Server at startup. This connection is used by the Ankaios CLI `ank` or by third-party-applications to connect to the Ankaios server. The gRPC Server then spawns a tonic gRPC service in a new green thread and all calls to the service are handled in tasks by the gRPC Commander Connection.
 
 ## Behavioral view
 
@@ -117,7 +121,7 @@ Status: approved
 Upon startup, the gRPC Server shall create a gRPC CLI Connection responsible for handling calls from the gRPC Client
 
 Tags:
-- gRPC_CLI_Connection
+- gRPC_Commander_Connection
 
 Needs:
 - impl
@@ -252,12 +256,45 @@ Needs:
 - impl
 - itest
 
+#### gRPC Client send supported version with first message
+`swdd~grpc-client-sends-supported-version~1`
+
+Status: approved
+
+The gRPC Client shall send the Ankaios version it was built with in the first message to the gRPC Server.
+
+Comment:
+The gRPC Client shall also handle the case where the connection is closed due to a version mismatch error.
+
+Tags:
+- gRPC_Client
+
+Needs:
+- impl
+- itest
+
 #### gRPC Agent Connection creates from server channel
 `swdd~grpc-agent-connection-creates-from-server-channel~1`
 
 Status: approved
 
 For each received connection request, the gRPC Agent Connection shall create a new FromServer Channel for this agent.
+
+Tags:
+- gRPC_Agent_Connection
+
+Needs:
+- impl
+- itest
+
+#### gRPC Agent Connection checks incoming connection version for compatibility
+`swdd~grpc-agent-connection-checks-version-compatibility~1`
+
+Status: approved
+
+For each received connection request, the gRPC Agent Connection shall:
+* check the received version for compatibility
+* refuse the connection if the version is not provided or is not supported.
 
 Tags:
 - gRPC_Agent_Connection
@@ -306,6 +343,64 @@ The Ankaios Server needs to know when a new Agent is connected in order to send 
 
 Tags:
 - gRPC_Agent_Connection
+
+Needs:
+- impl
+- itest
+
+#### gRPC Commander Connection creates from server channel
+`swdd~grpc-commander-connection-creates-from-server-channel~1`
+
+Status: approved
+
+For each received connection request, the gRPC Commander Connection shall create a new FromServer Channel for this agent.
+
+Tags:
+- gRPC_Commander_Connection
+
+Needs:
+- impl
+- itest
+
+#### gRPC Commander Connection checks incoming connection version for compatibility
+`swdd~grpc-commander-connection-checks-version-compatibility~1`
+
+Status: approved
+
+For each received connection request, the gRPC Commander Connection shall:
+* check the received version for compatibility
+* refuse the connection if the version is not provided or is not supported.
+
+Tags:
+- gRPC_Commander_Connection
+
+Needs:
+- impl
+- itest
+
+#### gRPC Commander Connection stores from server channel sender
+`swdd~grpc-commander-connection-stores-from-server-channel-tx~1`
+
+Status: approved
+
+For each received connection request, the gRPC Commander Connection shall store the created FromServer Channel in the Commander Senders Map.
+
+Tags:
+- gRPC_Commander_Connection
+
+Needs:
+- impl
+- itest
+
+#### gRPC Commander Connection responds to client with from server channel receiver
+`swdd~grpc-commander-connection-responds-with-from-server-channel-rx~1`
+
+Status: approved
+
+The gRPC Commander Connection shall respond to the connection request of the gRPC Client with the receiving side of an FromServer Channel.
+
+Tags:
+- gRPC_Commander_Connection
 
 Needs:
 - impl
@@ -525,6 +620,23 @@ Tags:
 Needs:
 - impl
 - utest
+- itest
+
+#### gRPC Commander Connection forwards ToServer messages to Ankaios Server
+`swdd~grpc-commander-connection-forwards-commands-to-server~1`
+
+Status: approved
+
+When receiving ToServer messages from the gRPC Client, the gRPC Commander Connection shall forward these messages to the Ankaios Server.
+
+Comment:
+The gRPC Commander Connection must also convert the commands from protobuf in order to forward them to the Ankaios Server.
+
+Tags:
+- gRPC_Commander_Connection
+
+Needs:
+- impl
 - itest
 
 ### Handling connection interruptions

@@ -1,0 +1,21 @@
+apiVersion: v0.1
+workloads:
+  simple:
+    runtime: podman
+    restartPolicy: NEVER
+    agent: agent_A
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]
+    controlInterfaceAccess:
+      allowRules:
+        - type: StateRule
+          operation: Write
+          filterMask:
+            # workload has write access to the config of the workload dynamic_nginx
+            - "desiredState.workloads.dynamic_nginx"
+        - type: StateRule
+          operation: Read
+          filterMask:
+            # workload is allowed to read the workload state of the workload dynamic_nginx
+            - "workloadStates.agent_A.dynamic_nginx"
