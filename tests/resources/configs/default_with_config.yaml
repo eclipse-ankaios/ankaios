@@ -1,0 +1,56 @@
+apiVersion: v0.1
+workloads:
+  nginx:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: NEVER
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+      commandOptions: ["-p", "8081:80"]
+  hello1:
+    runtime: podman
+    agent: agent_B
+    restartPolicy: NEVER
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--rm"]
+      commandArgs: [ "echo", "Hello Ankaios"]
+  hello2:
+    runtime: podman
+    agent: agent_B
+    restartPolicy: NEVER
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]
+  hello3:
+    runtime: podman
+    agent: agent_B
+    restartPolicy: NEVER
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]
+configs:
+  config_1:
+    echo_value: "Hello Ankaios"
+    json_data_file_content: |
+      {
+        some: {
+          random: string
+          object: "5"
+        }
+      }
+    some_data: dGhpcyBpcyBhIGJpbmFyeSBmaWxl
+  config_2:
+    access_port: "8081"

@@ -25,12 +25,15 @@ use wait_list::WaitList;
 mod workload_table_row;
 use workload_table_row::WorkloadTableRow;
 mod agent_table_row;
+mod config_table_row;
 mod wait_list_display;
 
 // CLI commands implemented in another files
 mod apply_manifests;
+mod delete_configs;
 mod delete_workloads;
 mod get_agents;
+mod get_configs;
 mod get_state;
 mod get_workloads;
 mod run_workload;
