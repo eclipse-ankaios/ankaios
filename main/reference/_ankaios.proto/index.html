@@ -990,9 +990,27 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#connectionclosed" class="md-nav__link">
+    <span class="md-ellipsis">
+      ConnectionClosed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fromankaios" class="md-nav__link">
     <span class="md-ellipsis">
       FromAnkaios
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hello" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hello
     </span>
   </a>
   
@@ -1897,9 +1915,27 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#connectionclosed" class="md-nav__link">
+    <span class="md-ellipsis">
+      ConnectionClosed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fromankaios" class="md-nav__link">
     <span class="md-ellipsis">
       FromAnkaios
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hello" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hello
     </span>
   </a>
   
@@ -2432,7 +2468,9 @@
 <li>
 <p><a href="#control_api-proto">control_api.proto</a></p>
 <ul>
+<li><a href="#control_api-ConnectionClosed">ConnectionClosed</a></li>
 <li><a href="#control_api-FromAnkaios">FromAnkaios</a></li>
+<li><a href="#control_api-Hello">Hello</a></li>
 <li><a href="#control_api-ToAnkaios">ToAnkaios</a></li>
 </ul>
 </li>
@@ -2514,6 +2552,28 @@
 <p><a href="#fromankaios">FromAnkaios</a>: ankaios -&gt; workload</p>
 </li>
 </ol>
+<p><a name="control_api-ConnectionClosed"></a></p>
+<h3 id="connectionclosed">ConnectionClosed<a class="headerlink" href="#connectionclosed" title="Permanent link">&para;</a></h3>
+<p>This message informs the user of the Control Interface that the connection was closed by Ankaios.
+No more messages will be processed by Ankaios after this message is sent.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>reason</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>A string containing the reason for closing the connection.</td>
+</tr>
+</tbody>
+</table>
 <p><a name="control_api-FromAnkaios"></a></p>
 <h3 id="fromankaios">FromAnkaios<a class="headerlink" href="#fromankaios" title="Permanent link">&para;</a></h3>
 <p>Messages from the Ankaios server to e.g. the Ankaios agent.</p>
@@ -2533,6 +2593,33 @@
 <td></td>
 <td>A message containing a response to a previous request.</td>
 </tr>
+<tr>
+<td>connectionClosed</td>
+<td><a href="#control_api-ConnectionClosed">ConnectionClosed</a></td>
+<td></td>
+<td>A message sent by Ankaios to inform a workload that the connection to Anakios was closed.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="control_api-Hello"></a></p>
+<h3 id="hello">Hello<a class="headerlink" href="#hello" title="Permanent link">&para;</a></h3>
+<p>This message is the first one that needs to be sent when a new connection to the Ankaios cluster is established. Without this message being sent all further request are rejected.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>protocolVersion</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The protocol version used by the calling component.</td>
+</tr>
 </tbody>
 </table>
 <p><a name="control_api-ToAnkaios"></a></p>
@@ -2549,10 +2636,16 @@
 </thead>
 <tbody>
 <tr>
+<td>hello</td>
+<td><a href="#control_api-Hello">Hello</a></td>
+<td></td>
+<td>The fist message sent when a connection is established. The message is needed to make sure the connected components are compatible.</td>
+</tr>
+<tr>
 <td>request</td>
 <td><a href="#ank_base-Request">ank_base.Request</a></td>
 <td></td>
-<td></td>
+<td>A request to Ankaios</td>
 </tr>
 </tbody>
 </table>
