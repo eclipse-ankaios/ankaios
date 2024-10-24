@@ -1,0 +1,8 @@
+desiredState:
+  apiVersion: v0.1
+  workloads: {}
+  configs:
+    web_server_config:
+      access_port: '8085'
+    another$%invalid/config:
+      config_key: config_value

@@ -11,6 +11,8 @@
         "protobuf",
         "Substate",
         "swdd",
+        "templating",
+        "unrendered",
         "utest",
         "VecDeque"
     ],

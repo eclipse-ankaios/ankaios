@@ -16,11 +16,12 @@ end box
 
 activate agent1
 ...
-agent1 ->> tonic_server--++: UpdateState
-tonic_server ->> server--++: UpdateState
+agent1 ->> tonic_server--++: UpdateStateRequest
+tonic_server ->> server--++: UpdateStateRequest
 server -> server_state++: update state
-server_state -> server_state ++--: Compare new with\nold DesiredState
-server_state -> server_state ++--: Validate the new state
+server_state -> server_state ++--: Generate new State based on\nupdate mask and\nnew and old DesiredState
+server_state -> server_state ++--: Render the\ntemplated DesiredState
+server_state -> server_state ++--: Validate the new State
 server_state -> server_state ++--: Update DeleteGraph with\nDeleteConditions\nof new workloads
 alt State valid
 server_state -->> server--: Added and deleted workloads

@@ -272,7 +272,7 @@ impl CliCommands {
         changed_workloads.extend(update_state_success.deleted_workloads.iter().cloned());
 
         if changed_workloads.is_empty() {
-            output!("No workloads to update");
+            output!("Apply successful. No workloads updated.");
             return Ok(());
         } else {
             output!("Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n");

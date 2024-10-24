@@ -1,0 +1,13 @@
+apiVersion: v0.1
+workloads:
+  nginx:
+    agent: agent_A
+    runtime: podman
+    configs:
+      port: web_server_config
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+      commandOptions: [ "-p", "{{#each port}}{{this}}{{/invalid_closing}}:80"]
+configs:
+  web_server_config:
+    access_port: "8081"

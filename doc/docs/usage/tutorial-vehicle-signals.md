@@ -340,3 +340,127 @@ dependencies:
 ```
 
 The next time the Ankaios server and the two agents will be started, this startup config will be applied.
+
+## Define re-usable configuration
+
+Let's improve the previous startup manifest by introducing a templated configuration for workloads to avoid configuration repetition and have a single point of change. The supported fields and syntax are described [here](../reference/startup-configuration.md).
+
+```yaml title="/etc/ankaios/state.yaml" hl_lines="5-8 12 15 18-21 25-28 34-36 40-54"
+apiVersion: v0.1
+workloads:
+  databroker:
+    runtime: podman
+    agent: "{{agent.name}}" # (1)!
+    configs:
+      agent: agents # (2)!
+      network: network # (3)!
+    runtimeConfig: | # (4)!
+      image: ghcr.io/eclipse/kuksa.val/databroker:0.4.1
+      commandArgs: ["--insecure"]
+      commandOptions: ["--net={{network}}"]
+  speed-provider:
+    runtime: podman
+    agent: "{{agent.name}}"
+    dependencies:
+      databroker: ADD_COND_RUNNING
+    configs:
+      agent: agents
+      net: network
+      env: env_provider # (5)!
+    runtimeConfig: | # (6)!
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1
+      commandOptions:
+        - "--net={{net}}"
+        {{#each env}}
+        - "-e {{this.key}}={{this.value}}"
+        {{/each}}
+  speed-consumer:
+    runtime: podman
+    agent: infotainment
+    dependencies:
+      databroker: ADD_COND_RUNNING
+    configs:
+      network: network
+      env: env_consumer # (7)!
+    runtimeConfig: | # (8)!
+      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.2
+      commandOptions:
+        - "--net={{network}}"
+        {{#each env}}
+        - "-e {{this.key}}={{this.value}}"
+        {{/each}}
+configs: # (9)!
+  network: host
+  env_provider:
+    - key: SPEED_PROVIDER_MODE
+      value: auto
+  env_consumer:
+    - key: KUKSA_DATA_BROKER_ADDR
+      value: "127.0.0.1"
+  agents:
+    name: agent_A
+```
+
+1. The agent name is templated and rendered with the configuration value that the 'agent' alias refers to, which is 'agent_A'.
+2. The configuration item 'agents' is assigned to the workload with alias 'agent'.
+3. The configuration item 'network' is assigned to the workload with alias 'network'.
+4. The runtimeConfig contains a template string accessing the assigned network configuration item. It is rendered with the configuration value that the 'network' alias refers to, which is 'host'.
+5. The configuration item 'env_provider' is assigned to the workload with alias 'env'.
+6. In addition to the templated string for the network, the runtimeConfig contains a templated loop to assign all environment variables that the 'env' alias refers to, which is 'SPEED_PROVIDER_MODE' with value 'auto'.
+7. The configuration item 'env_consumer' is assigned to the workload with alias 'env'.
+8. In addition to the templated string for the network, the runtimeConfig contains a templated loop to assign all environment variables that the 'env' alias refers to, which is 'KUKSA_DATA_BROKER_ADDR' with value '127.0.0.1'.
+9. The configuration items are defined as key-value pairs.
+
+Start the Ankaios cluster again, by executing the following command:
+
+```shell
+sudo systemctl start ank-server
+sudo systemctl start ank-agent
+```
+
+Start the `infotainment` agent, remembering to change the server URL if the agent is not running on the same host:
+
+```shell
+ank-agent -k --name infotainment --server-url http://127.0.0.1:25551
+```
+
+Verify again that all workloads are up and running.
+
+### Update configuration items
+
+Let's update the content of a configuration item with the `ank apply` command.
+
+Using `ank apply`:
+
+```yaml title="new-manifest.yaml"
+apiVersion: v0.1
+configs:
+  env_provider:
+    - key: SPEED_PROVIDER_MODE
+      value: webui
+```
+
+```shell
+ank -k apply new-manifest.yaml
+```
+
+Ankaios will update workloads that reference an updated configuration item.
+After running one of these commands, the `speed-provider` workload has been updated to run in the 'webui' mode.
+
+You can verify this by re-opening the web UI on <http://127.0.0.1:5000>.
+
+### Delete configuration items
+
+Let's try to delete a configuration item still referenced by workloads in its `configs` field by re-using the previous manifest content.
+
+```shell
+ank -k apply -d new-manifest.yaml
+```
+
+The command returns an error that the rendering of the new state fails due to a missing configuration item.
+
+Ankaios will always reject a new state if it fails to render. The `speed-provider` still references the configuration item in its `configs` field which would no longer exist.
+
+Running the `ank -k get state` command afterwards will show that Ankaios still has the previous state in memory.
+
+To remove configuration items, remove the configuration references for the desired configuration items in the workload's `configs` field, and remove the desired configuration items from the state. This can be done in a single step.
