@@ -40,7 +40,7 @@ Test Ankaios Podman remove confgis
     When user triggers "ank -k delete configs config_1"
     And user triggers "ank -k get configs"
     # Asserts
-    Then Run Keyword And Expect Error    Dictionary does not contain key 'config_1'.    the last command shall list the config "config_1"
+    Then the last command shall not list the config "config_1"
     And the last command shall list the config "config_2"
     [Teardown]    Clean up Ankaios
 

@@ -515,6 +515,9 @@ the last command shall list the config "${config_name}"
     Log    ${table_as_dict}
     Dictionary Should Contain Key    ${table_as_dict}    ${config_name}
 
+the last command shall not list the config "${config_name}"
+    Run Keyword And Expect Error    Dictionary does not contain key '${config_name}'.    the last command shall list the config "${config_name}"
+
 Setup Ankaios for Control Interface test
     Setup Ankaios
     Prepare Test Control Interface Workload

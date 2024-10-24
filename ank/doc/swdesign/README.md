@@ -964,14 +964,15 @@ Needs:
 - utest
 
 ### `ank get config`
-TODO!: <!-- ![Get a list of Configs](plantuml/seq_get_workload.svg) -->
-
 #### CLI provides the list of configs
 `swdd~cli-provides-list-of-configs~1`
 
 Status: approved
 
 The Ankaios CLI shall provide a function to get the list of configs.
+
+Rationale:
+This functionality is needed in order to check whether a config is present in Ankaios without the need of displaying its contents.
 
 Tags:
 - Cli
@@ -980,6 +981,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### CLI blocks until the Ankaios Server responds to the request to get the list of configs
 `swdd~cli-blocks-until-ankaios-server-responds-list-configs~1`
@@ -1000,23 +1002,9 @@ Needs:
 
 Status: approved
 
-When the CLI receives the list of configs from the Ankaios Server via CLI communication interface, the CLI shall sort the list by TODO: define a criteria.
+When the CLI receives the list of configs from the Ankaios Server via CLI communication interface, the CLI shall sort the list by alphanumerical criteria.
 
 Tags:
-- CliCommands
-
-Needs:
-- impl
-- utest
-
-#### CLI shall filter the list of configs
-`swdd~cli-shall-filter-list-of-configs~1`
-
-When the CLI receives the list of configs from the Ankaios Server via CLI communication interface,
-the CLI shall filter the configs from the server using filtering criteria entered by the user in the command.
-
-Tags:
-- Cli
 - CliCommands
 
 Needs:
@@ -1029,8 +1017,7 @@ Needs:
 Status: approved
 
 When the CLI receives the list of configs from the Ankaios Server via CLI communication interface
-and CLI has sorted the list
-and the CLI has filtered the list,
+and CLI has sorted the list,
 the CLI shall present the processed list of configs to the user.
 
 Tags:
@@ -1039,18 +1026,17 @@ Tags:
 Needs:
 - impl
 - utest
--
-#### CLI shall present configs as
-`swdd~cli-shall-present-configs-as~1`
+
+#### CLI shall present configs as table
+`swdd~cli-shall-present-configs-as-table~1`
 
 Status: approved
 
 When the CLI presents configs to the user, the CLI shall display the configs as:
-
-TODO! decide on a format for displaying the configs
-
-Note:
-TODO!
+CONFIG
+config_name_1
+config_name_2
+config_name_3
 
 Tags:
 - CliCommands
@@ -1060,10 +1046,6 @@ Needs:
 - utest
 
 ### `ank delete configs`
-
-TODO:
-<!-- The sequence is the same as for [`ank set state`](#ank-set-state). -->
-
 #### CLI provides a function to delete configs
 `swdd~cli-provides-delete-configs~1`
 
@@ -1078,6 +1060,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### CLI blocks until the Ankaios Server responds to the request to delete configs
 `swdd~cli-blocks-until-ankaios-server-responds-delete-configs~2`
