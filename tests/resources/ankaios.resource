@@ -509,6 +509,12 @@ the last command shall list the connected agent "${agent_name}"
     Dictionary Should Contain Key    ${agent_dict}    CPU USAGE
     Dictionary Should Contain Key    ${agent_dict}    FREE MEMORY
 
+the last command shall list the config "${config_name}"
+    ${table_as_list}=    Table To List    ${CURRENT_RESULT.stdout}
+    ${table_as_dict}=    Table To Dict    ${table_as_list}    CONFIG
+    Log    ${table_as_dict}
+    Dictionary Should Contain Key    ${table_as_dict}    ${config_name}
+
 Setup Ankaios for Control Interface test
     Setup Ankaios
     Prepare Test Control Interface Workload
