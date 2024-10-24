@@ -34,8 +34,16 @@ import "ank_base.proto";
 */
 message ToAnkaios {
   oneof ToAnkaiosEnum {
-    ank_base.Request request = 3;
+    Hello hello = 1; /// The fist message sent when a connection is established. The message is needed to make sure the connected components are compatible.
+    ank_base.Request request = 3; /// A request to Ankaios
   }
+}
+
+/**
+* This message is the first one that needs to be sent when a new connection to the Ankaios cluster is established. Without this message being sent all further request are rejected.
+*/
+message Hello {
+    string protocolVersion = 2; /// The protocol version used by the calling component.
 }
 
 /**
@@ -44,5 +52,14 @@ message ToAnkaios {
 message FromAnkaios {
   oneof FromAnkaiosEnum {
     ank_base.Response response = 3; /// A message containing a response to a previous request.
+    ConnectionClosed connectionClosed = 5; /// A message sent by Ankaios to inform a workload that the connection to Anakios was closed.
   }
+}
+
+/**
+* This message informs the user of the Control Interface that the connection was closed by Ankaios.
+* No more messages will be processed by Ankaios after this message is sent.
+*/
+message ConnectionClosed {
+    string reason = 1; /// A string containing the reason for closing the connection.
 }

@@ -30,11 +30,17 @@ ${CURRENT_RESULT}       ${EMPTY}
 ${SERVER_PROCESS_HANDLE}       ${EMPTY}
 ${TEST_FOLDER_NAME}    ${EMPTY}
 &{ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
+${ANKAIOS_VERSION}    ${EMPTY}
 
 *** Keywords ***
 Get MTLS Enabled
     ${result}=    Get Environment Variable    name=MTLS_ENABLED    default=False
     RETURN    ${result}
+
+Retrieve current Ankaios version
+    ${run_result}=    Run Process    command=%{ANK_BIN_DIR}${/}ank-server --version    shell=True
+    ${ANKAIOS_VERSION}=    Evaluate    '${run_result.stdout}'.split(' ')[1]
+    Set Global Variable    ${ANKAIOS_VERSION}
 
 Setup Ankaios without MTLS Setup
     ${run_result}=    Run Process    command=mktemp -d    shell=True
@@ -519,21 +525,24 @@ the last command shall list the connected agent "${agent_name}"
 Setup Ankaios for Control Interface test
     Setup Ankaios
     Prepare Test Control Interface Workload
+    Retrieve current Ankaios version
 
 The controller workload has no access rights
-    empty_keyword
-
-The controller workload is allowed to ${operation}
-    Control interface allows to ${operation} on ${EMPTY}
+    The controller workload sends initial hello with correct version
 
 The controller workload is allowed to ${operation} on ${filter_mask}
     internal_allow_control_interface    ${operation}     ${filter_mask}
-
-The controller workload is forbidden to ${operation}
-    Control interface denies to ${operation} on ${EMPTY}
+    The controller workload sends initial hello with correct version
 
 The controller workload is forbidden to ${operation} on ${filter_mask}
     internal_deny_control_interface    ${operation}     ${filter_mask}
+    The controller workload sends initial hello with correct version
+
+The controller workload does not send hello
+    internal_allow_control_interface    read    ${EMPTY}
+
+The controller workload sends initial hello with correct version
+    internal_send_initial_hello    ${ANKAIOS_VERSION}
 
 The controller workload updates the state with manifest "${manifest}"
     The controller workload updates the state with manifest "${manifest}" and update mask ${EMPTY}
@@ -560,6 +569,13 @@ The controller workload requests shall all fail
     Ankaios agent is started with name "agent_A"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     internal_check_all_control_interface_requests_failed    ${ankaios_config_folder.name}
+
+The controller workload shall get a closed connection
+    ${ankaios_config_folder}=    create_control_interface_config_for_test
+    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios agent is started with name "agent_A"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    internal_check_control_interface_closed    ${ankaios_config_folder.name}
 
 The controller workload has no access to Control Interface
     ${ankaios_config_folder}=    create_control_interface_config_for_test

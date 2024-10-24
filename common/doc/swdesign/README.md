@@ -444,7 +444,7 @@ Tags:
 Needs:
 - impl
 
-### Helper methods
+### Common Helpers
 
 Different helper methods used by other components of Ankaios. For example regarding error handling or testing.
 
@@ -456,6 +456,22 @@ Status: approved
 The Common library shall provide helper methods used by Ankaios' libraries and executables.
 
 Rationale: This prevents code duplication in accordance to the DRY principle.
+
+Tags:
+- CommonHelpers
+
+Needs:
+- impl
+
+#### Provide common version checking functionality
+`swdd~common-version-checking~1`
+
+Status: approved
+
+The Common library shall provide a common version checking functionality that fails if a provided version differs from the current major and minor one.
+
+Rationale:
+The version checking is executed in different Ankaios components and must behave in the same way. The failure on a different minor version is required as Ankaios is currently at a 0 (zero) major version.
 
 Tags:
 - CommonHelpers
