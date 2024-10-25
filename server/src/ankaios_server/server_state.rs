@@ -769,6 +769,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
+    // [utest->server-state-triggers-validation-of-workload-fields~1]
     #[test]
     fn utest_server_state_update_state_add_workload() {
         let old_state = generate_test_old_state();
