@@ -36,7 +36,7 @@ Test Ankaios apply workload specifications showing progress via spinner
 
     # Preconditions
     Given Podman has deleted all existing containers
-    Given Ankaios server is started with config "${simple_yaml_file}"
+    And Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
