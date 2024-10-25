@@ -120,6 +120,7 @@ async fn main() {
                     Err(error) => output_and_error!("Failed to get agents: '{}'", error),
                 }
             }
+            // [impl->swdd~cli-provides-list-of-configs~1]
             Some(cli::GetCommands::Config {}) => {
                 output_debug!("Received get config.");
 
@@ -159,6 +160,7 @@ async fn main() {
                     output_and_error!("Failed to delete workloads: '{}'", error);
                 }
             }
+            // [impl->swdd~cli-provides-delete-configs~1]]
             Some(cli::DeleteCommands::Config { config_name }) => {
                 output_debug!(
                     "Received delete config with config_name = '{:?}'",

@@ -17,6 +17,8 @@ Resource     ../../resources/ankaios.resource
 Resource    ../../resources/variables.resource
 
 *** Test Cases ***
+
+# [stest->swdd~cli-provides-list-of-configs~1]
 Test Ankaios CLI get configs
     [Setup]        Setup Ankaios
     # Preconditions
@@ -30,6 +32,7 @@ Test Ankaios CLI get configs
     And the last command shall list the config "config_2"
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~cli-provides-delete-configs~1]
 Test Ankaios Podman remove confgis
     [Setup]        Setup Ankaios
     # Preconditions

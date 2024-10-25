@@ -19,6 +19,7 @@ use crate::{cli_error::CliError, output_debug};
 use super::CliCommands;
 
 impl CliCommands {
+    // [impl->swdd~cli-provides-delete-configs~1]
     pub async fn delete_configs(&mut self, config_names: Vec<String>) -> Result<(), CliError> {
         let complete_state_update = CompleteState::default();
 
@@ -64,6 +65,7 @@ mod tests {
     const CONFIG_1: &str = "config_1";
     const CONFIG_2: &str = "config_2";
 
+    // [utest->swdd~cli-provides-delete-configs~1]
     #[tokio::test]
     async fn utest_delete_configs_two_configs() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -93,12 +95,6 @@ mod tests {
                 })
             });
 
-        // mock_server_connection
-        //     .expect_get_complete_state()
-        //     .with(eq(vec![]))
-        //     // .return_once(|_| Ok((ank_base::CompleteState::from(complete_state_update)).into()));
-        //     // .return_once(|_| Ok(ank_base::CompleteState::from(CompleteState::default()).into()));
-
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -111,6 +107,7 @@ mod tests {
         assert!(delete_result.is_ok());
     }
 
+    //swdd~cli-provides-delete-configs~1
     #[tokio::test]
     async fn utest_delete_configs_unknown_config() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

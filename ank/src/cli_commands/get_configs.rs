@@ -19,6 +19,8 @@ use common::objects::ConfigItem;
 const EMPTY_FILTER_MASK: [String; 0] = [];
 
 impl CliCommands {
+    // [impl->swdd~cli-provides-list-of-configs~1]
+    // [impl->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     pub async fn get_configs(&mut self) -> Result<String, CliError> {
         let filtered_complete_state: FilteredCompleteState = self
             .server_connection
@@ -31,10 +33,12 @@ impl CliCommands {
             .unwrap_or_default()
             .into_iter();
 
+        // [impl->swdd~cli-shall-present-list-of-configs~1]
         let config_table_rows = transform_into_table_rows(configs);
 
         output_debug!("Got configs: {:?}", config_table_rows);
 
+        // [impl->swdd~cli-shall-present-configs-as-table~1]
         Ok(CliTable::new(&config_table_rows).create_default_table())
     }
 }
@@ -47,6 +51,7 @@ fn transform_into_table_rows(
         .collect();
 
     // sort in order to ensure consistent output
+    // [impl->swdd~cli-shall-sort-list-of-configs~1]
     config_table_rows.sort_by(|a, b| a.config.cmp(&b.config));
     config_table_rows
 }
@@ -74,6 +79,10 @@ mod tests {
     const CONFIG_1: &str = "config_1";
     const CONFIG_2: &str = "config_2";
 
+    // [utest->swdd~cli-provides-list-of-configs~1]
+    // [utest->swdd~cli-shall-present-configs-as-table~1]
+    // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
+    // [utest->swdd~cli-shall-sort-list-of-configs~1]
     #[tokio::test]
     async fn test_get_configs() {
         let mut mock_server_connection = MockServerConnection::default();
@@ -103,6 +112,7 @@ mod tests {
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
 
+    // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     #[tokio::test]
     async fn test_get_configs_no_config_present_in_complete_state() {
         let mut mock_server_connection = MockServerConnection::default();
@@ -124,6 +134,7 @@ mod tests {
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
 
+    // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     #[tokio::test]
     async fn test_get_configs_failed_to_get_complete_state() {
         let mut mock_server_connection = MockServerConnection::default();

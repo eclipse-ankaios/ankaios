@@ -983,20 +983,6 @@ Needs:
 - utest
 - stest
 
-#### CLI blocks until the Ankaios Server responds to the request to get the list of configs
-`swdd~cli-blocks-until-ankaios-server-responds-list-configs~1`
-
-Status: approved
-
-When the user invokes the CLI with a request to get the list of configs, the CLI shall block and wait until the response from the Ankaios Server is received.
-
-Tags:
-- CliCommands
-
-Needs:
-- impl
-- utest
-
 #### CLI shall sort the list of configs
 `swdd~cli-shall-sort-list-of-configs~1`
 
@@ -1061,20 +1047,6 @@ Needs:
 - impl
 - utest
 - stest
-
-#### CLI blocks until the Ankaios Server responds to the request to delete configs
-`swdd~cli-blocks-until-ankaios-server-responds-delete-configs~2`
-
-Status: approved
-
-When the user invokes the CLI with a request to delete configs, the CLI shall request an update of the state including a watch on the updated configs.
-
-Tags:
-- CliCommands
-
-Needs:
-- impl
-- utest
 
 ### Handling other message while waiting for response
 
