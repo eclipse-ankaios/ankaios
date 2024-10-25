@@ -678,6 +678,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-empty-update-mask~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_replace_all_if_update_mask_empty() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -718,6 +719,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_replace_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -769,6 +771,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     // [utest->server-state-triggers-validation-of-workload-fields~1]
     #[test]
     fn utest_server_state_update_state_add_workload() {
@@ -824,6 +827,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     // [utest->swdd~server-state-updates-state-on-unmodified-workloads~1]
     #[test]
     fn utest_server_state_update_state_update_configs_not_affecting_workloads() {
@@ -873,6 +877,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_update_workload_with_existing_configs() {
         let mut old_state = generate_test_old_state();
@@ -943,6 +948,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     // [utest->swdd~server-state-compares-rendered-workloads~1]
     #[test]
     fn utest_server_state_update_state_update_workload_on_changed_configs() {
@@ -1016,6 +1022,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_workload_references_removed_configs() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1063,6 +1070,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_remove_workload() {
         let old_state = generate_test_old_state();
@@ -1103,6 +1111,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_remove_non_existing_workload() {
         let old_state = generate_test_old_state();
@@ -1192,6 +1201,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-empty-update-mask~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_no_update() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1222,6 +1232,7 @@ mod tests {
     }
 
     // [utest->swdd~update-desired-state-empty-update-mask~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     // [utest->swdd~server-detects-new-workload~1]
     #[test]
     fn utest_server_state_update_state_new_workloads() {
@@ -1283,6 +1294,7 @@ mod tests {
 
     // [utest->swdd~update-desired-state-empty-update-mask~1]
     // [utest->swdd~server-detects-deleted-workload~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_deleted_workloads() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1347,6 +1359,7 @@ mod tests {
 
     // [utest->swdd~update-desired-state-empty-update-mask~1]
     // [utest->swdd~server-detects-changed-workload~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_updated_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1416,6 +1429,7 @@ mod tests {
 
     // [utest->swdd~server-state-stores-delete-condition~1]
     // [utest->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
+    // [utest->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
     #[test]
     fn utest_server_state_update_state_store_and_add_delete_conditions() {
         let workload = generate_test_workload_spec_with_param(
