@@ -277,6 +277,10 @@ impl ExecutionState {
         matches!(self.state, ExecutionStateEnum::Pending(_))
     }
 
+    pub fn is_pending_initial(&self) -> bool {
+        ExecutionStateEnum::Pending(PendingSubstate::Initial) == self.state
+    }
+
     pub fn is_running(&self) -> bool {
         ExecutionStateEnum::Running(RunningSubstate::Ok) == self.state
     }

@@ -2797,6 +2797,23 @@ Needs:
 - impl
 - utest
 
+#### AgentManager sends the node resource availability to the server
+`swdd~agent-sends-node-resource-availability-to-server~1`
+
+Status: approved
+
+At an interval of 2 seconds, the AgentManager measures the global CPU usage and the available free memory and sends them to the Ankaios server via an `AgentLoadStatus` message.
+
+Rationale:
+Available resources must be available in the cluster in order to enable dynamic scheduling, e.g., done by a workload.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
 ### Forwarding the Control Interface
 
 The Ankaios Agent is responsible to forward Control Interface requests from a Workload to the Ankaios Server and to forward Control Interface responses from the Ankaios Server to the Workload.
@@ -2836,6 +2853,26 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### Agent closes Control Interface channel on missing initial `Hello`
+`swdd~agent-closes-control-interface-on-missing-initial-hello~1`
+
+Status: approved
+
+When an Ankaios agent receives an initial message on the Control Interface that is different to the initial `Hello` message containing the supported Ankaios version by the workload or the provided version in the message is not compatible with the one of the agent, the agent shall:
+* close the Control Interface connection by sending a `ConnectionClosed` message
+* discontinuing reading new messages from the workload.
+
+Comment:
+The check for the supported by the agent version is done by a central function provided by the common library.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
 
 #### Agent converts from Control Interface proto request to internal object
 `swdd~agent-converts-control-interface-message-to-ankaios-object~1`

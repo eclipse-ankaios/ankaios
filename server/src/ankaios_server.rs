@@ -100,34 +100,6 @@ impl AnkaiosServer {
         Ok(())
     }
 
-    // [impl->swdd~server-handles-deleted-workload-for-empty-agent~1]
-    async fn handle_unscheduled_deleted_workloads(
-        &mut self,
-        mut deleted_workloads: Vec<DeletedWorkload>,
-    ) -> Vec<DeletedWorkload> {
-        let mut deleted_states = vec![];
-        deleted_workloads.retain(|deleted_wl| {
-            if deleted_wl.instance_name.agent_name().is_empty() {
-                self.workload_states_map.remove(&deleted_wl.instance_name);
-                deleted_states.push(WorkloadState {
-                    instance_name: deleted_wl.instance_name.clone(),
-                    execution_state: ExecutionState::removed(),
-                });
-
-                return false;
-            }
-            true
-        });
-        if !deleted_states.is_empty() {
-            self.to_agents
-                .update_workload_state(deleted_states)
-                .await
-                .unwrap_or_illegal_state();
-        }
-
-        deleted_workloads
-    }
-
     async fn listen_to_agents(&mut self) {
         log::debug!("Start listening to agents...");
         while let Some(to_server_command) = self.receiver.recv().await {
@@ -175,6 +147,18 @@ impl AnkaiosServer {
 
                     // [impl->swdd~server-stores-newly-connected-agent~1]
                     self.server_state.add_agent(agent_name);
+                }
+                // [impl->swdd~server-receives-resource-availability~1]
+                ToServer::AgentLoadStatus(method_obj) => {
+                    log::trace!(
+                        "Received load status from agent '{}': CPU usage: {}%, Free Memory: {}B",
+                        method_obj.agent_name,
+                        method_obj.cpu_usage.cpu_usage,
+                        method_obj.free_memory.free_memory,
+                    );
+
+                    self.server_state
+                        .update_agent_resource_availability(method_obj);
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
@@ -264,7 +248,7 @@ impl AnkaiosServer {
                             .server_state
                             .update(update_state_request.state, update_state_request.update_mask)
                         {
-                            Ok(Some((added_workloads, mut deleted_workloads))) => {
+                            Ok(Some((added_workloads, deleted_workloads))) => {
                                 log::info!(
                                         "The update has {} new or updated workloads, {} workloads to delete",
                                         added_workloads.len(),
@@ -283,15 +267,15 @@ impl AnkaiosServer {
                                     .map(|x| x.instance_name.to_string())
                                     .collect();
 
-                                // [impl->swdd~server-handles-deleted-workload-for-empty-agent~1]
-                                deleted_workloads = self
-                                    .handle_unscheduled_deleted_workloads(deleted_workloads)
+                                // [impl->swdd~server-handles-not-started-deleted-workloads~1]
+                                let retained_deleted_workloads = self
+                                    .handle_not_started_deleted_workloads(deleted_workloads)
                                     .await;
 
                                 let from_server_command =
                                     FromServer::UpdateWorkload(UpdateWorkload {
                                         added_workloads,
-                                        deleted_workloads,
+                                        deleted_workloads: retained_deleted_workloads,
                                     });
                                 self.to_agents
                                     .send(from_server_command)
@@ -361,6 +345,52 @@ impl AnkaiosServer {
             }
         }
     }
+
+    // [impl->swdd~server-handles-not-started-deleted-workloads~1]
+    async fn handle_not_started_deleted_workloads(
+        &mut self,
+        mut deleted_workloads: Vec<DeletedWorkload>,
+    ) -> Vec<DeletedWorkload> {
+        let mut deleted_states = vec![];
+        deleted_workloads.retain(|deleted_wl| {
+            if deleted_wl.instance_name.agent_name().is_empty()
+                || self.deleted_workload_never_started_on_agent(deleted_wl)
+            {
+                self.workload_states_map.remove(&deleted_wl.instance_name);
+                deleted_states.push(WorkloadState {
+                    instance_name: deleted_wl.instance_name.clone(),
+                    execution_state: ExecutionState::removed(),
+                });
+
+                return false;
+            }
+            true
+        });
+        if !deleted_states.is_empty() {
+            log::debug!(
+                "Send UpdateWorkloadState for not started deleted workloads: '{:?}'",
+                deleted_states
+            );
+            self.to_agents
+                .update_workload_state(deleted_states)
+                .await
+                .unwrap_or_illegal_state();
+        }
+
+        deleted_workloads
+    }
+
+    fn deleted_workload_never_started_on_agent(&self, deleted_workload: &DeletedWorkload) -> bool {
+        !self
+            .server_state
+            .contains_connected_agent(deleted_workload.instance_name.agent_name())
+            && self
+                .workload_states_map
+                .get_workload_state_for_workload(&deleted_workload.instance_name)
+                .map_or(false, |current_execution_state| {
+                    current_execution_state.is_pending_initial()
+                })
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -382,13 +412,14 @@ mod tests {
     use super::ank_base;
     use api::ank_base::WorkloadMap;
     use common::commands::{
-        CompleteStateRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
+        AgentLoadStatus, CompleteStateRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
     use common::objects::{
-        generate_test_stored_workload_spec, generate_test_workload_spec_with_param, CompleteState,
-        DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
-        WorkloadInstanceName, WorkloadState,
+        generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
+        generate_test_workload_states_map_with_data, CompleteState, CpuUsage, DeletedWorkload,
+        ExecutionState, ExecutionStateEnum, FreeMemory, PendingSubstate, State, WorkloadInstanceName,
+        WorkloadState,
     };
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -1303,6 +1334,9 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         let mut seq = mockall::Sequence::new();
         mock_server_state
+            .expect_contains_connected_agent()
+            .return_const(true);
+        mock_server_state
             .expect_get_workloads_for_agent()
             .with(mockall::predicate::eq(AGENT_A.to_string()))
             .once()
@@ -1556,7 +1590,7 @@ mod tests {
         server_task.abort();
     }
 
-    // [utest->swdd~server-handles-deleted-workload-for-empty-agent~1]
+    // [utest->swdd~server-handles-not-started-deleted-workloads~1]
     #[tokio::test]
     async fn utest_server_handles_deleted_workload_on_empty_agent() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1595,7 +1629,10 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
-
+        mock_server_state
+            .expect_contains_connected_agent()
+            .once()
+            .return_const(false);
         mock_server_state
             .expect_update()
             .once()
@@ -1642,5 +1679,94 @@ mod tests {
         ));
 
         assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-receives-resource-availability~1]
+    #[tokio::test]
+    async fn utest_server_receives_agent_status_load() {
+        let payload = AgentLoadStatus {
+            agent_name: AGENT_A.to_string(),
+            cpu_usage: CpuUsage { cpu_usage: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
+        };
+
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_update_agent_resource_availability()
+            .with(mockall::predicate::eq(payload.clone()))
+            .return_const(());
+        server.server_state = mock_server_state;
+
+        let agent_resource_result = to_server.agent_load_status(payload).await;
+        assert!(agent_resource_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-handles-not-started-deleted-workloads~1]
+    #[tokio::test]
+    async fn utest_server_handles_pending_initial_deleted_workload_on_not_connected_agent() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state  
+      
+            .expect_contains_connected_agent()
+            .once()
+            .return_const(false);
+
+        let workload = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        server.server_state = mock_server_state;
+        server.workload_states_map = generate_test_workload_states_map_with_data(
+            workload.instance_name.agent_name(),
+            workload.instance_name.workload_name(),
+            workload.instance_name.id(),
+            ExecutionState::initial(),
+        );
+
+        let deleted_workload_with_not_connected_agent = DeletedWorkload {
+            instance_name: workload.instance_name.clone(),
+            ..Default::default()
+        };
+
+        let deleted_workloads = vec![deleted_workload_with_not_connected_agent.clone()];
+
+        let retained_deleted_workloads = server
+            .handle_not_started_deleted_workloads(deleted_workloads)
+            .await;
+
+        assert!(retained_deleted_workloads.is_empty());
+
+        assert_eq!(
+            tokio::time::timeout(
+                tokio::time::Duration::from_millis(100),
+                comm_middle_ware_receiver.recv(),
+            )
+            .await,
+            Ok(Some(FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![WorkloadState {
+                    instance_name: workload.instance_name,
+                    execution_state: ExecutionState::removed()
+                }]
+            })))
+        );
     }
 }

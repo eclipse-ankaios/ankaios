@@ -65,6 +65,13 @@ def table_to_dict(input_list, key):
     logger.trace(out_dict)
     return out_dict
 
+def get_agent_dict(table_dict, agent_name):
+    agent_dict = table_dict.get(agent_name)
+    assert agent_dict, f"Agent {agent_name} does not provide availabe resources information"
+    logger.trace(agent_dict)
+    return agent_dict
+
+
 def to_x_dot_y_format(x, y):
     return f"{x}.{y}"
 
@@ -236,7 +243,7 @@ def json_to_dict(raw):
 
 def find_control_interface_test_tag():
     global control_interface_tester_tag
-    control_interface_tester_tag = "manual-build-2"
+    control_interface_tester_tag = "manual-build-3"
 
 def prepare_test_control_interface_workload():
     global control_interface_workload_config
@@ -288,6 +295,15 @@ def internal_add_update_state_command(manifest, update_mask):
             "type": "UpdateState",
             "manifest_file": path.join("/data", internal_manifest_name),
             "update_mask": update_mask
+        }
+    })
+
+def internal_send_initial_hello(version):
+    global control_interface_workload_config
+    control_interface_workload_config.append({
+        "command": {
+            "type": "SendHello",
+            "version": version
         }
     })
 
@@ -344,14 +360,20 @@ def internal_check_all_control_interface_requests_succeeded(tmp_folder):
 def internal_check_all_control_interface_requests_failed(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
     for test_number,test_result in enumerate(output):
-        test_result = test_result["result"]["value"]["type"] != "Ok"
-        assert test_result, \
-            f"Expected request {test_number + 1} to fail, but it succeeded"
+        if test_result["result"]["type"] != "SendHelloResult":
+            test_result = test_result["result"]["value"]["type"] != "Ok"
+            assert test_result, \
+                f"Expected request {test_number + 1} to fail, but it succeeded"
 
 def internal_check_no_access_to_control_interface(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
-    for _, test_result in enumerate(output):
+    for test_result in output:
         assert test_result["result"]["type"] == "NoApi", "Expect type is different to NoApi"
+
+def internal_check_control_interface_closed(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    for test_result in output:
+        assert test_result["result"]["type"] == "ConnectionClosed", "Expect type is different to ConnectionClosed"
 
 def empty_keyword():
     pass

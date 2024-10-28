@@ -223,6 +223,7 @@ mod tests {
             server_connection::MockServerConnection,
             CliCommands, InputSourcePair,
         },
+        filtered_complete_state::FilteredCompleteState,
     };
 
     mockall::lazy_static! {
@@ -635,8 +636,11 @@ mod tests {
         let updated_state_clone = updated_state.clone();
         mock_server_connection
             .expect_get_complete_state()
+            .times(2)
             .with(eq(vec![]))
-            .return_once(|_| Ok((ank_base::CompleteState::from(updated_state_clone)).into()));
+            .returning(move |_| {
+                Ok((ank_base::CompleteState::from(updated_state_clone.clone())).into())
+            });
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(std::vec::Vec::new);
@@ -716,6 +720,11 @@ mod tests {
                     deleted_workloads: vec![],
                 })
             });
+        mock_server_connection
+            .expect_get_complete_state()
+            .once()
+            .returning(|_| Ok(FilteredCompleteState::default()));
+
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))

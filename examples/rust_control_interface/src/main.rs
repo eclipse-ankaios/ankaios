@@ -18,7 +18,7 @@ use api::ank_base::{
 };
 
 use api::control_api::{
-    from_ankaios::FromAnkaiosEnum, to_ankaios::ToAnkaiosEnum, FromAnkaios, ToAnkaios,
+    from_ankaios::FromAnkaiosEnum, to_ankaios::ToAnkaiosEnum, FromAnkaios, ToAnkaios, Hello
 };
 
 use prost::Message;
@@ -44,6 +44,13 @@ mod logging {
             chrono::offset::Utc::now().format("%Y-%m-%dT%H:%M:%SZ"),
             msg
         );
+    }
+}
+
+/// Create a Hello message to initialize the session
+fn create_hello_message() -> ToAnkaios {
+    ToAnkaios {
+        to_ankaios_enum: Some(ToAnkaiosEnum::Hello(Hello{ protocol_version: env!("ANKAIOS_VERSION").to_string() })),
     }
 }
 
@@ -190,6 +197,12 @@ fn write_to_control_interface() {
         ));
         exit(1);
     });
+
+    let protobuf_hello_message = create_hello_message();
+    logging::log(format!("Sending initial Hello message:\n{:#?}", protobuf_hello_message).as_str());
+    sc_req
+        .write_all(&protobuf_hello_message.encode_length_delimited_to_vec())
+        .unwrap();
 
     let protobuf_update_workload_request = create_request_to_add_new_workload();
 
