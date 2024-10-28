@@ -35,8 +35,9 @@ check-licenses:
 check-test-images:
     test -z "$(find tests/resources/configs -type f -exec grep -H -P 'image: (?!ghcr\.io/|image_typo:latest)' {} \;)"
 
+# Check for the presence of a copyright header
 check-copyright-headers:
-	./tools/check_copyright_headers.sh
+    ./tools/check_copyright_headers.sh
 
 # Run unit tests
 test:

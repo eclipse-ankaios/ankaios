@@ -754,7 +754,7 @@ Needs:
 
 Status: approved
 
-When the agent handles existing workloads, for each found existing workload which is requested to be started and the workload's configuration has changed, the RuntimeManager shall do the following:
+When the agent handles existing workloads, for each found existing workload which is requested to be started and either the workload's configuration has changed or the workload is not in state running or succeeded, the RuntimeManager shall do the following:
 
 - request the RuntimeFacade to delete the existing workload
 - request the RuntimeFacade to create the workload

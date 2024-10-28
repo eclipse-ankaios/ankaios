@@ -482,7 +482,7 @@ the container of workload "${workload_name}" shall have a different id but same 
 
     Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' and the same configuration on podman!
 
-the container of workload "${workload_name}" shall have a different id and different configuration on the podman runtime
+the container of workload "${workload_name}" shall have a different id on the podman runtime
     ${id_changed}=    Set Variable    ${False}
     ${start_time}=    Get Time Secs
     WHILE    True
@@ -505,7 +505,7 @@ the container of workload "${workload_name}" shall have a different id and diffe
     Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' on podman!
 
 the container of workload "${workload_name}" shall have the same id and same configuration on the podman runtime
-    ${id_changed}=    Set Variable    ${False}
+    ${id_changed}=    Set Variable    ${True}
     ${start_time}=    Get Time Secs
     WHILE    True
         ${current_secs}=    Get Time Secs
@@ -516,15 +516,15 @@ the container of workload "${workload_name}" shall have the same id and same con
             CONTINUE
         END
 
-        ${workload_id}=    Get From Dictionary    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    ${current_ankaios_instance_name}
+        ${old_container_id}=    Get From Dictionary    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    ${current_ankaios_instance_name}
 
-        IF    '${current_workload_id}' != '${workload_id}'
-            ${id_changed}=    Set Variable    ${True}
+        IF    '${current_workload_id}' == '${old_container_id}'
+            ${id_changed}=    Set Variable    ${False}
             BREAK
         END
     END
 
-    Should Not Be True    ${id_changed}    msg=Workload '${workload_name}' has a different '${workload_id}' on podman!
+    Should Not Be True    ${id_changed}    msg=Workload '${workload_name}' has a different '${old_container_id}' on podman!
 
 the pod "${pod_name}" of workload "${workload_name}" shall have a different id but same configuration on the podman kube runtime
     ${id_changed}=    Set Variable    ${False}

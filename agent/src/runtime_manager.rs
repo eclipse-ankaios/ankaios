@@ -61,6 +61,18 @@ fn flatten(
         .collect::<Vec<_>>()
 }
 
+pub trait ToReusableWorkloadSpecs {
+    fn into_reusable_workload_specs(self) -> Vec<ReusableWorkloadSpec>;
+}
+
+impl ToReusableWorkloadSpecs for Vec<WorkloadSpec> {
+    fn into_reusable_workload_specs(self) -> Vec<ReusableWorkloadSpec> {
+        self.into_iter()
+            .map(|w| ReusableWorkloadSpec::new(w, None))
+            .collect()
+    }
+}
+
 pub struct RuntimeManager {
     agent_name: AgentName,
     run_folder: PathBuf,
@@ -159,10 +171,8 @@ impl RuntimeManager {
             deleted_workloads.len()
         );
 
-        let new_added_workloads = added_workloads
-            .into_iter()
-            .map(|w| ReusableWorkloadSpec::new(w, None))
-            .collect();
+        let new_added_workloads: Vec<ReusableWorkloadSpec> =
+            added_workloads.into_reusable_workload_specs();
 
         self.execute_workloads(new_added_workloads, deleted_workloads, workload_state_db)
             .await;
@@ -289,8 +299,7 @@ impl RuntimeManager {
                                     workload_state.instance_name.workload_name()
                                 );
 
-                                /* Workaround to prevent
-                                workload states from being overwritten by the delete. The decoupled create and a potential enqueue
+                                /* This prevents workload states from being overwritten by the delete. The decoupled create and a potential enqueue
                                 on unmet inter-workload dependencies might run earlier than the delete and the delete overwrites the
                                 pending workload states.*/
                                 const REPORT_WORKLOAD_STATES_FOR_WORKLOAD: bool = false;
@@ -581,6 +590,7 @@ mod tests {
         MockControlInterface,
     };
     use crate::runtime_connectors::{MockRuntimeFacade, ReusableWorkloadState, RuntimeError};
+    use crate::runtime_manager::ToReusableWorkloadSpecs;
     use crate::workload::{MockWorkload, WorkloadError};
     use crate::workload_operation::ReusableWorkloadSpec;
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
@@ -956,23 +966,17 @@ mod tests {
         );
 
         let existing_workload_instance_name = existing_workload.instance_name.clone();
-        let workload_state_running = WorkloadState {
-            instance_name: existing_workload_instance_name,
-            execution_state: ExecutionState::running(),
-        };
+        let resuable_workload_state_running = ReusableWorkloadState::new(
+            existing_workload_instance_name,
+            ExecutionState::running(),
+            None,
+        );
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| {
-                Box::pin(async {
-                    Ok(vec![ReusableWorkloadState::new(
-                        workload_state_running,
-                        None,
-                    )])
-                })
-            });
+            .return_once(|_| Box::pin(async { Ok(vec![resuable_workload_state_running]) }));
 
         runtime_facade_mock
             .expect_resume_workload()
@@ -1024,23 +1028,17 @@ mod tests {
             .agent_name(AGENT_NAME)
             .build();
 
-        let workload_state_running = WorkloadState {
-            instance_name: existing_workload_with_other_config,
-            execution_state: ExecutionState::running(),
-        };
+        let reusable_workload_state_running = ReusableWorkloadState::new(
+            existing_workload_with_other_config,
+            ExecutionState::running(),
+            None,
+        );
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| {
-                Box::pin(async {
-                    Ok(vec![ReusableWorkloadState::new(
-                        workload_state_running,
-                        None,
-                    )])
-                })
-            });
+            .return_once(|_| Box::pin(async { Ok(vec![reusable_workload_state_running]) }));
 
         runtime_facade_mock
             .expect_delete_workload()
@@ -1054,11 +1052,8 @@ mod tests {
             )
             .build();
 
-        let expected_new_added_workloads: Vec<ReusableWorkloadSpec> = added_workloads
-            .clone()
-            .into_iter()
-            .map(|w| ReusableWorkloadSpec::new(w, None))
-            .collect();
+        let expected_new_added_workloads: Vec<ReusableWorkloadSpec> =
+            added_workloads.clone().into_reusable_workload_specs();
         let new_added_workloads = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
@@ -1087,23 +1082,17 @@ mod tests {
             .once()
             .return_once(|_| MockWorkloadScheduler::default());
 
-        let workload_state_succeeded = WorkloadState {
-            instance_name: existing_workload.instance_name,
-            execution_state: ExecutionState::succeeded(),
-        };
+        let resuable_workload_state_succeeded = ReusableWorkloadState::new(
+            existing_workload.instance_name,
+            ExecutionState::succeeded(),
+            None,
+        );
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| {
-                Box::pin(async {
-                    Ok(vec![ReusableWorkloadState::new(
-                        workload_state_succeeded,
-                        None,
-                    )])
-                })
-            });
+            .return_once(|_| Box::pin(async { Ok(vec![resuable_workload_state_succeeded]) }));
         runtime_facade_mock
             .expect_delete_workload()
             .once()
@@ -1116,11 +1105,8 @@ mod tests {
             )
             .build();
 
-        let expected_added_workloads: Vec<ReusableWorkloadSpec> = added_workloads
-            .clone()
-            .into_iter()
-            .map(|w| ReusableWorkloadSpec::new(w, None))
-            .collect();
+        let expected_added_workloads: Vec<ReusableWorkloadSpec> =
+            added_workloads.clone().into_reusable_workload_specs();
         let new_added_workloads = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
@@ -1150,25 +1136,18 @@ mod tests {
             .once()
             .return_once(|_| MockWorkloadScheduler::default());
 
-        let workload_state_succeeded = WorkloadState {
-            instance_name: existing_workload.instance_name.clone(),
-            execution_state: ExecutionState::succeeded(),
-        };
-
         const WORKLOAD_ID: &str = "workload_id_1";
+        let resuable_workload_state_succeeded = ReusableWorkloadState::new(
+            existing_workload.instance_name.clone(),
+            ExecutionState::succeeded(),
+            Some(WORKLOAD_ID.to_string()),
+        );
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| {
-                Box::pin(async {
-                    Ok(vec![ReusableWorkloadState::new(
-                        workload_state_succeeded,
-                        Some(WORKLOAD_ID.to_string()),
-                    )])
-                })
-            });
+            .return_once(|_| Box::pin(async { Ok(vec![resuable_workload_state_succeeded]) }));
 
         runtime_facade_mock.expect_delete_workload().never();
 
@@ -1230,10 +1209,8 @@ mod tests {
             .return_once(|_| {
                 Box::pin(async move {
                     Ok(vec![ReusableWorkloadState::new(
-                        WorkloadState {
-                            instance_name: existing_workload_with_other_config,
-                            ..Default::default()
-                        },
+                        existing_workload_with_other_config,
+                        ExecutionState::default(),
                         None,
                     )])
                 })
@@ -1403,10 +1380,8 @@ mod tests {
             .return_once(|_| {
                 Box::pin(async {
                     Ok(vec![ReusableWorkloadState::new(
-                        WorkloadState {
-                            instance_name: existing_workload_with_other_config,
-                            ..Default::default()
-                        },
+                        existing_workload_with_other_config,
+                        ExecutionState::default(),
                         None,
                     )])
                 })

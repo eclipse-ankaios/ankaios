@@ -16,7 +16,7 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use common::{
-    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState},
+    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
     std_extensions::IllegalStateResult,
 };
 #[cfg(test)]
@@ -29,7 +29,7 @@ use crate::control_interface::ControlInterface;
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 use crate::{
-    runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
+    runtime_connectors::{OwnableRuntime, ReusableWorkloadState, RuntimeError, StateChecker},
     workload_operation::ReusableWorkloadSpec,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
@@ -42,24 +42,6 @@ use crate::workload::Workload;
 use crate::workload::WorkloadCommandSender;
 
 use tokio::task::JoinHandle;
-
-#[derive(Debug, PartialEq)]
-pub struct ReusableWorkloadState {
-    pub workload_state: WorkloadState,
-    pub workload_id: Option<String>,
-}
-
-impl ReusableWorkloadState {
-    pub fn new(
-        workload_state: WorkloadState,
-        workload_id: Option<String>,
-    ) -> ReusableWorkloadState {
-        ReusableWorkloadState {
-            workload_state,
-            workload_id,
-        }
-    }
-}
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -415,7 +397,6 @@ mod tests {
     use common::objects::{
         generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
-        WorkloadState,
     };
 
     use crate::{
@@ -449,10 +430,8 @@ mod tests {
             .build();
 
         let workload_state = ReusableWorkloadState::new(
-            WorkloadState {
-                instance_name: workload_instance_name.clone(),
-                execution_state: ExecutionState::initial(),
-            },
+            workload_instance_name.clone(),
+            ExecutionState::initial(),
             None,
         );
 

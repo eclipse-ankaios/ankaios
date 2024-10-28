@@ -1111,7 +1111,7 @@ mod tests {
     async fn utest_start_container_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        static ID: &str = "test_id";
+        const ID: &str = "test_id";
 
         super::CliCommand::reset();
         super::CliCommand::new_expect(
@@ -1149,7 +1149,7 @@ mod tests {
             container_id: ID.into(),
         };
         let res = PodmanCli::podman_start(start_config, "test_workload_name").await;
-        assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
+        assert_eq!(res, Err(SAMPLE_ERROR_MESSAGE.to_string()));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]

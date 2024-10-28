@@ -17,7 +17,7 @@ use std::{fmt::Display, path::PathBuf, str::FromStr};
 use async_trait::async_trait;
 
 use common::{
-    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState},
+    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
     std_extensions::UnreachableOption,
 };
 
@@ -111,10 +111,8 @@ impl PodmanRuntime {
             let workload_id = &self.get_workload_id(instance_name).await?.id;
             match PodmanCli::list_states_by_id(workload_id).await {
                 Ok(Some(execution_state)) => workload_states.push(ReusableWorkloadState::new(
-                    WorkloadState {
-                        instance_name: instance_name.clone(),
-                        execution_state,
-                    },
+                    instance_name.clone(),
+                    execution_state,
                     Some(workload_id.to_string()),
                 )),
                 Ok(None) => {

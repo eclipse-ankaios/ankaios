@@ -16,12 +16,11 @@ use std::{fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
-use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec};
-
-use crate::{
-    runtime_connectors::{ReusableWorkloadState, StateChecker},
-    workload_state::WorkloadStateSender,
+use common::objects::{
+    AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
 };
+
+use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -42,6 +41,28 @@ impl Display for RuntimeError {
             RuntimeError::List(msg) => {
                 write!(f, "{}", msg)
             }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ReusableWorkloadState {
+    pub workload_state: WorkloadState,
+    pub workload_id: Option<String>,
+}
+
+impl ReusableWorkloadState {
+    pub fn new(
+        instance_name: WorkloadInstanceName,
+        execution_state: ExecutionState,
+        workload_id: Option<String>,
+    ) -> ReusableWorkloadState {
+        ReusableWorkloadState {
+            workload_state: WorkloadState {
+                instance_name,
+                execution_state,
+            },
+            workload_id,
         }
     }
 }

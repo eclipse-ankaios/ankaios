@@ -14,9 +14,7 @@
 
 use std::{cmp::min, fmt::Display, path::PathBuf, str::FromStr};
 
-use common::objects::{
-    AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
-};
+use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
 
 use async_trait::async_trait;
 use futures_util::TryFutureExt;
@@ -69,8 +67,8 @@ impl Display for PodmanKubeWorkloadId {
 impl FromStr for PodmanKubeWorkloadId {
     type Err = String;
     fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        // Not implemented as we cannot restart workloads
-        Err("Not implemented for PodmanKubeWorkloadId".to_string())
+        // Not supported as we cannot restart workloads
+        Err("Not supported for PodmanKubeWorkloadId".to_string())
     }
 }
 
@@ -85,10 +83,8 @@ impl PodmanKubeRuntime {
                 .get_state(&self.get_workload_id(instance_name).await?)
                 .await;
             workload_states.push(ReusableWorkloadState::new(
-                WorkloadState {
-                    instance_name: instance_name.clone(),
-                    execution_state,
-                },
+                instance_name.clone(),
+                execution_state,
                 // For the podman-kube runtime we cannot recreate/restart workloads and thus return  None as as workload_id
                 None,
             ));
