@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use crate::control_interface::ToAnkaios;
+use crate::control_interface::{to_ankaios, ToAnkaios};
 
 #[cfg_attr(test, mockall_double::double)]
 use super::authorizer::Authorizer;
@@ -22,6 +22,7 @@ use super::authorizer::Authorizer;
 use super::reopen_file::ReopenFile;
 use api::{ank_base, control_api};
 use common::{
+    check_version_compatibility,
     from_server_interface::{FromServer, FromServerReceiver},
     to_server_interface::{ToServer, ToServerSender},
 };
@@ -29,7 +30,10 @@ use common::{
 use prost::Message;
 use tokio::{io, select, task::JoinHandle};
 
-fn decode_to_server(protobuf_data: io::Result<Box<[u8]>>) -> io::Result<control_api::ToAnkaios> {
+const INITIAL_HELLO_MISSING_MSG: &str = "Initial Hello missing!";
+const PROTOBUF_DECODE_ERROR_MSG: &str = "Could not decode protobuf data";
+
+fn decode_to_server(protobuf_data: io::Result<Vec<u8>>) -> io::Result<control_api::ToAnkaios> {
     Ok(control_api::ToAnkaios::decode(&mut Box::new(
         protobuf_data?.as_ref(),
     ))?)
@@ -63,7 +67,34 @@ impl ControlInterfaceTask {
             authorizer,
         }
     }
+
+    // [impl->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
+    async fn check_initial_hello(&mut self) -> Result<(), String> {
+        let to_ankaios =
+            decode_to_server(self.input_stream.read_protobuf_data().await).map_err(|err| {
+                log::debug!("{}: '{:?}'", PROTOBUF_DECODE_ERROR_MSG, err);
+                PROTOBUF_DECODE_ERROR_MSG.to_string()
+            })?;
+        match to_ankaios.try_into() {
+            Ok(ToAnkaios::Hello(to_ankaios::Hello { protocol_version })) => {
+                check_version_compatibility(protocol_version)?
+            }
+            unexpected => {
+                log::debug!("Expected initial Hello, received: '{unexpected:?}'.");
+                return Err(INITIAL_HELLO_MISSING_MSG.into());
+            }
+        }
+        Ok(())
+    }
+
     pub async fn run(mut self) {
+        // [impl->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
+        if let Err(message) = self.check_initial_hello().await {
+            log::warn!("{message}");
+            let _ = self.send_connection_closed(message).await;
+            return;
+        }
+
         loop {
             select! {
                 // [impl->swdd~agent-ensures-control-interface-output-pipe-read~1]
@@ -95,10 +126,17 @@ impl ControlInterfaceTask {
                                     };
                                     let _ = self.forward_from_server(error).await;
                                 };
+                            },
+                            Ok(ToAnkaios::Hello(to_ankaios::Hello{protocol_version})) => {
+                                log::warn!("Received yet another Hello with protocol version '{protocol_version}'");
+                                if let Err(message) = check_version_compatibility(protocol_version) {
+                                    log::warn!("{message}");
+                                    let _ = self.send_connection_closed(message).await;
+                                    return;
+                                }
                             }
                             Err(error) => {
                                 log::warn!("Could not convert protobuf in internal data structure: '{}'", error);
-
                             }
                         }
                     } else {
@@ -118,10 +156,25 @@ impl ControlInterfaceTask {
         tokio::spawn(self.run())
     }
 
+    async fn send_connection_closed(&mut self, reason: String) -> io::Result<()> {
+        use control_api::from_ankaios::FromAnkaiosEnum;
+        let message = control_api::FromAnkaios {
+            from_ankaios_enum: Some(FromAnkaiosEnum::ConnectionClosed(
+                control_api::ConnectionClosed { reason },
+            )),
+        };
+
+        // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
+        let binary = message.encode_length_delimited_to_vec();
+        self.output_stream.write_all(&binary).await?;
+
+        Ok(())
+    }
+
     async fn forward_from_server(&mut self, response: ank_base::Response) -> io::Result<()> {
         use control_api::from_ankaios::FromAnkaiosEnum;
         let message = control_api::FromAnkaios {
-            from_ankaios_enum: Some(FromAnkaiosEnum::Response(response)),
+            from_ankaios_enum: Some(FromAnkaiosEnum::Response(Box::new(response))),
         };
 
         // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
@@ -160,10 +213,7 @@ pub fn generate_test_control_interface_task_mock() -> __mock_MockControlInterfac
 mod tests {
     use std::{io::Error, sync::Arc};
 
-    use common::{
-        commands::{self, CompleteStateRequest},
-        to_server_interface::ToServer,
-    };
+    use common::{commands, to_server_interface::ToServer};
     use mockall::{predicate, Sequence};
     use tokio::sync::mpsc;
 
@@ -172,7 +222,40 @@ mod tests {
 
     use super::ControlInterfaceTask;
 
-    use crate::control_interface::{authorizer::MockAuthorizer, reopen_file::MockReopenFile};
+    use crate::control_interface::{
+        authorizer::MockAuthorizer, control_interface_task::INITIAL_HELLO_MISSING_MSG,
+        reopen_file::MockReopenFile,
+    };
+
+    const REQUEST_ID: &str = "req_id";
+
+    fn prepare_workload_hello_binary_message(version: impl Into<String>) -> Vec<u8> {
+        let workload_hello = control_api::ToAnkaios {
+            to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Hello(
+                control_api::Hello {
+                    protocol_version: version.into(),
+                },
+            )),
+        };
+
+        workload_hello.encode_to_vec()
+    }
+
+    fn prepare_request_complete_state_binary_message(field_mask: impl Into<String>) -> Vec<u8> {
+        let ank_request = ank_base::Request {
+            request_id: REQUEST_ID.into(),
+            request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
+                ank_base::CompleteStateRequest {
+                    field_mask: vec![field_mask.into()],
+                },
+            )),
+        };
+        let test_output_request = control_api::ToAnkaios {
+            to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(ank_request)),
+        };
+
+        test_output_request.encode_to_vec()
+    }
 
     #[tokio::test]
     async fn utest_control_interface_task_forward_from_server() {
@@ -181,7 +264,7 @@ mod tests {
             .await;
 
         let response = ank_base::Response {
-            request_id: "req_id".to_owned(),
+            request_id: REQUEST_ID.into(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
                 Default::default(),
             )),
@@ -189,7 +272,7 @@ mod tests {
 
         let test_command_binary = control_api::FromAnkaios {
             from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
-                response.clone(),
+                Box::new(response.clone()),
             )),
         }
         .encode_length_delimited_to_vec();
@@ -232,7 +315,7 @@ mod tests {
         let test_output_request = control_api::ToAnkaios {
             to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(
                 ank_base::Request {
-                    request_id: "req_id".to_owned(),
+                    request_id: REQUEST_ID.into(),
                     request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
                         ank_base::CompleteStateRequest { field_mask: vec![] },
                     )),
@@ -245,13 +328,19 @@ mod tests {
         let mut mockall_seq = Sequence::new();
 
         let mut input_stream_mock = MockReopenFile::default();
-        let mut x = [0; 12];
-        x.clone_from_slice(&test_output_request_binary[..]);
+
+        let workload_hello_binary = prepare_workload_hello_binary_message(common::ANKAIOS_VERSION);
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .returning(move || Ok(Box::new(x)));
+            .return_once(move || Ok(workload_hello_binary));
+
+        input_stream_mock
+            .expect_read_protobuf_data()
+            .once()
+            .in_sequence(&mut mockall_seq)
+            .return_once(move || Ok(test_output_request_binary));
 
         input_stream_mock
             .expect_read_protobuf_data()
@@ -260,7 +349,7 @@ mod tests {
             .returning(move || Err(Error::new(std::io::ErrorKind::Other, "error")));
 
         let error = ank_base::Response {
-            request_id: "req_id".to_owned(),
+            request_id: REQUEST_ID.into(),
             response_content: Some(ank_base::response::ResponseContent::Error(
                 ank_base::Error {
                     message: "Access denied".into(),
@@ -270,7 +359,7 @@ mod tests {
 
         let test_input_command_binary = control_api::FromAnkaios {
             from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
-                error.clone(),
+                Box::new(error.clone()),
             )),
         }
         .encode_length_delimited_to_vec();
@@ -305,15 +394,15 @@ mod tests {
     // [utest->swdd~agent-listens-for-requests-from-pipe~1]
     // [utest->swdd~agent-ensures-control-interface-output-pipe-read~1]
     // [utest->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
+    // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_access_allowed() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
-        let request_id = "req_id";
         let ank_request = ank_base::Request {
-            request_id: request_id.to_owned(),
+            request_id: REQUEST_ID.into(),
             request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
                 ank_base::CompleteStateRequest {
                     field_mask: vec!["desiredState.workloads.nginx".to_string()],
@@ -321,7 +410,9 @@ mod tests {
             )),
         };
         let test_output_request = control_api::ToAnkaios {
-            to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(ank_request)),
+            to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(
+                ank_request.clone(),
+            )),
         };
 
         let test_output_request_binary = test_output_request.encode_to_vec();
@@ -329,13 +420,19 @@ mod tests {
         let mut mockall_seq = Sequence::new();
 
         let mut input_stream_mock = MockReopenFile::default();
-        let mut x = [0; 42];
-        x.clone_from_slice(&test_output_request_binary[..]);
+
+        let workload_hello_binary = prepare_workload_hello_binary_message(common::ANKAIOS_VERSION);
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .returning(move || Ok(Box::new(x)));
+            .return_once(move || Ok(workload_hello_binary));
+
+        input_stream_mock
+            .expect_read_protobuf_data()
+            .once()
+            .in_sequence(&mut mockall_seq)
+            .return_once(move || Ok(test_output_request_binary));
 
         input_stream_mock
             .expect_read_protobuf_data()
@@ -363,16 +460,120 @@ mod tests {
 
         control_interface_task.run().await;
 
-        let mut expected_request = commands::Request {
-            request_id: request_id.to_owned(),
-            request_content: commands::RequestContent::CompleteStateRequest(CompleteStateRequest {
-                field_mask: vec!["desiredState.workloads.nginx".to_string()],
-            }),
-        };
+        let mut expected_request: commands::Request = ank_request.try_into().unwrap();
         expected_request.prefix_request_id(request_id_prefix);
         assert_eq!(
             output_pipe_receiver.recv().await,
             Some(ToServer::Request(expected_request))
         );
+    }
+
+    // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
+    #[tokio::test]
+    async fn utest_control_interface_task_run_task_no_hello() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let test_output_request_binary = prepare_request_complete_state_binary_message("");
+
+        let mut mockall_seq = Sequence::new();
+        let mut input_stream_mock = MockReopenFile::default();
+        input_stream_mock
+            .expect_read_protobuf_data()
+            .once()
+            .in_sequence(&mut mockall_seq)
+            .return_once(move || Ok(test_output_request_binary));
+
+        let test_input_command_binary = control_api::FromAnkaios {
+            from_ankaios_enum: Some(
+                control_api::from_ankaios::FromAnkaiosEnum::ConnectionClosed(
+                    control_api::ConnectionClosed {
+                        reason: INITIAL_HELLO_MISSING_MSG.into(),
+                    },
+                ),
+            ),
+        }
+        .encode_length_delimited_to_vec();
+
+        let mut output_stream_mock = MockReopenFile::default();
+        output_stream_mock
+            .expect_write_all()
+            .with(predicate::eq(test_input_command_binary))
+            .once()
+            .returning(|_| Ok(()));
+
+        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
+        let request_id_prefix = "prefix@";
+
+        let authorizer = MockAuthorizer::default();
+
+        let control_interface_task = ControlInterfaceTask::new(
+            output_stream_mock,
+            input_stream_mock,
+            input_pipe_receiver,
+            output_pipe_sender,
+            request_id_prefix.to_owned(),
+            Arc::new(authorizer),
+        );
+
+        control_interface_task.run().await;
+        assert!(output_pipe_receiver.recv().await.is_none());
+    }
+
+    // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
+    #[tokio::test]
+    async fn utest_control_interface_task_run_task_hello_unsupported_version() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut mockall_seq = Sequence::new();
+        let mut input_stream_mock = MockReopenFile::default();
+
+        let unsupported_version = "1999.1.0";
+        let workload_hello_binary = prepare_workload_hello_binary_message(unsupported_version);
+        input_stream_mock
+            .expect_read_protobuf_data()
+            .once()
+            .in_sequence(&mut mockall_seq)
+            .return_once(move || Ok(workload_hello_binary));
+
+        let test_input_command_binary = control_api::FromAnkaios {
+            from_ankaios_enum: Some(
+                control_api::from_ankaios::FromAnkaiosEnum::ConnectionClosed(
+                    control_api::ConnectionClosed {
+                        reason: format!("Unsupported protocol version '{unsupported_version}'. Currently supported '{}'", common::ANKAIOS_VERSION),
+                    },
+                ),
+            ),
+        }
+        .encode_length_delimited_to_vec();
+
+        let mut output_stream_mock = MockReopenFile::default();
+        output_stream_mock
+            .expect_write_all()
+            .with(predicate::eq(test_input_command_binary))
+            .once()
+            .returning(|_| Ok(()));
+
+        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
+        let request_id_prefix = "prefix@";
+
+        let authorizer = MockAuthorizer::default();
+
+        let control_interface_task = ControlInterfaceTask::new(
+            output_stream_mock,
+            input_stream_mock,
+            input_pipe_receiver,
+            output_pipe_sender,
+            request_id_prefix.to_owned(),
+            Arc::new(authorizer),
+        );
+
+        control_interface_task.run().await;
+        assert!(output_pipe_receiver.recv().await.is_none());
     }
 }

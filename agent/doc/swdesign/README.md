@@ -2816,6 +2816,26 @@ Needs:
 - impl
 - utest
 
+#### Agent closes Control Interface channel on missing initial `Hello`
+`swdd~agent-closes-control-interface-on-missing-initial-hello~1`
+
+Status: approved
+
+When an Ankaios agent receives an initial message on the Control Interface that is different to the initial `Hello` message containing the supported Ankaios version by the workload or the provided version in the message is not compatible with the one of the agent, the agent shall:
+* close the Control Interface connection by sending a `ConnectionClosed` message
+* discontinuing reading new messages from the workload.
+
+Comment:
+The check for the supported by the agent version is done by a central function provided by the common library.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Agent converts from Control Interface proto request to internal object
 `swdd~agent-converts-control-interface-message-to-ankaios-object~1`
 

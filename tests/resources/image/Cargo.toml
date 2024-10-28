@@ -1,5 +1,4 @@
 [package]
-# name = "control_interface_example"
 name = "control_interface_tester"
 edition = "2021"
 license = "Apache-2.0"
