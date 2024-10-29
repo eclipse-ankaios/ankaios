@@ -72,17 +72,19 @@ desiredState:
       runtimeConfig: |
         image: docker.io/nginx:latest
         commandOptions: ["-p", "8081:80"]
+      configs: {}
+  configs: {}
 workloadStates:
-- instanceName:
-    agentName: agent_A
-    workloadName: nginx
-    id: 7d6ea2b79cea1e401beee1553a9d3d7b5bcbb37f1cfdb60db1fbbcaa140eb17d
-  executionState:
-    state: Running
-    subState: Ok
-    additionalInfo: ''
+  agent_A:
+    nginx:
+      cc74dd34189ef3181a2f15c6c5f5b0e76aaefbcd55397e15314e7a25bad0864b:
+        state: Running
+        subState: Ok
+        additionalInfo: ''
 agents:
-  agent_A: {}
+  agent_A:
+    cpuUsage: 2
+    freeMemory: 7989682176
 ```
 
 or

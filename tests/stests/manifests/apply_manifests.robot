@@ -161,6 +161,8 @@ Test Ankaios apply workload specifications via Ankaios Manifest files for deleti
     And the workload "nginx_from_manifest2" shall not exist within "20" seconds
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~cli-apply-send-update-state~1]
+# [stest->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
 Test Ankaios apply workload specifications via Ankaios Manifest content through stdin for deletion
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
@@ -175,5 +177,22 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
     # Asserts
     Then the last command shall finish with exit code "0"
     And the workload "nginx_from_manifest1" shall not exist within "20" seconds
+    [Teardown]    Clean up Ankaios
+
+# [stest->swdd~cli-apply-send-update-state~1]
+Test Ankaios apply workload specifications in Ankaios manifest with templated fields
+    [Setup]           Run Keywords    Setup Ankaios
+
+    # Preconditions
+    # This test assumes that all containers in Podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started without config
+    And Ankaios agent is started with name "agent_A"
+    # Actions
+    When user triggers "ank apply ${CONFIGS_DIR}/manifest_with_configs.yaml"
+    # Asserts
+    Then the last command shall finish with exit code "0"
+    And the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+    And the workload "greeting_person" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 

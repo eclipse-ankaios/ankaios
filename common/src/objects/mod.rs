@@ -18,7 +18,6 @@
 
 pub mod state;
 pub use state::State;
-pub use state::{STR_RE_AGENT, STR_RE_WORKLOAD};
 
 mod complete_state;
 pub use complete_state::CompleteState;
@@ -41,7 +40,7 @@ pub use stored_workload_spec::{
     generate_test_stored_workload_spec, generate_test_stored_workload_spec_with_config,
 };
 
-pub use stored_workload_spec::StoredWorkloadSpec;
+pub use stored_workload_spec::{StoredWorkloadSpec, STR_RE_CONFIG_REFERENCES};
 
 mod workload_state;
 #[cfg(any(feature = "test_utils", test))]
@@ -62,6 +61,7 @@ pub use workload_spec::{
     generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
     generate_test_workload_spec_with_runtime_config,
 };
+pub use workload_spec::{STR_RE_AGENT, STR_RE_WORKLOAD};
 
 pub use workload_spec::{
     get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
@@ -87,4 +87,6 @@ pub use control_interface_access::{
 };
 
 mod config;
+#[cfg(any(feature = "test_utils", test))]
+pub use config::generate_test_configs;
 pub use config::ConfigItem;

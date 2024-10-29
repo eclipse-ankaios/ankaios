@@ -347,7 +347,7 @@ The Common library shall provide functionality for enforcing a workload name to:
 * have a maximal length of 63 characters
 
 Rationale:
-A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+A consistent naming manner assures stability in usage and compatibility with Ankaios internal structure by ensuring proper function of the filtering.
 
 Tags:
 - Objects
@@ -365,7 +365,43 @@ Status: approved
 The Common library shall provide functionality for enforcing an agent name to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
 
 Rationale:
-A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+A consistent naming manner assures stability in usage and compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Config item key naming convention
+`swdd~common-config-item-key-naming-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing a config item key to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+
+Rationale:
+A consistent naming manner assures stability in usage and compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Config aliases and referenced config keys naming convention
+`swdd~common-config-aliases-and-config-reference-keys-naming-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing a workload's config reference key value pairs to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+
+Rationale:
+A consistent naming manner assures stability in usage and compatibility with Ankaios internal structure by ensuring proper function of the filtering.
 
 Tags:
 - Objects

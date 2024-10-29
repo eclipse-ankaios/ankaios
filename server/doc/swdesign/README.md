@@ -24,6 +24,31 @@ The following diagram shows a high level view of an Ankaios Server in its contex
 
 ### Design decisions
 
+The following section holds the design decisions taken during the development of the Ankaios server.
+
+#### Delegate template rendering of workload configs to the handlebars external library
+`swdd~server-delegate-template-render-to-external-library~1`
+
+Status: approved
+
+Ankaios uses the handlebars crate to render the configs provided for a workload.
+
+Rationale:
+
+The handlebars crate provides all the functionality needed to render the configs with templates, reducing implementation and integration effort. It is actively maintained and widely deployed. It is not overloaded with features, instead it supports the minimum amount of features needed to cover the use cases of workload configs. In addition, its rendering capabilities are extensible if a desired feature is missing in the future.
+
+Needs:
+- impl
+
+Assumptions:
+
+No assumptions were taken.
+
+Considered alternatives:
+
+- Askama: does not support rendering templates at runtime, mainly used for generating code based on templates
+- Tera: Jinja2 template engine contains too many features beyond the use case
+
 ## Structural view
 
 The following diagram shows the structural view of the Ankaios Server:
@@ -52,6 +77,10 @@ The Communication Middleware is responsible for:
 
 The ServerState is a data structure for maintaining the state of the Ankaios server. It prevents invariants when updating the state, by doing checks on the new state
 before applying it or when a view on the state is requested.
+
+### ConfigRenderer
+
+The ConfigRenderer is responsible for rendering the templated configuration of workloads with their corresponding configuration items provided inside the CompleteState.
 
 ## Behavioral view
 
@@ -323,7 +352,10 @@ Needs:
 
 Status: approved
 
-The Ankaios Server shall select the Agent responsible for running the Workload based on the `agent` field.
+The Ankaios Server shall select the workloads targeted at an agent based on the `agent` field.
+
+Comment:
+The field contents of the workloads are already rendered.
 
 Tags:
 - AnkaiosServer
@@ -466,7 +498,7 @@ The CompleteState includes:
 - Agents
 
 Comment:
-The field `Agents` is an associative data structure with the name of a connected agent as key and an associative data structure as value to store attributes of the agent by key/value pairs.
+The field `Agents` is an associative data structure with the name of a connected agent as key and an associative data structure as value to store attributes of the agent by key/value pairs. If the DesiredState contains fields with templated strings, it is returned unrendered.
 
 Tags:
 - AnkaiosServer
@@ -484,6 +516,9 @@ Status: approved
 
 When the Ankaios Server responses to a GetCompleteState request and the request contains a `field_mask`,
 the response includes the filed `api_version` and the fields listed in the `field_mask`.
+
+Comment:
+If the fields listed in the `field_mask` contain templated strings, they are returned unrendered.
 
 Tags:
 - ControlInterface
@@ -627,16 +662,16 @@ Needs:
 - impl
 - stest
 
-### Update Current State
+### Update Desired State
 
-The behavioral diagram of the updating current state is shown in the chapter "UpdateState interface".
+The behavioral diagram of updating the desired state is shown in the chapter "UpdateState interface".
 
 #### Server detects new workload
 `swdd~server-detects-new-workload~1`
 
 Status: approved
 
-When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present only in the New State,
+When the Ankaios Server gets the `ToServer` message `UpdateStateRequest` and detects a change of the state where a workload is present only in the New State,
 the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agent to add the workload.
 
 Tags:
@@ -652,7 +687,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present only in the Current State,
+When the Ankaios Server gets the `ToServer` message `UpdateStateRequest` and detects a change of the state where a workload is present only in the Current State,
 the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agent to delete the workload.
 
 Tags:
@@ -668,7 +703,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present in both states
+When the Ankaios Server gets the `ToServer` message `UpdateStateRequest` and detects a change of the state where a workload is present in both states
 and at least one field of the workload is different,
 the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agents to delete and add the workload.
 
@@ -679,6 +714,96 @@ Needs:
 - impl
 - utest
 - itest
+
+#### ServerState compares rendered workload configurations
+`swdd~server-state-compares-rendered-workloads~1`
+
+Status: approved
+
+When the ServerState determines changes in its State, the ServerState shall compare the rendered workload configurations of its current and new DesiredState.
+
+Rationale:
+This ensures that the system recognizes a workload as changed when a configuration item referenced by that workload is updated.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
+
+#### ServerState updates its desired state on unmodified workloads
+`swdd~server-state-updates-state-on-unmodified-workloads~1`
+
+Status: approved
+
+When the ServerState is requested to update its State and the ServerState detects no change of workloads in its State, the ServerState shall replace its current DesiredState with the new DesiredState.
+
+Rationale:
+The DesiredState must also be updated in other cases, such as when the config items are changed.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### ServerState triggers configuration rendering of workloads
+`swdd~server-state-triggers-configuration-rendering-of-workloads~1`
+
+Status: approved
+
+When the ServerState is requested to update its State, the ServerState shall trigger the ConfigRenderer to render the workloads with the configuration items in the CompleteState.
+
+Rationale:
+Rendering consumes resources and shall be done only once when updating the state.
+
+Tags:
+- ServerState
+- ConfigRenderer
+
+Needs:
+- impl
+- utest
+
+#### ServerState triggers validation of workload fields
+`swdd~server-state-triggers-validation-of-workload-fields~1`
+
+Status: approved
+
+When the ServerState receives successfully rendered workloads from the ConfigRenderer, the ServerState shall trigger the workload to validate the format of its internal fields.
+
+Rationale:
+Some workload fields only contain the final content after rendering.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### ConfigRenderer renders workload configuration
+`swdd~config-renderer-renders-workload-configuration~1`
+
+Status: approved
+
+When the ConfigRenderer is requested to render the workloads with configuration items, for each provided workload that references config items inside its `configs` field, the ConfigRenderer shall:
+* create a data structure containing memory references to the config items of the CompleteState referenced inside its `configs` field
+* render the workload's `agent` and `runtimeConfig` fields by replacing each template string with the referenced configuration item content
+* create a new workload configuration containing the rendered fields and the new instance name
+
+Comment:
+In case of a render error, the workload configuration remains unrendered and an error is thrown. If a workload does not reference a configuration item, the rendering of that workload is skipped and its fields remain unrendered.
+
+Tags:
+- ConfigRenderer
+
+Needs:
+- impl
+- utest
 
 #### ServerState rejects state with cycle
 `swdd~server-state-rejects-state-with-cyclic-dependencies~1`

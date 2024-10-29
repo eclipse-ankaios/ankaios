@@ -19,7 +19,7 @@ use std::path::Path;
 use crate::control_interface::Directory;
 use crate::control_interface::FileSystemError;
 use clap::Parser;
-use common::objects::state::STR_RE_AGENT;
+use common::objects::STR_RE_AGENT;
 use common::DEFAULT_SERVER_ADDRESS;
 
 const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";

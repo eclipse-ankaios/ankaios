@@ -63,6 +63,7 @@ fn workload_completer(current: &OsStr) -> Vec<CompletionCandidate> {
 fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
     const DESIRED_STATE: &str = "desiredState";
     const WORKLOADS: &str = "workloads";
+    const CONFIGS: &str = "configs";
     const WORKLOAD_STATES: &str = "workloadStates";
 
     let mut result = Vec::new();
@@ -77,6 +78,12 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
             result.push(format!("{}.{}", DESIRED_STATE, WORKLOADS));
             for workload_name in workloads.keys() {
                 result.push(format!("{}.{}.{}", DESIRED_STATE, WORKLOADS, workload_name));
+            }
+        }
+        if let Some(configs) = desired_state.configs {
+            result.push(format!("{}.{}", DESIRED_STATE, CONFIGS));
+            for config_name in configs.keys() {
+                result.push(format!("{}.{}.{}", DESIRED_STATE, CONFIGS, config_name));
             }
         }
     }
