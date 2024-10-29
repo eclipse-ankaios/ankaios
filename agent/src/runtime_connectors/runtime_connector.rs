@@ -12,11 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt::Display, path::PathBuf};
+use std::{fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
-use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec, WorkloadState};
+use common::objects::{
+    AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
+};
 
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
@@ -43,23 +45,46 @@ impl Display for RuntimeError {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub struct ReusableWorkloadState {
+    pub workload_state: WorkloadState,
+    pub workload_id: Option<String>,
+}
+
+impl ReusableWorkloadState {
+    pub fn new(
+        instance_name: WorkloadInstanceName,
+        execution_state: ExecutionState,
+        workload_id: Option<String>,
+    ) -> ReusableWorkloadState {
+        ReusableWorkloadState {
+            workload_state: WorkloadState {
+                instance_name,
+                execution_state,
+            },
+            workload_id,
+        }
+    }
+}
+
 // [impl->swdd~functions-required-by-runtime-connector~1]
 #[async_trait]
 pub trait RuntimeConnector<WorkloadId, StChecker>: Sync + Send
 where
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn name(&self) -> String;
 
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadState>, RuntimeError>;
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError>;
 
     async fn create_workload(
         &self,
         runtime_workload_config: WorkloadSpec,
+        reusable_workload_id: Option<WorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
     ) -> Result<(WorkloadId, StChecker), RuntimeError>;
@@ -82,7 +107,7 @@ where
 pub trait OwnableRuntime<WorkloadId, StChecker>: RuntimeConnector<WorkloadId, StChecker>
 where
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>>;
 }
@@ -91,7 +116,7 @@ impl<R, WorkloadId, StChecker> OwnableRuntime<WorkloadId, StChecker> for R
 where
     R: RuntimeConnector<WorkloadId, StChecker> + Clone + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>> {
         Box::new(self.clone())
@@ -111,13 +136,11 @@ pub mod test {
     use std::{collections::VecDeque, path::PathBuf, sync::Arc};
 
     use async_trait::async_trait;
-    use common::objects::{
-        AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
-    };
+    use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
     use tokio::sync::Mutex;
 
     use crate::{
-        runtime_connectors::{RuntimeStateGetter, StateChecker},
+        runtime_connectors::{ReusableWorkloadState, RuntimeStateGetter, StateChecker},
         workload_state::WorkloadStateSender,
     };
 
@@ -175,7 +198,7 @@ pub mod test {
 
     #[derive(Debug)]
     pub enum RuntimeCall {
-        GetReusableWorkloads(AgentName, Result<Vec<WorkloadState>, RuntimeError>),
+        GetReusableWorkloads(AgentName, Result<Vec<ReusableWorkloadState>, RuntimeError>),
         CreateWorkload(
             WorkloadSpec,
             Option<PathBuf>,
@@ -293,7 +316,7 @@ pub mod test {
         async fn get_reusable_workloads(
             &self,
             agent_name: &AgentName,
-        ) -> Result<Vec<WorkloadState>, RuntimeError> {
+        ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::GetReusableWorkloads(expected_agent_name, result)
                     if expected_agent_name == *agent_name =>
@@ -310,6 +333,7 @@ pub mod test {
         async fn create_workload(
             &self,
             runtime_workload_config: WorkloadSpec,
+            _reusable_workload_id: Option<String>,
             control_interface_path: Option<PathBuf>,
             _update_state_tx: WorkloadStateSender,
         ) -> Result<(String, StubStateChecker), RuntimeError> {
