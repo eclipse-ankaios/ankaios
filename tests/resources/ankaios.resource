@@ -30,6 +30,7 @@ ${CURRENT_RESULT}       ${EMPTY}
 ${SERVER_PROCESS_HANDLE}       ${EMPTY}
 ${TEST_FOLDER_NAME}    ${EMPTY}
 &{ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
+&{ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}
 ${ANKAIOS_VERSION}    ${EMPTY}
 
 *** Keywords ***
@@ -62,6 +63,7 @@ Clean up Ankaios
     Clean up Podman
     Run Command    rm -rf %{ANKAIOS_TEMP}    timeout=20
     Set Variable    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    {}
+    Set Variable    ${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}    {}
     Remove Environment Variable    ANKSERVER_CA_PEM
     Remove Environment Variable    ANKSERVER_CRT_PEM
     Remove Environment Variable    ANKSERVER_KEY_PEM
@@ -404,6 +406,9 @@ podman shall have assigned a container id for workload "${workload_name}" on age
     Set To Dictionary    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    ${ankaios_instance_name}=${container_id}
     Set Global Variable    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
     Log   ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING = '${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}'
+    Set To Dictionary    ${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}    ${workload_name}=${container_id}
+    Set Global Variable    ${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}
+    Log   ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING = '${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}'
 
 podman kube shall have assigned an id for pod "${pod_name}" of workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
     volumes for "${workload_name}" shall exist on "${agent_name}" within "${timeout}" seconds
@@ -482,6 +487,50 @@ the container of workload "${workload_name}" shall have a different id but same 
     END
 
     Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' and the same configuration on podman!
+
+the container of workload "${workload_name}" shall have a different id on the podman runtime
+    ${id_changed}=    Set Variable    ${False}
+    ${start_time}=    Get Time Secs
+    WHILE    True
+        ${current_secs}=    Get Time Secs
+        ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+        IF    ${elapsed_secs} >= 20    BREAK
+        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Podman    ${workload_name}
+        IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
+            CONTINUE
+        END
+
+        ${workload_id}=    Get From Dictionary    ${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}    ${workload_name}
+
+        IF    '${current_workload_id}' != '${workload_id}'
+            ${id_changed}=    Set Variable    ${True}
+            BREAK
+        END
+    END
+
+    Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' on podman!
+
+the container of workload "${workload_name}" shall have the same id and same configuration on the podman runtime
+    ${id_changed}=    Set Variable    ${True}
+    ${start_time}=    Get Time Secs
+    WHILE    True
+        ${current_secs}=    Get Time Secs
+        ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+        IF    ${elapsed_secs} >= 20    BREAK
+        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Podman    ${workload_name}
+        IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
+            CONTINUE
+        END
+
+        ${old_container_id}=    Get From Dictionary    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    ${current_ankaios_instance_name}
+
+        IF    '${current_workload_id}' == '${old_container_id}'
+            ${id_changed}=    Set Variable    ${False}
+            BREAK
+        END
+    END
+
+    Should Not Be True    ${id_changed}    msg=Workload '${workload_name}' has a different '${old_container_id}' on podman!
 
 the pod "${pod_name}" of workload "${workload_name}" shall have a different id but same configuration on the podman kube runtime
     ${id_changed}=    Set Variable    ${False}

@@ -15,9 +15,24 @@
 use common::objects::{DeletedWorkload, WorkloadSpec};
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ReusableWorkloadSpec {
+    pub workload_spec: WorkloadSpec,
+    pub workload_id: Option<String>,
+}
+
+impl ReusableWorkloadSpec {
+    pub fn new(workload_spec: WorkloadSpec, workload_id: Option<String>) -> ReusableWorkloadSpec {
+        ReusableWorkloadSpec {
+            workload_spec,
+            workload_id,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
 pub enum WorkloadOperation {
-    Create(WorkloadSpec),
+    Create(ReusableWorkloadSpec),
     Update(WorkloadSpec, DeletedWorkload),
     UpdateDeleteOnly(DeletedWorkload),
     Delete(DeletedWorkload),

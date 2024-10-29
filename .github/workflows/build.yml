@@ -58,7 +58,7 @@ jobs:
       - name: Run unit tests
         run: RUST_LOG=debug cargo nextest run
       - name: Run clippy code checks
-        run: cargo clippy --all-targets --no-deps --all-features -- -D warnings
+        run: just clippy
       - name: Prevent docker.io images in test
         run: just check-test-images
       - name: Check copyright headers
@@ -89,7 +89,7 @@ jobs:
       - name: Create code coverage html report
         run: |
           rustup component add llvm-tools-preview
-          tools/generate_test_coverage_report.sh test --html
+          just coverage
       - uses: actions/upload-artifact@v4.3.3
         with:
           name: code-coverage
@@ -163,8 +163,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.1
       - run: |
-          mkdir -p dist
-          oft trace $(find . -type d -name "src" -o -name "doc") -a swdd,utest,itest,stest,impl -o html -f dist/req_tracing_report.html || true
+          just trace-requirements dist/req_tracing_report.html
       - uses: actions/upload-artifact@v4.3.3
         with:
           name: requirement-tracing-report
