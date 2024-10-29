@@ -93,7 +93,7 @@ impl TryFrom<ank_base::State> for State {
 }
 
 impl State {
-    pub fn verify_api_format(provided_state: &State) -> Result<(), String> {
+    pub fn verify_api_version(provided_state: &State) -> Result<(), String> {
         if provided_state.api_version != CURRENT_API_VERSION {
             Err(format!(
                 "Unsupported API version. Received '{}', expected '{}'",
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn utest_state_accepts_compatible_state() {
         let state_compatible_version = State::default();
-        assert_eq!(State::verify_api_format(&state_compatible_version), Ok(()));
+        assert_eq!(State::verify_api_version(&state_compatible_version), Ok(()));
     }
 
     #[test]
@@ -197,7 +197,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            State::verify_api_format(&state_incompatible_version),
+            State::verify_api_version(&state_incompatible_version),
             Err(format!(
                 "Unsupported API version. Received '{}', expected '{}'",
                 api_version,

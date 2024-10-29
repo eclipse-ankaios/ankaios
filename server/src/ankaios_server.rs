@@ -68,7 +68,7 @@ impl AnkaiosServer {
 
     pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
         if let Some(state) = startup_state {
-            State::verify_api_format(&state.desired_state)?;
+            State::verify_api_version(&state.desired_state)?;
 
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
@@ -232,7 +232,7 @@ impl AnkaiosServer {
                         // [impl->swdd~update-desired-state-with-missing-version~1]
                         // [impl->swdd~server-naming-convention~1]
                         let updated_desired_state = &update_state_request.state.desired_state;
-                        if let Err(error_message) = State::verify_api_format(updated_desired_state)
+                        if let Err(error_message) = State::verify_api_version(updated_desired_state)
                             .and_then(|_| State::verify_configs_format(updated_desired_state))
                         {
                             log::warn!("The CompleteState in the request has wrong format. {} -> ignoring the request", error_message);
@@ -420,8 +420,8 @@ mod tests {
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
         generate_test_workload_states_map_with_data, CompleteState, CpuUsage, DeletedWorkload,
-        ExecutionState, ExecutionStateEnum, FreeMemory, PendingSubstate, State, WorkloadInstanceName,
-        WorkloadState,
+        ExecutionState, ExecutionStateEnum, FreeMemory, PendingSubstate, State,
+        WorkloadInstanceName, WorkloadState,
     };
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -1724,8 +1724,7 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
-        mock_server_state  
-      
+        mock_server_state
             .expect_contains_connected_agent()
             .once()
             .return_const(false);
