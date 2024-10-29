@@ -939,7 +939,7 @@ mod tests {
             .find(|w| w.instance_name.workload_name() == WORKLOAD_NAME_1);
 
         assert!(new_workload.is_some());
-        assert_eq!(new_workload.unwrap().instance_name.agent_name(), AGENT_A); // updated with existing agent name due to update mask
+        assert_eq!(new_workload.unwrap().instance_name.agent_name(), AGENT_A); // assume not updated due to update mask
 
         assert_eq!(expected, server_state.state);
     }
