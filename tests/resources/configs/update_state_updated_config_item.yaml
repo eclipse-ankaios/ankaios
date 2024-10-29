@@ -1,7 +1,7 @@
 desiredState:
   apiVersion: v0.1
   workloads:
-    greeting_persons:
+    greeting_person:
       agent: agent_A
       tags: []
       dependencies: {}
@@ -9,9 +9,9 @@ desiredState:
       runtime: podman
       runtimeConfig: |
         image: ghcr.io/eclipse-ankaios/tests/alpine:latest
-        commandArgs: [ "echo", '{{#each persons}}{{#if (eq this.age "40")}}Hello {{this.name}}(age: {{this.age}})\n{{/if}}{{/each}}' ]
+        commandArgs: [ "echo", '{{#each person}}{{#if (eq this.age "40")}}Hello {{this.name}}(age: {{this.age}})\n{{/if}}{{/each}}' ]
       configs:
-        persons: persons
+        person: person
     nginx:
       agent: '{{agent.agent_name}}'
       tags: []
@@ -27,7 +27,7 @@ desiredState:
   configs:
     agents:
       agent_name: agent_A
-    persons:
+    person:
     - age: '30'
       name: John Doe
     - age: '40'

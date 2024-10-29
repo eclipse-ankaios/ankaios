@@ -9,18 +9,18 @@ workloads:
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: [ "-p", "{{port.access_port}}:80"]
-  greeting_persons:
+  greeting_person:
     agent: agent_A
     runtime: podman
     configs:
-      persons: persons
+      person: person
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
-      commandArgs: [ "echo", '{{#each persons}}{{#if (eq this.age "40")}}Hello {{this.name}}(age: {{this.age}})\n{{/if}}{{/each}}' ]
+      commandArgs: [ "echo", '{{#each person}}{{#if (eq this.age "40")}}Hello {{this.name}}(age: {{this.age}})\n{{/if}}{{/each}}' ]
 configs:
   web_server_config:
     access_port: "8081"
-  persons:
+  person:
     - name: John Doe
       age: "30"
     - name: Chris Smith

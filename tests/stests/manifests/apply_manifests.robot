@@ -193,6 +193,6 @@ Test Ankaios apply workload specifications in Ankaios manifest with templated fi
     # Asserts
     Then the last command shall finish with exit code "0"
     And the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
-    And the workload "greeting_persons" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    And the workload "greeting_person" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
