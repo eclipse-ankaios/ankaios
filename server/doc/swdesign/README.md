@@ -757,7 +757,8 @@ Status: approved
 
 When the ServerState is requested to update its State, the ServerState shall trigger the ConfigRenderer to render the workloads with the configuration items in the CompleteState.
 
-Rationale: Rendering consumes resources and shall be done only once when updating the state.
+Rationale:
+Rendering consumes resources and shall be done only once when updating the state.
 
 Tags:
 - ServerState
