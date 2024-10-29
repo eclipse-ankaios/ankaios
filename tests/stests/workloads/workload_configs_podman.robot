@@ -33,7 +33,7 @@ Test Ankaios start up with templated Ankaios manifest and update state with upda
     ...    AND    Set Global Variable    ${start_up_yaml_file}    ${CONFIGS_DIR}/manifest_with_configs.yaml
     ...    AND    Set Global Variable    ${new_state_yaml_file}   ${CONFIGS_DIR}/update_state_updated_config_item.yaml
     # Preconditions
-    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${start_up_yaml_file}"
     And Ankaios agent is started with name "agent_A"
