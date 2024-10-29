@@ -12,11 +12,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-all: check-test-images check-licenses test stest build-release
+all: check-test-images check-licenses clippy test stest build-release
 
+# Perform debug build
 build:
     cargo build
 
+# Perform release build
 build-release:
     cargo build --release
 
@@ -25,6 +27,7 @@ clean:
     ./tools/dev_scripts/ankaios-clean
     rm -rf build
 
+# Check licenses of dependencies
 check-licenses:
     cargo deny check licenses
 
@@ -32,15 +35,30 @@ check-licenses:
 check-test-images:
     test -z "$(find tests/resources/configs -type f -exec grep -H -P 'image: (?!ghcr\.io/|image_typo:latest)' {} \;)"
 
+# Check for the presence of a copyright header
 check-copyright-headers:
-	./tools/check_copyright_headers.sh
+    ./tools/check_copyright_headers.sh
 
+# Run unit tests
 test:
     cargo nextest run
 
 # Build debug and run all system tests
 stest: build stest-only
 
-# only execute the stests without building
-stest-only:
-    ./tools/run_robot_tests.sh tests
+# Only execute the stests without building
+stest-only tests="tests":
+    ./tools/run_robot_tests.sh {{ tests }}
+
+# Run clippy code checks
+clippy:
+    cargo clippy --all-targets --no-deps --all-features -- -D warnings
+
+# Generate test coverage report
+coverage:
+    tools/generate_test_coverage_report.sh test --html
+
+# Create requirement tracing report
+trace-requirements report="build/req/req_tracing_report.html":
+    mkdir -p $(dirname "{{ report }}")
+    oft trace $(find . -type d \( -name "src" -o -name "doc" -o -name "tests" \) -not -path './doc') -a swdd,impl,utest,itest,stest -o html -f "{{ report }}" || true

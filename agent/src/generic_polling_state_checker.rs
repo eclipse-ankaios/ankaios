@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use std::time::Duration;
+use std::{str::FromStr, time::Duration};
 use tokio::{task::JoinHandle, time};
 
 use crate::{
@@ -34,7 +34,7 @@ pub struct GenericPollingStateChecker {
 #[async_trait]
 impl<WorkloadId> StateChecker<WorkloadId> for GenericPollingStateChecker
 where
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
     fn start_checker(

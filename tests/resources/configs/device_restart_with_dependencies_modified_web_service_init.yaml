@@ -1,0 +1,29 @@
+apiVersion: v0.1
+workloads:
+  web_service_init:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: NEVER
+    dependencies:
+      filesystem_init: ADD_COND_SUCCEEDED
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sleep", "-e", "ENV=TEST" ]
+      commandArgs: [ "2" ]
+  filesystem_init:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: NEVER
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sleep" ]
+      commandArgs: [ "1" ]
+  web_service:
+    runtime: podman
+    agent: agent_B
+    restartPolicy: NEVER
+    dependencies:
+      filesystem_init: ADD_COND_SUCCEEDED
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+      commandOptions: ["-p", "8081:80"]
