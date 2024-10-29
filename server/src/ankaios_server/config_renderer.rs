@@ -98,7 +98,6 @@ impl ConfigRenderer {
             HashMap::new(),
             |mut wl_config_map, (config_alias, config_key)| {
                 if let Some(config_value) = configs.get(config_key) {
-                    wl_config_map.insert(config_key, config_value);
                     wl_config_map.insert(config_alias, config_value);
                 }
                 wl_config_map
@@ -179,7 +178,7 @@ mod tests {
     #[test]
     fn utest_render_workloads_render_required_fields_successfully() {
         let templated_runtime_config =
-            "some_value_1: {{config_1.values.value_1}}\nsome_value_2: {{ref1.values.value_2.0}}";
+            "some_value_1: {{ref1.values.value_1}}\nsome_value_2: {{ref1.values.value_2.0}}";
         let templated_agent_name = "{{ref1.agent_name}}";
         let stored_workload = generate_test_stored_workload_spec_with_config(
             templated_agent_name,
@@ -207,6 +206,23 @@ mod tests {
             )])),
             result
         );
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    #[test]
+    fn utest_render_workloads_fails_field_uses_config_key_instead_of_alias() {
+        let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
+        let stored_workload = generate_test_stored_workload_spec_with_config(
+            AGENT_A,
+            RUNTIME,
+            templated_runtime_config,
+        );
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = generate_test_configs();
+        let renderer = ConfigRenderer::default();
+
+        assert!(renderer.render_workloads(&workloads, &configs).is_err());
     }
 
     // [utest->swdd~config-renderer-renders-workload-configuration~1]
