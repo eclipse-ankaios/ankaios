@@ -69,7 +69,7 @@ desiredState:
       dependencies: {}
       restartPolicy: ALWAYS
       runtime: podman
-      runtimeConfig: |-
+      runtimeConfig: |
         image: docker.io/nginx:latest
         commandOptions: ["-p", "8081:80"]
       configs: {}
