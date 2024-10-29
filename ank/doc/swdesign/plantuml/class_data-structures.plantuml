@@ -55,6 +55,9 @@ SetCommands <--o Set
 struct "Workload" as DeleteWorkload
 DeleteWorkload : Vec<String> workload_name
 
+struct "Config" as DeleteWorkload
+DeleteWorkload : Vec<String> workload_name
+
 struct "<<union>>\nDeleteCommands" as DeleteCommands
 DeleteCommands --|> DeleteWorkload : one of
 DeleteCommands <--o Delete
