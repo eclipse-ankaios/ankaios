@@ -317,7 +317,10 @@ impl ServerState {
         }
 
         new_state.try_into().map_err(|err| {
-            UpdateStateError::ResultInvalid(format!("Could not parse into CompleteState: '{}'", err))
+            UpdateStateError::ResultInvalid(format!(
+                "Could not parse into CompleteState: '{}'",
+                err
+            ))
         })
     }
 
@@ -1043,7 +1046,7 @@ mod tests {
             .expect_render_workloads()
             .once()
             .returning(move |_, _| {
-                Err(ConfigRenderError::new(
+                Err(ConfigRenderError::Field(
                     "agent".to_string(),
                     "config item does not exist".to_string(),
                 ))
