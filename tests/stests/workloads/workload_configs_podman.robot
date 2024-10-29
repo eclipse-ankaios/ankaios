@@ -31,6 +31,7 @@ Test Ankaios start up with templated Ankaios manifest and update state with upda
     [Setup]    Run Keywords    Setup Ankaios
     ...    AND    Set Global Variable    ${start_up_yaml_file}    ${CONFIGS_DIR}/manifest_with_configs.yaml
     ...    AND    Set Global Variable    ${new_state_yaml_file}   ${CONFIGS_DIR}/update_state_updated_config_item.yaml
+
     # Preconditions
     # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
@@ -51,7 +52,7 @@ Test Ankaios update configs with invalid config item key
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
-    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started without config
     And Ankaios agent is started with name "agent_A"
@@ -68,7 +69,7 @@ Test Ankaios update workload with invalid config alias
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
-    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started without config
     And Ankaios agent is started with name "agent_A"
@@ -85,7 +86,7 @@ Test Ankaios update workload with invalid config reference key
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
-    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started without config
     And Ankaios agent is started with name "agent_A"
@@ -101,7 +102,7 @@ Test Ankaios start up fails with invalid templated Ankaios manifest
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
-    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     # Actions
     # Manifest contains invalid template string syntax
