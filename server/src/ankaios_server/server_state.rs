@@ -316,8 +316,8 @@ impl ServerState {
             }
         }
 
-        new_state.try_into().map_err(|_| {
-            UpdateStateError::ResultInvalid("Could not parse into CompleteState.".to_string())
+        new_state.try_into().map_err(|err| {
+            UpdateStateError::ResultInvalid(format!("Could not parse into CompleteState: '{}'", err))
         })
     }
 
