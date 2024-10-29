@@ -1414,7 +1414,7 @@
 <h1 id="requirement-tracing">Requirement tracing<a class="headerlink" href="#requirement-tracing" title="Permanent link">&para;</a></h1>
 <h2 id="introduction">Introduction<a class="headerlink" href="#introduction" title="Permanent link">&para;</a></h2>
 <p>The Eclipse Ankaios project provides requirement tracing using the <a href="https://github.com/itsallcode/openfasttrace">OpenFastTrace</a> requirement tracing suite. The dev container already includes the required tooling. To generate a requirement tracing report call:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>tools/generate_oft_html_report.sh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>just<span class="w"> </span>trace-requirements
 </code></pre></div>
 <p>Afterwards the HTML report is available under <code>build/req/req_tracing_report.html</code> and shows the current coverage state.</p>
 <p>For details on the OpenFastTrace tool, please consult <a href="https://github.com/itsallcode/openfasttrace/blob/main/doc/user_guide.md">OFT's user documentation</a> or execute <code>oft help</code>.</p>
