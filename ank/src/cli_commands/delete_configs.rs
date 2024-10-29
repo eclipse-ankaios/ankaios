@@ -55,11 +55,11 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
+    use crate::cli_commands::{server_connection::MockServerConnection, CliCommands};
+    use crate::filtered_complete_state::FilteredCompleteState;
     use api::ank_base::UpdateStateSuccess;
     use common::objects::CompleteState;
     use mockall::predicate::eq;
-
-    use crate::cli_commands::{server_connection::MockServerConnection, CliCommands};
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
     const CONFIG_1: &str = "config_1";
@@ -89,6 +89,10 @@ mod tests {
                     deleted_workloads: vec![],
                 })
             });
+        mock_server_connection
+            .expect_get_complete_state()
+            .once()
+            .returning(|_| Ok(FilteredCompleteState::default()));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
@@ -100,6 +104,12 @@ mod tests {
             .delete_configs(vec![CONFIG_1.to_string(), CONFIG_2.to_string()])
             .await;
         assert!(delete_result.is_ok());
+
+        // Verify that the deleted configs no longer exist in the desired state
+        let get_result = cmd.get_configs().await.unwrap();
+
+        assert!(!get_result.contains(CONFIG_1));
+        assert!(!get_result.contains(CONFIG_2));
     }
 
     //swdd~cli-provides-delete-configs~1
