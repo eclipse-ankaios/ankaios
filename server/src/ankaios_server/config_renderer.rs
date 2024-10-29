@@ -211,7 +211,7 @@ mod tests {
 
     // [utest->swdd~config-renderer-renders-workload-configuration~1]
     #[test]
-    fn utest_render_workloads_not_rendering_workloads_with_no_assigned_configs() {
+    fn utest_render_workloads_not_rendering_workloads_with_no_referenced_configs() {
         let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
         let templated_agent_name = "{{config_1.agent_name}}";
         let mut stored_workload = generate_test_stored_workload_spec_with_config(
