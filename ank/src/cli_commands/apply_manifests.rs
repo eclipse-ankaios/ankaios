@@ -805,7 +805,7 @@ mod tests {
 
     // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
     // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
-    //[utest->swdd~cli-apply-send-update-state~1]
+    // [utest->swdd~cli-apply-send-update-state~1]
     #[tokio::test]
     async fn utest_apply_manifests_only_configs_to_update_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
