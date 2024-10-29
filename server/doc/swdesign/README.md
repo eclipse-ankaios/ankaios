@@ -352,7 +352,10 @@ Needs:
 
 Status: approved
 
-The Ankaios Server shall select the Agent responsible for running the Workload based on the `agent` field.
+The Ankaios Server shall select the workloads targeted at an agent based on the `agent` field.
+
+Comment:
+The field contents of the workloads are already rendered.
 
 Tags:
 - AnkaiosServer
