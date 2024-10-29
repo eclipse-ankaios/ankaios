@@ -14,8 +14,7 @@
 
 
 *** Settings ***
-Documentation       Tests to verify that ank cli updates workloads correctly
-...                 by adapting the portmapping from the host port 8081 to host port 8082.
+Documentation       Test of different cases related to workloads and their rendered configuration.
 
 Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
