@@ -16,11 +16,8 @@ use super::config_renderer::RenderedWorkloads;
 use api::ank_base;
 use common::commands;
 
-#[cfg(not(test))]
+#[cfg_attr(test, mockall_double::double)]
 use super::config_renderer::ConfigRenderer;
-
-#[cfg(test)]
-use super::config_renderer::MockConfigRenderer as ConfigRenderer;
 
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
