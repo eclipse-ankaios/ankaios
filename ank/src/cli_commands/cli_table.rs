@@ -341,7 +341,6 @@ mod tests {
             .contains("no reasonable terminal width"));
     }
 
-    // TODO: Add tests for a single column table
     #[test]
     fn utest_default_table_with_only_one_column() {
         let table_row = [TestOneRow {

@@ -72,11 +72,6 @@ mod tests {
             .get_lock_async()
             .await;
 
-        // let complete_state_update = test_utils::generate_test_complete_state_with_configs(vec![
-        //     CONFIG_1.to_string(),
-        //     CONFIG_2.to_string(),
-        // ]);
-
         let mut mock_server_connection = MockServerConnection::default();
 
         mock_server_connection
