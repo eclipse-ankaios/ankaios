@@ -59,7 +59,7 @@ Next, follow the steps in the [Quickstart guide](https://eclipse-ankaios.github.
 ## Build for multi-platform
 
 ```shell
-docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes  --credential yes
 docker buildx create --name mybuilder --driver docker-container --bootstrap
 docker buildx use mybuilder
 docker buildx build -t ghcr.io/eclipse-ankaios/app-ankaios-dev:<ankaios_version> --platform linux/amd64,linux/arm64 .

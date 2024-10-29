@@ -36,13 +36,12 @@ RUN (userdel -r ubuntu || true) \
     && echo "${USERNAME} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME}
 
 # Prepare shells
-RUN curl -sS https://starship.rs/install.sh | sh -s -- -y
 USER ${USERNAME}
 COPY --chown=${USERNAME}:${USERNAME} dot_bashrc /home/${USERNAME}/.bashrc
 COPY --chown=${USERNAME}:${USERNAME} dot_zshrc /home/${USERNAME}/.zshrc
 COPY --chown=${USERNAME}:${USERNAME} dot_tmux.conf /home/${USERNAME}/.tmux.conf
-
-RUN echo 'eval "$(starship init bash)"' >> /home/${USERNAME}/.bashrc \
+RUN curl -sS https://starship.rs/install.sh | sh -s -- -y \
+    && echo 'eval "$(starship init bash)"' >> /home/${USERNAME}/.bashrc \
     && echo 'eval "$(starship init zsh)"' >> /home/${USERNAME}/.zshrc
 COPY --chown=${USERNAME}:${USERNAME} starship.toml /home/${USERNAME}/.config/
 USER root
