@@ -83,6 +83,41 @@ impl TryFrom<ank_base::ConfigItem> for ConfigItem {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_configs() -> HashMap<String, ConfigItem> {
+    HashMap::from([
+        (
+            "config_1".to_string(),
+            ConfigItem::ConfigObject(HashMap::from([
+                (
+                    "values".to_string(),
+                    ConfigItem::ConfigObject(HashMap::from([
+                        (
+                            "value_1".to_string(),
+                            ConfigItem::String("value123".to_string()),
+                        ),
+                        (
+                            "value_2".to_string(),
+                            ConfigItem::ConfigArray(vec![
+                                ConfigItem::String("list_value_1".to_string()),
+                                ConfigItem::String("list_value_2".to_string()),
+                            ]),
+                        ),
+                    ])),
+                ),
+                (
+                    "agent_name".to_string(),
+                    ConfigItem::String("agent_A".to_owned()),
+                ),
+            ])),
+        ),
+        (
+            "config_2".to_string(),
+            ConfigItem::String("value_3".to_string()),
+        ),
+    ])
+}
+
 #[cfg(test)]
 mod tests {
     use api::ank_base;

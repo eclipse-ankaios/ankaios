@@ -90,6 +90,7 @@ fn config_completer(current: &OsStr) -> Vec<CompletionCandidate> {
 fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
     const DESIRED_STATE: &str = "desiredState";
     const WORKLOADS: &str = "workloads";
+    const CONFIGS: &str = "configs";
     const WORKLOAD_STATES: &str = "workloadStates";
     const CONFIGS: &str = "configs";
 

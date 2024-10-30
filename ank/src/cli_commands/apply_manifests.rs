@@ -15,6 +15,7 @@
 use super::{CliCommands, InputSourcePair};
 use crate::cli_commands::State;
 use crate::cli_error::CliError;
+use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
 use common::objects::{CompleteState, STR_RE_WORKLOAD};
 use common::state_manipulation::{Object, Path};
@@ -54,38 +55,29 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
 // [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
 pub fn handle_agent_overwrite(
     filter_masks: &Vec<common::state_manipulation::Path>,
-    desired_agent: &Option<String>,
+    cli_specified_agent_name: &Option<String>,
     mut state_obj: Object,
 ) -> Result<State, String> {
-    // No agent name specified through cli!
-    if desired_agent.is_none() {
-        // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
-        for field in filter_masks {
-            let path = &format!("{}.agent", String::from(field));
-            if state_obj.get(&path.into()).is_none() {
+    for mask_path in filter_masks {
+        if mask_path.parts().starts_with(&["workloads".into()]) {
+            let workload_agent_mask: Path = format!("{}.agent", String::from(mask_path)).into();
+            if let Some(agent_name) = cli_specified_agent_name {
+                // An agent name specified through cli -> do an agent name overwrite!
+                state_obj
+                    .set(
+                        &workload_agent_mask,
+                        serde_yaml::Value::String(agent_name.to_owned()),
+                    )
+                    .map_err(|_| "Could not find workload to update.".to_owned())?;
+            } else if state_obj.get(&workload_agent_mask).is_none() {
+                // No agent name specified through cli and inside workload configuration!
+                // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
                 return Err(
                     "No agent name specified -> use '--agent' option to specify!".to_owned(),
                 );
             }
         }
     }
-    // An agent name specified through cli -> do an agent name overwrite!
-    else {
-        let desired_agent_name = desired_agent.as_ref().unwrap().to_string();
-        for field in filter_masks {
-            let path = &format!("{}.agent", String::from(field));
-            if state_obj
-                .set(
-                    &path.into(),
-                    serde_yaml::Value::String(desired_agent_name.to_owned()),
-                )
-                .is_err()
-            {
-                return Err("Could not find workload to update.".to_owned());
-            }
-        }
-    }
-
     state_obj
         .try_into()
         .map_err(|err| format!("Invalid manifest data provided: {}", err))
@@ -133,7 +125,7 @@ pub fn create_filter_masks_from_paths(
 pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
-) -> Result<(CompleteState, Vec<String>), String> {
+) -> Result<Option<(CompleteState, Vec<String>)>, String> {
     let mut req_obj: Object = State::default().try_into().unwrap();
     let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
     for manifest in manifests.iter_mut() {
@@ -145,9 +137,10 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     }
 
     if req_paths.is_empty() {
-        return Err("No workload provided in manifests!".to_owned());
+        return Ok(None);
     }
 
+    output_debug!("req_paths:\n{:?}\n", req_paths);
     let filter_masks = create_filter_masks_from_paths(&req_paths, "desiredState");
     output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
 
@@ -165,7 +158,7 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     };
     output_debug!("\nstate_obj:\n{:?}\n", complete_state_req_obj);
 
-    Ok((complete_state_req_obj, filter_masks))
+    Ok(Some((complete_state_req_obj, filter_masks)))
 }
 
 impl CliCommands {
@@ -173,13 +166,17 @@ impl CliCommands {
     pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<(), CliError> {
         match get_input_sources(&apply_args.manifest_files) {
             Ok(mut manifests) => {
-                let (complete_state_req_obj, filter_masks) =
+                if let Some((complete_state_req_obj, filter_masks)) =
                     generate_state_obj_and_filter_masks_from_manifests(&mut manifests, &apply_args)
-                        .map_err(CliError::ExecutionError)?;
-
-                // [impl->swdd~cli-apply-send-update-state~1]
-                self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
-                    .await
+                        .map_err(CliError::ExecutionError)?
+                {
+                    // [impl->swdd~cli-apply-send-update-state~1]
+                    self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
+                        .await
+                } else {
+                    output!("Nothing to update.");
+                    Ok(())
+                }
             }
             Err(err) => Err(CliError::ExecutionError(err.to_string())),
         }
@@ -490,6 +487,38 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
+    #[test]
+    fn utest_handle_agent_overwrite_considers_only_workloads() {
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        let expected_state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        let cli_specified_agent_name = None;
+
+        assert_eq!(
+            handle_agent_overwrite(
+                &vec!["workloads.wl1".into(), "configs.config_key".into()],
+                &cli_specified_agent_name,
+                state.try_into().unwrap(),
+            )
+            .unwrap(),
+            expected_state
+        );
+    }
+
     // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
     // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
     #[test]
@@ -526,7 +555,7 @@ mod tests {
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
 
         assert_eq!(
-            Ok((expected_complete_state_obj, expected_filter_masks)),
+            Ok(Some((expected_complete_state_obj, expected_filter_masks))),
             generate_state_obj_and_filter_masks_from_manifests(
                 &mut manifests[..],
                 &ApplyArgs {
@@ -563,27 +592,7 @@ mod tests {
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
 
         assert_eq!(
-            Ok((expected_complete_state_obj, expected_filter_masks)),
-            generate_state_obj_and_filter_masks_from_manifests(
-                &mut manifests[..],
-                &ApplyArgs {
-                    agent_name: None,
-                    manifest_files: vec![manifest_file_name.to_string()],
-                    delete_mode: true,
-                },
-            )
-        );
-    }
-
-    #[test]
-    fn utest_generate_state_obj_and_filter_masks_from_manifests_no_workload_provided() {
-        let manifest_file_name = "manifest.yaml";
-        let manifest_content = io::Cursor::new(b"apiVersion: \"v0.1\"");
-        let mut manifests: Vec<InputSourcePair> =
-            vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
-
-        assert_eq!(
-            Err("No workload provided in manifests!".to_string()),
+            Ok(Some((expected_complete_state_obj, expected_filter_masks))),
             generate_state_obj_and_filter_masks_from_manifests(
                 &mut manifests[..],
                 &ApplyArgs {
@@ -685,7 +694,7 @@ mod tests {
     //[utest->swdd~cli-apply-send-update-state~1]
     // [utest->swdd~cli-watches-workloads~1]
     #[tokio::test]
-    async fn utest_apply_manifests_ok() {
+    async fn utest_apply_manifests_workloads_updated_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -769,6 +778,119 @@ mod tests {
                     }],
                 })
             });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        FAKE_GET_INPUT_SOURCE_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Ok(vec![(
+                "manifest.yml".to_string(),
+                Box::new(manifest_content),
+            )]));
+
+        let apply_result = cmd
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: false,
+                manifest_files: vec!["manifest_yaml".to_string()],
+            })
+            .await;
+        assert!(apply_result.is_ok());
+    }
+
+    // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+    // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+    // [utest->swdd~cli-apply-send-update-state~1]
+    #[tokio::test]
+    async fn utest_apply_manifests_only_configs_to_update_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v0.1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1",
+        );
+
+        let mut manifest_data = String::new();
+        let _ = manifest_content.clone().read_to_string(&mut manifest_data);
+
+        let updated_state = CompleteState {
+            desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
+            ..Default::default()
+        };
+
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(updated_state.clone()),
+                eq(vec!["desiredState.configs.config_1".to_string()]),
+            )
+            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
+
+        mock_server_connection
+            .expect_get_complete_state()
+            .return_once(|_| Ok(FilteredCompleteState::default()));
+
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .never();
+
+        mock_server_connection
+            .expect_read_next_update_workload_state()
+            .never();
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: true,
+            server_connection: mock_server_connection,
+        };
+
+        FAKE_GET_INPUT_SOURCE_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Ok(vec![(
+                "manifest.yml".to_string(),
+                Box::new(manifest_content),
+            )]));
+
+        let apply_result = cmd
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: false,
+                manifest_files: vec!["manifest_yaml".to_string()],
+            })
+            .await;
+        assert!(apply_result.is_ok());
+    }
+
+    // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+    // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+    #[tokio::test]
+    async fn utest_apply_manifests_nothing_to_update_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let manifest_content = io::Cursor::new(b"apiVersion: \"v0.1\"");
+
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection.expect_update_state().never();
+
+        mock_server_connection.expect_get_complete_state().never();
+
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .never();
+
+        mock_server_connection
+            .expect_read_next_update_workload_state()
+            .never();
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,

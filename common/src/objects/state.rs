@@ -11,22 +11,18 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use regex::Regex;
 use std::collections::HashMap;
 
 use crate::helpers::serialize_to_ordered_map;
 use crate::objects::ConfigItem;
-use crate::objects::StoredWorkloadSpec;
+use crate::objects::{StoredWorkloadSpec, STR_RE_CONFIG_REFERENCES};
 
 use api::ank_base;
 
 const CURRENT_API_VERSION: &str = "v0.1";
-const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
-pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]+*$";
-pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
 
 // [impl->swdd~common-object-representation~1]
 // [impl->swdd~common-object-serialization~1]
@@ -97,42 +93,34 @@ impl TryFrom<ank_base::State> for State {
 }
 
 impl State {
-    // [impl->swdd~common-workload-naming-convention~1]
-    // [impl->swdd~common-agent-naming-convention~1]
-    pub fn verify_format(provided_state: &State) -> Result<(), String> {
+    pub fn verify_api_version(provided_state: &State) -> Result<(), String> {
         if provided_state.api_version != CURRENT_API_VERSION {
-            return Err(format!(
+            Err(format!(
                 "Unsupported API version. Received '{}', expected '{}'",
                 provided_state.api_version,
                 State::default().api_version
-            ));
+            ))
+        } else {
+            Ok(())
         }
+    }
 
-        let re_workloads = Regex::new(STR_RE_WORKLOAD).unwrap();
-        let re_agent = Regex::new(STR_RE_AGENT).unwrap();
-
-        for (workload_name, workload_spec) in &provided_state.workloads {
-            if !re_workloads.is_match(workload_name.as_str()) {
+    // [impl->swdd~common-config-item-key-naming-convention~1]
+    pub fn verify_configs_format(provided_state: &State) -> Result<(), String> {
+        let re_config_items = Regex::new(STR_RE_CONFIG_REFERENCES).unwrap();
+        for config_key in provided_state.configs.keys() {
+            if !re_config_items.is_match(config_key.as_str()) {
                 return Err(format!(
-                    "Unsupported workload name. Received '{}', expected to have characters in {}",
-                    workload_name, STR_RE_WORKLOAD
-                ));
-            }
-            if workload_name.len() > MAX_CHARACTERS_WORKLOAD_NAME {
-                return Err(format!(
-                    "Workload name length {} exceeds the maximum limit of {} characters",
-                    workload_name.len(),
-                    MAX_CHARACTERS_WORKLOAD_NAME
-                ));
-            }
-            if !re_agent.is_match(workload_spec.agent.as_str()) {
-                return Err(format!(
-                    "Unsupported agent name. Received '{}', expected to have characters in {}",
-                    workload_spec.agent, STR_RE_AGENT
+                    "Unsupported config item key. Received '{}', expected to have characters in {}",
+                    config_key, STR_RE_CONFIG_REFERENCES
                 ));
             }
         }
 
+        for workload in provided_state.workloads.values() {
+            // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+            StoredWorkloadSpec::verify_config_reference_format(&workload.configs)?;
+        }
         Ok(())
     }
 }
@@ -150,15 +138,18 @@ impl State {
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
-
-    use super::{CURRENT_API_VERSION, MAX_CHARACTERS_WORKLOAD_NAME, STR_RE_AGENT, STR_RE_WORKLOAD};
     use api::ank_base;
     use std::collections::HashMap;
 
     use crate::{
-        objects::{State, StoredWorkloadSpec},
+        objects::{generate_test_configs, generate_test_stored_workload_spec, ConfigItem, State},
         test_utils::{generate_test_proto_state, generate_test_state},
     };
+
+    const WORKLOAD_NAME_1: &str = "workload_1";
+    const AGENT_A: &str = "agent_A";
+    const RUNTIME: &str = "runtime";
+    const INVALID_CONFIG_KEY: &str = "invalid%key";
 
     #[test]
     fn utest_converts_to_proto_state() {
@@ -194,10 +185,8 @@ mod tests {
 
     #[test]
     fn utest_state_accepts_compatible_state() {
-        let state_compatible_version = State {
-            ..Default::default()
-        };
-        assert_eq!(State::verify_format(&state_compatible_version), Ok(()));
+        let state_compatible_version = State::default();
+        assert_eq!(State::verify_api_version(&state_compatible_version), Ok(()));
     }
 
     #[test]
@@ -208,71 +197,11 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            State::verify_format(&state_incompatible_version),
+            State::verify_api_version(&state_incompatible_version),
             Err(format!(
                 "Unsupported API version. Received '{}', expected '{}'",
-                api_version, CURRENT_API_VERSION
-            ))
-        );
-    }
-
-    // [utest->swdd~common-workload-naming-convention~1]
-    #[test]
-    fn utest_state_rejects_incompatible_state_on_workload_name() {
-        let workload_name = "nginx.test".to_string();
-        let state_incompatible_version = State {
-            api_version: "v0.1".to_string(),
-            workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
-            ..Default::default()
-        };
-        assert_eq!(
-            State::verify_format(&state_incompatible_version),
-            Err(format!(
-                "Unsupported workload name. Received '{}', expected to have characters in {}",
-                workload_name, STR_RE_WORKLOAD
-            ))
-        );
-    }
-
-    // [utest->swdd~common-workload-naming-convention~1]
-    #[test]
-    fn utest_state_rejects_incompatible_state_on_inordinately_long_workload_name() {
-        let workload_name = "workload_name_is_too_long_for_ankaios_to_accept_it_and_I_don_t_know_what_else_to_write".to_string();
-        let state_incompatible_version = State {
-            api_version: "v0.1".to_string(),
-            workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
-            ..Default::default()
-        };
-        assert_eq!(
-            State::verify_format(&state_incompatible_version),
-            Err(format!(
-                "Workload name length {} exceeds the maximum limit of {} characters",
-                workload_name.len(),
-                MAX_CHARACTERS_WORKLOAD_NAME
-            ))
-        );
-    }
-
-    // [utest->swdd~common-agent-naming-convention~1]
-    #[test]
-    fn utest_state_rejects_incompatible_state_on_agent_name() {
-        let agent_name = "agent_A.test".to_string();
-        let state_incompatible_version = State {
-            api_version: "v0.1".to_string(),
-            workloads: HashMap::from([(
-                "sample".to_string(),
-                StoredWorkloadSpec {
-                    agent: agent_name.clone(),
-                    ..Default::default()
-                },
-            )]),
-            ..Default::default()
-        };
-        assert_eq!(
-            State::verify_format(&state_incompatible_version),
-            Err(format!(
-                "Unsupported agent name. Received '{}', expected to have characters in {}",
-                agent_name, STR_RE_AGENT
+                api_version,
+                super::CURRENT_API_VERSION
             ))
         );
     }
@@ -297,5 +226,64 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert_eq!(deserialization_result, "missing field `apiVersion`");
+    }
+
+    // [utest->swdd~common-config-item-key-naming-convention~1]
+    #[test]
+    fn utest_verify_configs_format_compatible_config_item_keys_and_config_references() {
+        let workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME);
+        let state = State {
+            api_version: super::CURRENT_API_VERSION.into(),
+            workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+            configs: generate_test_configs(),
+        };
+
+        assert_eq!(State::verify_configs_format(&state), Ok(()));
+    }
+
+    // [utest->swdd~common-config-item-key-naming-convention~1]
+    #[test]
+    fn utest_verify_configs_format_incompatible_config_item_key() {
+        let state = State {
+            api_version: super::CURRENT_API_VERSION.into(),
+            configs: HashMap::from([(
+                INVALID_CONFIG_KEY.to_owned(),
+                ConfigItem::String("value".to_string()),
+            )]),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            State::verify_configs_format(&state),
+            Err(format!(
+                "Unsupported config item key. Received '{}', expected to have characters in {}",
+                INVALID_CONFIG_KEY,
+                super::STR_RE_CONFIG_REFERENCES
+            ))
+        );
+    }
+
+    // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    #[test]
+    fn utest_verify_configs_format_incompatible_workload_config_alias() {
+        let mut workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME);
+        workload
+            .configs
+            .insert(INVALID_CONFIG_KEY.to_owned(), "config_1".to_string());
+
+        let state = State {
+            api_version: super::CURRENT_API_VERSION.into(),
+            workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            State::verify_configs_format(&state),
+            Err(format!(
+                "Unsupported config alias. Received '{}', expected to have characters in {}",
+                INVALID_CONFIG_KEY,
+                super::STR_RE_CONFIG_REFERENCES
+            ))
+        );
     }
 }

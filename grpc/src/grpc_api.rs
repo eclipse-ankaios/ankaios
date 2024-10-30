@@ -247,7 +247,7 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
 #[cfg(test)]
 fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
     HashMap::from([(
-        String::from("workload A"),
+        String::from("workload_A"),
         DeleteCondition::DelCondNotPendingNorRunning.into(),
     )])
 }
@@ -571,7 +571,7 @@ mod tests {
     #[test]
     fn utest_converts_to_ankaios_deleted_workload_fails() {
         let mut proto_workload = generate_test_proto_deleted_workload();
-        proto_workload.dependencies.insert("workload B".into(), -1);
+        proto_workload.dependencies.insert("workload_B".into(), -1);
 
         assert!(ankaios::DeletedWorkload::try_from(proto_workload).is_err());
     }
@@ -588,11 +588,11 @@ mod tests {
             }),
             dependencies: HashMap::from([
                 (
-                    String::from("workload A"),
+                    String::from("workload_A"),
                     ank_base::AddCondition::AddCondRunning.into(),
                 ),
                 (
-                    String::from("workload C"),
+                    String::from("workload_C"),
                     ank_base::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
@@ -614,11 +614,11 @@ mod tests {
         let ank_workload = ankaios::WorkloadSpec {
             dependencies: HashMap::from([
                 (
-                    String::from("workload A"),
+                    String::from("workload_A"),
                     ankaios::AddCondition::AddCondRunning,
                 ),
                 (
-                    String::from("workload C"),
+                    String::from("workload_C"),
                     ankaios::AddCondition::AddCondSucceeded,
                 ),
             ]),
@@ -641,11 +641,11 @@ mod tests {
             }),
             dependencies: HashMap::from([
                 (
-                    String::from("workload A"),
+                    String::from("workload_A"),
                     ank_base::AddCondition::AddCondRunning.into(),
                 ),
                 (
-                    String::from("workload C"),
+                    String::from("workload_C"),
                     ank_base::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
@@ -671,12 +671,12 @@ mod tests {
             }),
             dependencies: HashMap::from([
                 (
-                    String::from("workload A"),
+                    String::from("workload_A"),
                     ank_base::AddCondition::AddCondRunning.into(),
                 ),
-                (String::from("workload B"), -1),
+                (String::from("workload_B"), -1),
                 (
-                    String::from("workload C"),
+                    String::from("workload_C"),
                     ank_base::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),

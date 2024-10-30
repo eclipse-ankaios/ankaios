@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+mod config_renderer;
 mod cycle_check;
 mod delete_graph;
 mod server_state;
@@ -67,7 +68,7 @@ impl AnkaiosServer {
 
     pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
         if let Some(state) = startup_state {
-            State::verify_format(&state.desired_state)?;
+            State::verify_api_version(&state.desired_state)?;
 
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
@@ -230,8 +231,9 @@ impl AnkaiosServer {
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
                         // [impl->swdd~update-desired-state-with-missing-version~1]
                         // [impl->swdd~server-naming-convention~1]
-                        if let Err(error_message) =
-                            State::verify_format(&update_state_request.state.desired_state)
+                        let updated_desired_state = &update_state_request.state.desired_state;
+                        if let Err(error_message) = State::verify_api_version(updated_desired_state)
+                            .and_then(|_| State::verify_configs_format(updated_desired_state))
                         {
                             log::warn!("The CompleteState in the request has wrong format. {} -> ignoring the request", error_message);
 
@@ -418,8 +420,8 @@ mod tests {
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
         generate_test_workload_states_map_with_data, CompleteState, CpuUsage, DeletedWorkload,
-        ExecutionState, ExecutionStateEnum, FreeMemory, PendingSubstate, State, WorkloadInstanceName,
-        WorkloadState,
+        ExecutionState, ExecutionStateEnum, FreeMemory, PendingSubstate, State,
+        WorkloadInstanceName, WorkloadState,
     };
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -442,7 +444,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        // contains a self cycle to workload A
+        // contains a self cycle to workload_A
         let workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME_NAME);
 
         let startup_state = CompleteState {
@@ -548,7 +550,7 @@ mod tests {
             .once()
             .in_sequence(&mut seq)
             .return_const(Err(UpdateStateError::CycleInDependencies(
-                "workload A".to_string(),
+                "workload_A".to_string(),
             )));
 
         let added_workloads = vec![updated_workload.clone()];
@@ -1722,8 +1724,7 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
-        mock_server_state  
-      
+        mock_server_state
             .expect_contains_connected_agent()
             .once()
             .return_const(false);

@@ -764,8 +764,8 @@ mod tests {
                             .entry(
                                 "dependencies",
                                 Mapping::default()
-                                    .entry("workload A", "ADD_COND_RUNNING")
-                                    .entry("workload C", "ADD_COND_SUCCEEDED"),
+                                    .entry("workload_A", "ADD_COND_RUNNING")
+                                    .entry("workload_C", "ADD_COND_SUCCEEDED"),
                             )
                             .entry("restartPolicy", "ALWAYS")
                             .entry("runtime", "runtime")

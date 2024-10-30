@@ -160,11 +160,11 @@ fn generate_test_proto_dependencies() -> Dependencies {
     Dependencies {
         dependencies: (HashMap::from([
             (
-                String::from("workload A"),
+                String::from("workload_A"),
                 ank_base::AddCondition::AddCondRunning.into(),
             ),
             (
-                String::from("workload C"),
+                String::from("workload_C"),
                 ank_base::AddCondition::AddCondSucceeded.into(),
             ),
         ])),
@@ -173,7 +173,7 @@ fn generate_test_proto_dependencies() -> Dependencies {
 
 fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
     HashMap::from([(
-        String::from("workload A"),
+        String::from("workload_A"),
         DeleteCondition::DelCondNotPendingNorRunning,
     )])
 }

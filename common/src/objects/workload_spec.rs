@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -24,6 +25,11 @@ use super::WorkloadInstanceName;
 
 pub type WorkloadCollection = Vec<WorkloadSpec>;
 pub type DeletedWorkloadCollection = Vec<DeletedWorkload>;
+
+const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
+pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]+*$";
+pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
+
 // [impl->swdd~common-object-serialization~1]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeletedWorkload {
@@ -50,6 +56,48 @@ pub struct WorkloadSpec {
 impl WorkloadSpec {
     pub fn needs_control_interface(&self) -> bool {
         !self.control_interface_access.allow_rules.is_empty()
+    }
+
+    // [impl->swdd~common-workload-naming-convention~1]
+    // [impl->swdd~common-agent-naming-convention~1]
+    pub fn verify_fields_format(workload_spec: &WorkloadSpec) -> Result<(), String> {
+        Self::verify_workload_name_format(workload_spec.instance_name.workload_name())?;
+        Self::verify_agent_name_format(workload_spec.instance_name.agent_name())?;
+        Ok(())
+    }
+
+    // [impl->swdd~common-workload-naming-convention~1]
+    fn verify_workload_name_format(workload_name: &str) -> Result<(), String> {
+        let re_workloads = Regex::new(STR_RE_WORKLOAD).unwrap();
+        if !re_workloads.is_match(workload_name) {
+            return Err(format!(
+                "Unsupported workload name. Received '{}', expected to have characters in {}",
+                workload_name, STR_RE_WORKLOAD
+            ));
+        }
+
+        if workload_name.len() > MAX_CHARACTERS_WORKLOAD_NAME {
+            Err(format!(
+                "Workload name length {} exceeds the maximum limit of {} characters",
+                workload_name.len(),
+                MAX_CHARACTERS_WORKLOAD_NAME
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    // [impl->swdd~common-agent-naming-convention~1]
+    fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
+        let re_agent = Regex::new(STR_RE_AGENT).unwrap();
+        if !re_agent.is_match(agent_name) {
+            Err(format!(
+                "Unsupported agent name. Received '{}', expected to have characters in {}",
+                agent_name, STR_RE_AGENT
+            ))
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -216,8 +264,8 @@ use crate::objects::generate_test_control_interface_access;
 #[cfg(any(feature = "test_utils", test))]
 fn generate_test_dependencies() -> HashMap<String, AddCondition> {
     HashMap::from([
-        (String::from("workload A"), AddCondition::AddCondRunning),
-        (String::from("workload C"), AddCondition::AddCondSucceeded),
+        (String::from("workload_A"), AddCondition::AddCondRunning),
+        (String::from("workload_C"), AddCondition::AddCondSucceeded),
     ])
 }
 
@@ -314,9 +362,9 @@ pub fn generate_test_workload_spec_with_dependencies(
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
-
     use crate::objects::*;
     use crate::test_utils::*;
+    const RUNTIME: &str = "runtime";
 
     #[test]
     fn utest_get_workloads_per_agent_one_agent_one_workload() {
@@ -434,14 +482,14 @@ mod tests {
             generate_test_deleted_workload("agent X".to_string(), "workload X".to_string());
 
         deleted_workload.dependencies.insert(
-            "workload C".to_string(),
+            "workload_C".to_string(),
             DeleteCondition::DelCondNotPendingNorRunning,
         );
 
         let serialized_deleted_workload = serde_yaml::to_string(&deleted_workload).unwrap();
         let indices = [
-            serialized_deleted_workload.find("workload A").unwrap(),
-            serialized_deleted_workload.find("workload C").unwrap(),
+            serialized_deleted_workload.find("workload_A").unwrap(),
+            serialized_deleted_workload.find("workload_C").unwrap(),
         ];
         assert!(
             indices.windows(2).all(|window| window[0] < window[1]),
@@ -508,5 +556,68 @@ mod tests {
 
         workload_spec.control_interface_access = generate_test_control_interface_access();
         assert!(workload_spec.needs_control_interface());
+    }
+
+    // [utest->swdd~common-workload-naming-convention~1]
+    // [utest->swdd~common-agent-naming-convention~1]
+    #[test]
+    fn utest_workload_verify_fields_format_success() {
+        let compatible_workload_spec = generate_test_workload_spec();
+        assert_eq!(
+            WorkloadSpec::verify_fields_format(&compatible_workload_spec),
+            Ok(())
+        );
+    }
+
+    // [utest->swdd~common-workload-naming-convention~1]
+    #[test]
+    fn utest_workload_verify_fields_incompatible_workload_name() {
+        let spec_with_wrong_workload_name = generate_test_workload_spec_with_param(
+            "agent_A".to_owned(),
+            "incompatible.workload_name".to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        assert_eq!(
+            WorkloadSpec::verify_fields_format(&spec_with_wrong_workload_name),
+            Err(format!(
+                "Unsupported workload name. Received '{}', expected to have characters in {}",
+                spec_with_wrong_workload_name.instance_name.workload_name(),
+                super::STR_RE_WORKLOAD
+            ))
+        );
+    }
+
+    // [utest->swdd~common-agent-naming-convention~1]
+    #[test]
+    fn utest_workload_verify_fields_incompatible_agent_name() {
+        let spec_with_wrong_agent_name = generate_test_workload_spec_with_param(
+            "incompatible.agent_name".to_owned(),
+            "workload_1".to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        assert_eq!(
+            WorkloadSpec::verify_fields_format(&spec_with_wrong_agent_name),
+            Err(format!(
+                "Unsupported agent name. Received '{}', expected to have characters in {}",
+                spec_with_wrong_agent_name.instance_name.agent_name(),
+                super::STR_RE_AGENT
+            ))
+        );
+    }
+
+    // [utest->swdd~common-workload-naming-convention~1]
+    #[test]
+    fn utest_verify_workload_name_format_inordinately_long_workload_name() {
+        let workload_name = "workload_name_is_too_long_for_ankaios_to_accept_it_and_I_don_t_know_what_else_to_write".to_string();
+        assert_eq!(
+            WorkloadSpec::verify_workload_name_format(&workload_name),
+            Err(format!(
+                "Workload name length {} exceeds the maximum limit of {} characters",
+                workload_name.len(),
+                super::MAX_CHARACTERS_WORKLOAD_NAME,
+            ))
+        );
     }
 }
