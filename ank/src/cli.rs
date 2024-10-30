@@ -92,7 +92,6 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
     const WORKLOADS: &str = "workloads";
     const CONFIGS: &str = "configs";
     const WORKLOAD_STATES: &str = "workloadStates";
-    const CONFIGS: &str = "configs";
 
     let mut result = Vec::new();
 
