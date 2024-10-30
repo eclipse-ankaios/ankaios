@@ -41,7 +41,7 @@ def table_to_list(raw):
 
     # Skip all lines before the table
     header = ""
-    while splitted and ("WORKLOAD NAME" and "NAME" and "CONFIG") not in header:
+    while splitted and ("WORKLOAD NAME" and "NAME") not in header:
         header = splitted.pop(0)
 
     columns = [(x.group(0).strip(), x.start(), x.end()) for x in re.finditer(r'(([^\s]+\s?)+\s*)', header.replace('\x1b[1G\x1b[1G', ''))]
@@ -394,3 +394,15 @@ def check_if_mount_point_has_not_been_generated_for(agent_name, command_result):
         control_interface_path = path.join(TMP_DIRECTORY, control_interface_name)
 
         assert not path.exists(control_interface_path), "the mount point has been generated"
+
+# MANDATORY FOR STABLE SYSTEM TESTS
+def config_name_shall_exist_in_list(config_name, current_result):
+    config_names_list = list(current_result.split("\n"))[1:]  # skip the header
+    found = False
+
+    for config in config_names_list:
+        if config_name in config:
+            found = True
+            break
+
+    assert found, f"Config name {config_name} does not exist in the list"
