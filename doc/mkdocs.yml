@@ -78,6 +78,7 @@ nav:
     - Upgrading:
       - usage/upgrading/v0_2_to_v0_3.md
       - usage/upgrading/v0_3_to_v0_4.md
+      - usage/upgrading/v0_4_to_v0_5.md
   - Reference:
     - reference/startup-configuration.md
     - reference/interacting-with-ankaios.md
