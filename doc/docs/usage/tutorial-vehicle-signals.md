@@ -449,6 +449,20 @@ After running one of these commands, the `speed-provider` workload has been upda
 
 You can verify this by re-opening the web UI on <http://127.0.0.1:5000>.
 
+### List configuration items
+
+Let's list the configuration items present in current state with the `ank get configs` command.
+
+Using `ank -k get configs`, it should print:
+
+```text
+CONFIGS
+network
+env_provider
+env_consumer
+agents
+```
+
 ### Delete configuration items
 
 Let's try to delete a configuration item still referenced by workloads in its `configs` field by re-using the previous manifest content.
