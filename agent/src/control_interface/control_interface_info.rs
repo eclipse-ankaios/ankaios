@@ -66,7 +66,7 @@ impl ControlInterfaceInfo {
         self.authorizer
     }
 
-    // [impl->swdd~agent-compares-control-interface-metadata~1]
+    // [impl->swdd~agent-compares-control-interface-metadata~2]
     pub fn has_same_configuration(&self, other: &ControlInterface) -> bool {
         let self_location = self
             .workload_instance_name
