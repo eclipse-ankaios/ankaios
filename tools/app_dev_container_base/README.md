@@ -46,7 +46,7 @@ Use the container with rootless podman inside (recommended):
 docker run --privileged -it --rm --user ankaios ghcr.io/eclipse-ankaios/app-ankaios-dev:<ankaios_version> /bin/bash
 ```
 
-**Note:** The ankaios user has activated the starship shell, which contains a command prompt and tools more suited to development tasks.
+**Note:** The ankaios user has the starship shell activated, which contains a command prompt and tools more suited for development tasks.
 
 Use the container with rootful podman inside:
 
