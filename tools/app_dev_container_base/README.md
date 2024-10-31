@@ -28,7 +28,7 @@ The devcontainer contains the following:
     - protobuf-compiler
     - grpcurl
 
-- Podman 4 (daemonless container orchestrator)
+- Podman 4 (daemonless container engine)
 
 The control interface dependencies are essentially needed for use cases where your app needs to use the [Ankaios Control Interface](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/) to communicate with the Ankaios orchestrator. An example use case would be to write a workload that requests Ankaios to dynamically start another workload.
 
