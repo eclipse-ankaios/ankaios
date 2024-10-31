@@ -17,7 +17,7 @@ flowchart TD
     a2(Ankaios Agent 2)
     w3(Workload 3)
     w4(Workload 4)
-    s(Ankaios Server)
+    s(Ankaios server)
 
 
     s <--> a1 <-->|Control Interface| w1 & w2
@@ -58,13 +58,13 @@ flowchart TD
     a1(Ankaios Agent 1)
     w1(Workload 1)
     w2(Workload 2)
-    s(Ankaios Server)
+    s(Ankaios server)
 
 
     s <--> a1 <-->|"/run/ankaios/control_interface/{input,output}"| w1 & w2
 ```
 
-The [control interface](./control-interface.md) relies on [FIFO](https://en.wikipedia.org/wiki/Named_pipe) (also known as [named pipes](https://en.wikipedia.org/wiki/Named_pipe)) to enable a [workload](glossary.md#workload) process to communicate with the Ankaios system. For that purpose, Ankaios creates a mount point for each [workload](glossary.md#workload) to store the FIFO files. At the mount point `/run/ankaios/control_interface/` the [workload](glossary.md#workload) developer can find the FIFO files `input` and `output` and use them for the communication with the Ankaios server. Ankaios uses its own communication protocol described in [protocol documentation](./_ankaios.proto.md#oprotocol-documentation) as a [protobuf IDL](https://protobuf.com/docs/language-spec) which allows the client code to be generated in any programming language supported by the [protobuf compiler](https://protobuf.dev/reference/). The generated client code can then be integrated and used in a [workload](#communication-between-ankaios-and-workloads).
+The [control interface](./control-interface.md) relies on [FIFO](https://en.wikipedia.org/wiki/Named_pipe) (also known as [named pipes](https://en.wikipedia.org/wiki/Named_pipe)) to enable a [workload](glossary.md#workload) to communicate with the Ankaios system. For that purpose, Ankaios creates a mount point for each [workload](glossary.md#workload) to store the FIFO files. At the mount point `/run/ankaios/control_interface/` the [workload](glossary.md#workload) developer can find the FIFO files `input` and `output` and use them for the communication with the Ankaios server. Ankaios uses its own communication protocol described in [protocol documentation](./_ankaios.proto.md#control_api-proto) as a [protobuf IDL](https://protobuf.com/docs/language-spec) which allows the client code to be generated in any programming language supported by the [protobuf compiler](https://protobuf.dev/reference/). The generated client code can then be integrated and used in a [workload](#communication-between-ankaios-and-workloads).
 
 ## Communication between Ankaios and workloads
 
@@ -97,7 +97,7 @@ The following sections showcase in Rust some important parts of the communicatio
 
 ### Sending request message from a workload to Ankaios server
 
-To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [ToAnkaios](_ankaios.proto.md#toankaios).
+To send out a request message from the workload to the Ankaios server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [ToAnkaios](_ankaios.proto.md#toankaios).
 
 ```mermaid
 flowchart TD
@@ -187,15 +187,15 @@ fn main() {
 
 ### Processing response message from Ankaios server
 
-To process a response message from the Ankaios Server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [FromServer](_ankaios.proto.md#fromserver).
+To process a response message from the Ankaios server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [FromAnkaios](_ankaios.proto.md#fromankaios).
 
 ```mermaid
 flowchart TD
     begin([Start])
     input("Read bytes from /run/ankaios/control_interface/input")
     dec_length(Get length from read length delimited varint encoded bytes)
-    deser_msg(Decode and deserialize FromServer message using decoded length and the generated functions)
-    further_processing(Process FromServer message object)
+    deser_msg(Decode and deserialize FromAnkaios message using decoded length and the generated functions)
+    further_processing(Process FromAnkaios message object)
     fin([end])
 
     begin --> input
@@ -255,7 +255,7 @@ fn read_from_control_interface() {
         if let Ok(binary) = read_protobuf_data(&mut ex_req) {
             let proto = FromAnkaios::decode(&mut Box::new(binary.as_ref()));
 
-            println!("{}", &format!("Receiving FromServer containing the workload states of the current state: {:#?}", proto));
+            println!("{}", &format!("Received FromAnkaios message containing the response from the server: {:#?}", proto));
         }
     }
 }
