@@ -17,6 +17,7 @@ use crate::cli_commands::State;
 use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
+use common::check_version_compatibility;
 use common::objects::{CompleteState, STR_RE_WORKLOAD};
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
@@ -39,11 +40,18 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
         )),
         Ok(obj) => {
             let mut workload_paths: HashSet<Path> = HashSet::new();
-            for path in Vec::<Path>::from(&obj) {
+            let obj_paths = Vec::<Path>::from(&obj);
+            for path in obj_paths {
                 let parts = path.parts();
                 if parts.len() > 1 {
                     let _ = &mut workload_paths
                         .insert(Path::from(format!("{}.{}", parts[0], parts[1])));
+                } else if parts.contains(&"apiVersion".to_string()) {
+                    check_version_compatibility(
+                        obj.get(&path)
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Invalid manifest version_provided."),
+                    )?;
                 }
             }
 
@@ -273,6 +281,25 @@ mod tests {
 
         assert!(TryInto::<State>::try_into(obj).is_err());
         assert!(paths.is_empty());
+    }
+
+    #[test]
+    fn utest_parse_manifest_invalid_api_version() {
+        let manifest_content = io::Cursor::new(b"apiVersion: v3");
+
+        // let (obj, paths) = parse_manifest(&mut (
+        //     "invalid_api_version".to_string(),
+        //     Box::new(manifest_content),
+        // ))
+        // .unwrap();
+
+        // assert!(TryInto::<State>::try_into(obj).is_err());
+        // assert!(paths.is_empty());
+        assert!(parse_manifest(&mut (
+            "invalid_api_version".to_string(),
+            Box::new(manifest_content),
+        ))
+        .is_err());
     }
 
     #[test]
