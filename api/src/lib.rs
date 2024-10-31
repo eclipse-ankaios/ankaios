@@ -34,3 +34,5 @@ pub mod control_api {
     // [impl->swdd~control-api-provides-control-interface-definitions~1]
     tonic::include_proto!("control_api"); // The string specified here must match the proto package name
 }
+
+mod convert;

@@ -18,7 +18,7 @@ use api::ank_base::{
 };
 
 use api::control_api::{
-    from_ankaios::FromAnkaiosEnum, to_ankaios::ToAnkaiosEnum, FromAnkaios, ToAnkaios,
+    from_ankaios::FromAnkaiosEnum, to_ankaios::ToAnkaiosEnum, FromAnkaios, Hello, ToAnkaios,
 };
 
 use prost::Message;
@@ -47,6 +47,15 @@ mod logging {
     }
 }
 
+/// Create a Hello message to initialize the session
+fn create_hello_message() -> ToAnkaios {
+    ToAnkaios {
+        to_ankaios_enum: Some(ToAnkaiosEnum::Hello(Hello {
+            protocol_version: env!("ANKAIOS_VERSION").to_string(),
+        })),
+    }
+}
+
 /// Create the Request containing an UpdateStateRequest
 /// that contains the details for adding the new workload and
 /// the update mask to add only the new workload.
@@ -71,6 +80,7 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
                 dependencies: Some(Dependencies {
                     dependencies: HashMap::new(),
                 }),
+                configs: None,
                 control_interface_access: None,
             },
         )]),
@@ -79,16 +89,19 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
     ToAnkaios {
         to_ankaios_enum: Some(ToAnkaiosEnum::Request(Request {
             request_id: REQUEST_ID.to_string(),
-            request_content: Some(RequestContent::UpdateStateRequest(UpdateStateRequest {
-                new_state: Some(CompleteState {
-                    desired_state: Some(State {
-                        api_version: "v0.1".into(),
-                        workloads: new_workloads,
+            request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    new_state: Some(CompleteState {
+                        desired_state: Some(State {
+                            api_version: "v0.1".into(),
+                            workloads: new_workloads,
+                            ..Default::default()
+                        }),
+                        ..Default::default()
                     }),
-                    ..Default::default()
-                }),
-                update_mask: vec!["desiredState.workloads.dynamic_nginx".to_string()],
-            })),
+                    update_mask: vec!["desiredState.workloads.dynamic_nginx".to_string()],
+                },
+            ))),
         })),
     }
 }
@@ -190,6 +203,18 @@ fn write_to_control_interface() {
         ));
         exit(1);
     });
+
+    let protobuf_hello_message = create_hello_message();
+    logging::log(
+        format!(
+            "Sending initial Hello message:\n{:#?}",
+            protobuf_hello_message
+        )
+        .as_str(),
+    );
+    sc_req
+        .write_all(&protobuf_hello_message.encode_length_delimited_to_vec())
+        .unwrap();
 
     let protobuf_update_workload_request = create_request_to_add_new_workload();
 

@@ -27,6 +27,19 @@ namespace logging
     }
 }
 
+/* Create a Hello message to initialize the session. */
+control_api::ToAnkaios createHelloMessage()
+{
+    const char* ankaios_version = std::getenv("ANKAIOS_VERSION");
+
+    control_api::Hello* hello{new control_api::Hello};
+    hello->set_protocolversion(ankaios_version);
+
+    control_api::ToAnkaios toAnkaios;
+    toAnkaios.set_allocated_hello(hello);
+    return toAnkaios;
+}
+
 /* Create the Request containing an UpdateStateRequest
     that contains the details for adding the new workload and
     the update mask to add only the new workload. */
@@ -126,7 +139,6 @@ void readFromControlInterface()
     another Request to request the workload states. */
 void writeToControlInterface()
 {
-    const auto requestToAddNewWorkload = createRequestToAddNewWorkload();
     const auto outputFifo = ANKAIOS_CONTROL_INTERFACE_BASE_PATH + "/output";
     std::ofstream output{outputFifo, std::ios::app | std::ios::binary};
     if (output.fail())
@@ -135,6 +147,14 @@ void writeToControlInterface()
         return;
     }
 
+    const auto hello = createHelloMessage();
+    logging::log(std::cout,
+                 "Sending initial Hello message:\n",
+                 hello.DebugString());
+    // write length-delimited protobuf message into output fifo to initialize the session
+    google::protobuf::util::SerializeDelimitedToOstream(hello, &output);
+    output.flush();
+    const auto requestToAddNewWorkload = createRequestToAddNewWorkload();
     logging::log(std::cout,
                  "Sending Request containing details for adding the dynamic workload \"dynamic_nginx\":\n",
                  "ToAnkaios {\n",

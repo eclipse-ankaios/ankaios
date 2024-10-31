@@ -447,6 +447,26 @@ Needs:
 - impl
 - utest
 
+#### CLI processes CompleteState to list workloads
+`swdd~processes-complete-state-to-list-workloads~1`
+
+Status: approved
+
+When the CLI is requested to retrieve the list of workloads from the Ankaios Server, the CLI shall:
+* request the whole CompleteState
+* create a list entry for each workload state of the CompleteState with empty runtime name
+* replace the empty runtime name for each list entry by extracting it from the corresponding workload configuration inside the CompleteState
+
+Rational:
+A workload state is not responsible for containing the runtime name of a workload.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
 #### CLI shall sort the list of workloads
 `swdd~cli-shall-sort-list-of-workloads~1`
 
@@ -531,7 +551,6 @@ Tags:
 - CliCommands
 
 Needs:
-- swdd
 - impl
 - utest
 
@@ -550,11 +569,19 @@ Needs:
 - utest
 
 #### CLI requests update state with watch
-`swdd~cli-requests-update-state-with-watch~1`
+`swdd~cli-requests-update-state-with-watch~2`
 
 Status: approved
 
-When the CLI executes an update of the Ankaios state including a watch on the updated workloads, the CLI shall request an update of the state from the Ankaios server.
+When the CLI executes an update of the Ankaios state including a watch on the updated workloads, the CLI shall:
+* request the current CompleteState from the Ankaios server
+* request an update of the state from the Ankaios server
+
+Comment:
+The requested CompleteState is used to handle the watch on the updated workloads, not for constructing the updated state.
+
+Rationale:
+Requesting the CompleteState before updating the state is required in order to handle the wait mode properly when a workload is deleted that was not initially started due to a disconnected agent.
 
 Tags:
 - CliCommands
@@ -600,7 +627,7 @@ Needs:
 Status: approved
 
 When the CLI watches a list of workloads, the CLI shall:
-* get the desired state from the Ankaios server
+* get the CompleteState from the Ankaios server
 * filter only the workloads specified to watch
 * sort the workload list alphabetically
 * present the list of workloads to the user
@@ -615,16 +642,18 @@ Needs:
 - utest
 
 #### CLI checks for final state of a workload
-`swdd~cli-checks-for-final-workload-state~2`
+`swdd~cli-checks-for-final-workload-state~3`
 
 Status: approved
 
-When the CLI checks if a workload has reached its final expected workload execution state, the CLI shall regard the state for final if the state is one of:
+When the CLI checks if a workload has reached its final expected state, the CLI shall regard the state for final if the agent managing that workload is disconnected or the execution state is one of:
 * Running(Ok)
 * Succeeded(Ok)
 * Failed(ExecFailed)
+* NotScheduled
 * Removed
 * Pending(StartingFailed)
+* AgentDisconnected
 
 Tags:
 - CliCommands
@@ -897,15 +926,15 @@ Needs:
 - stest
 
 #### CLI shall present connected agents as table
-`swdd~cli-presents-connected-agents-as-table~1`
+`swdd~cli-presents-connected-agents-as-table~2`
 
 Status: approved
 
 When the Ankaios CLI presents connected Ankaios agents to the user, the Ankaios CLI shall present the agents as rows in a table with the following content:
 
-| NAME                     | WORKLOADS                        |
-| ------------------------ | -------------------------------- |
-| `<agent_name>` as text   | `<assigned_workloads>` as number |
+| NAME                     | WORKLOADS                          | CPU USAGE                           | FREE MEMORY                |
+| ------------------------ | ---------------------------------- | ----------------------------------- | -------------------------- |
+| `<agent_name>` as text   | `<assigned_workloads>` as number   | `<cpu_usage>` as usage in percent   | `<free_memory>` in bytes   |
 
 Tags:
 - CliCommands
@@ -921,7 +950,7 @@ Status: approved
 
 When the user invokes the CLI with a request to provide the list of connected Ankaios agents, the Ankaios CLI shall:
 * request the whole CompleteState of Ankaios server
-* create a table row for each Ankaios agent listed inside the CompleteState's `agents` field with the agent name and the amount of workload states of its managed workloads
+* create a table row for each Ankaios agent listed inside the CompleteState's `agents` field with the agent name and the amount of workload states of its managed workloads as well as the agent resource availability
 
 Rationale:
 Counting the workload states, rather than the assigned workloads in the desired state for each agent, ensures the correct number of workloads, even if a workload has been deleted from the desired state, but the actual deletion has not yet been scheduled.

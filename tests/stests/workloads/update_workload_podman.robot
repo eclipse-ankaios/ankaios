@@ -77,7 +77,7 @@ Test Ankaios Podman Update workload with invalid api version
     # Actions
     When user triggers "ank -k get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank -k set state ${CONFIGS_DIR}/update_state_invalid_version.yaml desiredState"
+    When user triggers "ank -k set state desiredState ${CONFIGS_DIR}/update_state_invalid_version.yaml"
     And user triggers "ank -k get workloads"
     Then list of workloads shall be empty
 
@@ -96,7 +96,7 @@ Test Ankaios Podman Update workload with invalid workload name
     # Actions
     When user triggers "ank -k get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank -k set state ${CONFIGS_DIR}/update_state_invalid_names.yaml desiredState"
+    When user triggers "ank -k set state desiredState ${CONFIGS_DIR}/update_state_invalid_names.yaml"
     And user triggers "ank -k get workloads"
     Then list of workloads shall be empty
 
@@ -115,7 +115,7 @@ Test Ankaios Podman Update workload with lengthy workload name
     # Actions
     When user triggers "ank -k get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank -k set state ${CONFIGS_DIR}/update_state_long_names.yaml desiredState"
+    When user triggers "ank -k set state desiredState ${CONFIGS_DIR}/update_state_long_names.yaml"
     And user triggers "ank -k get workloads"
     Then list of workloads shall be empty
 
@@ -135,7 +135,7 @@ Test Ankaios Podman Update workload with invalid agent name
     # Actions
     When user triggers "ank -k get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank -k set state ${CONFIGS_DIR}/update_state_invalid_names.yaml desiredState.workloads.nginx.agent"
+    When user triggers "ank -k set state desiredState.workloads.nginx ${CONFIGS_DIR}/update_state_invalid_names.yaml"
     And user triggers "ank -k get workloads"
     Then list of workloads shall be empty
 

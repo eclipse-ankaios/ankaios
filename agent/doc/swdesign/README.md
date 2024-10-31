@@ -137,6 +137,9 @@ Status: approved
 
 The Ankaios CLI shall enforce agent names which respect the naming convention defined in the common library.
 
+Comment:
+We need to check the agent names in order to ensure the proper function of the filtering.
+
 Tags:
 - AgentManager
 
@@ -752,11 +755,11 @@ Needs:
 - utest
 
 ##### RuntimeManager handles existing workloads replace updated Workloads
-`swdd~agent-existing-workloads-replace-updated~2`
+`swdd~agent-existing-workloads-replace-updated~3`
 
 Status: approved
 
-When the agent handles existing workloads, for each found existing workload which is requested to be started and either the workload's configuration has changed or the workload is not running, the RuntimeManager shall do the following:
+When the agent handles existing workloads, for each found existing workload which is requested to be started and either the workload's configuration has changed or the workload is not in state running or succeeded, the RuntimeManager shall do the following:
 
 - request the RuntimeFacade to delete the existing workload
 - request the RuntimeFacade to create the workload
@@ -764,6 +767,23 @@ When the agent handles existing workloads, for each found existing workload whic
 Comment: The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance. The delete operation is executed immediately without considering the `DeleteCondition`s of the workload. The create operation is executed with considering the inter-workload dependencies of the workload.
 
 Rationale: The immediate delete prevents the worst case that the workload is existing a long period of time on the Runtime while the create is still pending because of unfulfilled inter-workload dependencies. The Ankaios agent cannot consider the `DeleteCondition`s because the information about the delete dependencies of the existing workload is not available anymore after an agent restart.
+
+Tags:
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+- stest
+
+##### RuntimeManager handles existing workloads and reuses unmodified Workloads
+`swdd~agent-existing-workloads-reuse-unmodified~1`
+
+Status: approved
+
+When the agent handles existing workloads, for each found existing workload which is requested to be started and the workload's configuration has not changed and the workload is in state succeeded, the RuntimeManager shall request the RuntimeFacade to reuse the existing workload.
+
+Rationale: Starting an existing, succeeded workload is much faster than deleting and creating a workload. If an existing workload is in the failed state, it is not reused because its file system might be corrupted.
 
 Tags:
 - RuntimeManager
@@ -1842,16 +1862,37 @@ Needs:
 - utest
 
 ##### Podman create workload runs the workload object
-`swdd~podman-create-workload-runs-workload~1`
+`swdd~podman-create-workload-runs-workload~2`
 
 Status: approved
 
-When the podman runtime connector is called to create workload, the podman runtime connector shall:
+When the podman runtime connector is called to create a workload and no existing workload id is provided, the podman runtime connector shall:
 
 * pull the workload image specified in the runtime configuration if the image is not already available locally
 * create the container
 * start the container in the detached mode
 * start a `GenericPollingStateChecker` to check the workload state
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
+##### Podman create workload starts an existing the workload object
+`swdd~podman-create-workload-starts-existing-workload~1`
+
+Status: approved
+
+When the podman runtime connector is called to create a workload and an existing workload id is provided, the podman runtime connector shall:
+
+* start the existing container
+* start a `GenericPollingStateChecker` to check the workload state
+
+Rationale:
+Starting a stopped container is much faster than creating a new container bundle and starting that. Short startup times are ususally crucial for automotive.
 
 Tags:
 - PodmanRuntimeConnector
@@ -1896,11 +1937,11 @@ Needs:
 - utest
 
 ##### Podman create workload creates labels
-`swdd~podman-create-workload-creates-labels~1`
+`swdd~podman-create-workload-creates-labels~2`
 
 Status: approved
 
-When the podman runtime connector is called to create workload, the podman runtime connector shall create following labels in the workload:
+When the podman runtime connector is called without an existing workload id to create a new workload, the podman runtime connector shall create following labels in the workload:
 
 * `name` as the key and workload execution name as the value
 * `agent` as the key and the agent name where the workload is being created as the value
@@ -1913,11 +1954,11 @@ Needs:
 - utest
 
 ##### Podman create workload sets optionally container name
-`swdd~podman-create-workload-sets-optionally-container-name~1`
+`swdd~podman-create-workload-sets-optionally-container-name~2`
 
 Status: approved
 
-When the podman runtime connector is called to create workload and the workload name is not set in the runtime configuration,
+When the podman runtime connector is called is called without an existing workload id to create a new workload and the workload name is not set in the runtime configuration,
 the podman runtime connector shall set the workload execution name as the workload name.
 
 Tags:
@@ -2764,6 +2805,23 @@ Needs:
 - impl
 - utest
 
+#### AgentManager sends the node resource availability to the server
+`swdd~agent-sends-node-resource-availability-to-server~1`
+
+Status: approved
+
+At an interval of 2 seconds, the AgentManager measures the global CPU usage and the available free memory and sends them to the Ankaios server via an `AgentLoadStatus` message.
+
+Rationale:
+Available resources must be available in the cluster in order to enable dynamic scheduling, e.g., done by a workload.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
 ### Forwarding the Control Interface
 
 The Ankaios Agent is responsible to forward Control Interface requests from a Workload to the Ankaios Server and to forward Control Interface responses from the Ankaios Server to the Workload.
@@ -2803,6 +2861,26 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### Agent closes Control Interface channel on missing initial `Hello`
+`swdd~agent-closes-control-interface-on-missing-initial-hello~1`
+
+Status: approved
+
+When an Ankaios agent receives an initial message on the Control Interface that is different to the initial `Hello` message containing the supported Ankaios version by the workload or the provided version in the message is not compatible with the one of the agent, the agent shall:
+* close the Control Interface connection by sending a `ConnectionClosed` message
+* discontinuing reading new messages from the workload.
+
+Comment:
+The check for the supported by the agent version is done by a central function provided by the common library.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
 
 #### Agent converts from Control Interface proto request to internal object
 `swdd~agent-converts-control-interface-message-to-ankaios-object~1`

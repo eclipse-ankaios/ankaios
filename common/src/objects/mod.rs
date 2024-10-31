@@ -18,7 +18,6 @@
 
 pub mod state;
 pub use state::State;
-pub use state::{STR_RE_AGENT, STR_RE_WORKLOAD};
 
 mod complete_state;
 pub use complete_state::CompleteState;
@@ -26,7 +25,7 @@ pub use complete_state::CompleteState;
 mod agent_map;
 #[cfg(any(feature = "test_utils", test))]
 pub use agent_map::{generate_test_agent_map, generate_test_agent_map_from_specs};
-pub use agent_map::{AgentAttributes, AgentMap};
+pub use agent_map::{AgentAttributes, AgentMap, CpuUsage, FreeMemory};
 
 mod workload_states_map;
 pub use workload_states_map::WorkloadStatesMap;
@@ -41,7 +40,7 @@ pub use stored_workload_spec::{
     generate_test_stored_workload_spec, generate_test_stored_workload_spec_with_config,
 };
 
-pub use stored_workload_spec::StoredWorkloadSpec;
+pub use stored_workload_spec::{StoredWorkloadSpec, STR_RE_CONFIG_REFERENCES};
 
 mod workload_state;
 #[cfg(any(feature = "test_utils", test))]
@@ -62,6 +61,7 @@ pub use workload_spec::{
     generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
     generate_test_workload_spec_with_runtime_config,
 };
+pub use workload_spec::{STR_RE_AGENT, STR_RE_WORKLOAD};
 
 pub use workload_spec::{
     get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
@@ -85,3 +85,8 @@ pub use control_interface_access::generate_test_control_interface_access;
 pub use control_interface_access::{
     AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum, StateRule,
 };
+
+mod config;
+#[cfg(any(feature = "test_utils", test))]
+pub use config::generate_test_configs;
+pub use config::ConfigItem;

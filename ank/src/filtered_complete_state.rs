@@ -17,11 +17,13 @@ use std::collections::HashMap;
 use api::ank_base;
 use common::{
     helpers::serialize_to_ordered_map,
-    objects::{AddCondition, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap},
+    objects::{
+        AddCondition, ConfigItem, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap,
+    },
 };
 use serde::{Deserialize, Serialize, Serializer};
 
-use crate::output_and_error;
+use crate::{output_and_error, output_warn};
 
 pub fn serialize_option_to_ordered_map<S, T: Serialize>(
     value: &Option<HashMap<String, T>>,
@@ -37,7 +39,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredCompleteState {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -59,6 +61,9 @@ pub struct FilteredState {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
     pub workloads: Option<HashMap<String, FilteredWorkloadSpec>>,
+    #[serde(serialize_with = "serialize_option_to_ordered_map")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub configs: Option<HashMap<String, ConfigItem>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -69,9 +74,54 @@ pub struct FilteredAgentMap {
     pub agents: Option<HashMap<String, FilteredAgentAttributes>>,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct FilteredCpuUsage {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_usage: Option<u32>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct FilteredFreeMemory {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub free_memory: Option<u64>,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FilteredAgentAttributes {} // empty for now, but used for future expansion
+pub struct FilteredAgentAttributes {
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub cpu_usage: Option<FilteredCpuUsage>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub free_memory: Option<FilteredFreeMemory>,
+}
+
+impl FilteredAgentAttributes {
+    pub fn get_cpu_usage_as_string(&mut self) -> String {
+        if let Some(cpu_usage) = &self.cpu_usage {
+            if let Some(cpu_usage_value) = cpu_usage.cpu_usage {
+                format!("{}%", cpu_usage_value)
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        }
+    }
+
+    pub fn get_free_memory_as_string(&mut self) -> String {
+        if let Some(free_memory) = &self.free_memory {
+            if let Some(free_memory_value) = free_memory.free_memory {
+                format!("{}B", free_memory_value)
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        }
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -91,6 +141,9 @@ pub struct FilteredWorkloadSpec {
     pub runtime_config: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub control_interface_access: Option<ControlInterfaceAccess>,
+    #[serde(serialize_with = "serialize_option_to_ordered_map")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub configs: Option<HashMap<String, String>>,
 }
 
 impl From<ank_base::CompleteState> for FilteredCompleteState {
@@ -111,6 +164,20 @@ impl From<ank_base::State> for FilteredState {
                 x.workloads
                     .into_iter()
                     .map(|(k, v)| (k, v.into()))
+                    .collect()
+            }),
+            configs: value.configs.map(|x| {
+                x.configs
+                    .into_iter()
+                    .filter_map(|(key, value)| -> Option<(String, ConfigItem)> {
+                        match value.try_into() {
+                            Ok(value) => Some((key, value)),
+                            Err(err) => {
+                                output_warn!("Config item could not be converted: {}", err);
+                                None
+                            }
+                        }
+                    })
                     .collect()
             }),
         }
@@ -149,6 +216,7 @@ impl From<ank_base::Workload> for FilteredWorkloadSpec {
                 .map(|x| x.try_into().unwrap_or_else(|error| {
                     output_and_error!("Could not convert the ControlInterfaceAccess.\nError: '{error}'. Check the Ankaios component compatibility.")
                 })),
+            configs: value.configs.map(|x| x.configs)
         }
     }
 }
@@ -159,10 +227,35 @@ impl From<ank_base::AgentMap> for FilteredAgentMap {
             agents: Some(
                 value
                     .agents
-                    .into_keys()
-                    .map(|agent_name| (agent_name, FilteredAgentAttributes {}))
+                    .into_iter()
+                    .map(|(agent_name, agent_attributes)| (agent_name, agent_attributes.into()))
                     .collect(),
             ),
+        }
+    }
+}
+
+impl From<ank_base::AgentAttributes> for FilteredAgentAttributes {
+    fn from(value: ank_base::AgentAttributes) -> Self {
+        FilteredAgentAttributes {
+            cpu_usage: value.cpu_usage.map(Into::into),
+            free_memory: value.free_memory.map(Into::into),
+        }
+    }
+}
+
+impl From<ank_base::CpuUsage> for FilteredCpuUsage {
+    fn from(value: ank_base::CpuUsage) -> Self {
+        FilteredCpuUsage {
+            cpu_usage: Some(value.cpu_usage),
+        }
+    }
+}
+
+impl From<ank_base::FreeMemory> for FilteredFreeMemory {
+    fn from(value: ank_base::FreeMemory) -> Self {
+        FilteredFreeMemory {
+            free_memory: Some(value.free_memory),
         }
     }
 }

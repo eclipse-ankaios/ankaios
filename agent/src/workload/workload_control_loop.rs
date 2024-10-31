@@ -19,6 +19,7 @@ use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, Workl
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 #[cfg(not(test))]
 const MAX_RETRIES: usize = 20;
@@ -70,7 +71,7 @@ impl WorkloadControlLoop {
     pub async fn run<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) where
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         loop {
@@ -190,7 +191,7 @@ impl WorkloadControlLoop {
         control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         log::debug!(
@@ -239,7 +240,7 @@ impl WorkloadControlLoop {
         error_msg: String,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         log::info!(
@@ -265,7 +266,7 @@ impl WorkloadControlLoop {
         error_msg: String,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         control_loop_state.workload_id = None;
@@ -319,7 +320,7 @@ impl WorkloadControlLoop {
         func_on_error: ErrorFunc,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
         Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>> + 'static,
         ErrorFunc: FnOnce(ControlLoopState<WorkloadId, StChecker>, WorkloadInstanceName, String) -> Fut
@@ -331,6 +332,7 @@ impl WorkloadControlLoop {
             .runtime
             .create_workload(
                 control_loop_state.workload_spec.clone(),
+                control_loop_state.workload_id.clone(),
                 control_loop_state.control_interface_path.clone(),
                 control_loop_state
                     .state_checker_workload_state_sender
@@ -371,7 +373,7 @@ impl WorkloadControlLoop {
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> Option<ControlLoopState<WorkloadId, StChecker>>
     where
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         Self::send_workload_state_to_agent(
@@ -430,7 +432,7 @@ impl WorkloadControlLoop {
         control_interface_path: Option<PathBuf>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         Self::send_workload_state_to_agent(
@@ -505,7 +507,7 @@ impl WorkloadControlLoop {
         instance_name: WorkloadInstanceName,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         if Self::is_same_workload(control_loop_state.instance_name(), &instance_name)
@@ -529,7 +531,7 @@ impl WorkloadControlLoop {
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         let workload_name = control_loop_state.instance_name().workload_name();
@@ -590,7 +592,7 @@ mockall::mock! {
             control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         )
         where
-            WorkloadId: ToString + Send + Sync + 'static,
+            WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
             StChecker: StateChecker<WorkloadId> + Send + Sync + 'static;
     }
 }

@@ -44,10 +44,12 @@ service CliConnection {
 */
 message ToServer {
     oneof ToServerEnum {
-        AgentHello agentHello = 1; /// This message is for internal usage only!
+        AgentHello agentHello = 1; /// This is the first message sent by an Ankaios agent when it connects to the cluster.
         UpdateWorkloadState updateWorkloadState = 2; /// A message to Ankaios server to update the execution state of a workload.
         ank_base.Request request = 3;
         Goodbye goodbye = 4;
+        AgentLoadStatus AgentLoadStatus = 5;
+        CommanderHello commanderHello = 6; /// This is the first message sent by the ank CLI or a third-party command component connected directly to the Ankaios server.
     }
 }
 
@@ -68,9 +70,24 @@ message FromServer {
 */
 message AgentHello {
     string agentName = 1; /// A unique agent name.
+    string protocolVersion = 2; /// The protocol version used by the calling component.
 }
 
+/**
+* A message to the Ankaios server to provide basic node resource availability.
+*/
+message AgentLoadStatus {
+    string agent_name = 1; /// A unique agent name.
+    ank_base.CpuUsage cpu_usage = 2; /// The cpu usage of the agent.
+    ank_base.FreeMemory free_memory = 3; /// The amount of free memory of the agent.
+}
 
+/**
+* A message to the Ankaios server to register a new CLI session or a third-party command component.
+*/
+message CommanderHello {
+    string protocolVersion = 2; /// The protocol version used by the calling component.
+}
 
 /**
 * A message to the Ankaios server to signalize a client (agent or cli) is shutting down.

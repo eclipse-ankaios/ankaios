@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use regex::Regex;
 use std::collections::HashMap;
 
 use api::ank_base;
@@ -23,6 +24,8 @@ use super::{
     control_interface_access::ControlInterfaceAccess, AddCondition, RestartPolicy, Tag,
     WorkloadInstanceName, WorkloadSpec,
 };
+
+pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
 
 #[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -38,6 +41,33 @@ pub struct StoredWorkloadSpec {
     pub runtime_config: String,
     #[serde(default)]
     pub control_interface_access: ControlInterfaceAccess,
+    #[serde(default, serialize_with = "serialize_to_ordered_map")]
+    pub configs: HashMap<String, String>,
+}
+
+impl StoredWorkloadSpec {
+    // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    pub fn verify_config_reference_format(
+        config_references: &HashMap<String, String>,
+    ) -> Result<(), String> {
+        let re_config_references = Regex::new(STR_RE_CONFIG_REFERENCES).unwrap();
+        for (config_alias, referenced_config) in config_references {
+            if !re_config_references.is_match(config_alias) {
+                return Err(format!(
+                    "Unsupported config alias. Received '{}', expected to have characters in {}",
+                    config_alias, STR_RE_CONFIG_REFERENCES
+                ));
+            }
+
+            if !re_config_references.is_match(referenced_config) {
+                return Err(format!(
+                    "Unsupported config reference key. Received '{}', expected to have characters in {}",
+                    referenced_config, STR_RE_CONFIG_REFERENCES
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
@@ -67,6 +97,7 @@ impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
                 .control_interface_access
                 .unwrap_or_default()
                 .try_into()?,
+            configs: value.configs.unwrap_or_default().configs,
         })
     }
 }
@@ -89,6 +120,9 @@ impl From<StoredWorkloadSpec> for ank_base::Workload {
                 tags: workload.tags.into_iter().map(|x| x.into()).collect(),
             }),
             control_interface_access: workload.control_interface_access.into(),
+            configs: Some(ank_base::ConfigMappings {
+                configs: workload.configs,
+            }),
         }
     }
 }
@@ -121,6 +155,7 @@ impl From<WorkloadSpec> for StoredWorkloadSpec {
             tags: value.tags,
             runtime_config: value.runtime_config,
             control_interface_access: value.control_interface_access,
+            configs: Default::default(),
         }
     }
 }
@@ -142,8 +177,8 @@ pub fn generate_test_stored_workload_spec_with_config(
     StoredWorkloadSpec {
         agent: agent.into(),
         dependencies: HashMap::from([
-            (String::from("workload A"), AddCondition::AddCondRunning),
-            (String::from("workload C"), AddCondition::AddCondSucceeded),
+            (String::from("workload_A"), AddCondition::AddCondRunning),
+            (String::from("workload_C"), AddCondition::AddCondSucceeded),
         ]),
         restart_policy: RestartPolicy::Always,
         runtime: runtime_name.into(),
@@ -153,6 +188,11 @@ pub fn generate_test_stored_workload_spec_with_config(
         }],
         runtime_config: runtime_config.into(),
         control_interface_access: Default::default(),
+        configs: [
+            ("ref1".into(), "config_1".into()),
+            ("ref2".into(), "config_2".into()),
+        ]
+        .into(),
     }
 }
 
@@ -171,4 +211,27 @@ pub fn generate_test_stored_workload_spec(
 
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::StoredWorkloadSpec;
+    use std::collections::HashMap;
+
+    // one test for a failing case, other cases are tested on the caller side to not repeat test code
+    // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    #[test]
+    fn utest_verify_config_reference_format_invalid_config_reference_key() {
+        let invalid_config_reference_key = "invalid%key";
+        let mut configs = HashMap::new();
+        configs.insert(
+            "config_alias_1".to_owned(),
+            invalid_config_reference_key.to_owned(),
+        );
+        assert_eq!(
+            StoredWorkloadSpec::verify_config_reference_format(&configs),
+            Err(format!(
+                "Unsupported config reference key. Received '{}', expected to have characters in {}",
+                invalid_config_reference_key,
+                super::STR_RE_CONFIG_REFERENCES
+            ))
+        );
+    }
+}
