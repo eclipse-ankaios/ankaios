@@ -244,7 +244,7 @@ pub enum GetCommands {
     #[clap(visible_alias("agents"), verbatim_doc_comment)]
     Agent {},
     /// Information about the Ankaios configs present in the Ankaios system
-    /// For automation use "ank get state -o json" and process the agents
+    /// For automation use "ank get state -o json" and process desiredState.configs
     #[clap(visible_alias("configs"), verbatim_doc_comment)]
     Config {},
 }
