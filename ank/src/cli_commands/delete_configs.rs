@@ -14,7 +14,7 @@
 
 use common::objects::CompleteState;
 
-use crate::{cli_error::CliError, output_debug};
+use crate::{cli_commands::DESIRED_STATE_CONFIGS, cli_error::CliError, output_debug};
 
 use super::CliCommands;
 
@@ -26,7 +26,7 @@ impl CliCommands {
         let update_mask = config_names
             .into_iter()
             .map(|name_of_config_to_delete| {
-                format!("desiredState.configs.{}", name_of_config_to_delete)
+                format!("{}.{}", DESIRED_STATE_CONFIGS, name_of_config_to_delete)
             })
             .collect();
 
@@ -112,7 +112,7 @@ mod tests {
         assert!(!get_result.contains(CONFIG_2));
     }
 
-    //swdd~cli-provides-delete-configs~1
+    // [utest->swdd~cli-provides-delete-configs~1]
     #[tokio::test]
     async fn utest_delete_configs_unknown_config() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

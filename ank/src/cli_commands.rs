@@ -70,6 +70,9 @@ fn open_manifest(
     }
 }
 
+pub const DESIRED_STATE_CONFIGS: &str = "desiredState.configs";
+pub const DESIRED_STATE_WORKLOADS: &str = "desiredState.workloads";
+
 pub fn get_input_sources(manifest_files: &[String]) -> Result<Vec<InputSourcePair>, String> {
     if let Some(first_arg) = manifest_files.first() {
         match first_arg.as_str() {
