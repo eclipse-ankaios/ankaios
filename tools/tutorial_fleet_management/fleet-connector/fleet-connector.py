@@ -3,9 +3,13 @@ import paho.mqtt.client as mqtt
 import json
 import os
 import logging
+import sys
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(format='%(asctime)s %(message)s', datefmt="[%F %T]", level=logging.INFO)
+logger = logging.getLogger("fleetconnector")
+stdout = logging.StreamHandler(stream=sys.stdout)
+stdout.setLevel(logging.INFO)
+logger.addHandler(stdout)
+logger.setLevel(logging.INFO)
 
 # Configuration for MQTT  broker and topics
 BROKER = os.environ.get('MQTT_BROKER_ADDR', 'localhost')
