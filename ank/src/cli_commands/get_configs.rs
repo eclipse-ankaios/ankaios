@@ -13,10 +13,10 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::CliCommands;
 use crate::cli_commands::config_table_row::ConfigTableRow;
+use crate::cli_commands::DESIRED_STATE_CONFIGS;
 use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{cli_commands::cli_table::CliTable, cli_error::CliError, output_debug};
 use common::objects::ConfigItem;
-const EMPTY_FILTER_MASK: [String; 0] = [];
 
 impl CliCommands {
     // [impl->swdd~cli-provides-list-of-configs~1]
@@ -24,7 +24,7 @@ impl CliCommands {
     pub async fn get_configs(&mut self) -> Result<String, CliError> {
         let filtered_complete_state: FilteredCompleteState = self
             .server_connection
-            .get_complete_state(&EMPTY_FILTER_MASK)
+            .get_complete_state(&[DESIRED_STATE_CONFIGS.to_string()])
             .await?;
 
         let configs = filtered_complete_state
@@ -83,6 +83,7 @@ mod tests {
     // [utest->swdd~cli-shall-present-configs-as-table~1]
     // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     // [utest->swdd~cli-shall-sort-list-of-configs~1]
+    // [utest->swdd~cli-shall-present-list-of-configs~1]
     #[tokio::test]
     async fn test_get_configs() {
         let mut mock_server_connection = MockServerConnection::default();
