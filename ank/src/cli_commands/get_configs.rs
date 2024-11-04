@@ -68,7 +68,7 @@ fn transform_into_table_rows(
 mod tests {
     use crate::cli_commands::{
         server_connection::{MockServerConnection, ServerConnectionError},
-        CliCommands,
+        CliCommands, DESIRED_STATE_CONFIGS,
     };
 
     use api::ank_base;
@@ -89,7 +89,7 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
             .return_once(|_| {
                 Ok(ank_base::CompleteState::from(
                     test_utils::generate_test_complete_state_with_configs(vec![
@@ -119,7 +119,7 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
             .return_once(|_| Ok(ank_base::CompleteState::default().into()));
 
         let mut cmd = CliCommands {
@@ -141,7 +141,7 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec![]))
+            .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
             .return_once(|_| {
                 Err(ServerConnectionError::ExecutionError(
                     "connection error".to_string(),
