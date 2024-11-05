@@ -3193,7 +3193,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of an deny rule,
+When the Ankaios Agent checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of a deny rule,
 it shall consider them matching if one of the following is true:
 
 - both segments are the same
