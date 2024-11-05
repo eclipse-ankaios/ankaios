@@ -3174,7 +3174,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent checks if an individual entry of the update/field mask of an request matches an individual entry of the filter mask of an deny rule, the Ankaios Agent shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+When the Ankaios Agent checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny rule, the Ankaios Agent shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
 A deny rule matches, if the request's update/field mask is the same or a prefix of the rule.
