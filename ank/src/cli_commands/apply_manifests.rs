@@ -39,19 +39,23 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
             "Error while parsing the manifest data.\nError: {err}"
         )),
         Ok(obj) => {
+            println!("IOIII");
             let mut workload_paths: HashSet<Path> = HashSet::new();
             let obj_paths = Vec::<Path>::from(&obj);
             for path in obj_paths {
                 let parts = path.parts();
+                println!("PATH PARTS: {:?}", parts);
                 if parts.len() > 1 {
                     let _ = &mut workload_paths
                         .insert(Path::from(format!("{}.{}", parts[0], parts[1])));
                 } else if parts.contains(&"apiVersion".to_string()) {
+                    println!("API VERSION {:?}", obj.get(&path).unwrap());
                     check_version_compatibility(
                         obj.get(&path)
                             .and_then(|v| v.as_str())
-                            .unwrap_or("Invalid manifest version_provided."),
+                            .unwrap_or("Invalid manifest API version or format provided."),
                     )?;
+                    println!("A TRECUT");
                 }
             }
 
@@ -137,8 +141,10 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     let mut req_obj: Object = State::default().try_into().unwrap();
     let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
     for manifest in manifests.iter_mut() {
+        println!("AICI A AJUNS");
         let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
 
+        println!("SPER SA AJUNGA AICI");
         update_request_obj(&mut req_obj, &cur_obj, &cur_workload_paths)?;
 
         req_paths.append(&mut cur_workload_paths);
@@ -287,14 +293,6 @@ mod tests {
     fn utest_parse_manifest_invalid_api_version() {
         let manifest_content = io::Cursor::new(b"apiVersion: v3");
 
-        // let (obj, paths) = parse_manifest(&mut (
-        //     "invalid_api_version".to_string(),
-        //     Box::new(manifest_content),
-        // ))
-        // .unwrap();
-
-        // assert!(TryInto::<State>::try_into(obj).is_err());
-        // assert!(paths.is_empty());
         assert!(parse_manifest(&mut (
             "invalid_api_version".to_string(),
             Box::new(manifest_content),

@@ -905,6 +905,22 @@ Needs:
 - utest
 - stest
 
+#### CLI checks for incompatible API versions
+`swdd~cli-apply-manifest-check-for-api-version-compatibility`
+
+Status: approved
+
+When the user provides a different API version or an incompatible API version
+the Ankaios CLI shall terminate with an error.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
 ### `ank get agents`
 
 ![Get agents](plantuml/seq_get_agent.svg)
