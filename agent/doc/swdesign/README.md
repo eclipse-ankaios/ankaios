@@ -2938,7 +2938,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agents sends a denied request error response to workload,
+When the Ankaios Agent sends a denied request error response to workload,
 the response shall contain the same request_id as the denied request.
 
 Tags:
