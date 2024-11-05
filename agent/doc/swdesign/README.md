@@ -2905,10 +2905,9 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent receives a Control Interface request from a Workload, the Ankaios Agent shall check if this Workload is allowed to make this request.
+When the Ankaios agent receives a Control Interface request from a Workload, the Control Interface shall trigger the Authorizer to check if this Workload is allowed to make this request.
 
 Tags:
-- AgentManager
 - ControlInterface
 - Authorizer
 
@@ -2925,9 +2924,7 @@ Status: approved
 If the Ankaios Agent receives a Control Interface request from a Workload and the request is denied, the Ankaios Agent shall send an error response to the corresponding Workloads input pipe.
 
 Tags:
-- AgentManager
 - ControlInterface
-- Authorizer
 
 Needs:
 - impl
@@ -2938,13 +2935,11 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent sends a denied request error response to workload,
+When the Ankaios Agent sends a denied request error response to a workload,
 the response shall contain the same request_id as the denied request.
 
 Tags:
-- AgentManager
 - ControlInterface
-- Authorizer
 
 Needs:
 - impl
@@ -2958,9 +2953,7 @@ Status: approved
 When the Ankaios Agent receives a Control Interface request from a Workload and the request is allowed, the Ankaios Agent shall forward this request to the Ankaios Server.
 
 Tags:
-- AgentManager
 - ControlInterface
-- Authorizer
 -
 Needs:
 - impl
@@ -3077,17 +3070,15 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent checks if a Workload is allowed to make a request,
-the Ankaios Agent shall use:
+When the Authorizer checks if a Workload is allowed to make a request,
+the Authorizer shall use:
 
 * "read" and "write_read" rules for a CompleteStateRequest.
 * "write" and "write_read" rules for a UpdateStateRequest.
 
 Tags:
-- AgentManager
-- ControlInterface
 - Authorizer
--
+
 Needs:
 - impl
 - utest
@@ -3097,17 +3088,15 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent checks if a Workload is allowed to make a request,
+When the Authorizer checks if a Workload is allowed to make a request,
 an UpdateStateRequest with an empty update mask or a CompleteStateRequest with an empty field mask is only allowed if all of the following is true:
 
 * there is at least one allow rule having an empty String in the filter mask
 * there is no deny rule with a non empty filter mask
 
 Tags:
-- AgentManager
-- ControlInterface
 - Authorizer
--
+
 Needs:
 - impl
 - utest
@@ -3117,15 +3106,13 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent checks if a Workload is allowed to make a request
+When the Authorizer checks if a Workload is allowed to make a request
 and all entries of the update/field mask are allowed,
-the Ankaios Agent shall allow the request.
+the Authorizer shall allow the request.
 
 Tags:
-- AgentManager
-- ControlInterface
 - Authorizer
--
+
 Needs:
 - impl
 - utest
@@ -3135,15 +3122,13 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent checks an individual entry of the update/field mask of an request,
-the Ankaios Agent shall allow this element if all of the following is true:
+When the Authorizer checks an individual entry of the update/field mask of an request,
+the Authorizer shall allow this element if all of the following is true:
 
-- there is at least one allow rule with a filter mask entry matching the update/field mask entry
-- there is no deny rule with a filter mask entry matching the update/field mask entry
+* there is at least one allow rule with a filter mask entry matching the update/field mask entry
+* there is no deny rule with a filter mask entry matching the update/field mask entry
 
 Tags:
-- AgentManager
-- ControlInterface
 - Authorizer
 
 Needs:
@@ -3155,16 +3140,14 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow rule, the Ankaios Agent shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
 An allow rule matches, if it is the same or a prefix of the request's update/field mask.
 
 Tags:
-- AgentManager
-- ControlInterface
 - Authorizer
--
+
 Needs:
 - impl
 - utest
@@ -3174,14 +3157,12 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny rule, the Ankaios Agent shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
 A deny rule matches, if the request's update/field mask is the same or a prefix of the rule.
 
 Tags:
-- AgentManager
-- ControlInterface
 - Authorizer
 
 Needs:
@@ -3193,17 +3174,15 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of a deny rule,
-it shall consider them matching if one of the following is true:
+When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of a deny rule,
+the Authorizer shall consider them matching if one of the following is true:
 
-- both segments are the same
-- the segment of the rule entry is the wildcards symbol "*"
+* both segments are the same
+* the segment of the rule entry is the wildcards symbol "*"
 
 Tags:
-- AgentManager
-- ControlInterface
 - Authorizer
--
+
 Needs:
 - impl
 - utest
