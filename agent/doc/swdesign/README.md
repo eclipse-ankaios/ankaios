@@ -2955,7 +2955,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agents receives a Control Interface request from a Workload and the request is allowed, the Ankaios Agent shall forward this request to the Ankaios Server.
+When the Ankaios Agent receives a Control Interface request from a Workload and the request is allowed, the Ankaios Agent shall forward this request to the Ankaios Server.
 
 Tags:
 - AgentManager
