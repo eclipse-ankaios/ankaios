@@ -1,6 +1,6 @@
-# Tutorial fleet connector
+# Tutorial example vehicle data sender
 
-Provides a container using the ank-sdk-python to connect to the control interface and also subscribes to MQTT.
+Sample container for connecting to an MQTT broker and sending speed values at configurable intervals.
 
 ## Build
 
