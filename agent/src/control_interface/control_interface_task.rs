@@ -106,18 +106,21 @@ impl ControlInterfaceTask {
                     }
                 }
                 // [impl->swdd~agent-listens-for-requests-from-pipe~1]
-                // [impl->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
                 to_ankaios_binary = self.input_stream.read_protobuf_data() => {
                     if let Ok(to_ankaios) = decode_to_server(to_ankaios_binary) {
                         // [impl->swdd~agent-converts-control-interface-message-to-ankaios-object~1]
                         match to_ankaios.try_into() {
                             Ok(ToAnkaios::Request(mut request)) => {
+                                // [impl->swdd~agent-checks-request-for-authorization~1]
                                 if self.authorizer.authorize(&request) {
+                                    // [impl->swdd~agent-forward-request-from-control-interface-pipe-to-server~2]
                                     log::debug!("Allowing request '{:?}' from authorizer '{:?}'", request, self.authorizer);
                                     request.prefix_request_id(&self.request_id_prefix);
                                     let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
                                 } else {
+                                    // [impl->swdd~agent-responses-to-denied-request-from-control-interface~1]
                                     log::debug!("Denying request '{:?}' from authorizer '{:?}'", request, self.authorizer);
+                                    // [impl->swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1]
                                     let error = ank_base::Response {
                                         request_id: request.request_id,
                                         response_content: Some(ank_base::response::ResponseContent::Error(ank_base::Error {
@@ -306,6 +309,9 @@ mod tests {
 
     // [utest->swdd~agent-listens-for-requests-from-pipe~1]
     // [utest->swdd~agent-ensures-control-interface-output-pipe-read~1]
+    // [utest->swdd~agent-checks-request-for-authorization~1]
+    // [utest->swdd~agent-responses-to-denied-request-from-control-interface~1]
+    // [utest->swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_access_denied() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -393,7 +399,8 @@ mod tests {
 
     // [utest->swdd~agent-listens-for-requests-from-pipe~1]
     // [utest->swdd~agent-ensures-control-interface-output-pipe-read~1]
-    // [utest->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
+    // [utest->swdd~agent-checks-request-for-authorization~1]
+    // [utest->swdd~agent-forward-request-from-control-interface-pipe-to-server~2]
     // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_access_allowed() {

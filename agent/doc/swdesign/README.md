@@ -84,6 +84,11 @@ Stores information which the Agent gets from the Server. Currently the storage s
 
 The ControlInterface is responsible for setting up the communication interface between a workload and the Ankaios agent. It translates between the provided to the workload pipes and the internal Ankaios communication channels.
 
+### Authorizer
+
+The Authorizer checks for every request send from a workload to the Ankaios agent,
+if the workload is allowed to execute this request.
+
 ### RuntimeConnectorInterfaces
 
 This is not really a component but a collection of traits that define the "requirements" towards specific runtime connectors s.t. they can be used by Ankaios. The following three traits specify the interface of the connectors where for one of them (state checker) a reusable default implementation is provided:
@@ -934,11 +939,14 @@ Needs:
 - utest
 
 ##### Workload compares control interface metadata
-`swdd~agent-compares-control-interface-metadata~1`
+`swdd~agent-compares-control-interface-metadata~2`
 
 Status: approved
 
-When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the existing file path with the new file path of the control interface.
+When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the control inferface's:
+
+* file path
+* authorizer
 
 Tags:
 - Workload
@@ -2892,17 +2900,61 @@ Needs:
 - impl
 - utest
 
-#### Agent forwards Control Interface request fom the pipe to the server
-`swdd~agent-forward-request-from-control-interface-pipe-to-server~1`
+#### Agent checks Control Interface request for authorization
+`swdd~agent-checks-request-for-authorization~1`
 
 Status: approved
 
-When the Ankaios Agents receives a Control Interface request from a Workload, the Ankaios Agent shall forward this request to the Ankaios Server.
+When the Ankaios agent receives a Control Interface request from a Workload, the Control Interface shall trigger the Authorizer to check if this Workload is allowed to make this request.
 
 Tags:
-- AgentManager
+- ControlInterface
+- Authorizer
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent returns error on denied Control Interface request
+`swdd~agent-responses-to-denied-request-from-control-interface~1`
+
+Status: approved
+
+If the Ankaios Agent receives a Control Interface request from a Workload and the request is denied, the Ankaios Agent shall send an error response to the corresponding Workloads input pipe.
+
+Tags:
 - ControlInterface
 
+Needs:
+- impl
+- utest
+
+#### Error returned on denied Control Interface request contains requst ID
+`swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1`
+
+Status: approved
+
+When the Ankaios Agent sends a denied request error response to a workload,
+the response shall contain the same request_id as the denied request.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
+#### Agent forwards Control Interface request from the pipe to the server
+`swdd~agent-forward-request-from-control-interface-pipe-to-server~2`
+
+Status: approved
+
+When the Ankaios Agent receives a Control Interface request from a Workload and the request is allowed, the Ankaios Agent shall forward this request to the Ankaios Server.
+
+Tags:
+- ControlInterface
+-
 Needs:
 - impl
 - utest
@@ -3006,6 +3058,130 @@ Hence the Ankaios Agent:
 Tags:
 - AgentManager
 - ControlInterface
+
+Needs:
+- impl
+- utest
+
+### Authorizing access to the Control Interface
+
+#### Request operations
+`swdd~agent-authorizing-request-operations~1`
+
+Status: approved
+
+When the Authorizer checks if a Workload is allowed to make a request,
+the Authorizer shall use:
+
+* "read" and "write_read" rules for a CompleteStateRequest.
+* "write" and "write_read" rules for a UpdateStateRequest.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Request without filter mask
+`swdd~agent-authorizing-request-without-filter-mask~1`
+
+Status: approved
+
+When the Authorizer checks if a Workload is allowed to make a request,
+an UpdateStateRequest with an empty update mask or a CompleteStateRequest with an empty field mask is only allowed if all of the following is true:
+
+* there is at least one allow rule having an empty String in the filter mask
+* there is no deny rule with a non empty filter mask
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Request allowed if all elements of filter mask are allowed
+`swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1`
+
+Status: approved
+
+When the Authorizer checks if a Workload is allowed to make a request
+and all entries of the update/field mask are allowed,
+the Authorizer shall allow the request.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Conditions for element of filter mask being allowed
+`swdd~agent-authorizing-condition-element-filter-mask-allowed~1`
+
+Status: approved
+
+When the Authorizer checks an individual entry of the update/field mask of an request,
+the Authorizer shall allow this element if all of the following is true:
+
+* there is at least one allow rule with a filter mask entry matching the update/field mask entry
+* there is no deny rule with a filter mask entry matching the update/field mask entry
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Matching of allow rules
+`swdd~agent-authorizing-matching-allow-rules~1`
+
+Status: approved
+
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+
+Comment:
+An allow rule matches, if it is the same or a prefix of the request's update/field mask.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Matching of deny rules
+`swdd~agent-authorizing-matching-deny-rules~1`
+
+Status: approved
+
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+
+Comment:
+A deny rule matches, if the request's update/field mask is the same or a prefix of the rule.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Matching of rule elements
+`swdd~agent-authorizing-matching-rules-elements~1`
+
+Status: approved
+
+When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of a deny rule,
+the Authorizer shall consider them matching if one of the following is true:
+
+* both segments are the same
+* the segment of the rule entry is the wildcards symbol "*"
+
+Tags:
+- Authorizer
 
 Needs:
 - impl

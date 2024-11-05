@@ -66,6 +66,7 @@ impl ControlInterfaceInfo {
         self.authorizer
     }
 
+    // [impl->swdd~agent-compares-control-interface-metadata~2]
     pub fn has_same_configuration(&self, other: &ControlInterface) -> bool {
         let self_location = self
             .workload_instance_name
@@ -155,6 +156,7 @@ mod tests {
         assert!(to_server_sender.same_channel(&new_context_info.get_to_server_sender()));
     }
 
+    // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_has_same_configuration_true() {
         let run_folder = Path::new(PIPES_LOCATION);
@@ -186,6 +188,7 @@ mod tests {
         assert!(context_info.has_same_configuration(&other_context));
     }
 
+    // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_has_same_configuration_with_different_location_returns_false() {
         let run_folder = Path::new(PIPES_LOCATION);
@@ -209,6 +212,7 @@ mod tests {
         assert!(!context_info.has_same_configuration(&other_context));
     }
 
+    // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_has_same_configuration_with_different_authorizer_returns_false() {
         let run_folder = Path::new(PIPES_LOCATION);
