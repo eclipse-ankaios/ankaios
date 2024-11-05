@@ -673,6 +673,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#list-configuration-items" class="md-nav__link">
+    <span class="md-ellipsis">
+      List configuration items
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#delete-configuration-items" class="md-nav__link">
     <span class="md-ellipsis">
       Delete configuration items
@@ -1573,6 +1582,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#list-configuration-items" class="md-nav__link">
+    <span class="md-ellipsis">
+      List configuration items
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#delete-configuration-items" class="md-nav__link">
     <span class="md-ellipsis">
       Delete configuration items
@@ -1940,14 +1958,23 @@ In the default installation this file is <code>/etc/ankaios/state.yaml</code> as
 <p>Ankaios will update workloads that reference an updated configuration item.
 After running one of these commands, the <code>speed-provider</code> workload has been updated to run in the 'webui' mode.</p>
 <p>You can verify this by re-opening the web UI on <a href="http://127.0.0.1:5000">http://127.0.0.1:5000</a>.</p>
+<h3 id="list-configuration-items">List configuration items<a class="headerlink" href="#list-configuration-items" title="Permanent link">&para;</a></h3>
+<p>Let's list the configuration items present in current state with the <code>ank get configs</code> command.</p>
+<p>Using <code>ank -k get configs</code>, it should print:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>CONFIGS
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>network
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>env_provider
+<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a>env_consumer
+<a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a>agents
+</code></pre></div>
 <h3 id="delete-configuration-items">Delete configuration items<a class="headerlink" href="#delete-configuration-items" title="Permanent link">&para;</a></h3>
 <p>Let's try to delete a configuration item still referenced by workloads in its <code>configs</code> field by re-using the previous manifest content.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>apply<span class="w"> </span>-d<span class="w"> </span>new-manifest.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>delete<span class="w"> </span>config<span class="w"> </span>env_provider
 </code></pre></div>
 <p>The command returns an error that the rendering of the new state fails due to a missing configuration item.</p>
 <p>Ankaios will always reject a new state if it fails to render. The <code>speed-provider</code> still references the configuration item in its <code>configs</code> field which would no longer exist.</p>
 <p>Running the <code>ank -k get state</code> command afterwards will show that Ankaios still has the previous state in memory.</p>
-<p>To remove configuration items, remove the configuration references for the desired configuration items in the workload's <code>configs</code> field, and remove the desired configuration items from the state. This can be done in a single step.</p>
+<p>To remove configuration items, remove the configuration references for the desired configuration items in the workload's <code>configs</code> field, and remove the desired configuration items from the state.</p>
 
 
 
