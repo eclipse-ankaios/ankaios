@@ -571,6 +571,12 @@ the last command shall list the connected agent "${agent_name}"
     Dictionary Should Contain Key    ${agent_dict}    CPU USAGE
     Dictionary Should Contain Key    ${agent_dict}    FREE MEMORY
 
+the last command shall list the config "${config_name}"
+    Config Name Shall Exist In List    ${config_name}    ${CURRENT_RESULT.stdout}
+
+the last command shall not list the config "${config_name}"
+    Run Keyword And Expect Error    Config name ${config_name} does not exist in the list    the last command shall list the config "${config_name}"
+
 Setup Ankaios for Control Interface test
     Setup Ankaios
     Prepare Test Control Interface Workload
