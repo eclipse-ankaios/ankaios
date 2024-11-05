@@ -2922,7 +2922,7 @@ Needs:
 
 Status: approved
 
-If the Ankaios Agents receives a Control Interface request from a Workload and the request is denied, the Ankaios Agent shall send an error response the corresponding Workloads input pipe.
+If the Ankaios Agent receives a Control Interface request from a Workload and the request is denied, the Ankaios Agent shall send an error response to the corresponding Workloads input pipe.
 
 Tags:
 - AgentManager
