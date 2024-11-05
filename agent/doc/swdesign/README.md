@@ -2905,7 +2905,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agents receives a Control Interface request from a Workload, the Ankaios Agent shall check if this Workload is allowed to make this request.
+When the Ankaios Agent receives a Control Interface request from a Workload, the Ankaios Agent shall check if this Workload is allowed to make this request.
 
 Tags:
 - AgentManager
