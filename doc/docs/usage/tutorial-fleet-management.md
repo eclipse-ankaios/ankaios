@@ -315,6 +315,6 @@ podman run --rm --net=host -v $PWD/$FILE:/$FILE docker.io/eclipse-mosquitto mosq
 
 ## Conclusion
 
-This tutorial presented a simple way to manage a fleet of vehicles using Ankaios as an embedded container and workload orchestrator. A sample fleet connector was created using some of the features of the Ankaios SDK for Python.
+This tutorial presented a simple way to manage a fleet of vehicles using Ankaios as an embedded container and workload orchestrator. A sample fleet connector was created using some of the features of the Ankaios SDK for Python. In the near future there will be also an [Ankaios SDK for Rust](https://github.com/eclipse-ankaios/ank-sdk-rust).
 
 If you have questions or want to to discuss a specific use case, you can contact the Ankaios maintainers via [Slack](https://join.slack.com/t/ankaios/shared_invite/zt-2inyhbehh-iVp3YZD09VIgybv8D1gDpQ) or [Github discussions](https://github.com/eclipse-ankaios/ankaios/discussions) (see also [Support](../support.md)).
