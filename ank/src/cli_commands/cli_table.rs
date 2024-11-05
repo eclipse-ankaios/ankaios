@@ -107,11 +107,6 @@ where
             .get_config()
             .get_padding(tabled::grid::config::Entity::Column(Self::FIRST_COLUMN_POS));
 
-        let last_column_default_padding = self
-            .table
-            .get_config()
-            .get_padding(tabled::grid::config::Entity::Column(last_column_pos));
-
         /* Set the left padding of the first and the right padding of the last column to zero
         to align the table content to the full terminal width for better output quality. */
         self.table
@@ -120,7 +115,14 @@ where
                 first_column_default_padding.right.size,
                 first_column_default_padding.top.size,
                 first_column_default_padding.bottom.size,
-            )))
+            )));
+
+        let last_column_default_padding = self
+            .table
+            .get_config()
+            .get_padding(tabled::grid::config::Entity::Column(last_column_pos));
+
+        self.table
             .with(Modify::new(Columns::last()).with(Padding::new(
                 last_column_default_padding.left.size,
                 Self::ZERO_PADDING,
@@ -203,6 +205,13 @@ mod tests {
         pub col2: String,
         #[tabled(rename = "ANOTHER COLUMN3")]
         pub col3: String,
+    }
+
+    #[derive(Debug, Tabled, Clone)]
+    #[tabled(rename_all = "UPPERCASE")]
+    pub struct TestOneRow {
+        #[tabled(rename = "COLUMN 1")]
+        pub col1: String,
     }
 
     // [utest->swdd~cli-table-provides-default-table-output~1]
@@ -330,5 +339,18 @@ mod tests {
             .unwrap_err()
             .0
             .contains("no reasonable terminal width"));
+    }
+
+    #[test]
+    fn utest_default_table_with_only_one_column() {
+        let table_row = [TestOneRow {
+            col1: "some default content".to_string(),
+        }];
+
+        let table_output = CliTable::new(&table_row).create_default_table();
+
+        let expected_table_output = ["COLUMN 1            ", "some default content"].join("\n");
+
+        assert_eq!(expected_table_output, table_output);
     }
 }

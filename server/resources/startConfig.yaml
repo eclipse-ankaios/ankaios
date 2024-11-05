@@ -62,3 +62,4 @@ workloads:
             command:
             - echo
             - "Hello from a container in a pod"
+

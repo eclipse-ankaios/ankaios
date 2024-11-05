@@ -34,6 +34,7 @@ together {
 struct "<<union>>\nGetCommands" as GetCommands
 GetCommands --|> GetState : one of
 GetCommands --|> GetWorkload : one of
+GetCommands --|> GetConfig : one of
 
 GetState : OutputFormat output_format
 GetState : Vec<String> object_field_mask
@@ -55,8 +56,12 @@ SetCommands <--o Set
 struct "Workload" as DeleteWorkload
 DeleteWorkload : Vec<String> workload_name
 
+struct "Config" as DeleteConfig
+DeleteConfig : Config item
+
 struct "<<union>>\nDeleteCommands" as DeleteCommands
 DeleteCommands --|> DeleteWorkload : one of
+DeleteCommands --|> DeleteConfig : one of
 DeleteCommands <--o Delete
 
 struct "Workload" as RunWorkload

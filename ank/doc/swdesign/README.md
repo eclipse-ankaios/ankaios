@@ -962,6 +962,91 @@ Needs:
 - impl
 - utest
 
+### `ank get config`
+#### CLI provides the list of configs
+`swdd~cli-provides-list-of-configs~1`
+
+Status: approved
+
+The Ankaios CLI shall provide a function to get the list of configs.
+
+Rationale:
+This functionality is needed in order to check whether a config is present in Ankaios without the need of displaying its contents.
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI shall sort the list of configs
+`swdd~cli-shall-sort-list-of-configs~1`
+
+Status: approved
+
+When the CLI receives the list of configs from the Ankaios Server via CLI communication interface, the CLI shall sort the list by alphanumerical criteria.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI present the list of configs
+`swdd~cli-shall-present-list-of-configs~1`
+
+Status: approved
+
+When the CLI receives the list of configs from the Ankaios Server via CLI communication interface
+and CLI has sorted the list,
+the CLI shall present the processed list of configs to the user.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI shall present configs as table
+`swdd~cli-shall-present-configs-as-table~1`
+
+Status: approved
+
+When the CLI presents configs to the user, the CLI shall display the configs as:
+CONFIG
+config_name_1
+config_name_2
+config_name_3
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+### `ank delete configs`
+#### CLI provides a function to delete configs
+`swdd~cli-provides-delete-configs~1`
+
+Status: approved
+
+The Ankaios CLI shall provide a function to delete configs.
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
 ### Handling other message while waiting for response
 
 ![Store unexpected messages](plantuml/seq_store_missed_messages.svg)

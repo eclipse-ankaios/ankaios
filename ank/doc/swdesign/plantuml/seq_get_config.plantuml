@@ -1,0 +1,44 @@
+@startuml seq_get_config
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Ank"
+    actor "user" as user
+    participant Main as main
+    participant "CliCommands" as cli_commands
+    participant "ServerConnection" as server_connection
+    participant "<<task>>\nCommunicationsClient" as communications_client
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+-> main ++ : get configs
+
+== startup ==
+
+... initialization ...
+
+== command ==
+
+main -> cli_commands ++ : get configs
+
+cli_commands -> server_connection ++: request complete state
+server_connection ->> communications_client++: request complete state
+communications_client ->> server --++ : request complete state
+
+communications_client <<- server --++: complete state
+server_connection <<- communications_client --: complete state
+deactivate server_connection
+cli_commands <<-- server_connection --: complete state
+
+cli_commands -> cli_commands ++: format output text
+main <<-- cli_commands -- : output text
+deactivate cli_commands
+deactivate cli_commands
+deactivate cli_commands
+
+main -> main: print text
+user <<-- main -- : exit
+
+@enduml

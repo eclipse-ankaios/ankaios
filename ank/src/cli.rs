@@ -55,9 +55,36 @@ fn completions_workloads(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandi
         .collect()
 }
 
+fn completions_configs(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
+    let mut result = Vec::new();
+
+    let Ok(state) = serde_json::from_slice::<FilteredCompleteState>(&state) else {
+        return vec![];
+    };
+
+    if let Some(desired_state) = state.desired_state {
+        if let Some(configs) = desired_state.configs {
+            for config_name in configs.keys() {
+                result.push(config_name.clone());
+            }
+        }
+    }
+
+    let cur = current.to_str().unwrap_or("");
+    result
+        .into_iter()
+        .filter(|s| s.to_string().starts_with(cur))
+        .map(CompletionCandidate::new)
+        .collect()
+}
+
 // [impl->swdd~cli-shell-completion~1]
 fn workload_completer(current: &OsStr) -> Vec<CompletionCandidate> {
     completions_workloads(state_from_command("desiredState.workloads"), current)
+}
+
+fn config_completer(current: &OsStr) -> Vec<CompletionCandidate> {
+    completions_configs(state_from_command("desiredState.configs"), current)
 }
 
 fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
@@ -80,6 +107,7 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
                 result.push(format!("{}.{}.{}", DESIRED_STATE, WORKLOADS, workload_name));
             }
         }
+        result.push(CONFIGS.to_string());
         if let Some(configs) = desired_state.configs {
             result.push(format!("{}.{}", DESIRED_STATE, CONFIGS));
             for config_name in configs.keys() {
@@ -215,6 +243,10 @@ pub enum GetCommands {
     /// For automation use "ank get state -o json" and process the agents
     #[clap(visible_alias("agents"), verbatim_doc_comment)]
     Agent {},
+    /// Information about the Ankaios configs present in the Ankaios system
+    /// For automation use "ank get state -o json" and process desiredState.configs
+    #[clap(visible_alias("configs"), verbatim_doc_comment)]
+    Config {},
 }
 
 /// Update the state of Ankaios system
@@ -255,6 +287,12 @@ pub enum DeleteCommands {
         /// One or more workload(s) to be deleted
         #[arg(required = true, add = ArgValueCompleter::new(workload_completer))]
         workload_name: Vec<String>,
+    },
+    #[clap(visible_alias("configs"))]
+    Config {
+        /// One or more config(s) to be deleted
+        #[arg(required = true, add = ArgValueCompleter::new(config_completer))]
+        config_name: Vec<String>,
     },
 }
 
@@ -464,6 +502,7 @@ mod tests {
         assert_eq!(
             completions,
             vec![
+                CompletionCandidate::new("configs"),
                 CompletionCandidate::new("desiredState"),
                 CompletionCandidate::new("desiredState.workloads"),
                 CompletionCandidate::new("desiredState.workloads.databroker"),
