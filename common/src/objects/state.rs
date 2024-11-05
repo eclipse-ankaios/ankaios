@@ -22,7 +22,7 @@ use crate::objects::{StoredWorkloadSpec, STR_RE_CONFIG_REFERENCES};
 
 use api::ank_base;
 
-const CURRENT_API_VERSION: &str = "v0.1";
+pub const CURRENT_API_VERSION: &str = "v0.1";
 
 // [impl->swdd~common-object-representation~1]
 // [impl->swdd~common-object-serialization~1]

@@ -198,6 +198,7 @@ Test Ankaios apply workload specifications in Ankaios manifest with templated fi
     And the workload "greeting_person" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
 Test Ankaios apply workload specification with wrong api version
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
@@ -213,6 +214,7 @@ Test Ankaios apply workload specification with wrong api version
     Then the last command shall finish with an error
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
 Test Ankaios apply workload specification with wrong api version format
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml

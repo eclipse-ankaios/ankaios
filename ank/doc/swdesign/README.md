@@ -906,7 +906,7 @@ Needs:
 - stest
 
 #### CLI checks for incompatible API versions
-`swdd~cli-apply-manifest-check-for-api-version-compatibility`
+`swdd~cli-apply-manifest-check-for-api-version-compatibility~1`
 
 Status: approved
 

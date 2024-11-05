@@ -17,8 +17,7 @@ use crate::cli_commands::State;
 use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
-use common::check_version_compatibility;
-use common::objects::{CompleteState, STR_RE_WORKLOAD};
+use common::objects::{CompleteState, CURRENT_API_VERSION, STR_RE_WORKLOAD};
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
 
@@ -31,6 +30,7 @@ use super::get_input_sources;
 const WORKLOAD_LEVEL: usize = 1;
 
 // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
+// [impl->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
     let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
         .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
@@ -39,7 +39,6 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
             "Error while parsing the manifest data.\nError: {err}"
         )),
         Ok(obj) => {
-            println!("IOIII");
             let mut workload_paths: HashSet<Path> = HashSet::new();
             let obj_paths = Vec::<Path>::from(&obj);
             for path in obj_paths {
@@ -49,13 +48,16 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
                     let _ = &mut workload_paths
                         .insert(Path::from(format!("{}.{}", parts[0], parts[1])));
                 } else if parts.contains(&"apiVersion".to_string()) {
-                    println!("API VERSION {:?}", obj.get(&path).unwrap());
-                    check_version_compatibility(
-                        obj.get(&path)
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("Invalid manifest API version or format provided."),
-                    )?;
-                    println!("A TRECUT");
+                    let manifest_api_version = obj
+                        .get(&path)
+                        .and_then(|value| value.as_str())
+                        .unwrap_or("Invalid manifest API version or format provided.");
+                    if manifest_api_version != CURRENT_API_VERSION {
+                        return Err(format!(
+                            "Invalid manifest API version provided. Expected: '{}', got: '{}'.",
+                            CURRENT_API_VERSION, manifest_api_version
+                        ));
+                    }
                 }
             }
 
@@ -141,10 +143,8 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     let mut req_obj: Object = State::default().try_into().unwrap();
     let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
     for manifest in manifests.iter_mut() {
-        println!("AICI A AJUNS");
         let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
 
-        println!("SPER SA AJUNGA AICI");
         update_request_obj(&mut req_obj, &cur_obj, &cur_workload_paths)?;
 
         req_paths.append(&mut cur_workload_paths);
@@ -289,6 +289,7 @@ mod tests {
         assert!(paths.is_empty());
     }
 
+    // [utest->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
     #[test]
     fn utest_parse_manifest_invalid_api_version() {
         let manifest_content = io::Cursor::new(b"apiVersion: v3");
