@@ -120,6 +120,15 @@ async fn main() {
                     Err(error) => output_and_error!("Failed to get agents: '{}'", error),
                 }
             }
+            // [impl->swdd~cli-provides-list-of-configs~1]
+            Some(cli::GetCommands::Config {}) => {
+                output_debug!("Received get config.");
+
+                match cmd.get_configs().await {
+                    Ok(out_text) => output_and_exit!("{}", out_text),
+                    Err(error) => output_and_error!("Failed to get configs: '{}'", error),
+                }
+            }
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Set(set_args) => match set_args.command {
@@ -149,6 +158,16 @@ async fn main() {
                 );
                 if let Err(error) = cmd.delete_workloads(workload_name).await {
                     output_and_error!("Failed to delete workloads: '{}'", error);
+                }
+            }
+            // [impl->swdd~cli-provides-delete-configs~1]]
+            Some(cli::DeleteCommands::Config { config_name }) => {
+                output_debug!(
+                    "Received delete config with config_name = '{:?}'",
+                    config_name
+                );
+                if let Err(error) = cmd.delete_configs(config_name).await {
+                    output_and_error!("Failed to delete configs: '{}'", error);
                 }
             }
             None => unreachable!("Unreachable code."),
