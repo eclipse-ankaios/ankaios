@@ -3080,8 +3080,8 @@ Status: approved
 When the Ankaios Agent checks if a Workload is allowed to make a request,
 the Ankaios Agent shall use:
 
-- "read" and "write_read" rules for a CompleteStateRequest.
-- "write" and "write_read" rules for a UpdateStateRequest.
+* "read" and "write_read" rules for a CompleteStateRequest.
+* "write" and "write_read" rules for a UpdateStateRequest.
 
 Tags:
 - AgentManager
