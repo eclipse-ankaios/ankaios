@@ -39,7 +39,10 @@ mod set_state;
 use common::{
     communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServer,
-    objects::{CompleteState, State, WorkloadInstanceName, WorkloadState, WorkloadStatesMap},
+    objects::{
+        CompleteState, FilteredCompleteState, FilteredWorkloadSpec, State, WorkloadInstanceName,
+        WorkloadState, WorkloadStatesMap,
+    },
 };
 
 use wait_list_display::WaitListDisplay;
@@ -47,10 +50,7 @@ use wait_list_display::WaitListDisplay;
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
 use crate::{
-    cli_commands::wait_list::ParsedUpdateStateSuccess,
-    cli_error::CliError,
-    filtered_complete_state::{FilteredCompleteState, FilteredWorkloadSpec},
-    output, output_debug,
+    cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError, output, output_debug,
 };
 
 #[cfg(test)]

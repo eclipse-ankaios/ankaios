@@ -13,17 +13,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::collections::HashMap;
+use std::process::exit;
 
-use api::ank_base;
-use common::{
-    helpers::serialize_to_ordered_map,
-    objects::{
-        AddCondition, ConfigItem, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap,
-    },
+use crate::helpers::serialize_to_ordered_map;
+use crate::objects::{
+    AddCondition, AgentAttributes, AgentMap, CompleteState, ConfigItem, ControlInterfaceAccess,
+    CpuUsage, FreeMemory, RestartPolicy, State, StoredWorkloadSpec, Tag, WorkloadStatesMap,
 };
+use api::ank_base;
 use serde::{Deserialize, Serialize, Serializer};
-
-use crate::{output_and_error, output_warn};
 
 pub fn serialize_option_to_ordered_map<S, T: Serialize>(
     value: &Option<HashMap<String, T>>,
@@ -173,7 +171,7 @@ impl From<ank_base::State> for FilteredState {
                         match value.try_into() {
                             Ok(value) => Some((key, value)),
                             Err(err) => {
-                                output_warn!("Config item could not be converted: {}", err);
+                                format!("Config item could not be converted: {}", err);
                                 None
                             }
                         }
@@ -199,24 +197,35 @@ impl From<ank_base::Workload> for FilteredWorkloadSpec {
             dependencies: value.dependencies.map(|x| {
                 x.dependencies
                     .into_iter()
-                    .map(|(k, v)| (k, AddCondition::try_from(v).unwrap_or_else(|error| {
-                        output_and_error!("Could not convert AddCondition.\nError: '{error}'. Check the Ankaios component compatibility.")
-                    })))
+                    .map(|(k, v)| {
+                        (
+                            k,
+                            AddCondition::try_from(v).unwrap_or_else(|error| {
+                                // format!("Could not convert AddCondition.\nError: '{error}'. Check the Ankaios component compatibility.")
+                                log::error!("Could not convert AddCondition.\nError: '{error}'. Check the Ankaios component compatibility.");
+                                exit(1)
+                            }),
+                        )
+                    })
                     .collect()
             }),
             restart_policy: value.restart_policy.map(|x| {
                 RestartPolicy::try_from(x).unwrap_or_else(|error| {
-                    output_and_error!("Could not convert RestartPolicy.\nError: '{error}'. Check the Ankaios component compatibility.")
+                    // format!("Could not convert RestartPolicy.\nError: '{error}'. Check the Ankaios component compatibility.")
+                    log::error!("Could not convert RestartPolicy.\nError: '{error}'. Check the Ankaios component compatibility.");
+                    exit(1)
                 })
             }),
             runtime: value.runtime,
             runtime_config: value.runtime_config,
-            control_interface_access: value
-                .control_interface_access
-                .map(|x| x.try_into().unwrap_or_else(|error| {
-                    output_and_error!("Could not convert the ControlInterfaceAccess.\nError: '{error}'. Check the Ankaios component compatibility.")
-                })),
-            configs: value.configs.map(|x| x.configs)
+            control_interface_access: value.control_interface_access.map(|x| {
+                x.try_into().unwrap_or_else(|error| {
+                    // output_and_error!("Could not convert the ControlInterfaceAccess.\nError: '{error}'. Check the Ankaios component compatibility.")
+                    log::error!("Could not convert the ControlInterfaceAccess.\nError: '{error}'. Check the Ankaios component compatibility.");
+                    exit(1)
+                })
+            }),
+            configs: value.configs.map(|x| x.configs),
         }
     }
 }
@@ -257,5 +266,95 @@ impl From<ank_base::FreeMemory> for FilteredFreeMemory {
         FilteredFreeMemory {
             free_memory: Some(value.free_memory),
         }
+    }
+}
+
+impl From<FilteredWorkloadSpec> for StoredWorkloadSpec {
+    fn from(value: FilteredWorkloadSpec) -> Self {
+        StoredWorkloadSpec {
+            agent: value.agent.unwrap_or_default(),
+            tags: value.tags.unwrap_or_default(),
+            dependencies: value.dependencies.unwrap_or_default(),
+            restart_policy: value.restart_policy.unwrap_or_default(),
+            runtime: value.runtime.unwrap_or_default(),
+            runtime_config: value.runtime_config.unwrap_or_default(),
+            control_interface_access: value.control_interface_access.unwrap_or_default(),
+            configs: value.configs.unwrap_or_default(),
+        }
+    }
+}
+
+impl From<FilteredCpuUsage> for CpuUsage {
+    fn from(value: FilteredCpuUsage) -> Self {
+        CpuUsage {
+            cpu_usage: value.cpu_usage.unwrap_or_default(),
+        }
+    }
+}
+
+impl From<FilteredFreeMemory> for FreeMemory {
+    fn from(value: FilteredFreeMemory) -> Self {
+        FreeMemory {
+            free_memory: value.free_memory.unwrap_or_default(),
+        }
+    }
+}
+
+impl From<FilteredAgentAttributes> for AgentAttributes {
+    fn from(value: FilteredAgentAttributes) -> Self {
+        AgentAttributes {
+            cpu_usage: value.cpu_usage.map(Into::into),
+            free_memory: value.free_memory.map(Into::into),
+        }
+    }
+}
+
+impl From<FilteredAgentMap> for AgentMap {
+    fn from(value: FilteredAgentMap) -> Self {
+        let mut agent_map = AgentMap::new();
+
+        if let Some(agents) = value.agents {
+            for (agent_name, agent_attributes) in agents {
+                agent_map
+                    .entry(agent_name)
+                    .or_insert(agent_attributes.into());
+            }
+        }
+
+        agent_map
+    }
+}
+
+impl From<FilteredState> for State {
+    fn from(value: FilteredState) -> Self {
+        State {
+            api_version: value.api_version,
+            workloads: value
+                .workloads
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(key, filtered_spec)| (key, filtered_spec.into()))
+                .collect(),
+            configs: value.configs.unwrap_or_default(),
+        }
+    }
+}
+
+impl From<FilteredCompleteState> for CompleteState {
+    fn from(value: FilteredCompleteState) -> Self {
+        CompleteState {
+            desired_state: value.desired_state.map(Into::into).unwrap_or_default(),
+            workload_states: value.workload_states.unwrap_or_default(),
+            agents: value.agents.map(Into::into).unwrap_or_default(),
+        }
+    }
+}
+
+impl FilteredWorkloadSpec {
+    pub fn replace(&mut self, other: &mut FilteredWorkloadSpec) -> Result<(), String> {
+        if let Some(agent) = &other.agent {
+            self.agent = Some(agent.clone());
+        }
+        Ok(())
     }
 }

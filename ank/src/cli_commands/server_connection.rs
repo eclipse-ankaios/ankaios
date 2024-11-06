@@ -14,11 +14,11 @@
 
 use std::{mem::take, time::Duration};
 
-use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
 use api::ank_base;
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
+use common::objects::FilteredCompleteState;
 use common::to_server_interface::ToServer;
 use common::{
     commands::{CompleteStateRequest, UpdateWorkloadState},

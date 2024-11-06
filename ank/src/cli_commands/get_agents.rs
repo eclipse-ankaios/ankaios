@@ -15,11 +15,10 @@ use super::CliCommands;
 use crate::{
     cli_commands::{agent_table_row::AgentTableRow, cli_table::CliTable},
     cli_error::CliError,
-    filtered_complete_state::FilteredAgentAttributes,
     output_debug,
 };
 
-use common::objects::WorkloadStatesMap;
+use common::objects::{FilteredAgentAttributes, WorkloadStatesMap};
 
 const EMPTY_FILTER_MASK: [String; 0] = [];
 

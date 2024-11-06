@@ -110,6 +110,14 @@ impl TryInto<ankaios::CompleteState> for Object {
     }
 }
 
+impl TryInto<ankaios::FilteredCompleteState> for Object {
+    type Error = serde_yaml::Error;
+
+    fn try_into(self) -> Result<ankaios::FilteredCompleteState, Self::Error> {
+        from_value(self.data)
+    }
+}
+
 impl TryInto<proto::State> for Object {
     type Error = serde_yaml::Error;
 

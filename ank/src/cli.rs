@@ -19,7 +19,7 @@ use clap::{command, CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::{ArgValueCompleter, CompleteEnv, CompletionCandidate};
 use common::DEFAULT_SERVER_ADDRESS;
 
-use crate::filtered_complete_state::FilteredCompleteState;
+use common::objects::FilteredCompleteState;
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
 

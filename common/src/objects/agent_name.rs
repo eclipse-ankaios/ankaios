@@ -18,7 +18,7 @@ use crate::objects::workload_instance_name::INSTANCE_NAME_SEPARATOR;
 
 // [impl->swdd~common-object-representation~1]
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub struct AgentName(String);
 
 impl AgentName {

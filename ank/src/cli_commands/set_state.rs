@@ -12,8 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::state_manipulation::Object;
+use common::{
+    objects::CompleteState, state_manipulation::Object, std_extensions::UnreachableOption,
+};
 use std::io::{self, Read};
+use tabled::settings::format;
 
 #[cfg(not(test))]
 fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -24,6 +27,7 @@ use crate::{cli_error::CliError, output_debug};
 use tests::read_to_string_mock as read_file_to_string;
 
 use super::CliCommands;
+use common::objects;
 
 // [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
 async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<Object, CliError> {
@@ -76,18 +80,30 @@ impl CliCommands {
             state_object_file
         );
 
-        let complete_state = process_inputs(io::stdin(), &state_object_file)
-            .await?
-            .try_into()?;
+        let filtered_complete_state: objects::FilteredCompleteState =
+            process_inputs(io::stdin(), &state_object_file)
+                .await?
+                .try_into()?;
+        println!("{:?}\n", filtered_complete_state);
 
-        output_debug!(
-            "Send UpdateState request with the CompleteState {:?}",
-            complete_state
-        );
+        let mut current_filtered_complete_state: objects::FilteredCompleteState = self
+            .server_connection
+            .get_complete_state(&object_field_mask)
+            .await?;
+        println!("{:?}\n", current_filtered_complete_state);
 
-        // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
-        self.update_state_and_wait_for_complete(complete_state, object_field_mask)
-            .await
+        // current_filtered_complete_state.desired_state.replace(value)
+
+        // let updated_complete_state =
+        // output_debug!(
+        //     "Send UpdateState request with the CompleteState {:?}",
+        //     complete_state
+        // );
+
+        // // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
+        // self.update_state_and_wait_for_complete(complete_state, object_field_mask)
+        //     .await
+        Ok(())
     }
 }
 
@@ -101,13 +117,12 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use super::{io, process_inputs, CliCommands};
-    use crate::{
-        cli_commands::server_connection::MockServerConnection,
-        filtered_complete_state::FilteredCompleteState,
-    };
+    use crate::cli_commands::server_connection::MockServerConnection;
     use api::ank_base::UpdateStateSuccess;
     use common::{
-        objects::{CompleteState, RestartPolicy, State, StoredWorkloadSpec, Tag},
+        objects::{
+            CompleteState, FilteredCompleteState, RestartPolicy, State, StoredWorkloadSpec, Tag,
+        },
         state_manipulation::Object,
     };
     use mockall::predicate::eq;

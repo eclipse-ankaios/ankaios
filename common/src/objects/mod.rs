@@ -22,6 +22,9 @@ pub use state::State;
 mod complete_state;
 pub use complete_state::CompleteState;
 
+pub mod filtered_complete_state;
+pub use filtered_complete_state::*;
+
 mod agent_map;
 #[cfg(any(feature = "test_utils", test))]
 pub use agent_map::{generate_test_agent_map, generate_test_agent_map_from_specs};

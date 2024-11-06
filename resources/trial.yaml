@@ -1,0 +1,111 @@
+desiredState:
+  apiVersion: v0.1
+  workloads:
+    nginx:
+      restartPolicy: NEVER
+      tags:
+      - key: owner
+        value: Ankaios teams
+# desiredState:
+#   apiVersion: v0.1
+#   workloads:
+#     hello-pod:
+#       agent: agent_B
+#       tags:
+#       - key: owner
+#         value: Ankaios team
+#       dependencies: {}
+#       restartPolicy: NEVER
+#       runtime: podman-kube
+#       runtimeConfig: |
+#         manifest: |
+#           apiVersion: v1
+#           kind: Pod
+#           metadata:
+#             name: hello-pod
+#           spec:
+#             restartPolicy: Never
+#             containers:
+#             - name: looper
+#               image: alpine:latest
+#               command:
+#               - sleep
+#               - 50000
+#             - name: greater
+#               image: alpine:latest
+#               command:
+#               - echo
+#               - "Hello from a container in a pod"
+#       configs: {}
+#     hello1:
+#       agent: agent_B
+#       tags: []
+#       dependencies:
+#         filesystem_init: ADD_COND_SUCCEEDED
+#       restartPolicy: NEVER
+#       runtime: podman
+#       runtimeConfig: |
+#         image: alpine:latest
+#         commandOptions: [ "--rm"]
+#         commandArgs: [ "echo", "Hello Ankaios"]
+#       controlInterfaceAccess:
+#         allowRules:
+#         - type: StateRule
+#           operation: Read
+#           filterMask:
+#           - desiredState
+#         denyRules: []
+#       configs: {}
+#     hello2:
+#       agent: agent_B
+#       tags:
+#       - key: owner
+#         value: Ankaios team
+#       dependencies: {}
+#       restartPolicy: ON_FAILURE
+#       runtime: podman
+#       runtimeConfig: |
+#         image: alpine:latest
+#         commandOptions: [ "--entrypoint", "/bin/sh" ]
+#         commandArgs: [ "-c", "echo 'Restarted on failure.'; sleep 2"]
+#       configs: {}
+#     nginx:
+#       agent: agent_A
+#       tags:
+#       - key: owner
+#         value: Ankaios team
+#       dependencies: {}
+#       restartPolicy: ON_FAILURE
+#       runtime: podman
+#       runtimeConfig: |
+#         image: docker.io/nginx:latest
+#         commandOptions: ["-p", "8081:80"]
+#       configs: {}
+#   configs: {}
+# workloadStates:
+#   agent_B:
+#     hello1:
+#       ciocolom:
+#         state: Pending
+#         subState: Initial
+#         additionalInfo: ''
+#     hello2:
+#       50dfcc07f50a94f113f33fe1329eeebce93d134176d90b9a8ef3c2cfa15d1a7b:
+#         state: Pending
+#         subState: Initial
+#         additionalInfo: ''
+#     hello-pod:
+#       c6e8c20af72341a7d45c49570afa075f0556b3e444e6ba7e79e1af04dce04cb9:
+#         state: Pending
+#         subState: Initial
+#         additionalInfo: ''
+#   agent_A:
+#     nginx:
+#       7d6ea2b79cea1e401beee1553a9d3d7b5bcbb37f1cfdb60db1fbbcaa140eb17d:
+#         state: Running
+#         subState: Ok
+#         additionalInfo: ''
+# agents:
+#   agent_A:
+#     cpuUsage: 14
+#     freeMemory: 8387334144
