@@ -17,7 +17,7 @@ use crate::cli_commands::State;
 use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
-use common::objects::{CompleteState, STR_RE_WORKLOAD};
+use common::objects::{CompleteState, CURRENT_API_VERSION, STR_RE_WORKLOAD};
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
 
@@ -30,6 +30,7 @@ use super::get_input_sources;
 const WORKLOAD_LEVEL: usize = 1;
 
 // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
+// [impl->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
     let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
         .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
@@ -39,11 +40,24 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
         )),
         Ok(obj) => {
             let mut workload_paths: HashSet<Path> = HashSet::new();
-            for path in Vec::<Path>::from(&obj) {
+            let obj_paths = Vec::<Path>::from(&obj);
+            for path in obj_paths {
                 let parts = path.parts();
+                println!("PATH PARTS: {:?}", parts);
                 if parts.len() > 1 {
                     let _ = &mut workload_paths
                         .insert(Path::from(format!("{}.{}", parts[0], parts[1])));
+                } else if parts.contains(&"apiVersion".to_string()) {
+                    let manifest_api_version = obj
+                        .get(&path)
+                        .and_then(|value| value.as_str())
+                        .unwrap_or("Invalid manifest API version or format provided.");
+                    if manifest_api_version != CURRENT_API_VERSION {
+                        return Err(format!(
+                            "Invalid manifest API version provided. Expected: '{}', got: '{}'.",
+                            CURRENT_API_VERSION, manifest_api_version
+                        ));
+                    }
                 }
             }
 
@@ -273,6 +287,18 @@ mod tests {
 
         assert!(TryInto::<State>::try_into(obj).is_err());
         assert!(paths.is_empty());
+    }
+
+    // [utest->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
+    #[test]
+    fn utest_parse_manifest_invalid_api_version() {
+        let manifest_content = io::Cursor::new(b"apiVersion: v3");
+
+        assert!(parse_manifest(&mut (
+            "invalid_api_version".to_string(),
+            Box::new(manifest_content),
+        ))
+        .is_err());
     }
 
     #[test]

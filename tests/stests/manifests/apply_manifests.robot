@@ -26,6 +26,8 @@ ${manifest12_yaml_file}  ${EMPTY}
 ${manifest1_yaml_file}   ${EMPTY}
 ${manifest2_yaml_file}   ${EMPTY}
 ${manifest_no_agent_name_yaml_file}    ${EMPTY}
+${manifest_wrong_api_version}    ${EMPTY}
+${manifest_wrong_api_version_format}    ${EMPTY}
 
 *** Test Cases ***
 
@@ -196,3 +198,34 @@ Test Ankaios apply workload specifications in Ankaios manifest with templated fi
     And the workload "greeting_person" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
+Test Ankaios apply workload specification with wrong api version
+    [Setup]           Run Keywords    Setup Ankaios
+    ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
+    ...        AND    Set Global Variable    ${manifest_wrong_api_version}    ${CONFIGS_DIR}/manifest_wrong_api_version.yaml
+
+    # Preconditions
+    Given Ankaios server is started with config "${simple_yaml_file}"
+    And Ankaios agent is started with name "agent_A"
+    And all workloads of agent "agent_A" have an initial execution state
+    # Actions
+    When user triggers "ank apply ${manifest_wrong_api_version}"
+    # Asserts
+    Then the last command shall finish with an error
+    [Teardown]    Clean up Ankaios
+
+# [stest->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
+Test Ankaios apply workload specification with wrong api version format
+    [Setup]           Run Keywords    Setup Ankaios
+    ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
+    ...        AND    Set Global Variable    ${manifest_wrong_api_version_format}    ${CONFIGS_DIR}/manifest_wrong_api_version_format.yaml
+
+    # Preconditions
+    Given Ankaios server is started with config "${simple_yaml_file}"
+    And Ankaios agent is started with name "agent_A"
+    And all workloads of agent "agent_A" have an initial execution state
+    # Actions
+    When user triggers "ank apply ${manifest_wrong_api_version_format}"
+    # Asserts
+    Then the last command shall finish with an error
+    [Teardown]    Clean up Ankaios

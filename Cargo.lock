@@ -480,7 +480,7 @@ dependencies = [
 
 [[package]]
 name = "control_interface_tester"
-version = "0.0.0"
+version = "0.4.0"
 dependencies = [
  "api",
  "chrono",

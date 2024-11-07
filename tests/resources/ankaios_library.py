@@ -394,3 +394,15 @@ def check_if_mount_point_has_not_been_generated_for(agent_name, command_result):
         control_interface_path = path.join(TMP_DIRECTORY, control_interface_name)
 
         assert not path.exists(control_interface_path), "the mount point has been generated"
+
+# MANDATORY FOR STABLE SYSTEM TESTS
+def config_name_shall_exist_in_list(config_name, current_result):
+    config_names_list = list(current_result.split("\n"))[1:]  # skip the header
+    found = False
+
+    for config in config_names_list:
+        if config_name in config:
+            found = True
+            break
+
+    assert found, f"Config name {config_name} does not exist in the list"

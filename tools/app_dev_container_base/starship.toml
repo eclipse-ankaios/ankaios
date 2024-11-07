@@ -1,0 +1,10 @@
+add_newline = true
+command_timeout = 2000
+
+[container]
+disabled = true
+
+# We need to replace the first character to fix https://github.com/microsoft/vscode/issues/143103
+[character]
+success_symbol = '[>](bold green)'
+error_symbol = '[>](bold red)'
