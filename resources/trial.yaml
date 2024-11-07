@@ -2,10 +2,9 @@ desiredState:
   apiVersion: v0.1
   workloads:
     nginx:
-      restartPolicy: NEVER
-      tags:
-      - key: owner
-        value: Ankaios teams
+      agents:
+      runtimeConfig:
+      runtime:
 # desiredState:
 #   apiVersion: v0.1
 #   workloads:

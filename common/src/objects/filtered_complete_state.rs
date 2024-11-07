@@ -54,7 +54,6 @@ pub struct FilteredCompleteState {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredState {
-    // [impl->swdd~cli-returns-api-version-with-desired-state~1]
     pub api_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default, serialize_with = "serialize_option_to_ordered_map")]

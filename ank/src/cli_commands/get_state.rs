@@ -56,15 +56,13 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use api::ank_base;
+    use common::objects::filtered_complete_state;
     use common::test_utils::{
         self, generate_test_proto_complete_state, generate_test_proto_workload_with_param,
     };
     use mockall::predicate::eq;
 
-    use crate::{
-        cli_commands::{server_connection::MockServerConnection, CliCommands},
-        filtered_complete_state,
-    };
+    use crate::cli_commands::{server_connection::MockServerConnection, CliCommands};
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 

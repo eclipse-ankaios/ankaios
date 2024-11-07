@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base::CompleteState;
 use common::{objects::FilteredCompleteState, state_manipulation::Object};
 use std::io::{self, Read};
 
@@ -92,7 +93,7 @@ impl CliCommands {
         } else {
             object_state.try_into()?
         };
-
+        let temp = CompleteState::default();
         output_debug!(
             "Send UpdateState request with the CompleteState {:?}",
             complete_state

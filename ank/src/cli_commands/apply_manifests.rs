@@ -217,7 +217,7 @@ mod tests {
         from_server_interface::FromServer,
         objects::{
             self, generate_test_workload_spec_with_param, CompleteState, ExecutionState,
-            RunningSubstate, State, WorkloadState,
+            FilteredCompleteState, RunningSubstate, State, WorkloadState,
         },
         state_manipulation::{Object, Path},
         test_utils,
@@ -234,7 +234,6 @@ mod tests {
             server_connection::MockServerConnection,
             CliCommands, InputSourcePair,
         },
-        filtered_complete_state::FilteredCompleteState,
     };
 
     mockall::lazy_static! {

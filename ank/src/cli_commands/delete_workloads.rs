@@ -54,14 +54,11 @@ mod tests {
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::FromServer,
-        objects::{self, CompleteState, ExecutionState, WorkloadState},
+        objects::{self, CompleteState, ExecutionState, FilteredCompleteState, WorkloadState},
     };
     use mockall::predicate::eq;
 
-    use crate::{
-        cli_commands::{server_connection::MockServerConnection, CliCommands},
-        filtered_complete_state::FilteredCompleteState,
-    };
+    use crate::cli_commands::{server_connection::MockServerConnection, CliCommands};
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
