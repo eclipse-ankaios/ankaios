@@ -12,11 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::{
-    objects::CompleteState, state_manipulation::Object, std_extensions::UnreachableOption,
-};
+use common::{objects::FilteredCompleteState, state_manipulation::Object};
 use std::io::{self, Read};
-use tabled::settings::format;
 
 #[cfg(not(test))]
 fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -27,7 +24,8 @@ use crate::{cli_error::CliError, output_debug};
 use tests::read_to_string_mock as read_file_to_string;
 
 use super::CliCommands;
-use common::objects;
+
+const WORKLOAD_ATTRIBUTES_LEVEL: usize = 4;
 
 // [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
 async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<Object, CliError> {
@@ -80,30 +78,29 @@ impl CliCommands {
             state_object_file
         );
 
-        let filtered_complete_state: objects::FilteredCompleteState =
-            process_inputs(io::stdin(), &state_object_file)
-                .await?
-                .try_into()?;
-        println!("{:?}\n", filtered_complete_state);
+        let object_state = process_inputs(io::stdin(), &state_object_file).await?;
 
-        let mut current_filtered_complete_state: objects::FilteredCompleteState = self
-            .server_connection
-            .get_complete_state(&object_field_mask)
-            .await?;
-        println!("{:?}\n", current_filtered_complete_state);
+        let min_path_length = object_field_mask
+            .iter()
+            .map(|s| s.split('.').count())
+            .min()
+            .unwrap_or_default()
+            >= WORKLOAD_ATTRIBUTES_LEVEL;
+        let complete_state = if min_path_length {
+            let filtered_complete_state: FilteredCompleteState = object_state.try_into()?;
+            filtered_complete_state.into()
+        } else {
+            object_state.try_into()?
+        };
 
-        // current_filtered_complete_state.desired_state.replace(value)
+        output_debug!(
+            "Send UpdateState request with the CompleteState {:?}",
+            complete_state
+        );
 
-        // let updated_complete_state =
-        // output_debug!(
-        //     "Send UpdateState request with the CompleteState {:?}",
-        //     complete_state
-        // );
-
-        // // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
-        // self.update_state_and_wait_for_complete(complete_state, object_field_mask)
-        //     .await
-        Ok(())
+        // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
+        self.update_state_and_wait_for_complete(complete_state, object_field_mask)
+            .await
     }
 }
 
