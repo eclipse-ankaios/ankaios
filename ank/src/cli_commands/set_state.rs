@@ -16,7 +16,6 @@ use common::{
     objects::{CompleteState, StoredWorkloadSpec},
     state_manipulation::{Object, Path},
 };
-use serde::de::value;
 use std::io::{self, Read};
 
 #[cfg(not(test))]
