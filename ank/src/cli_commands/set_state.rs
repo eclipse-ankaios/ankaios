@@ -12,7 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::state_manipulation::Object;
+use common::{
+    objects::{CompleteState, StoredWorkloadSpec},
+    state_manipulation::{Object, Path},
+};
 use std::io::{self, Read};
 
 #[cfg(not(test))]
@@ -24,6 +27,30 @@ use crate::{cli_error::CliError, output_debug};
 use tests::read_to_string_mock as read_file_to_string;
 
 use super::CliCommands;
+
+fn create_state_with_default_workload_specs(update_mask: &[String]) -> CompleteState {
+    let mut complete_state = CompleteState::default();
+    const WORKLOAD_ATTRIBUTE_LEVEL: usize = 4;
+    let workload_level_mask_parts = ["desiredState".to_string(), "workloads".to_string()];
+    const WORKLOAD_NAME_POSITION: usize = 2;
+
+    for field_mask in update_mask {
+        let path: Path = field_mask.into();
+
+        // if we want to set an attribute of a workload create a default object for the workload
+        let mask_parts = path.parts();
+        if mask_parts.len() >= WORKLOAD_ATTRIBUTE_LEVEL
+            && mask_parts.starts_with(&workload_level_mask_parts)
+        {
+            complete_state.desired_state.workloads.insert(
+                mask_parts[WORKLOAD_NAME_POSITION].to_string(),
+                StoredWorkloadSpec::default(),
+            );
+        }
+    }
+
+    complete_state
+}
 
 // [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
 async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<Object, CliError> {
@@ -63,6 +90,23 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<O
     }
 }
 
+fn overwrite_using_field_mask(
+    mut complete_state_object: Object,
+    object_field_mask: &Vec<String>,
+    temp_obj: &Object,
+) -> Result<Object, CliError> {
+    for field_mask in object_field_mask {
+        let path: Path = field_mask.into();
+        if let Some(value) = temp_obj.get(&path) {
+            complete_state_object
+                .set(&path, value.clone())
+                .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+        }
+    }
+
+    Ok(complete_state_object)
+}
+
 impl CliCommands {
     // [impl->swdd~cli-provides-set-desired-state~1]
     pub async fn set_state(
@@ -76,17 +120,22 @@ impl CliCommands {
             state_object_file
         );
 
-        let complete_state = process_inputs(io::stdin(), &state_object_file)
-            .await?
-            .try_into()?;
+        let temp_obj = process_inputs(io::stdin(), &state_object_file).await?;
+        let default_complete_state = create_state_with_default_workload_specs(&object_field_mask);
+
+        // now overwrite with the values from the field mask
+        let mut complete_state_object: Object = default_complete_state.try_into()?;
+        complete_state_object =
+            overwrite_using_field_mask(complete_state_object, &object_field_mask, &temp_obj)?;
+        let new_complete_state = complete_state_object.try_into()?;
 
         output_debug!(
             "Send UpdateState request with the CompleteState {:?}",
-            complete_state
+            new_complete_state
         );
 
         // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
-        self.update_state_and_wait_for_complete(complete_state, object_field_mask)
+        self.update_state_and_wait_for_complete(new_complete_state, object_field_mask)
             .await
     }
 }
@@ -100,14 +149,17 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use super::{io, process_inputs, CliCommands};
+    use super::{
+        create_state_with_default_workload_specs, io, overwrite_using_field_mask, process_inputs,
+        CliCommands, StoredWorkloadSpec,
+    };
     use crate::{
         cli_commands::server_connection::MockServerConnection,
         filtered_complete_state::FilteredCompleteState,
     };
     use api::ank_base::UpdateStateSuccess;
     use common::{
-        objects::{CompleteState, RestartPolicy, State, StoredWorkloadSpec, Tag},
+        objects::{CompleteState, RestartPolicy, State},
         state_manipulation::Object,
     };
     use mockall::predicate::eq;
@@ -121,7 +173,6 @@ mod tests {
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
     const SAMPLE_CONFIG: &str = r#"desiredState:
-        apiVersion: api_version
         workloads:
           nginx:
             agent: agent_A
@@ -134,6 +185,85 @@ mod tests {
             runtimeConfig: |
               image: docker.io/nginx:latest
               commandOptions: ["-p", "8081:80"]"#;
+
+    // [utest->swdd~cli-provides-set-desired-state~1]
+    #[test]
+    fn utest_create_state_with_default_workload_specs_empty_update_mask() {
+        let update_mask = vec![];
+
+        let complete_state = create_state_with_default_workload_specs(&update_mask);
+
+        assert!(complete_state.desired_state.workloads.is_empty());
+    }
+
+    // [utest->swdd~cli-provides-set-desired-state~1]
+    #[test]
+    fn utest_create_state_with_default_workload_specs_with_update_mask() {
+        let update_mask = vec![
+            "desiredState.workloads.nginx.restartPolicy".to_string(),
+            "desiredState.workloads.nginx2.restartPolicy".to_string(),
+            "desiredState.workloads.nginx3".to_string(),
+        ];
+
+        let complete_state = create_state_with_default_workload_specs(&update_mask);
+
+        assert_eq!(
+            complete_state.desired_state.workloads.get("nginx"),
+            Some(&StoredWorkloadSpec::default())
+        );
+
+        assert_eq!(
+            complete_state.desired_state.workloads.get("nginx2"),
+            Some(&StoredWorkloadSpec::default())
+        );
+        assert!(!complete_state
+            .desired_state
+            .workloads
+            .contains_key("nginx3"));
+    }
+
+    // [utest->swdd~cli-provides-set-desired-state~1]
+    #[test]
+    fn utest_create_state_with_default_workload_specs_invalid_path() {
+        let update_mask = vec!["invalid.path".to_string()];
+
+        let complete_state = create_state_with_default_workload_specs(&update_mask);
+
+        assert!(complete_state.desired_state.workloads.is_empty());
+    }
+
+    // [utest->swdd~cli-provides-set-desired-state~1]
+    #[test]
+    fn utest_overwrite_using_field_mask() {
+        let workload_spec = StoredWorkloadSpec::default();
+        let mut complete_state = CompleteState {
+            desired_state: State {
+                workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut complete_state_object: Object = complete_state.try_into().unwrap();
+        let value: serde_yaml::Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
+        let temp_object = Object::try_from(&value).unwrap();
+        let update_mask = vec!["desiredState.workloads.nginx".to_string()];
+
+        complete_state_object =
+            overwrite_using_field_mask(complete_state_object, &update_mask, &temp_object).unwrap();
+
+        complete_state = complete_state_object.try_into().unwrap();
+
+        assert!(complete_state.desired_state.workloads.contains_key("nginx"));
+        assert_eq!(
+            complete_state
+                .desired_state
+                .workloads
+                .get("nginx")
+                .unwrap()
+                .restart_policy,
+            RestartPolicy::Always
+        )
+    }
 
     // [utest->swdd~cli-supports-yaml-to-set-desired-state~1]
     #[tokio::test]
@@ -184,21 +314,12 @@ mod tests {
         let state_object_file = SAMPLE_CONFIG.to_owned();
 
         let workload_spec = StoredWorkloadSpec {
-            agent: "agent_A".into(),
-            tags: vec![Tag {
-                key: "owner".into(),
-                value: "Ankaios team".into(),
-            }],
             restart_policy: RestartPolicy::Always,
-            runtime: "podman".into(),
-            runtime_config: "image: docker.io/nginx:latest\ncommandOptions: [\"-p\", \"8081:80\"]"
-                .into(),
             ..Default::default()
         };
         let updated_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
-                api_version: "api_version".into(),
                 ..Default::default()
             },
             ..Default::default()
@@ -206,7 +327,6 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .once()
             .returning(|_| Ok(FilteredCompleteState::default()));
         mock_server_connection
             .expect_update_state()
