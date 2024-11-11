@@ -800,7 +800,7 @@ Status: approved
 
 When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall request the RuntimeFacade to delete the workload.
 
-Comment: If the the RuntimeManager finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload. The Ankaios agent cannot consider the `DeleteCondition`s of the existing workload because the information is not available after an agent restart.
+Comment: If the RuntimeManager finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload. The Ankaios agent cannot consider the `DeleteCondition`s of the existing workload because the information is not available after an agent restart.
 
 Tags:
 - RuntimeManager
@@ -1975,7 +1975,7 @@ Needs:
 Status: approved
 
 When the podman runtime connector is called to create workload and the RuntimeFacade requests to mount the Control Interface pipes,
-the podman runtime connector shall mount the the Control Interface pipes into the container in the file path `/run/ankaios/control_interface`.
+the podman runtime connector shall mount the Control Interface pipes into the container in the file path `/run/ankaios/control_interface`.
 
 Tags:
 - ControlInterface
@@ -2196,7 +2196,7 @@ When the podman-kube runtime connector is called to create a workload and the po
 the podman-kube runtime continues with applying the manifest and returning the workload ID.
 
 Rationale:
-The volumes are needed for a restart of the the agent, but are not necessary for the current execution of the agent.
+The volumes are needed for a restart of the agent, but are not necessary for the current execution of the agent.
 If the agent ignores the failure of creating of the volumes, the workloads can operate normally and only after a restart of the agent errors occur.
 If the agent fails the start of a workload if it is not able to create the volumes, the workloads cannot operate currently and after a restart of the agent.
 
