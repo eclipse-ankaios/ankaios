@@ -533,7 +533,7 @@ Needs:
 Status: approved
 
 When the Ankaios Server responses to a GetCompleteState request,
-it includes the the RequestID from the GetCompleteState request.
+it includes the RequestID from the GetCompleteState request.
 
 Tags:
 - ControlInterface
