@@ -40,8 +40,8 @@ connects to one or more runtimes that are running the workloads.
 * For first steps see [installation](usage/installation.md) and
 [quickstart](usage/quickstart.md).
 * An overview how Ankaios works is given on the [architecture](architecture.md) page.
-* A tutorial [Sending and receiving vehicle signals
-](usage/tutorial-vehicle-signals.md) demonstrates the use of Ankaios with some workloads.
+* A tutorial [Sending and receiving vehicle signals](usage/tutorial-vehicle-signals.md) demonstrates the use of Ankaios with some workloads.
+* The [Manage a fleet of vehicles from the cloud](usage/tutorial-fleet-management.md) tutorial shows how an Ankaios workload can access the Ankaios control interface in order to provide remote management capabilities.
 * The API is described in the [reference](reference/control-interface.md) section.
 * For contributions have a look at the [contributing](development/build.md) pages.
 
