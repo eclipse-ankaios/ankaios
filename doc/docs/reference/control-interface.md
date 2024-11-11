@@ -122,45 +122,68 @@ flowchart TD
 Code snippet in [Rust](https://www.rust-lang.org/) for sending request message via control interface:
 
 ```rust
-use api::ank_base::{Workload, RestartPolicy, Tag, UpdateStateRequest, Request, request::RequestContent, CompleteState, State};
-use api::control_api::{ToAnkaios, to_ankaios::ToAnkaiosEnum};
+use api::ank_base::{
+    request::RequestContent, CompleteState, Dependencies, Request, RestartPolicy, State, Tag, Tags,
+    UpdateStateRequest, Workload, WorkloadMap,
+};
+use api::control_api::{to_ankaios::ToAnkaiosEnum, Hello, ToAnkaios};
 use prost::Message;
 use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
+const REQUEST_ID: &str = "request_id";
 
-fn create_update_workload_request() -> ToAnkaios {
-    let new_workloads = HashMap::from([(
-        "dynamic_nginx".to_string(),
-        Workload {
-            runtime: "podman".to_string(),
-            agent: "agent_A".to_string(),
-            restart_policy: RestartPolicy::Never.into(),
-            tags: vec![Tag {
-                key: "owner".to_string(),
-                value: "Ankaios team".to_string(),
-            }],
-            runtime_config: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
-                .to_string(),
-            dependencies: HashMap::new(),
-        },
-    )]);
+fn create_hello_message() -> ToAnkaios {
+    ToAnkaios {
+        to_ankaios_enum: Some(ToAnkaiosEnum::Hello(Hello {
+            protocol_version: env!("ANKAIOS_VERSION").to_string(),
+        })),
+    }
+}
+
+fn create_request_to_add_new_workload() -> ToAnkaios {
+    let new_workloads = Some(WorkloadMap {
+        workloads: HashMap::from([(
+            "dynamic_nginx".to_string(),
+            Workload {
+                runtime: Some("podman".to_string()),
+                agent: Some("agent_A".to_string()),
+                restart_policy: Some(RestartPolicy::Never.into()),
+                tags: Some(Tags {
+                    tags: vec![Tag {
+                        key: "owner".to_string(),
+                        value: "Ankaios team".to_string(),
+                    }],
+                }),
+                runtime_config: Some(
+                    "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
+                        .to_string(),
+                ),
+                dependencies: Some(Dependencies {
+                    dependencies: HashMap::new(),
+                }),
+                configs: None,
+                control_interface_access: None,
+            },
+        )]),
+    });
 
     ToAnkaios {
         to_ankaios_enum: Some(ToAnkaiosEnum::Request(Request {
-            request_id: "request_id".to_string(),
-            request_content: Some(RequestContent::UpdateStateRequest(
+            request_id: REQUEST_ID.to_string(),
+            request_content: Some(RequestContent::UpdateStateRequest(Box::new(
                 UpdateStateRequest {
                     new_state: Some(CompleteState {
                         desired_state: Some(State {
-                            api_version: "v0.1".to_string(),
+                            api_version: "v0.1".into(),
                             workloads: new_workloads,
+                            ..Default::default()
                         }),
                         ..Default::default()
                     }),
                     update_mask: vec!["desiredState.workloads.dynamic_nginx".to_string()],
                 },
-            )),
+            ))),
         })),
     }
 }
@@ -171,9 +194,14 @@ fn write_to_control_interface() {
 
     let mut sc_req = File::create(&sc_req_fifo).unwrap();
 
-    let protobuf_update_workload_request = create_update_workload_request();
+    let protobuf_hello_message = create_hello_message();
+    let protobuf_update_workload_request = create_request_to_add_new_workload();
 
     println!("{}", &format!("Sending UpdateStateRequest containing details for adding the dynamic workload \"dynamic_nginx\": {:#?}", protobuf_update_workload_request));
+
+    sc_req
+        .write_all(&protobuf_hello_message.encode_length_delimited_to_vec())
+        .unwrap(); // send the initial hello message for establishing the connection
 
     sc_req
         .write_all(&protobuf_update_workload_request.encode_length_delimited_to_vec())
@@ -212,10 +240,11 @@ flowchart TD
 Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
 
 ```rust
-use api::control_api::FromAnkaios;
+use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
 use prost::Message;
 use std::{fs::File, io, io::Read, path::Path};
 
+const REQUEST_ID: &str = "request_id";
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 const MAX_VARINT_SIZE: usize = 19;
 
@@ -253,9 +282,32 @@ fn read_from_control_interface() {
 
     loop {
         if let Ok(binary) = read_protobuf_data(&mut ex_req) {
-            let proto = FromAnkaios::decode(&mut Box::new(binary.as_ref()));
+            match FromAnkaios::decode(&mut Box::new(binary.as_ref())) {
+                Ok(from_ankaios) => {
+                    let Some(FromAnkaiosEnum::Response(response)) = &from_ankaios.from_ankaios_enum
+                    else {
+                        println!("No response. Continue.");
+                        continue;
+                    };
 
-            println!("{}", &format!("Received FromAnkaios message containing the response from the server: {:#?}", proto));
+                    // use the response if the request id matches
+                    let request_id: &String = &response.request_id;
+                    if response.request_id == REQUEST_ID {
+                        println!(
+                            "Received FromAnkaios message containing the response from the server: {:#?}",
+                            from_ankaios
+                        );
+                    } else {
+                        println!(
+                            "RequestId does not match. Skipping messages from requestId: {}",
+                            request_id
+                        );
+                    }
+                }
+                Err(err) => {
+                    println!("Invalid response, parsing error: '{}'", err);
+                }
+            }
         }
     }
 }
