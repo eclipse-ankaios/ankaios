@@ -1474,7 +1474,7 @@ A workload specification must contain the following information:</p>
 <li><code>workload name</code><em>(via field key)</em>, specify the workload name to identify the workload in the Ankaios system.</li>
 <li><code>runtime</code>, specify the type of the runtime. Currently supported values are <code>podman</code> and <code>podman-kube</code>.</li>
 <li><code>agent</code>, specify the name of the owning agent which is going to execute the workload. Supports templated strings.</li>
-<li><code>restartPolicy</code>, specify how the workload should be restarted upon exiting (not implemented yet).</li>
+<li><code>restartPolicy</code>, specify how the workload should be restarted upon exiting.</li>
 <li><code>tags</code>, specify a list of <code>key</code> <code>value</code>  pairs.</li>
 <li><code>runtimeConfig</code>, specify as a <em>string</em> the configuration for the <a href="../glossary/#runtime">runtime</a> whose configuration structure is specific for each runtime, e.g., for <code>podman</code> runtime the <a href="#podmanruntimeconfig">PodmanRuntimeConfig</a> is used. Supports templated strings.</li>
 <li><code>configs</code>: assign configuration items defined in the state's <code>configs</code> field to the workload</li>
