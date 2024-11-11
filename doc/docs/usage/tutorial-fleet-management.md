@@ -80,14 +80,6 @@ def on_connect(client, userdata, flags, reason_code, properties):
     client.subscribe(f"{BASE_TOPIC}/manifest/delete/req")
     client.subscribe(f"{BASE_TOPIC}/state/req")
 
-def convert_manifest_result_to_dict(result):
-    dict = { "added_workloads": [], "deleted_workloads": [] }
-    for a in result["added_workloads"]:
-        dict["added_workloads"].append(a.__dict__)
-    for d in result["deleted_workloads"]:
-        dict["deleted_workloads"].append(d.__dict__)
-    return dict
-
 # Callback when a PUBLISH message is received from the MQTT server
 def on_message(client, userdata, msg):
     try:
@@ -97,13 +89,13 @@ def on_message(client, userdata, msg):
             manifest = Manifest.from_string(str(msg.payload.decode()))
             ret = ankaios.apply_manifest(manifest)
             if ret is not None:
-                client.publish(f"{BASE_TOPIC}/manifest/apply/resp", json.dumps(convert_manifest_result_to_dict(ret)))
+                client.publish(f"{BASE_TOPIC}/manifest/apply/resp", json.dumps(ret.to_dict()))
         # Handle request for deleting a manifest
-        if msg.topic == f"{BASE_TOPIC}/manifest/delete/req":
+        elif msg.topic == f"{BASE_TOPIC}/manifest/delete/req":
             manifest = Manifest.from_string(str(msg.payload.decode()))
             ret = ankaios.delete_manifest(manifest)
             if ret is not None:
-                client.publish(f"{BASE_TOPIC}/manifest/delete/resp", json.dumps(convert_manifest_result_to_dict(ret)))
+                client.publish(f"{BASE_TOPIC}/manifest/delete/resp", json.dumps(ret.to_dict()))
         # Handle request for getting the state of Ankaios
         elif msg.topic == f"{BASE_TOPIC}/state/req":
             state = ankaios.get_state(field_masks=json.loads(str(msg.payload.decode())))
@@ -164,7 +156,7 @@ The full source code for the fleet connector is available in the [Ankaios reposi
 
 ## Deploying the fleet connector
 
-If you have not yet installed Ankaios, please follow the instructions [here](https://eclipse-ankaios.github.io/ankaios/latest/usage/installation/).
+If you have not yet installed Ankaios, please follow the instructions [here](installation.md).
 The following examples assume that the installation script was used with the default options.
 
 We want the fleet connector to run when the vehicle is started and Ankaios is started. Therefore, we add the fleet connector to the startup configuration for Ankaios. Modify `/etc/ankaios/state.yaml` to include:
@@ -189,7 +181,7 @@ workloads:
 ```
 
 Since the fleet connector needs to access the Ankaios control interface, we need to allow this with the `controlInterfaceAccess` section in the manifest.
-See the [reference documentation](https://eclipse-ankaios.github.io/ankaios/latest/reference/_ankaios.proto/#controlinterfaceaccess) for more information on that.
+See the [reference documentation](../../reference/_ankaios.proto/#controlinterfaceaccess) for more information on that.
 
 Now we start Ankaios with:
 
