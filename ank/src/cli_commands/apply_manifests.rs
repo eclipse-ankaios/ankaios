@@ -43,7 +43,6 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
             let obj_paths = Vec::<Path>::from(&obj);
             for path in obj_paths {
                 let parts = path.parts();
-                println!("PATH PARTS: {:?}", parts);
                 if parts.len() > 1 {
                     let _ = &mut workload_paths
                         .insert(Path::from(format!("{}.{}", parts[0], parts[1])));
