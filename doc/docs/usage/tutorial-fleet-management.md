@@ -167,7 +167,6 @@ workloads:
   fleetconnector:
     runtime: podman
     agent: agent_A
-    restart: false
     controlInterfaceAccess:
       allowRules:
         - type: StateRule
