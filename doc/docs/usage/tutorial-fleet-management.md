@@ -20,7 +20,7 @@ It's also assumed that the Ankaios setup is done with mutual TLS (mTLS) disabled
 In the real world, the MQTT broker would reside in the cloud, but for this tutorial, we set up an MQTT broker on the local machine using the existing Eclipse Mosquitto container image. The container is started with Podman directly to emulate that it is running outside of the vehicle.
 
 ```shell
-podman run -d -p 1883:1883 docker.io/eclipse-mosquitto
+podman run -d --net=host docker.io/eclipse-mosquitto
 ```
 
 This will start a broker on localhost listening on port 1883. For production use cases, MQTT would use TLS and access control, which is skipped here for simplicity.
