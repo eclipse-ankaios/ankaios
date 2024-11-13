@@ -20,7 +20,7 @@ It's also assumed that the Ankaios setup is done with mutual TLS (mTLS) disabled
 In the real world, the MQTT broker would reside in the cloud, but for this tutorial, we set up an MQTT broker on the local machine using the existing Eclipse Mosquitto container image. The container is started with Podman directly to emulate that it is running outside of the vehicle.
 
 ```shell
-podman run -d --net=host docker.io/eclipse-mosquitto
+podman run -d --net=host docker.io/eclipse-mosquitto:2.0.20
 ```
 
 This will start a broker on localhost listening on port 1883. For production use cases, MQTT would use TLS and access control, which is skipped here for simplicity.
@@ -34,7 +34,7 @@ vehicle/<VIN>/
 Our example vehicle is assigned VIN 1. Let's listen to all messages to and from this vehicle by subscribing to the topic `vehicle/1/#`:
 
 ```shell
-podman run --net=host docker.io/eclipse-mosquitto mosquitto_sub -h localhost -t "vehicle/1/#" -v
+podman run --net=host docker.io/eclipse-mosquitto:2.0.20 mosquitto_sub -h localhost -t "vehicle/1/#" -v
 ```
 
 For now no messages will be shown in this window, but keep it open for the duration of this tutorial to observe the communication, once we proceed with the following steps.
@@ -239,7 +239,7 @@ Then we send this file via MQTT to the `vehicle/1/manifest/apply/req` topic:
 ```shell
 TOPIC=vehicle/1/manifest/apply/req
 FILE=vehicle-data-sender.yaml
-podman run --rm --net=host -v $PWD/$FILE:/$FILE docker.io/eclipse-mosquitto mosquitto_pub -h localhost -t "$TOPIC" -f $FILE
+podman run --rm --net=host -v $PWD/$FILE:/$FILE docker.io/eclipse-mosquitto:2.0.20 mosquitto_pub -h localhost -t "$TOPIC" -f $FILE
 ```
 
 The fleet connector will receive this message and use the Ankaios control interface to apply this manifest. Looking at the previous window where we subscribed to MQTT topics, we can see that we are receiving messages from the vehicle data sender, such as
@@ -256,7 +256,7 @@ We can also remotely request the workload states from the fleet connector by sen
 ```shell
 TOPIC=vehicle/1/state/req
 MSG='["workloadStates"]'
-podman run --rm --net=host docker.io/eclipse-mosquitto mosquitto_pub -h localhost -t "$TOPIC" -m "$MSG"
+podman run --rm --net=host docker.io/eclipse-mosquitto:2.0.20 mosquitto_pub -h localhost -t "$TOPIC" -m "$MSG"
 ```
 
 In the windows with the MQTT subcription, we can see the state arriving as a JSON object using the topic `vehicle/1/state/resp`.
@@ -287,7 +287,7 @@ Then we just have to publish the new manifest:
 ```shell
 TOPIC=vehicle/1/manifest/apply/req
 FILE=config.yaml
-podman run --rm --net=host -v $PWD/$FILE:/$FILE docker.io/eclipse-mosquitto mosquitto_pub -h localhost -t "$TOPIC" -f $FILE
+podman run --rm --net=host -v $PWD/$FILE:/$FILE docker.io/eclipse-mosquitto:2.0.20 mosquitto_pub -h localhost -t "$TOPIC" -f $FILE
 ```
 
 Upon receiving the new config via the fleet connector, Ankaios will stop and restart the `vehicle-data-sender` with the new config. After a few seconds we can see that the speed value is now published every 10 seconds.
@@ -301,7 +301,7 @@ Just publish the manifest with the workload and config from the previous section
 ```shell
 TOPIC=vehicle/1/manifest/delete/req
 FILE=vehicle-data-sender.yaml
-podman run --rm --net=host -v $PWD/$FILE:/$FILE docker.io/eclipse-mosquitto mosquitto_pub -h localhost -t "$TOPIC" -f $FILE
+podman run --rm --net=host -v $PWD/$FILE:/$FILE docker.io/eclipse-mosquitto:2.0.20 mosquitto_pub -h localhost -t "$TOPIC" -f $FILE
 ```
 
 ## Conclusion
