@@ -259,7 +259,7 @@ MSG='["workloadStates"]'
 podman run --rm --net=host docker.io/eclipse-mosquitto:2.0.20 mosquitto_pub -h localhost -t "$TOPIC" -m "$MSG"
 ```
 
-In the windows with the MQTT subcription, we can see the state arriving as a JSON object using the topic `vehicle/1/state/resp`.
+In the windows with the MQTT subscription, we can see the state arriving as a JSON object using the topic `vehicle/1/state/resp`.
 
 ## Remote re-configuration of the vehicle data sender
 
