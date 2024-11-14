@@ -72,56 +72,57 @@ BASE_TOPIC = f"vehicle/{VEHICLE_ID}"
 
 # Create a new Ankaios object.
 # The connection to the control interface is automatically done at this step.
-ankaios = Ankaios()
+# The Ankaios class supports context manager syntax:
+with Ankaios() as ankaios:
 
-# Callback when the client receives a CONNACK response from the MQTT server
-def on_connect(client, userdata, flags, reason_code, properties):
-    client.subscribe(f"{BASE_TOPIC}/manifest/apply/req")
-    client.subscribe(f"{BASE_TOPIC}/manifest/delete/req")
-    client.subscribe(f"{BASE_TOPIC}/state/req")
+    # Callback when the client receives a CONNACK response from the MQTT server
+    def on_connect(client, userdata, flags, reason_code, properties):
+        client.subscribe(f"{BASE_TOPIC}/manifest/apply/req")
+        client.subscribe(f"{BASE_TOPIC}/manifest/delete/req")
+        client.subscribe(f"{BASE_TOPIC}/state/req")
 
-# Callback when a PUBLISH message is received from the MQTT server
-def on_message(client, userdata, msg):
-    try:
-        logger.info(f"Received message on topic {msg.topic} with payload {msg.payload.decode()}")
-        # Handle request for applying a manifest
-        if msg.topic == f"{BASE_TOPIC}/manifest/apply/req":
-            manifest = Manifest.from_string(str(msg.payload.decode()))
-            ret = ankaios.apply_manifest(manifest)
-            if ret is not None:
-                client.publish(f"{BASE_TOPIC}/manifest/apply/resp", json.dumps(ret.to_dict()))
-        # Handle request for deleting a manifest
-        elif msg.topic == f"{BASE_TOPIC}/manifest/delete/req":
-            manifest = Manifest.from_string(str(msg.payload.decode()))
-            ret = ankaios.delete_manifest(manifest)
-            if ret is not None:
-                client.publish(f"{BASE_TOPIC}/manifest/delete/resp", json.dumps(ret.to_dict()))
-        # Handle request for getting the state of Ankaios
-        elif msg.topic == f"{BASE_TOPIC}/state/req":
-            state = ankaios.get_state(field_masks=json.loads(str(msg.payload.decode())))
-            client.publish(f"{BASE_TOPIC}/state/resp", json.dumps(state.to_dict()))
-    except Exception as e:
-        logger.error(f"Error processing message: {e}")
+    # Callback when a PUBLISH message is received from the MQTT server
+    def on_message(client, userdata, msg):
+        try:
+            logger.info(f"Received message on topic {msg.topic} with payload {msg.payload.decode()}")
+            # Handle request for applying a manifest
+            if msg.topic == f"{BASE_TOPIC}/manifest/apply/req":
+                manifest = Manifest.from_string(str(msg.payload.decode()))
+                ret = ankaios.apply_manifest(manifest)
+                if ret is not None:
+                    client.publish(f"{BASE_TOPIC}/manifest/apply/resp", json.dumps(ret.to_dict()))
+            # Handle request for deleting a manifest
+            elif msg.topic == f"{BASE_TOPIC}/manifest/delete/req":
+                manifest = Manifest.from_string(str(msg.payload.decode()))
+                ret = ankaios.delete_manifest(manifest)
+                if ret is not None:
+                    client.publish(f"{BASE_TOPIC}/manifest/delete/resp", json.dumps(ret.to_dict()))
+            # Handle request for getting the state of Ankaios
+            elif msg.topic == f"{BASE_TOPIC}/state/req":
+                state = ankaios.get_state(field_masks=json.loads(str(msg.payload.decode())))
+                client.publish(f"{BASE_TOPIC}/state/resp", json.dumps(state.to_dict()))
+        except Exception as e:
+            logger.error(f"Error processing message: {e}")
 
-# Create an MQTT client instance
-mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    # Create an MQTT client instance
+    mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
-# Assign the callbacks
-mqtt_client.on_connect = on_connect
-mqtt_client.on_message = on_message
+    # Assign the callbacks
+    mqtt_client.on_connect = on_connect
+    mqtt_client.on_message = on_message
 
-# Connect to the MQTT broker
-mqtt_client.connect(BROKER, PORT, 60)
+    # Connect to the MQTT broker
+    mqtt_client.connect(BROKER, PORT, 60)
 
-# Blocking call that processes network traffic, dispatches callbacks,
-# and handles reconnecting.
-mqtt_client.loop_forever()
+    # Blocking call that processes network traffic, dispatches callbacks,
+    # and handles reconnecting.
+    mqtt_client.loop_forever()
 ```
 
 This Python script runs inside a container managed by Ankaios. Using
 
 ```python
-ankaios = Ankaios()
+with Ankaios() as ankaios:
 ```
 
 the script connects to the Ankaios control interface. After connecting to the MQTT broker using
@@ -175,7 +176,7 @@ workloads:
             - "*"
     restartPolicy: NEVER
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/fleet-connector:0.5.1
+      image: ghcr.io/eclipse-ankaios/fleet-connector:0.5.2
       commandOptions: [ "--net=host", "-e", "VIN=1"]
 ```
 
