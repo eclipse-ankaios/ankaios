@@ -53,7 +53,7 @@ Ankaios supports templated strings and [essential control directives](https://gi
 * `agent`
 * `runtimeConfig`
 
-Ankaios renders a templated state at startup or when the state is updated. The rendering replaces the templated strings with the configuration items associated with each workload. The configuration items themselves are defined in a `configs` field, which contains several key-value pairs. The key specifies the name of the configuration item and the value is a string, list or associative data structure. To see templated workload configurations in action, follow the [tutorial about sending and receiving vehicle data](../usage/tutorial-vehicle-signals.md#define-re-usable-configuration).
+Ankaios renders a templated state at startup or when the state is updated. The rendering replaces the templated strings with the configuration items associated with each workload. The configuration items themselves are defined in a `configs` field, which contains several key-value pairs. The key specifies the name of the configuration item and the value is a string, list or associative data structure. To see templated workload configurations in action, see the tutorial [Manage a fleet of vehicles from the cloud](../usage/tutorial-fleet-management.md#remote-installation-of-a-vehicle-data-sender).
 
 !!! Note
     The name of a configuration item can only contain regular characters, digits, the "-" and "_" symbols. The same applies to the keys and values of the workload's `configs` field when assigning configuration items to a workload.
