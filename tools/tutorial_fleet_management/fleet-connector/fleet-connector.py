@@ -4,6 +4,7 @@ import json
 import os
 import logging
 import sys
+import signal
 
 logger = logging.getLogger("fleetconnector")
 stdout = logging.StreamHandler(stream=sys.stdout)
@@ -51,6 +52,10 @@ with Ankaios() as ankaios:
         except Exception as e:
             logger.error(f"Error processing message: {e}")
 
+    def signal_handler(sig, frame):
+        ankaios.disconnect()
+        sys.exit(0)
+
     # Create an MQTT client instance
     mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
@@ -60,6 +65,8 @@ with Ankaios() as ankaios:
 
     # Connect to the MQTT broker
     mqtt_client.connect(BROKER, PORT, 60)
+
+    signal.signal(signal.SIGTERM, signal_handler)
 
     # Blocking call that processes network traffic, dispatches callbacks,
     # and handles reconnecting.
