@@ -1,0 +1,22 @@
+[profile.default.junit]
+# Output a JUnit report into the given file inside 'store.dir/<profile-name>'.
+# If unspecified, JUnit is not written out.
+
+path = "unit-test-report.xml"
+
+# The name of the top-level "report" element in JUnit report. If aggregating
+# reports across different test runs, it may be useful to provide separate names
+# for each report.
+report-name = "ankaios"
+
+# Whether standard output and standard error for passing tests should be stored in the JUnit report.
+# Output is stored in the <system-out> and <system-err> elements of the <testcase> element.
+store-success-output = false
+
+# Whether standard output and standard error for failing tests should be stored in the JUnit report.
+# Output is stored in the <system-out> and <system-err> elements of the <testcase> element.
+#
+# Note that if a description can be extracted from the output, it is always stored in the
+# <description> element.
+store-failure-output = true
+
