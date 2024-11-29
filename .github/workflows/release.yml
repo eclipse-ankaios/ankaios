@@ -50,14 +50,27 @@ jobs:
         with:
           name: licenses
           path: dist/
+      - name: Download unit test results
+        uses: actions/download-artifact@v4.1.7
+        with:
+          name: unit-test-results
+          path: dist/test-results
+      - name: Download robot test results
+        uses: actions/download-artifact@v4.1.7
+        with:
+          name: robot-tests-result
+          path: dist/test-results/robot
       - name: Package release artifacts
         run: tools/create_release.sh
       - name: Upload release artifacts
         run: |
           cd dist
           tree
-          gh release upload ${{ github.ref_name }} coverage-report.tar.gz \
+          gh release upload ${{ github.ref_name }} \
+          coverage-report.tar.gz \
           coverage-report.zip \
+          test-results.tar.gz \
+          test-results.zip \
           req_tracing_report.html \
           install.sh \
           ank_base.proto \
@@ -76,6 +89,7 @@ jobs:
           artifacts_license: "https://github.com/eclipse-ankaios/ankaios/releases/download/${{ github.ref_name }}/licenses.html"
           artifacts_readme: "https://raw.githubusercontent.com/eclipse-ankaios/ankaios/refs/tags/${{ github.ref_name }}/README.md"
           artifacts_requirements: "https://github.com/eclipse-ankaios/ankaios/releases/download${{ github.ref_name }}/req_tracing_report.html"
+          artifacts_testing: "https://github.com/eclipse-ankaios/ankaios/releases/download/${{ github.ref_name }}/test-results.zip,https://github.com/eclipse-ankaios/ankaios/releases/download/${{ github.ref_name }}/test-results.tar.gz"
       - name: Upload quality manifest
         run: |
           gh release upload ${{ github.ref_name }} ${{ steps.collect_quality_artifacts.outputs.manifest_file }}

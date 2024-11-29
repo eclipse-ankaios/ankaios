@@ -56,7 +56,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.1
       - name: Run unit tests
-        run: RUST_LOG=debug cargo nextest run
+        run: just test
+      - uses: actions/upload-artifact@v4.3.3
+        with:
+          name: unit-test-results
+          path: target/nextest/default/unit-test-report.xml
       - name: Run clippy code checks
         run: just clippy
       - name: Prevent docker.io images in test

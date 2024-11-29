@@ -41,7 +41,7 @@ check-copyright-headers:
 
 # Run unit tests
 test:
-    cargo nextest run
+    RUST_LOG=debug cargo nextest --config-file nextest.toml run
 
 # Build debug and run all system tests
 stest: build stest-only
