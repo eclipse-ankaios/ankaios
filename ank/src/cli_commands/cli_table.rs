@@ -55,12 +55,27 @@ where
         Self { rows, table }
     }
 
-    // [impl->swdd~cli-table-provides-default-table-output~1]
+    // [impl->swdd~cli-table-provides-default-table-output~2]
     pub fn create_default_table(mut self) -> String {
         self.table = Table::new(self.rows);
         self.style_blank();
         self.disable_surrounding_padding();
-        self.table.to_string()
+
+        let default_table = self.table.to_string();
+
+        const NEWLINE: &str = "\n";
+        let terminal_width = terminal_width();
+        let truncated_lines: Vec<&str> = default_table
+            .lines()
+            .map(|line| {
+                if line.len() > terminal_width {
+                    &line[..terminal_width]
+                } else {
+                    line
+                }
+            })
+            .collect();
+        truncated_lines.join(NEWLINE)
     }
 
     // [impl->swdd~cli-table-provides-table-output-with-wrapped-column~1]
@@ -214,21 +229,42 @@ mod tests {
         pub col1: String,
     }
 
-    // [utest->swdd~cli-table-provides-default-table-output~1]
+    // [utest->swdd~cli-table-provides-default-table-output~2]
     #[test]
-    fn utest_create_default_table() {
+    fn utest_create_default_table_truncated_table_upon_exceeding_line_length() {
         let table_rows = [TestRow {
             col1: "some default name".to_string(),
             col2: "another content".to_string(),
-            col3: "some long info message that shall never be truncated or unwrapped".to_string(),
+            col3: "info message that exceeds terminal width and leads to truncating of the whole table".to_string(),
         }];
 
         let table = CliTable::new(&table_rows);
         let table_output = table.create_default_table();
         let expected_table_output = [
-            "COLUMN 1            COL2              ANOTHER COLUMN3                                                  ",
-            "some default name   another content   some long info message that shall never be truncated or unwrapped",
-        ].join("\n");
+            "COLUMN 1            COL2              ANOTHER COLUMN3                           ",
+            "some default name   another content   info message that exceeds terminal width a",
+        ]
+        .join("\n");
+
+        assert_eq!(table_output, expected_table_output);
+    }
+
+    // [utest->swdd~cli-table-provides-default-table-output~2]
+    #[test]
+    fn utest_create_default_table_line_length_equal_to_terminal_length() {
+        let table_rows = [TestRow {
+            col1: "some default name".to_string(),
+            col2: "another content".to_string(),
+            col3: "a msg with length equal to terminal length".to_string(),
+        }];
+
+        let table = CliTable::new(&table_rows);
+        let table_output = table.create_default_table();
+        let expected_table_output = [
+            "COLUMN 1            COL2              ANOTHER COLUMN3                           ",
+            "some default name   another content   a msg with length equal to terminal length",
+        ]
+        .join("\n");
 
         assert_eq!(table_output, expected_table_output);
     }
