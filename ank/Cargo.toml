@@ -38,6 +38,7 @@ tabled = "0.12"
 uuid = { version = "1.7.0", features = ["v4"] }
 crossterm = "0.27.0"
 clap_complete = { version = "<=4.5.24", features = ["unstable-dynamic", "unstable-command"] }
+atty = "0.2.14"
 
 [dev-dependencies]
 mockall = "0.11"
