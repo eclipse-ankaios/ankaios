@@ -12,9 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{env, fmt, process::exit, sync::Mutex};
+use std::{
+    env, fmt,
+    io::{self, IsTerminal},
+    process::exit,
+    sync::Mutex,
+};
 
-use atty::Stream;
 use crossterm::{
     cursor,
     style::Stylize,
@@ -97,7 +101,7 @@ pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
 }
 
 pub fn interactive() -> bool {
-    atty::is(Stream::Stdout)
+    io::stdout().is_terminal()
 }
 
 pub fn terminal_width() -> usize {
