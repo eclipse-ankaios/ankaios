@@ -12,14 +12,23 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{env, fmt, process::exit, sync::Mutex};
+use std::{
+    env, fmt,
+    io::{self, IsTerminal},
+    process::exit,
+    sync::Mutex,
+};
 
-use crossterm::{cursor, style::Stylize, terminal};
+use crossterm::{
+    cursor,
+    style::Stylize,
+    terminal::{self, ClearType},
+};
 
 pub const VERBOSITY_KEY: &str = "VERBOSE";
 pub const QUIET_KEY: &str = "SILENT";
 
-static CLEANUP_STRING: Mutex<String> = Mutex::new(String::new());
+static ROWS_PREV_MSG: Mutex<u16> = Mutex::new(0);
 
 /// Prints the message, if the CLI command is not called with `--quiet` flag
 #[macro_export]
@@ -74,25 +83,33 @@ pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) -> ! {
 
 pub(crate) fn output_debug_fn(args: fmt::Arguments<'_>) {
     if is_verbose() {
-        std::println!("{} {}{}", "debug:".blue(), args, cursor::SavePosition);
-        *CLEANUP_STRING.lock().unwrap() = "".into();
+        std::println!("{} {}", "debug:".blue(), args);
+        *ROWS_PREV_MSG.lock().unwrap() = 0;
     }
 }
 
 pub(crate) fn output_warn_fn(args: fmt::Arguments<'_>) {
-    std::println!("{} {}{}", "warn:".yellow(), args, cursor::SavePosition);
-    *CLEANUP_STRING.lock().unwrap() = "".into();
+    std::println!("{} {}", "warn:".yellow(), args);
+    *ROWS_PREV_MSG.lock().unwrap() = 0;
 }
 
 pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
     if !is_quiet() {
-        std::println!("{}{}", args, cursor::SavePosition);
-        *CLEANUP_STRING.lock().unwrap() = "".into();
+        std::println!("{}", args);
+        *ROWS_PREV_MSG.lock().unwrap() = 0;
     }
 }
 
+pub fn interactive() -> bool {
+    io::stdout().is_terminal()
+}
+
 pub fn terminal_width() -> usize {
-    let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
+    let terminal_width = if interactive() {
+        terminal::size().unwrap_or((80, 0)).0 as usize
+    } else {
+        u16::MAX as usize
+    };
 
     // This is a workaround for terminals that return a wrong width of 0 instead of None
     if 0 == terminal_width {
@@ -105,8 +122,15 @@ pub(crate) fn output_update_fn(args: fmt::Arguments<'_>) {
     if !is_quiet() {
         let args = args.to_string();
 
+        if !interactive() {
+            println!("{}\n", args);
+            return;
+        }
+
+        let lf = format!("{}\n", terminal::Clear(ClearType::UntilNewLine));
+
         // limit line length to terminal_width by introducing newline characters
-        let args = args
+        let mut args = args
             .split('\n')
             .flat_map(|line| {
                 line.chars()
@@ -116,31 +140,37 @@ pub(crate) fn output_update_fn(args: fmt::Arguments<'_>) {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<String>>()
-            .join("\n");
+            .join(&lf);
+        args.push_str(&lf);
 
-        let mut cleanup_string = CLEANUP_STRING.lock().unwrap();
-        let up = cleanup_string.chars().filter(|c| *c == '\n').count() as u16;
-        let up_string = if up > 0 {
-            cursor::MoveUp(up).to_string()
+        let rows = args.chars().filter(|c| *c == '\n').count() as u16;
+        let mut prev_rows = ROWS_PREV_MSG.lock().unwrap();
+        let pre_up_string = if *prev_rows > 0 {
+            cursor::MoveUp(*prev_rows).to_string()
         } else {
             "".to_string()
         };
-        std::println!(
-            "{}{}{}{}{}{}",
+        let cleanup_string = if rows < *prev_rows {
+            str::repeat(&lf, (*prev_rows - rows).into())
+        } else {
+            "".to_string()
+        };
+        let post_up_string = if rows < *prev_rows {
+            cursor::MoveUp(*prev_rows - rows).to_string()
+        } else {
+            "".to_string()
+        };
+
+        std::print!(
+            "{}{}{}{}{}",
             cursor::MoveToColumn(0),
-            up_string,
+            pre_up_string,
+            args,
             cleanup_string,
-            cursor::MoveToColumn(0),
-            up_string,
-            args
+            post_up_string
         );
 
-        let mut new_cleanup_string: String = args
-            .chars()
-            .map(|x| if x == '\n' { '\n' } else { ' ' })
-            .collect();
-        new_cleanup_string.push('\n');
-        *cleanup_string = new_cleanup_string;
+        *prev_rows = rows;
     }
 }
 

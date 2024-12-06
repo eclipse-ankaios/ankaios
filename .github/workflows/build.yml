@@ -77,6 +77,11 @@ jobs:
         with:
           name: licenses
           path: build/licenses.html
+        # We check advisories only for PRs in order to have stable builds on main.
+        # Remember that new advisories can pop up every time without changing the code.
+      - name: Check advisories for pull requests
+        if: ${{ github.event_name == 'pull_request' }}
+        run: just check-advisories
 
   code_coverage_linux_amd64:
     name: Create code coverage report

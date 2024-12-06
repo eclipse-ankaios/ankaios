@@ -31,6 +31,10 @@ clean:
 check-licenses:
     cargo deny check licenses
 
+# Check advisories as part of https://rustsec.org/advisories/
+check-advisories:
+    cargo deny check advisories
+
 # Prevent non ghcr.io images to be used in test due to rate limit problem
 check-test-images:
     test -z "$(find tests/resources/configs -type f -exec grep -H -P 'image: (?!ghcr\.io/|image_typo:latest)' {} \;)"
