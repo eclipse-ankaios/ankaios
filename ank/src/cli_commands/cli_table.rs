@@ -253,16 +253,17 @@ mod tests {
     #[test]
     fn utest_create_default_table_line_length_equal_to_terminal_length() {
         let table_rows = [TestRow {
-            col1: "some default name".to_string(),
-            col2: "another content".to_string(),
-            col3: "a msg with length equal to terminal length".to_string(),
+            col1: "default name".to_string(),
+            col2: "content".to_string(),
+            col3: "message to make the row length equal to terminal length".to_string(),
         }];
 
         let table = CliTable::new(&table_rows);
         let table_output = table.create_default_table();
+        std::println!("{}", table_output);
         let expected_table_output = [
-            "COLUMN 1            COL2              ANOTHER COLUMN3                           ",
-            "some default name   another content   a msg with length equal to terminal length",
+            "COLUMN 1       COL2      ANOTHER COLUMN3                                        ",
+            "default name   content   message to make the row length equal to terminal length",
         ]
         .join("\n");
 
