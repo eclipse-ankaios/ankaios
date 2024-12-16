@@ -260,7 +260,6 @@ mod tests {
 
         let table = CliTable::new(&table_rows);
         let table_output = table.create_default_table();
-        std::println!("{}", table_output);
         let expected_table_output = [
             "COLUMN 1       COL2      ANOTHER COLUMN3                                        ",
             "default name   content   message to make the row length equal to terminal length",
