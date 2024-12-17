@@ -1,6 +1,22 @@
+// Copyright (c) 2023 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use common::{
-    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState},
+    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
     std_extensions::IllegalStateResult,
 };
 #[cfg(test)]
@@ -13,7 +29,8 @@ use crate::control_interface::ControlInterface;
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 use crate::{
-    runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
+    runtime_connectors::{OwnableRuntime, ReusableWorkloadState, RuntimeError, StateChecker},
+    workload_operation::ReusableWorkloadSpec,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
@@ -32,11 +49,11 @@ pub trait RuntimeFacade: Send + Sync + 'static {
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadState>, RuntimeError>;
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError>;
 
     fn create_workload(
         &self,
-        runtime_workload: WorkloadSpec,
+        runtime_workload: ReusableWorkloadSpec,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload;
@@ -57,7 +74,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 }
 
 pub struct GenericRuntimeFacade<
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync,
 > {
     runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
@@ -65,7 +82,7 @@ pub struct GenericRuntimeFacade<
 
 impl<WorkloadId, StChecker> GenericRuntimeFacade<WorkloadId, StChecker>
 where
-    WorkloadId: ToString + Send + Sync + 'static,
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     pub fn new(runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>) -> Self {
@@ -75,7 +92,7 @@ where
 
 #[async_trait]
 impl<
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     > RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
 {
@@ -83,7 +100,7 @@ impl<
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadState>, RuntimeError> {
+    ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
         log::debug!(
             "Searching for reusable '{}' workloads on agent '{}'.",
             self.runtime.name(),
@@ -95,13 +112,13 @@ impl<
     // [impl->swdd~agent-create-workload~2]
     fn create_workload(
         &self,
-        workload_spec: WorkloadSpec,
+        reusable_workload_spec: ReusableWorkloadSpec,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let (_task_handle, workload) = Self::create_workload_non_blocking(
             self,
-            workload_spec,
+            reusable_workload_spec,
             control_interface_info,
             update_state_tx,
         );
@@ -142,17 +159,29 @@ impl<
 }
 
 impl<
-        WorkloadId: ToString + Send + Sync + 'static,
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     > GenericRuntimeFacade<WorkloadId, StChecker>
 {
     // [impl->swdd~agent-create-workload~2]
     fn create_workload_non_blocking(
         &self,
-        workload_spec: WorkloadSpec,
+        reusable_workload_spec: ReusableWorkloadSpec,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
+        let workload_spec = reusable_workload_spec.workload_spec;
+        let workload_id = match reusable_workload_spec.workload_id {
+            Some(id) => match WorkloadId::from_str(&id) {
+                Ok(id) => Some(id),
+                Err(_) => {
+                    log::warn!("Cannot decode workload id '{}'", id);
+                    None
+                }
+            },
+            None => None,
+        };
+
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
@@ -209,6 +238,7 @@ impl<
 
             let control_loop_state = ControlLoopState::builder()
                 .workload_spec(workload_spec)
+                .workload_id(workload_id)
                 .control_interface_path(control_interface_path)
                 .workload_state_sender(update_state_tx)
                 .runtime(runtime)
@@ -367,7 +397,6 @@ mod tests {
     use common::objects::{
         generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
-        WorkloadState,
     };
 
     use crate::{
@@ -377,9 +406,10 @@ mod tests {
         },
         runtime_connectors::{
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
-            GenericRuntimeFacade, OwnableRuntime, RuntimeFacade,
+            GenericRuntimeFacade, OwnableRuntime, ReusableWorkloadState, RuntimeFacade,
         },
         workload::{ControlLoopState, MockWorkload, MockWorkloadControlLoop},
+        workload_operation::ReusableWorkloadSpec,
         workload_state::assert_execution_state_sequence,
     };
 
@@ -399,10 +429,11 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
-        let workload_state = WorkloadState {
-            instance_name: workload_instance_name.clone(),
-            execution_state: ExecutionState::initial(),
-        };
+        let workload_state = ReusableWorkloadState::new(
+            workload_instance_name.clone(),
+            ExecutionState::initial(),
+            None,
+        );
 
         runtime_mock
             .expect(vec![RuntimeCall::GetReusableWorkloads(
@@ -423,7 +454,7 @@ mod tests {
                 .await
                 .unwrap()
                 .iter()
-                .map(|x| x.instance_name.clone())
+                .map(|x| x.workload_state.instance_name.clone())
                 .collect::<Vec<WorkloadInstanceName>>(),
             vec![workload_instance_name]
         );
@@ -440,10 +471,15 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let workload_spec = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
+        const WORKLOAD_ID: &str = "workload_id_1";
+
+        let reusable_workload_spec = ReusableWorkloadSpec::new(
+            generate_test_workload_spec_with_control_interface_access(
+                AGENT_NAME.to_string(),
+                WORKLOAD_1_NAME.to_string(),
+                RUNTIME_NAME.to_string(),
+            ),
+            Some(WORKLOAD_ID.to_string()),
         );
 
         let control_interface_mock = MockControlInterface::default();
@@ -467,7 +503,7 @@ mod tests {
         control_interface_info_mock
             .expect_get_instance_name()
             .once()
-            .return_const(workload_spec.instance_name.clone());
+            .return_const(reusable_workload_spec.workload_spec.instance_name.clone());
 
         control_interface_info_mock
             .expect_move_authorizer()
@@ -500,7 +536,7 @@ mod tests {
             .return_once(|_: ControlLoopState<String, StubStateChecker>| ());
 
         let (task_handle, _workload) = test_runtime_facade.create_workload_non_blocking(
-            workload_spec.clone(),
+            reusable_workload_spec.clone(),
             Some(control_interface_info_mock),
             &wl_state_sender,
         );

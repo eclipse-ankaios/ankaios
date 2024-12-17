@@ -1,6 +1,6 @@
 [package]
 name = "ank-agent"
-version = "0.5.0-pre"
+version = "0.5.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "Eclipse Ankaios agent component"
@@ -10,13 +10,13 @@ repository = "https://github.com/eclipse-ankaios/ankaios"
 
 [dependencies]
 api = { path = "../api" }
-base64 = "0.21.4"
+base64 = "0.22"
 common = { path = "../common" }
 grpc = { path = "../grpc" }
 prost = "0.11"
 log = "0.4"
-env_logger = "0.10"
-tokio = { version = "1.28", features = [
+env_logger = "0.11"
+tokio = { version = "1.41", features = [
     "macros",
     "rt-multi-thread",
     "fs",
@@ -24,21 +24,16 @@ tokio = { version = "1.28", features = [
     "process",
     "signal",
 ] }
-tokio-stream = "0.1"
-nix = { version = "0.26", features = ["fs", "user"] }
-async-stream = "0.3"
+nix = { version = "0.29", features = ["fs", "user"] }
 async-trait = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 clap = { version = "4.5", features = ["derive", "env"] }
 futures-util = "0.3"
-rand = "0.8"
-hyper = { version = "0.14", features = ["full"] }
-hyperlocal = "0.8"
 serde_json = "1.0"
-uuid = { version = "1.3", features = ["v4", "fast-rng"] }
 sha256 = "1.5"
 umask = "2.1.0"
+sysinfo = "0.32"
 regex = "1.10"
 
 [dev-dependencies]

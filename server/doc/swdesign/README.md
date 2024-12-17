@@ -352,7 +352,10 @@ Needs:
 
 Status: approved
 
-The Ankaios Server shall select the Agent responsible for running the Workload based on the `agent` field.
+The Ankaios Server shall select the workloads targeted at an agent based on the `agent` field.
+
+Comment:
+The field contents of the workloads are already rendered.
 
 Tags:
 - AnkaiosServer
@@ -495,7 +498,7 @@ The CompleteState includes:
 - Agents
 
 Comment:
-The field `Agents` is an associative data structure with the name of a connected agent as key and an associative data structure as value to store attributes of the agent by key/value pairs.
+The field `Agents` is an associative data structure with the name of a connected agent as key and an associative data structure as value to store attributes of the agent by key/value pairs. If the DesiredState contains fields with templated strings, it is returned unrendered.
 
 Tags:
 - AnkaiosServer
@@ -514,6 +517,9 @@ Status: approved
 When the Ankaios Server responses to a GetCompleteState request and the request contains a `field_mask`,
 the response includes the filed `api_version` and the fields listed in the `field_mask`.
 
+Comment:
+If the fields listed in the `field_mask` contain templated strings, they are returned unrendered.
+
 Tags:
 - ControlInterface
 
@@ -527,7 +533,7 @@ Needs:
 Status: approved
 
 When the Ankaios Server responses to a GetCompleteState request,
-it includes the the RequestID from the GetCompleteState request.
+it includes the RequestID from the GetCompleteState request.
 
 Tags:
 - ControlInterface
@@ -656,16 +662,16 @@ Needs:
 - impl
 - stest
 
-### Update Current State
+### Update Desired State
 
-The behavioral diagram of the updating current state is shown in the chapter "UpdateState interface".
+The behavioral diagram of updating the desired state is shown in the chapter "UpdateState interface".
 
 #### Server detects new workload
 `swdd~server-detects-new-workload~1`
 
 Status: approved
 
-When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present only in the New State,
+When the Ankaios Server gets the `ToServer` message `UpdateStateRequest` and detects a change of the state where a workload is present only in the New State,
 the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agent to add the workload.
 
 Tags:
@@ -681,7 +687,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present only in the Current State,
+When the Ankaios Server gets the `ToServer` message `UpdateStateRequest` and detects a change of the state where a workload is present only in the Current State,
 the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agent to delete the workload.
 
 Tags:
@@ -697,7 +703,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present in both states
+When the Ankaios Server gets the `ToServer` message `UpdateStateRequest` and detects a change of the state where a workload is present in both states
 and at least one field of the workload is different,
 the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agents to delete and add the workload.
 
@@ -709,6 +715,41 @@ Needs:
 - utest
 - itest
 
+#### ServerState compares rendered workload configurations
+`swdd~server-state-compares-rendered-workloads~1`
+
+Status: approved
+
+When the ServerState determines changes in its State, the ServerState shall compare the rendered workload configurations of its current and new DesiredState.
+
+Rationale:
+This ensures that the system recognizes a workload as changed when a configuration item referenced by that workload is updated.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
+
+#### ServerState updates its desired state on unmodified workloads
+`swdd~server-state-updates-state-on-unmodified-workloads~1`
+
+Status: approved
+
+When the ServerState is requested to update its State and the ServerState detects no change of workloads in its State, the ServerState shall replace its current DesiredState with the new DesiredState.
+
+Rationale:
+The DesiredState must also be updated in other cases, such as when the config items are changed.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
 #### ServerState triggers configuration rendering of workloads
 `swdd~server-state-triggers-configuration-rendering-of-workloads~1`
 
@@ -716,11 +757,29 @@ Status: approved
 
 When the ServerState is requested to update its State, the ServerState shall trigger the ConfigRenderer to render the workloads with the configuration items in the CompleteState.
 
-Rationale: Rendering consumes resources and shall be done only once when updating the state.
+Rationale:
+Rendering consumes resources and shall be done only once when updating the state.
 
 Tags:
 - ServerState
 - ConfigRenderer
+
+Needs:
+- impl
+- utest
+
+#### ServerState triggers validation of workload fields
+`swdd~server-state-triggers-validation-of-workload-fields~1`
+
+Status: approved
+
+When the ServerState receives successfully rendered workloads from the ConfigRenderer, the ServerState shall trigger the workload to validate the format of its internal fields.
+
+Rationale:
+Some workload fields only contain the final content after rendering.
+
+Tags:
+- ServerState
 
 Needs:
 - impl
@@ -731,13 +790,13 @@ Needs:
 
 Status: approved
 
-When the ConfigRenderer is requested to render the workloads with configuration items, for each provided workload the ConfigRenderer shall:
-* create a data structure containing the configuration items of the CompleteState referenced inside the workload's configuration
-* render the workload's `agent` and `runtimeConfig` fields by replacing each template string with the referenced configuration item
+When the ConfigRenderer is requested to render the workloads with configuration items, for each provided workload that references config items inside its `configs` field, the ConfigRenderer shall:
+* create a data structure containing memory references to the config items of the CompleteState referenced inside its `configs` field
+* render the workload's `agent` and `runtimeConfig` fields by replacing each template string with the referenced configuration item content
 * create a new workload configuration containing the rendered fields and the new instance name
 
 Comment:
-In case of a render error, the workload configuration remains unrendered and an error is thrown. If a workload does not reference a configuration item, the rendering of that workload is skipped.
+In case of a render error, the workload configuration remains unrendered and an error is thrown. If a workload does not reference a configuration item, the rendering of that workload is skipped and its fields remain unrendered.
 
 Tags:
 - ConfigRenderer
@@ -863,12 +922,12 @@ Needs:
 - impl
 - utest
 
-#### Server handles deleted workloads for empty agent
-`swdd~server-handles-deleted-workload-for-empty-agent~1`
+#### Server handles deletes for not started workloads
+`swdd~server-handles-not-started-deleted-workloads~1`
 
 Status: approved
 
-When the Ankaios server distributes `DeletedWorkload` message and a deleted workload is not scheduled (agent is empty), the Ankaios server shall handle the deletion.
+When the Ankaios server distributes `DeletedWorkload` message and either the deleted workload is not scheduled (agent is empty) or its execution state is `Pending(Initial)` and its agent is disconnected, the Ankaios server shall handle the deletion.
 
 Rationale:
 There is no agent that can take care of the operation so the sever has to handle it.
@@ -877,8 +936,40 @@ Comment:
 Handling the operation includes deleting the workload, its state and notifying other agents about the change.
 
 Tags:
+- AnkaiosServer
 - ServerState
-- DeleteGraph
+
+Needs:
+- impl
+- utest
+
+#### Server receives agent node resource availability
+`swdd~server-receives-resource-availability~1`
+
+Status: approved
+
+When the Ankaios server receives a new agent load status, the Ankaios server shall trigger the ServerState to update the connected agent's resource availability with the provided new agent load status.
+
+Rationale:
+The resource availability can be used for scheduling, e.g. done by controller workloads.
+
+Tags:
+- AnkaiosServer
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### ServerState updates agent node resource availability
+`swdd~server-updates-resource-availability~1`
+
+Status: approved
+
+When the ServerState receives a new agent load status, the ServerState shall update its internal state with agent node resource availability information regarding the cpu usage and the free memory.
+
+Tags:
+- ServerState
 
 Needs:
 - impl
@@ -944,6 +1035,20 @@ Needs:
 Status: approved
 
 When the ServerState is triggered to remove the agent from its state, the ServerState shall remove the entry of the agent in the `agents` field of the `CompleteState`.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### ServerState provides check for existence of a connected agent inside the complete state
+`swdd~server-state-provides-connected-agent-exists-check~1`
+
+Status: approved
+
+When the ServerState is triggered to check if an agent is part of its state, the ServerState shall check if the `agents` field of the `CompleteState` contains the agent name passed as argument.
 
 Tags:
 - ServerState

@@ -1,0 +1,37 @@
+desiredState:
+  apiVersion: v0.1
+  workloads:
+    greeting_person:
+      agent: agent_A
+      tags: []
+      dependencies: {}
+      restartPolicy: NEVER
+      runtime: podman
+      runtimeConfig: |
+        image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+        commandArgs: [ "echo", '{{#each person}}{{#if (eq this.age "40")}}Hello {{this.name}}(age: {{this.age}})\n{{/if}}{{/each}}' ]
+      configs:
+        person: person
+    nginx:
+      agent: '{{agent.agent_name}}'
+      tags: []
+      dependencies: {}
+      restartPolicy: NEVER
+      runtime: podman
+      runtimeConfig: |
+        image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+        commandOptions: [ "-p", "{{port.access_port}}:80"]
+      configs:
+        agent: agents
+        port: web_server_config
+  configs:
+    agents:
+      agent_name: agent_A
+    person:
+    - age: '30'
+      name: John Doe
+    - age: '40'
+      name: Chris Smith
+    web_server_config:
+      access_port: '8082'
+

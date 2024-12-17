@@ -11,10 +11,12 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
 use common::{
+    commands::AgentLoadStatus,
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::WorkloadState,
+    objects::{CpuUsage, FreeMemory, WorkloadState},
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -25,6 +27,9 @@ use crate::workload_state::workload_state_store::WorkloadStateStore;
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
 use crate::workload_state::WorkloadStateReceiver;
+
+const RESOURCE_MEASUREMENT_INTERVAL_TICK: std::time::Duration = tokio::time::Duration::from_secs(2);
+
 // [impl->swdd~agent-shall-use-interfaces-to-server~1]
 pub struct AgentManager {
     agent_name: String,
@@ -56,6 +61,9 @@ impl AgentManager {
 
     pub async fn start(&mut self) {
         log::info!("Awaiting commands from the server ...");
+
+        let mut interval = tokio::time::interval(RESOURCE_MEASUREMENT_INTERVAL_TICK);
+
         loop {
             tokio::select! {
                 // [impl->swdd~agent-manager-listens-requests-from-server~1]
@@ -67,14 +75,17 @@ impl AgentManager {
                     if self.execute_from_server_command(from_server).await.is_none() {
                         break;
                     }
-                }
+                },
                 // [impl->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
                 workload_state = self.workload_state_receiver.recv() => {
                     let workload_state = workload_state
                         .ok_or("Channel to listen to own workload states closed.".to_string())
                         .unwrap_or_exit("Abort");
-
                     self.store_and_forward_own_workload_states(workload_state).await;
+                }
+                // [impl->swdd~agent-sends-node-resource-availability-to-server~1]
+                _ = interval.tick() => {
+                    self.measure_and_forward_resource_availability().await;
                 }
             }
         }
@@ -192,6 +203,36 @@ impl AgentManager {
             .await
             .unwrap_or_illegal_state();
     }
+
+    // [impl->swdd~agent-sends-node-resource-availability-to-server~1]
+    async fn measure_and_forward_resource_availability(&mut self) {
+        let mut sys = System::new_with_specifics(
+            RefreshKind::new()
+                .with_cpu(CpuRefreshKind::everything())
+                .with_memory(MemoryRefreshKind::everything()),
+        );
+
+        sys.refresh_all();
+
+        let cpu_usage = sys.global_cpu_usage();
+        let free_memory = sys.free_memory();
+
+        log::trace!(
+            "Agent '{}' reports resource usage: CPU Usage: {}%, Free Memory: {}B",
+            self.agent_name,
+            cpu_usage,
+            free_memory,
+        );
+
+        self.to_server
+            .agent_load_status(AgentLoadStatus {
+                agent_name: self.agent_name.clone(),
+                cpu_usage: CpuUsage::new(cpu_usage),
+                free_memory: FreeMemory { free_memory },
+            })
+            .await
+            .unwrap_or_illegal_state();
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -204,6 +245,8 @@ impl AgentManager {
 
 #[cfg(test)]
 mod tests {
+    use core::panic;
+
     use super::RuntimeManager;
     use crate::agent_manager::AgentManager;
     use crate::workload_state::{
@@ -498,6 +541,51 @@ mod tests {
         );
 
         // Terminate the infinite receiver loop
+        to_manager.stop().await.unwrap();
+        assert!(join!(handle).0.is_ok());
+    }
+
+    // [utest->swdd~agent-sends-node-resource-availability-to-server~1]
+    #[tokio::test]
+    async fn utest_agent_manager_sends_available_resources() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store);
+
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, mut server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let mut mock_runtime_manager = RuntimeManager::default();
+        mock_runtime_manager.expect_handle_update_workload().never();
+        mock_runtime_manager.expect_forward_response().never();
+        mock_runtime_manager.expect_execute_workloads().never();
+        mock_runtime_manager.expect_handle_server_hello().never();
+        mock_runtime_manager
+            .expect_update_workloads_on_fulfilled_dependencies()
+            .never();
+
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        let handle = tokio::spawn(async move { agent_manager.start().await });
+
+        let result = server_receiver.recv().await.unwrap();
+        if let ToServer::AgentLoadStatus(load_status) = result {
+            assert_eq!(load_status.agent_name, AGENT_NAME.to_string());
+            assert_ne!(load_status.cpu_usage.cpu_usage, 0);
+            assert_ne!(load_status.cpu_usage.cpu_usage, 0);
+        } else {
+            panic!("Expected AgentLoadStatus, got something else");
+        }
+
         to_manager.stop().await.unwrap();
         assert!(join!(handle).0.is_ok());
     }

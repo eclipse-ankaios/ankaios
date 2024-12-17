@@ -41,6 +41,7 @@ desiredState:
               command:
               - echo
               - "Hello from a container in a pod"
+      configs: {}
     hello1:
       agent: agent_B
       tags:
@@ -52,6 +53,7 @@ desiredState:
         image: alpine:latest
         commandOptions: [ "--rm"]
         commandArgs: [ "echo", "Hello Ankaios"]
+      configs: {}
     hello2:
       agent: agent_B
       tags:
@@ -64,6 +66,7 @@ desiredState:
         image: alpine:latest
         commandOptions: [ "--entrypoint", "/bin/sh" ]
         commandArgs: [ "-c", "echo 'Always restarted.'; sleep 2"]
+      configs: {}
     nginx:
       agent: agent_A
       tags:
@@ -75,11 +78,13 @@ desiredState:
       runtimeConfig: |
         image: docker.io/nginx:latest
         commandOptions: ["-p", "8081:80"]
+      configs: {}
+  configs: {}
 workloadStates: []
 agents: {}
 ```
 
-It is not necessary to provide the whole structure of the the [CompleteState](./_ankaios.proto.md#completestate) data structure when using it in conjunction with the [object field mask](#object-field-mask). It is sufficient to provide the relevant branch of the [CompleteState](./_ankaios.proto.md#completestate) object. As an example, to change the restart behavior of the nginx workload, only the relevant branch of the [CompleteState](./_ankaios.proto.md#completestate) needs to be provided:
+It is not necessary to provide the whole structure of the [CompleteState](./_ankaios.proto.md#completestate) data structure when using it in conjunction with the [object field mask](#object-field-mask). It is sufficient to provide the relevant branch of the [CompleteState](./_ankaios.proto.md#completestate) object. As an example, to change the restart behavior of the nginx workload, only the relevant branch of the [CompleteState](./_ankaios.proto.md#completestate) needs to be provided:
 
 ```bash
 desiredState:
@@ -90,10 +95,10 @@ desiredState:
 
 !!! Note
 
-    In case of workload names, the naming convention states that thier names shall:
-    * contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_"
-    * have a minimal length of 1 character
-    * have a maximal length of 63 characters
+    In case of workload names, the naming convention states that their names shall:<br>
+    - contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_"<br>
+    - have a minimal length of 1 character<br>
+    - have a maximal length of 63 characters<br>
     Also, agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
 
 ## Object field mask
@@ -107,7 +112,7 @@ The object field mask can be constructed using the field names of the [CompleteS
 
 1. Example: `ank -k get state desiredState.workloads.nginx` returns only the information about nginx workload:
 
-   ```yaml
+    ```yaml
     desiredState:
       apiVersion: v0.1
       workloads:
@@ -122,25 +127,26 @@ The object field mask can be constructed using the field names of the [CompleteS
           runtimeConfig: |
             image: docker.io/nginx:latest
             commandOptions: ["-p", "8081:80"]
-   ```
+          configs: {}
+    ```
 
 2. Example `ank -k get state desiredState.workloads.nginx.runtimeConfig` returns only the runtime configuration of nginx workload:
 
-   ```yaml
-   desiredState:
-     apiVersion: v0.1
-     workloads:
-       nginx:
-         runtimeConfig: |
-           image: docker.io/nginx:latest
-           commandOptions: ["-p", "8081:80"]
-   ```
+    ```yaml
+    desiredState:
+      apiVersion: v0.1
+      workloads:
+        nginx:
+          runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: ["-p", "8081:80"]
+    ```
 
 3. Example `ank -k set state desiredState.workloads.nginx.restartPolicy new-state.yaml` changes the restart behavior of nginx workload to `NEVER`:
 
-   ```yaml title="new-state.yaml"
-   desiredState:
-     workloads:
-       nginx:
-         restartPolicy: NEVER
-   ```
+    ```yaml title="new-state.yaml"
+    desiredState:
+      workloads:
+        nginx:
+          restartPolicy: NEVER
+    ```

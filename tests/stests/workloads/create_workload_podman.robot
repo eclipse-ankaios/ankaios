@@ -24,7 +24,7 @@ Resource            ../../resources/variables.resource
 *** Test Cases ***
 
 # [stest->swdd~agent-supports-podman~2]
-# [stest->swdd~podman-create-workload-runs-workload~1]
+# [stest->swdd~podman-create-workload-runs-workload~2]
 Test Ankaios Podman create workloads
     [Setup]    Run Keywords    Setup Ankaios
 
@@ -47,7 +47,7 @@ Test Ankaios Podman create workloads
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-supports-podman~2]
-# [stest->swdd~podman-create-workload-sets-optionally-container-name~1]
+# [stest->swdd~podman-create-workload-sets-optionally-container-name~2]
 Test Ankaios Podman create a container with custom name
     [Setup]    Run Keywords    Setup Ankaios
 

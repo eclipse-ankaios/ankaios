@@ -1,0 +1,29 @@
+workloads:
+  dashboard:
+    agent: agent_A
+    runtime: podman
+    configs:
+      c1: dashboard_configs
+      ports: ports
+    files:
+      - mountPoint: "/some/path/to/file.json"
+        data: "{{c1.json_data_file_content}}"
+      - mountPoint: "/some/path/to/bin_data"
+        binaryData: "{{c1.some_data}}"
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: [ "-p", "{{ports.access_port}}:80"]
+      commandArgs: [ "echo", "{{c1.echo_value}}"]
+configs:
+  dashboard_configs:
+    echo_value: "Hello Ankaios"
+    json_data_file_content: |
+      {
+        some: {
+          random: string
+          object: "5"
+        }
+      }
+    some_data: dGhpcyBpcyBhIGJpbmFyeSBmaWxl
+  ports:
+    access_port: "8081"

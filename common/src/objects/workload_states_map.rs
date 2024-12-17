@@ -28,7 +28,7 @@ pub struct WorkloadStatesMap(
     HashMap<AgentName, HashMap<WorkloadName, HashMap<WorkloadId, ExecutionState>>>,
 );
 
-// [impl->swdd~state-map-for-workload-execution-states~1]
+// [impl->swdd~state-map-for-workload-execution-states~2]
 impl WorkloadStatesMap {
     pub fn new() -> WorkloadStatesMap {
         WorkloadStatesMap(HashMap::new())
@@ -80,6 +80,16 @@ impl WorkloadStatesMap {
                     })
             })
             .collect()
+    }
+
+    pub fn get_workload_state_for_workload(
+        &self,
+        instance_name: &WorkloadInstanceName,
+    ) -> Option<&ExecutionState> {
+        self.0
+            .get(instance_name.agent_name())
+            .and_then(|name_map| name_map.get(instance_name.workload_name()))
+            .and_then(|id_map| id_map.get(instance_name.id()))
     }
 
     pub fn agent_disconnected(&mut self, agent_name: &str) {
@@ -308,7 +318,7 @@ pub fn generate_test_workload_states_map_from_workload_states(
     wl_states_map
 }
 
-// [utest->swdd~state-map-for-workload-execution-states~1]
+// [utest->swdd~state-map-for-workload-execution-states~2]
 #[cfg(test)]
 mod tests {
     use std::vec;
@@ -604,5 +614,36 @@ mod tests {
                 )
             ])
         )
+    }
+
+    #[test]
+    fn utest_get_workload_state_for_workload_existing_workload() {
+        let wls_db = create_test_setup();
+
+        let wl_state = generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_1,
+            AGENT_A,
+            ExecutionState::succeeded(),
+        );
+
+        assert_eq!(
+            wls_db.get_workload_state_for_workload(&wl_state.instance_name),
+            Some(&ExecutionState::succeeded())
+        )
+    }
+
+    #[test]
+    fn utest_get_workload_state_for_workload_not_existing_workload() {
+        let wls_db = create_test_setup();
+
+        let wl_state = generate_test_workload_state_with_agent(
+            "not_existing_workload",
+            AGENT_A,
+            ExecutionState::running(),
+        );
+
+        assert!(wls_db
+            .get_workload_state_for_workload(&wl_state.instance_name)
+            .is_none())
     }
 }

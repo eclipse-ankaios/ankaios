@@ -277,6 +277,10 @@ impl ExecutionState {
         matches!(self.state, ExecutionStateEnum::Pending(_))
     }
 
+    pub fn is_pending_initial(&self) -> bool {
+        ExecutionStateEnum::Pending(PendingSubstate::Initial) == self.state
+    }
+
     pub fn is_running(&self) -> bool {
         ExecutionStateEnum::Running(RunningSubstate::Ok) == self.state
     }
@@ -497,7 +501,7 @@ impl Display for ExecutionState {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadState {
-    // [impl->swdd~common-workload-state-identification~1s]
+    // [impl->swdd~common-workload-state-identification~1]
     pub instance_name: WorkloadInstanceName,
     pub execution_state: ExecutionState,
 }

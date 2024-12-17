@@ -14,7 +14,7 @@
 
 use common::objects::CompleteState;
 
-use crate::{cli_error::CliError, output_debug};
+use crate::{cli_commands::DESIRED_STATE_WORKLOADS, cli_error::CliError, output_debug};
 
 use super::CliCommands;
 
@@ -27,7 +27,7 @@ impl CliCommands {
         let update_mask = workload_names
             .into_iter()
             .map(|name_of_workload_to_delete| {
-                format!("desiredState.workloads.{}", name_of_workload_to_delete)
+                format!("{}.{}", DESIRED_STATE_WORKLOADS, name_of_workload_to_delete)
             })
             .collect();
 
@@ -58,7 +58,10 @@ mod tests {
     };
     use mockall::predicate::eq;
 
-    use crate::cli_commands::{server_connection::MockServerConnection, CliCommands};
+    use crate::{
+        cli_commands::{server_connection::MockServerConnection, CliCommands},
+        filtered_complete_state::FilteredCompleteState,
+    };
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
@@ -92,10 +95,14 @@ mod tests {
                     ],
                 })
             });
+
         mock_server_connection
             .expect_get_complete_state()
+            .times(2)
             .with(eq(vec![]))
-            .return_once(|_| Ok((ank_base::CompleteState::from(complete_state_update)).into()));
+            .returning(move |_| {
+                Ok((ank_base::CompleteState::from(complete_state_update.clone())).into())
+            });
 
         mock_server_connection
             .expect_take_missed_from_server_messages()
@@ -143,6 +150,10 @@ mod tests {
         let complete_state_update = CompleteState::default();
 
         let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .once()
+            .returning(|_| Ok(FilteredCompleteState::default()));
         mock_server_connection
             .expect_update_state()
             .with(

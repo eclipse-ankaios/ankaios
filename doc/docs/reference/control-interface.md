@@ -17,7 +17,7 @@ flowchart TD
     a2(Ankaios Agent 2)
     w3(Workload 3)
     w4(Workload 4)
-    s(Ankaios Server)
+    s(Ankaios server)
 
 
     s <--> a1 <-->|Control Interface| w1 & w2
@@ -58,13 +58,13 @@ flowchart TD
     a1(Ankaios Agent 1)
     w1(Workload 1)
     w2(Workload 2)
-    s(Ankaios Server)
+    s(Ankaios server)
 
 
     s <--> a1 <-->|"/run/ankaios/control_interface/{input,output}"| w1 & w2
 ```
 
-The [control interface](./control-interface.md) relies on [FIFO](https://en.wikipedia.org/wiki/Named_pipe) (also known as [named pipes](https://en.wikipedia.org/wiki/Named_pipe)) to enable a [workload](glossary.md#workload) process to communicate with the Ankaios system. For that purpose, Ankaios creates a mount point for each [workload](glossary.md#workload) to store the FIFO files. At the mount point `/run/ankaios/control_interface/` the [workload](glossary.md#workload) developer can find the FIFO files `input` and `output` and use them for the communication with the Ankaios server. Ankaios uses its own communication protocol described in [protocol documentation](./_ankaios.proto.md#oprotocol-documentation) as a [protobuf IDL](https://protobuf.com/docs/language-spec) which allows the client code to be generated in any programming language supported by the [protobuf compiler](https://protobuf.dev/reference/). The generated client code can then be integrated and used in a [workload](#communication-between-ankaios-and-workloads).
+The [control interface](./control-interface.md) relies on [FIFO](https://en.wikipedia.org/wiki/Named_pipe) (also known as [named pipes](https://en.wikipedia.org/wiki/Named_pipe)) to enable a [workload](glossary.md#workload) to communicate with the Ankaios system. For that purpose, Ankaios creates a mount point for each [workload](glossary.md#workload) to store the FIFO files. At the mount point `/run/ankaios/control_interface/` the [workload](glossary.md#workload) developer can find the FIFO files `input` and `output` and use them for the communication with the Ankaios server. Ankaios uses its own communication protocol described in [protocol documentation](./_ankaios.proto.md#control_api-proto) as a [protobuf IDL](https://protobuf.com/docs/language-spec) which allows the client code to be generated in any programming language supported by the [protobuf compiler](https://protobuf.dev/reference/). The generated client code can then be integrated and used in a [workload](#communication-between-ankaios-and-workloads).
 
 ## Communication between Ankaios and workloads
 
@@ -97,7 +97,7 @@ The following sections showcase in Rust some important parts of the communicatio
 
 ### Sending request message from a workload to Ankaios server
 
-To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [ToAnkaios](_ankaios.proto.md#toankaios).
+To send out a request message from the workload to the Ankaios server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [ToAnkaios](_ankaios.proto.md#toankaios).
 
 ```mermaid
 flowchart TD
@@ -122,45 +122,68 @@ flowchart TD
 Code snippet in [Rust](https://www.rust-lang.org/) for sending request message via control interface:
 
 ```rust
-use api::ank_base::{Workload, RestartPolicy, Tag, UpdateStateRequest, Request, request::RequestContent, CompleteState, State};
-use api::control_api::{ToAnkaios, to_ankaios::ToAnkaiosEnum};
+use api::ank_base::{
+    request::RequestContent, CompleteState, Dependencies, Request, RestartPolicy, State, Tag, Tags,
+    UpdateStateRequest, Workload, WorkloadMap,
+};
+use api::control_api::{to_ankaios::ToAnkaiosEnum, Hello, ToAnkaios};
 use prost::Message;
 use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
+const REQUEST_ID: &str = "request_id";
 
-fn create_update_workload_request() -> ToAnkaios {
-    let new_workloads = HashMap::from([(
-        "dynamic_nginx".to_string(),
-        Workload {
-            runtime: "podman".to_string(),
-            agent: "agent_A".to_string(),
-            restart_policy: RestartPolicy::Never.into(),
-            tags: vec![Tag {
-                key: "owner".to_string(),
-                value: "Ankaios team".to_string(),
-            }],
-            runtime_config: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
-                .to_string(),
-            dependencies: HashMap::new(),
-        },
-    )]);
+fn create_hello_message() -> ToAnkaios {
+    ToAnkaios {
+        to_ankaios_enum: Some(ToAnkaiosEnum::Hello(Hello {
+            protocol_version: env!("ANKAIOS_VERSION").to_string(),
+        })),
+    }
+}
+
+fn create_request_to_add_new_workload() -> ToAnkaios {
+    let new_workloads = Some(WorkloadMap {
+        workloads: HashMap::from([(
+            "dynamic_nginx".to_string(),
+            Workload {
+                runtime: Some("podman".to_string()),
+                agent: Some("agent_A".to_string()),
+                restart_policy: Some(RestartPolicy::Never.into()),
+                tags: Some(Tags {
+                    tags: vec![Tag {
+                        key: "owner".to_string(),
+                        value: "Ankaios team".to_string(),
+                    }],
+                }),
+                runtime_config: Some(
+                    "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
+                        .to_string(),
+                ),
+                dependencies: Some(Dependencies {
+                    dependencies: HashMap::new(),
+                }),
+                configs: None,
+                control_interface_access: None,
+            },
+        )]),
+    });
 
     ToAnkaios {
         to_ankaios_enum: Some(ToAnkaiosEnum::Request(Request {
-            request_id: "request_id".to_string(),
-            request_content: Some(RequestContent::UpdateStateRequest(
+            request_id: REQUEST_ID.to_string(),
+            request_content: Some(RequestContent::UpdateStateRequest(Box::new(
                 UpdateStateRequest {
                     new_state: Some(CompleteState {
                         desired_state: Some(State {
-                            api_version: "v0.1".to_string(),
+                            api_version: "v0.1".into(),
                             workloads: new_workloads,
+                            ..Default::default()
                         }),
                         ..Default::default()
                     }),
                     update_mask: vec!["desiredState.workloads.dynamic_nginx".to_string()],
                 },
-            )),
+            ))),
         })),
     }
 }
@@ -171,9 +194,14 @@ fn write_to_control_interface() {
 
     let mut sc_req = File::create(&sc_req_fifo).unwrap();
 
-    let protobuf_update_workload_request = create_update_workload_request();
+    let protobuf_hello_message = create_hello_message();
+    let protobuf_update_workload_request = create_request_to_add_new_workload();
 
     println!("{}", &format!("Sending UpdateStateRequest containing details for adding the dynamic workload \"dynamic_nginx\": {:#?}", protobuf_update_workload_request));
+
+    sc_req
+        .write_all(&protobuf_hello_message.encode_length_delimited_to_vec())
+        .unwrap(); // send the initial hello message for establishing the connection
 
     sc_req
         .write_all(&protobuf_update_workload_request.encode_length_delimited_to_vec())
@@ -187,15 +215,15 @@ fn main() {
 
 ### Processing response message from Ankaios server
 
-To process a response message from the Ankaios Server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [FromServer](_ankaios.proto.md#fromserver).
+To process a response message from the Ankaios server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [FromAnkaios](_ankaios.proto.md#fromankaios).
 
 ```mermaid
 flowchart TD
     begin([Start])
     input("Read bytes from /run/ankaios/control_interface/input")
     dec_length(Get length from read length delimited varint encoded bytes)
-    deser_msg(Decode and deserialize FromServer message using decoded length and the generated functions)
-    further_processing(Process FromServer message object)
+    deser_msg(Decode and deserialize FromAnkaios message using decoded length and the generated functions)
+    further_processing(Process FromAnkaios message object)
     fin([end])
 
     begin --> input
@@ -212,10 +240,11 @@ flowchart TD
 Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
 
 ```rust
-use api::control_api::FromAnkaios;
+use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
 use prost::Message;
 use std::{fs::File, io, io::Read, path::Path};
 
+const REQUEST_ID: &str = "request_id";
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 const MAX_VARINT_SIZE: usize = 19;
 
@@ -253,9 +282,32 @@ fn read_from_control_interface() {
 
     loop {
         if let Ok(binary) = read_protobuf_data(&mut ex_req) {
-            let proto = FromAnkaios::decode(&mut Box::new(binary.as_ref()));
+            match FromAnkaios::decode(&mut Box::new(binary.as_ref())) {
+                Ok(from_ankaios) => {
+                    let Some(FromAnkaiosEnum::Response(response)) = &from_ankaios.from_ankaios_enum
+                    else {
+                        println!("No response. Continue.");
+                        continue;
+                    };
 
-            println!("{}", &format!("Receiving FromServer containing the workload states of the current state: {:#?}", proto));
+                    // use the response if the request id matches
+                    let request_id: &String = &response.request_id;
+                    if response.request_id == REQUEST_ID {
+                        println!(
+                            "Received FromAnkaios message containing the response from the server: {:#?}",
+                            from_ankaios
+                        );
+                    } else {
+                        println!(
+                            "RequestId does not match. Skipping messages from requestId: {}",
+                            request_id
+                        );
+                    }
+                }
+                Err(err) => {
+                    println!("Invalid response, parsing error: '{}'", err);
+                }
+            }
         }
     }
 }

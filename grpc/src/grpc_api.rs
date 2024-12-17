@@ -21,10 +21,47 @@ use std::collections::HashMap;
 // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
 tonic::include_proto!("grpc_api"); // The string specified here must match the proto package name
 
+impl AgentHello {
+    pub fn new(agent_name: impl Into<String>) -> Self {
+        AgentHello {
+            agent_name: agent_name.into(),
+            protocol_version: common::ANKAIOS_VERSION.into(),
+        }
+    }
+}
+
 impl From<AgentHello> for commands::AgentHello {
     fn from(item: AgentHello) -> Self {
         commands::AgentHello {
             agent_name: item.agent_name,
+        }
+    }
+}
+
+impl CommanderHello {
+    pub fn new() -> Self {
+        CommanderHello {
+            protocol_version: common::ANKAIOS_VERSION.into(),
+        }
+    }
+}
+
+impl From<AgentLoadStatus> for commands::AgentLoadStatus {
+    fn from(item: AgentLoadStatus) -> Self {
+        commands::AgentLoadStatus {
+            agent_name: item.agent_name,
+            cpu_usage: item.cpu_usage.unwrap_or_default().into(),
+            free_memory: item.free_memory.unwrap_or_default().into(),
+        }
+    }
+}
+
+impl From<commands::AgentLoadStatus> for AgentLoadStatus {
+    fn from(item: commands::AgentLoadStatus) -> Self {
+        AgentLoadStatus {
+            agent_name: item.agent_name,
+            cpu_usage: Some(item.cpu_usage.into()),
+            free_memory: Some(item.free_memory.into()),
         }
     }
 }
@@ -183,8 +220,14 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
         let to_server = item.to_server_enum.ok_or("ToServer is None.".to_string())?;
 
         Ok(match to_server {
+            ToServerEnum::CommanderHello(_) => {
+                return Err("The 'CommanderHello' message cannot be forwarded to Ankaios.".into());
+            }
             ToServerEnum::AgentHello(protobuf) => {
                 to_server_interface::ToServer::AgentHello(protobuf.into())
+            }
+            ToServerEnum::AgentLoadStatus(protobuf) => {
+                to_server_interface::ToServer::AgentLoadStatus(protobuf.into())
             }
             ToServerEnum::UpdateWorkloadState(protobuf) => {
                 to_server_interface::ToServer::UpdateWorkloadState(protobuf.into())
@@ -210,7 +253,7 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
 #[cfg(test)]
 fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
     HashMap::from([(
-        String::from("workload A"),
+        String::from("workload_A"),
         DeleteCondition::DelCondNotPendingNorRunning.into(),
     )])
 }
@@ -251,13 +294,13 @@ mod tests {
 
     use crate::{
         from_server::FromServerEnum, generate_test_proto_deleted_workload, to_server::ToServerEnum,
-        AddedWorkload, AgentHello, DeletedWorkload, FromServer, ToServer, UpdateWorkload,
-        UpdateWorkloadState,
+        AddedWorkload, AgentHello, AgentLoadStatus, DeletedWorkload, FromServer, ToServer,
+        UpdateWorkload, UpdateWorkloadState,
     };
 
     use api::ank_base::{self, Dependencies};
     use common::{
-        objects::{generate_test_workload_spec, ConfigHash},
+        objects::{generate_test_workload_spec, ConfigHash, CpuUsage, FreeMemory},
         test_utils::{self, generate_test_deleted_workload},
     };
 
@@ -276,12 +319,40 @@ mod tests {
         let agent_name = "agent_A".to_string();
 
         let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::AgentHello(AgentHello {
-                agent_name: agent_name.clone(),
-            })),
+            to_server_enum: Some(ToServerEnum::AgentHello(AgentHello::new(
+                &agent_name,
+            ))),
         };
 
         let ankaios_command = ankaios::ToServer::AgentHello(ankaios::AgentHello { agent_name });
+
+        assert_eq!(
+            ankaios::ToServer::try_from(proto_request),
+            Ok(ankaios_command)
+        );
+    }
+
+    #[test]
+    fn utest_convert_proto_to_server_agent_resource() {
+        let agent_load_status = common::commands::AgentLoadStatus {
+            agent_name: "agent_A".to_string(),
+            cpu_usage: CpuUsage { cpu_usage: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
+        };
+
+        let proto_request = ToServer {
+            to_server_enum: Some(ToServerEnum::AgentLoadStatus(AgentLoadStatus {
+                agent_name: agent_load_status.agent_name.clone(),
+                cpu_usage: Some(agent_load_status.cpu_usage.clone().into()),
+                free_memory: Some(agent_load_status.free_memory.clone().into()),
+            })),
+        };
+
+        let ankaios_command = ankaios::ToServer::AgentLoadStatus(ankaios::AgentLoadStatus {
+            agent_name: agent_load_status.agent_name,
+            cpu_usage: agent_load_status.cpu_usage,
+            free_memory: agent_load_status.free_memory,
+        });
 
         assert_eq!(
             ankaios::ToServer::try_from(proto_request),
@@ -506,7 +577,7 @@ mod tests {
     #[test]
     fn utest_converts_to_ankaios_deleted_workload_fails() {
         let mut proto_workload = generate_test_proto_deleted_workload();
-        proto_workload.dependencies.insert("workload B".into(), -1);
+        proto_workload.dependencies.insert("workload_B".into(), -1);
 
         assert!(ankaios::DeletedWorkload::try_from(proto_workload).is_err());
     }
@@ -523,11 +594,11 @@ mod tests {
             }),
             dependencies: HashMap::from([
                 (
-                    String::from("workload A"),
+                    String::from("workload_A"),
                     ank_base::AddCondition::AddCondRunning.into(),
                 ),
                 (
-                    String::from("workload C"),
+                    String::from("workload_C"),
                     ank_base::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
@@ -549,11 +620,11 @@ mod tests {
         let ank_workload = ankaios::WorkloadSpec {
             dependencies: HashMap::from([
                 (
-                    String::from("workload A"),
+                    String::from("workload_A"),
                     ankaios::AddCondition::AddCondRunning,
                 ),
                 (
-                    String::from("workload C"),
+                    String::from("workload_C"),
                     ankaios::AddCondition::AddCondSucceeded,
                 ),
             ]),
@@ -576,11 +647,11 @@ mod tests {
             }),
             dependencies: HashMap::from([
                 (
-                    String::from("workload A"),
+                    String::from("workload_A"),
                     ank_base::AddCondition::AddCondRunning.into(),
                 ),
                 (
-                    String::from("workload C"),
+                    String::from("workload_C"),
                     ank_base::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
@@ -606,12 +677,12 @@ mod tests {
             }),
             dependencies: HashMap::from([
                 (
-                    String::from("workload A"),
+                    String::from("workload_A"),
                     ank_base::AddCondition::AddCondRunning.into(),
                 ),
-                (String::from("workload B"), -1),
+                (String::from("workload_B"), -1),
                 (
-                    String::from("workload C"),
+                    String::from("workload_C"),
                     ank_base::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),

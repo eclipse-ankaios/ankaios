@@ -23,6 +23,7 @@ use mockall::mock;
 
 use crate::output_update;
 
+#[derive(Debug)]
 pub struct ParsedUpdateStateSuccess {
     pub added_workloads: Vec<WorkloadInstanceName>,
     pub deleted_workloads: Vec<WorkloadInstanceName>,
@@ -73,22 +74,28 @@ mock! {
 pub struct WaitList<T> {
     pub added_workloads: HashSet<WorkloadInstanceName>,
     pub deleted_workloads: HashSet<WorkloadInstanceName>,
+    connected_agents: HashSet<String>,
     display: T,
 }
 
 impl<T: WaitListDisplayTrait> WaitList<T> {
-    pub fn new(value: ParsedUpdateStateSuccess, display: T) -> Self {
+    pub fn new(
+        value: ParsedUpdateStateSuccess,
+        connected_agents: HashSet<String>,
+        display: T,
+    ) -> Self {
         Self {
             added_workloads: value.added_workloads.into_iter().collect(),
             deleted_workloads: value.deleted_workloads.into_iter().collect(),
+            connected_agents,
             display,
         }
     }
 
+    // [impl->swdd~cli-checks-for-final-workload-state~3]
     pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadState>) {
         for workload_state in values.into_iter() {
             self.display.update(&workload_state);
-            // [impl->swdd~cli-checks-for-final-workload-state~2]
             match workload_state.execution_state.state {
                 common::objects::ExecutionStateEnum::Running(_)
                 | common::objects::ExecutionStateEnum::Succeeded(_)
@@ -108,9 +115,32 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
                         self.display.set_complete(&workload_state.instance_name)
                     }
                 }
+                common::objects::ExecutionStateEnum::AgentDisconnected => {
+                    if self.added_workloads.remove(&workload_state.instance_name) {
+                        self.display.set_complete(&workload_state.instance_name)
+                    }
+
+                    if self.deleted_workloads.remove(&workload_state.instance_name) {
+                        self.display.set_complete(&workload_state.instance_name)
+                    }
+                }
                 _ => {}
             };
         }
+
+        // prevent infinite waiting for added workloads with disconnected agent
+        Self::retain_workloads_of_connected_agents(
+            &mut self.added_workloads,
+            &mut self.display,
+            &self.connected_agents,
+        );
+
+        // prevent infinite waiting for deleted workloads with disconnected agent
+        Self::retain_workloads_of_connected_agents(
+            &mut self.deleted_workloads,
+            &mut self.display,
+            &self.connected_agents,
+        );
 
         output_update!("{}", &self.display);
     }
@@ -122,6 +152,21 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
 
     pub fn is_empty(&self) -> bool {
         self.added_workloads.is_empty() && self.deleted_workloads.is_empty()
+    }
+
+    fn retain_workloads_of_connected_agents(
+        workload_instance_names: &mut HashSet<WorkloadInstanceName>,
+        display: &mut T,
+        connected_agents: &HashSet<String>,
+    ) {
+        workload_instance_names.retain(|instance_name| {
+            if !connected_agents.contains(instance_name.agent_name()) {
+                display.set_complete(instance_name);
+                false
+            } else {
+                true
+            }
+        });
     }
 }
 
@@ -138,17 +183,20 @@ fn generate_test_wait_list(
     my_mock: MockMyWaitListDisplay,
     added_workloads: Vec<WorkloadInstanceName>,
     deleted_workloads: Vec<WorkloadInstanceName>,
+    connected_agents: HashSet<String>,
 ) -> WaitList<MockMyWaitListDisplay> {
     let update_state_list = ParsedUpdateStateSuccess {
         added_workloads,
         deleted_workloads,
     };
 
-    WaitList::new(update_state_list, my_mock)
+    WaitList::new(update_state_list, connected_agents, my_mock)
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use common::objects::{generate_test_workload_instance_name, ExecutionState, WorkloadState};
     use mockall::predicate::eq;
 
@@ -191,7 +239,7 @@ mod tests {
         my_mock
     }
 
-    // [utest->swdd~cli-checks-for-final-workload-state~2]
+    // [utest->swdd~cli-checks-for-final-workload-state~3]
     #[test]
     fn utest_update_wait_list_added_running() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
@@ -207,6 +255,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -216,7 +265,7 @@ mod tests {
         assert!(wait_list.deleted_workloads.contains(&i_name_3));
     }
 
-    // [utest->swdd~cli-checks-for-final-workload-state~2]
+    // [utest->swdd~cli-checks-for-final-workload-state~3]
     #[test]
     fn utest_update_wait_list_added_succeeded() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
@@ -232,6 +281,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -241,7 +291,7 @@ mod tests {
         assert!(wait_list.deleted_workloads.contains(&i_name_3));
     }
 
-    // [utest->swdd~cli-checks-for-final-workload-state~2]
+    // [utest->swdd~cli-checks-for-final-workload-state~3]
     #[test]
     fn utest_update_wait_list_added_not_scheduled() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
@@ -257,6 +307,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -266,7 +317,7 @@ mod tests {
         assert!(wait_list.deleted_workloads.contains(&i_name_3));
     }
 
-    // [utest->swdd~cli-checks-for-final-workload-state~2]
+    // [utest->swdd~cli-checks-for-final-workload-state~3]
     #[test]
     fn utest_update_wait_list_added_failed() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
@@ -282,6 +333,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -291,7 +343,7 @@ mod tests {
         assert!(wait_list.deleted_workloads.contains(&i_name_3));
     }
 
-    // [utest->swdd~cli-checks-for-final-workload-state~2]
+    // [utest->swdd~cli-checks-for-final-workload-state~3]
     #[test]
     fn utest_update_wait_list_added_starting_failed_no_more_retries() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
@@ -307,6 +359,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -316,7 +369,7 @@ mod tests {
         assert!(wait_list.deleted_workloads.contains(&i_name_3));
     }
 
-    // [utest->swdd~cli-checks-for-final-workload-state~2]
+    // [utest->swdd~cli-checks-for-final-workload-state~3]
     #[test]
     fn utest_update_wait_list_deleted_removed() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
@@ -332,6 +385,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
+            HashSet::from(["agent_name".to_string()]),
         );
 
         wait_list.update(vec![workload_state]);

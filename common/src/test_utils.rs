@@ -95,6 +95,23 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::obje
     }
 }
 
+pub fn generate_test_complete_state_with_configs(
+    configs: Vec<String>,
+) -> crate::objects::CompleteState {
+    use crate::objects::CompleteState;
+    CompleteState {
+        desired_state: State {
+            api_version: API_VERSION.into(),
+            configs: configs
+                .into_iter()
+                .map(|value| (value.clone(), ConfigItem::String(String::default())))
+                .collect(),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
 pub fn generate_test_state() -> State {
     let workload_name_1 = WORKLOAD_1_NAME.to_string();
     let workload_name_2 = WORKLOAD_2_NAME.to_string();
@@ -143,11 +160,11 @@ fn generate_test_proto_dependencies() -> Dependencies {
     Dependencies {
         dependencies: (HashMap::from([
             (
-                String::from("workload A"),
+                String::from("workload_A"),
                 ank_base::AddCondition::AddCondRunning.into(),
             ),
             (
-                String::from("workload C"),
+                String::from("workload_C"),
                 ank_base::AddCondition::AddCondSucceeded.into(),
             ),
         ])),
@@ -156,7 +173,7 @@ fn generate_test_proto_dependencies() -> Dependencies {
 
 fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
     HashMap::from([(
-        String::from("workload A"),
+        String::from("workload_A"),
         DeleteCondition::DelCondNotPendingNorRunning,
     )])
 }

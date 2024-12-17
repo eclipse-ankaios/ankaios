@@ -736,7 +736,12 @@ mod tests {
                 )
                 .entry(
                     "agents",
-                    Mapping::default().entry(agent_name, Mapping::default()),
+                    Mapping::default().entry(
+                        agent_name,
+                        Mapping::default()
+                            .entry("cpu_usage", Mapping::default().entry("cpu_usage", 42))
+                            .entry("free_memory", Mapping::default().entry("free_memory", 42)),
+                    ),
                 )
         }
 
@@ -759,8 +764,8 @@ mod tests {
                             .entry(
                                 "dependencies",
                                 Mapping::default()
-                                    .entry("workload A", "ADD_COND_RUNNING")
-                                    .entry("workload C", "ADD_COND_SUCCEEDED"),
+                                    .entry("workload_A", "ADD_COND_RUNNING")
+                                    .entry("workload_C", "ADD_COND_SUCCEEDED"),
                             )
                             .entry("restartPolicy", "ALWAYS")
                             .entry("runtime", "runtime")

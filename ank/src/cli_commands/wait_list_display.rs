@@ -19,7 +19,7 @@ use std::{
 
 use common::objects::WorkloadInstanceName;
 
-use crate::{cli_commands::workload_table_row::WorkloadTableRowWithSpinner, output_warn};
+use crate::cli_commands::workload_table_row::WorkloadTableRowWithSpinner;
 
 use super::cli_table::CliTable;
 use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};
@@ -58,13 +58,7 @@ impl Display for WaitListDisplay {
             .table_with_truncated_column_to_remaining_terminal_width(
                 WorkloadTableRowWithSpinner::ADDITIONAL_INFO_POS,
             )
-            .unwrap_or_else(|err| {
-                output_warn!(
-                    "Could not create truncated table: '{}'. Continue with default table.",
-                    err
-                );
-                CliTable::new(&table_rows_with_spinner).create_default_table()
-            });
+            .unwrap_or_else(|_err| CliTable::new(&table_rows_with_spinner).create_default_table());
 
         write!(f, "{}", table)
     }

@@ -160,12 +160,13 @@ Needs:
 - utest
 
 #### Workload states map allows managing workload execution states
-`swdd~state-map-for-workload-execution-states~1`
+`swdd~state-map-for-workload-execution-states~2`
 
 Status: approved
 
 The WorkloadStatesMap represents the current execution states of the managed by Ankaios workloads and allows performant management of the states by providing the following functionalities:
 * getting all workload states for an agent
+* getting the workload state of a workload
 * getting all workload states except the ones for a specific agent
 * marking all states of an agent as agent disconnected
 * adding an initial state for a list of workloads
@@ -223,13 +224,16 @@ Needs:
 - utest
 
 #### AgentMap manages agent names along with agent attributes
-`swdd~agent-map-manages-agent-names-with-agent-attributes~1`
+`swdd~agent-map-manages-agent-names-with-agent-attributes~2`
 
 Status: approved
 
 The AgentMap provides the following functionalities:
-* inserting an agent name with empty attributes
-* removing an agent name
+* inserting an agent name with default attributes
+* checking whether an entry for an agent exists
+* removing an agent name with its associated attributes
+* storing the agent attributes
+* updating an agent's node resource availability
 
 Comment:
 The AgentMap is actually the object exposed to the external interfaces, but provides some additional functionality.
@@ -343,7 +347,7 @@ The Common library shall provide functionality for enforcing a workload name to:
 * have a maximal length of 63 characters
 
 Rationale:
-A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+A consistent naming manner assures stability in usage and compatibility with Ankaios internal structure by ensuring proper function of the filtering.
 
 Tags:
 - Objects
@@ -361,7 +365,43 @@ Status: approved
 The Common library shall provide functionality for enforcing an agent name to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
 
 Rationale:
-A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+A consistent naming manner assures stability in usage and compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Config item key naming convention
+`swdd~common-config-item-key-naming-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing a config item key to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+
+Rationale:
+A consistent naming manner assures stability in usage and compatibility with Ankaios internal structure by ensuring proper function of the filtering.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Config aliases and referenced config keys naming convention
+`swdd~common-config-aliases-and-config-reference-keys-naming-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing a workload's config reference key value pairs to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+
+Rationale:
+A consistent naming manner assures stability in usage and compatibility with Ankaios internal structure by ensuring proper function of the filtering.
 
 Tags:
 - Objects
@@ -404,7 +444,7 @@ Tags:
 Needs:
 - impl
 
-### Helper methods
+### Common Helpers
 
 Different helper methods used by other components of Ankaios. For example regarding error handling or testing.
 
@@ -416,6 +456,22 @@ Status: approved
 The Common library shall provide helper methods used by Ankaios' libraries and executables.
 
 Rationale: This prevents code duplication in accordance to the DRY principle.
+
+Tags:
+- CommonHelpers
+
+Needs:
+- impl
+
+#### Provide common version checking functionality
+`swdd~common-version-checking~1`
+
+Status: approved
+
+The Common library shall provide a common version checking functionality that fails if a provided version differs from the current major and minor one.
+
+Rationale:
+The version checking is executed in different Ankaios components and must behave in the same way. The failure on a different minor version is required as Ankaios is currently at a 0 (zero) major version.
 
 Tags:
 - CommonHelpers

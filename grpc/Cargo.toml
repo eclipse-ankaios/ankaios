@@ -1,6 +1,6 @@
 [package]
 name = "grpc"
-version = "0.5.0-pre"
+version = "0.5.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "A gRPC communication middleware for Eclipse Ankaios"
@@ -14,7 +14,7 @@ common = { path = "../common" }
 tonic = {version="0.9", features= ["tls"]}
 prost = "0.11"
 async-trait = "0.1"
-tokio = { version = "1.28", features = [
+tokio = { version = "1.41", features = [
     "macros",
     "rt-multi-thread",
     "fs",
@@ -30,11 +30,8 @@ regex = "1.10"
 
 [dev-dependencies]
 common = { path = "../common", features = ["test_utils"] }
-mockall = "0.11"
-mockall_double = "0.3"
-futures-util = "0.3"
 tempfile = "3.10"
-env_logger = "0.10"
+env_logger = "0.11"
 
 [build-dependencies]
 tonic-build = "0.9"

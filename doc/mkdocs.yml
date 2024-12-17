@@ -72,12 +72,14 @@ nav:
     - usage/installation.md
     - usage/quickstart.md
     - usage/tutorial-vehicle-signals.md
+    - usage/tutorial-fleet-management.md
     - usage/awesome-ankaios.md
     - usage/mtls-setup.md
     - usage/shell-completion.md
     - Upgrading:
       - usage/upgrading/v0_2_to_v0_3.md
       - usage/upgrading/v0_3_to_v0_4.md
+      - usage/upgrading/v0_4_to_v0_5.md
   - Reference:
     - reference/startup-configuration.md
     - reference/interacting-with-ankaios.md

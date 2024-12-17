@@ -84,6 +84,11 @@ Stores information which the Agent gets from the Server. Currently the storage s
 
 The ControlInterface is responsible for setting up the communication interface between a workload and the Ankaios agent. It translates between the provided to the workload pipes and the internal Ankaios communication channels.
 
+### Authorizer
+
+The Authorizer checks for every request send from a workload to the Ankaios agent,
+if the workload is allowed to execute this request.
+
 ### RuntimeConnectorInterfaces
 
 This is not really a component but a collection of traits that define the "requirements" towards specific runtime connectors s.t. they can be used by Ankaios. The following three traits specify the interface of the connectors where for one of them (state checker) a reusable default implementation is provided:
@@ -750,11 +755,11 @@ Needs:
 - utest
 
 ##### RuntimeManager handles existing workloads replace updated Workloads
-`swdd~agent-existing-workloads-replace-updated~2`
+`swdd~agent-existing-workloads-replace-updated~3`
 
 Status: approved
 
-When the agent handles existing workloads, for each found existing workload which is requested to be started and either the workload's configuration has changed or the workload is not running, the RuntimeManager shall do the following:
+When the agent handles existing workloads, for each found existing workload which is requested to be started and either the workload's configuration has changed or the workload is not in state running or succeeded, the RuntimeManager shall do the following:
 
 - request the RuntimeFacade to delete the existing workload
 - request the RuntimeFacade to create the workload
@@ -771,6 +776,23 @@ Needs:
 - utest
 - stest
 
+##### RuntimeManager handles existing workloads and reuses unmodified Workloads
+`swdd~agent-existing-workloads-reuse-unmodified~1`
+
+Status: approved
+
+When the agent handles existing workloads, for each found existing workload which is requested to be started and the workload's configuration has not changed and the workload is in state succeeded, the RuntimeManager shall request the RuntimeFacade to reuse the existing workload.
+
+Rationale: Starting an existing, succeeded workload is much faster than deleting and creating a workload. If an existing workload is in the failed state, it is not reused because its file system might be corrupted.
+
+Tags:
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+- stest
+
 ##### RuntimeManager handles existing workloads deletes unneeded workloads
 `swdd~agent-existing-workloads-delete-unneeded~1`
 
@@ -778,7 +800,7 @@ Status: approved
 
 When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall request the RuntimeFacade to delete the workload.
 
-Comment: If the the RuntimeManager finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload. The Ankaios agent cannot consider the `DeleteCondition`s of the existing workload because the information is not available after an agent restart.
+Comment: If the RuntimeManager finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload. The Ankaios agent cannot consider the `DeleteCondition`s of the existing workload because the information is not available after an agent restart.
 
 Tags:
 - RuntimeManager
@@ -917,11 +939,14 @@ Needs:
 - utest
 
 ##### Workload compares control interface metadata
-`swdd~agent-compares-control-interface-metadata~1`
+`swdd~agent-compares-control-interface-metadata~2`
 
 Status: approved
 
-When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the existing file path with the new file path of the control interface.
+When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the control inferface's:
+
+* file path
+* authorizer
 
 Tags:
 - Workload
@@ -1837,16 +1862,37 @@ Needs:
 - utest
 
 ##### Podman create workload runs the workload object
-`swdd~podman-create-workload-runs-workload~1`
+`swdd~podman-create-workload-runs-workload~2`
 
 Status: approved
 
-When the podman runtime connector is called to create workload, the podman runtime connector shall:
+When the podman runtime connector is called to create a workload and no existing workload id is provided, the podman runtime connector shall:
 
 * pull the workload image specified in the runtime configuration if the image is not already available locally
 * create the container
 * start the container in the detached mode
 * start a `GenericPollingStateChecker` to check the workload state
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
+##### Podman create workload starts an existing the workload object
+`swdd~podman-create-workload-starts-existing-workload~1`
+
+Status: approved
+
+When the podman runtime connector is called to create a workload and an existing workload id is provided, the podman runtime connector shall:
+
+* start the existing container
+* start a `GenericPollingStateChecker` to check the workload state
+
+Rationale:
+Starting a stopped container is much faster than creating a new container bundle and starting that. Short startup times are ususally crucial for automotive.
 
 Tags:
 - PodmanRuntimeConnector
@@ -1891,11 +1937,11 @@ Needs:
 - utest
 
 ##### Podman create workload creates labels
-`swdd~podman-create-workload-creates-labels~1`
+`swdd~podman-create-workload-creates-labels~2`
 
 Status: approved
 
-When the podman runtime connector is called to create workload, the podman runtime connector shall create following labels in the workload:
+When the podman runtime connector is called without an existing workload id to create a new workload, the podman runtime connector shall create following labels in the workload:
 
 * `name` as the key and workload execution name as the value
 * `agent` as the key and the agent name where the workload is being created as the value
@@ -1908,11 +1954,11 @@ Needs:
 - utest
 
 ##### Podman create workload sets optionally container name
-`swdd~podman-create-workload-sets-optionally-container-name~1`
+`swdd~podman-create-workload-sets-optionally-container-name~2`
 
 Status: approved
 
-When the podman runtime connector is called to create workload and the workload name is not set in the runtime configuration,
+When the podman runtime connector is called is called without an existing workload id to create a new workload and the workload name is not set in the runtime configuration,
 the podman runtime connector shall set the workload execution name as the workload name.
 
 Tags:
@@ -1929,7 +1975,7 @@ Needs:
 Status: approved
 
 When the podman runtime connector is called to create workload and the RuntimeFacade requests to mount the Control Interface pipes,
-the podman runtime connector shall mount the the Control Interface pipes into the container in the file path `/run/ankaios/control_interface`.
+the podman runtime connector shall mount the Control Interface pipes into the container in the file path `/run/ankaios/control_interface`.
 
 Tags:
 - ControlInterface
@@ -2150,7 +2196,7 @@ When the podman-kube runtime connector is called to create a workload and the po
 the podman-kube runtime continues with applying the manifest and returning the workload ID.
 
 Rationale:
-The volumes are needed for a restart of the the agent, but are not necessary for the current execution of the agent.
+The volumes are needed for a restart of the agent, but are not necessary for the current execution of the agent.
 If the agent ignores the failure of creating of the volumes, the workloads can operate normally and only after a restart of the agent errors occur.
 If the agent fails the start of a workload if it is not able to create the volumes, the workloads cannot operate currently and after a restart of the agent.
 
@@ -2759,6 +2805,23 @@ Needs:
 - impl
 - utest
 
+#### AgentManager sends the node resource availability to the server
+`swdd~agent-sends-node-resource-availability-to-server~1`
+
+Status: approved
+
+At an interval of 2 seconds, the AgentManager measures the global CPU usage and the available free memory and sends them to the Ankaios server via an `AgentLoadStatus` message.
+
+Rationale:
+Available resources must be available in the cluster in order to enable dynamic scheduling, e.g., done by a workload.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
 ### Forwarding the Control Interface
 
 The Ankaios Agent is responsible to forward Control Interface requests from a Workload to the Ankaios Server and to forward Control Interface responses from the Ankaios Server to the Workload.
@@ -2799,6 +2862,26 @@ Needs:
 - impl
 - utest
 
+#### Agent closes Control Interface channel on missing initial `Hello`
+`swdd~agent-closes-control-interface-on-missing-initial-hello~1`
+
+Status: approved
+
+When an Ankaios agent receives an initial message on the Control Interface that is different to the initial `Hello` message containing the supported Ankaios version by the workload or the provided version in the message is not compatible with the one of the agent, the agent shall:
+* close the Control Interface connection by sending a `ConnectionClosed` message
+* discontinuing reading new messages from the workload.
+
+Comment:
+The check for the supported by the agent version is done by a central function provided by the common library.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Agent converts from Control Interface proto request to internal object
 `swdd~agent-converts-control-interface-message-to-ankaios-object~1`
 
@@ -2817,17 +2900,61 @@ Needs:
 - impl
 - utest
 
-#### Agent forwards Control Interface request fom the pipe to the server
-`swdd~agent-forward-request-from-control-interface-pipe-to-server~1`
+#### Agent checks Control Interface request for authorization
+`swdd~agent-checks-request-for-authorization~1`
 
 Status: approved
 
-When the Ankaios Agents receives a Control Interface request from a Workload, the Ankaios Agent shall forward this request to the Ankaios Server.
+When the Ankaios agent receives a Control Interface request from a Workload, the Control Interface shall trigger the Authorizer to check if this Workload is allowed to make this request.
 
 Tags:
-- AgentManager
+- ControlInterface
+- Authorizer
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent returns error on denied Control Interface request
+`swdd~agent-responses-to-denied-request-from-control-interface~1`
+
+Status: approved
+
+If the Ankaios Agent receives a Control Interface request from a Workload and the request is denied, the Ankaios Agent shall send an error response to the corresponding Workloads input pipe.
+
+Tags:
 - ControlInterface
 
+Needs:
+- impl
+- utest
+
+#### Error returned on denied Control Interface request contains requst ID
+`swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1`
+
+Status: approved
+
+When the Ankaios Agent sends a denied request error response to a workload,
+the response shall contain the same request_id as the denied request.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
+#### Agent forwards Control Interface request from the pipe to the server
+`swdd~agent-forward-request-from-control-interface-pipe-to-server~2`
+
+Status: approved
+
+When the Ankaios Agent receives a Control Interface request from a Workload and the request is allowed, the Ankaios Agent shall forward this request to the Ankaios Server.
+
+Tags:
+- ControlInterface
+-
 Needs:
 - impl
 - utest
@@ -2931,6 +3058,130 @@ Hence the Ankaios Agent:
 Tags:
 - AgentManager
 - ControlInterface
+
+Needs:
+- impl
+- utest
+
+### Authorizing access to the Control Interface
+
+#### Request operations
+`swdd~agent-authorizing-request-operations~1`
+
+Status: approved
+
+When the Authorizer checks if a Workload is allowed to make a request,
+the Authorizer shall use:
+
+* "read" and "write_read" rules for a CompleteStateRequest.
+* "write" and "write_read" rules for a UpdateStateRequest.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Request without filter mask
+`swdd~agent-authorizing-request-without-filter-mask~1`
+
+Status: approved
+
+When the Authorizer checks if a Workload is allowed to make a request,
+an UpdateStateRequest with an empty update mask or a CompleteStateRequest with an empty field mask is only allowed if all of the following is true:
+
+* there is at least one allow rule having an empty String in the filter mask
+* there is no deny rule with a non empty filter mask
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Request allowed if all elements of filter mask are allowed
+`swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1`
+
+Status: approved
+
+When the Authorizer checks if a Workload is allowed to make a request
+and all entries of the update/field mask are allowed,
+the Authorizer shall allow the request.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Conditions for element of filter mask being allowed
+`swdd~agent-authorizing-condition-element-filter-mask-allowed~1`
+
+Status: approved
+
+When the Authorizer checks an individual entry of the update/field mask of an request,
+the Authorizer shall allow this element if all of the following is true:
+
+* there is at least one allow rule with a filter mask entry matching the update/field mask entry
+* there is no deny rule with a filter mask entry matching the update/field mask entry
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Matching of allow rules
+`swdd~agent-authorizing-matching-allow-rules~1`
+
+Status: approved
+
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+
+Comment:
+An allow rule matches, if it is the same or a prefix of the request's update/field mask.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Matching of deny rules
+`swdd~agent-authorizing-matching-deny-rules~1`
+
+Status: approved
+
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+
+Comment:
+A deny rule matches, if the request's update/field mask is the same or a prefix of the rule.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### Matching of rule elements
+`swdd~agent-authorizing-matching-rules-elements~1`
+
+Status: approved
+
+When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of a deny rule,
+the Authorizer shall consider them matching if one of the following is true:
+
+* both segments are the same
+* the segment of the rule entry is the wildcards symbol "*"
+
+Tags:
+- Authorizer
 
 Needs:
 - impl

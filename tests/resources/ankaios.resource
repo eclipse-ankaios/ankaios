@@ -30,11 +30,18 @@ ${CURRENT_RESULT}       ${EMPTY}
 ${SERVER_PROCESS_HANDLE}       ${EMPTY}
 ${TEST_FOLDER_NAME}    ${EMPTY}
 &{ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
+&{ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}
+${ANKAIOS_VERSION}    ${EMPTY}
 
 *** Keywords ***
 Get MTLS Enabled
     ${result}=    Get Environment Variable    name=MTLS_ENABLED    default=False
     RETURN    ${result}
+
+Retrieve current Ankaios version
+    ${run_result}=    Run Process    command=%{ANK_BIN_DIR}${/}ank-server --version    shell=True
+    ${ANKAIOS_VERSION}=    Evaluate    '${run_result.stdout}'.split(' ')[1]
+    Set Global Variable    ${ANKAIOS_VERSION}
 
 Setup Ankaios without MTLS Setup
     ${run_result}=    Run Process    command=mktemp -d    shell=True
@@ -56,6 +63,7 @@ Clean up Ankaios
     Clean up Podman
     Run Command    rm -rf %{ANKAIOS_TEMP}    timeout=20
     Set Variable    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    {}
+    Set Variable    ${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}    {}
     Remove Environment Variable    ANKSERVER_CA_PEM
     Remove Environment Variable    ANKSERVER_CRT_PEM
     Remove Environment Variable    ANKSERVER_KEY_PEM
@@ -398,6 +406,9 @@ podman shall have assigned a container id for workload "${workload_name}" on age
     Set To Dictionary    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    ${ankaios_instance_name}=${container_id}
     Set Global Variable    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
     Log   ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING = '${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}'
+    Set To Dictionary    ${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}    ${workload_name}=${container_id}
+    Set Global Variable    ${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}
+    Log   ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING = '${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}'
 
 podman kube shall have assigned an id for pod "${pod_name}" of workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
     volumes for "${workload_name}" shall exist on "${agent_name}" within "${timeout}" seconds
@@ -455,6 +466,13 @@ list of workloads shall be empty
     @{list_result}=    Create List
     Should Be Empty    item=${list_result}
 
+the configs field inside the state shall be empty
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json    timeout=5
+    ${result_dict}=    Json To Dict    ${command_result.stdout}
+    ${desiredState}=    Get From Dictionary    ${result_dict}    desiredState
+    ${configs}=    Get From Dictionary    ${desiredState}    configs
+    Should Be Empty    ${configs}
+
 the container of workload "${workload_name}" shall have a different id but same configuration on the podman runtime
     ${id_changed}=    Set Variable    ${False}
     ${start_time}=    Get Time Secs
@@ -476,6 +494,50 @@ the container of workload "${workload_name}" shall have a different id but same 
     END
 
     Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' and the same configuration on podman!
+
+the container of workload "${workload_name}" shall have a different id on the podman runtime
+    ${id_changed}=    Set Variable    ${False}
+    ${start_time}=    Get Time Secs
+    WHILE    True
+        ${current_secs}=    Get Time Secs
+        ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+        IF    ${elapsed_secs} >= 20    BREAK
+        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Podman    ${workload_name}
+        IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
+            CONTINUE
+        END
+
+        ${workload_id}=    Get From Dictionary    ${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}    ${workload_name}
+
+        IF    '${current_workload_id}' != '${workload_id}'
+            ${id_changed}=    Set Variable    ${True}
+            BREAK
+        END
+    END
+
+    Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' on podman!
+
+the container of workload "${workload_name}" shall have the same id and same configuration on the podman runtime
+    ${id_changed}=    Set Variable    ${True}
+    ${start_time}=    Get Time Secs
+    WHILE    True
+        ${current_secs}=    Get Time Secs
+        ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+        IF    ${elapsed_secs} >= 20    BREAK
+        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Podman    ${workload_name}
+        IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
+            CONTINUE
+        END
+
+        ${old_container_id}=    Get From Dictionary    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    ${current_ankaios_instance_name}
+
+        IF    '${current_workload_id}' == '${old_container_id}'
+            ${id_changed}=    Set Variable    ${False}
+            BREAK
+        END
+    END
+
+    Should Not Be True    ${id_changed}    msg=Workload '${workload_name}' has a different '${old_container_id}' on podman!
 
 the pod "${pod_name}" of workload "${workload_name}" shall have a different id but same configuration on the podman kube runtime
     ${id_changed}=    Set Variable    ${False}
@@ -505,25 +567,37 @@ the last command shall list the connected agent "${agent_name}"
     ${table_as_list}=    Table To List    ${CURRENT_RESULT.stdout}
     ${table_as_dict}=    Table To Dict    ${table_as_list}    NAME
     Dictionary Should Contain Key    ${table_as_dict}    ${agent_name}
+    ${agent_dict}=    Get Agent Dict    ${table_as_dict}    ${agent_name}
+    Dictionary Should Contain Key    ${agent_dict}    CPU USAGE
+    Dictionary Should Contain Key    ${agent_dict}    FREE MEMORY
+
+the last command shall list the config "${config_name}"
+    Config Name Shall Exist In List    ${config_name}    ${CURRENT_RESULT.stdout}
+
+the last command shall not list the config "${config_name}"
+    Run Keyword And Expect Error    Config name ${config_name} does not exist in the list    the last command shall list the config "${config_name}"
 
 Setup Ankaios for Control Interface test
     Setup Ankaios
     Prepare Test Control Interface Workload
+    Retrieve current Ankaios version
 
 The controller workload has no access rights
-    empty_keyword
-
-The controller workload is allowed to ${operation}
-    Control interface allows to ${operation} on ${EMPTY}
+    The controller workload sends initial hello with correct version
 
 The controller workload is allowed to ${operation} on ${filter_mask}
     internal_allow_control_interface    ${operation}     ${filter_mask}
-
-The controller workload is forbidden to ${operation}
-    Control interface denies to ${operation} on ${EMPTY}
+    The controller workload sends initial hello with correct version
 
 The controller workload is forbidden to ${operation} on ${filter_mask}
     internal_deny_control_interface    ${operation}     ${filter_mask}
+    The controller workload sends initial hello with correct version
+
+The controller workload does not send hello
+    internal_allow_control_interface    read    ${EMPTY}
+
+The controller workload sends initial hello with correct version
+    internal_send_initial_hello    ${ANKAIOS_VERSION}
 
 The controller workload updates the state with manifest "${manifest}"
     The controller workload updates the state with manifest "${manifest}" and update mask ${EMPTY}
@@ -550,6 +624,13 @@ The controller workload requests shall all fail
     Ankaios agent is started with name "agent_A"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     internal_check_all_control_interface_requests_failed    ${ankaios_config_folder.name}
+
+The controller workload shall get a closed connection
+    ${ankaios_config_folder}=    create_control_interface_config_for_test
+    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios agent is started with name "agent_A"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    internal_check_control_interface_closed    ${ankaios_config_folder.name}
 
 The controller workload has no access to Control Interface
     ${ankaios_config_folder}=    create_control_interface_config_for_test

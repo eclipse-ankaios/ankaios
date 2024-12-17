@@ -13,10 +13,11 @@ A workload specification must contain the following information:
 
 * `workload name`_(via field key)_, specify the workload name to identify the workload in the Ankaios system.
 * `runtime`, specify the type of the runtime. Currently supported values are `podman` and `podman-kube`.
-* `agent`, specify the name of the owning agent which is going to execute the workload.
-* `restartPolicy`, specify how the workload should be restarted upon exiting (not implemented yet).
+* `agent`, specify the name of the owning agent which is going to execute the workload. Supports templated strings.
+* `restartPolicy`, specify how the workload should be restarted upon exiting.
 * `tags`, specify a list of `key` `value`  pairs.
-* `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) is used.
+* `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) is used. Supports templated strings.
+* `configs`: assign configuration items defined in the state's `configs` field to the workload
 * `controlInterfaceAccess`, specify the access rights of the workload for the control interface.
 
 Example `startup-config.yaml` file:
@@ -31,16 +32,31 @@ workloads:
     tags:
       - key: owner
         value: Ankaios team
+    configs:
+      port: web_server_port
     runtimeConfig: |
       image: docker.io/nginx:latest
-      commandOptions: ["-p", "8081:80"]
+      commandOptions: ["-p", "{{port.access_port}}:80"]
     controlInterfaceAccess:
       allowRules:
       - type: StateRule
         operation: Read
         filterMask:
         - "workloadStates"
+configs:
+  web_server_port:
+    access_port: "8081"
 ```
+
+Ankaios supports templated strings and [essential control directives](https://github.com/sunng87/handlebars-rust/tree/v6.1.0?tab=readme-ov-file#limited-but-essential-control-structures-built-in) in the handlebars templating language for the following workload fields:
+
+* `agent`
+* `runtimeConfig`
+
+Ankaios renders a templated state at startup or when the state is updated. The rendering replaces the templated strings with the configuration items associated with each workload. The configuration items themselves are defined in a `configs` field, which contains several key-value pairs. The key specifies the name of the configuration item and the value is a string, list or associative data structure. To see templated workload configurations in action, see the tutorial [Manage a fleet of vehicles from the cloud](../usage/tutorial-fleet-management.md#remote-installation-of-a-vehicle-data-sender).
+
+!!! Note
+    The name of a configuration item can only contain regular characters, digits, the "-" and "_" symbols. The same applies to the keys and values of the workload's `configs` field when assigning configuration items to a workload.
 
 ### PodmanRuntimeConfig
 

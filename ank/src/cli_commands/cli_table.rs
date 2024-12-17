@@ -55,12 +55,27 @@ where
         Self { rows, table }
     }
 
-    // [impl->swdd~cli-table-provides-default-table-output~1]
+    // [impl->swdd~cli-table-provides-default-table-output~2]
     pub fn create_default_table(mut self) -> String {
         self.table = Table::new(self.rows);
         self.style_blank();
         self.disable_surrounding_padding();
-        self.table.to_string()
+
+        let default_table = self.table.to_string();
+
+        const NEWLINE: &str = "\n";
+        let terminal_width = terminal_width();
+        let truncated_lines: Vec<&str> = default_table
+            .lines()
+            .map(|line| {
+                if line.len() > terminal_width {
+                    &line[..terminal_width]
+                } else {
+                    line
+                }
+            })
+            .collect();
+        truncated_lines.join(NEWLINE)
     }
 
     // [impl->swdd~cli-table-provides-table-output-with-wrapped-column~1]
@@ -107,11 +122,6 @@ where
             .get_config()
             .get_padding(tabled::grid::config::Entity::Column(Self::FIRST_COLUMN_POS));
 
-        let last_column_default_padding = self
-            .table
-            .get_config()
-            .get_padding(tabled::grid::config::Entity::Column(last_column_pos));
-
         /* Set the left padding of the first and the right padding of the last column to zero
         to align the table content to the full terminal width for better output quality. */
         self.table
@@ -120,7 +130,14 @@ where
                 first_column_default_padding.right.size,
                 first_column_default_padding.top.size,
                 first_column_default_padding.bottom.size,
-            )))
+            )));
+
+        let last_column_default_padding = self
+            .table
+            .get_config()
+            .get_padding(tabled::grid::config::Entity::Column(last_column_pos));
+
+        self.table
             .with(Modify::new(Columns::last()).with(Padding::new(
                 last_column_default_padding.left.size,
                 Self::ZERO_PADDING,
@@ -205,21 +222,49 @@ mod tests {
         pub col3: String,
     }
 
-    // [utest->swdd~cli-table-provides-default-table-output~1]
+    #[derive(Debug, Tabled, Clone)]
+    #[tabled(rename_all = "UPPERCASE")]
+    pub struct TestOneRow {
+        #[tabled(rename = "COLUMN 1")]
+        pub col1: String,
+    }
+
+    // [utest->swdd~cli-table-provides-default-table-output~2]
     #[test]
-    fn utest_create_default_table() {
+    fn utest_create_default_table_truncated_table_upon_exceeding_line_length() {
         let table_rows = [TestRow {
             col1: "some default name".to_string(),
             col2: "another content".to_string(),
-            col3: "some long info message that shall never be truncated or unwrapped".to_string(),
+            col3: "info message that exceeds terminal width and leads to truncating of the whole table".to_string(),
         }];
 
         let table = CliTable::new(&table_rows);
         let table_output = table.create_default_table();
         let expected_table_output = [
-            "COLUMN 1            COL2              ANOTHER COLUMN3                                                  ",
-            "some default name   another content   some long info message that shall never be truncated or unwrapped",
-        ].join("\n");
+            "COLUMN 1            COL2              ANOTHER COLUMN3                           ",
+            "some default name   another content   info message that exceeds terminal width a",
+        ]
+        .join("\n");
+
+        assert_eq!(table_output, expected_table_output);
+    }
+
+    // [utest->swdd~cli-table-provides-default-table-output~2]
+    #[test]
+    fn utest_create_default_table_line_length_equal_to_terminal_length() {
+        let table_rows = [TestRow {
+            col1: "default name".to_string(),
+            col2: "content".to_string(),
+            col3: "message to make the row length equal to terminal length".to_string(),
+        }];
+
+        let table = CliTable::new(&table_rows);
+        let table_output = table.create_default_table();
+        let expected_table_output = [
+            "COLUMN 1       COL2      ANOTHER COLUMN3                                        ",
+            "default name   content   message to make the row length equal to terminal length",
+        ]
+        .join("\n");
 
         assert_eq!(table_output, expected_table_output);
     }
@@ -330,5 +375,18 @@ mod tests {
             .unwrap_err()
             .0
             .contains("no reasonable terminal width"));
+    }
+
+    #[test]
+    fn utest_default_table_with_only_one_column() {
+        let table_row = [TestOneRow {
+            col1: "some default content".to_string(),
+        }];
+
+        let table_output = CliTable::new(&table_row).create_default_table();
+
+        let expected_table_output = ["COLUMN 1            ", "some default content"].join("\n");
+
+        assert_eq!(expected_table_output, table_output);
     }
 }

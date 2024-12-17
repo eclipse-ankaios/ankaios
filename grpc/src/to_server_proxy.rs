@@ -121,6 +121,15 @@ pub async fn forward_from_proto_to_ankaios(
                 );
                 break;
             }
+
+            ToServerEnum::AgentLoadStatus(agent_load_status) => {
+                log::trace!(
+                    "Received AgentLoadStatus from {}",
+                    agent_load_status.agent_name
+                );
+                sink.agent_load_status(agent_load_status.into()).await?;
+            }
+
             unknown_message => {
                 log::warn!("Wrong ToServer message: '{:?}'", unknown_message);
             }
@@ -168,6 +177,23 @@ pub async fn forward_from_ankaios_to_proto(
             ToServer::AgentHello(_) => {
                 panic!("AgentHello was not expected at this point.");
             }
+
+            ToServer::AgentLoadStatus(status) => {
+                log::trace!("Received AgentResource from agent {}", status.agent_name);
+                grpc_tx
+                    .send(grpc_api::ToServer {
+                        to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentLoadStatus(
+                            common::commands::AgentLoadStatus {
+                                agent_name: status.agent_name,
+                                cpu_usage: status.cpu_usage,
+                                free_memory: status.free_memory,
+                            }
+                            .into(),
+                        )),
+                    })
+                    .await?;
+            }
+
             ToServer::AgentGone(_) => {
                 panic!("AgentGone internal messages is not intended to be sent over the network");
             }
@@ -204,6 +230,7 @@ mod tests {
 
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios, GRPCStreaming};
     use async_trait::async_trait;
+    use common::objects::{CpuUsage, FreeMemory};
     use common::test_utils::generate_test_complete_state;
     use common::{
         objects::generate_test_workload_spec_with_param,
@@ -232,6 +259,79 @@ mod tests {
                 Err(tonic::Status::new(tonic::Code::Unknown, "test"))
             }
         }
+    }
+
+    // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_ankaios_to_proto_agent_resources() {
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+        let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
+
+        let agent_name = "agent_A".to_string();
+        let agent_load_status = common::commands::AgentLoadStatus {
+            agent_name: agent_name.clone(),
+            cpu_usage: CpuUsage { cpu_usage: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
+        };
+
+        let agent_resource_result = server_tx.agent_load_status(agent_load_status.clone()).await;
+        assert!(agent_resource_result.is_ok());
+
+        tokio::spawn(async move {
+            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+        });
+
+        // The receiver in the agent receives the message and terminates the infinite waiting-loop.
+        drop(server_tx);
+
+        let result = grpc_rx.recv().await.unwrap();
+
+        let expected = ToServerEnum::AgentLoadStatus(grpc_api::AgentLoadStatus {
+            agent_name: agent_name.clone(),
+            cpu_usage: Some(ank_base::CpuUsage { cpu_usage: 42 }),
+            free_memory: Some(ank_base::FreeMemory { free_memory: 42 }),
+        });
+
+        assert_eq!(result.to_server_enum, Some(expected));
+    }
+
+    // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
+        let agent_name = "agent_A".to_string();
+        let agent_load_status = common::commands::AgentLoadStatus {
+            agent_name: agent_name.clone(),
+            cpu_usage: CpuUsage { cpu_usage: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
+        };
+
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCToServerStreaming::new(LinkedList::from([
+                Some(grpc_api::ToServer {
+                    to_server_enum: Some(ToServerEnum::AgentLoadStatus(
+                        agent_load_status.clone().into(),
+                    )),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = forward_from_proto_to_ankaios(
+            agent_name.clone(),
+            &mut mock_grpc_ex_request_streaming,
+            server_tx,
+        )
+        .await;
+
+        assert!(forward_result.is_ok());
+
+        let result = server_rx.recv().await.unwrap();
+
+        let expected = ToServer::AgentLoadStatus(agent_load_status);
+
+        assert_eq!(result, expected);
     }
 
     // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
@@ -396,7 +496,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .dependencies
-            .get_mut(&String::from("workload A"))
+            .get_mut(&String::from("workload_A"))
             .unwrap() = -1;
 
         let ankaios_update_mask = vec!["bla".into()];

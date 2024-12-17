@@ -1,0 +1,9 @@
+apiVersion: v0.2
+workloads:
+  simple:
+    runtime: podman
+    restartPolicy: NEVER
+    agent: agent_A
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]

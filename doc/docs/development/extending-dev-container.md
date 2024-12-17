@@ -25,7 +25,7 @@ Build the base container by running the following commands outside of the dev co
 ```shell
 # Prepare the build with buildx. Depending on you environment
 # the following steps might be necessary:
-docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes  --credential yes
 
 # Create and use a new builder. This needs to be called only once:
 docker buildx create --name mybuilder --driver docker-container --bootstrap
