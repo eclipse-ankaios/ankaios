@@ -11,7 +11,6 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::output_warn;
 use crate::{cli_error::CliError, output_debug};
 
 use super::cli_table::CliTable;
@@ -65,13 +64,7 @@ impl CliCommands {
             .table_with_wrapped_column_to_remaining_terminal_width(
                 WorkloadTableRow::ADDITIONAL_INFO_POS,
             )
-            .unwrap_or_else(|err| {
-                output_warn!(
-                    "Could not create wrapped table: '{}'. Continue with default table.",
-                    err
-                );
-                CliTable::new(&table_rows).create_default_table()
-            }))
+            .unwrap_or_else(|_err| CliTable::new(&table_rows).create_default_table()))
     }
 }
 
