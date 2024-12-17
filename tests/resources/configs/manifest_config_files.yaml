@@ -1,29 +1,43 @@
 workloads:
-  dashboard:
+  workload_with_mounted_text_file:
     agent: agent_A
     runtime: podman
     configs:
-      c1: dashboard_configs
-      ports: ports
+      nginx_conf: file_data
     files:
-      - mountPoint: "/some/path/to/file.json"
-        data: "{{c1.json_data_file_content}}"
-      - mountPoint: "/some/path/to/bin_data"
-        binaryData: "{{c1.some_data}}"
+      - mountPoint: "/etc/nginx/nginx.conf"
+        data: "{{nginx_conf.json_data_file_content}}"
     runtimeConfig: |
-      image: docker.io/nginx:latest
-      commandOptions: [ "-p", "{{ports.access_port}}:80"]
-      commandArgs: [ "echo", "{{c1.echo_value}}"]
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+      commandOptions: [ "-p", "8080:80" ]
+  workload_with_mounted_binary_file:
+    agent: agent_A
+    runtime: podman
+    configs:
+      file_data: file_data
+    files:
+      - mountPoint: "/cleanup.sh"
+        binaryData: "{{file_data.bin_data}}"
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "/cleanup.sh" ]
 configs:
-  dashboard_configs:
-    echo_value: "Hello Ankaios"
+  file_data:
     json_data_file_content: |
-      {
-        some: {
-          random: string
-          object: "5"
-        }
+      worker_processes  1;
+
+      events {
+          worker_connections  1024;
       }
-    some_data: dGhpcyBpcyBhIGJpbmFyeSBmaWxl
-  ports:
-    access_port: "8081"
+
+      http {
+          server {
+              listen 80;
+              server_name custom_nginx;
+
+              location /custom {
+                  return 200 "The mounted custom nginx.conf is being used!\n";
+              }
+          }
+      }
+    bin_data: IyEvYmluL3NoCgplY2hvICJjbGVhbnVwIHNjcmlwdCBpcyBleGVjdXRlZCEi
