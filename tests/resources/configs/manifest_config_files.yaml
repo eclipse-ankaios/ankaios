@@ -16,11 +16,11 @@ workloads:
     configs:
       file_data: file_data
     files:
-      - mountPoint: "/cleanup.sh"
+      - mountPoint: "/hello"
         binaryData: "{{file_data.bin_data}}"
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
-      commandArgs: [ "/cleanup.sh" ]
+      commandArgs: [ "/hello" ]
 configs:
   file_data:
     json_data_file_content: |
@@ -40,4 +40,5 @@ configs:
               }
           }
       }
-    bin_data: IyEvYmluL3NoCgplY2hvICJjbGVhbnVwIHNjcmlwdCBpcyBleGVjdXRlZCEi
+    # base64 encoded /bin/sh file with content: echo "binary file executed!"
+    bin_data: IyEvYmluL3NoCgplY2hvICJiaW5hcnkgZmlsZSBleGVjdXRlZCEi
