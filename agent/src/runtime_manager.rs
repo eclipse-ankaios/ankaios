@@ -2073,7 +2073,8 @@ mod tests {
                                 runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()),
                                 control_interface_access: None,
                                 configs: Some(ank_base::ConfigMappings {
-                                    configs: Default::default()})
+                                    configs: Default::default()}),
+                                files: None,
                             })];
         let mut complete_state = test_utils::generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
@@ -2117,7 +2118,10 @@ mod tests {
         mock_workload
             .expect_forward_response()
             .once()
-            .with(predicate::eq(expected_response))
+            .with(predicate::function(move |arg| {
+                assert_eq!(arg, &expected_response);
+                false
+            }))
             .return_once(move |_| {
                 Err(WorkloadError::CompleteState(
                     "failed to send complete state".to_string(),

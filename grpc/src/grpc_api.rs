@@ -319,9 +319,7 @@ mod tests {
         let agent_name = "agent_A".to_string();
 
         let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::AgentHello(AgentHello::new(
-                &agent_name,
-            ))),
+            to_server_enum: Some(ToServerEnum::AgentHello(AgentHello::new(&agent_name))),
         };
 
         let ankaios_command = ankaios::ToServer::AgentHello(ankaios::AgentHello { agent_name });
@@ -610,6 +608,18 @@ mod tests {
                 value: "value".into(),
             }],
             control_interface_access: Default::default(),
+            files: vec![
+                ank_base::File {
+                    mount_point: "/file.json".into(),
+                    file_content: Some(ank_base::file::FileContent::Data("text data".into())),
+                },
+                ank_base::File {
+                    mount_point: "/binary_file".into(),
+                    file_content: Some(ank_base::file::FileContent::BinaryData(
+                        "base64_data".into(),
+                    )),
+                },
+            ],
         };
 
         assert_eq!(AddedWorkload::from(workload_spec), proto_workload);
@@ -637,6 +647,20 @@ mod tests {
             tags: vec![],
             runtime_config: String::from("some config"),
             control_interface_access: Default::default(),
+            files: vec![
+                ankaios::File {
+                    mount_point: "/file.json".to_string(),
+                    file_content: ankaios::FileContent::Data(ankaios::Data {
+                        data: "text data".into(),
+                    }),
+                },
+                ankaios::File {
+                    mount_point: "/binary_file".to_string(),
+                    file_content: ankaios::FileContent::BinaryData(ankaios::BinaryData {
+                        binary_data: "base64_data".into(),
+                    }),
+                },
+            ],
         };
 
         let proto_workload = AddedWorkload {
@@ -660,6 +684,18 @@ mod tests {
             runtime_config: String::from("some config"),
             tags: vec![],
             control_interface_access: Default::default(),
+            files: vec![
+                ank_base::File {
+                    mount_point: "/file.json".into(),
+                    file_content: Some(ank_base::file::FileContent::Data("text data".into())),
+                },
+                ank_base::File {
+                    mount_point: "/binary_file".into(),
+                    file_content: Some(ank_base::file::FileContent::BinaryData(
+                        "base64_data".into(),
+                    )),
+                },
+            ],
         };
 
         assert_eq!(
@@ -691,6 +727,18 @@ mod tests {
             runtime_config: String::from("some config"),
             tags: vec![],
             control_interface_access: Default::default(),
+            files: vec![
+                ank_base::File {
+                    mount_point: "/file.json".into(),
+                    file_content: Some(ank_base::file::FileContent::Data("text data".into())),
+                },
+                ank_base::File {
+                    mount_point: "/binary_file".into(),
+                    file_content: Some(ank_base::file::FileContent::BinaryData(
+                        "base64_data".into(),
+                    )),
+                },
+            ],
         };
 
         assert!(ankaios::WorkloadSpec::try_from(proto_workload).is_err());

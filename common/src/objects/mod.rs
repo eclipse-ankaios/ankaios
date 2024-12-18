@@ -93,4 +93,4 @@ pub use config::generate_test_configs;
 pub use config::ConfigItem;
 
 mod file;
-pub use file::File;
+pub use file::{BinaryData, Data, File, FileContent};

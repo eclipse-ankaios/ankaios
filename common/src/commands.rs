@@ -184,9 +184,9 @@ mod tests {
 
     mod ank_base {
         pub use api::ank_base::{
-            request::RequestContent, CompleteState, CompleteStateRequest, ConfigMappings,
-            Dependencies, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
-            WorkloadMap,
+            file::FileContent, request::RequestContent, CompleteState, CompleteStateRequest,
+            ConfigMappings, Dependencies, File, Files, Request, RestartPolicy, State, Tag, Tags,
+            UpdateStateRequest, Workload, WorkloadMap,
         };
     }
 
@@ -194,8 +194,9 @@ mod tests {
         pub use crate::{
             commands::{CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
             objects::{
-                generate_test_agent_map, generate_test_workload_states_map_with_data,
-                CompleteState, ExecutionState, RestartPolicy, State, StoredWorkloadSpec, Tag,
+                generate_test_agent_map, generate_test_workload_states_map_with_data, BinaryData,
+                CompleteState, Data, ExecutionState, File, FileContent, RestartPolicy, State,
+                StoredWorkloadSpec, Tag,
             },
         };
     }
@@ -297,6 +298,20 @@ mod tests {
                     ]
                     .into(),
                 }),
+                files: Some(ank_base::Files {
+                    files: vec![
+                        ank_base::File {
+                            mount_point: "/file.json".into(),
+                            file_content: Some(ank_base::FileContent::Data("text data".into())),
+                        },
+                        ank_base::File {
+                            mount_point: "/binary_file".into(),
+                            file_content: Some(ank_base::FileContent::BinaryData(
+                                "base64_data".into(),
+                            )),
+                        },
+                    ],
+                }),
             }
         };
         (ankaios) => {
@@ -316,6 +331,20 @@ mod tests {
                     ("ref2".into(), "config_2".into()),
                 ]
                 .into(),
+                files: vec![
+                    ankaios::File {
+                        mount_point: "/file.json".to_string(),
+                        file_content: ankaios::FileContent::Data(ankaios::Data {
+                            data: "text data".into(),
+                        }),
+                    },
+                    ankaios::File {
+                        mount_point: "/binary_file".to_string(),
+                        file_content: ankaios::FileContent::BinaryData(ankaios::BinaryData {
+                            binary_data: "base64_data".into(),
+                        }),
+                    },
+                ],
             }
         };
     }

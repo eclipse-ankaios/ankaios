@@ -32,13 +32,13 @@ pub enum FileContent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Data {
-    data: String,
+    pub data: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct BinaryData {
-    binary_data: String,
+    pub binary_data: String,
 }
 
 impl TryFrom<ank_base::File> for File {
