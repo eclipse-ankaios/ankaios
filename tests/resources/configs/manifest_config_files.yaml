@@ -6,7 +6,7 @@ workloads:
       nginx_conf: file_data
     files:
       - mountPoint: "/etc/nginx/nginx.conf"
-        data: "{{nginx_conf.json_data_file_content}}"
+        data: "{{nginx_conf.web_server_config}}"
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: [ "-p", "8080:80" ]
@@ -23,7 +23,7 @@ workloads:
       commandArgs: [ "/hello" ]
 configs:
   file_data:
-    json_data_file_content: |
+    web_server_config: |
       worker_processes  1;
 
       events {
