@@ -180,13 +180,14 @@ pub struct Stop {}
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::generate_test_proto_config_files;
     use std::collections::HashMap;
 
     mod ank_base {
         pub use api::ank_base::{
-            file::FileContent, request::RequestContent, CompleteState, CompleteStateRequest,
-            ConfigMappings, Dependencies, File, Files, Request, RestartPolicy, State, Tag, Tags,
-            UpdateStateRequest, Workload, WorkloadMap,
+            request::RequestContent, CompleteState, CompleteStateRequest, ConfigMappings,
+            Dependencies, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
+            WorkloadMap,
         };
     }
 
@@ -298,20 +299,7 @@ mod tests {
                     ]
                     .into(),
                 }),
-                files: Some(ank_base::Files {
-                    files: vec![
-                        ank_base::File {
-                            mount_point: "/file.json".into(),
-                            file_content: Some(ank_base::FileContent::Data("text data".into())),
-                        },
-                        ank_base::File {
-                            mount_point: "/binary_file".into(),
-                            file_content: Some(ank_base::FileContent::BinaryData(
-                                "base64_data".into(),
-                            )),
-                        },
-                    ],
-                }),
+                files: Some(generate_test_proto_config_files()),
             }
         };
         (ankaios) => {

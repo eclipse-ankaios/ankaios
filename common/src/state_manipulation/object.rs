@@ -781,7 +781,15 @@ mod tests {
                                 Mapping::default()
                                     .entry("ref1", "config_1")
                                     .entry("ref2", "config_2")
-                            ),
+                            )
+                            .entry("files", vec![
+                                Mapping::default()
+                                    .entry("mountPoint", "/file.json")
+                                    .entry("data", "text data"),
+                                Mapping::default()
+                                    .entry("mountPoint", "/binary_file")
+                                    .entry("binaryData", "base64_data"),
+                            ]),
                     ),
                 )
                 .entry(

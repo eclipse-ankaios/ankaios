@@ -245,7 +245,7 @@ mod tests {
             CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadInstanceName,
             WorkloadState,
         },
-        test_utils,
+        test_utils::{self, generate_test_proto_config_files},
         to_server_interface::ToServer,
     };
     use tokio::sync::mpsc::Receiver;
@@ -433,22 +433,7 @@ mod tests {
                             ]
                             .into(),
                         }),
-                        files: Some(ank_base::Files {
-                            files: vec![
-                                ank_base::File {
-                                    mount_point: "/file.json".into(),
-                                    file_content: Some(ank_base::file::FileContent::Data(
-                                        "text data".into(),
-                                    )),
-                                },
-                                ank_base::File {
-                                    mount_point: "/binary_file".into(),
-                                    file_content: Some(ank_base::file::FileContent::BinaryData(
-                                        "base64_data".into(),
-                                    )),
-                                },
-                            ],
-                        }),
+                        files: Some(generate_test_proto_config_files()),
                     },
                 )]),
             ),
@@ -480,22 +465,7 @@ mod tests {
                         ]
                         .into()
                     }),
-                    files: Some(ank_base::Files {
-                        files: vec![
-                            ank_base::File {
-                                mount_point: "/file.json".into(),
-                                file_content: Some(ank_base::file::FileContent::Data(
-                                    "text data".into()
-                                )),
-                            },
-                            ank_base::File {
-                                mount_point: "/binary_file".into(),
-                                file_content: Some(ank_base::file::FileContent::BinaryData(
-                                    "base64_data".into()
-                                )),
-                            }
-                        ],
-                    }),
+                    files: Some(generate_test_proto_config_files()),
                 },
             )])
             .into())
@@ -579,22 +549,7 @@ mod tests {
                             ]
                             .into(),
                         }),
-                        files: Some(ank_base::Files {
-                            files: vec![
-                                ank_base::File {
-                                    mount_point: "/file.json".into(),
-                                    file_content: Some(ank_base::file::FileContent::Data(
-                                        "text data".into(),
-                                    )),
-                                },
-                                ank_base::File {
-                                    mount_point: "/binary_file".into(),
-                                    file_content: Some(ank_base::file::FileContent::BinaryData(
-                                        "base64_data".into(),
-                                    )),
-                                },
-                            ],
-                        }),
+                        files: Some(generate_test_proto_config_files()),
                     },
                 )]),
             )),
@@ -630,22 +585,7 @@ mod tests {
                             ]
                             .into(),
                         }),
-                        files: Some(ank_base::Files {
-                            files: vec![
-                                ank_base::File {
-                                    mount_point: "/file.json".into(),
-                                    file_content: Some(ank_base::file::FileContent::Data(
-                                        "text data".into(),
-                                    )),
-                                },
-                                ank_base::File {
-                                    mount_point: "/binary_file".into(),
-                                    file_content: Some(ank_base::file::FileContent::BinaryData(
-                                        "base64_data".into(),
-                                    )),
-                                },
-                            ],
-                        }),
+                        files: Some(generate_test_proto_config_files()),
                     },
                 )]),
             ),
@@ -677,22 +617,7 @@ mod tests {
                         ]
                         .into()
                     }),
-                    files: Some(ank_base::Files {
-                        files: vec![
-                            ank_base::File {
-                                mount_point: "/file.json".into(),
-                                file_content: Some(ank_base::file::FileContent::Data(
-                                    "text data".into()
-                                )),
-                            },
-                            ank_base::File {
-                                mount_point: "/binary_file".into(),
-                                file_content: Some(ank_base::file::FileContent::BinaryData(
-                                    "base64_data".into()
-                                )),
-                            }
-                        ],
-                    }),
+                    files: Some(generate_test_proto_config_files()),
                 },
             )])
             .into())
@@ -741,22 +666,7 @@ mod tests {
                             ]
                             .into(),
                         }),
-                        files: Some(ank_base::Files {
-                            files: vec![
-                                ank_base::File {
-                                    mount_point: "/file.json".into(),
-                                    file_content: Some(ank_base::file::FileContent::Data(
-                                        "text data".into(),
-                                    )),
-                                },
-                                ank_base::File {
-                                    mount_point: "/binary_file".into(),
-                                    file_content: Some(ank_base::file::FileContent::BinaryData(
-                                        "base64_data".into(),
-                                    )),
-                                },
-                            ],
-                        }),
+                        files: Some(generate_test_proto_config_files()),
                     },
                 )]),
             ),
@@ -788,22 +698,7 @@ mod tests {
                         ]
                         .into()
                     }),
-                    files: Some(ank_base::Files {
-                        files: vec![
-                            ank_base::File {
-                                mount_point: "/file.json".into(),
-                                file_content: Some(ank_base::file::FileContent::Data(
-                                    "text data".into()
-                                )),
-                            },
-                            ank_base::File {
-                                mount_point: "/binary_file".into(),
-                                file_content: Some(ank_base::file::FileContent::BinaryData(
-                                    "base64_data".into()
-                                )),
-                            }
-                        ],
-                    }),
+                    files: Some(generate_test_proto_config_files()),
                 },
             )])
             .into())
@@ -957,22 +852,7 @@ mod tests {
                             ]
                             .into(),
                         }),
-                        files: Some(ank_base::Files {
-                            files: vec![
-                                ank_base::File {
-                                    mount_point: "/file.json".into(),
-                                    file_content: Some(ank_base::file::FileContent::Data(
-                                        "text data".into(),
-                                    )),
-                                },
-                                ank_base::File {
-                                    mount_point: "/binary_file".into(),
-                                    file_content: Some(ank_base::file::FileContent::BinaryData(
-                                        "base64_data".into(),
-                                    )),
-                                },
-                            ],
-                        }),
+                        files: Some(generate_test_proto_config_files()),
                     },
                 )]),
             )),

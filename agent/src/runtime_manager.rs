@@ -605,7 +605,7 @@ mod tests {
     };
     use common::test_utils::{
         self, generate_test_complete_state, generate_test_deleted_workload,
-        generate_test_deleted_workload_with_dependencies,
+        generate_test_deleted_workload_with_dependencies, generate_test_proto_config_files,
     };
     use common::to_server_interface::ToServerReceiver;
     use mockall::{predicate, Sequence};
@@ -2074,7 +2074,7 @@ mod tests {
                                 control_interface_access: None,
                                 configs: Some(ank_base::ConfigMappings {
                                     configs: Default::default()}),
-                                files: None,
+                                files: Some(generate_test_proto_config_files()),
                             })];
         let mut complete_state = test_utils::generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
@@ -2118,10 +2118,7 @@ mod tests {
         mock_workload
             .expect_forward_response()
             .once()
-            .with(predicate::function(move |arg| {
-                assert_eq!(arg, &expected_response);
-                false
-            }))
+            .with(predicate::eq(expected_response))
             .return_once(move |_| {
                 Err(WorkloadError::CompleteState(
                     "failed to send complete state".to_string(),
