@@ -197,7 +197,8 @@ pub fn generate_test_proto_workload_with_param(
         configs: Some(ConfigMappings{configs: [
             ("ref1".into(), "config_1".into()),
             ("ref2".into(), "config_2".into()),
-        ].into()})
+        ].into()}),
+        files: Some(generate_test_proto_config_files()),
     }
 }
 
@@ -217,7 +218,25 @@ pub fn generate_test_proto_workload() -> ank_base::Workload {
         configs: Some(ConfigMappings{configs: [
             ("ref1".into(), "config_1".into()),
             ("ref2".into(), "config_2".into()),
-        ].into()})
+        ].into()}),
+        files: Some(generate_test_proto_config_files()),
+    }
+}
+
+pub fn generate_test_proto_config_files() -> ank_base::Files {
+    ank_base::Files {
+        files: vec![
+            ank_base::File {
+                mount_point: "/file.json".into(),
+                file_content: Some(ank_base::file::FileContent::Data("text data".into())),
+            },
+            ank_base::File {
+                mount_point: "/binary_file".into(),
+                file_content: Some(ank_base::file::FileContent::BinaryData(
+                    "base64_data".into(),
+                )),
+            },
+        ],
     }
 }
 
