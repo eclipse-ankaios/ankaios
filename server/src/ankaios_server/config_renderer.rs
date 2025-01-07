@@ -14,7 +14,10 @@
 
 use std::{collections::HashMap, fmt};
 
-use common::objects::{ConfigItem, StoredWorkloadSpec, WorkloadInstanceName, WorkloadSpec};
+use common::objects::{
+    BinaryData, ConfigItem, Data, File, FileContent, StoredWorkloadSpec, WorkloadInstanceName,
+    WorkloadSpec,
+};
 use handlebars::Handlebars;
 
 pub type RenderedWorkloads = HashMap<String, WorkloadSpec>;
@@ -59,7 +62,7 @@ impl Default for ConfigRenderer {
 }
 
 impl ConfigRenderer {
-    // [impl->swdd~config-renderer-renders-workload-configuration~1]
+    // [impl->swdd~config-renderer-renders-workload-configuration~2]
     pub fn render_workloads(
         &self,
         workloads: &HashMap<String, StoredWorkloadSpec>,
@@ -90,7 +93,7 @@ impl ConfigRenderer {
         Ok(rendered_workloads)
     }
 
-    // [impl->swdd~config-renderer-renders-workload-configuration~1]
+    // [impl->swdd~config-renderer-renders-workload-configuration~2]
     fn create_config_map_for_workload<'a>(
         &self,
         workload_spec: &'a StoredWorkloadSpec,
@@ -107,7 +110,7 @@ impl ConfigRenderer {
         Ok(wl_config_map)
     }
 
-    // [impl->swdd~config-renderer-renders-workload-configuration~1]
+    // [impl->swdd~config-renderer-renders-workload-configuration~2]
     fn render_workload_fields(
         &self,
         workload_name: &str,
@@ -124,6 +127,8 @@ impl ConfigRenderer {
             .render_template(&workload.agent, &wl_config_map)
             .map_err(|err| ConfigRenderError::Field("agent".to_owned(), err.to_string()))?;
 
+        let rendered_files = self.render_files_field(&workload.files, wl_config_map)?;
+
         Ok(WorkloadSpec {
             instance_name: WorkloadInstanceName::builder()
                 .workload_name(workload_name)
@@ -135,9 +140,75 @@ impl ConfigRenderer {
             tags: workload.tags.clone(),
             dependencies: workload.dependencies.clone(),
             restart_policy: workload.restart_policy.clone(),
-            files: workload.files.clone(),
+            files: rendered_files,
             control_interface_access: workload.control_interface_access.clone(),
         })
+    }
+
+    // [impl->swdd~config-renderer-renders-workload-configuration~2]
+    fn render_files_field(
+        &self,
+        files: &[File],
+        wl_config_map: &HashMap<&String, &ConfigItem>,
+    ) -> Result<Vec<File>, ConfigRenderError> {
+        let mut rendered_files = Vec::new();
+        for current_file in files {
+            let file_content = &current_file.file_content;
+            let mount_point = &current_file.mount_point;
+            match &file_content {
+                FileContent::Data(data) => {
+                    let rendered_file_content = self
+                        .template_engine
+                        .render_template(&data.data, &wl_config_map);
+
+                    if let Ok(rendered_content) = rendered_file_content {
+                        let rendered_file = File {
+                            mount_point: mount_point.clone(),
+                            file_content: FileContent::Data(Data {
+                                data: rendered_content,
+                            }),
+                        };
+
+                        rendered_files.push(rendered_file);
+                    } else {
+                        return Err(ConfigRenderError::Field(
+                            "files".to_string(),
+                            format!(
+                                "mount point '{}':'{}'",
+                                mount_point,
+                                rendered_file_content.unwrap_err()
+                            ),
+                        ));
+                    }
+                }
+                FileContent::BinaryData(bin_data) => {
+                    let rendered_file_content = self
+                        .template_engine
+                        .render_template(&bin_data.binary_data, &wl_config_map);
+
+                    if let Ok(rendered_content) = rendered_file_content {
+                        let rendered_file = File {
+                            mount_point: mount_point.clone(),
+                            file_content: FileContent::BinaryData(BinaryData {
+                                binary_data: rendered_content,
+                            }),
+                        };
+
+                        rendered_files.push(rendered_file);
+                    } else {
+                        return Err(ConfigRenderError::Field(
+                            "files".to_string(),
+                            format!(
+                                "mount point '{}':'{}'",
+                                mount_point,
+                                rendered_file_content.unwrap_err()
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+        Ok(rendered_files)
     }
 }
 
@@ -167,16 +238,34 @@ mod tests {
 
     use common::objects::{
         generate_test_configs, generate_test_stored_workload_spec_with_config,
-        generate_test_workload_spec_with_runtime_config,
+        generate_test_stored_workload_spec_with_config_files,
+        generate_test_workload_spec_with_runtime_config, BinaryData, Data, File, FileContent,
     };
 
     const WORKLOAD_NAME_1: &str = "workload_1";
     const AGENT_A: &str = "agent_A";
     const RUNTIME: &str = "runtime";
 
-    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    fn generate_test_templated_config_files() -> Vec<File> {
+        vec![
+            File {
+                mount_point: "/file.json".to_string(),
+                file_content: FileContent::Data(Data {
+                    data: "{{ref1.config_file}}".into(),
+                }),
+            },
+            File {
+                mount_point: "/binary_file".to_string(),
+                file_content: FileContent::BinaryData(BinaryData {
+                    binary_data: "{{ref1.binary_file}}".into(),
+                }),
+            },
+        ]
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
-    fn utest_render_workloads_render_required_fields_successfully() {
+    fn utest_render_workloads_render_agent_and_runtime_config_fields_successfully() {
         let templated_runtime_config =
             "some_value_1: {{ref1.values.value_1}}\nsome_value_2: {{ref1.values.value_2.0}}";
         let templated_agent_name = "{{ref1.agent_name}}";
@@ -208,7 +297,83 @@ mod tests {
         );
     }
 
-    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
+    #[test]
+    fn utest_render_workloads_render_files_fields_successfully() {
+        let stored_workload = generate_test_stored_workload_spec_with_config_files(
+            AGENT_A,
+            RUNTIME,
+            "some runtime config",
+            generate_test_templated_config_files(),
+        );
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = generate_test_configs();
+        let renderer = ConfigRenderer::default();
+
+        let expected_workload_spec = generate_test_workload_spec_with_runtime_config(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+            "some runtime config".to_owned(),
+        );
+
+        let result = renderer.render_workloads(&workloads, &configs);
+
+        assert_eq!(
+            Ok(RenderedWorkloads::from([(
+                WORKLOAD_NAME_1.to_owned(),
+                expected_workload_spec
+            )])),
+            result
+        );
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
+    #[test]
+    fn utest_render_workloads_render_files_fields_text_file_render_error() {
+        let stored_workload = generate_test_stored_workload_spec_with_config_files(
+            AGENT_A,
+            RUNTIME,
+            "some runtime config",
+            vec![File {
+                mount_point: "/file.json".to_string(),
+                file_content: FileContent::Data(Data {
+                    data: "{{invalid_ref.file_content}}".into(),
+                }),
+            }],
+        );
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = generate_test_configs();
+        let renderer = ConfigRenderer::default();
+
+        assert!(renderer.render_workloads(&workloads, &configs).is_err());
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
+    #[test]
+    fn utest_render_workloads_render_files_fields_binary_file_render_error() {
+        let stored_workload = generate_test_stored_workload_spec_with_config_files(
+            AGENT_A,
+            RUNTIME,
+            "some runtime config",
+            vec![File {
+                mount_point: "/binary_file".to_string(),
+                file_content: FileContent::BinaryData(BinaryData {
+                    binary_data: "{{invalid_ref.binary_data}}".into(),
+                }),
+            }],
+        );
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = generate_test_configs();
+        let renderer = ConfigRenderer::default();
+
+        assert!(renderer.render_workloads(&workloads, &configs).is_err());
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_fails_field_uses_config_key_instead_of_alias() {
         let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
@@ -225,7 +390,7 @@ mod tests {
         assert!(renderer.render_workloads(&workloads, &configs).is_err());
     }
 
-    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_not_rendering_workloads_with_no_referenced_configs() {
         let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
@@ -260,7 +425,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_fails_workload_references_not_existing_config_key() {
         let templated_runtime_config = "config_1: {{ref1.values.value_1}}";
@@ -283,7 +448,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_fails_workload_references_unused_not_existing_config_key() {
         let mut stored_workload =
@@ -304,7 +469,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_fails_runtime_config_contains_non_existing_config() {
         let templated_runtime_config = "config_1: {{config_1.values.not_existing_key}}";
@@ -326,7 +491,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_fails_agent_contains_non_existing_config() {
         let stored_workload = generate_test_stored_workload_spec_with_config(
@@ -347,7 +512,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_fails_workload_references_empty_configs() {
         let templated_runtime_config = "config_1: {{config_1.values.value_1}}";

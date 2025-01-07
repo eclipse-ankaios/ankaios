@@ -212,6 +212,36 @@ pub fn generate_test_stored_workload_spec_with_config(
 }
 
 #[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_stored_workload_spec_with_config_files(
+    agent: impl Into<String>,
+    runtime_name: impl Into<String>,
+    runtime_config: impl Into<String>,
+    files: Vec<File>,
+) -> crate::objects::StoredWorkloadSpec {
+    StoredWorkloadSpec {
+        agent: agent.into(),
+        dependencies: HashMap::from([
+            (String::from("workload_A"), AddCondition::AddCondRunning),
+            (String::from("workload_C"), AddCondition::AddCondSucceeded),
+        ]),
+        restart_policy: RestartPolicy::Always,
+        runtime: runtime_name.into(),
+        tags: vec![Tag {
+            key: "key".into(),
+            value: "value".into(),
+        }],
+        runtime_config: runtime_config.into(),
+        control_interface_access: Default::default(),
+        configs: [
+            ("ref1".into(), "config_1".into()),
+            ("ref2".into(), "config_2".into()),
+        ]
+        .into(),
+        files,
+    }
+}
+
+#[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_stored_workload_spec(
     agent: impl Into<String>,
     runtime_name: impl Into<String>,

@@ -39,6 +39,7 @@ mod stored_workload_spec;
 #[cfg(any(feature = "test_utils", test))]
 pub use stored_workload_spec::{
     generate_test_stored_workload_spec, generate_test_stored_workload_spec_with_config,
+    generate_test_stored_workload_spec_with_config_files,
 };
 
 pub use stored_workload_spec::{StoredWorkloadSpec, STR_RE_CONFIG_REFERENCES};
