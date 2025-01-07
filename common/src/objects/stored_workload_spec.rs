@@ -21,9 +21,8 @@ use serde::{Deserialize, Serialize};
 use crate::helpers::serialize_to_ordered_map;
 
 use super::{
-    control_interface_access::ControlInterfaceAccess,
-    file::{BinaryData, Data, File, FileContent},
-    AddCondition, RestartPolicy, Tag, WorkloadInstanceName, WorkloadSpec,
+    control_interface_access::ControlInterfaceAccess, file::File, AddCondition, RestartPolicy, Tag,
+    WorkloadInstanceName, WorkloadSpec,
 };
 
 pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
@@ -208,20 +207,7 @@ pub fn generate_test_stored_workload_spec_with_config(
             ("ref2".into(), "config_2".into()),
         ]
         .into(),
-        files: vec![
-            File {
-                mount_point: "/file.json".to_string(),
-                file_content: FileContent::Data(Data {
-                    data: "text data".into(),
-                }),
-            },
-            File {
-                mount_point: "/binary_file".to_string(),
-                file_content: FileContent::BinaryData(BinaryData {
-                    binary_data: "base64_data".into(),
-                }),
-            },
-        ],
+        files: super::generate_test_config_files(),
     }
 }
 

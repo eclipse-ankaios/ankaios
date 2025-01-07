@@ -49,8 +49,8 @@ impl TryFrom<ank_base::File> for File {
             mount_point: value.mount_point,
             file_content: match value.file_content {
                 Some(ank_base::file::FileContent::Data(data)) => FileContent::Data(Data { data }),
-                Some(ank_base::file::FileContent::BinaryData(data)) => {
-                    FileContent::BinaryData(BinaryData { binary_data: data })
+                Some(ank_base::file::FileContent::BinaryData(binary_data)) => {
+                    FileContent::BinaryData(BinaryData { binary_data })
                 }
                 None => return Err("Missing field 'fileContent'".to_string()),
             },
@@ -70,4 +70,22 @@ impl From<File> for ank_base::File {
             },
         }
     }
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_config_files() -> Vec<File> {
+    vec![
+        File {
+            mount_point: "/file.json".to_string(),
+            file_content: FileContent::Data(Data {
+                data: "text data".into(),
+            }),
+        },
+        File {
+            mount_point: "/binary_file".to_string(),
+            file_content: FileContent::BinaryData(BinaryData {
+                binary_data: "base64_data".into(),
+            }),
+        },
+    ]
 }

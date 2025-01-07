@@ -20,7 +20,7 @@ use crate::helpers::serialize_to_ordered_map;
 use crate::objects::Tag;
 
 use super::control_interface_access::ControlInterfaceAccess;
-use super::file::{BinaryData, Data, File, FileContent};
+use super::file::File;
 use super::ExecutionState;
 use super::WorkloadInstanceName;
 
@@ -316,20 +316,7 @@ pub fn generate_test_workload_spec_with_runtime_config(
         }],
         runtime_config,
         control_interface_access: Default::default(),
-        files: vec![
-            File {
-                mount_point: "/file.json".to_string(),
-                file_content: FileContent::Data(Data {
-                    data: "text data".into(),
-                }),
-            },
-            File {
-                mount_point: "/binary_file".to_string(),
-                file_content: FileContent::BinaryData(BinaryData {
-                    binary_data: "base64_data".into(),
-                }),
-            },
-        ],
+        files: super::generate_test_config_files(),
     }
 }
 
