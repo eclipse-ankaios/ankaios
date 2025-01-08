@@ -348,7 +348,11 @@ mod tests {
         let configs = generate_test_configs();
         let renderer = ConfigRenderer::default();
 
-        assert!(renderer.render_workloads(&workloads, &configs).is_err());
+        let result = renderer.render_workloads(&workloads, &configs);
+        assert!(result.is_err());
+        assert!(
+            matches!(result.unwrap_err(), ConfigRenderError::Field(field, _) if field == "files")
+        );
     }
 
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
