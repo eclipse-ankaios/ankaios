@@ -1108,13 +1108,17 @@ Needs:
 ### CliTable allows creation of different table output formats
 
 #### CliTable provides default table output
-`swdd~cli-table-provides-default-table-output~1`
+`swdd~cli-table-provides-default-table-output~2`
 
 Status: approved
 
 The CliTable shall provide a function to create a table output with the following table layout:
 * table style blank
 * no padding on the left and right side of the table
+* rows truncated to terminal width if row length is greater than terminal width
+
+Comments:
+Truncating includes the table header.
 
 Tags:
 - CliTable
