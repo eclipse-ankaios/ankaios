@@ -77,7 +77,7 @@ impl AccessRightsRule {
                 state_rule.filter_mask.iter().try_for_each(|filter| {
                     if filter.is_empty() {
                         return Err(
-                            "Empty filter masks are not allowed in access rights rules".to_string()
+                            "Empty filter masks are not allowed in Control Interface access rules".to_string()
                         );
                     }
                     Ok(())
