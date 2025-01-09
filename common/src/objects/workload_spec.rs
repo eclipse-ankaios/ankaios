@@ -316,7 +316,7 @@ pub fn generate_test_workload_spec_with_runtime_config(
         }],
         runtime_config,
         control_interface_access: Default::default(),
-        files: super::generate_test_config_files(),
+        files: Default::default(),
     }
 }
 
@@ -332,6 +332,22 @@ pub fn generate_test_workload_spec_with_control_interface_access(
         runtime_name.to_owned(),
     );
     workload_spec.control_interface_access = generate_test_control_interface_access();
+    workload_spec
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_spec_with_rendered_config_files(
+    agent_name: String,
+    workload_name: String,
+    runtime_name: String,
+    files: Vec<File>,
+) -> WorkloadSpec {
+    let mut workload_spec = generate_test_workload_spec_with_param(
+        agent_name.to_owned(),
+        workload_name.to_owned(),
+        runtime_name.to_owned(),
+    );
+    workload_spec.files = files;
     workload_spec
 }
 

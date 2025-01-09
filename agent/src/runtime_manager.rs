@@ -597,6 +597,7 @@ mod tests {
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
     use crate::workload_state::WorkloadStateReceiver;
     use ank_base::response::ResponseContent;
+    use api::ank_base::Files;
     use common::objects::{
         self, generate_test_control_interface_access,
         generate_test_workload_spec_with_control_interface_access,
@@ -605,7 +606,7 @@ mod tests {
     };
     use common::test_utils::{
         self, generate_test_complete_state, generate_test_deleted_workload,
-        generate_test_deleted_workload_with_dependencies, generate_test_proto_config_files,
+        generate_test_deleted_workload_with_dependencies,
     };
     use common::to_server_interface::ToServerReceiver;
     use mockall::{predicate, Sequence};
@@ -2074,7 +2075,7 @@ mod tests {
                                 control_interface_access: None,
                                 configs: Some(ank_base::ConfigMappings {
                                     configs: Default::default()}),
-                                files: Some(generate_test_proto_config_files()),
+                                files: Some(Files::default()),
                             })];
         let mut complete_state = test_utils::generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {

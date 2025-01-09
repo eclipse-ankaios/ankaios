@@ -61,6 +61,7 @@ pub use workload_spec::{
     generate_test_runtime_config, generate_test_workload_spec,
     generate_test_workload_spec_with_control_interface_access,
     generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
+    generate_test_workload_spec_with_rendered_config_files,
     generate_test_workload_spec_with_runtime_config,
 };
 pub use workload_spec::{STR_RE_AGENT, STR_RE_WORKLOAD};
@@ -95,5 +96,5 @@ pub use config::ConfigItem;
 
 mod file;
 #[cfg(any(feature = "test_utils", test))]
-pub use file::generate_test_config_files;
+pub use file::generate_test_rendered_config_files;
 pub use file::{BinaryData, Data, File, FileContent};

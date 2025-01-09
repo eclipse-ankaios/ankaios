@@ -207,7 +207,7 @@ pub fn generate_test_stored_workload_spec_with_config(
             ("ref2".into(), "config_2".into()),
         ]
         .into(),
-        files: super::generate_test_config_files(),
+        files: vec![],
     }
 }
 
@@ -215,30 +215,11 @@ pub fn generate_test_stored_workload_spec_with_config(
 pub fn generate_test_stored_workload_spec_with_config_files(
     agent: impl Into<String>,
     runtime_name: impl Into<String>,
-    runtime_config: impl Into<String>,
     files: Vec<File>,
 ) -> crate::objects::StoredWorkloadSpec {
-    StoredWorkloadSpec {
-        agent: agent.into(),
-        dependencies: HashMap::from([
-            (String::from("workload_A"), AddCondition::AddCondRunning),
-            (String::from("workload_C"), AddCondition::AddCondSucceeded),
-        ]),
-        restart_policy: RestartPolicy::Always,
-        runtime: runtime_name.into(),
-        tags: vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }],
-        runtime_config: runtime_config.into(),
-        control_interface_access: Default::default(),
-        configs: [
-            ("ref1".into(), "config_1".into()),
-            ("ref2".into(), "config_2".into()),
-        ]
-        .into(),
-        files,
-    }
+    let mut stored_spec = generate_test_stored_workload_spec(agent, runtime_name);
+    stored_spec.files = files;
+    stored_spec
 }
 
 #[cfg(any(feature = "test_utils", test))]

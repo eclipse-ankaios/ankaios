@@ -18,9 +18,9 @@ use api::ank_base::{self, ConfigMappings, Dependencies, Tags, WorkloadMap};
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    generate_test_runtime_config, generate_test_stored_workload_spec_with_config, ConfigItem,
-    DeleteCondition, DeletedWorkload, State, StoredWorkloadSpec, WorkloadInstanceName,
-    WorkloadSpec,
+    generate_test_rendered_config_files, generate_test_runtime_config,
+    generate_test_stored_workload_spec_with_config, ConfigItem, DeleteCondition, DeletedWorkload,
+    State, StoredWorkloadSpec, WorkloadInstanceName, WorkloadSpec,
 };
 
 const RUNTIME_NAME: &str = "runtime";
@@ -118,17 +118,19 @@ pub fn generate_test_state() -> State {
 
     let mut ankaios_workloads = HashMap::new();
 
-    let workload_1 = generate_test_stored_workload_spec_with_config(
+    let mut workload_1 = generate_test_stored_workload_spec_with_config(
         AGENT_NAME.to_owned(),
         RUNTIME_NAME.to_owned(),
         generate_test_runtime_config(),
     );
+    workload_1.files = generate_test_rendered_config_files();
 
-    let workload_2 = generate_test_stored_workload_spec_with_config(
+    let mut workload_2 = generate_test_stored_workload_spec_with_config(
         AGENT_NAME.to_owned(),
         RUNTIME_NAME.to_owned(),
         generate_test_runtime_config(),
     );
+    workload_2.files = generate_test_rendered_config_files();
 
     ankaios_workloads.insert(workload_name_1, workload_1);
     ankaios_workloads.insert(workload_name_2, workload_2);

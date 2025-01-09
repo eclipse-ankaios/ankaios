@@ -289,7 +289,8 @@ impl Object {
 mod tests {
     use crate::{
         objects::{
-            generate_test_agent_map_from_specs, generate_test_workload_spec,
+            generate_test_agent_map_from_specs, generate_test_rendered_config_files,
+            generate_test_workload_spec_with_rendered_config_files,
             generate_test_workload_states_map_with_data, CompleteState, ExecutionState, State,
         },
         test_utils::generate_test_state_from_workloads,
@@ -299,7 +300,14 @@ mod tests {
     use super::Object;
     #[test]
     fn utest_object_from_state() {
-        let state: State = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
+        let state: State = generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_rendered_config_files(
+                "agent".to_string(),
+                "name".to_string(),
+                "runtime".to_string(),
+                generate_test_rendered_config_files(),
+            ),
+        ]);
 
         let expected = Object {
             data: object::generate_test_state().into(),
@@ -315,14 +323,26 @@ mod tests {
         };
 
         let actual: State = object.try_into().unwrap();
-        let expected = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
+        let expected = generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_rendered_config_files(
+                "agent".to_string(),
+                "name".to_string(),
+                "runtime".to_string(),
+                generate_test_rendered_config_files(),
+            ),
+        ]);
 
         assert_eq!(actual, expected)
     }
 
     #[test]
     fn utest_object_from_complete_state() {
-        let wl_spec = generate_test_workload_spec();
+        let wl_spec = generate_test_workload_spec_with_rendered_config_files(
+            "agent".to_string(),
+            "name".to_string(),
+            "runtime".to_string(),
+            generate_test_rendered_config_files(),
+        );
         let specs = vec![wl_spec];
         let agent_map = generate_test_agent_map_from_specs(&specs);
         let state = generate_test_state_from_workloads(specs);
@@ -351,7 +371,12 @@ mod tests {
         let object = Object {
             data: object::generate_test_complete_state().into(),
         };
-        let wl_spec = generate_test_workload_spec();
+        let wl_spec = generate_test_workload_spec_with_rendered_config_files(
+            "agent".to_string(),
+            "name".to_string(),
+            "runtime".to_string(),
+            generate_test_rendered_config_files(),
+        );
         let specs = vec![wl_spec];
         let agent_map = generate_test_agent_map_from_specs(&specs);
 

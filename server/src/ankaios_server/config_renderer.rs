@@ -237,8 +237,10 @@ mod tests {
     use std::collections::HashMap;
 
     use common::objects::{
-        generate_test_configs, generate_test_stored_workload_spec_with_config,
+        generate_test_configs, generate_test_rendered_config_files,
+        generate_test_stored_workload_spec_with_config,
         generate_test_stored_workload_spec_with_config_files,
+        generate_test_workload_spec_with_rendered_config_files,
         generate_test_workload_spec_with_runtime_config, BinaryData, Data, File, FileContent,
     };
 
@@ -303,7 +305,6 @@ mod tests {
         let stored_workload = generate_test_stored_workload_spec_with_config_files(
             AGENT_A,
             RUNTIME,
-            "some runtime config",
             generate_test_templated_config_files(),
         );
 
@@ -311,11 +312,11 @@ mod tests {
         let configs = generate_test_configs();
         let renderer = ConfigRenderer::default();
 
-        let expected_workload_spec = generate_test_workload_spec_with_runtime_config(
+        let expected_workload_spec = generate_test_workload_spec_with_rendered_config_files(
             AGENT_A.to_owned(),
             WORKLOAD_NAME_1.to_owned(),
             RUNTIME.to_owned(),
-            "some runtime config".to_owned(),
+            generate_test_rendered_config_files(),
         );
 
         let result = renderer.render_workloads(&workloads, &configs);
@@ -335,7 +336,6 @@ mod tests {
         let stored_workload = generate_test_stored_workload_spec_with_config_files(
             AGENT_A,
             RUNTIME,
-            "some runtime config",
             vec![File {
                 mount_point: "/file.json".to_string(),
                 file_content: FileContent::Data(Data {
@@ -361,7 +361,6 @@ mod tests {
         let stored_workload = generate_test_stored_workload_spec_with_config_files(
             AGENT_A,
             RUNTIME,
-            "some runtime config",
             vec![File {
                 mount_point: "/binary_file".to_string(),
                 file_content: FileContent::BinaryData(BinaryData {

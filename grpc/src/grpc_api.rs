@@ -300,7 +300,10 @@ mod tests {
 
     use api::ank_base::{self, Dependencies};
     use common::{
-        objects::{generate_test_workload_spec, ConfigHash, CpuUsage, FreeMemory},
+        objects::{
+            generate_test_rendered_config_files, generate_test_workload_spec, ConfigHash, CpuUsage,
+            FreeMemory,
+        },
         test_utils::{self, generate_test_deleted_workload},
     };
 
@@ -582,7 +585,8 @@ mod tests {
 
     #[test]
     fn utest_converts_to_proto_added_workload() {
-        let workload_spec = generate_test_workload_spec();
+        let mut workload_spec = generate_test_workload_spec();
+        workload_spec.files = generate_test_rendered_config_files();
 
         let proto_workload = AddedWorkload {
             instance_name: Some(ank_base::WorkloadInstanceName {
@@ -647,20 +651,7 @@ mod tests {
             tags: vec![],
             runtime_config: String::from("some config"),
             control_interface_access: Default::default(),
-            files: vec![
-                ankaios::File {
-                    mount_point: "/file.json".to_string(),
-                    file_content: ankaios::FileContent::Data(ankaios::Data {
-                        data: "text data".into(),
-                    }),
-                },
-                ankaios::File {
-                    mount_point: "/binary_file".to_string(),
-                    file_content: ankaios::FileContent::BinaryData(ankaios::BinaryData {
-                        binary_data: "base64_data".into(),
-                    }),
-                },
-            ],
+            files: generate_test_rendered_config_files(),
         };
 
         let proto_workload = AddedWorkload {
@@ -727,18 +718,7 @@ mod tests {
             runtime_config: String::from("some config"),
             tags: vec![],
             control_interface_access: Default::default(),
-            files: vec![
-                ank_base::File {
-                    mount_point: "/file.json".into(),
-                    file_content: Some(ank_base::file::FileContent::Data("text data".into())),
-                },
-                ank_base::File {
-                    mount_point: "/binary_file".into(),
-                    file_content: Some(ank_base::file::FileContent::BinaryData(
-                        "base64_data".into(),
-                    )),
-                },
-            ],
+            files: Default::default(),
         };
 
         assert!(ankaios::WorkloadSpec::try_from(proto_workload).is_err());

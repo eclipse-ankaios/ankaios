@@ -73,7 +73,7 @@ impl From<File> for ank_base::File {
 }
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_config_files() -> Vec<File> {
+pub fn generate_test_rendered_config_files() -> Vec<File> {
     vec![
         File {
             mount_point: "/file.json".to_string(),
