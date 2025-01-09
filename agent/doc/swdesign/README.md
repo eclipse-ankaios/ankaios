@@ -3160,7 +3160,7 @@ Status: approved
 When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
-An allow rule matches, if it is the same or a prefix of the request's update/field mask. Consequently, when the allow rule consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
+A deny rule matches, if the request's update/field mask is the same or a prefix of the rule. Consequently, when the allow rule consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
 
 Tags:
 - Authorizer
