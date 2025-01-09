@@ -45,16 +45,16 @@ No rules
 
     Then the controller workload has no access to Control Interface
 
-Allow write rule with empty string allows all writes
-    Given the controller workload is allowed to write on ${EMPTY}
+Allow write rule with wildcard string allows all writes
+    Given the controller workload is allowed to write on *
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags
 
     Then the controller workload requests shall all succeed
 
-Allow write rule with empty string denies all reads
-    Given the controller workload is allowed to write on ${EMPTY}
+Allow write rule with wildcard string denies all reads
+    Given the controller workload is allowed to write on *
 
     When the controller workload gets the state
     And the controller workload gets the state of fields desiredState.workloads.simple_existing
@@ -62,16 +62,16 @@ Allow write rule with empty string denies all reads
 
     Then the controller workload requests shall all fail
 
-Allow read rule with empty string denies all writes
-    Given the controller workload is allowed to read on ${EMPTY}
+Allow read rule with wildcard string denies all writes
+    Given the controller workload is allowed to read on *
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags
 
     Then the controller workload requests shall all fail
 
-Allow read rule with empty string allows all reads
-    Given the controller workload is allowed to read on ${EMPTY}
+Allow read rule with wildcard string allows all reads
+    Given the controller workload is allowed to read on *
 
     When the controller workload gets the state
     And the controller workload gets the state of fields desiredState.workloads.simple_existing
@@ -79,8 +79,8 @@ Allow read rule with empty string allows all reads
 
     Then the controller workload requests shall all succeed
 
-Allow read write rule with empty string allows allow read and writes
-    Given the controller workload is allowed to read and write on ${EMPTY}
+Allow read write rule with wildcard string allows allow read and writes
+    Given the controller workload is allowed to read and write on *
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags

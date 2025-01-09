@@ -23,6 +23,15 @@ pub struct ControlInterfaceAccess {
     pub deny_rules: Vec<AccessRightsRule>,
 }
 
+impl ControlInterfaceAccess {
+    pub fn verify_format(&self) -> Result<(), String> {
+        self.allow_rules
+            .iter()
+            .chain(self.deny_rules.iter())
+            .try_for_each(|rule| rule.verify_format())
+    }
+}
+
 impl TryFrom<api::ank_base::ControlInterfaceAccess> for ControlInterfaceAccess {
     type Error = String;
     fn try_from(value: api::ank_base::ControlInterfaceAccess) -> Result<Self, Self::Error> {
@@ -59,6 +68,24 @@ fn convert_rule_vec(
 #[serde(tag = "type")]
 pub enum AccessRightsRule {
     StateRule(StateRule),
+}
+
+impl AccessRightsRule {
+    fn verify_format(&self) -> Result<(), String> {
+        match self {
+            AccessRightsRule::StateRule(state_rule) => {
+                state_rule.filter_mask.iter().try_for_each(|filter| {
+                    if filter.is_empty() {
+                        return Err(
+                            "Empty filter masks are not allowed in access rights rules".to_string()
+                        );
+                    }
+                    Ok(())
+                })?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<api::ank_base::AccessRightsRule> for AccessRightsRule {

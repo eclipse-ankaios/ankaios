@@ -63,6 +63,7 @@ impl WorkloadSpec {
     pub fn verify_fields_format(workload_spec: &WorkloadSpec) -> Result<(), String> {
         Self::verify_workload_name_format(workload_spec.instance_name.workload_name())?;
         Self::verify_agent_name_format(workload_spec.instance_name.agent_name())?;
+        workload_spec.control_interface_access.verify_format()?;
         Ok(())
     }
 
