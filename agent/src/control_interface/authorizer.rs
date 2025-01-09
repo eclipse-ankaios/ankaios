@@ -77,7 +77,7 @@ impl Authorizer {
                     } else if let (true, reason) = self.allow_read_write_state_rule.matches(&path) {
                         reason
                     } else {
-                        log::debug!(
+                        log::info!(
                             "Denying field mask '{}' of request '{}' as no rule matches",
                             path_string,
                             request.request_id
@@ -101,7 +101,7 @@ impl Authorizer {
                         return true;
                     };
 
-                    log::debug!(
+                    log::info!(
                         "Deny field mask '{}' of request '{}',also allowed by '{}', as denied by '{}'",
                         path_string,
                         request.request_id,
@@ -128,7 +128,7 @@ impl Authorizer {
                     } else if let (true, reason) = self.allow_read_write_state_rule.matches(&path) {
                         reason
                     } else {
-                        log::debug!(
+                        log::info!(
                             "Deny update mask '{}' of request '{}' as no rule matches",
                             path_string,
                             request.request_id
@@ -152,7 +152,7 @@ impl Authorizer {
                         return true;
                     };
 
-                    log::debug!(
+                    log::info!(
                         "Deny update mask '{}' of request '{}', also allowed by '{}', as denied by '{}'",
                         path_string,
                         request.request_id,
@@ -328,6 +328,7 @@ mod test {
     #[test]
     fn utest_allow_empty_request() {
         let authorizer = create_authorizer(&[RuleType::AllowReadWrite]);
+
         let request = Request {
             request_id: "".into(),
             request_content: common::commands::RequestContent::CompleteStateRequest(
