@@ -33,6 +33,10 @@ pub trait PathPattern {
             return (false, String::new());
         }
 
+        if self.sections().is_empty() {
+            return (false, "Empty filter masks in rules never match.".into());
+        }
+
         for (a, b) in self.sections().iter().zip(other.sections.iter()) {
             if !a.matches(b) {
                 return (false, String::new());
@@ -242,11 +246,11 @@ mod tests {
 
     // [utest->swdd~agent-authorizing-matching-allow-rules~1]
     #[test]
-    fn utest_empty_allow_path_pattern() {
+    fn utest_empty_allow_path_pattern_does_not_match() {
         let p = AllowPathPattern::from("");
 
-        assert!(p.matches(&"".into()).0);
-        assert!(p.matches(&"some.pre".into()).0);
+        assert!(!p.matches(&"".into()).0);
+        assert!(!p.matches(&"some.pre".into()).0);
     }
 
     // [utest->swdd~agent-authorizing-matching-deny-rules~1]
@@ -300,11 +304,11 @@ mod tests {
 
     // [utest->swdd~agent-authorizing-matching-deny-rules~1]
     #[test]
-    fn utest_empty_deny_path_pattern() {
+    fn utest_empty_deny_path_pattern_does_not_match() {
         let p = DenyPathPattern::from("");
 
-        assert!(p.matches(&"".into()).0);
-        assert!(p.matches(&"some.pre".into()).0);
+        assert!(!p.matches(&"".into()).0);
+        assert!(!p.matches(&"some.pre".into()).0);
     }
 
     #[test]
