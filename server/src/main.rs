@@ -14,6 +14,7 @@
 
 mod ankaios_server;
 mod cli;
+mod server_config;
 
 use common::objects::CompleteState;
 use std::fs;
@@ -23,6 +24,7 @@ use common::objects::State;
 use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
+use server_config::ServerConfig;
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 
@@ -30,17 +32,30 @@ use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
+    // todo: add the config file parser with the lowest priority
+    let mut server_config =
+        ServerConfig::from_file("/workspaces/ankaios/server/config/ank-server.conf")
+            .unwrap_or_default();
+    println!("BEFORE: {:?}", server_config);
+
     let args = cli::parse();
+
+    server_config.update_with_args(&args);
+    println!("AFTER: {:?}", server_config);
 
     log::debug!(
         "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup config path: '{}'",
-        args.addr,
-        args.path
+        server_config
+            .address
+            .clone()
+            .unwrap_or("[no address provided]".parse().unwrap()),
+        server_config
+            .startup_config
             .clone()
             .unwrap_or("[no config file provided]".to_string()),
     );
 
-    let startup_state = match args.path {
+    let startup_state = match server_config.startup_config {
         Some(config_path) => {
             let data =
                 fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");
@@ -64,29 +79,31 @@ async fn main() {
     let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
     let (to_agents, agents_receiver) = create_from_server_channel(common::CHANNEL_CAPACITY);
 
-    if let Err(err_message) = TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem) {
-        log::warn!("{}", err_message);
-    }
+    // if let Err(err_message) =
+    //     TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem)
+    // {
+    //     log::warn!("{}", err_message);
+    // }
 
-    // [impl->swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
-    // [impl->swdd~server-provides-file-paths-to-communication-middleware~1]
-    // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    let tls_config = TLSConfig::new(args.insecure, args.ca_pem, args.crt_pem, args.key_pem);
+    // // [impl->swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+    // // [impl->swdd~server-provides-file-paths-to-communication-middleware~1]
+    // // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+    // let tls_config = TLSConfig::new(args.insecure, args.ca_pem, args.crt_pem, args.key_pem);
 
-    let mut communications_server = GRPCCommunicationsServer::new(
-        to_server.clone(),
-        // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-        tls_config.unwrap_or_exit("Missing certificates files"),
-    );
-    let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
+    // let mut communications_server = GRPCCommunicationsServer::new(
+    //     to_server.clone(),
+    //     // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+    //     tls_config.unwrap_or_exit("Missing certificates files"),
+    // );
+    // let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
 
-    tokio::select! {
-        // [impl->swdd~server-default-communication-grpc~1]
-        communication_result = communications_server.start(agents_receiver, args.addr) => {
-            communication_result.unwrap_or_exit("server error")
-        }
-        server_result = server.start(startup_state) => {
-            server_result.unwrap_or_exit("server error")
-        }
-    }
+    // tokio::select! {
+    //     // [impl->swdd~server-default-communication-grpc~1]
+    //     communication_result = communications_server.start(agents_receiver, args.addr) => {
+    //         communication_result.unwrap_or_exit("server error")
+    //     }
+    //     server_result = server.start(startup_state) => {
+    //         server_result.unwrap_or_exit("server error")
+    //     }
+    // }
 }

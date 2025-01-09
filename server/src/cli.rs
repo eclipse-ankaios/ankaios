@@ -13,7 +13,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
-use common::DEFAULT_SOCKET_ADDRESS;
 use std::{env, net::SocketAddr};
 
 pub fn parse() -> Arguments {
@@ -26,21 +25,17 @@ pub fn parse() -> Arguments {
 #[clap( author="The Ankaios team",
         version=env!("CARGO_PKG_VERSION"),
         about="Ankaios - your friendly automotive workload orchestrator.\nWhat can the server do for you?")]
+// default values for the server are set in server-config.rs
 pub struct Arguments {
     #[clap(short = 'c', long = "startup-config")]
     /// The path to the startup config yaml.
     pub path: Option<String>,
-    #[clap(short = 'a', long = "address", default_value_t = DEFAULT_SOCKET_ADDRESS.parse().unwrap())]
-    /// The address, including the port, the server shall listen at.
-    pub addr: SocketAddr,
-    #[clap(
-        short = 'k',
-        long = "insecure",
-        env = "ANKSERVER_INSECURE",
-        default_value_t = false
-    )]
+    #[clap(required = false, short = 'a', long = "address")]
+    /// The address, including the port, the server shall listen at [default: 127.0.0.1:25551].
+    pub addr: Option<SocketAddr>,
+    #[clap(short = 'k', long = "insecure", env = "ANKSERVER_INSECURE")]
     /// Flag to disable TLS communication between Ankaios server, agent and ank CLI.
-    pub insecure: bool,
+    pub insecure: Option<bool>,
     #[clap(long = "ca_pem", env = "ANKSERVER_CA_PEM")]
     /// Path to server ca certificate pem file.
     pub ca_pem: Option<String>,
