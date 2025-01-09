@@ -17,8 +17,9 @@ use crate::workload::workload_control_loop::RetryCounter;
 use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
 use crate::BUFFER_SIZE;
 use common::objects::{WorkloadInstanceName, WorkloadSpec, WorkloadState};
-use std::path::PathBuf;
 use std::str::FromStr;
+
+use crate::{control_interface::ControlInterfacePath, workload::WorkloadConfigFilesPath};
 
 pub struct ControlLoopState<WorkloadId, StChecker>
 where
@@ -26,7 +27,8 @@ where
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     pub workload_spec: WorkloadSpec,
-    pub control_interface_path: Option<PathBuf>,
+    pub control_interface_path: Option<ControlInterfacePath>,
+    pub workload_config_files_path: Option<WorkloadConfigFilesPath>,
     pub workload_id: Option<WorkloadId>,
     pub state_checker: Option<StChecker>,
     pub to_agent_workload_state_sender: WorkloadStateSender,
@@ -59,7 +61,8 @@ where
 {
     workload_spec: Option<WorkloadSpec>,
     workload_id: Option<WorkloadId>,
-    control_interface_path: Option<PathBuf>,
+    control_interface_path: Option<ControlInterfacePath>,
+    workload_config_files_path: Option<WorkloadConfigFilesPath>,
     workload_state_sender: Option<WorkloadStateSender>,
     runtime: Option<Box<dyn RuntimeConnector<WorkloadId, StChecker>>>,
     workload_command_receiver: Option<WorkloadCommandReceiver>,
@@ -77,6 +80,7 @@ where
             workload_spec: None,
             workload_id: None,
             control_interface_path: None,
+            workload_config_files_path: None,
             workload_state_sender: None,
             runtime: None,
             workload_command_receiver: None,
@@ -95,8 +99,19 @@ where
         self
     }
 
-    pub fn control_interface_path(mut self, control_interface_path: Option<PathBuf>) -> Self {
+    pub fn control_interface_path(
+        mut self,
+        control_interface_path: Option<ControlInterfacePath>,
+    ) -> Self {
         self.control_interface_path = control_interface_path;
+        self
+    }
+
+    pub fn workload_config_files_path(
+        mut self,
+        workload_config_files_path: Option<WorkloadConfigFilesPath>,
+    ) -> Self {
+        self.workload_config_files_path = workload_config_files_path;
         self
     }
 
@@ -130,6 +145,7 @@ where
                 .workload_spec
                 .ok_or_else(|| "WorkloadSpec is not set".to_string())?,
             control_interface_path: self.control_interface_path,
+            workload_config_files_path: self.workload_config_files_path,
             workload_id: self.workload_id,
             state_checker: None,
             to_agent_workload_state_sender: self
@@ -163,6 +179,7 @@ where
 mod tests {
     use super::ControlLoopState;
     use crate::{
+        control_interface::ControlInterfacePath,
         runtime_connectors::test::{MockRuntimeConnector, StubStateChecker},
         workload::{
             workload_command_channel::WorkloadCommandSender, workload_control_loop::RetryCounter,
@@ -179,7 +196,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_control_loop_state_builder_build_success() {
-        let control_interface_path = Some("/some/path".into());
+        let control_interface_path = Some(ControlInterfacePath::new("/some/path".into()));
         let workload_spec = generate_test_workload_spec();
 
         let (workload_state_sender, mut workload_state_receiver) =
@@ -280,6 +297,7 @@ mod tests {
         let control_loop_state = ControlLoopState {
             workload_spec: workload_spec.clone(),
             control_interface_path: None,
+            workload_config_files_path: None,
             workload_id: None,
             state_checker: None,
             to_agent_workload_state_sender: workload_state_sender,

@@ -60,6 +60,11 @@ impl WorkloadSpec {
         !self.control_interface_access.allow_rules.is_empty()
     }
 
+    // [impl->swdd~common-workload-has-config-files~1]
+    pub fn has_config_files(&self) -> bool {
+        !self.files.is_empty()
+    }
+
     // [impl->swdd~common-workload-naming-convention~1]
     // [impl->swdd~common-agent-naming-convention~1]
     pub fn verify_fields_format(workload_spec: &WorkloadSpec) -> Result<(), String> {
@@ -638,5 +643,24 @@ mod tests {
                 super::MAX_CHARACTERS_WORKLOAD_NAME,
             ))
         );
+    }
+
+    // [utest->swdd~common-workload-has-config-files~1]
+    #[test]
+    fn utest_workload_has_config_files() {
+        let workload_spec = generate_test_workload_spec_with_rendered_config_files(
+            "agent".to_string(),
+            "name".to_string(),
+            "runtime".to_string(),
+            generate_test_rendered_config_files(),
+        );
+        assert!(workload_spec.has_config_files());
+    }
+
+    // [utest->swdd~common-workload-has-config-files~1]
+    #[test]
+    fn utest_workload_has_config_files_empty() {
+        let workload_spec = generate_test_workload_spec();
+        assert!(!workload_spec.has_config_files());
     }
 }

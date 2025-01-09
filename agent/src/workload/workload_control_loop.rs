@@ -12,13 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::control_interface::ControlInterfacePath;
 use crate::runtime_connectors::StateChecker;
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec};
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
-use std::path::PathBuf;
 use std::str::FromStr;
 
 #[cfg(not(test))]
@@ -126,7 +126,7 @@ impl WorkloadControlLoop {
                             control_loop_state = Self::update_workload_on_runtime(
                                 control_loop_state,
                                 runtime_workload_config,
-                                control_interface_path,
+                                control_interface_path.map(ControlInterfacePath::new),
                             )
                             .await;
 
@@ -333,7 +333,10 @@ impl WorkloadControlLoop {
             .create_workload(
                 control_loop_state.workload_spec.clone(),
                 control_loop_state.workload_id.clone(),
-                control_loop_state.control_interface_path.clone(),
+                control_loop_state
+                    .control_interface_path
+                    .clone()
+                    .map(|path| path.as_path_buf().to_owned()),
                 control_loop_state
                     .state_checker_workload_state_sender
                     .clone(),
@@ -429,7 +432,7 @@ impl WorkloadControlLoop {
     async fn update_workload_on_runtime<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_spec: Option<Box<WorkloadSpec>>,
-        control_interface_path: Option<PathBuf>,
+        control_interface_path: Option<ControlInterfacePath>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
@@ -599,7 +602,7 @@ mockall::mock! {
 
 #[cfg(test)]
 mod tests {
-    use super::WorkloadControlLoop;
+    use super::{ControlInterfacePath, WorkloadControlLoop};
     use std::time::Duration;
 
     use common::objects::{
@@ -1335,7 +1338,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx.clone())
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender)
@@ -1400,7 +1403,7 @@ mod tests {
 
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1447,7 +1450,7 @@ mod tests {
 
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1520,7 +1523,7 @@ mod tests {
 
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1588,7 +1591,7 @@ mod tests {
 
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1657,7 +1660,7 @@ mod tests {
 
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1735,7 +1738,7 @@ mod tests {
 
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -2053,7 +2056,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender.clone())
@@ -2113,7 +2116,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender.clone())
@@ -2164,7 +2167,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender.clone())
@@ -2217,7 +2220,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender.clone())
@@ -2267,7 +2270,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender)
@@ -2332,7 +2335,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender)
@@ -2397,7 +2400,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
-            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender)
