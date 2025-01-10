@@ -385,7 +385,6 @@ def check_if_mount_point_has_not_been_generated_for(agent_name, command_result):
     SHA_ENCODING_LEVEL = 0
 
     json_result = json.loads(command_result.stdout)
-    logger.debug(json_result)
 
     workloads_list = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME].keys())
     for idx, _ in enumerate(workloads_list):
