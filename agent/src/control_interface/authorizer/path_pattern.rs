@@ -33,6 +33,7 @@ pub trait PathPattern {
             return (false, String::new());
         }
 
+        // [impl->swdd~agent-authorizing-rules-without-segments-never-match~1]
         if self.sections().is_empty() {
             return (false, "Empty filter masks in rules never match.".into());
         }

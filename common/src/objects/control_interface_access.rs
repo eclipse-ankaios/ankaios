@@ -24,6 +24,7 @@ pub struct ControlInterfaceAccess {
 }
 
 impl ControlInterfaceAccess {
+    // [impl->swdd~common-access-rules-filter-mask-convention~1]
     pub fn verify_format(&self) -> Result<(), String> {
         self.allow_rules
             .iter()
@@ -71,6 +72,7 @@ pub enum AccessRightsRule {
 }
 
 impl AccessRightsRule {
+    // [impl->swdd~common-access-rules-filter-mask-convention~1]
     fn verify_format(&self) -> Result<(), String> {
         match self {
             AccessRightsRule::StateRule(state_rule) => {
