@@ -553,7 +553,7 @@ Status: approved
 
 The Control Interface Instance shall create the Control Interface pipes at the following path:
 
-    `<Agent run folder>/<Workload execution instance name>/`
+    `<Agent run folder>/<Workload name>.<runtime config hash>/control_interface`
 
 Rationale:
 The Ankaios Agent needs a unique, reproducible name to be able to make the mapping between a workload execution instance and a control interface pipes instance.
@@ -699,7 +699,7 @@ Needs:
 
 Status: approved
 
-When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
+When the RuntimeFacade gets a request to create a workload, the RuntimeFacade shall:
 * start the WorkloadControlLoop waiting for WorkloadCommands
 * create a new ControlInterface instance for the new workload if the workload has access rules configured
 * request the create of the workload by sending a create command to the WorkloadControlLoop
