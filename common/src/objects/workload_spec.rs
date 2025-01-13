@@ -562,6 +562,7 @@ mod tests {
 
     // [utest->swdd~common-workload-naming-convention~1]
     // [utest->swdd~common-agent-naming-convention~1]
+    // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_workload_verify_fields_format_success() {
         let compatible_workload_spec = generate_test_workload_spec();
