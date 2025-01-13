@@ -202,6 +202,24 @@ mod tests {
 
     // [utest->swdd~agent-authorizing-matching-allow-rules~1]
     #[test]
+    fn utest_allow_path_pattern_sections() {
+        let p = AllowPathPattern::from("some.pre.fix");
+
+        assert_eq!(&p.sections, p.sections());
+    }
+
+    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
+    #[test]
+    fn utest_deny_path_pattern_pre_checks_catch_shorter_paths() {
+        let p = AllowPathPattern::from("some.pre.fix");
+
+        assert!(!p.match_pre_checks(&"".into()));
+        assert!(!p.match_pre_checks(&"some".into()));
+        assert!(p.match_pre_checks(&"some.pre.fix.bla".into()));
+    }
+
+    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
+    #[test]
     fn utest_allow_path_pattern() {
         let p = AllowPathPattern::from("some.pre.fix");
 
@@ -245,13 +263,31 @@ mod tests {
         assert!(p.matches(&"some.pre.fix.test".into()).0);
     }
 
-    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
+    // [utest->swdd~agent-authorizing-rules-without-segments-never-match~1]
     #[test]
     fn utest_empty_allow_path_pattern_does_not_match() {
         let p = AllowPathPattern::from("");
 
         assert!(!p.matches(&"".into()).0);
         assert!(!p.matches(&"some.pre".into()).0);
+    }
+
+    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
+    #[test]
+    fn utest_deny_path_pattern_sections() {
+        let p = DenyPathPattern::from("some.pre.fix");
+
+        assert_eq!(&p.sections, p.sections());
+    }
+
+    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
+    #[test]
+    fn utest_deny_path_pattern_pre_checks_always_true() {
+        let p = DenyPathPattern::from("some.pre.fix");
+
+        assert!(p.match_pre_checks(&"".into()));
+        assert!(p.match_pre_checks(&"some".into()));
+        assert!(p.match_pre_checks(&"some.pre.fix.bla".into()));
     }
 
     // [utest->swdd~agent-authorizing-matching-deny-rules~1]
@@ -303,7 +339,7 @@ mod tests {
         assert!(p.matches(&"some.pre.fix.test".into()).0);
     }
 
-    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
+    // [utest->swdd~agent-authorizing-rules-without-segments-never-match~1]
     #[test]
     fn utest_empty_deny_path_pattern_does_not_match() {
         let p = DenyPathPattern::from("");
