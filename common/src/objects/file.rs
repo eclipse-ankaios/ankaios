@@ -26,7 +26,7 @@ pub struct File {
 #[serde(untagged)]
 pub enum FileContent {
     Data(Data),
-    BinaryData(BinaryData),
+    BinaryData(Base64Data),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -37,8 +37,8 @@ pub struct Data {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct BinaryData {
-    pub binary_data: String,
+pub struct Base64Data {
+    pub base64_data: String,
 }
 
 impl TryFrom<ank_base::File> for File {
@@ -50,7 +50,9 @@ impl TryFrom<ank_base::File> for File {
             file_content: match value.file_content {
                 Some(ank_base::file::FileContent::Data(data)) => FileContent::Data(Data { data }),
                 Some(ank_base::file::FileContent::BinaryData(binary_data)) => {
-                    FileContent::BinaryData(BinaryData { binary_data })
+                    FileContent::BinaryData(Base64Data {
+                        base64_data: binary_data,
+                    })
                 }
                 None => return Err("Missing field 'fileContent'".to_string()),
             },
@@ -65,7 +67,7 @@ impl From<File> for ank_base::File {
             file_content: match item.file_content {
                 FileContent::Data(data) => Some(ank_base::file::FileContent::Data(data.data)),
                 FileContent::BinaryData(data) => {
-                    Some(ank_base::file::FileContent::BinaryData(data.binary_data))
+                    Some(ank_base::file::FileContent::BinaryData(data.base64_data))
                 }
             },
         }
@@ -83,8 +85,8 @@ pub fn generate_test_rendered_config_files() -> Vec<File> {
         },
         File {
             mount_point: "/binary_file".to_string(),
-            file_content: FileContent::BinaryData(BinaryData {
-                binary_data: "base64_data".into(),
+            file_content: FileContent::BinaryData(Base64Data {
+                base64_data: "base64_data".into(),
             }),
         },
     ]

@@ -27,6 +27,7 @@ mod runtime_connectors;
 pub mod test_helper;
 mod workload_operation;
 
+mod config_files;
 mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;

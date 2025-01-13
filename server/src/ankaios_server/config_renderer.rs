@@ -15,7 +15,7 @@
 use std::{collections::HashMap, fmt};
 
 use common::objects::{
-    BinaryData, ConfigItem, Data, File, FileContent, StoredWorkloadSpec, WorkloadInstanceName,
+    Base64Data, ConfigItem, Data, File, FileContent, StoredWorkloadSpec, WorkloadInstanceName,
     WorkloadSpec,
 };
 use handlebars::Handlebars;
@@ -184,13 +184,13 @@ impl ConfigRenderer {
                 FileContent::BinaryData(bin_data) => {
                     let rendered_file_content = self
                         .template_engine
-                        .render_template(&bin_data.binary_data, &wl_config_map);
+                        .render_template(&bin_data.base64_data, &wl_config_map);
 
                     if let Ok(rendered_content) = rendered_file_content {
                         let rendered_file = File {
                             mount_point: mount_point.clone(),
-                            file_content: FileContent::BinaryData(BinaryData {
-                                binary_data: rendered_content,
+                            file_content: FileContent::BinaryData(Base64Data {
+                                base64_data: rendered_content,
                             }),
                         };
 
@@ -241,7 +241,7 @@ mod tests {
         generate_test_stored_workload_spec_with_config,
         generate_test_stored_workload_spec_with_config_files,
         generate_test_workload_spec_with_rendered_config_files,
-        generate_test_workload_spec_with_runtime_config, BinaryData, Data, File, FileContent,
+        generate_test_workload_spec_with_runtime_config, Base64Data, Data, File, FileContent,
     };
 
     const WORKLOAD_NAME_1: &str = "workload_1";
@@ -258,8 +258,8 @@ mod tests {
             },
             File {
                 mount_point: "/binary_file".to_string(),
-                file_content: FileContent::BinaryData(BinaryData {
-                    binary_data: "{{ref1.binary_file}}".into(),
+                file_content: FileContent::BinaryData(Base64Data {
+                    base64_data: "{{ref1.binary_file}}".into(),
                 }),
             },
         ]
@@ -363,8 +363,8 @@ mod tests {
             RUNTIME,
             vec![File {
                 mount_point: "/binary_file".to_string(),
-                file_content: FileContent::BinaryData(BinaryData {
-                    binary_data: "{{invalid_ref.binary_data}}".into(),
+                file_content: FileContent::BinaryData(Base64Data {
+                    base64_data: "{{invalid_ref.binary_data}}".into(),
                 }),
             }],
         );

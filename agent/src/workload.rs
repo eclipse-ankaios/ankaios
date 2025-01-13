@@ -13,13 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // mod exports
-mod config_files_path;
 pub mod control_loop_state;
 pub mod workload_command_channel;
 pub mod workload_control_loop;
 
 // public api exports
-pub use config_files_path::WorkloadConfigFilesPath;
 pub use control_loop_state::ControlLoopState;
 pub use workload_command_channel::WorkloadCommandSender;
 #[cfg(test)]

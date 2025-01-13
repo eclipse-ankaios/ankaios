@@ -29,8 +29,8 @@ use crate::control_interface::ControlInterface;
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 use crate::{
+    config_files::WorkloadConfigFilesPath,
     runtime_connectors::{OwnableRuntime, ReusableWorkloadState, RuntimeError, StateChecker},
-    workload::WorkloadConfigFilesPath,
     workload_operation::ReusableWorkloadSpec,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
@@ -246,6 +246,7 @@ impl<
 
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
+        let run_folder = self.run_folder.clone();
         let task_handle = tokio::spawn(async move {
             workload_command_sender
                 .create()
@@ -258,7 +259,7 @@ impl<
                 .workload_spec(workload_spec)
                 .workload_id(workload_id)
                 .control_interface_path(control_interface_path)
-                .workload_config_files_path(workload_config_files_path)
+                .run_folder(run_folder)
                 .workload_state_sender(update_state_tx)
                 .runtime(runtime)
                 .workload_command_receiver(workload_command_receiver)
@@ -328,6 +329,7 @@ impl<
         };
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
+        let run_folder = self.run_folder.clone();
         let task_handle = tokio::spawn(async move {
             workload_command_sender
                 .resume()
@@ -340,7 +342,7 @@ impl<
                 .workload_spec(workload_spec)
                 .workload_state_sender(update_state_tx)
                 .runtime(runtime)
-                .workload_config_files_path(workload_config_files_path)
+                .run_folder(run_folder)
                 .workload_command_receiver(workload_command_receiver)
                 .retry_sender(workload_command_sender)
                 .build()

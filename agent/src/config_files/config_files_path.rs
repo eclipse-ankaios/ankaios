@@ -16,8 +16,19 @@ use std::path::PathBuf;
 
 use common::objects::WorkloadInstanceName;
 
+#[derive(Debug, PartialEq)]
 pub struct WorkloadConfigFilesPath(PathBuf);
 const SUBFOLDER_CONFIG_FILES: &str = "config_files";
+
+impl WorkloadConfigFilesPath {
+    pub fn new(config_files_path: PathBuf) -> Self {
+        Self(config_files_path)
+    }
+
+    pub fn as_path_buf(&self) -> &PathBuf {
+        &self.0
+    }
+}
 
 impl From<(&PathBuf, &WorkloadInstanceName)> for WorkloadConfigFilesPath {
     fn from((run_folder, workload_instance_name): (&PathBuf, &WorkloadInstanceName)) -> Self {

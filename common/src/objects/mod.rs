@@ -97,4 +97,4 @@ pub use config::ConfigItem;
 mod file;
 #[cfg(any(feature = "test_utils", test))]
 pub use file::generate_test_rendered_config_files;
-pub use file::{BinaryData, Data, File, FileContent};
+pub use file::{Base64Data, Data, File, FileContent};
