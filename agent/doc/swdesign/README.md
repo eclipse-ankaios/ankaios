@@ -3169,12 +3169,30 @@ Needs:
 - impl
 - utest
 
+#### Rules without segments never match
+`swdd~agent-authorizing-rules-without-segments-never-match~1`
+
+Status: approved
+
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow or deny rule,
+the Authorizer shall consider them not matching if the rule has no segments.
+
+Comment:
+A rule with no segments is created when the filter mask of the rule is empty. Although such configurations are explicitly forbidden at the verification step, the use-case must be handled also at the authorizer level as it is security related.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
 #### Matching of rule elements
 `swdd~agent-authorizing-matching-rules-elements~1`
 
 Status: approved
 
-When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of a deny rule,
+When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of an allow or deny rule,
 the Authorizer shall consider them matching if one of the following is true:
 
 * both segments are the same

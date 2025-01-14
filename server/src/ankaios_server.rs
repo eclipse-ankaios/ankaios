@@ -230,7 +230,7 @@ impl AnkaiosServer {
 
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
                         // [impl->swdd~update-desired-state-with-missing-version~1]
-                        // [impl->swdd~server-naming-convention~1]
+                        // [impl->swdd~server-desired-state-field-conventions~1]
                         let updated_desired_state = &update_state_request.state.desired_state;
                         if let Err(error_message) = State::verify_api_version(updated_desired_state)
                             .and_then(|_| State::verify_configs_format(updated_desired_state))

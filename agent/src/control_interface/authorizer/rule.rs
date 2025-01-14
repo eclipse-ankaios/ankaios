@@ -14,7 +14,7 @@
 
 use super::{
     path::Path,
-    path_pattern::{PathPattern, PathPatternMatchReason},
+    path_pattern::{PathPattern, PathPatternMatchReason, PathPatternMatcher},
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -28,7 +28,7 @@ impl<P: PathPattern> Rule<P> {
     }
 }
 
-impl<P: PathPattern> PathPattern for Rule<P> {
+impl<P: PathPattern> PathPatternMatcher for Rule<P> {
     fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
         self.patterns
             .iter()
@@ -54,7 +54,9 @@ impl<P: PathPattern> PathPattern for Rule<P> {
 #[cfg(test)]
 mod test {
     use super::{super::path::Path, Rule};
-    use crate::control_interface::authorizer::path_pattern::{PathPattern, PathPatternMatchReason};
+    use crate::control_interface::authorizer::path_pattern::{
+        PathPattern, PathPatternMatchReason, PathPatternMatcher, PathPatternSection,
+    };
 
     struct MockPathPattern {
         matching_path: Path,
@@ -77,6 +79,10 @@ mod test {
             } else {
                 (false, String::new())
             }
+        }
+
+        fn sections(&self) -> &Vec<PathPatternSection> {
+            panic!("Not implemented for the mock");
         }
     }
 

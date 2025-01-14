@@ -47,7 +47,7 @@ Test Ankaios start up with templated Ankaios manifest and update state with upda
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~common-config-item-key-naming-convention~1]
-# [stest->swdd~server-naming-convention~1]
+# [stest->swdd~server-desired-state-field-conventions~1]
 Test Ankaios update configs with invalid config item key
     [Setup]    Run Keywords    Setup Ankaios
 
@@ -64,7 +64,7 @@ Test Ankaios update configs with invalid config item key
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
-# [stest->swdd~server-naming-convention~1]
+# [stest->swdd~server-desired-state-field-conventions~1]
 Test Ankaios update workload with invalid config alias
     [Setup]    Run Keywords    Setup Ankaios
 
@@ -81,7 +81,7 @@ Test Ankaios update workload with invalid config alias
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
-# [stest->swdd~server-naming-convention~1]
+# [stest->swdd~server-desired-state-field-conventions~1]
 Test Ankaios update workload with invalid config reference key
     [Setup]    Run Keywords    Setup Ankaios
 
