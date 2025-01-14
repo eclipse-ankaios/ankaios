@@ -45,33 +45,27 @@ impl ConfigFilesCreator {
         for file in config_files {
             let mount_point = Path::new(&file.mount_point);
 
-            if file.mount_point.ends_with(&MAIN_SEPARATOR_STR) {
-                return Err(ConfigFileCreatorError::new(format!(
-                    "invalid mount point: '{}' is a directory, expected a file",
-                    mount_point.display()
-                )));
-            }
+            Self::validate_mount_point(mount_point)?;
 
-            let relative_mount_path = Self::make_path_relative(mount_point).ok_or_else(|| {
-                ConfigFileCreatorError::new(format!(
-                    "invalid mount point: path '{}' is relative, expected absolute path",
-                    mount_point.display()
-                ))
-            })?;
+            let relative_mount_point = Self::remove_root_dir(mount_point);
 
-            let host_config_file_path = config_files_base_path
-                .as_path_buf()
-                .join(relative_mount_path);
-
-            let host_config_file_dir = host_config_file_path.parent().ok_or_else(|| {
+            let mount_directory = relative_mount_point.parent().ok_or_else(|| {
                 ConfigFileCreatorError::new(format!(
                     "invalid mount point: '{}': unable to get parent directory",
                     mount_point.display()
                 ))
             })?;
 
+            let host_config_file_dir = config_files_base_path.as_path_buf().join(mount_directory);
+
             create_dir_all(host_config_file_dir)
                 .map_err(|err| ConfigFileCreatorError::new(err.to_string()))?;
+
+            let host_config_file_path = config_files_base_path
+                .as_path_buf()
+                .join(relative_mount_point);
+
+            println!("Creating file: {:?}", host_config_file_path);
 
             let file_io_result = match &file.file_content {
                 FileContent::Data(Data { data }) => std::fs::write(host_config_file_path, data),
@@ -97,14 +91,41 @@ impl ConfigFilesCreator {
         Ok(())
     }
 
-    fn make_path_relative(path: &Path) -> Option<&Path> {
-        if path.is_absolute() {
-            path.components()
-                .next()
-                .and_then(|first_path_part| path.strip_prefix(first_path_part).ok())
-        } else {
-            None
+    fn validate_mount_point(mount_point: &Path) -> Result<(), ConfigFileCreatorError> {
+        let mut mount_point_components = mount_point.components();
+        let first_component = mount_point_components.next();
+
+        if first_component != Some(std::path::Component::RootDir) {
+            return Err(ConfigFileCreatorError::new(format!(
+                "invalid mount point: path '{}' is relative, expected absolute path",
+                mount_point.display()
+            )));
         }
+
+        if mount_point.to_string_lossy().ends_with(MAIN_SEPARATOR_STR) {
+            return Err(ConfigFileCreatorError::new(format!(
+                "invalid mount point: '{}' is a directory, expected a file",
+                mount_point.display()
+            )));
+        }
+
+        if mount_point_components
+            .all(|component| matches!(component, std::path::Component::Normal(_)))
+        {
+            Ok(())
+        } else {
+            Err(ConfigFileCreatorError::new(format!(
+                "invalid mount point: path '{}' contains invalid path components",
+                mount_point.display()
+            )))
+        }
+    }
+
+    fn remove_root_dir(path: &Path) -> &Path {
+        path.components()
+            .next()
+            .and_then(|first_path_part| path.strip_prefix(first_path_part).ok())
+            .unwrap() // an absolute path has always at least one component that is a direct sub path
     }
 }
 
@@ -155,37 +176,10 @@ mod tests {
     }
 
     #[test]
-    fn utest_config_files_creator_create_files_invalid_relative_workload_mount_point() {
-        let config_files_base_path = WorkloadConfigFilesPath::new("/tmp".into());
-        let config_files = vec![File {
-            mount_point: "invalid/relative/mount/point/file.conf".to_string(),
-            file_content: FileContent::Data(Data {
-                data: TEST_CONFIG_FILE_DATA.to_owned(),
-            }),
-        }];
-
-        let result = ConfigFilesCreator::create_files(config_files_base_path, config_files);
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().to_string(), "Failed to create config file: 'invalid mount point: path 'invalid/relative/mount/point/file.conf' is relative, expected absolute path'");
-    }
-
-    #[test]
-    fn utest_config_files_creator_create_config_files_with_invalid_file_path() {
+    fn utest_config_files_creator_create_config_files_fails_with_directory_instead_of_file() {
         let tempdir = tempfile::tempdir().unwrap();
         let config_files_dir = tempdir.path().join(WORKLOAD_CONFIG_FILES_PATH);
         let config_files = vec![
-            File {
-                mount_point: "".to_string(),
-                file_content: FileContent::Data(Data {
-                    data: TEST_CONFIG_FILE_DATA.to_owned(),
-                }),
-            },
-            File {
-                mount_point: "/..".to_string(),
-                file_content: FileContent::Data(Data {
-                    data: TEST_CONFIG_FILE_DATA.to_owned(),
-                }),
-            },
             File {
                 mount_point: "/".to_string(),
                 file_content: FileContent::Data(Data {
@@ -206,6 +200,72 @@ mod tests {
                 vec![file],
             );
             assert!(result.is_err());
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("is a directory, expected a file"));
+        }
+    }
+
+    #[test]
+    fn utest_config_files_creator_create_config_files_fails_with_invalid_path_components() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let config_files_dir = tempdir.path().join(WORKLOAD_CONFIG_FILES_PATH);
+        let config_files = vec![File {
+            mount_point: "/..".to_string(),
+            file_content: FileContent::Data(Data {
+                data: TEST_CONFIG_FILE_DATA.to_owned(),
+            }),
+        }];
+
+        for file in config_files {
+            let result = ConfigFilesCreator::create_files(
+                WorkloadConfigFilesPath::new(config_files_dir.clone()),
+                vec![file],
+            );
+            assert!(result.is_err());
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("contains invalid path components"));
+        }
+    }
+
+    #[test]
+    fn utest_config_files_creator_create_config_files_fails_with_relative_path() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let config_files_dir = tempdir.path().join(WORKLOAD_CONFIG_FILES_PATH);
+        let config_files = vec![
+            File {
+                mount_point: "".to_string(),
+                file_content: FileContent::Data(Data {
+                    data: TEST_CONFIG_FILE_DATA.to_owned(),
+                }),
+            },
+            File {
+                mount_point: "invalid/relative/mount/point/file.conf".to_string(),
+                file_content: FileContent::Data(Data {
+                    data: TEST_CONFIG_FILE_DATA.to_owned(),
+                }),
+            },
+            File {
+                mount_point: "relative".to_string(),
+                file_content: FileContent::Data(Data {
+                    data: TEST_CONFIG_FILE_DATA.to_owned(),
+                }),
+            },
+        ];
+
+        for file in config_files {
+            let result = ConfigFilesCreator::create_files(
+                WorkloadConfigFilesPath::new(config_files_dir.clone()),
+                vec![file],
+            );
+            assert!(result.is_err());
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("is relative, expected absolute path"));
         }
     }
 }
