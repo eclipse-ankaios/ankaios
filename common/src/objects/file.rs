@@ -38,6 +38,7 @@ pub struct Data {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Base64Data {
+    #[serde(rename = "binaryData")]
     pub base64_data: String,
 }
 

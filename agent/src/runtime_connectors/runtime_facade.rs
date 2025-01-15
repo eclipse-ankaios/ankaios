@@ -235,14 +235,6 @@ impl<
             runtime.name(),
             workload_name,
         );
-        let workload_config_files_path = if workload_spec.has_config_files() {
-            Some(WorkloadConfigFilesPath::from((
-                &self.run_folder,
-                &workload_spec.instance_name,
-            )))
-        } else {
-            None
-        };
 
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
@@ -319,14 +311,6 @@ impl<
             None
         }});
 
-        let workload_config_files_path = if workload_spec.has_config_files() {
-            Some(WorkloadConfigFilesPath::from((
-                &self.run_folder,
-                &workload_spec.instance_name,
-            )))
-        } else {
-            None
-        };
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
         let run_folder = self.run_folder.clone();

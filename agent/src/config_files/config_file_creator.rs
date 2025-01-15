@@ -65,8 +65,6 @@ impl ConfigFilesCreator {
                 .as_path_buf()
                 .join(relative_mount_point);
 
-            println!("Creating file: {:?}", host_config_file_path);
-
             let file_io_result = match &file.file_content {
                 FileContent::Data(Data { data }) => std::fs::write(host_config_file_path, data),
                 FileContent::BinaryData(Base64Data {

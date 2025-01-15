@@ -207,6 +207,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .control_interface_path(control_interface_path.clone())
+            .run_folder("/some/path".into())
             .workload_state_sender(workload_state_sender)
             .runtime(runtime)
             .workload_command_receiver(workload_command_receiver)
