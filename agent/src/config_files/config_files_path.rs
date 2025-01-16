@@ -20,6 +20,7 @@ use common::objects::WorkloadInstanceName;
 pub struct WorkloadConfigFilesPath(PathBuf);
 const SUBFOLDER_CONFIG_FILES: &str = "config_files";
 
+// [impl->swdd~location-of-workload-config-files-at-predefined-path~1]
 impl WorkloadConfigFilesPath {
     pub fn new(config_files_path: PathBuf) -> Self {
         Self(config_files_path)
@@ -52,6 +53,7 @@ mod tests {
 
     use super::{PathBuf, WorkloadConfigFilesPath, WorkloadInstanceName};
 
+    // [utest->swdd~location-of-workload-config-files-at-predefined-path~1]
     #[test]
     fn utest_workload_config_files_path_from() {
         let run_folder = PathBuf::from("/tmp/ankaios/agent_A_io");

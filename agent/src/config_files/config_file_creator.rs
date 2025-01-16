@@ -59,6 +59,7 @@ impl HostConfigFileLocation {
     }
 }
 
+// [impl->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
 impl TryFrom<(&WorkloadConfigFilesPath, &Path)> for HostConfigFileLocation {
     type Error = String;
 
@@ -142,6 +143,7 @@ impl fmt::Display for ConfigFileCreatorError {
 pub struct ConfigFilesCreator;
 
 impl ConfigFilesCreator {
+    // [impl->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     pub fn create_files(
         config_files_base_path: WorkloadConfigFilesPath,
         config_files: Vec<File>,
@@ -184,6 +186,7 @@ impl ConfigFilesCreator {
             FileContent::BinaryData(Base64Data {
                 base64_data: binary_data,
             }) => {
+                // [impl->swdd~config-files-creator-decodes-base64-to-binary~1]
                 let binary = general_purpose::STANDARD
                     .decode(binary_data)
                     .map_err(|err| {
@@ -226,6 +229,8 @@ mod tests {
     const DECODED_TEST_BASE64_DATA: &str = "data";
     const TEST_CONFIG_FILE_DATA: &str = "some config";
 
+    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
+    // [utest->swdd~config-files-creator-decodes-base64-to-binary~1]
     #[test]
     fn utest_config_files_creator_create_files() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
@@ -289,6 +294,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     #[test]
     fn utest_config_files_creator_create_files_create_dir_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
@@ -321,6 +327,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     #[test]
     fn utest_config_files_creator_create_files_write_file_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
@@ -359,6 +366,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     #[test]
     fn utest_config_files_creator_create_config_files_fails_with_invalid_path_components() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
@@ -388,6 +396,7 @@ mod tests {
             .contains("contains invalid path components"));
     }
 
+    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     #[test]
     fn utest_host_config_file_location_try_from_fails_with_directory_instead_of_file() {
         let config_files_dir = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
@@ -407,6 +416,7 @@ mod tests {
         }
     }
 
+    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     #[test]
     fn utest_host_config_file_location_try_from_fails_with_relative_path() {
         let config_files_dir = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
@@ -429,6 +439,7 @@ mod tests {
         }
     }
 
+    // [utest->swdd~config-files-creator-decodes-base64-to-binary~1]
     #[test]
     fn utest_config_files_creator_write_config_file_base64_decode_error() {
         let result = ConfigFilesCreator::write_config_file(

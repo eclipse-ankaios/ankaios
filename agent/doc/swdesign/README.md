@@ -25,6 +25,29 @@ Please note that the Ankaios Agent could also run on the same node as the Server
 
 ### Design decisions
 
+#### Create a workload config file based on its mount point on the host file system
+`swdd~agent-creates-config-file-based-on-its-mount-point-on-host-file-system~1`
+
+Status: approved
+
+An Ankaios agent creates a workload's config file on the host file system in the same directory structure as the mount point of the config file.
+
+Rationale:
+
+Creating the exact same folder structure according to the mount point prevents naming and mapping issues. It allows the creation of multiple files with the same name for different mount points on the host file system with respect to a many-to-many relationship for workloads and config files.
+
+Needs:
+- impl
+
+Assumptions:
+
+No assumptions were taken.
+
+Considered alternatives:
+
+- Create a config file with a uuid as filename: increases complexity when debugging the config file mount
+- Create a config file in a subdirectory named by hashing the mount point path: affects performance when using more secure hash algorithms
+
 ## Structural view
 
 The following diagram shows the structural view of the Ankaios Agent:
@@ -89,6 +112,10 @@ The ControlInterface is responsible for setting up the communication interface b
 The Authorizer checks for every request send from a workload to the Ankaios agent,
 if the workload is allowed to execute this request.
 
+### ConfigFilesCreator
+
+The ConfigFilesCreator is responsible for creating a workload's configuration files on the host file system.
+
 ### RuntimeConnectorInterfaces
 
 This is not really a component but a collection of traits that define the "requirements" towards specific runtime connectors s.t. they can be used by Ankaios. The following three traits specify the interface of the connectors where for one of them (state checker) a reusable default implementation is provided:
@@ -124,6 +151,7 @@ They are used to connect modules in the Ankaios Agent, more precisely they conne
 ## Behavioral view
 
 This chapter defines the runtime behavior of the Ankaios Agent in details. The following chapters show essential parts of the behavior and describe the requirements towards the Ankaios Agent.
+
 ### Startup sequence
 
 The following diagram shows the startup sequence of the Ankaios Agent:
@@ -1760,6 +1788,66 @@ This enables new retry attempts for the new workload again.
 
 Tags:
 - WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+### Workload config files
+
+The following diagram describes the behavior when creating config files of a workload on the host file system that will be mounted in the workload.
+
+![Create And Mount Workload Config Files](plantuml/.svg)
+
+#### Config files at a predefined path
+`swdd~location-of-workload-config-files-at-predefined-path~1`
+
+Status: approved
+
+The ConfigFilesCreator shall create all config files of a workload at the following path:
+
+  `<Agent run folder>/<Workload name>.<runtime config hash>/config_files`
+
+Rationale:
+In case of an update or delete, all of a workload's configuration files can be deleted by deleting the subdirectory. Furthermore, grouping configuration files in the specific workload folder prevents naming conflicts and mapping problems when multiple workloads are assigned the same configuration files.
+
+Tags:
+- ConfigFilesCreator
+
+Needs:
+- impl
+- utest
+
+#### ConfigFilesCreator writes config files at a path depending on their mount point
+`swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1`
+
+Status: approved
+
+When the ConfigFilesCreator is triggered with the list of config files assigned to a workload and the predefined config files directory, for each config file, the ConfigFilesCreator shall:
+
+* construct a host file path for the config file by appending the mount point to the predefined path
+* recursively create the directory structure of the constructed path on the host file system
+* write the config file to the constructed host file path with respect to its content type
+
+Comment:
+The host file path of an example config file with mount point at `/path/to/text.conf` is `<Agent run folder>/<Workload name>.<runtime config hash>/config_files/path/to/text.conf`. The content type is text-based or binary.
+
+Tags:
+- ConfigFilesCreator
+
+Needs:
+- impl
+- utest
+
+#### ConfigFilesCreator decodes base64 to binary
+`swdd~config-files-creator-decodes-base64-to-binary~1`
+
+Status: approved
+
+When the ConfigFilesCreator is requested to write a config file with content type binary, the ConfigFilesCreator shall decode the base64 content to a collection of bytes.
+
+Tags:
+- ConfigFilesCreator
 
 Needs:
 - impl
