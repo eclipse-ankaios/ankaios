@@ -167,7 +167,7 @@ mod tests {
         context_info_authorizer.expect_eq().return_const(true);
 
         let context_info = ControlInterfaceInfo::new(
-            ControlInterfacePath::new(pipes_folder.clone().into()),
+            ControlInterfacePath::new(pipes_folder.clone()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             context_info_authorizer,
@@ -222,7 +222,7 @@ mod tests {
         context_info_authorizer.expect_eq().return_const(false);
 
         let context_info = ControlInterfaceInfo::new(
-            ControlInterfacePath::new(pipes_folder.clone().into()),
+            ControlInterfacePath::new(pipes_folder.clone()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             context_info_authorizer,
