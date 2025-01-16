@@ -38,3 +38,31 @@ impl From<(&PathBuf, &WorkloadInstanceName)> for WorkloadConfigFilesPath {
         Self(config_files_path)
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+
+    use super::{PathBuf, WorkloadConfigFilesPath, WorkloadInstanceName};
+
+    #[test]
+    fn utest_workload_config_files_path_from() {
+        let run_folder = PathBuf::from("/tmp/ankaios/agent_A_io");
+        let workload_instance_name = WorkloadInstanceName::builder()
+            .agent_name("agent_A")
+            .workload_name("workload_1")
+            .id("id")
+            .build();
+        let expected = PathBuf::from("/tmp/ankaios/agent_A_io/workload_1.id/config_files");
+        let workload_config_files_path =
+            WorkloadConfigFilesPath::from((&run_folder, &workload_instance_name));
+        assert_eq!(&expected, workload_config_files_path.as_path_buf());
+    }
+}
