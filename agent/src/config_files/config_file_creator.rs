@@ -15,6 +15,7 @@
 use base64::{engine::general_purpose, Engine};
 use common::objects::{Base64Data, Data, File, FileContent};
 use std::{
+    collections::HashMap,
     fmt,
     path::{Path, PathBuf, MAIN_SEPARATOR_STR},
 };
@@ -25,6 +26,8 @@ use super::WorkloadConfigFilesPath;
 #[allow(dead_code)]
 mod config_file_io {
     use super::Path;
+    use std::os::unix::fs::PermissionsExt;
+    use tokio::fs;
 
     #[cfg(test)]
     use mockall::automock;
@@ -33,15 +36,22 @@ mod config_file_io {
 
     #[cfg_attr(test, automock)]
     impl ConfigFileIo {
-        pub fn write_file<C>(file_path: &Path, file_content: C) -> Result<(), std::io::Error>
+        pub async fn write_file<C>(file_path: &Path, file_content: C) -> Result<(), std::io::Error>
         where
             C: AsRef<[u8]> + 'static,
         {
-            std::fs::write(file_path, file_content)
+            fs::write(file_path, file_content).await
         }
 
         pub fn create_dir_all(dir_path: &Path) -> Result<(), std::io::Error> {
             std::fs::create_dir_all(dir_path)
+        }
+
+        pub async fn set_executable_permission(file_path: &Path) -> Result<(), std::io::Error> {
+            let metadata = fs::metadata(file_path).await?;
+            let mut permissions = metadata.permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(file_path, permissions).await
         }
     }
 }
@@ -144,15 +154,16 @@ pub struct ConfigFilesCreator;
 
 impl ConfigFilesCreator {
     // [impl->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
-    pub fn create_files(
-        config_files_base_path: WorkloadConfigFilesPath,
-        config_files: Vec<File>,
-    ) -> Result<(), ConfigFileCreatorError> {
+    pub async fn create_files(
+        config_files_base_path: &WorkloadConfigFilesPath,
+        config_files: &[File],
+    ) -> Result<HashMap<PathBuf, PathBuf>, ConfigFileCreatorError> {
+        let mut host_file_paths = HashMap::new();
         for file in config_files {
             let mount_point = Path::new(&file.mount_point);
 
             let host_config_file_location =
-                HostConfigFileLocation::try_from((&config_files_base_path, mount_point)).map_err(
+                HostConfigFileLocation::try_from((config_files_base_path, mount_point)).map_err(
                     |err| {
                         ConfigFileCreatorError::new(format!(
                             "Invalid mount point '{}': '{}'",
@@ -171,18 +182,21 @@ impl ConfigFilesCreator {
             })?;
 
             let host_config_file_path = host_config_file_location.get_absolute_file_path();
-            Self::write_config_file(host_config_file_path.as_path(), file)?;
+            Self::write_config_file(host_config_file_path.as_path(), file).await?;
+            host_file_paths.insert(host_config_file_path, mount_point.to_path_buf());
         }
 
-        Ok(())
+        Ok(host_file_paths)
     }
 
-    fn write_config_file(
+    async fn write_config_file(
         config_file_path: &Path,
-        file: File,
+        file: &File,
     ) -> Result<(), ConfigFileCreatorError> {
-        let file_io_result = match file.file_content {
-            FileContent::Data(Data { data }) => ConfigFileIo::write_file(config_file_path, data),
+        let file_io_result = match &file.file_content {
+            FileContent::Data(Data { data }) => {
+                ConfigFileIo::write_file(config_file_path, data.clone()).await
+            }
             FileContent::BinaryData(Base64Data {
                 base64_data: binary_data,
             }) => {
@@ -192,7 +206,14 @@ impl ConfigFilesCreator {
                     .map_err(|err| {
                         ConfigFileCreatorError::new(format!("invalid base64 data: '{}'", err))
                     })?;
-                ConfigFileIo::write_file(config_file_path, binary)
+
+                let write_result = ConfigFileIo::write_file(config_file_path, binary).await;
+
+                if write_result.is_ok() {
+                    ConfigFileIo::set_executable_permission(config_file_path).await
+                } else {
+                    write_result
+                }
             }
         };
 
@@ -221,7 +242,10 @@ mod tests {
         config_file_io::MockConfigFileIo, Base64Data, ConfigFileCreatorError, ConfigFilesCreator,
         Data, File, FileContent, HostConfigFileLocation, WorkloadConfigFilesPath,
     };
-    use std::path::{Path, PathBuf};
+    use std::{
+        collections::HashMap,
+        path::{Path, PathBuf},
+    };
 
     const WORKLOAD_CONFIG_FILES_PATH: &str =
         "/tmp/ankaios/agent_A_io/workload_A.12xyz3/config_files";
@@ -231,8 +255,8 @@ mod tests {
 
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     // [utest->swdd~config-files-creator-decodes-base64-to-binary~1]
-    #[test]
-    fn utest_config_files_creator_create_files() {
+    #[tokio::test]
+    async fn utest_config_files_creator_create_files() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let config_files_dir_base = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
@@ -266,37 +290,44 @@ mod tests {
             .with(predicate::eq(config_files_dir_base.clone()))
             .returning(|_| Ok(()));
 
+        let text_host_file_path = config_files_dir_base.join("some/path/test.conf");
         let mock_write_file_context = MockConfigFileIo::write_file_context();
         mock_write_file_context
             .expect()
             .once()
             .with(
-                predicate::eq(config_files_dir_base.join("some/path/test.conf")),
+                predicate::eq(text_host_file_path.clone()),
                 predicate::eq(TEST_CONFIG_FILE_DATA.to_owned()),
             )
             .returning(|_, _: String| Ok(()));
 
+        let binary_file_path = config_files_dir_base.join("hello");
         mock_write_file_context
             .expect()
             .once()
             .with(
-                predicate::eq(config_files_dir_base.join("hello")),
+                predicate::eq(binary_file_path.clone()),
                 predicate::eq(DECODED_TEST_BASE64_DATA.to_owned().as_bytes().to_vec()),
             )
             .returning(|_, _: Vec<u8>| Ok(()));
 
+        let expected_host_file_paths = HashMap::from([
+            (text_host_file_path, PathBuf::from("/some/path/test.conf")),
+            (binary_file_path, PathBuf::from("/hello")),
+        ]);
         assert_eq!(
-            Ok(()),
+            Ok(expected_host_file_paths),
             ConfigFilesCreator::create_files(
-                WorkloadConfigFilesPath::new(config_files_dir_base),
-                config_files
+                &WorkloadConfigFilesPath::new(config_files_dir_base),
+                &config_files
             )
+            .await
         );
     }
 
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
-    #[test]
-    fn utest_config_files_creator_create_files_create_dir_fails() {
+    #[tokio::test]
+    async fn utest_config_files_creator_create_files_create_dir_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let config_files_dir_base = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
@@ -321,15 +352,15 @@ mod tests {
                 "failed to create config file directory structure for '/some/path/test.conf': 'permission denied'".to_string()
             )),
             ConfigFilesCreator::create_files(
-                WorkloadConfigFilesPath::new(config_files_dir_base),
-                config_files
-            )
+                &WorkloadConfigFilesPath::new(config_files_dir_base),
+                &config_files
+            ).await
         );
     }
 
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
-    #[test]
-    fn utest_config_files_creator_create_files_write_file_fails() {
+    #[tokio::test]
+    async fn utest_config_files_creator_create_files_write_file_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let config_files_dir_base = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
@@ -360,15 +391,16 @@ mod tests {
                 "write failed for '/some/path/test.conf': 'permission denied'".to_string()
             )),
             ConfigFilesCreator::create_files(
-                WorkloadConfigFilesPath::new(config_files_dir_base),
-                config_files
+                &WorkloadConfigFilesPath::new(config_files_dir_base),
+                &config_files
             )
+            .await
         );
     }
 
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
-    #[test]
-    fn utest_config_files_creator_create_config_files_fails_with_invalid_path_components() {
+    #[tokio::test]
+    async fn utest_config_files_creator_create_config_files_fails_with_invalid_path_components() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let config_files_dir = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
@@ -386,9 +418,10 @@ mod tests {
         mock_write_file_context.expect::<String>().never();
 
         let result = ConfigFilesCreator::create_files(
-            WorkloadConfigFilesPath::new(config_files_dir.clone()),
-            config_files,
-        );
+            &WorkloadConfigFilesPath::new(config_files_dir.clone()),
+            &config_files,
+        )
+        .await;
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -397,8 +430,8 @@ mod tests {
     }
 
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
-    #[test]
-    fn utest_host_config_file_location_try_from_fails_with_directory_instead_of_file() {
+    #[tokio::test]
+    async fn utest_host_config_file_location_try_from_fails_with_directory_instead_of_file() {
         let config_files_dir = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
         let invalid_paths = vec![Path::new("/"), Path::new("/invalid/")];
 
@@ -440,17 +473,18 @@ mod tests {
     }
 
     // [utest->swdd~config-files-creator-decodes-base64-to-binary~1]
-    #[test]
-    fn utest_config_files_creator_write_config_file_base64_decode_error() {
+    #[tokio::test]
+    async fn utest_config_files_creator_write_config_file_base64_decode_error() {
         let result = ConfigFilesCreator::write_config_file(
-            Path::new("/some/host/file/path/to/binary"),
-            File {
+            &PathBuf::from("/some/host/file/path/to/binary"),
+            &File {
                 mount_point: "/binary".to_string(),
                 file_content: FileContent::BinaryData(Base64Data {
                     base64_data: "/invalid/base64".to_string(),
                 }),
             },
-        );
+        )
+        .await;
 
         assert!(result.is_err());
         assert!(result

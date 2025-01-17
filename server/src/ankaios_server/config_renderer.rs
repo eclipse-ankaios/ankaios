@@ -57,6 +57,7 @@ impl Default for ConfigRenderer {
     fn default() -> Self {
         let mut template_engine = Handlebars::new();
         template_engine.set_strict_mode(true); // enable throwing render errors if context data is valid
+        template_engine.register_escape_fn(|s| s.into()); // prevent escaping like double quotes to &quot; ...
         Self { template_engine }
     }
 }
@@ -160,6 +161,12 @@ impl ConfigRenderer {
                     let rendered_file_content = self
                         .template_engine
                         .render_template(&data.data, &wl_config_map);
+
+                    log::debug!(
+                        "Rendering file '{}': {:?}",
+                        mount_point,
+                        rendered_file_content
+                    );
 
                     if let Ok(rendered_content) = rendered_file_content {
                         let rendered_file = File {

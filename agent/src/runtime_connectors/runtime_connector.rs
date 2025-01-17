@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt::Display, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
@@ -87,6 +87,7 @@ where
         reusable_workload_id: Option<WorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
+        config_file_path_mapping: Option<HashMap<PathBuf, PathBuf>>,
     ) -> Result<(WorkloadId, StChecker), RuntimeError>;
 
     async fn get_workload_id(
@@ -133,7 +134,11 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use std::{collections::VecDeque, path::PathBuf, sync::Arc};
+    use std::{
+        collections::{HashMap, VecDeque},
+        path::PathBuf,
+        sync::Arc,
+    };
 
     use async_trait::async_trait;
     use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
@@ -336,6 +341,7 @@ pub mod test {
             _reusable_workload_id: Option<String>,
             control_interface_path: Option<PathBuf>,
             _update_state_tx: WorkloadStateSender,
+            _host_config_file_paths: Option<HashMap<PathBuf, PathBuf>>,
         ) -> Result<(String, StubStateChecker), RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::CreateWorkload(

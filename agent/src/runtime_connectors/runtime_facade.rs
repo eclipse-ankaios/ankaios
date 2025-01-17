@@ -29,7 +29,6 @@ use crate::control_interface::ControlInterface;
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 use crate::{
-    config_files::WorkloadConfigFilesPath,
     runtime_connectors::{OwnableRuntime, ReusableWorkloadState, RuntimeError, StateChecker},
     workload_operation::ReusableWorkloadSpec,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
@@ -362,6 +361,7 @@ impl<
             instance_name.agent_name(),
         );
 
+        let run_folder = self.run_folder.clone();
         tokio::spawn(async move {
             if report_workload_states_for_workload {
                 update_state_tx
@@ -386,6 +386,22 @@ impl<
                 }
             } else {
                 log::debug!("Workload '{}' already gone.", instance_name);
+            }
+
+            let workload_dir = instance_name.pipes_folder_name(&run_folder);
+
+            if workload_dir.exists() {
+                log::debug!("Removing the config files of workload '{}'", instance_name);
+
+                tokio::fs::remove_dir_all(workload_dir)
+                    .await
+                    .unwrap_or_else(|err| {
+                        log::error!(
+                            "Delete of config files failed after deletion of workload '{}': '{}'",
+                            instance_name,
+                            err
+                        );
+                    });
             }
 
             if report_workload_states_for_workload {

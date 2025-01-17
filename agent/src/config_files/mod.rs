@@ -14,5 +14,5 @@
 
 mod config_file_creator;
 mod config_files_path;
-pub use config_file_creator::{ConfigFileCreatorError, ConfigFilesCreator};
+pub use config_file_creator::ConfigFilesCreator;
 pub use config_files_path::WorkloadConfigFilesPath;

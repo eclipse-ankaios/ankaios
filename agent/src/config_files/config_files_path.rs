@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use common::objects::WorkloadInstanceName;
 
@@ -27,6 +27,16 @@ impl WorkloadConfigFilesPath {
     }
 
     pub fn as_path_buf(&self) -> &PathBuf {
+        &self.0
+    }
+
+    pub fn exists(&self) -> bool {
+        self.0.exists()
+    }
+}
+
+impl AsRef<Path> for WorkloadConfigFilesPath {
+    fn as_ref(&self) -> &Path {
         &self.0
     }
 }

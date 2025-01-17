@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config_files::ConfigFilesCreator;
+use crate::config_files::WorkloadConfigFilesPath;
 use crate::control_interface::ControlInterfacePath;
 use crate::runtime_connectors::StateChecker;
 use crate::workload::{ControlLoopState, WorkloadCommand};
@@ -328,6 +330,41 @@ impl WorkloadControlLoop {
     {
         let new_instance_name = control_loop_state.workload_spec.instance_name.clone();
 
+        let config_file_path_mapping = if control_loop_state.workload_spec.has_config_files() {
+            let workload_config_files_dir =
+                WorkloadConfigFilesPath::from((&control_loop_state.run_folder, &new_instance_name));
+
+            match ConfigFilesCreator::create_files(
+                &workload_config_files_dir,
+                &control_loop_state.workload_spec.files,
+            )
+            .await
+            {
+                Ok(host_path_mount_point_mapping) => Some(host_path_mount_point_mapping),
+                Err(err) => {
+                    log::error!(
+                        "Failed to create config files for workload '{}': '{}'",
+                        new_instance_name,
+                        err
+                    );
+                    if workload_config_files_dir.exists() {
+                        tokio::fs::remove_dir_all(workload_config_files_dir)
+                            .await
+                            .unwrap_or_else(|err| {
+                                log::error!(
+                                    "Failed to remove config files for workload '{}': '{}'",
+                                    new_instance_name,
+                                    err
+                                );
+                            });
+                    }
+                    return control_loop_state;
+                }
+            }
+        } else {
+            None
+        };
+
         match control_loop_state
             .runtime
             .create_workload(
@@ -340,6 +377,7 @@ impl WorkloadControlLoop {
                 control_loop_state
                     .state_checker_workload_state_sender
                     .clone(),
+                config_file_path_mapping,
             )
             .await
         {
@@ -354,6 +392,26 @@ impl WorkloadControlLoop {
             }
             Err(err) => {
                 let current_retry_counter = control_loop_state.retry_counter.current_retry();
+
+                let workload_config_files_dir = WorkloadConfigFilesPath::from((
+                    &control_loop_state.run_folder,
+                    &new_instance_name,
+                ));
+
+                if workload_config_files_dir.exists() {
+                    log::debug!(
+                        "Removing the config files of workload '{}'",
+                        new_instance_name
+                    );
+
+                    tokio::fs::remove_dir_all(workload_config_files_dir).await.unwrap_or_else(|err| {
+                        log::error!(
+                            "Delete of config files failed after workload creation error '{}': '{}'",
+                            new_instance_name,
+                            err
+                        );
+                    });
+                }
 
                 Self::send_workload_state_to_agent(
                     &control_loop_state.to_agent_workload_state_sender,
@@ -417,6 +475,26 @@ impl WorkloadControlLoop {
             );
         }
 
+        let instance_name = control_loop_state.instance_name();
+
+        let workload_dir = control_loop_state
+            .instance_name()
+            .pipes_folder_name(&control_loop_state.run_folder);
+
+        if workload_dir.exists() {
+            log::debug!("Removing the config files of workload '{}'", instance_name);
+
+            tokio::fs::remove_dir_all(workload_dir)
+                .await
+                .unwrap_or_else(|err| {
+                    log::error!(
+                        "Delete of config files failed after workload creation error '{}': '{}'",
+                        instance_name,
+                        err
+                    );
+                });
+        }
+
         // Successfully stopped the workload. Send a removed on the channel
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
@@ -472,6 +550,25 @@ impl WorkloadControlLoop {
                 "Workload '{}' already gone.",
                 control_loop_state.instance_name().workload_name()
             );
+        }
+
+        let old_instance_name = control_loop_state.instance_name();
+        let workload_config_files_dir =
+            WorkloadConfigFilesPath::from((&control_loop_state.run_folder, old_instance_name));
+
+        if workload_config_files_dir.exists() {
+            log::debug!(
+                "Removing the config files of workload '{}'",
+                old_instance_name
+            );
+
+            tokio::fs::remove_dir_all(workload_config_files_dir).await.unwrap_or_else(|err| {
+                log::error!(
+                    "Delete of config files failed after deletion of workload when updating '{}': '{}'",
+                    old_instance_name,
+                    err
+                );
+            });
         }
 
         // workload is deleted or already gone, send the remove state
