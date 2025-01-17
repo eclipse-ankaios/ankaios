@@ -19,12 +19,12 @@ use nix::NixPath;
 use std::ffi::OsString;
 use std::fmt::{self, Display};
 #[cfg(not(test))]
-use std::fs::{create_dir_all, metadata, remove_dir, remove_file};
+use std::fs::{create_dir_all, metadata, remove_dir_all, remove_file};
 #[cfg(not(test))]
 use std::os::unix::fs::FileTypeExt;
 use std::os::unix::fs::PermissionsExt;
 #[cfg(test)]
-use tests::{create_dir_all, metadata, mkfifo, remove_dir, remove_file};
+use tests::{create_dir_all, metadata, mkfifo, remove_dir_all, remove_file};
 
 use std::path::Path;
 
@@ -133,7 +133,7 @@ impl FileSystem {
         }
     }
     pub fn remove_dir(&self, path: &Path) -> Result<(), FileSystemError> {
-        if let Err(err) = remove_dir(path) {
+        if let Err(err) = remove_dir_all(path) {
             return Err(FileSystemError::RemoveDirectory(
                 path.to_path_buf().into_os_string(),
                 err.kind(),
@@ -265,7 +265,7 @@ mod tests {
             mode
         );
     }
-    pub fn remove_dir(path: &Path) -> io::Result<()> {
+    pub fn remove_dir_all(path: &Path) -> io::Result<()> {
         if let Some(FakeCall::remove_dir(fake_path, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
         {

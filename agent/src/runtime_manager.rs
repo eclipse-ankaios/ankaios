@@ -31,6 +31,8 @@ use common::{
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
+use crate::control_interface::ControlInterfacePath;
+
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
 
@@ -255,7 +257,10 @@ impl RuntimeManager {
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
                                 let control_interface_info = Some(ControlInterfaceInfo::new(
-                                    &self.run_folder,
+                                    ControlInterfacePath::from((
+                                        &self.run_folder,
+                                        &new_instance_name,
+                                    )),
                                     self.control_interface_tx.clone(),
                                     &new_instance_name,
                                     Authorizer::from(&new_workload_spec.control_interface_access),
@@ -459,7 +464,7 @@ impl RuntimeManager {
         // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
         let control_interface_info = if workload_spec.needs_control_interface() {
             Some(ControlInterfaceInfo::new(
-                &self.run_folder,
+                ControlInterfacePath::from((&self.run_folder, &workload_spec.instance_name)),
                 self.control_interface_tx.clone(),
                 &workload_spec.instance_name,
                 Authorizer::from(&workload_spec.control_interface_access),
@@ -530,7 +535,7 @@ impl RuntimeManager {
             // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
             let control_interface_info = if workload_spec.needs_control_interface() {
                 Some(ControlInterfaceInfo::new(
-                    &self.run_folder,
+                    ControlInterfacePath::from((&self.run_folder, &workload_spec.instance_name)),
                     self.control_interface_tx.clone(),
                     &workload_spec.instance_name,
                     Authorizer::from(&workload_spec.control_interface_access),
@@ -597,6 +602,7 @@ mod tests {
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
     use crate::workload_state::WorkloadStateReceiver;
     use ank_base::response::ResponseContent;
+    use api::ank_base::Files;
     use common::objects::{
         self, generate_test_control_interface_access,
         generate_test_workload_spec_with_control_interface_access,
@@ -2073,7 +2079,8 @@ mod tests {
                                 runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()),
                                 control_interface_access: None,
                                 configs: Some(ank_base::ConfigMappings {
-                                    configs: Default::default()})
+                                    configs: Default::default()}),
+                                files: Some(Files::default()),
                             })];
         let mut complete_state = test_utils::generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {

@@ -20,6 +20,7 @@ use crate::helpers::serialize_to_ordered_map;
 use crate::objects::Tag;
 
 use super::control_interface_access::ControlInterfaceAccess;
+use super::file::File;
 use super::ExecutionState;
 use super::WorkloadInstanceName;
 
@@ -49,6 +50,7 @@ pub struct WorkloadSpec {
     pub restart_policy: RestartPolicy,
     pub runtime: String,
     pub runtime_config: String,
+    pub files: Vec<File>,
     pub control_interface_access: ControlInterfaceAccess,
 }
 
@@ -56,6 +58,11 @@ pub struct WorkloadSpec {
 impl WorkloadSpec {
     pub fn needs_control_interface(&self) -> bool {
         !self.control_interface_access.allow_rules.is_empty()
+    }
+
+    // [impl->swdd~common-workload-has-config-files~1]
+    pub fn has_config_files(&self) -> bool {
+        !self.files.is_empty()
     }
 
     // [impl->swdd~common-workload-naming-convention~1]
@@ -314,6 +321,7 @@ pub fn generate_test_workload_spec_with_runtime_config(
         }],
         runtime_config,
         control_interface_access: Default::default(),
+        files: Default::default(),
     }
 }
 
@@ -329,6 +337,22 @@ pub fn generate_test_workload_spec_with_control_interface_access(
         runtime_name.to_owned(),
     );
     workload_spec.control_interface_access = generate_test_control_interface_access();
+    workload_spec
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_spec_with_rendered_config_files(
+    agent_name: String,
+    workload_name: String,
+    runtime_name: String,
+    files: Vec<File>,
+) -> WorkloadSpec {
+    let mut workload_spec = generate_test_workload_spec_with_param(
+        agent_name.to_owned(),
+        workload_name.to_owned(),
+        runtime_name.to_owned(),
+    );
+    workload_spec.files = files;
     workload_spec
 }
 
@@ -619,5 +643,24 @@ mod tests {
                 super::MAX_CHARACTERS_WORKLOAD_NAME,
             ))
         );
+    }
+
+    // [utest->swdd~common-workload-has-config-files~1]
+    #[test]
+    fn utest_workload_has_config_files() {
+        let workload_spec = generate_test_workload_spec_with_rendered_config_files(
+            "agent".to_string(),
+            "name".to_string(),
+            "runtime".to_string(),
+            generate_test_rendered_config_files(),
+        );
+        assert!(workload_spec.has_config_files());
+    }
+
+    // [utest->swdd~common-workload-has-config-files~1]
+    #[test]
+    fn utest_workload_has_config_files_empty() {
+        let workload_spec = generate_test_workload_spec();
+        assert!(!workload_spec.has_config_files());
     }
 }

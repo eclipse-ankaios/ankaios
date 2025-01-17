@@ -27,6 +27,7 @@ mod runtime_connectors;
 pub mod test_helper;
 mod workload_operation;
 
+mod config_files;
 mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
@@ -75,7 +76,8 @@ async fn main() {
 
     let run_directory = args
         .get_run_directory()
-        .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
+        .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.")
+        .get_path();
 
     // [impl->swdd~agent-supports-podman~2]
     let podman_runtime = Box::new(PodmanRuntime {});
@@ -83,7 +85,7 @@ async fn main() {
     let podman_facade = Box::new(GenericRuntimeFacade::<
         PodmanWorkloadId,
         GenericPollingStateChecker,
-    >::new(podman_runtime));
+    >::new(podman_runtime, run_directory.clone()));
     let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
     runtime_facade_map.insert(podman_runtime_name, podman_facade);
 
@@ -93,7 +95,7 @@ async fn main() {
     let podman_kube_facade = Box::new(GenericRuntimeFacade::<
         PodmanKubeWorkloadId,
         GenericPollingStateChecker,
-    >::new(podman_kube_runtime));
+    >::new(podman_kube_runtime, run_directory.clone()));
     runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
 
     // The RuntimeManager currently directly gets the server ToServerInterface, but it shall get the agent manager interface
@@ -101,7 +103,7 @@ async fn main() {
     // The pipe connecting the workload to Ankaios must be in the runtime adapter
     let runtime_manager = RuntimeManager::new(
         AgentName::from(args.agent_name.as_str()),
-        run_directory.get_path(),
+        run_directory,
         to_server.clone(),
         runtime_facade_map,
         workload_state_sender,

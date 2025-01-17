@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 use common::{
@@ -78,6 +78,7 @@ pub struct GenericRuntimeFacade<
     StChecker: StateChecker<WorkloadId> + Send + Sync,
 > {
     runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
+    run_folder: PathBuf,
 }
 
 impl<WorkloadId, StChecker> GenericRuntimeFacade<WorkloadId, StChecker>
@@ -85,8 +86,14 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    pub fn new(runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>) -> Self {
-        GenericRuntimeFacade { runtime }
+    pub fn new(
+        runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
+        run_folder: PathBuf,
+    ) -> Self {
+        GenericRuntimeFacade {
+            runtime,
+            run_folder,
+        }
     }
 }
 
@@ -188,21 +195,22 @@ impl<
 
         let (control_interface_path, control_interface) = if let Some(info) = control_interface_info
         {
-            let run_folder = info.get_run_folder().clone();
+            let control_interface_path = info.get_control_interface_path().clone();
             let output_pipe_sender = info.get_to_server_sender();
             let instance_name = info.get_instance_name().clone();
             let authorizer = info.move_authorizer();
-            match ControlInterface::new(&run_folder, &instance_name, output_pipe_sender, authorizer)
-            {
-                Ok(result) => {
+            match ControlInterface::new(
+                &control_interface_path,
+                &instance_name,
+                output_pipe_sender,
+                authorizer,
+            ) {
+                Ok(control_interface) => {
                     log::info!(
                         "Successfully created control interface for workload '{}'.",
                         workload_name
                     );
-                    (
-                        Some(workload_spec.instance_name.pipes_folder_name(&run_folder)),
-                        Some(result),
-                    )
+                    (Some(control_interface_path), Some(control_interface))
                 }
                 Err(err) => {
                     log::warn!(
@@ -226,8 +234,10 @@ impl<
             runtime.name(),
             workload_name,
         );
+
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
+        let run_folder = self.run_folder.clone();
         let task_handle = tokio::spawn(async move {
             workload_command_sender
                 .create()
@@ -240,6 +250,7 @@ impl<
                 .workload_spec(workload_spec)
                 .workload_id(workload_id)
                 .control_interface_path(control_interface_path)
+                .run_folder(run_folder)
                 .workload_state_sender(update_state_tx)
                 .runtime(runtime)
                 .workload_command_receiver(workload_command_receiver)
@@ -275,13 +286,13 @@ impl<
 
         // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
         let control_interface = control_interface_info.and_then(|info| { if workload_spec.needs_control_interface() {
-            let run_folder = info.get_run_folder().clone();
+            let control_interface_path = info.get_control_interface_path().clone();
             let output_pipe_sender = info.get_to_server_sender();
             let instance_name = info.get_instance_name().clone();
             let authorizer = info.move_authorizer();
-            match ControlInterface::new(&run_folder, &instance_name, output_pipe_sender, authorizer)
+            match ControlInterface::new(&control_interface_path, &instance_name, output_pipe_sender, authorizer)
             {
-                Ok(result) => Some(result),
+                Ok(control_interface) => Some(control_interface),
                 Err(err) => {
                     log::warn!(
                                 "Could not reuse or create control interface when resuming workload '{}': '{}'",
@@ -301,8 +312,8 @@ impl<
 
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
+        let run_folder = self.run_folder.clone();
         let task_handle = tokio::spawn(async move {
-            // let instance_name = workload_spec.instance_name.clone();
             workload_command_sender
                 .resume()
                 .await
@@ -314,6 +325,7 @@ impl<
                 .workload_spec(workload_spec)
                 .workload_state_sender(update_state_tx)
                 .runtime(runtime)
+                .run_folder(run_folder)
                 .workload_command_receiver(workload_command_receiver)
                 .retry_sender(workload_command_sender)
                 .build()
@@ -349,6 +361,7 @@ impl<
             instance_name.agent_name(),
         );
 
+        let run_folder = self.run_folder.clone();
         tokio::spawn(async move {
             if report_workload_states_for_workload {
                 update_state_tx
@@ -373,6 +386,22 @@ impl<
                 }
             } else {
                 log::debug!("Workload '{}' already gone.", instance_name);
+            }
+
+            let workload_dir = instance_name.pipes_folder_name(&run_folder);
+
+            if workload_dir.exists() {
+                log::debug!("Removing the config files of workload '{}'", instance_name);
+
+                tokio::fs::remove_dir_all(workload_dir)
+                    .await
+                    .unwrap_or_else(|err| {
+                        log::error!(
+                            "Delete of config files failed after deletion of workload '{}': '{}'",
+                            instance_name,
+                            err
+                        );
+                    });
             }
 
             if report_workload_states_for_workload {
@@ -402,7 +431,7 @@ mod tests {
     use crate::{
         control_interface::{
             authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
-            MockControlInterface,
+            ControlInterfacePath, MockControlInterface,
         },
         runtime_connectors::{
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
@@ -417,6 +446,7 @@ mod tests {
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_ID: &str = "workload_id_1";
+    const RUN_FOLDER: &str = "/some";
     const PIPES_LOCATION: &str = "/some/path";
     const TEST_CHANNEL_BUFFER_SIZE: usize = 20;
 
@@ -446,6 +476,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
         assert_eq!(
@@ -491,9 +522,9 @@ mod tests {
 
         let mut control_interface_info_mock = MockControlInterfaceInfo::default();
         control_interface_info_mock
-            .expect_get_run_folder()
+            .expect_get_control_interface_path()
             .once()
-            .return_const(PIPES_LOCATION.into());
+            .return_const(ControlInterfacePath::new(PIPES_LOCATION.into()));
 
         control_interface_info_mock
             .expect_get_to_server_sender()
@@ -527,6 +558,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
         let mock_control_loop = MockWorkloadControlLoop::run_context();
@@ -557,9 +589,9 @@ mod tests {
 
         let mut control_interface_info_mock = MockControlInterfaceInfo::default();
         control_interface_info_mock
-            .expect_get_run_folder()
+            .expect_get_control_interface_path()
             .once()
-            .return_const(PIPES_LOCATION.into());
+            .return_const(ControlInterfacePath::new(PIPES_LOCATION.into()));
         control_interface_info_mock
             .expect_get_to_server_sender()
             .once()
@@ -611,6 +643,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
@@ -664,6 +697,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
@@ -703,6 +737,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
         let report_workload_states_for_workload = true;
@@ -755,6 +790,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
         let report_workload_states_for_workload = false;
@@ -802,6 +838,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
         let report_workload_states_for_workload = true;

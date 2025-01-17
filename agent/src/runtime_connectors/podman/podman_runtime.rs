@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt::Display, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
@@ -164,6 +164,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         reusable_workload_id: Option<PodmanWorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
+        config_file_path_mapping: Option<HashMap<PathBuf, PathBuf>>,
     ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
         let workload_cfg = PodmanRuntimeConfig::try_from(&workload_spec)
             .map_err(|err| RuntimeError::Create(err.into()))?;
@@ -183,6 +184,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
                     &workload_spec.instance_name.to_string(),
                     workload_spec.instance_name.agent_name(),
                     control_interface_path,
+                    config_file_path_mapping,
                 )
                 .await
             }
@@ -427,6 +429,7 @@ mod tests {
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
+                None,
             )
             .await;
 
@@ -465,6 +468,7 @@ mod tests {
                 Some(PodmanWorkloadId::from_str(reusable_workload_id).unwrap()),
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
+                None,
             )
             .await;
 
@@ -512,6 +516,7 @@ mod tests {
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
+                None,
             )
             .await;
 
@@ -568,6 +573,7 @@ mod tests {
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
+                None,
             )
             .await;
 
@@ -603,6 +609,7 @@ mod tests {
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
+                None,
             )
             .await;
 
@@ -629,6 +636,7 @@ mod tests {
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
+                None,
             )
             .await;
 
