@@ -104,7 +104,7 @@ impl TryFrom<(&WorkloadConfigFilesPath, &Path)> for HostConfigFileLocation {
         }
 
         let mut host_config_file_location = HostConfigFileLocation {
-            directory: config_files_base_path.as_path_buf().clone(),
+            directory: config_files_base_path.to_path_buf().clone(),
             ..Default::default()
         };
 
@@ -245,17 +245,17 @@ impl ConfigFilesCreator {
 mod tests {
     use mockall::predicate;
 
+    use crate::config_files::generate_test_config_files_path;
+
     use super::{
         config_file_io::MockConfigFileIo, Base64Data, ConfigFileCreatorError, ConfigFilesCreator,
-        Data, File, FileContent, HostConfigFileLocation, WorkloadConfigFilesPath,
+        Data, File, FileContent, HostConfigFileLocation,
     };
     use std::{
         collections::HashMap,
         path::{Path, PathBuf},
     };
 
-    const WORKLOAD_CONFIG_FILES_PATH: &str =
-        "/tmp/ankaios/agent_A_io/workload_A.12xyz3/config_files";
     const TEST_BASE64_DATA: &str = "ZGF0YQ=="; // "data" as base64
     const DECODED_TEST_BASE64_DATA: &str = "data";
     const TEST_CONFIG_FILE_DATA: &str = "some config";
@@ -267,8 +267,8 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let workload_config_files_path = generate_test_config_files_path();
 
-        let config_files_dir_base = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
         let config_files = vec![
             // Text based file
             File {
@@ -290,16 +290,16 @@ mod tests {
         mock_create_dir_context
             .expect()
             .once()
-            .with(predicate::eq(config_files_dir_base.join("some/path")))
+            .with(predicate::eq(workload_config_files_path.join("some/path")))
             .returning(|_| Ok(()));
 
         mock_create_dir_context
             .expect()
             .once()
-            .with(predicate::eq(config_files_dir_base.clone()))
+            .with(predicate::eq(workload_config_files_path.clone()))
             .returning(|_| Ok(()));
 
-        let text_host_file_path = config_files_dir_base.join("some/path/test.conf");
+        let text_host_file_path = workload_config_files_path.join("some/path/test.conf");
         let mock_write_file_context = MockConfigFileIo::write_file_context();
         mock_write_file_context
             .expect()
@@ -310,7 +310,7 @@ mod tests {
             )
             .returning(|_, _: String| Ok(()));
 
-        let binary_file_path = config_files_dir_base.join("hello");
+        let binary_file_path = workload_config_files_path.join("hello");
         mock_write_file_context
             .expect()
             .once()
@@ -333,11 +333,7 @@ mod tests {
         ]);
         assert_eq!(
             Ok(expected_host_file_paths),
-            ConfigFilesCreator::create_files(
-                &WorkloadConfigFilesPath::new(config_files_dir_base),
-                &config_files
-            )
-            .await
+            ConfigFilesCreator::create_files(&workload_config_files_path, &config_files).await
         );
     }
 
@@ -348,7 +344,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let config_files_dir_base = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
+        let workload_config_files_path = generate_test_config_files_path();
         let config_files = vec![File {
             mount_point: "/some/path/test.conf".to_string(),
             file_content: FileContent::Data(Data {
@@ -370,7 +366,7 @@ mod tests {
                 "failed to create config file directory structure for '/some/path/test.conf': 'permission denied'".to_string()
             )),
             ConfigFilesCreator::create_files(
-                &WorkloadConfigFilesPath::new(config_files_dir_base),
+                &workload_config_files_path,
                 &config_files
             ).await
         );
@@ -383,7 +379,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let config_files_dir_base = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
+        let workload_config_files_path = generate_test_config_files_path();
         let config_files = vec![File {
             mount_point: "/some/path/test.conf".to_string(),
             file_content: FileContent::Data(Data {
@@ -395,7 +391,7 @@ mod tests {
         mock_create_dir_context
             .expect()
             .once()
-            .with(predicate::eq(config_files_dir_base.join("some/path")))
+            .with(predicate::eq(workload_config_files_path.join("some/path")))
             .returning(|_| Ok(()));
 
         let mock_write_file_context = MockConfigFileIo::write_file_context();
@@ -410,11 +406,7 @@ mod tests {
             Err(ConfigFileCreatorError::new(
                 "write failed for '/some/path/test.conf': 'permission denied'".to_string()
             )),
-            ConfigFilesCreator::create_files(
-                &WorkloadConfigFilesPath::new(config_files_dir_base),
-                &config_files
-            )
-            .await
+            ConfigFilesCreator::create_files(&workload_config_files_path, &config_files).await
         );
     }
 
@@ -425,7 +417,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let config_files_dir = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
+        let workload_config_files_path = generate_test_config_files_path();
         let config_files = vec![File {
             mount_point: "/..".to_string(),
             file_content: FileContent::Data(Data {
@@ -439,11 +431,8 @@ mod tests {
         let mock_write_file_context = MockConfigFileIo::write_file_context();
         mock_write_file_context.expect::<String>().never();
 
-        let result = ConfigFilesCreator::create_files(
-            &WorkloadConfigFilesPath::new(config_files_dir.clone()),
-            &config_files,
-        )
-        .await;
+        let result =
+            ConfigFilesCreator::create_files(&workload_config_files_path, &config_files).await;
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -454,14 +443,11 @@ mod tests {
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     #[test]
     fn utest_host_config_file_location_try_from_fails_with_directory_instead_of_file() {
-        let config_files_dir = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
+        let workload_config_files_path = generate_test_config_files_path();
         let invalid_paths = vec![Path::new("/"), Path::new("/invalid/")];
 
         for path in invalid_paths {
-            let result = HostConfigFileLocation::try_from((
-                &WorkloadConfigFilesPath::new(config_files_dir.clone()),
-                path,
-            ));
+            let result = HostConfigFileLocation::try_from((&workload_config_files_path, path));
 
             assert!(result.is_err());
             assert!(result
@@ -474,7 +460,7 @@ mod tests {
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     #[test]
     fn utest_host_config_file_location_try_from_fails_with_relative_path() {
-        let config_files_dir = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
+        let workload_config_files_path = generate_test_config_files_path();
         let invalid_paths = vec![
             Path::new(""),
             Path::new("invalid/relative/mount/point/file.conf"),
@@ -482,10 +468,7 @@ mod tests {
         ];
 
         for path in invalid_paths {
-            let result = HostConfigFileLocation::try_from((
-                &WorkloadConfigFilesPath::new(config_files_dir.clone()),
-                path,
-            ));
+            let result = HostConfigFileLocation::try_from((&workload_config_files_path, path));
             assert!(result.is_err());
             assert!(result
                 .unwrap_err()

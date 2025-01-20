@@ -12,7 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::{Path, PathBuf};
+use std::{
+    ops::Deref,
+    path::{Path, PathBuf},
+};
 
 use common::objects::WorkloadInstanceName;
 
@@ -20,27 +23,21 @@ use common::objects::WorkloadInstanceName;
 pub struct WorkloadConfigFilesPath(PathBuf);
 const SUBFOLDER_CONFIG_FILES: &str = "config_files";
 
-// [impl->swdd~location-of-workload-config-files-at-predefined-path~1]
-impl WorkloadConfigFilesPath {
-    pub fn new(config_files_path: PathBuf) -> Self {
-        Self(config_files_path)
-    }
-
-    pub fn as_path_buf(&self) -> &PathBuf {
-        &self.0
-    }
-
-    pub fn exists(&self) -> bool {
-        self.0.exists()
-    }
-}
-
 impl AsRef<Path> for WorkloadConfigFilesPath {
     fn as_ref(&self) -> &Path {
         &self.0
     }
 }
 
+impl Deref for WorkloadConfigFilesPath {
+    type Target = PathBuf;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+// [impl->swdd~location-of-workload-config-files-at-predefined-path~1]
 impl From<(&PathBuf, &WorkloadInstanceName)> for WorkloadConfigFilesPath {
     fn from((run_folder, workload_instance_name): (&PathBuf, &WorkloadInstanceName)) -> Self {
         let config_files_path = workload_instance_name
@@ -59,22 +56,21 @@ impl From<(&PathBuf, &WorkloadInstanceName)> for WorkloadConfigFilesPath {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
+pub fn generate_test_config_files_path() -> WorkloadConfigFilesPath {
+    let instance_name = WorkloadInstanceName::new("agent_A", "workload_1", "123xy");
+    WorkloadConfigFilesPath::from((&"/tmp/ankaios/agent_A_io".into(), &instance_name))
+}
+
+#[cfg(test)]
 mod tests {
 
-    use super::{PathBuf, WorkloadConfigFilesPath, WorkloadInstanceName};
+    use super::{generate_test_config_files_path, PathBuf};
 
     // [utest->swdd~location-of-workload-config-files-at-predefined-path~1]
     #[test]
     fn utest_workload_config_files_path_from() {
-        let run_folder = PathBuf::from("/tmp/ankaios/agent_A_io");
-        let workload_instance_name = WorkloadInstanceName::builder()
-            .agent_name("agent_A")
-            .workload_name("workload_1")
-            .id("id")
-            .build();
-        let expected = PathBuf::from("/tmp/ankaios/agent_A_io/workload_1.id/config_files");
-        let workload_config_files_path =
-            WorkloadConfigFilesPath::from((&run_folder, &workload_instance_name));
-        assert_eq!(&expected, workload_config_files_path.as_path_buf());
+        let workload_config_files_path = generate_test_config_files_path();
+        let expected = PathBuf::from("/tmp/ankaios/agent_A_io/workload_1.123xy/config_files");
+        assert_eq!(expected, workload_config_files_path.to_path_buf());
     }
 }
