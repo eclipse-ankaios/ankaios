@@ -12,7 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config_files::ConfigFilesCreator;
 use crate::config_files::WorkloadConfigFilesPath;
 use crate::control_interface::ControlInterfacePath;
 use crate::runtime_connectors::StateChecker;
@@ -22,6 +21,9 @@ use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, Workl
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
 use std::str::FromStr;
+
+#[cfg_attr(test, mockall_double::double)]
+use crate::config_files::ConfigFilesCreator;
 
 #[cfg(not(test))]
 const MAX_RETRIES: usize = 20;
@@ -358,6 +360,13 @@ impl WorkloadControlLoop {
                                 );
                             });
                     }
+                    Self::send_workload_state_to_agent(
+                        &control_loop_state.to_agent_workload_state_sender,
+                        &new_instance_name,
+                        ExecutionState::failed(err),
+                    )
+                    .await;
+
                     return control_loop_state;
                 }
             }

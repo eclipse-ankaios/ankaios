@@ -22,6 +22,9 @@ use std::{
 
 use super::WorkloadConfigFilesPath;
 
+#[cfg(test)]
+use mockall::automock;
+
 // module can be removed when existing filesystem io is extracted to common library within issue #431
 #[allow(dead_code)]
 mod config_file_io {
@@ -152,6 +155,7 @@ impl fmt::Display for ConfigFileCreatorError {
 
 pub struct ConfigFilesCreator;
 
+#[cfg_attr(test, automock)]
 impl ConfigFilesCreator {
     // [impl->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     pub async fn create_files(
@@ -166,7 +170,7 @@ impl ConfigFilesCreator {
                 HostConfigFileLocation::try_from((config_files_base_path, mount_point)).map_err(
                     |err| {
                         ConfigFileCreatorError::new(format!(
-                            "Invalid mount point '{}': '{}'",
+                            "invalid mount point '{}': '{}'",
                             mount_point.display(),
                             err
                         ))
@@ -204,7 +208,10 @@ impl ConfigFilesCreator {
                 let binary = general_purpose::STANDARD
                     .decode(binary_data)
                     .map_err(|err| {
-                        ConfigFileCreatorError::new(format!("invalid base64 data: '{}'", err))
+                        ConfigFileCreatorError::new(format!(
+                            "invalid base64 data in '{}': '{}'",
+                            file.mount_point, err
+                        ))
                     })?;
 
                 let write_result = ConfigFileIo::write_file(config_file_path, binary).await;
@@ -257,7 +264,9 @@ mod tests {
     // [utest->swdd~config-files-creator-decodes-base64-to-binary~1]
     #[tokio::test]
     async fn utest_config_files_creator_create_files() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
 
         let config_files_dir_base = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
         let config_files = vec![
@@ -311,6 +320,13 @@ mod tests {
             )
             .returning(|_, _: Vec<u8>| Ok(()));
 
+        let mock_permission_context = MockConfigFileIo::set_executable_permission_context();
+        mock_permission_context
+            .expect()
+            .once()
+            .with(predicate::eq(binary_file_path.clone()))
+            .returning(|_| Ok(()));
+
         let expected_host_file_paths = HashMap::from([
             (text_host_file_path, PathBuf::from("/some/path/test.conf")),
             (binary_file_path, PathBuf::from("/hello")),
@@ -328,7 +344,9 @@ mod tests {
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     #[tokio::test]
     async fn utest_config_files_creator_create_files_create_dir_fails() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
 
         let config_files_dir_base = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
         let config_files = vec![File {
@@ -361,7 +379,9 @@ mod tests {
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     #[tokio::test]
     async fn utest_config_files_creator_create_files_write_file_fails() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
 
         let config_files_dir_base = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
         let config_files = vec![File {
@@ -401,7 +421,9 @@ mod tests {
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
     #[tokio::test]
     async fn utest_config_files_creator_create_config_files_fails_with_invalid_path_components() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
 
         let config_files_dir = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
         let config_files = vec![File {
@@ -430,8 +452,8 @@ mod tests {
     }
 
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
-    #[tokio::test]
-    async fn utest_host_config_file_location_try_from_fails_with_directory_instead_of_file() {
+    #[test]
+    fn utest_host_config_file_location_try_from_fails_with_directory_instead_of_file() {
         let config_files_dir = PathBuf::from(WORKLOAD_CONFIG_FILES_PATH);
         let invalid_paths = vec![Path::new("/"), Path::new("/invalid/")];
 
