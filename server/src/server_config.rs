@@ -48,8 +48,7 @@ pub struct ServerConfig {
     pub startup_config: Option<String>,
     #[serde(
         default = "get_default_address",
-        deserialize_with = "convert_to_socket_address",
-        skip_serializing_if = "Option::is_none"
+        deserialize_with = "convert_to_socket_address"
     )]
     pub address: Option<SocketAddr>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -97,7 +96,7 @@ impl ServerConfig {
         if let Some(path) = &args.path {
             self.startup_config = Some(path.to_string());
         }
-        
+
         if let Some(addr) = &args.addr {
             self.address = Some(*addr);
         }
