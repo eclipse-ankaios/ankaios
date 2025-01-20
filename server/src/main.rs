@@ -40,7 +40,15 @@ async fn main() {
 
     let args = cli::parse();
 
+    log::debug!(
+        "server config before update with args: {:?}\n",
+        server_config
+    );
+    log::debug!("args: {:?}\n", args);
+
     server_config.update_with_args(&args);
+
+    log::debug!("server config after update w\\ args: {:?}\n", server_config);
 
     log::debug!(
         "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup config path: '{}'",
