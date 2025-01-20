@@ -19,7 +19,6 @@ use common::communications_server::CommunicationsServer;
 use tonic::transport::{Certificate, Identity, Server};
 
 use std::net::SocketAddr;
-use std::path::Path;
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::grpc_api::agent_connection_server::AgentConnectionServer;
@@ -68,12 +67,12 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 let key_pem = &tls_config.path_to_key_pem;
 
                 // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                let ca = read_pem_file(Path::new(ca_pem), false)
+                let ca = read_pem_file(ca_pem, false)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
                 // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                let cert = read_pem_file(Path::new(crt_pem), false)
+                let cert = read_pem_file(crt_pem, false)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
-                let key = read_pem_file(Path::new(key_pem), true)
+                let key = read_pem_file(key_pem, true)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
 
                 let server_identity = Identity::from_pem(cert, key);
@@ -102,14 +101,13 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                             "Connection between Ankaios server and the communication middleware dropped.".into())
                         )?
                     }
-
                 }
             }
             // [impl->swdd~grpc-server-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
             None => {
                 log::warn!(
-                    "!!!ANKSERVER IS STARTED IN INSECURE MODE (-k, --insecure) -> TLS is disabled!!!"
-                );
+                            "!!!ANKSERVER IS STARTED IN INSECURE MODE (-k, --insecure) -> TLS is disabled!!!"
+                        );
                 tokio::select! {
                     // [impl->swdd~grpc-server-spawns-tonic-service~1]
                     // [impl->swdd~grpc-delegate-workflow-to-external-library~1]

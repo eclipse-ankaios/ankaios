@@ -12,22 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{de::Error, Deserialize, Deserializer};
-use std::fmt;
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fs::read_to_string;
 use std::net::SocketAddr;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use toml::from_str;
-use toml::Value;
 
 use crate::cli::Arguments;
 use common::DEFAULT_SOCKET_ADDRESS;
-
-// #[derive(Deserialize)]
-// pub enum PemEnum {
-//     Pem(Box<Path>),
-//     PemContent(String),
-// }
 
 const CONFIG_VERSION: &str = "v1";
 
@@ -36,41 +27,9 @@ fn get_default_address() -> Option<SocketAddr> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct InvalidAddressError;
-
-impl fmt::Display for InvalidAddressError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Invalid address provided")
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConflictingArgumentsError;
-
-impl fmt::Display for ConflictingArgumentsError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "You can either provide crt_pem or crt_pem_content, but not both."
-        )
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct MissingVersionError;
-
-impl fmt::Display for MissingVersionError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Missing configuration version")
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ConversionErrors {
-    MissingVersion(MissingVersionError),
     WrongVersion(String),
-    ConflictingArguments(ConflictingArgumentsError),
-    InvalidAddressError(InvalidAddressError),
+    ConflictingCertificates(String),
 }
 
 fn convert_to_socket_address<'de, D>(deserializer: D) -> Result<Option<SocketAddr>, D::Error>
@@ -82,14 +41,15 @@ where
     Ok(s.parse().ok())
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Serialize)]
 pub struct ServerConfig {
+    pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub startup_config: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(
         default = "get_default_address",
-        deserialize_with = "convert_to_socket_address"
+        deserialize_with = "convert_to_socket_address",
+        skip_serializing_if = "Option::is_none"
     )]
     pub address: Option<SocketAddr>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -109,57 +69,57 @@ pub struct ServerConfig {
     pub key_pem_content: Option<String>,
 }
 
-impl TryFrom<Value> for ServerConfig {
-    type Error = ConversionErrors;
+impl ServerConfig {
+    pub fn from_file(file_path: &str) -> Result<ServerConfig, ConversionErrors> {
+        let config_file_content = read_to_string(file_path).unwrap_or_default();
+        let server_config: ServerConfig = from_str(&config_file_content).unwrap_or_default();
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        if let Some(config_version) = value["version"].as_str() {
-            if config_version != CONFIG_VERSION {
-                return Err(ConversionErrors::WrongVersion(format!(
-                    "The configuration file version {} does not match the expected version {}",
-                    config_version, CONFIG_VERSION
-                )));
-            }
-        } else {
-            return Err(ConversionErrors::MissingVersion(MissingVersionError));
-        };
+        if server_config.version != CONFIG_VERSION {
+            return Err(ConversionErrors::WrongVersion(server_config.version));
+        }
 
-        if value.get("ca_pem").is_some() && value.get("ca_pem_content").is_some() {
-            return Err(ConversionErrors::ConflictingArguments(
-                ConflictingArgumentsError,
+        if (server_config.ca_pem.is_some()
+            || server_config.crt_pem.is_some()
+            || server_config.key_pem.is_some())
+            && (server_config.ca_pem_content.is_some()
+                || server_config.crt_pem_content.is_some()
+                || server_config.key_pem_content.is_some())
+        {
+            return Err(ConversionErrors::ConflictingCertificates(
+                "Certificate paths and certificate content are both set".to_string(),
             ));
         }
 
-        Ok(ServerConfig::default())
-    }
-}
-
-impl ServerConfig {
-    pub fn from_file(file_path: &str) -> Result<ServerConfig, ConversionErrors> {
-        let config_file_content = read_to_string(file_path).unwrap();
-        let server_config: Value = from_str(&config_file_content).unwrap();
-
-        println!("{:?}", server_config);
-
-        Ok(ServerConfig::try_from(server_config)?)
+        Ok(server_config)
     }
 
     pub fn update_with_args(&mut self, args: &Arguments) {
-        println!("ARGS: {:?}", args);
-
         if let Some(path) = &args.path {
             self.startup_config = Some(path.to_string());
         }
+        
         if let Some(addr) = &args.addr {
             self.address = Some(*addr);
         }
-        if let Some(insecure) = args.insecure {
-            self.insecure = Some(insecure);
-            if !insecure {
-                self.ca_pem = args.ca_pem.clone();
-                self.crt_pem = args.crt_pem.clone();
-                self.key_pem = args.key_pem.clone();
-            }
-        }
+
+        // TODO: do update of certificates always
+        self.insecure = Some(args.insecure);
+
+        self.ca_pem = if let Some(ca_pem) = &args.ca_pem {
+            Some(ca_pem.to_string())
+        } else {
+            self.ca_pem_content.clone()
+        };
+        self.crt_pem = if let Some(crt_pem) = &args.crt_pem {
+            Some(crt_pem.to_string())
+        } else {
+            self.crt_pem_content.clone()
+        };
+        self.key_pem = args.key_pem.clone();
+        self.key_pem = if let Some(key_pem) = &args.key_pem {
+            Some(key_pem.to_string())
+        } else {
+            self.key_pem_content.clone()
+        };
     }
 }

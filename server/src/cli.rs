@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use std::{env, net::SocketAddr};
 
 pub fn parse() -> Arguments {
@@ -33,9 +33,9 @@ pub struct Arguments {
     #[clap(required = false, short = 'a', long = "address")]
     /// The address, including the port, the server shall listen at [default: 127.0.0.1:25551].
     pub addr: Option<SocketAddr>,
-    #[clap(short = 'k', long = "insecure", env = "ANKSERVER_INSECURE")]
+    #[clap(short = 'k', long = "insecure", action=ArgAction::SetTrue, default_value_t = false, env="ANKSERVER_INSECURE")]
     /// Flag to disable TLS communication between Ankaios server, agent and ank CLI.
-    pub insecure: Option<bool>,
+    pub insecure: bool,
     #[clap(long = "ca_pem", env = "ANKSERVER_CA_PEM")]
     /// Path to server ca certificate pem file.
     pub ca_pem: Option<String>,

@@ -16,8 +16,9 @@ mod ankaios_server;
 mod cli;
 mod server_config;
 
-use common::objects::CompleteState;
 use std::fs;
+
+use common::objects::CompleteState;
 
 use common::communications_server::CommunicationsServer;
 use common::objects::State;
@@ -32,30 +33,27 @@ use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    // todo: add the config file parser with the lowest priority
+    // TODO: needs to be replaced with /etc/ankaios/ank-server.conf
     let mut server_config =
         ServerConfig::from_file("/workspaces/ankaios/server/config/ank-server.conf")
             .unwrap_or_default();
-    println!("BEFORE: {:?}", server_config);
 
     let args = cli::parse();
 
     server_config.update_with_args(&args);
-    println!("AFTER: {:?}", server_config);
 
     log::debug!(
         "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup config path: '{}'",
-        server_config
-            .address
-            .clone()
-            .unwrap_or("[no address provided]".parse().unwrap()),
+        server_config.address.unwrap(),
         server_config
             .startup_config
             .clone()
             .unwrap_or("[no config file provided]".to_string()),
     );
 
-    let startup_state = match server_config.startup_config {
+    log::debug!("server config 1: {:?}", server_config);
+
+    let startup_state = match &server_config.startup_config {
         Some(config_path) => {
             let data =
                 fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");
@@ -76,34 +74,91 @@ async fn main() {
         _ => None,
     };
 
+    log::debug!("server config 2: {:?}", server_config);
+
     let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
     let (to_agents, agents_receiver) = create_from_server_channel(common::CHANNEL_CAPACITY);
 
-    // if let Err(err_message) =
-    //     TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem)
-    // {
-    //     log::warn!("{}", err_message);
-    // }
+    log::debug!("server config 3: {:?}", server_config);
 
-    // // [impl->swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
-    // // [impl->swdd~server-provides-file-paths-to-communication-middleware~1]
-    // // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    // let tls_config = TLSConfig::new(args.insecure, args.ca_pem, args.crt_pem, args.key_pem);
+    if let Err(err_message) = TLSConfig::is_config_conflicting(
+        server_config.insecure.unwrap(),
+        &server_config.ca_pem,
+        &server_config.crt_pem,
+        &server_config.key_pem,
+    ) {
+        log::warn!("{}", err_message);
+    }
 
-    // let mut communications_server = GRPCCommunicationsServer::new(
-    //     to_server.clone(),
-    //     // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    //     tls_config.unwrap_or_exit("Missing certificates files"),
-    // );
-    // let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
+    log::debug!("server config 4: {:?}", server_config);
 
-    // tokio::select! {
-    //     // [impl->swdd~server-default-communication-grpc~1]
-    //     communication_result = communications_server.start(agents_receiver, args.addr) => {
-    //         communication_result.unwrap_or_exit("server error")
-    //     }
-    //     server_result = server.start(startup_state) => {
-    //         server_result.unwrap_or_exit("server error")
-    //     }
-    // }
+    if let Err(err_message) = TLSConfig::is_config_conflicting(
+        server_config.insecure.unwrap(),
+        &server_config.ca_pem,
+        &server_config.crt_pem,
+        &server_config.key_pem,
+    ) {
+        log::warn!("{}", err_message);
+    }
+
+    log::debug!("server config 5: {:?}", server_config);
+
+    // [impl->swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+    // [impl->swdd~server-provides-file-paths-to-communication-middleware~1]
+    // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+    log::debug!("ca_pem: {:?}", server_config.ca_pem);
+    log::debug!("crt_pem: {:?}", server_config.crt_pem);
+    log::debug!("key_pem: {:?}", server_config.ca_pem);
+
+    let tls_config: Result<Option<TLSConfig>, String> = if server_config.ca_pem.is_some()
+        || server_config.crt_pem.is_some()
+        || server_config.key_pem.is_some()
+    // && !server_config.insecure.unwrap()
+    {
+        log::debug!("TLS CONFIG CHECKING GOT IN HERE 1");
+        TLSConfig::new(
+            server_config.insecure.unwrap(),
+            server_config.ca_pem,
+            server_config.crt_pem,
+            server_config.key_pem,
+        )
+    } else if server_config.ca_pem_content.is_some()
+        || server_config.crt_pem_content.is_some()
+        || server_config.key_pem_content.is_some()
+    {
+        log::debug!("TLS CONFIG CHECKING GOT IN HERE 2");
+        TLSConfig::new(
+            server_config.insecure.unwrap(),
+            server_config.ca_pem_content,
+            server_config.crt_pem_content,
+            server_config.key_pem_content,
+        )
+    } else {
+        // Err("Unable to build mTLS configuration!".to_string())
+        log::debug!("TLS CONFIG CHECKING GOT IN HERE 3");
+        TLSConfig::new(
+            server_config.insecure.unwrap(),
+            server_config.ca_pem,
+            server_config.crt_pem,
+            server_config.key_pem,
+        )
+    };
+
+    let mut communications_server = GRPCCommunicationsServer::new(
+        to_server.clone(),
+        // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+        tls_config.unwrap_or_exit("Missing certificates files"),
+    );
+    let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
+
+    tokio::select! {
+        // [impl->swdd~server-default-communication-grpc~1]
+        communication_result = communications_server.start(agents_receiver, server_config.address.unwrap()) => {
+            communication_result.unwrap_or_exit("server error")
+        }
+
+        server_result = server.start(startup_state) => {
+            server_result.unwrap_or_exit("server error")
+        }
+    }
 }
