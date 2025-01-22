@@ -24,7 +24,7 @@ RUST_LOG=debug cargo llvm-cov nextest --ignore-filename-regex "$(cat << 'EOF' | 
 /test_utils.rs
 
 # Command line interface definition defined with third-party library
-/cli.rs
+server/src/cli.rs
 
 # Primitive operations already tested in higher level components
 /objects/agent_map.rs
