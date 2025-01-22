@@ -14,12 +14,13 @@
 
 use crate::config_files::WorkloadConfigFilesPath;
 use crate::control_interface::ControlInterfacePath;
-use crate::runtime_connectors::StateChecker;
+use crate::runtime_connectors::{RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec};
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
+use std::path::Path;
 use std::str::FromStr;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -112,7 +113,7 @@ impl WorkloadControlLoop {
                 }
                 workload_command = control_loop_state.command_receiver.recv() => {
                     match workload_command {
-                        // [impl->swdd~agent-workload-control-loop-executes-delete~2]
+                        // [impl->swdd~agent-workload-control-loop-executes-delete~3]
                         Some(WorkloadCommand::Delete) => {
                             log::debug!("Received WorkloadCommand::Delete.");
 
@@ -123,7 +124,7 @@ impl WorkloadControlLoop {
                                 return;
                             }
                         }
-                        // [impl->swdd~agent-workload-control-loop-executes-update~2]
+                        // [impl->swdd~agent-workload-control-loop-executes-update~3]
                         Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
                             log::debug!("Received WorkloadCommand::Update.");
 
@@ -146,7 +147,7 @@ impl WorkloadControlLoop {
                             )
                             .await;
                         }
-                        // [impl->swdd~agent-workload-control-loop-executes-create~3]
+                        // [impl->swdd~agent-workload-control-loop-executes-create~4]
                         Some(WorkloadCommand::Create) => {
                             log::debug!("Received WorkloadCommand::Create.");
 
@@ -318,10 +319,10 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    // [impl->swdd~agent-workload-control-loop-executes-create~3]
+    // [impl->swdd~agent-workload-control-loop-executes-create~4]
     async fn create_workload_on_runtime<WorkloadId, StChecker, ErrorFunc, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        func_on_error: ErrorFunc,
+        func_on_recoverable_error: ErrorFunc,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
@@ -344,11 +345,14 @@ impl WorkloadControlLoop {
             {
                 Ok(host_path_mount_point_mapping) => Some(host_path_mount_point_mapping),
                 Err(err) => {
+                    // [impl->swdd~deletes-config-files-upon-file-creation-error~1]
+
                     log::error!(
                         "Failed to create config files for workload '{}': '{}'",
                         new_instance_name,
                         err
                     );
+
                     if workload_config_files_dir.exists() {
                         tokio::fs::remove_dir_all(workload_config_files_dir)
                             .await
@@ -363,7 +367,7 @@ impl WorkloadControlLoop {
                     Self::send_workload_state_to_agent(
                         &control_loop_state.to_agent_workload_state_sender,
                         &new_instance_name,
-                        ExecutionState::failed(err),
+                        ExecutionState::starting_failed(err),
                     )
                     .await;
 
@@ -422,23 +426,47 @@ impl WorkloadControlLoop {
                     });
                 }
 
-                Self::send_workload_state_to_agent(
-                    &control_loop_state.to_agent_workload_state_sender,
-                    &new_instance_name,
-                    ExecutionState::retry_starting(
-                        current_retry_counter,
-                        MAX_RETRIES,
-                        err.to_string(),
-                    ),
-                )
-                .await;
+                match &err {
+                    RuntimeError::Unsupported(msg) => {
+                        Self::send_workload_state_to_agent(
+                            &control_loop_state.to_agent_workload_state_sender,
+                            &new_instance_name,
+                            ExecutionState::starting_failed(msg.to_string()),
+                        )
+                        .await;
 
-                func_on_error(control_loop_state, new_instance_name, err.to_string()).await
+                        log::error!(
+                            "Failed to create workload with unrecoverable error: '{}'",
+                            err
+                        );
+
+                        control_loop_state
+                    }
+                    _ => {
+                        Self::send_workload_state_to_agent(
+                            &control_loop_state.to_agent_workload_state_sender,
+                            &new_instance_name,
+                            ExecutionState::retry_starting(
+                                current_retry_counter,
+                                MAX_RETRIES,
+                                err.to_string(),
+                            ),
+                        )
+                        .await;
+
+                        func_on_recoverable_error(
+                            control_loop_state,
+                            new_instance_name,
+                            err.to_string(),
+                        )
+                        .await
+                    }
+                }
             }
         }
     }
 
-    // [impl->swdd~agent-workload-control-loop-executes-delete~2]
+    // [impl->swdd~agent-workload-control-loop-executes-delete~3]
     async fn delete_workload_on_runtime<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> Option<ControlLoopState<WorkloadId, StChecker>>
@@ -486,22 +514,16 @@ impl WorkloadControlLoop {
 
         let instance_name = control_loop_state.instance_name();
 
-        let workload_dir = control_loop_state
-            .instance_name()
-            .pipes_folder_name(&control_loop_state.run_folder);
-
-        if workload_dir.exists() {
-            log::debug!("Removing the config files of workload '{}'", instance_name);
-
-            tokio::fs::remove_dir_all(workload_dir)
-                .await
-                .unwrap_or_else(|err| {
-                    log::error!(
-                        "Delete of config files failed after workload creation error '{}': '{}'",
-                        instance_name,
-                        err
-                    );
-                });
+        // [impl->swdd~agent-workload-control-loop-deletes-workload-subfolder~1]
+        if let Err(cleanup_err) = Self::delete_workload_subfolder(
+            instance_name,
+            &control_loop_state.run_folder,
+            &control_loop_state.to_agent_workload_state_sender,
+        )
+        .await
+        {
+            log::error!("{cleanup_err}");
+            return Some(control_loop_state);
         }
 
         // Successfully stopped the workload. Send a removed on the channel
@@ -515,7 +537,7 @@ impl WorkloadControlLoop {
         None
     }
 
-    // [impl->swdd~agent-workload-control-loop-executes-update~2]
+    // [impl->swdd~agent-workload-control-loop-executes-update~3]
     async fn update_workload_on_runtime<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_spec: Option<Box<WorkloadSpec>>,
@@ -562,22 +584,17 @@ impl WorkloadControlLoop {
         }
 
         let old_instance_name = control_loop_state.instance_name();
-        let workload_config_files_dir =
-            WorkloadConfigFilesPath::from((&control_loop_state.run_folder, old_instance_name));
 
-        if workload_config_files_dir.exists() {
-            log::debug!(
-                "Removing the config files of workload '{}'",
-                old_instance_name
-            );
-
-            tokio::fs::remove_dir_all(workload_config_files_dir).await.unwrap_or_else(|err| {
-                log::error!(
-                    "Delete of config files failed after deletion of workload when updating '{}': '{}'",
-                    old_instance_name,
-                    err
-                );
-            });
+        // [impl->swdd~agent-workload-control-loop-deletes-workload-subfolder~1]
+        if let Err(cleanup_err) = Self::delete_workload_subfolder(
+            old_instance_name,
+            &control_loop_state.run_folder,
+            &control_loop_state.to_agent_workload_state_sender,
+        )
+        .await
+        {
+            log::error!("{cleanup_err}");
+            return control_loop_state;
         }
 
         // workload is deleted or already gone, send the remove state
@@ -684,6 +701,40 @@ impl WorkloadControlLoop {
         control_loop_state.state_checker = state_checker;
         control_loop_state
     }
+
+    // [impl->swdd~agent-workload-control-loop-deletes-workload-subfolder~1]
+    async fn delete_workload_subfolder(
+        instance_name: &WorkloadInstanceName,
+        run_folder: &Path,
+        workload_state_sender: &WorkloadStateSender,
+    ) -> Result<(), String> {
+        let workload_dir = instance_name.pipes_folder_name(run_folder);
+
+        if workload_dir.exists() {
+            log::debug!(
+                "Removing the workload subfolder of workload '{}'",
+                instance_name
+            );
+
+            if let Err(err) = tokio::fs::remove_dir_all(workload_dir).await {
+                let error = Err(format!(
+                    "Failed to delete workload subfolder when deleting workload '{}': '{}'",
+                    instance_name, err
+                ));
+
+                Self::send_workload_state_to_agent(
+                    workload_state_sender,
+                    instance_name,
+                    ExecutionState::delete_failed(err),
+                )
+                .await;
+
+                return error;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -741,7 +792,7 @@ mod tests {
     // Unfortunately this test also executes a delete of the newly updated workload.
     // We could not avoid this as it is the only possibility to check the internal variables
     // and to properly stop the control loop in the await new command method
-    // [utest->swdd~agent-workload-control-loop-executes-update~2]
+    // [utest->swdd~agent-workload-control-loop-executes-update~3]
     #[tokio::test]
     async fn utest_workload_obj_run_update_success() {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
@@ -1245,7 +1296,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-delete~2]
+    // [utest->swdd~agent-workload-control-loop-executes-delete~3]
     #[tokio::test]
     async fn utest_workload_obj_run_delete_success() {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
@@ -1413,7 +1464,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~3]
+    // [utest->swdd~agent-workload-control-loop-executes-create~4]
     #[tokio::test]
     async fn utest_workload_obj_run_create_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1472,7 +1523,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~3]
+    // [utest->swdd~agent-workload-control-loop-executes-create~4]
     // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_creation_successful_after_create_command_fails() {
@@ -1539,7 +1590,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~3]
+    // [utest->swdd~agent-workload-control-loop-executes-create~4]
     // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_create_with_retry_workload_command_channel_closed() {

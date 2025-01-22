@@ -41,28 +41,19 @@ impl From<PodmanRuntimeConfig> for PodmanRunConfig {
     }
 }
 
-#[derive(Debug)]
-pub struct TryFromWorkloadSpecError(String);
-
 impl TryFrom<&WorkloadSpec> for PodmanRuntimeConfig {
-    type Error = TryFromWorkloadSpecError;
+    type Error = String;
     fn try_from(workload_spec: &WorkloadSpec) -> Result<Self, Self::Error> {
         if PODMAN_RUNTIME_NAME != workload_spec.runtime {
-            return Err(TryFromWorkloadSpecError(format!(
+            return Err(format!(
                 "Received a spec for the wrong runtime: '{}'",
                 workload_spec.runtime
-            )));
+            ));
         }
         match serde_yaml::from_str(workload_spec.runtime_config.as_str()) {
             Ok(workload_cfg) => Ok(workload_cfg),
-            Err(e) => Err(TryFromWorkloadSpecError(e.to_string())),
+            Err(e) => Err(e.to_string()),
         }
-    }
-}
-
-impl From<TryFromWorkloadSpecError> for String {
-    fn from(value: TryFromWorkloadSpecError) -> Self {
-        value.0
     }
 }
 

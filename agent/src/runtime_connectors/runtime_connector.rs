@@ -27,6 +27,7 @@ pub enum RuntimeError {
     Create(String),
     Delete(String),
     List(String),
+    Unsupported(String),
 }
 
 impl Display for RuntimeError {
@@ -39,6 +40,9 @@ impl Display for RuntimeError {
                 write!(f, "{}", msg)
             }
             RuntimeError::List(msg) => {
+                write!(f, "{}", msg)
+            }
+            RuntimeError::Unsupported(msg) => {
                 write!(f, "{}", msg)
             }
         }

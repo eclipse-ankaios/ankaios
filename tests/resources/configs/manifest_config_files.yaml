@@ -21,6 +21,46 @@ workloads:
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "/hello" ]
+  kube_workload_with_mounted_text_file:
+    agent: agent_B
+    runtime: podman-kube
+    configs:
+      nginx_conf: file_data
+    # files:
+    #   - mountPoint: "/etc/nginx/nginx.conf"
+    #     data: "{{nginx_conf.web_server_config}}"
+    # {{> indent content=nginx_conf.web_server_config}}
+    runtimeConfig: |
+      manifest: |
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: nginx-config
+        data:
+          nginx.conf: |
+            {{nginx_conf.web_server_config}}
+        ---
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: nginx-pod
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: nginx-container
+            image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+            ports:
+            - containerPort: 80
+              hostPort: 8081
+            volumeMounts:
+            - name: nginx-config-volume
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          volumes:
+          - name: nginx-config-volume
+            configMap:
+              name: nginx-config
+
 configs:
   file_data:
     web_server_config: |

@@ -166,8 +166,8 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         update_state_tx: WorkloadStateSender,
         config_file_path_mapping: Option<HashMap<PathBuf, PathBuf>>,
     ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
-        let workload_cfg = PodmanRuntimeConfig::try_from(&workload_spec)
-            .map_err(|err| RuntimeError::Create(err.into()))?;
+        let workload_cfg =
+            PodmanRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Unsupported)?;
 
         let cli_result = match reusable_workload_id {
             Some(workload_id) => {

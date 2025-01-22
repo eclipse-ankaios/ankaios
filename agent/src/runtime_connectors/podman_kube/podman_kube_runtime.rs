@@ -150,7 +150,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         let instance_name = workload_spec.instance_name.clone();
 
         let workload_config =
-            PodmanKubeRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Create)?;
+            PodmanKubeRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Unsupported)?;
 
         // [impl->swdd~podman-kube-create-workload-creates-config-volume~1]
         // [impl->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
