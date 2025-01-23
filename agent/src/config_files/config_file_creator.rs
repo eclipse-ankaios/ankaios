@@ -50,6 +50,10 @@ mod config_file_io {
             std::fs::create_dir_all(dir_path)
         }
 
+        pub fn remove_dir_all(dir_path: &Path) -> Result<(), std::io::Error> {
+            std::fs::remove_dir_all(dir_path)
+        }
+
         pub async fn set_executable_permission(file_path: &Path) -> Result<(), std::io::Error> {
             let metadata = fs::metadata(file_path).await?;
             let mut permissions = metadata.permissions();
@@ -166,18 +170,35 @@ impl ConfigFilesCreator {
         for file in config_files {
             let mount_point = Path::new(&file.mount_point);
 
-            let host_config_file_location =
-                HostConfigFileLocation::try_from((config_files_base_path, mount_point)).map_err(
-                    |err| {
-                        ConfigFileCreatorError::new(format!(
-                            "invalid mount point '{}': '{}'",
-                            mount_point.display(),
-                            err
-                        ))
-                    },
-                )?;
+            let host_config_file_location = HostConfigFileLocation::try_from((
+                config_files_base_path,
+                mount_point,
+            ))
+            .map_err(|err| {
+                ConfigFileIo::remove_dir_all(config_files_base_path).unwrap_or_else(|err| {
+                    log::error!(
+                        "Failed to remove directory '{}': '{}'",
+                        config_files_base_path.display(),
+                        err
+                    )
+                });
+
+                ConfigFileCreatorError::new(format!(
+                    "invalid mount point '{}': '{}'",
+                    mount_point.display(),
+                    err
+                ))
+            })?;
 
             ConfigFileIo::create_dir_all(&host_config_file_location.directory).map_err(|err| {
+                ConfigFileIo::remove_dir_all(config_files_base_path).unwrap_or_else(|err| {
+                    log::error!(
+                        "Failed to remove directory '{}': '{}'",
+                        config_files_base_path.display(),
+                        err
+                    )
+                });
+
                 ConfigFileCreatorError::new(format!(
                     "failed to create config file directory structure for '{}': '{}'",
                     mount_point.display(),
@@ -186,7 +207,18 @@ impl ConfigFilesCreator {
             })?;
 
             let host_config_file_path = host_config_file_location.get_absolute_file_path();
-            Self::write_config_file(host_config_file_path.as_path(), file).await?;
+            Self::write_config_file(host_config_file_path.as_path(), file)
+                .await
+                .map_err(|err| {
+                    ConfigFileIo::remove_dir_all(config_files_base_path).unwrap_or_else(|err| {
+                        log::error!(
+                            "Failed to remove directory '{}': '{}'",
+                            config_files_base_path.display(),
+                            err
+                        )
+                    });
+                    err
+                })?;
             host_file_paths.insert(host_config_file_path, mount_point.to_path_buf());
         }
 
@@ -358,6 +390,12 @@ mod tests {
             .once()
             .returning(|_| Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied)));
 
+        let mock_delete_dir_context = MockConfigFileIo::remove_dir_all_context();
+        mock_delete_dir_context
+            .expect()
+            .once()
+            .returning(|_| Ok(()));
+
         let mock_write_file_context = MockConfigFileIo::write_file_context();
         mock_write_file_context.expect::<String>().never();
 
@@ -402,6 +440,12 @@ mod tests {
                 Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
             });
 
+        let mock_delete_dir_context = MockConfigFileIo::remove_dir_all_context();
+        mock_delete_dir_context
+            .expect()
+            .once()
+            .returning(|_| Ok(()));
+
         assert_eq!(
             Err(ConfigFileCreatorError::new(
                 "write failed for '/some/path/test.conf': 'permission denied'".to_string()
@@ -424,6 +468,12 @@ mod tests {
                 data: TEST_CONFIG_FILE_DATA.to_owned(),
             }),
         }];
+
+        let mock_delete_dir_context = MockConfigFileIo::remove_dir_all_context();
+        mock_delete_dir_context
+            .expect()
+            .once()
+            .returning(|_| Ok(()));
 
         let mock_create_dir_context = MockConfigFileIo::create_dir_all_context();
         mock_create_dir_context.expect().never();

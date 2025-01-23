@@ -20,7 +20,7 @@ use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec};
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -333,7 +333,10 @@ impl WorkloadControlLoop {
     {
         let new_instance_name = control_loop_state.workload_spec.instance_name.clone();
 
-        let config_file_path_mapping = if control_loop_state.workload_spec.has_config_files() {
+        let host_config_file_mount_point_mapping = if control_loop_state
+            .workload_spec
+            .has_config_files()
+        {
             let workload_config_files_dir =
                 WorkloadConfigFilesPath::from((&control_loop_state.run_folder, &new_instance_name));
 
@@ -343,34 +346,15 @@ impl WorkloadControlLoop {
             )
             .await
             {
-                Ok(host_path_mount_point_mapping) => Some(host_path_mount_point_mapping),
+                Ok(mapping) => Some(mapping),
                 Err(err) => {
-                    // [impl->swdd~deletes-config-files-upon-file-creation-error~1]
-
-                    log::error!(
-                        "Failed to create config files for workload '{}': '{}'",
-                        new_instance_name,
-                        err
-                    );
-
-                    if workload_config_files_dir.exists() {
-                        tokio::fs::remove_dir_all(workload_config_files_dir)
-                            .await
-                            .unwrap_or_else(|err| {
-                                log::error!(
-                                    "Failed to remove config files for workload '{}': '{}'",
-                                    new_instance_name,
-                                    err
-                                );
-                            });
-                    }
+                    // [impl->swdd~agent-workload-control-loop-aborts-create-upon-config-files-creation-error~1]
                     Self::send_workload_state_to_agent(
                         &control_loop_state.to_agent_workload_state_sender,
                         &new_instance_name,
                         ExecutionState::starting_failed(err),
                     )
                     .await;
-
                     return control_loop_state;
                 }
             }
@@ -390,7 +374,7 @@ impl WorkloadControlLoop {
                 control_loop_state
                     .state_checker_workload_state_sender
                     .clone(),
-                config_file_path_mapping,
+                host_config_file_mount_point_mapping,
             )
             .await
         {
@@ -406,25 +390,11 @@ impl WorkloadControlLoop {
             Err(err) => {
                 let current_retry_counter = control_loop_state.retry_counter.current_retry();
 
-                let workload_config_files_dir = WorkloadConfigFilesPath::from((
-                    &control_loop_state.run_folder,
+                Self::delete_config_files_subfolder(
                     &new_instance_name,
-                ));
-
-                if workload_config_files_dir.exists() {
-                    log::debug!(
-                        "Removing the config files of workload '{}'",
-                        new_instance_name
-                    );
-
-                    tokio::fs::remove_dir_all(workload_config_files_dir).await.unwrap_or_else(|err| {
-                        log::error!(
-                            "Delete of config files failed after workload creation error '{}': '{}'",
-                            new_instance_name,
-                            err
-                        );
-                    });
-                }
+                    &control_loop_state.run_folder,
+                )
+                .await;
 
                 match &err {
                     RuntimeError::Unsupported(msg) => {
@@ -512,19 +482,11 @@ impl WorkloadControlLoop {
             );
         }
 
-        let instance_name = control_loop_state.instance_name();
-
-        // [impl->swdd~agent-workload-control-loop-deletes-workload-subfolder~1]
-        if let Err(cleanup_err) = Self::delete_workload_subfolder(
-            instance_name,
+        Self::delete_workload_subfolder(
+            control_loop_state.instance_name(),
             &control_loop_state.run_folder,
-            &control_loop_state.to_agent_workload_state_sender,
         )
-        .await
-        {
-            log::error!("{cleanup_err}");
-            return Some(control_loop_state);
-        }
+        .await;
 
         // Successfully stopped the workload. Send a removed on the channel
         Self::send_workload_state_to_agent(
@@ -583,19 +545,27 @@ impl WorkloadControlLoop {
             );
         }
 
-        let old_instance_name = control_loop_state.instance_name();
-
-        // [impl->swdd~agent-workload-control-loop-deletes-workload-subfolder~1]
-        if let Err(cleanup_err) = Self::delete_workload_subfolder(
-            old_instance_name,
-            &control_loop_state.run_folder,
-            &control_loop_state.to_agent_workload_state_sender,
-        )
-        .await
-        {
-            log::error!("{cleanup_err}");
-            return control_loop_state;
+        if control_loop_state.workload_spec.has_config_files() {
+            Self::delete_config_files_subfolder(
+                control_loop_state.instance_name(),
+                &control_loop_state.run_folder,
+            )
+            .await;
         }
+
+        let new_workload_spec = if let Some(new_spec) = new_workload_spec {
+            if !Self::is_same_workload(control_loop_state.instance_name(), &new_spec.instance_name)
+            {
+                Self::delete_workload_subfolder(
+                    control_loop_state.instance_name(),
+                    &control_loop_state.run_folder,
+                )
+                .await;
+            }
+            Some(new_spec)
+        } else {
+            None
+        };
 
         // workload is deleted or already gone, send the remove state
         Self::send_workload_state_to_agent(
@@ -702,38 +672,37 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    // [impl->swdd~agent-workload-control-loop-deletes-workload-subfolder~1]
-    async fn delete_workload_subfolder(
+    async fn delete_config_files_subfolder(
         instance_name: &WorkloadInstanceName,
-        run_folder: &Path,
-        workload_state_sender: &WorkloadStateSender,
-    ) -> Result<(), String> {
+        run_folder: &PathBuf,
+    ) {
+        let workload_config_files_dir = WorkloadConfigFilesPath::from((run_folder, instance_name));
+
+        log::debug!("Deleting the config files of workload '{}'", instance_name);
+
+        tokio::fs::remove_dir_all(workload_config_files_dir)
+            .await
+            .unwrap_or_else(|err| {
+                log::error!(
+                    "Failed to delete config files for workload '{}': '{}'",
+                    instance_name,
+                    err
+                );
+            });
+    }
+
+    async fn delete_workload_subfolder(instance_name: &WorkloadInstanceName, run_folder: &Path) {
         let workload_dir = instance_name.pipes_folder_name(run_folder);
 
-        if workload_dir.exists() {
-            log::debug!(
-                "Removing the workload subfolder of workload '{}'",
-                instance_name
-            );
-
-            if let Err(err) = tokio::fs::remove_dir_all(workload_dir).await {
-                let error = Err(format!(
-                    "Failed to delete workload subfolder when deleting workload '{}': '{}'",
-                    instance_name, err
-                ));
-
-                Self::send_workload_state_to_agent(
-                    workload_state_sender,
+        tokio::fs::remove_dir_all(workload_dir)
+            .await
+            .unwrap_or_else(|err| {
+                log::error!(
+                    "Failed to delete workload subfolder for workload '{}': '{}'",
                     instance_name,
-                    ExecutionState::delete_failed(err),
+                    err
                 )
-                .await;
-
-                return error;
-            }
-        }
-
-        Ok(())
+            });
     }
 }
 

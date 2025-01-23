@@ -1014,17 +1014,14 @@ Needs:
 - impl
 - utest
 
-##### WorkloadControlLoop deletes config files upon file creation error
-`swdd~deletes-config-files-upon-file-creation-error~1`
+##### WorkloadControlLoop aborts aborts create upon config files creation error
+`swdd~agent-workload-control-loop-aborts-create-upon-config-files-creation-error~1`
 
 Status: approved
 
 When the WorkloadControlLoop requests the ConfigFilesCreator to create the config files for a workload and the creation of the files fails, the WorkloadControlLoop shall:
-* delete all the created config files
 * send a `Pending(StartingFailed)` workload state with additional information
-
-Rationale:
-Removing all config files prevents inconsistency issues with the config files when the workload is updated.
+* abort the creation of the workload
 
 Tags:
 - WorkloadControlLoop
@@ -1040,7 +1037,8 @@ Status: approved
 
 When the WorkloadControlLoop started during the creation of the workload object receives an update command, the WorkloadControlLoop shall:
 * execute a delete command for the old configuration of the workload
-* delete the workload subfolder
+* delete the workload config files subfolder if the old workload has config files assigned
+* delete the workload subfolder if the old and the new workload instance names are different
 * execute a create command for the new configuration of the workload
 
 Comment:
@@ -1190,7 +1188,7 @@ When the WorkloadControlLoop started during the creation of the workload object 
 * upon successful deletion of the workload:
     * stop the state checker for the workload
     * send a `Removed` workload state for that workload
-    * delete the workload subfolder
+    * delete the workload subfolder in the agent's run folder
     * stop the WorkloadControlLoop
 * upon failed deletion of the workload:
     * send a `Stopping(DeleteFailed)` workload state for that workload
@@ -1202,25 +1200,6 @@ Rationale:
 The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
 As the state checker for the workload is stopped, we cannot be sure that the removed workload state is correctly sent to the server before the state checker is stopped.
 For that reason the removed state is explicitly sent, even if it could be sent twice this way.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-
-##### WorkloadControlLoop handles workload subfolder cleanup
-`swdd~agent-workload-control-loop-deletes-workload-subfolder~1`
-
-Status: approved
-
-When the WorkloadControlLoop executes a delete or the delete part of the update of a workload successfully, the WorkloadControlLoop shall:
-* delete the workload's specific subfolder in the agent's run folder
-* send a `Stopping(DeleteFailed)` workload state if the cleanup fails
-
-Rationale:
-The cleanup is a part of the deletion process of a workload and sending a workload state in case of a failure maintains consistency.
 
 Tags:
 - WorkloadControlLoop
@@ -1873,9 +1852,13 @@ When the ConfigFilesCreator is triggered with the list of config files assigned 
 * construct a host file path for the config file by appending the mount point to the predefined path
 * recursively create the directory structure of the constructed path on the host file system
 * write the config file to the constructed host file path with respect to its content type
+* delete all the config files on the host filesystem upon failure
 
 Comment:
 The host file path of an example config file with mount point at `/path/to/text.conf` is `<Agent run folder>/<Workload name>.<runtime config hash>/config_files/path/to/text.conf`. The content type is text-based or binary.
+
+Rational:
+Removing all config files in case of an failure prevents inconsistency issues.
 
 Tags:
 - ConfigFilesCreator
