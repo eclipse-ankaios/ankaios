@@ -333,7 +333,7 @@ impl WorkloadControlLoop {
     {
         let new_instance_name = control_loop_state.workload_spec.instance_name.clone();
 
-        let host_config_file_mount_point_mapping = if control_loop_state
+        let host_config_file_mount_point_mappings = if control_loop_state
             .workload_spec
             .has_config_files()
         {
@@ -374,7 +374,7 @@ impl WorkloadControlLoop {
                 control_loop_state
                     .state_checker_workload_state_sender
                     .clone(),
-                host_config_file_mount_point_mapping,
+                host_config_file_mount_point_mappings,
             )
             .await
         {
