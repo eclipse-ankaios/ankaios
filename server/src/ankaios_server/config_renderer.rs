@@ -162,12 +162,6 @@ impl ConfigRenderer {
                         .template_engine
                         .render_template(&data.data, &wl_config_map);
 
-                    log::debug!(
-                        "Rendering file '{}': {:?}",
-                        mount_point,
-                        rendered_file_content
-                    );
-
                     if let Ok(rendered_content) = rendered_file_content {
                         let rendered_file = File {
                             mount_point: mount_point.clone(),
