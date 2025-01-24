@@ -1014,7 +1014,7 @@ Needs:
 - impl
 - utest
 
-##### WorkloadControlLoop aborts aborts create upon config files creation error
+##### WorkloadControlLoop aborts create upon config files creation error
 `swdd~agent-workload-control-loop-aborts-create-upon-config-files-creation-error~1`
 
 Status: approved
@@ -1867,12 +1867,14 @@ Needs:
 - impl
 - utest
 
-#### ConfigFilesCreator decodes base64 to binary
-`swdd~config-files-creator-decodes-base64-to-binary~1`
+#### ConfigFilesCreator decodes base64 to executable
+`swdd~config-files-creator-decodes-base64-to-executable~1`
 
 Status: approved
 
-When the ConfigFilesCreator is requested to write a config file with content type binary, the ConfigFilesCreator shall decode the base64 content to a collection of bytes.
+When the ConfigFilesCreator is requested to write a config file with content type binary, the ConfigFilesCreator shall:
+* decode the base64 content to a collection of bytes
+* set executable permissions on the written binary file
 
 Tags:
 - ConfigFilesCreator
