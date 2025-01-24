@@ -15,24 +15,22 @@
 use std::path::PathBuf;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::io_utils::FileSystem;
+use crate::io_utils::filesystem;
 use crate::io_utils::FileSystemError;
 
 #[derive(Debug)]
 pub struct Fifo {
     path: PathBuf,
-    filesystem: FileSystem,
 }
 
 impl Fifo {
     pub fn new(path: PathBuf) -> Result<Self, FileSystemError> {
-        let filesystem = FileSystem::new();
-        if filesystem.is_fifo(&path) {
+        if filesystem::is_fifo(&path) {
             log::trace!("Reusing existing fifo file '{:?}'", path);
-            Ok(Fifo { path, filesystem })
+            Ok(Fifo { path })
         } else {
-            match filesystem.make_fifo(&path) {
-                Ok(_) => Ok(Fifo { path, filesystem }),
+            match filesystem::make_fifo(&path) {
+                Ok(_) => Ok(Fifo { path }),
                 Err(err) => Err(err),
             }
         }
@@ -44,7 +42,7 @@ impl Fifo {
 
 impl Drop for Fifo {
     fn drop(&mut self) {
-        if let Err(err) = self.filesystem.remove_fifo(&self.path) {
+        if let Err(err) = filesystem::remove_fifo(&self.path) {
             log::error!("{}", err);
         }
     }
@@ -74,7 +72,7 @@ mod tests {
     use mockall::predicate;
 
     use super::{Fifo, FileSystemError};
-    use crate::io_utils::MockFileSystem;
+    use crate::io_utils::mock_filesystem;
     use std::{io::ErrorKind, path::Path};
 
     #[test]
@@ -82,20 +80,23 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let test_path_buffer = Path::new("test_fifo").to_path_buf();
-        let mock = MockFileSystem::new_context();
-        let mut file_system_mock = MockFileSystem::default();
-        file_system_mock
-            .expect_is_fifo()
+
+        let is_fifo_context = mock_filesystem::is_fifo_context();
+        is_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo").to_path_buf()))
             .times(1)
             .return_const(true);
-        file_system_mock.expect_make_fifo().never();
-        file_system_mock
-            .expect_remove_fifo()
+
+        let mk_fifo_context = mock_filesystem::make_fifo_context();
+        mk_fifo_context.expect().never();
+
+        let rm_fifo_context = mock_filesystem::remove_fifo_context();
+        rm_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo").to_path_buf()))
             .times(1)
             .return_once(|_| Ok(()));
-        mock.expect().return_once(|| file_system_mock);
 
         assert!(Fifo::new(test_path_buffer).is_ok());
     }
@@ -105,24 +106,27 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let test_path_buffer = Path::new("test_fifo").to_path_buf();
-        let mock = MockFileSystem::new_context();
-        let mut file_system_mock = MockFileSystem::default();
-        file_system_mock
-            .expect_is_fifo()
+
+        let is_fifo_context = mock_filesystem::is_fifo_context();
+        is_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo").to_path_buf()))
             .times(1)
             .return_const(false);
-        file_system_mock
-            .expect_make_fifo()
+
+        let mk_fifo_context = mock_filesystem::make_fifo_context();
+        mk_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo").to_path_buf()))
             .times(1)
             .return_once(|_| Ok(()));
-        file_system_mock
-            .expect_remove_fifo()
+
+        let rm_fifo_context = mock_filesystem::remove_fifo_context();
+        rm_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo").to_path_buf()))
             .times(1)
             .return_once(|_| Ok(()));
-        mock.expect().return_once(|| file_system_mock);
 
         assert!(Fifo::new(test_path_buffer).is_ok());
     }
@@ -132,15 +136,17 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let test_path_buffer = Path::new("test_fifo").to_path_buf();
-        let mock = MockFileSystem::new_context();
-        let mut file_system_mock = MockFileSystem::default();
-        file_system_mock
-            .expect_is_fifo()
+
+        let is_fifo_context = mock_filesystem::is_fifo_context();
+        is_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo").to_path_buf()))
             .times(1)
             .return_const(false);
-        file_system_mock
-            .expect_make_fifo()
+
+        let mk_fifo_context = mock_filesystem::make_fifo_context();
+        mk_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo")))
             .times(1)
             .return_once(|path| {
@@ -149,8 +155,9 @@ mod tests {
                     nix::errno::Errno::EACCES,
                 ))
             });
-        file_system_mock.expect_remove_fifo().never();
-        mock.expect().return_once(|| file_system_mock);
+
+        let rm_fifo_context = mock_filesystem::remove_fifo_context();
+        rm_fifo_context.expect().never();
 
         assert!(matches!(
             Fifo::new(test_path_buffer),
@@ -162,20 +169,24 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let test_path_buffer = Path::new("test_fifo").to_path_buf();
-        let mock = MockFileSystem::new_context();
-        let mut file_system_mock = MockFileSystem::default();
-        file_system_mock
-            .expect_is_fifo()
+
+        let is_fifo_context = mock_filesystem::is_fifo_context();
+        is_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo").to_path_buf()))
             .times(1)
             .return_const(false);
-        file_system_mock
-            .expect_make_fifo()
+
+        let mk_fifo_context = mock_filesystem::make_fifo_context();
+        mk_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo")))
             .times(1)
             .return_once(|_| Ok(()));
-        file_system_mock
-            .expect_remove_fifo()
+
+        let rm_fifo_context = mock_filesystem::remove_fifo_context();
+        rm_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo")))
             .times(1)
             .return_once(|path| {
@@ -184,7 +195,6 @@ mod tests {
                     ErrorKind::Other,
                 ))
             });
-        mock.expect().return_once(|| file_system_mock);
 
         assert!(Fifo::new(test_path_buffer).is_ok());
     }
@@ -194,24 +204,27 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let test_path_buffer = Path::new("test_fifo").to_path_buf();
-        let mock = MockFileSystem::new_context();
-        let mut file_system_mock = MockFileSystem::default();
-        file_system_mock
-            .expect_is_fifo()
+
+        let is_fifo_context = mock_filesystem::is_fifo_context();
+        is_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo").to_path_buf()))
             .times(1)
             .return_const(false);
-        file_system_mock
-            .expect_make_fifo()
+
+        let mk_fifo_context = mock_filesystem::make_fifo_context();
+        mk_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo").to_path_buf()))
             .times(1)
             .return_once(|_| Ok(()));
-        file_system_mock
-            .expect_remove_fifo()
+
+        let rm_fifo_context = mock_filesystem::remove_fifo_context();
+        rm_fifo_context
+            .expect()
             .with(predicate::eq(Path::new("test_fifo").to_path_buf()))
             .times(1)
             .return_once(|_| Ok(()));
-        mock.expect().return_once(|| file_system_mock);
 
         let fifo = Fifo::new(test_path_buffer);
         assert!(fifo.is_ok());

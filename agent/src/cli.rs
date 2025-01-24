@@ -18,7 +18,7 @@ use std::path::Path;
 
 use crate::io_utils::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
-use crate::io_utils::{Directory, FileSystem};
+use crate::io_utils::{Directory, filesystem};
 use clap::Parser;
 use common::objects::STR_RE_AGENT;
 use common::DEFAULT_SERVER_ADDRESS;
@@ -83,11 +83,11 @@ impl Arguments {
         let agent_run_folder = base_path.join(format!("{}{}", self.agent_name, RUNFOLDER_SUFFIX));
 
         // If the default base dir is used, we need to take care of its creation
-        if !FileSystem::exists(base_path) {
+        if !filesystem::exists(base_path) {
             if Some(DEFAULT_RUN_FOLDER) == base_path.to_str() {
-                FileSystem::new().make_dir(base_path)?;
+                filesystem::make_dir(base_path)?;
 
-                FileSystem::set_permissions(base_path, 0o777)?;
+                filesystem::set_permissions(base_path, 0o777)?;
             } else {
                 return Err(FileSystemError::NotFoundDirectory(base_path.into()));
             }
@@ -113,7 +113,7 @@ pub fn parse() -> Arguments {
 mod tests {
     use super::{Arguments, FileSystemError, Path, DEFAULT_RUN_FOLDER};
     use crate::io_utils::generate_test_directory_mock;
-    use crate::io_utils::MockFileSystem;
+    use crate::io_utils::mock_filesystem;
     use common::DEFAULT_SERVER_ADDRESS;
 
     use mockall::predicate;
@@ -150,22 +150,19 @@ mod tests {
             key_pem: None,
         };
 
-        let exists_mock_context = MockFileSystem::exists_context();
+        let exists_mock_context = mock_filesystem::exists_context();
         exists_mock_context
             .expect()
             .with(predicate::eq(Path::new(DEFAULT_RUN_FOLDER).to_path_buf()))
             .return_const(false);
 
-        let directory_mock_context = MockFileSystem::new_context();
-        directory_mock_context.expect().return_once(move || {
-            let mut mock = MockFileSystem::default();
-            mock.expect_make_dir()
-                .with(predicate::eq(Path::new(DEFAULT_RUN_FOLDER).to_path_buf()))
-                .return_once(|_| Ok(()));
-            mock
-        });
+        let mk_dir_context = mock_filesystem::make_dir_context();
+        mk_dir_context
+            .expect()
+            .with(predicate::eq(Path::new(DEFAULT_RUN_FOLDER).to_path_buf()))
+            .return_once(|_| Ok(()));
 
-        let set_permissions_mock_context = MockFileSystem::set_permissions_context();
+        let set_permissions_mock_context = mock_filesystem::set_permissions_context();
         set_permissions_mock_context
             .expect()
             .with(
@@ -195,7 +192,7 @@ mod tests {
             key_pem: None,
         };
 
-        let exists_mock_context = MockFileSystem::exists_context();
+        let exists_mock_context = mock_filesystem::exists_context();
         exists_mock_context
             .expect()
             .with(predicate::eq(Path::new(DEFAULT_RUN_FOLDER).to_path_buf()))
@@ -222,7 +219,7 @@ mod tests {
             key_pem: None,
         };
 
-        let exists_mock_context = MockFileSystem::exists_context();
+        let exists_mock_context = mock_filesystem::exists_context();
         exists_mock_context
             .expect()
             .with(predicate::eq(Path::new("/tmp/x").to_path_buf()))
