@@ -77,6 +77,7 @@ pub struct Arguments {
 }
 
 impl Arguments {
+    // [impl->swdd~agent-prepares-dedicated-run-folder~1]
     pub fn get_agent_run_directory(&self) -> Result<Directory, FileSystemError> {
         let base_path = Path::new(&self.run_folder);
         let agent_run_folder = base_path.join(format!("{}{}", self.agent_name, RUNFOLDER_SUFFIX));
@@ -117,6 +118,7 @@ mod tests {
 
     use mockall::predicate;
 
+    // [utest->swdd~agent-naming-convention~1]
     #[test]
     fn utest_validate_agent_name_ok() {
         assert!(super::validate_agent_name("").is_ok());
@@ -125,6 +127,7 @@ mod tests {
         assert_eq!(super::validate_agent_name(name), Ok(name.to_string()));
     }
 
+    // [utest->swdd~agent-naming-convention~1]
     #[test]
     fn utest_validate_agent_name_fail() {
         assert!(super::validate_agent_name("a.b").is_err());
@@ -132,6 +135,7 @@ mod tests {
         assert!(super::validate_agent_name("a b").is_err());
     }
 
+    // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
     fn utest_arguments_get_run_directory_use_default_directory_create() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
@@ -176,6 +180,7 @@ mod tests {
         assert!(args.get_agent_run_directory().is_ok());
     }
 
+    // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
     fn utest_arguments_get_run_directory_use_default_directory_exists() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
@@ -202,6 +207,7 @@ mod tests {
         assert!(args.get_agent_run_directory().is_ok());
     }
 
+    // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
     fn utest_arguments_get_run_directory_given_directory_not_found() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();

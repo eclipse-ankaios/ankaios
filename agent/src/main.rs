@@ -73,6 +73,7 @@ async fn main() {
     let (workload_state_sender, workload_state_receiver) =
         tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
 
+    // [impl->swdd~agent-prepares-dedicated-run-folder~1]
     let run_directory = args
         .get_agent_run_directory()
         .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");

@@ -130,12 +130,33 @@ The following diagram shows the startup sequence of the Ankaios Agent:
 
 ![Startup](plantuml/seq_startup.svg)
 
+#### Agent prepares dedicated run folder
+`swdd~agent-prepares-dedicated-run-folder~1`
+
+Status: approved
+
+The Ankaios agent shall prepare a dedicated run directory during startup by creating a folder with the following name:
+
+`<agent name>_io`
+
+in the specified by the startup arguments location or at the default location under "/tmp/ankaios".
+
+Comment:
+The default folder "/tmp/ankaios" must be created with full permissions if not existing. The specific agent folder will still have scoped permissions, but the default location could be used by other agents running under different users and must be usable.
+
+Rationale:
+The dedicated run folder is required by the agent to store temporary files for the workloads, e.g., Control Interface fifo pipes, mount files, etc.
+
+Needs:
+- impl
+- utest
+
 #### Agent naming convention
 `swdd~agent-naming-convention~1`
 
 Status: approved
 
-The Ankaios CLI shall enforce agent names which respect the naming convention defined in the common library.
+The Ankaios agent shall enforce agent names which respect the naming convention defined in the common library.
 
 Comment:
 We need to check the agent names in order to ensure the proper function of the filtering.
