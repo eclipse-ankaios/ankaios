@@ -103,10 +103,11 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
-    use crate::control_interface::{filesystem::FileSystemError, MockFileSystem};
-    use mockall::predicate;
-
     use super::Directory;
+
+    use crate::io_utils::{FileSystemError, MockFileSystem};
+
+    use mockall::predicate;
 
     #[test]
     fn utest_directory_new_ok_and_get_path_valid() {

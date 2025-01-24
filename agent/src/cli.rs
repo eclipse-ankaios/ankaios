@@ -16,9 +16,9 @@ use regex::Regex;
 
 use std::path::Path;
 
-use crate::control_interface::FileSystemError;
+use crate::io_utils::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::{Directory, FileSystem};
+use crate::io_utils::{Directory, FileSystem};
 use clap::Parser;
 use common::objects::STR_RE_AGENT;
 use common::DEFAULT_SERVER_ADDRESS;
@@ -112,8 +112,8 @@ pub fn parse() -> Arguments {
 #[cfg(test)]
 mod tests {
     use super::{Arguments, FileSystemError, Path, DEFAULT_RUN_FOLDER};
-    use crate::control_interface::generate_test_directory_mock;
-    use crate::control_interface::MockFileSystem;
+    use crate::io_utils::generate_test_directory_mock;
+    use crate::io_utils::MockFileSystem;
     use common::DEFAULT_SERVER_ADDRESS;
 
     use mockall::predicate;

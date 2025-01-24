@@ -33,6 +33,8 @@ mod workload;
 mod workload_scheduler;
 mod workload_state;
 
+mod io_utils;
+
 use common::from_server_interface::FromServer;
 use common::std_extensions::GracefulExitResult;
 use grpc::client::GRPCCommunicationsClient;

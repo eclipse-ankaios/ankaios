@@ -15,8 +15,8 @@
 use std::path::PathBuf;
 
 #[cfg_attr(test, mockall_double::double)]
-use super::filesystem::FileSystem;
-use super::filesystem::FileSystemError;
+use crate::io_utils::FileSystem;
+use crate::io_utils::FileSystemError;
 
 #[derive(Debug)]
 pub struct Fifo {
@@ -74,7 +74,7 @@ mod tests {
     use mockall::predicate;
 
     use super::{Fifo, FileSystemError};
-    use crate::control_interface::MockFileSystem;
+    use crate::io_utils::MockFileSystem;
     use std::{io::ErrorKind, path::Path};
 
     #[test]
