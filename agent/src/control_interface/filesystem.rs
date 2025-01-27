@@ -133,26 +133,6 @@ impl FileSystem {
     }
 }
 
-// #[cfg(test)]
-// mockall::mock! {
-//     pub FileSystem {
-//         pub fn new() -> Self;
-//         pub fn exists(path: &Path) -> bool;
-//         pub fn set_permissions(path: &Path, mode: u32) -> Result<(), FileSystemError>;
-//         pub fn is_fifo(&self, path: &Path) -> bool;
-//         pub fn make_fifo(&self, path: &Path) -> Result<(), FileSystemError>;
-//         pub fn remove_fifo(&self, path: &Path) -> Result<(), FileSystemError>;
-//         pub fn make_dir(&self, path: &Path) -> Result<(), FileSystemError>;
-//         pub fn remove_dir(&self, path: &Path) -> Result<(), FileSystemError>;
-//     }
-//     impl PartialEq for FileSystem {
-//         fn eq(&self, other: &Self) -> bool;
-//     }
-//     impl std::fmt::Debug for FileSystem {
-//         fn fmt<'a>(&self, f: &mut std::fmt::Formatter<'a>) -> std::result::Result<(), std::fmt::Error>;
-//     }
-// }
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
