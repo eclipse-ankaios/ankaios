@@ -729,11 +729,17 @@ mockall::mock! {
 #[cfg(test)]
 mod tests {
     use super::{ControlInterfacePath, WorkloadControlLoop};
+    use crate::config_files::{MockConfigFilesCreator, WorkloadConfigFilesPath};
+    use std::collections::HashMap;
+    use std::path::PathBuf;
     use std::time::Duration;
 
     use common::objects::{
+        generate_test_rendered_config_files,
         generate_test_workload_spec_with_control_interface_access,
-        generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
+        generate_test_workload_spec_with_param,
+        generate_test_workload_spec_with_rendered_config_files, ExecutionState,
+        WorkloadInstanceName,
     };
     use common::objects::{generate_test_workload_state_with_workload_spec, RestartPolicy};
 
@@ -2685,5 +2691,85 @@ mod tests {
             &current_instance_name,
             &new_instance_name
         ));
+    }
+
+    // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    #[tokio::test]
+    async fn utest_create_workload_on_runtime_create_config_files() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_state_forward_tx, _workload_state_forward_rx) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_rendered_config_files(
+            AGENT_NAME,
+            WORKLOAD_1_NAME,
+            RUNTIME_NAME,
+            generate_test_rendered_config_files(),
+        );
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![RuntimeCall::CreateWorkload(
+                workload_spec.clone(),
+                None,
+                Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
+            )])
+            .await;
+
+        let workload_configs_dir = WorkloadConfigFilesPath::from((
+            &PathBuf::from(RUN_FOLDER),
+            &workload_spec.instance_name,
+        ));
+
+        let mock_config_files_creator_context = MockConfigFilesCreator::create_files_context();
+        mock_config_files_creator_context
+            .expect()
+            .once()
+            .with(
+                mockall::predicate::eq(WorkloadConfigFilesPath::from((
+                    &PathBuf::from(RUN_FOLDER),
+                    &workload_spec.instance_name,
+                ))),
+                mockall::predicate::eq(workload_spec.files.clone()),
+            )
+            .returning(move |_, _| {
+                Ok(HashMap::from([
+                    (
+                        workload_configs_dir.join("file.json"),
+                        PathBuf::from("/file.json"),
+                    ),
+                    (
+                        workload_configs_dir.join("binary_file"),
+                        PathBuf::from("/binary_file"),
+                    ),
+                ]))
+            });
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec.clone())
+            .workload_state_sender(workload_state_forward_tx.clone())
+            .run_folder(RUN_FOLDER.into())
+            .runtime(Box::new(runtime_mock))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        let new_control_loop_state = WorkloadControlLoop::create_workload_on_runtime(
+            control_loop_state,
+            WorkloadControlLoop::send_retry_for_workload,
+        )
+        .await;
+
+        assert_eq!(
+            new_control_loop_state.workload_spec.files,
+            workload_spec.files
+        );
     }
 }
