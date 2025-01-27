@@ -224,12 +224,12 @@ mod tests {
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_access_rights_rule_verify_success() {
-        let empty_state_rule = AccessRightsRule::StateRule(StateRule {
+        let state_rule = AccessRightsRule::StateRule(StateRule {
             operation: ReadWriteEnum::Write,
             filter_mask: vec!["some".to_string()],
         });
 
-        assert!(empty_state_rule.verify_format().is_ok());
+        assert!(state_rule.verify_format().is_ok());
     }
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
