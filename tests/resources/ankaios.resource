@@ -58,6 +58,10 @@ Setup Ankaios
     Setup MTLS    enabled=${mtls_enabled}
     Setup Ankaios without MTLS Setup
 
+Copy Server Config File
+    Copy File    'configs/ank-server.conf'    '/etc/ankaios/'
+    File Should Exist    '/etc/ankaios/ank-server.conf'
+
 Clean up Ankaios
     Terminate All Processes    kill=True
     Clean up Podman
@@ -579,6 +583,7 @@ the last command shall not list the config "${config_name}"
 
 Setup Ankaios for Control Interface test
     Setup Ankaios
+    Copy Server Config File
     Prepare Test Control Interface Workload
     Retrieve current Ankaios version
 

@@ -36,6 +36,7 @@ Test Ankaios reject startup config with cyclic interworkload dependencies
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
+    And Copy Server Config File
     # Actions
     # The startup config is invalid because it contains a cycle inside the interworkload dependencies config
     When Ankaios server is started with an invalid config "${CONFIGS_DIR}/state_with_dependency_cycle.yaml"
@@ -54,6 +55,7 @@ Test Ankaios CLI update state with cycle in interworkload dependencies is reject
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
+    And Copy Server Config File
     And Ankaios server is started with config "${default_state_yaml_file}"
     And Ankaios agent is started with name "agent_B"
     And all workloads of agent "agent_B" have an initial execution state

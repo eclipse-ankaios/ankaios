@@ -66,7 +66,7 @@ pub mod security {
                     }))
                 }
                 // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
-                (true, None, None, None) => Ok(None),
+                (_, None, None, None) => Ok(None),
                 // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
                 (_, ca_pem, crt_pem, key_pem) => Err(format!(
                     "Either provide mTLS config via the '--ca_pem {}', '--crt_pem {}' and '--key_pem {}' options or deactivate mTLS with the '--insecure' option!",

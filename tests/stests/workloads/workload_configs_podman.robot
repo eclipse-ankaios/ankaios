@@ -35,6 +35,7 @@ Test Ankaios start up with templated Ankaios manifest and update state with upda
     # Preconditions
     # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
+    And Copy Server Config File
     And Ankaios server is started with config "${start_up_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
@@ -54,6 +55,7 @@ Test Ankaios update configs with invalid config item key
     # Preconditions
     # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
+    And Copy Server Config File
     And Ankaios server is started without config
     And Ankaios agent is started with name "agent_A"
     # Actions
@@ -71,6 +73,7 @@ Test Ankaios update workload with invalid config alias
     # Preconditions
     # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
+    And Copy Server Config File
     And Ankaios server is started without config
     And Ankaios agent is started with name "agent_A"
     # Actions
@@ -88,6 +91,7 @@ Test Ankaios update workload with invalid config reference key
     # Preconditions
     # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
+    And Copy Server Config File
     And Ankaios server is started without config
     And Ankaios agent is started with name "agent_A"
     # Actions
@@ -104,6 +108,7 @@ Test Ankaios start up fails with invalid templated Ankaios manifest
     # Preconditions
     # This test assumes that all Podman containers have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
+    And Copy Server Config File
     # Actions
     # Manifest contains invalid template string syntax
     And Ankaios server is started with an invalid config "${CONFIGS_DIR}/invalid_templated_manifest.yaml"

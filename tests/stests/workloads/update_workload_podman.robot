@@ -36,6 +36,7 @@ Test Ankaios CLI update workload
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
+    And Copy Server Config File
     And Ankaios server is started with config "${default_state_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state

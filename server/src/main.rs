@@ -25,7 +25,7 @@ use common::objects::State;
 use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
-use server_config::ServerConfig;
+use server_config::{get_default_address, ServerConfig};
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 
@@ -35,8 +35,7 @@ async fn main() {
 
     // TODO: needs to be replaced with /etc/ankaios/ank-server.conf
     let mut server_config =
-        ServerConfig::from_file("/workspaces/ankaios/server/config/ank-server.conf")
-            .unwrap_or_default();
+        ServerConfig::from_file("/etc/ankaios/ank-server.conf").unwrap_or_default();
 
     let args = cli::parse();
 
@@ -121,9 +120,7 @@ async fn main() {
     let tls_config: Result<Option<TLSConfig>, String> = if server_config.ca_pem.is_some()
         || server_config.crt_pem.is_some()
         || server_config.key_pem.is_some()
-    // && !server_config.insecure.unwrap()
     {
-        log::debug!("TLS CONFIG CHECKING GOT IN HERE 1");
         TLSConfig::new(
             server_config.insecure.unwrap(),
             server_config.ca_pem,
@@ -134,7 +131,7 @@ async fn main() {
         || server_config.crt_pem_content.is_some()
         || server_config.key_pem_content.is_some()
     {
-        log::debug!("TLS CONFIG CHECKING GOT IN HERE 2");
+        server_config.insecure = Some(true);
         TLSConfig::new(
             server_config.insecure.unwrap(),
             server_config.ca_pem_content,
@@ -142,8 +139,6 @@ async fn main() {
             server_config.key_pem_content,
         )
     } else {
-        // Err("Unable to build mTLS configuration!".to_string())
-        log::debug!("TLS CONFIG CHECKING GOT IN HERE 3");
         TLSConfig::new(
             server_config.insecure.unwrap(),
             server_config.ca_pem,

@@ -15,6 +15,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fs::read_to_string;
 use std::net::SocketAddr;
+use std::str::FromStr;
 use toml::from_str;
 
 use crate::cli::Arguments;
@@ -22,8 +23,8 @@ use common::DEFAULT_SOCKET_ADDRESS;
 
 const CONFIG_VERSION: &str = "v1";
 
-fn get_default_address() -> Option<SocketAddr> {
-    Some(DEFAULT_SOCKET_ADDRESS.parse().unwrap())
+pub fn get_default_address() -> Option<SocketAddr> {
+    DEFAULT_SOCKET_ADDRESS.parse().ok()
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -41,14 +42,15 @@ where
     Ok(s.parse().ok())
 }
 
-#[derive(Deserialize, Debug, Default, Serialize)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct ServerConfig {
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub startup_config: Option<String>,
     #[serde(
+        // the default att is useless
         default = "get_default_address",
-        deserialize_with = "convert_to_socket_address"
+        // deserialize_with = "convert_to_socket_address"
     )]
     pub address: Option<SocketAddr>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -66,6 +68,23 @@ pub struct ServerConfig {
     pub crt_pem_content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key_pem_content: Option<String>,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        ServerConfig {
+            version: "v1".to_string(),
+            startup_config: None,
+            address: get_default_address(),
+            insecure: Some(true),
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
+            ca_pem_content: None,
+            crt_pem_content: None,
+            key_pem_content: None,
+        }
+    }
 }
 
 impl ServerConfig {
@@ -101,7 +120,6 @@ impl ServerConfig {
             self.address = Some(*addr);
         }
 
-        // TODO: do update of certificates always
         self.insecure = Some(args.insecure);
 
         self.ca_pem = if let Some(ca_pem) = &args.ca_pem {
