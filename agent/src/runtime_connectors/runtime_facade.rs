@@ -390,19 +390,17 @@ impl<
 
             let workload_dir = instance_name.pipes_folder_name(&run_folder);
 
-            if workload_dir.exists() {
-                log::debug!("Removing the config files of workload '{}'", instance_name);
+            log::debug!("Deleting the workload subfolder '{}'", instance_name);
 
-                tokio::fs::remove_dir_all(workload_dir)
-                    .await
-                    .unwrap_or_else(|err| {
-                        log::error!(
-                            "Delete of config files failed after deletion of workload '{}': '{}'",
-                            instance_name,
-                            err
-                        );
-                    });
-            }
+            tokio::fs::remove_dir_all(workload_dir)
+                .await
+                .unwrap_or_else(|err| {
+                    log::error!(
+                        "Delete of workload subfolder failed after deletion of workload '{}': '{}'",
+                        instance_name,
+                        err
+                    );
+                });
 
             if report_workload_states_for_workload {
                 update_state_tx
