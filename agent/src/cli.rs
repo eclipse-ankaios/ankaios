@@ -18,7 +18,7 @@ use std::path::Path;
 
 use crate::io_utils::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
-use crate::io_utils::{Directory, filesystem};
+use crate::io_utils::{filesystem, Directory};
 use clap::Parser;
 use common::objects::STR_RE_AGENT;
 use common::DEFAULT_SERVER_ADDRESS;
@@ -175,6 +175,100 @@ mod tests {
             generate_test_directory_mock(DEFAULT_RUN_FOLDER, "test_agent_name_io");
 
         assert!(args.get_agent_run_directory().is_ok());
+    }
+
+    // [utest->swdd~agent-prepares-dedicated-run-folder~1]
+    #[test]
+    fn utest_arguments_get_run_directory_use_default_directory_create_fails() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+
+        let args = Arguments {
+            agent_name: "test_agent_name".to_owned(),
+            server_url: DEFAULT_SERVER_ADDRESS.to_string(),
+            run_folder: DEFAULT_RUN_FOLDER.to_owned(),
+            insecure: true,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
+        };
+
+        let exists_mock_context = mock_filesystem::exists_context();
+        exists_mock_context
+            .expect()
+            .with(predicate::eq(Path::new(DEFAULT_RUN_FOLDER).to_path_buf()))
+            .return_const(false);
+
+        let mk_dir_context = mock_filesystem::make_dir_context();
+        mk_dir_context
+            .expect()
+            .with(predicate::eq(Path::new(DEFAULT_RUN_FOLDER).to_path_buf()))
+            .return_once(|_| {
+                Err(FileSystemError::CreateDirectory(
+                    Path::new("/tmp/x").as_os_str().to_os_string(),
+                    std::io::ErrorKind::Other,
+                ))
+            });
+
+        let set_permissions_mock_context = mock_filesystem::set_permissions_context();
+        set_permissions_mock_context.expect().never();
+
+        assert_eq!(
+            args.get_agent_run_directory(),
+            Err(FileSystemError::CreateDirectory(
+                Path::new("/tmp/x").as_os_str().to_os_string(),
+                std::io::ErrorKind::Other
+            ))
+        );
+    }
+
+    // [utest->swdd~agent-prepares-dedicated-run-folder~1]
+    #[test]
+    fn utest_arguments_get_run_directory_use_default_directory_create_permissions_fail() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+
+        let args = Arguments {
+            agent_name: "test_agent_name".to_owned(),
+            server_url: DEFAULT_SERVER_ADDRESS.to_string(),
+            run_folder: DEFAULT_RUN_FOLDER.to_owned(),
+            insecure: true,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
+        };
+
+        let exists_mock_context = mock_filesystem::exists_context();
+        exists_mock_context
+            .expect()
+            .with(predicate::eq(Path::new(DEFAULT_RUN_FOLDER).to_path_buf()))
+            .return_const(false);
+
+        let mk_dir_context = mock_filesystem::make_dir_context();
+        mk_dir_context
+            .expect()
+            .with(predicate::eq(Path::new(DEFAULT_RUN_FOLDER).to_path_buf()))
+            .return_once(|_| Ok(()));
+
+        let set_permissions_mock_context = mock_filesystem::set_permissions_context();
+        set_permissions_mock_context
+            .expect()
+            .with(
+                predicate::eq(Path::new(DEFAULT_RUN_FOLDER).to_path_buf()),
+                predicate::eq(0o777),
+            )
+            .return_once(|_, _| {
+                Err(FileSystemError::Permissions(
+                    Path::new("/tmp/x").as_os_str().to_os_string(),
+                    std::io::ErrorKind::Other,
+                ))
+            });
+
+        assert_eq!(
+            args.get_agent_run_directory(),
+            Err(FileSystemError::Permissions(
+                Path::new("/tmp/x").as_os_str().to_os_string(),
+                std::io::ErrorKind::Other,
+            ))
+        );
     }
 
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
