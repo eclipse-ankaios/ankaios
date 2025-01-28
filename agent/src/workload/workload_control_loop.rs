@@ -320,44 +320,6 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    async fn handle_mount_point_creation<WorkloadId, StChecker>(
-        control_loop_state: &ControlLoopState<WorkloadId, StChecker>,
-    ) -> Result<HashMap<PathBuf, PathBuf>, String>
-    where
-        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-    {
-        if control_loop_state.workload_spec.has_config_files() {
-            let workload_config_files_dir = WorkloadConfigFilesPath::from((
-                &control_loop_state.run_folder,
-                control_loop_state.instance_name(),
-            ));
-
-            match ConfigFilesCreator::create_files(
-                &workload_config_files_dir,
-                &control_loop_state.workload_spec.files,
-            )
-            .await
-            {
-                Ok(mapping) => Ok(mapping),
-                Err(err) => {
-                    let error = Err(err.to_string());
-                    // [impl->swdd~agent-workload-control-loop-aborts-create-upon-config-files-creation-error~1]
-                    Self::send_workload_state_to_agent(
-                        &control_loop_state.to_agent_workload_state_sender,
-                        control_loop_state.instance_name(),
-                        ExecutionState::starting_failed(err),
-                    )
-                    .await;
-
-                    error
-                }
-            }
-        } else {
-            Ok(Default::default())
-        }
-    }
-
     // [impl->swdd~agent-workload-control-loop-executes-create~4]
     async fn create_workload_on_runtime<WorkloadId, StChecker, ErrorFunc, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
@@ -456,6 +418,44 @@ impl WorkloadControlLoop {
                     }
                 }
             }
+        }
+    }
+
+    async fn handle_mount_point_creation<WorkloadId, StChecker>(
+        control_loop_state: &ControlLoopState<WorkloadId, StChecker>,
+    ) -> Result<HashMap<PathBuf, PathBuf>, String>
+    where
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
+        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+    {
+        if control_loop_state.workload_spec.has_config_files() {
+            let workload_config_files_dir = WorkloadConfigFilesPath::from((
+                &control_loop_state.run_folder,
+                control_loop_state.instance_name(),
+            ));
+
+            match ConfigFilesCreator::create_files(
+                &workload_config_files_dir,
+                &control_loop_state.workload_spec.files,
+            )
+            .await
+            {
+                Ok(mapping) => Ok(mapping),
+                Err(err) => {
+                    let error = Err(err.to_string());
+                    // [impl->swdd~agent-workload-control-loop-aborts-create-upon-config-files-creation-error~1]
+                    Self::send_workload_state_to_agent(
+                        &control_loop_state.to_agent_workload_state_sender,
+                        control_loop_state.instance_name(),
+                        ExecutionState::starting_failed(err),
+                    )
+                    .await;
+
+                    error
+                }
+            }
+        } else {
+            Ok(Default::default())
         }
     }
 
@@ -755,6 +755,7 @@ mod tests {
     use crate::config_files::{
         ConfigFileCreatorError, MockConfigFilesCreator, WorkloadConfigFilesPath,
     };
+    use crate::runtime_connectors::RuntimeError;
     use common::objects::PendingSubstate;
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -2869,10 +2870,74 @@ mod tests {
         assert!(workload_state_result.is_ok());
         let workload_state = workload_state_result.unwrap();
 
+        let expected_execution_state = ExecutionStateEnum::Pending(PendingSubstate::StartingFailed);
         assert!(
             matches!(workload_state.clone(), Some(state)
-            if state.execution_state.state == ExecutionStateEnum::Pending(PendingSubstate::StartingFailed)),
-            "Got {workload_state:?}",
+            if state.execution_state.state == expected_execution_state),
+            "Expected {expected_execution_state}, got {workload_state:?}",
+        );
+    }
+
+    // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    #[tokio::test]
+    async fn utest_create_workload_on_runtime_runtime_fails_with_unsupported_error() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_state_forward_tx, mut workload_state_forward_rx) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_rendered_config_files(
+            AGENT_NAME,
+            WORKLOAD_1_NAME,
+            RUNTIME_NAME,
+            generate_test_rendered_config_files(),
+        );
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![RuntimeCall::CreateWorkload(
+                workload_spec.clone(),
+                None,
+                HashMap::default(),
+                Err(RuntimeError::Unsupported("unsupported error".to_string())),
+            )])
+            .await;
+
+        let mock_config_files_creator_context = MockConfigFilesCreator::create_files_context();
+        mock_config_files_creator_context
+            .expect()
+            .once()
+            .returning(move |_, _| Ok(HashMap::default()));
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec.clone())
+            .workload_state_sender(workload_state_forward_tx.clone())
+            .run_folder(RUN_FOLDER.into())
+            .runtime(Box::new(runtime_mock))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        let _new_control_loop_state = WorkloadControlLoop::create_workload_on_runtime(
+            control_loop_state,
+            WorkloadControlLoop::send_retry_for_workload,
+        )
+        .await;
+
+        let workload_state_result =
+            timeout(Duration::from_millis(100), workload_state_forward_rx.recv()).await;
+        assert!(workload_state_result.is_ok());
+        let workload_state = workload_state_result.unwrap();
+
+        let expected_execution_state = ExecutionStateEnum::Pending(PendingSubstate::StartingFailed);
+        assert!(
+            matches!(workload_state.clone(), Some(state)
+                if state.execution_state.state == expected_execution_state),
+            "Expected {expected_execution_state}, got {workload_state:?}",
         );
     }
 }
