@@ -17,7 +17,7 @@ mod config_files_path;
 #[cfg(not(test))]
 pub use config_file_creator::ConfigFilesCreator;
 #[cfg(test)]
-pub use config_file_creator::MockConfigFilesCreator;
+pub use config_file_creator::{ConfigFileCreatorError, MockConfigFilesCreator};
 #[cfg(test)]
 pub use config_files_path::generate_test_config_files_path;
 pub use config_files_path::WorkloadConfigFilesPath;
