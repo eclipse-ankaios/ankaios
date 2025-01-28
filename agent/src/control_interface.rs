@@ -27,6 +27,8 @@ pub use to_ankaios::ToAnkaios;
 
 #[cfg(not(test))]
 pub use directory::Directory;
+#[cfg(not(test))]
+pub use filesystem::FileSystem;
 pub use filesystem::FileSystemError;
 
 #[cfg(test)]
