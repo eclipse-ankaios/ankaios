@@ -802,6 +802,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -957,6 +958,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Delete the new updated workload to exit the infinite loop
@@ -1045,6 +1047,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1212,6 +1215,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         create_runtime_error_msg.to_owned(),
                     )),
@@ -1461,6 +1465,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1521,6 +1526,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1528,6 +1534,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1582,6 +1589,7 @@ mod tests {
         let runtime_expectations = vec![RuntimeCall::CreateWorkload(
             workload_spec.clone(),
             Some(PIPES_LOCATION.into()),
+            None,
             Err(crate::runtime_connectors::RuntimeError::Create(
                 "some create error".to_string(),
             )),
@@ -1640,6 +1648,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1647,6 +1656,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1713,6 +1723,7 @@ mod tests {
             runtime_expectations.push(RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
+                None,
                 Err(crate::runtime_connectors::RuntimeError::Create(
                     create_runtime_error_msg.to_owned(),
                 )),
@@ -1795,6 +1806,7 @@ mod tests {
         let runtime_expectations = vec![RuntimeCall::CreateWorkload(
             workload_spec.clone(),
             Some(PIPES_LOCATION.into()),
+            None,
             Err(crate::runtime_connectors::RuntimeError::Create(
                 "some create error".to_string(),
             )),
@@ -1856,6 +1868,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1863,6 +1876,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1938,6 +1952,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1946,6 +1961,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -2023,6 +2039,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -2031,6 +2048,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -2114,6 +2132,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec_update1.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -2123,6 +2142,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec_update2.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Ok((WORKLOAD_ID_3.to_string(), new_mock_state_checker_update2)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -2543,6 +2563,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
+                    None,
                     Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
                 ),
                 RuntimeCall::DeleteWorkload(WORKLOAD_ID_2.to_string(), Ok(())),
@@ -2713,19 +2734,31 @@ mod tests {
             generate_test_rendered_config_files(),
         );
 
+        let workload_configs_dir = WorkloadConfigFilesPath::from((
+            &PathBuf::from(RUN_FOLDER),
+            &workload_spec.instance_name,
+        ));
+
+        let expected_mount_point_mappings = HashMap::from([
+            (
+                workload_configs_dir.join("file.json"),
+                PathBuf::from("/file.json"),
+            ),
+            (
+                workload_configs_dir.join("binary_file"),
+                PathBuf::from("/binary_file"),
+            ),
+        ]);
+
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
                 None,
+                Some(expected_mount_point_mappings.clone()),
                 Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
             )])
             .await;
-
-        let workload_configs_dir = WorkloadConfigFilesPath::from((
-            &PathBuf::from(RUN_FOLDER),
-            &workload_spec.instance_name,
-        ));
 
         let mock_config_files_creator_context = MockConfigFilesCreator::create_files_context();
         mock_config_files_creator_context
@@ -2738,18 +2771,7 @@ mod tests {
                 ))),
                 mockall::predicate::eq(workload_spec.files.clone()),
             )
-            .returning(move |_, _| {
-                Ok(HashMap::from([
-                    (
-                        workload_configs_dir.join("file.json"),
-                        PathBuf::from("/file.json"),
-                    ),
-                    (
-                        workload_configs_dir.join("binary_file"),
-                        PathBuf::from("/binary_file"),
-                    ),
-                ]))
-            });
+            .returning(move |_, _| Ok(expected_mount_point_mappings.clone()));
 
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())

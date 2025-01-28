@@ -211,6 +211,7 @@ pub mod test {
         CreateWorkload(
             WorkloadSpec,
             Option<PathBuf>,
+            Option<HashMap<PathBuf, PathBuf>>,
             Result<(String, StubStateChecker), RuntimeError>,
         ),
         GetWorkloadId(WorkloadInstanceName, Result<String, RuntimeError>),
@@ -345,15 +346,18 @@ pub mod test {
             _reusable_workload_id: Option<String>,
             control_interface_path: Option<PathBuf>,
             _update_state_tx: WorkloadStateSender,
-            _host_config_file_paths: Option<HashMap<PathBuf, PathBuf>>,
+            host_config_file_path_mappings: Option<HashMap<PathBuf, PathBuf>>,
         ) -> Result<(String, StubStateChecker), RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::CreateWorkload(
                     expected_runtime_workload_config,
                     expected_control_interface_path,
+                    expected_host_config_file_path_mappings,
                     result,
                 ) if expected_runtime_workload_config == runtime_workload_config
-                    && expected_control_interface_path == control_interface_path =>
+                    && expected_control_interface_path == control_interface_path
+                    && host_config_file_path_mappings
+                        == expected_host_config_file_path_mappings =>
                 {
                     return result;
                 }

@@ -342,15 +342,15 @@ pub fn generate_test_workload_spec_with_control_interface_access(
 
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_spec_with_rendered_config_files(
-    agent_name: String,
-    workload_name: String,
-    runtime_name: String,
+    agent_name: impl ToString,
+    workload_name: impl ToString,
+    runtime_name: impl ToString,
     files: Vec<File>,
 ) -> WorkloadSpec {
     let mut workload_spec = generate_test_workload_spec_with_param(
-        agent_name.to_owned(),
-        workload_name.to_owned(),
-        runtime_name.to_owned(),
+        agent_name.to_string(),
+        workload_name.to_string(),
+        runtime_name.to_string(),
     );
     workload_spec.files = files;
     workload_spec
