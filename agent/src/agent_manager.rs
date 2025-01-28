@@ -46,13 +46,13 @@ impl ResourceMonitor {
         }
     }
 
-    fn sample_resource_usage(&mut self) -> (f32, u64) {
+    fn sample_resource_usage(&mut self) -> (CpuUsage, FreeMemory) {
         self.sys.refresh_specifics(self.refresh_kind);
 
         let cpu_usage = self.sys.global_cpu_usage();
         let free_memory = self.sys.free_memory();
 
-        (cpu_usage, free_memory)
+        (CpuUsage::new(cpu_usage), FreeMemory { free_memory })
     }
 }
 
@@ -239,15 +239,15 @@ impl AgentManager {
         log::trace!(
             "Agent '{}' reports resource usage: CPU Usage: {}%, Free Memory: {}B",
             self.agent_name,
-            cpu_usage,
-            free_memory,
+            cpu_usage.cpu_usage,
+            free_memory.free_memory,
         );
 
         self.to_server
             .agent_load_status(AgentLoadStatus {
                 agent_name: self.agent_name.clone(),
-                cpu_usage: CpuUsage::new(cpu_usage),
-                free_memory: FreeMemory { free_memory },
+                cpu_usage,
+                free_memory,
             })
             .await
             .unwrap_or_illegal_state();
