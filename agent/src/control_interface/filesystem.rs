@@ -15,20 +15,22 @@
 use nix::errno::Errno;
 #[cfg(not(test))]
 use nix::unistd::mkfifo;
-use nix::NixPath;
 use std::ffi::OsString;
 use std::fmt::{self, Display};
 #[cfg(not(test))]
-use std::fs::{create_dir_all, metadata, remove_dir, remove_file};
+use std::fs::{create_dir_all, metadata, remove_dir, remove_file, set_permissions};
 #[cfg(not(test))]
 use std::os::unix::fs::FileTypeExt;
-use std::os::unix::fs::PermissionsExt;
 #[cfg(test)]
-use tests::{create_dir_all, metadata, mkfifo, remove_dir, remove_file};
-
-use std::path::Path;
+use tests::{create_dir_all, metadata, mkfifo, remove_dir, remove_file, set_permissions};
 
 use nix::sys::stat::Mode;
+use std::fs::Permissions;
+use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
+
+#[cfg(test)]
+use mockall::automock;
 
 #[derive(Debug, PartialEq)]
 pub enum FileSystemError {
@@ -37,6 +39,7 @@ pub enum FileSystemError {
     CreateFifo(OsString, Errno),
     RemoveFifo(OsString, std::io::ErrorKind),
     RemoveDirectory(OsString, std::io::ErrorKind),
+    Permissions(OsString, std::io::ErrorKind),
 }
 
 impl Display for FileSystemError {
@@ -57,17 +60,33 @@ impl Display for FileSystemError {
             FileSystemError::NotFoundDirectory(path) => {
                 write!(f, "Could not find directory {path:?}")
             }
+            FileSystemError::Permissions(path, err) => {
+                write!(f, "Could not set permissions to {path:?}  {err:?}")
+            }
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct FileSystem {}
 
+#[cfg_attr(test, automock)]
 impl FileSystem {
     pub fn new() -> Self {
         Self {}
     }
+
+    // Unit testing this function is too hard and not worth taking into account that it is just calling one line of code
+    #[cfg_attr(test, allow(dead_code))]
+    pub fn exists(path: &Path) -> bool {
+        path.exists()
+    }
+
+    pub fn set_permissions(path: &Path, mode: u32) -> Result<(), FileSystemError> {
+        set_permissions(path, Permissions::from_mode(mode))
+            .map_err(|err| FileSystemError::Permissions(path.as_os_str().to_owned(), err.kind()))
+    }
+
     pub fn is_fifo(&self, path: &Path) -> bool {
         if let Ok(meta) = metadata(path) {
             return meta.file_type().is_fifo();
@@ -95,37 +114,7 @@ impl FileSystem {
     }
     pub fn make_dir(&self, path: &Path) -> Result<(), FileSystemError> {
         match create_dir_all(path) {
-            Ok(_) => {
-                if let Some(base_path) = path.parent() {
-                    if !base_path.is_empty() {
-                        let mut current_base_path_permissions = std::fs::metadata(base_path)
-                            .map_err(|err| {
-                                FileSystemError::CreateDirectory(
-                                    path.as_os_str().to_owned(),
-                                    err.kind(),
-                                )
-                            })?
-                            .permissions();
-
-                        // Use 'rwxrwxrwx' permissions on the base folder e.g. /tmp/ankaios
-                        let desired_mode = umask::Mode::all();
-                        if umask::Mode::from(current_base_path_permissions.mode()).to_string()
-                            != desired_mode.without_any_extra().to_string()
-                        {
-                            current_base_path_permissions
-                                .set_mode(desired_mode.without_any_extra().into());
-                            std::fs::set_permissions(base_path, current_base_path_permissions)
-                                .map_err(|err| {
-                                    FileSystemError::CreateDirectory(
-                                        path.as_os_str().to_owned(),
-                                        err.kind(),
-                                    )
-                                })?;
-                        }
-                    }
-                }
-                Ok(())
-            }
+            Ok(_) => Ok(()),
             Err(err) => Err(FileSystemError::CreateDirectory(
                 path.as_os_str().to_owned(),
                 err.kind(),
@@ -144,24 +133,6 @@ impl FileSystem {
     }
 }
 
-#[cfg(test)]
-mockall::mock! {
-    pub FileSystem {
-        pub fn new() -> Self;
-        pub fn is_fifo(&self, path: &Path) -> bool;
-        pub fn make_fifo(&self, path: &Path) -> Result<(), FileSystemError>;
-        pub fn remove_fifo(&self, path: &Path) -> Result<(), FileSystemError>;
-        pub fn make_dir(&self, path: &Path) -> Result<(), FileSystemError>;
-        pub fn remove_dir(&self, path: &Path) -> Result<(), FileSystemError>;
-    }
-    impl PartialEq for FileSystem {
-        fn eq(&self, other: &Self) -> bool;
-    }
-    impl std::fmt::Debug for FileSystem {
-        fn fmt<'a>(&self, f: &mut std::fmt::Formatter<'a>) -> std::result::Result<(), std::fmt::Error>;
-    }
-}
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -174,7 +145,9 @@ mockall::mock! {
 mod tests {
     use std::{
         collections::VecDeque,
+        fs::Permissions,
         io::{self, Error, ErrorKind},
+        os::unix::fs::PermissionsExt,
         path::{Path, PathBuf},
         sync::Mutex,
     };
@@ -185,11 +158,12 @@ mod tests {
 
     #[allow(non_camel_case_types)]
     pub enum FakeCall {
-        create_dir_all(PathBuf, io::Result<()>), // create_dir_all(path,fake_result)
-        mkfifo(PathBuf, Mode, nix::Result<()>),  // mkfifo(path,mode,fake_result)
+        create_dir_all(PathBuf, io::Result<()>), // create_dir_all(path, fake_result)
+        mkfifo(PathBuf, Mode, nix::Result<()>),  // mkfifo(path, mode, fake_result)
         remove_dir(PathBuf, io::Result<()>),     // remove_dir(path, fake_result)
         remove_file(PathBuf, io::Result<()>),    // remove_file(path, fake_result)
         metadata(PathBuf, io::Result<Metadata>), // metadata(path, fake_result)
+        set_permissions(PathBuf, u32, io::Result<()>), // set_permissions(path, mode, fake_result)
     }
 
     lazy_static! {
@@ -292,6 +266,57 @@ mod tests {
         panic!(
             "No mock specified for call remove_file({})",
             path.to_string_lossy()
+        );
+    }
+
+    pub fn set_permissions(path: &Path, perm: Permissions) -> io::Result<()> {
+        if let Some(FakeCall::set_permissions(fake_path, fake_mode, fake_result)) =
+            FAKE_CALL_LIST.lock().unwrap().pop_front()
+        {
+            if fake_path == path && fake_mode == perm.mode() {
+                return fake_result;
+            }
+        }
+
+        panic!(
+            "No mock specified for call set_permissions({:?}, {:?})",
+            path, perm
+        );
+    }
+
+    #[test]
+    fn utest_set_permissions_ok() {
+        let _test_lock = TEST_LOCK.lock();
+        FAKE_CALL_LIST
+            .lock()
+            .unwrap()
+            .push_back(FakeCall::set_permissions(
+                Path::new("test_dir").to_path_buf(),
+                0o777,
+                Ok(()),
+            ));
+
+        assert!(FileSystem::set_permissions(Path::new("test_dir"), 0o777).is_ok());
+    }
+    #[test]
+    fn utest_set_permissions_failed() {
+        let _test_lock = TEST_LOCK.lock();
+        FAKE_CALL_LIST
+            .lock()
+            .unwrap()
+            .push_back(FakeCall::set_permissions(
+                Path::new("test_dir").to_path_buf(),
+                0o777,
+                Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "some error")),
+            ));
+
+        assert_eq!(FileSystem::set_permissions(
+            Path::new("test_dir"),
+            0o777),
+            Err(FileSystemError::Permissions(
+                Path::new("test_dir").as_os_str().to_owned(),
+                std::io::ErrorKind::PermissionDenied
+            ))
         );
     }
 
