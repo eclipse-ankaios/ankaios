@@ -96,43 +96,28 @@ pub mod filesystem {
         }
         false
     }
+
     pub fn make_fifo(path: &Path) -> Result<(), FileSystemError> {
-        match mkfifo(path, Mode::S_IRWXU) {
-            Ok(_) => Ok(()),
-            Err(err) => Err(FileSystemError::CreateFifo(
-                path.as_os_str().to_owned(),
-                err,
-            )),
-        }
+        mkfifo(path, Mode::S_IRWXU)
+            .map_err(|err| FileSystemError::CreateFifo(path.as_os_str().to_owned(), err))
     }
+
     pub fn remove_fifo(path: &Path) -> Result<(), FileSystemError> {
-        if let Err(err) = remove_file(path) {
-            return Err(FileSystemError::RemoveFifo(
-                path.to_path_buf().into_os_string(),
-                err.kind(),
-            ));
-        }
-
-        Ok(())
+        remove_file(path).map_err(|err| {
+            FileSystemError::RemoveFifo(path.to_path_buf().into_os_string(), err.kind())
+        })
     }
+
     pub fn make_dir(path: &Path) -> Result<(), FileSystemError> {
-        match create_dir_all(path) {
-            Ok(_) => Ok(()),
-            Err(err) => Err(FileSystemError::CreateDirectory(
-                path.as_os_str().to_owned(),
-                err.kind(),
-            )),
-        }
+        create_dir_all(path).map_err(|err| {
+            FileSystemError::CreateDirectory(path.as_os_str().to_owned(), err.kind())
+        })
     }
-    pub fn remove_dir(path: &Path) -> Result<(), FileSystemError> {
-        if let Err(err) = fs_remove_dir(path) {
-            return Err(FileSystemError::RemoveDirectory(
-                path.to_path_buf().into_os_string(),
-                err.kind(),
-            ));
-        }
 
-        Ok(())
+    pub fn remove_dir(path: &Path) -> Result<(), FileSystemError> {
+        fs_remove_dir(path).map_err(|err| {
+            FileSystemError::RemoveDirectory(path.to_path_buf().into_os_string(), err.kind())
+        })
     }
 }
 
