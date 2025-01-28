@@ -145,7 +145,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         _reusable_workload_id: Option<PodmanKubeWorkloadId>,
         _control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
-        _config_file_path_mapping: Option<HashMap<PathBuf, PathBuf>>,
+        _config_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
         let instance_name = workload_spec.instance_name.clone();
 
@@ -628,7 +628,7 @@ mod tests {
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender, None)
+            .create_workload(workload_spec, None, None, sender, Default::default())
             .await;
         // [utest->swdd~podman-kube-create-workload-returns-workload-id~1]
         assert!(matches!(workload, Ok((workload_id, _)) if
@@ -678,7 +678,7 @@ mod tests {
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender, None)
+            .create_workload(workload_spec, None, None, sender, Default::default())
             .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
@@ -727,7 +727,7 @@ mod tests {
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender, None)
+            .create_workload(workload_spec, None, None, sender, Default::default())
             .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
@@ -790,7 +790,7 @@ mod tests {
 
         let (sender, mut receiver) = tokio::sync::mpsc::channel(1);
         let _workload = runtime
-            .create_workload(workload_spec, None, None, sender, None)
+            .create_workload(workload_spec, None, None, sender, Default::default())
             .await;
 
         receiver.recv().await;
@@ -827,7 +827,7 @@ mod tests {
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender, None)
+            .create_workload(workload_spec, None, None, sender, Default::default())
             .await;
 
         assert!(matches!(workload, Err(RuntimeError::Create(msg)) if msg == SAMPLE_ERROR));

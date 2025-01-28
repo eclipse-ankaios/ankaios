@@ -91,7 +91,7 @@ where
         reusable_workload_id: Option<WorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
-        config_file_path_mapping: Option<HashMap<PathBuf, PathBuf>>,
+        config_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<(WorkloadId, StChecker), RuntimeError>;
 
     async fn get_workload_id(
@@ -211,7 +211,7 @@ pub mod test {
         CreateWorkload(
             WorkloadSpec,
             Option<PathBuf>,
-            Option<HashMap<PathBuf, PathBuf>>,
+            HashMap<PathBuf, PathBuf>,
             Result<(String, StubStateChecker), RuntimeError>,
         ),
         GetWorkloadId(WorkloadInstanceName, Result<String, RuntimeError>),
@@ -346,7 +346,7 @@ pub mod test {
             _reusable_workload_id: Option<String>,
             control_interface_path: Option<PathBuf>,
             _update_state_tx: WorkloadStateSender,
-            host_config_file_path_mappings: Option<HashMap<PathBuf, PathBuf>>,
+            host_config_file_path_mappings: HashMap<PathBuf, PathBuf>,
         ) -> Result<(String, StubStateChecker), RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::CreateWorkload(
