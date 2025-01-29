@@ -25,7 +25,7 @@ use common::objects::State;
 use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
-use server_config::{get_default_address, ServerConfig};
+use server_config::ServerConfig;
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 
@@ -34,22 +34,20 @@ async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     // TODO: needs to be replaced with /etc/ankaios/ank-server.conf
-    let mut server_config =
-        ServerConfig::from_file("/etc/ankaios/ank-server.conf").unwrap_or_default();
+    let mut server_config = match ServerConfig::from_file("/etc/ankaios/ank-server.conf") {
+        Ok(config) => config,
+        Err(e) => {
+            log::error!("Could not parse server config file: {:?}", e);
+            return;
+        }
+    };
 
     let args = cli::parse();
 
-    log::info!(
-        "server config before update with args: {:?}\n",
-        server_config
-    );
-    log::info!("args: {:?}\n", args);
-
     server_config.update_with_args(&args);
 
-    log::info!("server config after update w\\ args: {:?}\n", server_config);
 
-    log::info!(
+    log::debug!(
         "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup config path: '{}'",
         server_config.address.unwrap(),
         server_config
@@ -57,8 +55,6 @@ async fn main() {
             .clone()
             .unwrap_or("[no config file provided]".to_string()),
     );
-
-    log::debug!("server config 1: {:?}", server_config);
 
     let startup_state = match &server_config.startup_config {
         Some(config_path) => {
@@ -81,13 +77,9 @@ async fn main() {
         _ => None,
     };
 
-    log::debug!("server config 2: {:?}", server_config);
-
     let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
     let (to_agents, agents_receiver) = create_from_server_channel(common::CHANNEL_CAPACITY);
 
-    log::debug!("server config 3: {:?}", server_config);
-
     if let Err(err_message) = TLSConfig::is_config_conflicting(
         server_config.insecure.unwrap(),
         &server_config.ca_pem,
@@ -97,8 +89,6 @@ async fn main() {
         log::warn!("{}", err_message);
     }
 
-    log::debug!("server config 4: {:?}", server_config);
-
     if let Err(err_message) = TLSConfig::is_config_conflicting(
         server_config.insecure.unwrap(),
         &server_config.ca_pem,
@@ -107,16 +97,10 @@ async fn main() {
     ) {
         log::warn!("{}", err_message);
     }
-
-    log::debug!("server config 5: {:?}", server_config);
 
     // [impl->swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
     // [impl->swdd~server-provides-file-paths-to-communication-middleware~1]
     // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    log::debug!("ca_pem: {:?}", server_config.ca_pem);
-    log::debug!("crt_pem: {:?}", server_config.crt_pem);
-    log::debug!("key_pem: {:?}", server_config.ca_pem);
-
     let tls_config: Result<Option<TLSConfig>, String> = if server_config.ca_pem.is_some()
         || server_config.crt_pem.is_some()
         || server_config.key_pem.is_some()

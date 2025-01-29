@@ -59,8 +59,8 @@ Setup Ankaios
     Setup Ankaios without MTLS Setup
 
 Copy Server Config File
-    Copy File    'configs/ank-server.conf'    '/etc/ankaios/'
-    File Should Exist    '/etc/ankaios/ank-server.conf'
+    Copy File    tests/resources/configs/ank-server.conf   /etc/ankaios/
+    File Should Exist    /etc/ankaios/ank-server.conf
 
 Clean up Ankaios
     Terminate All Processes    kill=True

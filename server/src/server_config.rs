@@ -12,16 +12,21 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Deserialize, Deserializer, Serialize};
-use std::fs::read_to_string;
-use std::net::SocketAddr;
-use std::str::FromStr;
-use toml::from_str;
-
 use crate::cli::Arguments;
 use common::DEFAULT_SOCKET_ADDRESS;
+use serde::{Deserialize, Deserializer, Serialize};
+use std::net::SocketAddr;
+use toml::from_str;
 
 const CONFIG_VERSION: &str = "v1";
+
+#[cfg(not(test))]
+use std::fs::read_to_string;
+
+#[cfg(test)]
+fn read_to_string(file_path_content: &str) -> std::io::Result<String> {
+    Ok(file_path_content.to_string())
+}
 
 pub fn get_default_address() -> Option<SocketAddr> {
     DEFAULT_SOCKET_ADDRESS.parse().ok()
@@ -39,18 +44,17 @@ where
 {
     let s: String = Deserialize::deserialize(deserializer)?;
 
-    Ok(s.parse().ok())
+    Ok(s.parse::<SocketAddr>().ok())
 }
 
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct ServerConfig {
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub startup_config: Option<String>,
     #[serde(
-        // the default att is useless
-        default = "get_default_address",
-        // deserialize_with = "convert_to_socket_address"
+        deserialize_with = "convert_to_socket_address",
+        default = "get_default_address"
     )]
     pub address: Option<SocketAddr>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -108,6 +112,8 @@ impl ServerConfig {
             ));
         }
 
+        println!("FROM_FILE SERVER CONFIG: {:?}", server_config);
+
         Ok(server_config)
     }
 
@@ -138,5 +144,173 @@ impl ServerConfig {
         } else {
             self.key_pem_content.clone()
         };
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use std::net::SocketAddr;
+
+    use common::DEFAULT_SOCKET_ADDRESS;
+
+    use crate::{cli::Arguments, server_config::ConversionErrors};
+
+    use super::ServerConfig;
+
+    #[test]
+    fn utest_default_server_config() {
+        let default_server_config = ServerConfig::default();
+
+        assert_eq!(
+            default_server_config.address,
+            DEFAULT_SOCKET_ADDRESS.parse::<SocketAddr>().ok()
+        );
+        assert_eq!(default_server_config.insecure, Some(true));
+        assert_eq!(default_server_config.version, "v1");
+    }
+
+    #[test]
+    fn utest_server_config_wrong_version() {
+        let server_config_content: &str = r"#
+        version = 'v2'
+        #";
+
+        let server_config = ServerConfig::from_file(server_config_content);
+
+        assert_eq!(
+            server_config,
+            Err(ConversionErrors::WrongVersion("v2".to_string()))
+        );
+    }
+
+    #[test]
+    fn utest_server_config_conflicting_certificates() {
+        let server_config_content: &str = r"#
+        version = 'v1'
+        ca_pem = '''some_path_to_a_file/ca.pem'''
+        crt_pem_content = '''the content of the
+        crt.pem file is stored in here'''
+        #";
+
+        let server_config = ServerConfig::from_file(server_config_content);
+
+        assert_eq!(
+            server_config,
+            Err(ConversionErrors::ConflictingCertificates(
+                "Certificate paths and certificate content are both set".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn utest_server_config_update_with_args() {
+        let mut server_config = ServerConfig::default();
+        let args = Arguments {
+            path: Some("some_path_to_a_config_file/config_file.yaml".to_string()),
+            addr: "127.0.0.1:3333".parse::<SocketAddr>().ok(),
+            insecure: false,
+            ca_pem: Some("some_path_to_ca_pem/ca.pem".to_string()),
+            crt_pem: Some("some_path_to_crt_pem/crt.pem".to_string()),
+            key_pem: Some("some_path_to_key_pem/key.pem".to_string()),
+        };
+
+        server_config.update_with_args(&args);
+
+        assert_eq!(
+            server_config.startup_config,
+            Some("some_path_to_a_config_file/config_file.yaml".to_string())
+        );
+        assert_eq!(
+            server_config.address,
+            "127.0.0.1:3333".parse::<SocketAddr>().ok()
+        );
+        assert_eq!(server_config.insecure, Some(false));
+        assert_eq!(
+            server_config.ca_pem,
+            Some("some_path_to_ca_pem/ca.pem".to_string())
+        );
+        assert_eq!(
+            server_config.crt_pem,
+            Some("some_path_to_crt_pem/crt.pem".to_string())
+        );
+        assert_eq!(
+            server_config.key_pem,
+            Some("some_path_to_key_pem/key.pem".to_string())
+        );
+    }
+
+    #[test]
+    fn utest_server_config_update_with_args_certificates_content() {
+        let server_config_content: &str = r"#
+        version = 'v1'
+        ca_pem_content = '''the content of the
+        ca.pem file is stored in here'''
+        crt_pem_content = '''the content of the
+        crt.pem file is stored in here'''
+        key_pem_content = '''the content of the
+        key.pem file is stored in here'''
+        #";
+
+        let mut server_config = ServerConfig::from_file(server_config_content).unwrap();
+        let args = Arguments {
+            path: Some("some_path_to_a_config_file/config_file.yaml".to_string()),
+            addr: "127.0.0.1:3333".parse::<SocketAddr>().ok(),
+            insecure: false,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
+        };
+
+        server_config.update_with_args(&args);
+
+        assert_eq!(
+            server_config.ca_pem,
+            Some(
+                r"the content of the
+        ca.pem file is stored in here"
+                    .to_string()
+            )
+        );
+        assert_eq!(
+            server_config.crt_pem,
+            Some(
+                r"the content of the
+        crt.pem file is stored in here"
+                    .to_string()
+            )
+        );
+        assert_eq!(
+            server_config.key_pem,
+            Some(
+                r"the content of the
+        key.pem file is stored in here"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn utest_server_config_from_file_successful() {
+        let server_config_content: &str = r"#
+        version = 'v1'
+        ca_pem_content = '''the content of the
+        ca.pem file is stored in here'''
+        crt_pem_content = '''the content of the
+        crt.pem file is stored in here'''
+        key_pem_content = '''the content of the
+        key.pem file is stored in here'''
+        #";
+
+        let server_config = ServerConfig::from_file(server_config_content);
+
+        assert!(server_config.is_ok())
     }
 }
