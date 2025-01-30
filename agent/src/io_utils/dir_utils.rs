@@ -63,7 +63,7 @@ mod tests {
 
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
-    fn utest_arguments_get_run_directory_use_default_directory_create() {
+    fn utest_arguments_prepare_agent_run_directory_use_default_directory_create() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let agent_name = "test_agent_name";
@@ -98,7 +98,7 @@ mod tests {
 
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
-    fn utest_arguments_get_run_directory_use_default_directory_create_fails() {
+    fn utest_arguments_prepare_agent_run_directory_use_default_directory_create_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let agent_name = "test_agent_name";
@@ -135,7 +135,7 @@ mod tests {
 
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
-    fn utest_arguments_get_run_directory_use_default_directory_create_permissions_fail() {
+    fn utest_arguments_prepare_agent_run_directory_use_default_directory_create_permissions_fail() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let agent_name = "test_agent_name";
@@ -178,7 +178,7 @@ mod tests {
 
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
-    fn utest_arguments_get_run_directory_use_default_directory_exists() {
+    fn utest_arguments_prepare_agent_run_directory_use_default_directory_exists() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let agent_name = "test_agent_name";
@@ -198,7 +198,7 @@ mod tests {
 
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
-    fn utest_arguments_get_run_directory_given_directory_not_found() {
+    fn utest_arguments_prepare_agent_run_directory_given_directory_not_found() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
         let agent_name = "test_agent_name";
