@@ -76,8 +76,7 @@ async fn main() {
         tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
 
     // [impl->swdd~agent-prepares-dedicated-run-folder~1]
-    let run_directory = args
-        .get_agent_run_directory()
+    let run_directory = io_utils::prepare_agent_run_directory(args.run_folder.as_str(), args.agent_name.as_str())
         .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
     // [impl->swdd~agent-supports-podman~2]

@@ -12,8 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+mod dir_utils;
 mod directory;
 mod fs;
+
+pub const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
 
 #[cfg(not(test))]
 pub use directory::Directory;
@@ -21,6 +24,8 @@ pub use directory::Directory;
 pub use directory::{generate_test_directory_mock, MockDirectory};
 #[cfg(not(test))]
 pub use fs::filesystem;
-pub use fs::FileSystemError;
 #[cfg(test)]
 pub use fs::mock_filesystem;
+pub use fs::FileSystemError;
+
+pub use dir_utils::prepare_agent_run_directory;
