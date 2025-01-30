@@ -312,15 +312,12 @@ impl<
 
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
+        workload_command_sender.resume().unwrap_or_else(|err| {
+            log::warn!("Failed to send workload command retry: '{}'", err);
+        });
+
         let run_folder = self.run_folder.clone();
         let task_handle = tokio::spawn(async move {
-            workload_command_sender
-                .resume()
-                .await
-                .unwrap_or_else(|err| {
-                    log::warn!("Failed to send workload command retry: '{}'", err);
-                });
-
             let control_loop_state = ControlLoopState::builder()
                 .workload_spec(workload_spec)
                 .workload_state_sender(update_state_tx)

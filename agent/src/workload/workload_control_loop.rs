@@ -375,10 +375,10 @@ impl WorkloadControlLoop {
             Err(err) => {
                 let current_retry_counter = control_loop_state.retry_counter.current_retry();
 
-                Self::delete_config_files_subfolder(
-                    &new_instance_name,
+                Self::delete_folder(WorkloadConfigFilesPath::from((
                     &control_loop_state.run_folder,
-                )
+                    &new_instance_name,
+                )))
                 .await;
 
                 match &err {
@@ -505,11 +505,10 @@ impl WorkloadControlLoop {
             );
         }
 
-        Self::delete_workload_subfolder(
-            control_loop_state.instance_name(),
-            &control_loop_state.run_folder,
-        )
-        .await;
+        let workload_dir = control_loop_state
+            .instance_name()
+            .pipes_folder_name(&control_loop_state.run_folder);
+        Self::delete_folder(workload_dir).await;
 
         // Successfully stopped the workload. Send a removed on the channel
         Self::send_workload_state_to_agent(
@@ -568,22 +567,23 @@ impl WorkloadControlLoop {
             );
         }
 
-        if control_loop_state.workload_spec.has_config_files() {
-            Self::delete_config_files_subfolder(
-                control_loop_state.instance_name(),
-                &control_loop_state.run_folder,
-            )
-            .await;
-        }
+        log::debug!(
+            "Deleting the config files of workload '{}'",
+            control_loop_state.instance_name()
+        );
+        Self::delete_folder(WorkloadConfigFilesPath::from((
+            &control_loop_state.run_folder,
+            control_loop_state.instance_name(),
+        )))
+        .await;
 
         let new_workload_spec = if let Some(new_spec) = new_workload_spec {
             if !Self::is_same_workload(control_loop_state.instance_name(), &new_spec.instance_name)
             {
-                Self::delete_workload_subfolder(
-                    control_loop_state.instance_name(),
-                    &control_loop_state.run_folder,
-                )
-                .await;
+                let workload_dir = control_loop_state
+                    .instance_name()
+                    .pipes_folder_name(&control_loop_state.run_folder);
+                Self::delete_folder(workload_dir).await;
             }
             Some(new_spec)
         } else {
@@ -695,36 +695,12 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    async fn delete_config_files_subfolder(
-        instance_name: &WorkloadInstanceName,
-        run_folder: &PathBuf,
-    ) {
-        let workload_config_files_dir = WorkloadConfigFilesPath::from((run_folder, instance_name));
-
-        log::debug!("Deleting the config files of workload '{}'", instance_name);
-
-        tokio::fs::remove_dir_all(workload_config_files_dir)
+    async fn delete_folder(path: impl AsRef<Path>) {
+        tokio::fs::remove_dir_all(path)
             .await
-            .unwrap_or_else(|err| {
-                log::error!(
-                    "Failed to delete config files for workload '{}': '{}'",
-                    instance_name,
-                    err
-                );
-            });
-    }
-
-    async fn delete_workload_subfolder(instance_name: &WorkloadInstanceName, run_folder: &Path) {
-        let workload_dir = instance_name.pipes_folder_name(run_folder);
-
-        tokio::fs::remove_dir_all(workload_dir)
-            .await
-            .unwrap_or_else(|err| {
-                log::error!(
-                    "Failed to delete workload subfolder for workload '{}': '{}'",
-                    instance_name,
-                    err
-                )
+            .unwrap_or_else(|err| match err.kind() {
+                tokio::io::ErrorKind::NotFound => {}
+                _ => log::warn!("Failed to delete folder: '{}'", err),
             });
     }
 }
@@ -2270,7 +2246,7 @@ mod tests {
         control_loop_state.state_checker_workload_state_receiver =
             state_checker_workload_state_receiver;
 
-        workload_command_sender.resume().await.unwrap();
+        workload_command_sender.resume().unwrap();
         workload_command_sender.delete().await.unwrap();
 
         assert!(timeout(
