@@ -31,7 +31,6 @@ Test Ankaios Podman retry creation of a workload on creation failure
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Copy Server Config File
     And Ankaios server is started with config "${CONFIGS_DIR}/podman_alpine_sleep.yaml"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
@@ -55,7 +54,6 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Copy Server Config File
     And Ankaios server is started with config "${CONFIGS_DIR}/podman_alpine_sleep.yaml"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
@@ -81,7 +79,6 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Copy Server Config File
     And Ankaios server is started with config "${CONFIGS_DIR}/podman_alpine_sleep.yaml"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
@@ -110,7 +107,6 @@ Test Ankaios Podman stops retries after reaching the retry attempt limit
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Copy Server Config File
     And Ankaios server is started with config "${CONFIGS_DIR}/podman_wrong_image_name.yaml"
     And Ankaios agent is started with name "agent_A"
     # Actions

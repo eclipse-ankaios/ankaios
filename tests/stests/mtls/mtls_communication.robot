@@ -26,7 +26,6 @@ Test Ankaios MTLS by providing PEM files via environment variables
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Copy Server Config File
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with name "agent_B"
     And all workloads of agent "agent_B" have an initial execution state
@@ -49,7 +48,6 @@ Test Ankaios MTLS by providing PEM files via command line arguments
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Copy Server Config File
     And Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml" and PEM files: "${CERTS_DIR}/ca.pem" "${CERTS_DIR}/server.pem" "${CERTS_DIR}/server-key.pem"
     And Ankaios agent is started with name "agent_B" and PEM files: "${CERTS_DIR}/ca.pem" "${CERTS_DIR}/agent.pem" "${CERTS_DIR}/agent-key.pem"
     And Ankaios agent is started with name "agent_A" and PEM files: "${CERTS_DIR}/ca.pem" "${CERTS_DIR}/agent.pem" "${CERTS_DIR}/agent-key.pem"
@@ -67,7 +65,6 @@ Test Ankaios MTLS by providing wrong PEM config via command line arguments
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Copy Server Config File
     And Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml" and PEM files: "${CERTS_DIR}/ca.pem" "${CERTS_DIR}/server.pem" "${CERTS_DIR}/server-key.pem"
     And Ankaios agent is started with name "agent_B" and PEM files: "${CERTS_DIR}/ca.pem" "${CERTS_DIR}/agent.pem" "${CERTS_DIR}/agent-key.pem"
     And Ankaios agent is started with name "agent_A" and PEM files: "${CERTS_DIR}/ca.pem" "${CERTS_DIR}/agent.pem" "${CERTS_DIR}/agent-key.pem"
@@ -87,7 +84,6 @@ Test Ankaios insecure mode by providing --insecure command line arguments
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Copy Server Config File
     And Ankaios insecure server is started with config "${CONFIGS_DIR}/default.yaml"
     And Ankaios insecure agent is started with name "agent_B"
     And all workloads of agent "agent_B" have an initial execution state
@@ -95,7 +91,7 @@ Test Ankaios insecure mode by providing --insecure command line arguments
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
     When user triggers "ank --insecure get workloads"
-    # # Asserts
+    # Asserts
     Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B"
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"

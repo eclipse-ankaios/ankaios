@@ -38,7 +38,6 @@ Test Ankaios apply workload specifications showing progress via spinner
 
     # Preconditions
     Given Podman has deleted all existing containers
-    And Copy Server Config File
     And Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
@@ -65,8 +64,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest files
     ...        AND    Set Global Variable    ${manifest2_yaml_file}    ${CONFIGS_DIR}/manifest2.yaml
 
     # Preconditions
-    Given Copy Server Config File
-    And Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
@@ -84,8 +82,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
 
     # Preconditions
-    Given Copy Server Config File
-    And Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
@@ -102,8 +99,7 @@ Test Ankaios apply workload specification overwriting the agent names
     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
 
     # Preconditions
-    Given Copy Server Config File
-    And Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
     And all workloads of agent "agent_A" have an initial execution state
@@ -121,8 +117,7 @@ Test Ankaios apply workload specification defining the agent names
     ...        AND    Set Global Variable    ${manifest_no_agent}   ${CONFIGS_DIR}/manifest_no_agent_name.yaml
 
     # Preconditions
-    Given Copy Server Config File
-    And Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
     And all workloads of agent "agent_A" have an initial execution state
@@ -140,8 +135,7 @@ Test Ankaios apply workload specification without agent name
     ...        AND    Set Global Variable    ${manifest_no_agent_name_yaml_file}    ${CONFIGS_DIR}/manifest_no_agent_name.yaml
 
     # Preconditions
-    Given Copy Server Config File
-    And Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
@@ -158,8 +152,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest files for deleti
     ...        AND    Set Global Variable    ${manifest2_yaml_file}    ${CONFIGS_DIR}/manifest2.yaml
 
     # Preconditions
-    Given Copy Server Config File
-    And Ankaios server is started with config "${manifest12_yaml_file}"
+    Given Ankaios server is started with config "${manifest12_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
@@ -178,8 +171,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
 
     # Preconditions
-    Given Copy Server Config File
-    And Ankaios server is started with config "${manifest1_yaml_file}"
+    Given Ankaios server is started with config "${manifest1_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
@@ -195,8 +187,7 @@ Test Ankaios apply workload specifications in Ankaios manifest with templated fi
 
     # Preconditions
     # This test assumes that all containers in Podman have been created with this test -> clean it up first
-    Given Copy Server Config File
-    And Podman has deleted all existing containers
+    Given Podman has deleted all existing containers
     And Ankaios server is started without config
     And Ankaios agent is started with name "agent_A"
     # Actions
@@ -214,8 +205,7 @@ Test Ankaios apply workload specification with wrong api version
     ...        AND    Set Global Variable    ${manifest_wrong_api_version}    ${CONFIGS_DIR}/manifest_wrong_api_version.yaml
 
     # Preconditions
-    Given Copy Server Config File
-    And Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
@@ -231,8 +221,7 @@ Test Ankaios apply workload specification with wrong api version format
     ...        AND    Set Global Variable    ${manifest_wrong_api_version_format}    ${CONFIGS_DIR}/manifest_wrong_api_version_format.yaml
 
     # Preconditions
-    Given Copy Server Config File
-    And Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with config "${simple_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions

@@ -27,7 +27,6 @@ Test Ankaios CLI lists connected agents
     # Preconditions
     # This test assumes that all containers in Podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Copy Server Config File
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with name "agent_A"
     # The agent_A is started and connected
@@ -49,7 +48,6 @@ Test Ankaios CLI enforces agent naming convention
     # Preconditions
     # This test assumes that all containers in Podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Copy Server Config File
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with name "agent.A"
     # Actions

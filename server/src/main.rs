@@ -25,7 +25,7 @@ use common::objects::State;
 use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
-use server_config::ServerConfig;
+use server_config::{ServerConfig, DEFAULT_SERVER_CONFIG_FILE_PATH};
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 
@@ -33,8 +33,13 @@ use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    // TODO: needs to be replaced with /etc/ankaios/ank-server.conf
-    let mut server_config = match ServerConfig::from_file("/etc/ankaios/ank-server.conf") {
+    let args = cli::parse();
+
+    let server_config_file_path = args
+        .config_file_path
+        .clone()
+        .unwrap_or(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string());
+    let mut server_config = match ServerConfig::from_file(&server_config_file_path) {
         Ok(config) => config,
         Err(e) => {
             log::error!("Could not parse server config file: {:?}", e);
@@ -42,10 +47,7 @@ async fn main() {
         }
     };
 
-    let args = cli::parse();
-
     server_config.update_with_args(&args);
-
 
     log::debug!(
         "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup config path: '{}'",

@@ -19,6 +19,7 @@ use std::net::SocketAddr;
 use toml::from_str;
 
 const CONFIG_VERSION: &str = "v1";
+pub const DEFAULT_SERVER_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-server.conf";
 
 #[cfg(not(test))]
 use std::fs::read_to_string;
@@ -215,6 +216,7 @@ mod tests {
         let mut server_config = ServerConfig::default();
         let args = Arguments {
             path: Some("some_path_to_a_config_file/config_file.yaml".to_string()),
+            config_file_path: None,
             addr: "127.0.0.1:3333".parse::<SocketAddr>().ok(),
             insecure: false,
             ca_pem: Some("some_path_to_ca_pem/ca.pem".to_string()),
@@ -262,6 +264,7 @@ mod tests {
         let mut server_config = ServerConfig::from_file(server_config_content).unwrap();
         let args = Arguments {
             path: Some("some_path_to_a_config_file/config_file.yaml".to_string()),
+            config_file_path: None,
             addr: "127.0.0.1:3333".parse::<SocketAddr>().ok(),
             insecure: false,
             ca_pem: None,

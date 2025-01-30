@@ -30,6 +30,9 @@ pub struct Arguments {
     #[clap(short = 'c', long = "startup-config")]
     /// The path to the startup config yaml.
     pub path: Option<String>,
+    #[clap(required = false, short = 'f', long = "server-config")]
+    /// The path to the server config file
+    pub config_file_path: Option<String>,
     #[clap(required = false, short = 'a', long = "address")]
     /// The address, including the port, the server shall listen at [default: 127.0.0.1:25551].
     pub addr: Option<SocketAddr>,
