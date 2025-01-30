@@ -858,26 +858,6 @@ Needs:
 - impl
 - utest
 
-##### RuntimeFacade deletes old workload without sending workload states
-`swdd~agent-delete-old-workload-without-sending-workload-states~1`
-
-Status: approved
-
-When the RuntimeFacade is requested to delete the workload and the flag `report_workload_states_for_workload` is false, then the RuntimeFacade shall delete the workload via the runtime connector without sending workload states.
-
-Comment:
-This delete is done by the specific runtime for a workload Id. No internal workload object is involved in this action.
-
-Rationale:
-The workaround of enabling and disabling the sending of workload states is required until a dedicated workload restart is implemented.
-
-Tags:
-- RuntimeFacade
-
-Needs:
-- impl
-- utest
-
 ##### WorkloadControlLoop executes resume command
 `swdd~agent-workload-control-loop-executes-resume~1`
 

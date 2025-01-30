@@ -361,12 +361,9 @@ impl RuntimeManager {
                             // No added workload matches the found running one => delete it
                             // [impl->swdd~agent-existing-workloads-delete-unneeded~1]
 
-                            // workload states are allowed to send because the workload is not created anymore afterwards
-                            const REPORT_WORKLOAD_STATES_FOR_WORKLOAD: bool = true;
                             runtime.delete_workload(
                                 workload_state.instance_name,
                                 &self.update_state_tx,
-                                REPORT_WORKLOAD_STATES_FOR_WORKLOAD,
                             );
                         }
                     }
