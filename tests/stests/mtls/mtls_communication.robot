@@ -91,7 +91,7 @@ Test Ankaios insecure mode by providing --insecure command line arguments
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
     When user triggers "ank --insecure get workloads"
-    # # Asserts
+    # Asserts
     Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B"
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"

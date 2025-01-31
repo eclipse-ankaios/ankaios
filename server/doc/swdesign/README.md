@@ -410,6 +410,21 @@ Needs:
 - impl
 - utest
 
+#### Server loads config file
+`swdd~server-loads-config-file~1`
+
+Status: approved
+
+The config file shall serve as the least prioritized method of updating the server config. It is loaded at the start of the server.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
+
 ### Distribution of Workload State update sequence
 The following diagram shows the sequence of the distribution and storage of Workload States:
 
