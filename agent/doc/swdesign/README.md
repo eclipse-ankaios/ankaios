@@ -158,12 +158,33 @@ The following diagram shows the startup sequence of the Ankaios Agent:
 
 ![Startup](plantuml/seq_startup.svg)
 
+#### Agent prepares dedicated run folder
+`swdd~agent-prepares-dedicated-run-folder~1`
+
+Status: approved
+
+The Ankaios agent shall prepare a dedicated run directory during startup by creating a folder with the following name:
+
+`<agent name>_io`
+
+in the specified by the startup arguments location or at the default location under "/tmp/ankaios".
+
+Comment:
+The default folder "/tmp/ankaios" must be created with full permissions if not existing. The specific agent folder will still have scoped permissions, but the default location could be used by other agents running under different users and must be usable.
+
+Rationale:
+The dedicated run folder is required by the agent to store temporary files for the workloads, e.g., Control Interface fifo pipes, mount files, etc.
+
+Needs:
+- impl
+- utest
+
 #### Agent naming convention
 `swdd~agent-naming-convention~1`
 
 Status: approved
 
-The Ankaios CLI shall enforce agent names which respect the naming convention defined in the common library.
+The Ankaios agent shall enforce agent names which respect the naming convention defined in the common library.
 
 Comment:
 We need to check the agent names in order to ensure the proper function of the filtering.
@@ -3259,7 +3280,7 @@ Status: approved
 When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
-An allow rule matches, if it is the same or a prefix of the request's update/field mask.
+An allow rule matches, if it is the same or a prefix of the request's update/field mask. Consequently, when the allow rule consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
 
 Tags:
 - Authorizer
@@ -3276,7 +3297,7 @@ Status: approved
 When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
-A deny rule matches, if the request's update/field mask is the same or a prefix of the rule.
+A deny rule matches, if the request's update/field mask is the same or a prefix of the rule. Consequently, when the allow rule consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
 
 Tags:
 - Authorizer

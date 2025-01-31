@@ -16,9 +16,7 @@ pub mod authorizer;
 pub mod control_interface_info;
 mod control_interface_path;
 mod control_interface_task;
-mod directory;
 mod fifo;
-mod filesystem;
 mod from_server_channels;
 mod input_output;
 mod reopen_file;
@@ -27,16 +25,8 @@ mod to_ankaios;
 pub use control_interface_path::ControlInterfacePath;
 pub use to_ankaios::ToAnkaios;
 
-#[cfg(not(test))]
-pub use directory::Directory;
-pub use filesystem::FileSystemError;
-
-#[cfg(test)]
-pub use directory::{generate_test_directory_mock, MockDirectory};
 #[cfg(test)]
 pub use fifo::MockFifo;
-#[cfg(test)]
-pub use filesystem::MockFileSystem;
 
 #[cfg(test)]
 use mockall::automock;

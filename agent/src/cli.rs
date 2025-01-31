@@ -13,17 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use regex::Regex;
-use std::path::Path;
 
-#[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::Directory;
-use crate::control_interface::FileSystemError;
+use crate::io_utils::DEFAULT_RUN_FOLDER;
 use clap::Parser;
 use common::objects::STR_RE_AGENT;
 use common::DEFAULT_SERVER_ADDRESS;
-
-const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
-const RUNFOLDER_SUFFIX: &str = "_io";
 
 // [impl->swdd~agent-naming-convention~1]
 fn validate_agent_name(name: &str) -> Result<String, String> {
@@ -53,7 +47,7 @@ pub struct Arguments {
     #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.to_string())]
     /// The server url.
     pub server_url: String,
-    /// An existing path where to manage the fifo files.
+    /// An existing directory where agent specific runtime files will be stored. If not specified, a default folder is created.
     #[clap(short = 'r', long = "run-folder", default_value_t = DEFAULT_RUN_FOLDER.into())]
     pub run_folder: String,
     #[clap(
@@ -75,20 +69,6 @@ pub struct Arguments {
     pub key_pem: Option<String>,
 }
 
-impl Arguments {
-    pub fn get_run_directory(&self) -> Result<Directory, FileSystemError> {
-        let base_folder = Path::new(&self.run_folder);
-        let run_folder = base_folder.join(format!("{}{}", self.agent_name, RUNFOLDER_SUFFIX));
-        if base_folder.to_str() != Some(DEFAULT_RUN_FOLDER) && !run_folder.exists() {
-            return Err(FileSystemError::NotFoundDirectory(
-                run_folder.into_os_string(),
-            ));
-        }
-
-        Directory::new(run_folder)
-    }
-}
-
 pub fn parse() -> Arguments {
     Arguments::parse()
 }
@@ -103,54 +83,21 @@ pub fn parse() -> Arguments {
 
 #[cfg(test)]
 mod tests {
-    use common::DEFAULT_SERVER_ADDRESS;
 
-    use super::{Arguments, FileSystemError, Path, DEFAULT_RUN_FOLDER};
-    use crate::control_interface::generate_test_directory_mock;
-
+    // [utest->swdd~agent-naming-convention~1]
     #[test]
-    fn utest_arguments_get_run_directory_use_default_directory() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+    fn utest_validate_agent_name_ok() {
+        assert!(super::validate_agent_name("").is_ok());
 
-        let args = Arguments {
-            agent_name: "test_agent_name".to_owned(),
-            server_url: DEFAULT_SERVER_ADDRESS.to_string(),
-            run_folder: DEFAULT_RUN_FOLDER.to_owned(),
-            insecure: true,
-            ca_pem: None,
-            crt_pem: None,
-            key_pem: None,
-        };
-
-        let _directory_mock_context =
-            generate_test_directory_mock(DEFAULT_RUN_FOLDER, "test_agent_name_io");
-
-        assert!(args.get_run_directory().is_ok());
+        let name = "test_AgEnt-name1_56";
+        assert_eq!(super::validate_agent_name(name), Ok(name.to_string()));
     }
 
+    // [utest->swdd~agent-naming-convention~1]
     #[test]
-    fn utest_arguments_get_run_directory_given_directory_not_found() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
-
-        let args = Arguments {
-            agent_name: "test_agent_name".to_owned(),
-            server_url: DEFAULT_SERVER_ADDRESS.to_string(),
-            run_folder: "/tmp/x".to_owned(),
-            insecure: true,
-            ca_pem: None,
-            crt_pem: None,
-            key_pem: None,
-        };
-
-        let _directory_mock_context = generate_test_directory_mock("/tmp/x", "test_agent_name_io");
-
-        assert_eq!(
-            args.get_run_directory(),
-            Err(FileSystemError::NotFoundDirectory(
-                Path::new("/tmp/x/test_agent_name_io")
-                    .as_os_str()
-                    .to_os_string()
-            ))
-        );
+    fn utest_validate_agent_name_fail() {
+        assert!(super::validate_agent_name("a.b").is_err());
+        assert!(super::validate_agent_name("a_b_%#").is_err());
+        assert!(super::validate_agent_name("a b").is_err());
     }
 }
