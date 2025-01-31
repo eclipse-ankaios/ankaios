@@ -534,6 +534,34 @@ mod tests {
             Err(FileSystemError::RemoveDirectory(_, _))
         ));
     }
+
+    #[tokio::test]
+    async fn utest_filesystem_remove_dir_async_ok() {
+        let _test_lock = TEST_LOCK.lock();
+        let path = Path::new("test_dir");
+        FAKE_CALL_LIST
+            .lock()
+            .unwrap()
+            .push_back(FakeCall::remove_dir(path.to_path_buf(), Ok(())));
+
+        assert!(filesystem_async::remove_dir(path).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_filesystem_remove_dir_async_fails() {
+        let _test_lock = TEST_LOCK.lock();
+        let path = Path::new("test_dir");
+        FAKE_CALL_LIST
+            .lock()
+            .unwrap()
+            .push_back(FakeCall::remove_dir(
+                path.to_path_buf(),
+                Err(Error::new(ErrorKind::Other, "Some Error!")),
+            ));
+
+        assert!(filesystem_async::remove_dir(path).await.is_ok());
+    }
+
     #[test]
     fn utest_filesystem_remove_fifo_ok() {
         let _test_lock = TEST_LOCK.lock();
