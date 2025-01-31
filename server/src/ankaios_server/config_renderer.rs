@@ -58,9 +58,6 @@ impl Default for ConfigRenderer {
         let mut template_engine = Handlebars::new();
         template_engine.set_strict_mode(true); // enable throwing render errors if context data is valid
         template_engine.register_escape_fn(|s| s.into()); // prevent escaping like double quotes to &quot; ...
-        template_engine
-            .register_partial("indent", "{{content}}")
-            .unwrap();
         Self { template_engine }
     }
 }
