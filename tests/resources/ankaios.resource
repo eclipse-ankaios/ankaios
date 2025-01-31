@@ -189,6 +189,18 @@ Ankaios server is started with config "${config_path}"
     ...    alias=ank-server
     RETURN    ${server_process}
 
+Ankaios server is started with config "${config_path}" and server config file "${server_config_path}"
+    ${server_process}=    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    --startup-config
+    ...    ${config_path}
+    ...    --server-config
+    ...    ${server_config_path}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=ank-server
+    RETURN    ${server_process}
+
 Ankaios server is started with an invalid config "${config_path}"
     ${SERVER_PROCESS_HANDLE}=        Ankaios server is started with config "${config_path}"
     Set Global Variable    ${SERVER_PROCESS_HANDLE}

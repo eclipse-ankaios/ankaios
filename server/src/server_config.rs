@@ -113,8 +113,6 @@ impl ServerConfig {
             ));
         }
 
-        println!("FROM_FILE SERVER CONFIG: {:?}", server_config);
-
         Ok(server_config)
     }
 
@@ -166,6 +164,18 @@ mod tests {
 
     use super::ServerConfig;
 
+    const STARTUP_CONFIG_PATH: &str = "some_path_to_config/config.yaml";
+    const TEST_SOCKET_ADDRESS: &str = "127.0.0.1:3333";
+    const CA_PEM_PATH: &str = "some_path_to_ca_pem/ca.pem";
+    const CRT_PEM_PATH: &str = "some_path_to_crt_pem/crt.pem";
+    const KEY_PEM_PATH: &str = "some_path_to_key_pem/key.pem";
+    const CA_PEM_CONTENT: &str = r"the content of the
+        ca.pem file is stored in here";
+    const CRT_PEM_CONTENT: &str = r"the content of the
+        crt.pem file is stored in here";
+    const KEY_PEM_CONTENT: &str = r"the content of the
+        key.pem file is stored in here";
+
     #[test]
     fn utest_default_server_config() {
         let default_server_config = ServerConfig::default();
@@ -194,14 +204,17 @@ mod tests {
 
     #[test]
     fn utest_server_config_conflicting_certificates() {
-        let server_config_content: &str = r"#
+        let server_config_content = format!(
+            r"#
         version = 'v1'
-        ca_pem = '''some_path_to_a_file/ca.pem'''
-        crt_pem_content = '''the content of the
-        crt.pem file is stored in here'''
-        #";
+        ca_pem = '''{}'''
+        crt_pem_content = '''{}'''
+        #",
+            CA_PEM_PATH, CRT_PEM_CONTENT
+        );
+        println!("{:?}", server_config_content);
 
-        let server_config = ServerConfig::from_file(server_config_content);
+        let server_config = ServerConfig::from_file(server_config_content.as_str());
 
         assert_eq!(
             server_config,
@@ -215,57 +228,48 @@ mod tests {
     fn utest_server_config_update_with_args() {
         let mut server_config = ServerConfig::default();
         let args = Arguments {
-            path: Some("some_path_to_a_config_file/config_file.yaml".to_string()),
+            path: Some(STARTUP_CONFIG_PATH.to_string()),
             config_file_path: None,
-            addr: "127.0.0.1:3333".parse::<SocketAddr>().ok(),
+            addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
             insecure: false,
-            ca_pem: Some("some_path_to_ca_pem/ca.pem".to_string()),
-            crt_pem: Some("some_path_to_crt_pem/crt.pem".to_string()),
-            key_pem: Some("some_path_to_key_pem/key.pem".to_string()),
+            ca_pem: Some(CA_PEM_PATH.to_string()),
+            crt_pem: Some(CRT_PEM_PATH.to_string()),
+            key_pem: Some(KEY_PEM_PATH.to_string()),
         };
 
         server_config.update_with_args(&args);
 
         assert_eq!(
             server_config.startup_config,
-            Some("some_path_to_a_config_file/config_file.yaml".to_string())
+            Some(STARTUP_CONFIG_PATH.to_string())
         );
         assert_eq!(
             server_config.address,
-            "127.0.0.1:3333".parse::<SocketAddr>().ok()
+            TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok()
         );
         assert_eq!(server_config.insecure, Some(false));
-        assert_eq!(
-            server_config.ca_pem,
-            Some("some_path_to_ca_pem/ca.pem".to_string())
-        );
-        assert_eq!(
-            server_config.crt_pem,
-            Some("some_path_to_crt_pem/crt.pem".to_string())
-        );
-        assert_eq!(
-            server_config.key_pem,
-            Some("some_path_to_key_pem/key.pem".to_string())
-        );
+        assert_eq!(server_config.ca_pem, Some(CA_PEM_PATH.to_string()));
+        assert_eq!(server_config.crt_pem, Some(CRT_PEM_PATH.to_string()));
+        assert_eq!(server_config.key_pem, Some(KEY_PEM_PATH.to_string()));
     }
 
     #[test]
     fn utest_server_config_update_with_args_certificates_content() {
-        let server_config_content: &str = r"#
+        let server_config_content = format!(
+            r"#
         version = 'v1'
-        ca_pem_content = '''the content of the
-        ca.pem file is stored in here'''
-        crt_pem_content = '''the content of the
-        crt.pem file is stored in here'''
-        key_pem_content = '''the content of the
-        key.pem file is stored in here'''
-        #";
+        ca_pem_content = '''{}'''
+        crt_pem_content = '''{}'''
+        key_pem_content = '''{}'''
+        #",
+            CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
+        );
 
-        let mut server_config = ServerConfig::from_file(server_config_content).unwrap();
+        let mut server_config = ServerConfig::from_file(server_config_content.as_str()).unwrap();
         let args = Arguments {
-            path: Some("some_path_to_a_config_file/config_file.yaml".to_string()),
+            path: Some(STARTUP_CONFIG_PATH.to_string()),
             config_file_path: None,
-            addr: "127.0.0.1:3333".parse::<SocketAddr>().ok(),
+            addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
             insecure: false,
             ca_pem: None,
             crt_pem: None,
@@ -274,45 +278,27 @@ mod tests {
 
         server_config.update_with_args(&args);
 
-        assert_eq!(
-            server_config.ca_pem,
-            Some(
-                r"the content of the
-        ca.pem file is stored in here"
-                    .to_string()
-            )
-        );
-        assert_eq!(
-            server_config.crt_pem,
-            Some(
-                r"the content of the
-        crt.pem file is stored in here"
-                    .to_string()
-            )
-        );
-        assert_eq!(
-            server_config.key_pem,
-            Some(
-                r"the content of the
-        key.pem file is stored in here"
-                    .to_string()
-            )
-        );
+        assert_eq!(server_config.ca_pem, Some(CA_PEM_CONTENT.to_string()));
+        assert_eq!(server_config.crt_pem, Some(CRT_PEM_CONTENT.to_string()));
+        assert_eq!(server_config.key_pem, Some(KEY_PEM_CONTENT.to_string()));
     }
 
     #[test]
     fn utest_server_config_from_file_successful() {
-        let server_config_content: &str = r"#
+        let server_config_content = format!(
+            r"#
         version = 'v1'
-        ca_pem_content = '''the content of the
-        ca.pem file is stored in here'''
-        crt_pem_content = '''the content of the
-        crt.pem file is stored in here'''
-        key_pem_content = '''the content of the
-        key.pem file is stored in here'''
-        #";
+        startup_config = '/workspaces/ankaios/server/resources/startConfig.yaml'
+        address = '127.0.0.1:25551'
+        insecure = true
+        ca_pem_content = {}
+        crt_pem_content = {}
+        key_pem_content = {}
+        #",
+            CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
+        );
 
-        let server_config = ServerConfig::from_file(server_config_content);
+        let server_config = ServerConfig::from_file(server_config_content.as_str());
 
         assert!(server_config.is_ok())
     }
