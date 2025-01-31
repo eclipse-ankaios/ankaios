@@ -23,6 +23,16 @@ pub struct ControlInterfaceAccess {
     pub deny_rules: Vec<AccessRightsRule>,
 }
 
+impl ControlInterfaceAccess {
+    // [impl->swdd~common-access-rules-filter-mask-convention~1]
+    pub fn verify_format(&self) -> Result<(), String> {
+        self.allow_rules
+            .iter()
+            .chain(self.deny_rules.iter())
+            .try_for_each(|rule| rule.verify_format())
+    }
+}
+
 impl TryFrom<api::ank_base::ControlInterfaceAccess> for ControlInterfaceAccess {
     type Error = String;
     fn try_from(value: api::ank_base::ControlInterfaceAccess) -> Result<Self, Self::Error> {
@@ -59,6 +69,26 @@ fn convert_rule_vec(
 #[serde(tag = "type")]
 pub enum AccessRightsRule {
     StateRule(StateRule),
+}
+
+impl AccessRightsRule {
+    // [impl->swdd~common-access-rules-filter-mask-convention~1]
+    fn verify_format(&self) -> Result<(), String> {
+        match self {
+            AccessRightsRule::StateRule(state_rule) => {
+                state_rule.filter_mask.iter().try_for_each(|filter| {
+                    if filter.is_empty() {
+                        return Err(
+                            "Empty filter masks are not allowed in Control Interface access rules"
+                                .to_string(),
+                        );
+                    }
+                    Ok(())
+                })?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl TryFrom<api::ank_base::AccessRightsRule> for AccessRightsRule {
@@ -169,5 +199,80 @@ pub fn generate_test_control_interface_access() -> ControlInterfaceAccess {
             operation: ReadWriteEnum::Write,
             filter_mask: vec!["desiredState.workload.watchDog".to_string()],
         })],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::objects::{
+        generate_test_control_interface_access, AccessRightsRule, ReadWriteEnum, StateRule,
+    };
+
+    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    #[test]
+    fn utest_access_rights_rule_verify_fails() {
+        let empty_state_rule = AccessRightsRule::StateRule(StateRule {
+            operation: ReadWriteEnum::Write,
+            filter_mask: vec!["".to_string()],
+        });
+
+        assert!(empty_state_rule.verify_format().is_err_and(
+            |x| x == "Empty filter masks are not allowed in Control Interface access rules"
+        ));
+    }
+
+    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    #[test]
+    fn utest_access_rights_rule_verify_success() {
+        let state_rule = AccessRightsRule::StateRule(StateRule {
+            operation: ReadWriteEnum::Write,
+            filter_mask: vec!["some".to_string()],
+        });
+
+        assert!(state_rule.verify_format().is_ok());
+    }
+
+    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    #[test]
+    fn utest_control_interface_access_verify_fails_on_empty_allow_rule_filter() {
+        let mut control_interface_access = generate_test_control_interface_access();
+
+        let empty_state_rule = AccessRightsRule::StateRule(StateRule {
+            operation: ReadWriteEnum::Write,
+            filter_mask: vec!["".to_string()],
+        });
+
+        control_interface_access
+            .allow_rules
+            .push(empty_state_rule.clone());
+        assert!(control_interface_access.verify_format().is_err_and(
+            |x| x == "Empty filter masks are not allowed in Control Interface access rules"
+        ));
+    }
+
+    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    #[test]
+    fn utest_control_interface_access_verify_fails_on_empty_deny_rule_filter() {
+        let mut control_interface_access = generate_test_control_interface_access();
+
+        let empty_state_rule = AccessRightsRule::StateRule(StateRule {
+            operation: ReadWriteEnum::Write,
+            filter_mask: vec!["".to_string()],
+        });
+
+        control_interface_access
+            .deny_rules
+            .push(empty_state_rule.clone());
+        assert!(control_interface_access.verify_format().is_err_and(
+            |x| x == "Empty filter masks are not allowed in Control Interface access rules"
+        ));
+    }
+
+    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    #[test]
+    fn utest_control_interface_access_verify_success() {
+        let control_interface_access = generate_test_control_interface_access();
+
+        assert!(control_interface_access.verify_format().is_ok());
     }
 }

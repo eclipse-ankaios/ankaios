@@ -1,0 +1,16 @@
+apiVersion: v0.1
+workloads:
+  simple:
+    runtime: podman
+    restartPolicy: NEVER
+    agent: agent_A
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]
+    controlInterfaceAccess:
+      allowRules:
+        - type: StateRule
+          operation: ReadWrite
+          filterMask:
+            # An empty string for the filter mask is not allowed
+            - ""
