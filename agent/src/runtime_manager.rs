@@ -347,7 +347,6 @@ impl RuntimeManager {
                                     /* Replace workload when server was restarted.
                                     The runtime manager will request an update of the workload
                                     when putting the workload into both added and deleted ones.*/
-
                                     new_added_workloads
                                         .push(ReusableWorkloadSpec::new(new_workload_spec, None));
 
@@ -1476,7 +1475,7 @@ mod tests {
             .agent_name(AGENT_NAME)
             .build();
 
-        let workload_operations = vec![WorkloadOperation::Delete(DeletedWorkload {
+        let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(DeletedWorkload {
             instance_name: existing_workload_with_other_config.clone(),
             dependencies: HashMap::new(),
         })];
@@ -1513,7 +1512,10 @@ mod tests {
             });
 
         let mut mock_workload = MockWorkload::default();
-        mock_workload.expect_delete().once().returning(|| Ok(()));
+        mock_workload
+            .expect_update()
+            .once()
+            .returning(|_, _| Ok(()));
         runtime_facade_mock
             .expect_resume_workload()
             .once()
@@ -1532,7 +1534,8 @@ mod tests {
             .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME)); // the old workload is resumed
+        // the old workload is resumed followed by an update delete only
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
     // [utest->swdd~agent-updates-deleted-and-added-workloads~1]
