@@ -21,47 +21,13 @@ use std::{
 };
 
 use super::WorkloadConfigFilesPath;
+#[cfg_attr(test, mockall_double::double)]
+use crate::io_utils::filesystem;
+#[cfg_attr(test, mockall_double::double)]
+use crate::io_utils::filesystem_async;
 
 #[cfg(test)]
 use mockall::automock;
-
-// module can be removed when existing filesystem io is extracted to common library within issue #431
-#[allow(dead_code)]
-mod config_file_io {
-    use super::Path;
-    use std::os::unix::fs::PermissionsExt;
-    use tokio::fs;
-
-    #[cfg(test)]
-    use mockall::automock;
-
-    pub struct ConfigFileIo;
-
-    #[cfg_attr(test, automock)]
-    impl ConfigFileIo {
-        pub async fn write_file<C>(file_path: &Path, file_content: C) -> Result<(), std::io::Error>
-        where
-            C: AsRef<[u8]> + 'static,
-        {
-            fs::write(file_path, file_content).await
-        }
-
-        pub fn create_dir_all(dir_path: &Path) -> Result<(), std::io::Error> {
-            std::fs::create_dir_all(dir_path)
-        }
-
-        pub fn remove_dir_all(dir_path: &Path) -> Result<(), std::io::Error> {
-            std::fs::remove_dir_all(dir_path)
-        }
-
-        pub async fn set_executable_permission(file_path: &Path) -> Result<(), std::io::Error> {
-            let metadata = fs::metadata(file_path).await?;
-            let mut permissions = metadata.permissions();
-            permissions.set_mode(0o755);
-            fs::set_permissions(file_path, permissions).await
-        }
-    }
-}
 
 #[derive(Debug, Default)]
 pub struct HostConfigFileLocation {
@@ -137,9 +103,6 @@ impl TryFrom<(&WorkloadConfigFilesPath, &Path)> for HostConfigFileLocation {
     }
 }
 
-#[cfg_attr(test, mockall_double::double)]
-use config_file_io::ConfigFileIo;
-
 #[derive(Debug, PartialEq)]
 pub struct ConfigFileCreatorError {
     message: String,
@@ -170,28 +133,27 @@ impl ConfigFilesCreator {
         for file in config_files {
             let mount_point = Path::new(&file.mount_point);
 
-            let host_config_file_location = HostConfigFileLocation::try_from((
-                config_files_base_path,
-                mount_point,
-            ))
-            .map_err(|err| {
-                ConfigFileIo::remove_dir_all(config_files_base_path).unwrap_or_else(|err| {
-                    log::error!(
-                        "Failed to remove directory '{}': '{}'",
-                        config_files_base_path.display(),
-                        err
-                    )
-                });
+            let host_config_file_location =
+                HostConfigFileLocation::try_from((config_files_base_path, mount_point)).map_err(
+                    |err| {
+                        filesystem::remove_dir(config_files_base_path).unwrap_or_else(|err| {
+                            log::error!(
+                                "Failed to remove directory '{}': '{}'",
+                                config_files_base_path.display(),
+                                err
+                            )
+                        });
 
-                ConfigFileCreatorError::new(format!(
-                    "invalid mount point '{}': '{}'",
-                    mount_point.display(),
-                    err
-                ))
-            })?;
+                        ConfigFileCreatorError::new(format!(
+                            "invalid mount point '{}': '{}'",
+                            mount_point.display(),
+                            err
+                        ))
+                    },
+                )?;
 
-            ConfigFileIo::create_dir_all(&host_config_file_location.directory).map_err(|err| {
-                ConfigFileIo::remove_dir_all(config_files_base_path).unwrap_or_else(|err| {
+            filesystem::make_dir(&host_config_file_location.directory).map_err(|err| {
+                filesystem::remove_dir(config_files_base_path).unwrap_or_else(|err| {
                     log::error!(
                         "Failed to remove directory '{}': '{}'",
                         config_files_base_path.display(),
@@ -210,7 +172,7 @@ impl ConfigFilesCreator {
             Self::write_config_file(host_config_file_path.as_path(), file)
                 .await
                 .map_err(|err| {
-                    ConfigFileIo::remove_dir_all(config_files_base_path).unwrap_or_else(|err| {
+                    filesystem::remove_dir(config_files_base_path).unwrap_or_else(|err| {
                         log::error!(
                             "Failed to remove directory '{}': '{}'",
                             config_files_base_path.display(),
@@ -231,7 +193,7 @@ impl ConfigFilesCreator {
     ) -> Result<(), ConfigFileCreatorError> {
         let file_io_result = match &file.file_content {
             FileContent::Data(Data { data }) => {
-                ConfigFileIo::write_file(config_file_path, data.clone()).await
+                filesystem_async::write_file(config_file_path, data.clone()).await
             }
             FileContent::BinaryData(Base64Data {
                 base64_data: binary_data,
@@ -246,10 +208,12 @@ impl ConfigFilesCreator {
                         ))
                     })?;
 
-                let write_result = ConfigFileIo::write_file(config_file_path, binary).await;
+                let write_result = filesystem_async::write_file(config_file_path, binary).await;
 
                 if write_result.is_ok() {
-                    ConfigFileIo::set_executable_permission(config_file_path).await
+                    const EXECUTABLE_PERMISSIONS: u32 = 0o755;
+                    filesystem_async::set_permissions(config_file_path, EXECUTABLE_PERMISSIONS)
+                        .await
                 } else {
                     write_result
                 }
@@ -279,10 +243,10 @@ mod tests {
 
     use crate::config_files::generate_test_config_files_path;
 
-    use super::{
-        config_file_io::MockConfigFileIo, Base64Data, ConfigFileCreatorError, ConfigFilesCreator,
-        Data, File, FileContent, HostConfigFileLocation,
-    };
+    use super::{Base64Data, ConfigFilesCreator, Data, File, FileContent, HostConfigFileLocation};
+
+    use crate::io_utils::{mock_filesystem, mock_filesystem_async, FileSystemError};
+
     use std::{
         collections::HashMap,
         path::{Path, PathBuf},
@@ -318,21 +282,21 @@ mod tests {
             },
         ];
 
-        let mock_create_dir_context = MockConfigFileIo::create_dir_all_context();
-        mock_create_dir_context
+        let mock_make_dir_context = mock_filesystem::make_dir_context();
+        mock_make_dir_context
             .expect()
             .once()
             .with(predicate::eq(workload_config_files_path.join("some/path")))
             .returning(|_| Ok(()));
 
-        mock_create_dir_context
+        mock_make_dir_context
             .expect()
             .once()
             .with(predicate::eq(workload_config_files_path.clone()))
             .returning(|_| Ok(()));
 
         let text_host_file_path = workload_config_files_path.join("some/path/test.conf");
-        let mock_write_file_context = MockConfigFileIo::write_file_context();
+        let mock_write_file_context = mock_filesystem_async::write_file_context();
         mock_write_file_context
             .expect()
             .once()
@@ -352,12 +316,15 @@ mod tests {
             )
             .returning(|_, _: Vec<u8>| Ok(()));
 
-        let mock_permission_context = MockConfigFileIo::set_executable_permission_context();
+        let mock_permission_context = mock_filesystem_async::set_permissions_context();
         mock_permission_context
             .expect()
             .once()
-            .with(predicate::eq(binary_file_path.clone()))
-            .returning(|_| Ok(()));
+            .with(
+                predicate::eq(binary_file_path.clone()),
+                predicate::eq(0o755),
+            )
+            .returning(|_, _| Ok(()));
 
         let expected_host_file_paths = HashMap::from([
             (text_host_file_path, PathBuf::from("/some/path/test.conf")),
@@ -384,29 +351,32 @@ mod tests {
             }),
         }];
 
-        let mock_create_dir_context = MockConfigFileIo::create_dir_all_context();
-        mock_create_dir_context
-            .expect()
-            .once()
-            .returning(|_| Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied)));
+        let mock_make_dir_context = mock_filesystem::make_dir_context();
+        mock_make_dir_context.expect().once().returning(|_| {
+            Err(FileSystemError::Permissions(
+                "/some/path/test.conf".into(),
+                std::io::ErrorKind::Other,
+            ))
+        });
 
-        let mock_delete_dir_context = MockConfigFileIo::remove_dir_all_context();
-        mock_delete_dir_context
+        let mock_remove_dir_context = mock_filesystem::remove_dir_context();
+        mock_remove_dir_context
             .expect()
             .once()
             .returning(|_| Ok(()));
 
-        let mock_write_file_context = MockConfigFileIo::write_file_context();
+        let mock_write_file_context = mock_filesystem_async::write_file_context();
         mock_write_file_context.expect::<String>().never();
 
-        assert_eq!(
-            Err(ConfigFileCreatorError::new(
-                "failed to create config file directory structure for '/some/path/test.conf': 'permission denied'".to_string()
-            )),
-            ConfigFilesCreator::create_files(
-                &workload_config_files_path,
-                &config_files
-            ).await
+        let result =
+            ConfigFilesCreator::create_files(&workload_config_files_path, &config_files).await;
+
+        assert!(result.is_err());
+        let expected_error_substring = "failed to create config file directory structure";
+        let error = result.unwrap_err();
+        assert!(
+            error.to_string().contains(expected_error_substring),
+            "Expected substring '{expected_error_substring}' in error, got '{error}'"
         );
     }
 
@@ -425,32 +395,39 @@ mod tests {
             }),
         }];
 
-        let mock_create_dir_context = MockConfigFileIo::create_dir_all_context();
-        mock_create_dir_context
+        let mock_make_dir_context = mock_filesystem::make_dir_context();
+        mock_make_dir_context
             .expect()
             .once()
             .with(predicate::eq(workload_config_files_path.join("some/path")))
             .returning(|_| Ok(()));
 
-        let mock_write_file_context = MockConfigFileIo::write_file_context();
+        let mock_write_file_context = mock_filesystem_async::write_file_context();
         mock_write_file_context
             .expect()
             .once()
             .returning(|_, _: String| {
-                Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied))
+                Err(FileSystemError::Write(
+                    "/some/path/test.conf".into(),
+                    std::io::ErrorKind::Other,
+                ))
             });
 
-        let mock_delete_dir_context = MockConfigFileIo::remove_dir_all_context();
-        mock_delete_dir_context
+        let mock_remove_dir_context = mock_filesystem::remove_dir_context();
+        mock_remove_dir_context
             .expect()
             .once()
             .returning(|_| Ok(()));
 
-        assert_eq!(
-            Err(ConfigFileCreatorError::new(
-                "write failed for '/some/path/test.conf': 'permission denied'".to_string()
-            )),
-            ConfigFilesCreator::create_files(&workload_config_files_path, &config_files).await
+        let result =
+            ConfigFilesCreator::create_files(&workload_config_files_path, &config_files).await;
+
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        let expected_error_substring = "write failed for '/some/path/test.conf'";
+        assert!(
+            error.to_string().contains(expected_error_substring),
+            "Expected substring '{expected_error_substring}' in error, got '{error}'"
         );
     }
 
@@ -469,25 +446,27 @@ mod tests {
             }),
         }];
 
-        let mock_delete_dir_context = MockConfigFileIo::remove_dir_all_context();
-        mock_delete_dir_context
+        let mock_remove_dir_context = mock_filesystem::remove_dir_context();
+        mock_remove_dir_context
             .expect()
             .once()
             .returning(|_| Ok(()));
 
-        let mock_create_dir_context = MockConfigFileIo::create_dir_all_context();
-        mock_create_dir_context.expect().never();
+        let mock_make_dir_context = mock_filesystem::make_dir_context();
+        mock_make_dir_context.expect().never();
 
-        let mock_write_file_context = MockConfigFileIo::write_file_context();
+        let mock_write_file_context = mock_filesystem_async::write_file_context();
         mock_write_file_context.expect::<String>().never();
 
         let result =
             ConfigFilesCreator::create_files(&workload_config_files_path, &config_files).await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("contains invalid path components"));
+        let error = result.unwrap_err();
+        let expected_error_substring = "contains invalid path components";
+        assert!(
+            error.to_string().contains(expected_error_substring),
+            "Expected substring '{expected_error_substring}' in error, got '{error}'"
+        );
     }
 
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
@@ -500,10 +479,12 @@ mod tests {
             let result = HostConfigFileLocation::try_from((&workload_config_files_path, path));
 
             assert!(result.is_err());
-            assert!(result
-                .unwrap_err()
-                .to_string()
-                .contains("is a directory, expected a file"));
+            let error = result.unwrap_err();
+            let expected_error_substring = "is a directory, expected a file";
+            assert!(
+                error.to_string().contains(expected_error_substring),
+                "Expected substring '{expected_error_substring}' in error, got '{error}'"
+            );
         }
     }
 
@@ -520,10 +501,12 @@ mod tests {
         for path in invalid_paths {
             let result = HostConfigFileLocation::try_from((&workload_config_files_path, path));
             assert!(result.is_err());
-            assert!(result
-                .unwrap_err()
-                .to_string()
-                .contains("is relative, expected absolute path"));
+            let error = result.unwrap_err();
+            let expected_error_substring = "is relative, expected absolute path";
+            assert!(
+                error.to_string().contains(expected_error_substring),
+                "Expected substring '{expected_error_substring}' in error, got '{error}'"
+            );
         }
     }
 
@@ -542,9 +525,11 @@ mod tests {
         .await;
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("invalid base64 data"));
+        let error = result.unwrap_err();
+        let expected_error_substring = "invalid base64 data";
+        assert!(
+            error.to_string().contains(expected_error_substring),
+            "Expected substring '{expected_error_substring}' in error, got '{error}'"
+        );
     }
 }

@@ -38,7 +38,7 @@ workloads:
           name: nginx-config
         data:
           nginx.conf: |
-            {{nginx_conf.web_server_config}}
+            {{> indent content=nginx_conf.web_server_config}}
         ---
         apiVersion: v1
         kind: Pod

@@ -24,8 +24,13 @@ pub use directory::Directory;
 pub use directory::{generate_test_directory_mock, MockDirectory};
 #[cfg(not(test))]
 pub use fs::filesystem;
+#[cfg(not(test))]
+pub use fs::filesystem_async;
 #[cfg(test)]
 pub use fs::mock_filesystem;
+#[cfg(test)]
+pub use fs::mock_filesystem_async;
+
 pub use fs::FileSystemError;
 
 pub use dir_utils::prepare_agent_run_directory;

@@ -11,7 +11,6 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-
 use nix::errno::Errno;
 use std::ffi::OsString;
 use std::fmt::{self, Display};
@@ -27,6 +26,7 @@ pub enum FileSystemError {
     RemoveFifo(OsString, std::io::ErrorKind),
     RemoveDirectory(OsString, std::io::ErrorKind),
     Permissions(OsString, std::io::ErrorKind),
+    Write(OsString, std::io::ErrorKind),
 }
 
 impl Display for FileSystemError {
@@ -49,6 +49,9 @@ impl Display for FileSystemError {
             }
             FileSystemError::Permissions(path, err) => {
                 write!(f, "Could not set permissions to {path:?}  {err:?}")
+            }
+            FileSystemError::Write(path, err) => {
+                write!(f, "Could not write to {path:?}  {err:?}")
             }
         }
     }
@@ -121,6 +124,50 @@ pub mod filesystem {
     }
 }
 
+#[cfg_attr(test, automock)]
+pub mod filesystem_async {
+    #[cfg(test)]
+    use super::tests::{
+        remove_dir_all_async as fs_async_remove_dir,
+        set_permissions_async as fs_async_set_permissions, write as fs_async_write,
+    };
+    use super::FileSystemError;
+
+    #[cfg(not(test))]
+    use tokio::fs::{
+        remove_dir_all as fs_async_remove_dir, set_permissions as fs_async_set_permissions,
+        write as fs_async_write,
+    };
+
+    use std::fs::Permissions;
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::Path;
+
+    pub async fn write_file<C>(file_path: &Path, file_content: C) -> Result<(), FileSystemError>
+    where
+        C: AsRef<[u8]> + 'static,
+    {
+        fs_async_write(file_path, file_content)
+            .await
+            .map_err(|err| FileSystemError::Write(file_path.into(), err.kind()))
+    }
+
+    pub async fn set_permissions(file_path: &Path, mode: u32) -> Result<(), FileSystemError> {
+        fs_async_set_permissions(file_path, Permissions::from_mode(mode))
+            .await
+            .map_err(|err| FileSystemError::Permissions(file_path.into(), err.kind()))
+    }
+
+    pub async fn remove_dir(path: &Path) -> Result<(), FileSystemError> {
+        fs_async_remove_dir(path)
+            .await
+            .map_err(|err| match err.kind() {
+                tokio::io::ErrorKind::NotFound => FileSystemError::NotFoundDirectory(path.into()),
+                _ => FileSystemError::RemoveDirectory(path.into(), err.kind()),
+            })
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -143,6 +190,8 @@ mod tests {
     use mockall::lazy_static;
     use nix::sys::stat::Mode;
 
+    use crate::io_utils::fs::filesystem_async;
+
     use super::{filesystem, FileSystemError};
 
     #[allow(non_camel_case_types)]
@@ -153,6 +202,7 @@ mod tests {
         remove_file(PathBuf, io::Result<()>),    // remove_file(path, fake_result)
         metadata(PathBuf, io::Result<Metadata>), // metadata(path, fake_result)
         set_permissions(PathBuf, u32, io::Result<()>), // set_permissions(path, mode, fake_result)
+        write(PathBuf, Vec<u8>, io::Result<()>), // write(path, content, fake_result)
     }
 
     lazy_static! {
@@ -213,6 +263,7 @@ mod tests {
             path.to_string_lossy()
         );
     }
+
     pub fn mkfifo(path: &Path, mode: Mode) -> nix::Result<()> {
         if let Some(FakeCall::mkfifo(fake_path, fake_mode, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
@@ -243,6 +294,10 @@ mod tests {
         );
     }
 
+    pub async fn remove_dir_all_async(path: &Path) -> io::Result<()> {
+        remove_dir_all(path)
+    }
+
     pub fn remove_file(path: &Path) -> io::Result<()> {
         if let Some(FakeCall::remove_file(fake_path, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
@@ -270,6 +325,28 @@ mod tests {
         panic!(
             "No mock specified for call set_permissions({:?}, {:?})",
             path, perm
+        );
+    }
+
+    pub async fn set_permissions_async(path: &Path, perm: Permissions) -> io::Result<()> {
+        set_permissions(path, perm)
+    }
+
+    pub async fn write<C>(path: &Path, file_content: C) -> io::Result<()>
+    where
+        C: AsRef<[u8]> + 'static,
+    {
+        if let Some(FakeCall::write(fake_path, fake_content, fake_result)) =
+            FAKE_CALL_LIST.lock().unwrap().pop_front()
+        {
+            if fake_path == *path && fake_content == file_content.as_ref() {
+                return fake_result;
+            }
+        }
+
+        panic!(
+            "No mock specified for call write({})",
+            path.to_string_lossy()
         );
     }
 
@@ -309,6 +386,36 @@ mod tests {
                 std::io::ErrorKind::PermissionDenied
             ))
         );
+    }
+
+    #[tokio::test]
+    async fn utest_set_permissions_async_ok() {
+        let _test_lock = TEST_LOCK.lock();
+        let path = Path::new("test_dir");
+        let mode: u32 = 0o777;
+        FAKE_CALL_LIST
+            .lock()
+            .unwrap()
+            .push_back(FakeCall::set_permissions(path.to_path_buf(), mode, Ok(())));
+
+        assert!(filesystem_async::set_permissions(path, mode).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_set_permissions_async_fails() {
+        let _test_lock = TEST_LOCK.lock();
+        let path = Path::new("test_dir");
+        let mode: u32 = 0o777;
+        FAKE_CALL_LIST
+            .lock()
+            .unwrap()
+            .push_back(FakeCall::set_permissions(
+                path.to_path_buf(),
+                mode,
+                Err(std::io::Error::new(std::io::ErrorKind::Other, "some error")),
+            ));
+
+        assert!(filesystem_async::set_permissions(path, mode).await.is_err());
     }
 
     #[test]
@@ -455,5 +562,37 @@ mod tests {
             filesystem::remove_fifo(Path::new("test_file")),
             Err(FileSystemError::RemoveFifo(_, _))
         ));
+    }
+
+    #[tokio::test]
+    async fn utest_write_file_async_ok() {
+        let _test_lock = TEST_LOCK.lock();
+        let path = Path::new("test_file");
+        let file_content = vec![1, 2, 3];
+        FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::write(
+            path.to_path_buf(),
+            file_content.clone(),
+            Ok(()),
+        ));
+
+        assert!(filesystem_async::write_file(path, file_content)
+            .await
+            .is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_write_file_async_fails() {
+        let _test_lock = TEST_LOCK.lock();
+        let path = Path::new("test_file");
+        let file_content = vec![1, 2, 3];
+        FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::write(
+            path.to_path_buf(),
+            file_content.clone(),
+            Err(Error::new(ErrorKind::Other, "Some Error!")),
+        ));
+
+        assert!(filesystem_async::write_file(path, file_content)
+            .await
+            .is_err());
     }
 }

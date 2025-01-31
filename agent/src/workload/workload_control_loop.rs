@@ -14,6 +14,7 @@
 
 use crate::config_files::WorkloadConfigFilesPath;
 use crate::control_interface::ControlInterfacePath;
+use crate::io_utils::FileSystemError;
 use crate::runtime_connectors::{RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
@@ -23,6 +24,9 @@ use futures_util::Future;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+
+#[cfg_attr(test, mockall_double::double)]
+use crate::io_utils::filesystem_async;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::config_files::ConfigFilesCreator;
@@ -375,7 +379,7 @@ impl WorkloadControlLoop {
             Err(err) => {
                 let current_retry_counter = control_loop_state.retry_counter.current_retry();
 
-                Self::delete_folder(WorkloadConfigFilesPath::from((
+                Self::delete_folder(&WorkloadConfigFilesPath::from((
                     &control_loop_state.run_folder,
                     &new_instance_name,
                 )))
@@ -508,7 +512,7 @@ impl WorkloadControlLoop {
         let workload_dir = control_loop_state
             .instance_name()
             .pipes_folder_name(&control_loop_state.run_folder);
-        Self::delete_folder(workload_dir).await;
+        Self::delete_folder(&workload_dir).await;
 
         // Successfully stopped the workload. Send a removed on the channel
         Self::send_workload_state_to_agent(
@@ -571,7 +575,7 @@ impl WorkloadControlLoop {
             "Deleting the config files of workload '{}'",
             control_loop_state.instance_name()
         );
-        Self::delete_folder(WorkloadConfigFilesPath::from((
+        Self::delete_folder(&WorkloadConfigFilesPath::from((
             &control_loop_state.run_folder,
             control_loop_state.instance_name(),
         )))
@@ -583,7 +587,7 @@ impl WorkloadControlLoop {
                 let workload_dir = control_loop_state
                     .instance_name()
                     .pipes_folder_name(&control_loop_state.run_folder);
-                Self::delete_folder(workload_dir).await;
+                Self::delete_folder(&workload_dir).await;
             }
             Some(new_spec)
         } else {
@@ -695,11 +699,11 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    async fn delete_folder(path: impl AsRef<Path>) {
-        tokio::fs::remove_dir_all(path)
+    async fn delete_folder(path: &Path) {
+        filesystem_async::remove_dir(path)
             .await
-            .unwrap_or_else(|err| match err.kind() {
-                tokio::io::ErrorKind::NotFound => {}
+            .unwrap_or_else(|err| match err {
+                FileSystemError::NotFoundDirectory(_) => {}
                 _ => log::warn!("Failed to delete folder: '{}'", err),
             });
     }
