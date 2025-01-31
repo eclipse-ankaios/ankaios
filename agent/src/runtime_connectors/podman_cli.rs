@@ -307,6 +307,7 @@ impl PodmanCli {
         workload_name: &str,
         agent: &str,
         control_interface_path: Option<PathBuf>,
+        config_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<String, String> {
         log::debug!(
             "Creating the workload '{}' with image '{}'",
@@ -338,6 +339,19 @@ impl PodmanCli {
                     &path.to_string_lossy(),
                     ",destination=",
                     API_PIPES_MOUNT_POINT,
+                ]
+                .concat(),
+            );
+        }
+
+        for (host_file_path, mount_point) in config_file_path_mapping {
+            args.push(
+                [
+                    "--mount=type=bind,source=",
+                    &host_file_path.to_string_lossy(),
+                    ",destination=",
+                    &mount_point.to_string_lossy(),
+                    ",readonly=true",
                 ]
                 .concat(),
             );
@@ -1028,7 +1042,14 @@ mod tests {
             image: "alpine:latest".into(),
             command_args: Vec::new(),
         };
-        let res = PodmanCli::podman_run(run_config, "test_workload_name", "test_agent", None).await;
+        let res = PodmanCli::podman_run(
+            run_config,
+            "test_workload_name",
+            "test_agent",
+            None,
+            Default::default(),
+        )
+        .await;
         assert_eq!(res, Ok("test_id".to_string()));
     }
 
@@ -1058,7 +1079,14 @@ mod tests {
             image: "alpine:latest".into(),
             command_args: Vec::new(),
         };
-        let res = PodmanCli::podman_run(run_config, "test_workload_name", "test_agent", None).await;
+        let res = PodmanCli::podman_run(
+            run_config,
+            "test_workload_name",
+            "test_agent",
+            None,
+            Default::default(),
+        )
+        .await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -1101,6 +1129,7 @@ mod tests {
             "test_workload_name",
             "test_agent",
             Some("/test/path".into()),
+            Default::default(),
         )
         .await;
         assert_eq!(res, Ok("test_id".to_string()));
