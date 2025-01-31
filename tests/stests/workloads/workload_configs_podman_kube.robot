@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Elektrobit Automotive GmbH
+# Copyright (c) 2025 Elektrobit Automotive GmbH
 #
 # This program and the accompanying materials are made available under the
 # terms of the Apache License, Version 2.0 which is available at
@@ -31,7 +31,7 @@ Test Ankaios start up with templated Ankaios manifest keeping indentation level 
     [Tags]    multi_line_config
 
     # Preconditions
-    # This test assumes that all pods and volume in the podman have been created with this test -> clean it up first
+    # This test assumes that all pods and volumes in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing pods
     And Podman has deleted all existing volumes
     And Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_multi_line_config.yaml"
