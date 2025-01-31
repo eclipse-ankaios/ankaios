@@ -85,3 +85,11 @@ Test workload with empty Control Interface access field mask rejected
     When user triggers "ank apply ${CONFIGS_DIR}/faulty_with_control_as_empty.yaml"
     # Asserts
     Then the last command finished with exit code "1"
+
+# [stest->swdd~server-desired-state-field-conventions~1]
+Test server started with empty Control Interface access field mask fails
+    [Setup]           Run Keywords    Setup Ankaios
+    # Actions
+    Given Ankaios server is started with config "${CONFIGS_DIR}/faulty_with_control_as_empty.yaml""
+    # Asserts
+    Then the last command finished with exit code "1"
