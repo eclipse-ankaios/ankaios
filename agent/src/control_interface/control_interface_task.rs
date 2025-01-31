@@ -118,8 +118,8 @@ impl ControlInterfaceTask {
                                     request.prefix_request_id(&self.request_id_prefix);
                                     let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
                                 } else {
+                                    log::info!("Denying request '{:?}' from authorizer '{:?}'", request, self.authorizer);
                                     // [impl->swdd~agent-responses-to-denied-request-from-control-interface~1]
-                                    log::debug!("Denying request '{:?}' from authorizer '{:?}'", request, self.authorizer);
                                     // [impl->swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1]
                                     let error = ank_base::Response {
                                         request_id: request.request_id,

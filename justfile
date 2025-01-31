@@ -39,8 +39,11 @@ check-test-images:
 check-copyright-headers:
     ./tools/check_copyright_headers.sh
 
+# Run all tests
+test: utest stest
+
 # Run unit tests
-test:
+utest:
     cargo nextest run
 
 # Build debug and run all system tests
