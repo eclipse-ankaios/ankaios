@@ -54,6 +54,7 @@ impl Default for ConfigRenderer {
     fn default() -> Self {
         let mut template_engine = Handlebars::new();
         template_engine.set_strict_mode(true); // enable throwing render errors if context data is valid
+        template_engine.register_escape_fn(|s| s.into()); // prevent escaping like double quotes to &quot; ...
 
         // [impl->swdd~config-renderer-supports-rendering-with-keeping-line-indent~1]
         template_engine

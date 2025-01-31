@@ -824,6 +824,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### ServerState rejects state with cycle
 `swdd~server-state-rejects-state-with-cyclic-dependencies~1`
