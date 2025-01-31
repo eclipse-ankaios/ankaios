@@ -805,6 +805,26 @@ Needs:
 - impl
 - utest
 
+#### ConfigRenderer supports rendering with keeping line indent
+`swdd~config-renderer-supports-rendering-with-keeping-line-indent~1`
+
+Status: approved
+
+The ConfigRenderer shall support rendering templates with keeping line indentation.
+
+Rationale:
+This ensures the validity of certain file layouts that rely on the indentation level of the content when replacing the template with a multi-line config value.
+
+Comment:
+To enforce to keep the line indentation a customized templated string syntax is used: `{{> indent content=<config_item_reference>}}` where `conifg_item_reference` is the path to the referenced config value.
+
+Tags:
+- ConfigRenderer
+
+Needs:
+- impl
+- utest
+
 #### ServerState rejects state with cycle
 `swdd~server-state-rejects-state-with-cyclic-dependencies~1`
 
