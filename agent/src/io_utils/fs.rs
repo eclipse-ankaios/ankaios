@@ -190,9 +190,7 @@ mod tests {
     use mockall::lazy_static;
     use nix::sys::stat::Mode;
 
-    use crate::io_utils::fs::filesystem_async;
-
-    use super::{filesystem, FileSystemError};
+    use super::{filesystem, filesystem_async, FileSystemError};
 
     #[allow(non_camel_case_types)]
     pub enum FakeCall {
@@ -559,7 +557,7 @@ mod tests {
                 Err(Error::new(ErrorKind::Other, "Some Error!")),
             ));
 
-        assert!(filesystem_async::remove_dir(path).await.is_ok());
+        assert!(filesystem_async::remove_dir(path).await.is_err());
     }
 
     #[test]
