@@ -816,7 +816,7 @@ Rationale:
 This ensures the validity of certain file layouts that rely on the indentation level of the content when replacing the template with a multi-line config value.
 
 Comment:
-To enforce to keep the line indentation a customized templated string syntax is used: `{{> indent content=<config_item_reference>}}` where `conifg_item_reference` is the path to the referenced config value.
+To support keeping the line indentation, a customized templated string syntax is used: `{{> indent content=<config_item_reference>}}` where `conifg_item_reference` is the path to the referenced config value.
 
 Tags:
 - ConfigRenderer
