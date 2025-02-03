@@ -92,7 +92,7 @@ impl ConfigRenderer {
 
             rendered_workloads.insert(workload_name.clone(), workload_spec);
         }
-        log::debug!("Rendered CompleteState: {:?}", rendered_workloads);
+        log::trace!("Rendered CompleteState: {:?}", rendered_workloads);
         Ok(rendered_workloads)
     }
 
