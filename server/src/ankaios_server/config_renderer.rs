@@ -54,7 +54,7 @@ impl Default for ConfigRenderer {
     fn default() -> Self {
         let mut template_engine = Handlebars::new();
         template_engine.set_strict_mode(true); // enable throwing render errors if context data is valid
-        template_engine.register_escape_fn(|s| s.into()); // prevent escaping like double quotes to &quot; ...
+        template_engine.register_escape_fn(handlebars::no_escape); // prevent escaping like double quotes to &quot; ...
 
         // [impl->swdd~config-renderer-supports-rendering-with-keeping-line-indent~1]
         template_engine
@@ -412,5 +412,44 @@ mod tests {
                 value_3"#;
 
         assert_eq!(workload.runtime_config, expected_expanded_runtime_config);
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    #[test]
+    fn utest_render_workloads_prevent_escaping_special_characters() {
+        let templated_runtime_config = "config_of_special_char_sequences: {{special_conf}}";
+        let mut stored_workload = generate_test_stored_workload_spec_with_config(
+            AGENT_A,
+            RUNTIME,
+            templated_runtime_config,
+        );
+
+        stored_workload.configs =
+            HashMap::from([("special_conf".into(), "config_special_chars".into())]);
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = HashMap::from([(
+            "config_special_chars".to_string(),
+            ConfigItem::String("value\"with\"escape\'characters\'".to_string()),
+        )]);
+
+        let renderer = ConfigRenderer::default();
+
+        let expected_workload_spec = generate_test_workload_spec_with_runtime_config(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+            "config_of_special_char_sequences: value\"with\"escape\'characters\'".to_owned(),
+        );
+
+        let result = renderer.render_workloads(&workloads, &configs);
+
+        assert_eq!(
+            Ok(RenderedWorkloads::from([(
+                WORKLOAD_NAME_1.to_owned(),
+                expected_workload_spec
+            )])),
+            result
+        );
     }
 }
