@@ -546,7 +546,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_filesystem_remove_dir_async_fails() {
+    async fn utest_filesystem_remove_dir_async_fails_with_path_not_found() {
+        let _test_lock = TEST_LOCK.lock();
+        let path = Path::new("test_dir");
+        FAKE_CALL_LIST
+            .lock()
+            .unwrap()
+            .push_back(FakeCall::remove_dir(
+                path.to_path_buf(),
+                Err(Error::new(ErrorKind::NotFound, "Path not found!")),
+            ));
+
+        let result = filesystem_async::remove_dir(path).await;
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(
+            matches!(&error, FileSystemError::NotFoundDirectory(_)),
+            "Expected FileSystemError::NotFoundDirectory, got {error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_filesystem_remove_dir_async_fails_with_generic_reason() {
         let _test_lock = TEST_LOCK.lock();
         let path = Path::new("test_dir");
         FAKE_CALL_LIST
@@ -557,7 +578,13 @@ mod tests {
                 Err(Error::new(ErrorKind::Other, "Some Error!")),
             ));
 
-        assert!(filesystem_async::remove_dir(path).await.is_err());
+        let result = filesystem_async::remove_dir(path).await;
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(
+            matches!(&error, FileSystemError::RemoveDirectory(_, _)),
+            "Expected FileSystemError::RemoveDirectory, got {error:?}"
+        );
     }
 
     #[test]
