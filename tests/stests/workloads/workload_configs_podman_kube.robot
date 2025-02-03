@@ -28,7 +28,6 @@ ${start_up_yaml_file}           ${EMPTY}
 # [stest->swdd~config-renderer-supports-rendering-with-keeping-line-indent~1]
 Test Ankaios start up with templated Ankaios manifest keeping indentation level of rendered multi-line config
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    multi_line_config
 
     # Preconditions
     # This test assumes that all pods and volumes in the podman have been created with this test -> clean it up first
