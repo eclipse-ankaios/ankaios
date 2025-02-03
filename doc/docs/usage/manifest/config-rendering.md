@@ -1,6 +1,6 @@
-# Sharable configuration
+# Shareable configuration
 
-Ankaios supports the sharable configuration approach, which allows configurations to be defined once and assigned to any number of workloads. It uses the [handlebars](https://github.com/sunng87/handlebars-rust) templating syntax to extend certain fields of workloads. For a detailed look at supported workload fields and a basic example of sharing configuration with workloads, see [here](../../reference/startup-configuration.md).
+Ankaios supports the shareable configuration approach, which allows configurations to be defined once and assigned to any number of workloads. It uses the [handlebars](https://github.com/sunng87/handlebars-rust) templating syntax to extend certain fields of workloads. For a detailed look at supported workload fields and a basic example of sharing configuration with workloads, see [here](../../reference/startup-configuration.md).
 
 ## Indentation for multi-line configuration
 
