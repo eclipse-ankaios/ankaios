@@ -810,9 +810,8 @@ Status: approved
 
 When the agent handles existing workloads, for each found existing workload which is requested to be started and either the workload's configuration has changed or the workload is not in state running or succeeded, the RuntimeManager shall do the following:
 
-- request the RuntimeFacade to resume the existing workload if the workload is not known to the agent
-- request an update with the new workload configuration after the resume
-- otherwise, request an update with the new workload configuration
+- request the RuntimeFacade to resume the existing workload if it does not exist in the list of managed workloads
+- request an update of the existing workload with the new workload configuration
 
 Comment: The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance. The delete operation of the update is executed immediately without considering the `DeleteCondition`s of the workload. The create operation of the update is executed with considering the inter-workload dependencies of the workload.
 
