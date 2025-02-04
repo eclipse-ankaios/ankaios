@@ -1185,23 +1185,18 @@ mod tests {
 
     // [utest->swdd~agent-existing-workloads-delete-unneeded~2]
     #[tokio::test]
-    async fn utest_handle_update_workload_initial_call_delete_unneeded() {
+    async fn utest_handle_update_workload_initial_call_delete_unneeded_after_agent_restart() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
-        let existing_workload_with_other_config = WorkloadInstanceNameBuilder::default()
+        let existing_unneeded_workload = WorkloadInstanceNameBuilder::default()
             .workload_name(WORKLOAD_1_NAME)
             .config(&String::from("different config"))
             .agent_name(AGENT_NAME)
             .build();
 
-        let existing_instance_name_clone = existing_workload_with_other_config.clone();
-
-        let workload_operations = vec![WorkloadOperation::Delete(DeletedWorkload {
-            instance_name: existing_instance_name_clone,
-            ..Default::default()
-        })];
+        let workload_operations = vec![];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
             .expect_enqueue_filtered_workload_operations()
@@ -1221,7 +1216,7 @@ mod tests {
             .return_once(|_| {
                 Box::pin(async move {
                     Ok(vec![ReusableWorkloadState::new(
-                        existing_workload_with_other_config,
+                        existing_unneeded_workload,
                         ExecutionState::default(),
                         None,
                     )])
