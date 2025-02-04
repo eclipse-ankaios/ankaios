@@ -415,7 +415,6 @@ def check_config_files_exists(complete_state_json, workload_name, agent_name):
     for file in workload_config_files:
         relative_mount_point = path.relpath(file[MOUNT_POINT], ROOT_PATH)
         config_file_host_path = path.join(tmp_directory, workload_folder_name, "config_files", relative_mount_point)
-        logger.info(config_file_host_path)
         assert path.exists(config_file_host_path), f"the config file for {workload_name} does not exist"
 
 # MANDATORY FOR STABLE SYSTEM TESTS
