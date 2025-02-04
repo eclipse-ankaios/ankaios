@@ -93,7 +93,7 @@ http {
 ...
 ```
 
-By using the `indent` control structure, incorrect indentation will be prevented and the line indentation of the current context will be considered. This results in an error-free YAML file.
+By using the `indent` control structure, the line indentation of the current context will be considered which results in an error-free YAML file.
 
 ```yaml
 ...
