@@ -417,11 +417,12 @@ mod tests {
     // [utest->swdd~config-renderer-renders-workload-configuration~1]
     #[test]
     fn utest_render_workloads_prevent_escaping_special_characters() {
-        let templated_runtime_config = "config_of_special_char_sequences: {{special_conf}}";
+        const CONFIG_VALUE: &str = "value\"with\"escape\'characters\'";
+
         let mut stored_workload = generate_test_stored_workload_spec_with_config(
             AGENT_A,
             RUNTIME,
-            templated_runtime_config,
+            "config_of_special_char_sequences: {{special_conf}}",
         );
 
         stored_workload.configs =
@@ -430,7 +431,7 @@ mod tests {
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let configs = HashMap::from([(
             "config_special_chars".to_string(),
-            ConfigItem::String("value\"with\"escape\'characters\'".to_string()),
+            ConfigItem::String(CONFIG_VALUE.to_owned()),
         )]);
 
         let renderer = ConfigRenderer::default();
@@ -439,7 +440,7 @@ mod tests {
             AGENT_A.to_owned(),
             WORKLOAD_NAME_1.to_owned(),
             RUNTIME.to_owned(),
-            "config_of_special_char_sequences: value\"with\"escape\'characters\'".to_owned(),
+            format!("config_of_special_char_sequences: {CONFIG_VALUE}"),
         );
 
         let result = renderer.render_workloads(&workloads, &configs);

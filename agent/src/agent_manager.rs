@@ -600,7 +600,6 @@ mod tests {
         if let ToServer::AgentLoadStatus(load_status) = result {
             assert_eq!(load_status.agent_name, AGENT_NAME.to_string());
             assert_ne!(load_status.cpu_usage.cpu_usage, 0);
-            assert_ne!(load_status.cpu_usage.cpu_usage, 0);
         } else {
             panic!("Expected AgentLoadStatus, got something else");
         }
