@@ -25,7 +25,6 @@ Resource            ../../resources/variables.resource
 Test Ankaios starts manifest with config files assigned to workloads
     [Documentation]    Create the assigned config files on the agent's host file system and mount it into workloads.
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    run_only
 
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
@@ -42,7 +41,6 @@ Test Ankaios starts manifest with config files assigned to workloads
 
 Test Ankaios rejects unsupported config files for workloads using podman-kube runtime
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    run_only
 
     # Preconditions
     # This test assumes that all pods and volumes in the podman have been created with this test -> clean it up first
