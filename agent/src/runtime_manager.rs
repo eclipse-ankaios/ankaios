@@ -313,8 +313,7 @@ impl RuntimeManager {
                             }
                         } else {
                             let workload_name = workload_state.instance_name.workload_name();
-                            log::info!("Existing workload '{}' is not needed.", workload_name);
-                            // No added workload matches the found running one => delete it
+                            log::info!("Found existing workload '{}' is not needed.", workload_name);
                             // [impl->swdd~agent-existing-workloads-delete-unneeded~2]
                             if let Some(workload) = self.workloads.remove(workload_name) {
                                 if let Err(err) = workload.delete().await {
