@@ -644,7 +644,7 @@ the mount point for the control interface has not been generated for ${agent_nam
     check_if_mount_point_has_not_been_generated_for    ${agent_name}    ${command_result}
 
 the mount point for the control interface has been generated for ${agent_name}
-    Run Keyword And Expect Error    the mount point for the control interface has been generated    the mount point for the control interface has not been generated for ${agent_name}
+    Run Keyword And Expect Error    the mount point has been generated    the mount point for the control interface has not been generated for ${agent_name}
 
 the mount point for the config files of workload "${workload_name}" on agent "${agent_name}" has not been generated
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json
