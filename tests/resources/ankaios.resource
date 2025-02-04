@@ -641,7 +641,7 @@ The controller workload has no access to Control Interface
 
 the mount point for the control interface has not been generated for ${agent_name}
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json
-    check_if_mount_point_has_not_been_generated_for    ${agent_name}    ${command_result.stdout}
+    check_if_mount_point_has_not_been_generated_for    ${agent_name}    ${command_result}
 
 the mount point for the control interface has been generated for ${agent_name}
     Run Keyword And Expect Error    the mount point for the control interface has been generated    the mount point for the control interface has not been generated for ${agent_name}
