@@ -128,7 +128,7 @@ impl RuntimeManager {
         let workload_operations: Vec<WorkloadOperation> =
             self.transform_into_workload_operations(added_workloads, deleted_workloads);
 
-        // [impl->swdd~agent-handles-new-workload-operations]
+        // [impl->swdd~agent-handles-new-workload-operations~1]
         // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
         let ready_workload_operations = self
             .workload_queue
@@ -1309,7 +1309,7 @@ mod tests {
         assert!(runtime_manager.workloads.is_empty());
     }
 
-    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-handles-new-workload-operations~1]
     #[tokio::test]
     async fn utest_handle_update_workload_initial_call_add_workload_with_unfulfilled_dependencies()
     {
@@ -1879,7 +1879,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-handles-new-workload-operations~1]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_add_workload_with_not_fulfilled_dependencies()
     {
@@ -1993,7 +1993,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-handles-new-workload-operations~1]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_deleted_workload_with_not_fulfilled_dependencies(
     ) {

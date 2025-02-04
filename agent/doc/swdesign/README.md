@@ -1288,7 +1288,7 @@ Needs:
 - stest
 
 #### Agent handles new workload operations
-`swdd~agent-handles-new-workload-operations`
+`swdd~agent-handles-new-workload-operations~1`
 
 Status: approved
 
