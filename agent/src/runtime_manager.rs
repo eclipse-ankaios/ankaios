@@ -312,16 +312,28 @@ impl RuntimeManager {
                                     .push(ReusableWorkloadSpec::new(new_workload_spec, None));
                             }
                         } else {
+                            let workload_name = workload_state.instance_name.workload_name();
+                            log::info!("Existing workload '{}' is not needed.", workload_name);
                             // No added workload matches the found running one => delete it
-                            // [impl->swdd~agent-existing-workloads-delete-unneeded~1]
-
-                            // workload states are allowed to send because the workload is not created anymore afterwards
-                            const REPORT_WORKLOAD_STATES_FOR_WORKLOAD: bool = true;
-                            runtime.delete_workload(
-                                workload_state.instance_name,
-                                &self.update_state_tx,
-                                REPORT_WORKLOAD_STATES_FOR_WORKLOAD,
-                            );
+                            // [impl->swdd~agent-existing-workloads-delete-unneeded~2]
+                            if let Some(workload) = self.workloads.remove(workload_name) {
+                                if let Err(err) = workload.delete().await {
+                                    log::error!(
+                                        "Failed to delete unneeded workload '{}': '{}'",
+                                        workload_name,
+                                        err
+                                    );
+                                }
+                            } else {
+                                log::info!("Directly deleting workload {}", workload_name);
+                                // workload states are allowed to send because the workload is not created anymore afterwards
+                                const REPORT_WORKLOAD_STATES_FOR_WORKLOAD: bool = true;
+                                runtime.delete_workload(
+                                    workload_state.instance_name,
+                                    &self.update_state_tx,
+                                    REPORT_WORKLOAD_STATES_FOR_WORKLOAD,
+                                );
+                            }
                         }
                     }
                 }
@@ -1171,7 +1183,7 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-existing-workloads-delete-unneeded~1]
+    // [utest->swdd~agent-existing-workloads-delete-unneeded~2]
     #[tokio::test]
     async fn utest_handle_update_workload_initial_call_delete_unneeded() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1227,6 +1239,74 @@ mod tests {
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
+
+        runtime_manager
+            .handle_server_hello(vec![], &MockWorkloadStateStore::default())
+            .await;
+
+        assert!(runtime_manager.workloads.is_empty());
+    }
+
+    // [utest->swdd~agent-existing-workloads-delete-unneeded~2]
+    #[tokio::test]
+    async fn utest_handle_update_workload_initial_call_delete_unneeded_after_server_restart() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let existing_unneeded_workload = WorkloadInstanceNameBuilder::default()
+            .workload_name(WORKLOAD_1_NAME)
+            .config(&String::from("different config"))
+            .agent_name(AGENT_NAME)
+            .build();
+
+        let workload_operations = vec![];
+        let mut mock_workload_scheduler = MockWorkloadScheduler::default();
+        mock_workload_scheduler
+            .expect_enqueue_filtered_workload_operations()
+            .once()
+            .return_const(workload_operations);
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| mock_workload_scheduler);
+
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        runtime_facade_mock
+            .expect_get_reusable_workloads()
+            .once()
+            .return_once(|_| {
+                Box::pin(async move {
+                    Ok(vec![ReusableWorkloadState::new(
+                        existing_unneeded_workload,
+                        ExecutionState::default(),
+                        None,
+                    )])
+                })
+            });
+
+        runtime_facade_mock
+            .expect_delete_workload()
+            .never();
+
+        let (_, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let mut workload_mock = MockWorkload::default();
+        workload_mock
+            .expect_delete()
+            .once()
+            .return_once(|| Ok(()));
+
+        runtime_manager
+            .workloads
+            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
 
         runtime_manager
             .handle_server_hello(vec![], &MockWorkloadStateStore::default())
