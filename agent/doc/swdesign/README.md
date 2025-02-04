@@ -815,13 +815,19 @@ Needs:
 - stest
 
 ##### RuntimeManager handles existing workloads deletes unneeded workloads
-`swdd~agent-existing-workloads-delete-unneeded~1`
+`swdd~agent-existing-workloads-delete-unneeded~2`
 
 Status: approved
 
-When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall request the RuntimeFacade to delete the workload.
+When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall delete the workload without considering its `DeleteConditions`s by
+* requesting the workload to delete itself if it is in the list of managed workloads or
+* requesting the RuntimeFacade to delete the workload.
 
-Comment: If the RuntimeManager finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload. The Ankaios agent cannot consider the `DeleteCondition`s of the existing workload because the information is not available after an agent restart.
+Rationale:
+Unneeded workloads are only handled after a downtime of either the server, the agent or both. The Ankaios agent cannot consider the `DeleteCondition`s of the existing workload because the information was missed during the downtime and is not available.
+
+Comment:
+In case of an agent downtime, no workload object is available and the unneeded workload can only be deleted via the runtime without going through the object. If there is an object, it must be deleted to clean up the system.
 
 Tags:
 - RuntimeManager
