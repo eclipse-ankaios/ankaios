@@ -60,7 +60,7 @@ impl WorkloadScheduler {
         self.queue.insert(workload_name.into(), pending_entry);
     }
 
-    // [impl->swdd~agent-handles-new-workload-operations]
+    // [impl->swdd~agent-handles-new-workload-operations~1]
     // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     pub async fn enqueue_filtered_workload_operations(
         &mut self,
@@ -357,7 +357,7 @@ mod tests {
     const WORKLOAD_NAME_1: &str = "workload_1";
     const RUNTIME: &str = "runtime";
 
-    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-handles-new-workload-operations~1]
     // [utest->swdd~agent-enqueues-unfulfilled-create~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_create() {
@@ -475,7 +475,7 @@ mod tests {
             .await;
     }
 
-    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-handles-new-workload-operations~1]
     // [utest->swdd~agent-enqueues-unfulfilled-delete~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_delete() {
@@ -582,7 +582,7 @@ mod tests {
             .await;
     }
 
-    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-handles-new-workload-operations~1]
     // [utest->swdd~agent-enqueues-update-with-unfulfilled-delete~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_update_delete_at_most_once() {
@@ -653,7 +653,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-handles-new-workload-operations~1]
     // [utest->swdd~agent-enqueues-update-with-unfulfilled-delete~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_update_at_most_once() {
@@ -724,7 +724,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-handles-new-workload-operations~1]
     // [utest->swdd~agent-handles-update-with-fulfilled-delete~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_update_create_at_most_once() {
