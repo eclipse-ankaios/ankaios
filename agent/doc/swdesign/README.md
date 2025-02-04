@@ -819,7 +819,7 @@ Needs:
 
 Status: approved
 
-When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall delete the workload without considering its `DeleteConditions` by
+When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall delete the workload without considering its `DeleteConditions`s by
 * requesting the workload to delete itself if it is in the list of managed workloads or
 * requesting the RuntimeFacade to delete the workload.
 
