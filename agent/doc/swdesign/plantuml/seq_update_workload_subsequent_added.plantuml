@@ -50,6 +50,9 @@ else subsequent update workload call
             rt_facade -->> runtime_manager --
 
             workload_command -->> workload_control_loop --++: receive create
+            opt workload has config files assigned
+                workload_control_loop ->> workload_control_loop++: create workload\nconfig files
+            end
 
             workload_control_loop -> runtime++: create runtime workload
             runtime -->> workload_control_loop --
