@@ -396,7 +396,9 @@ impl From<OrderedExecutionState> for ExecutionState {
 #[cfg(test)]
 mod tests {
     use common::objects::{
-        generate_test_workload_spec_with_param, generate_test_workload_spec_with_runtime_config,
+        generate_test_rendered_config_files, generate_test_workload_spec_with_param,
+        generate_test_workload_spec_with_rendered_config_files,
+        generate_test_workload_spec_with_runtime_config,
     };
     use mockall::Sequence;
 
@@ -734,6 +736,35 @@ mod tests {
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
                 workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
                 workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
+    }
+
+    // [utest->swdd~podman-kube-rejects-workloads-with-config-files~1]
+    #[tokio::test]
+    async fn utest_create_workload_unsupported_config_files_error() {
+        let runtime = PodmanKubeRuntime {};
+
+        let workload_spec_with_config_files =
+            generate_test_workload_spec_with_rendered_config_files(
+                SAMPLE_AGENT,
+                SAMPLE_WORKLOAD_1,
+                PODMAN_KUBE_RUNTIME_NAME,
+                generate_test_rendered_config_files(),
+            );
+
+        let (sender, _) = tokio::sync::mpsc::channel(1);
+        let result = runtime
+            .create_workload(
+                workload_spec_with_config_files,
+                None,
+                None,
+                sender,
+                Default::default(),
+            )
+            .await;
+        assert!(
+            matches!(&result, Err(RuntimeError::Unsupported(_))),
+            "Expected 'RuntimeError::Unsupported', Got: {result:?}"
+        );
     }
 
     // [utest->swdd~podman-kube-state-getter-reset-cache~1]

@@ -2110,6 +2110,22 @@ Needs:
 - impl
 - utest
 
+##### Podman create workload optionally mounts config files
+`swdd~podman-create-workload-mounts-config-files~1`
+
+Status: approved
+
+When the podman runtime connector is called to create workload and the RuntimeFacade requests to mount the config files assigned to the workload,
+the podman runtime connector shall mount the config files into the container in the provided mount points.
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
 ##### Podman get workload id uses label
 `swdd~podman-get-workload-id-uses-label~1`
 
@@ -2197,7 +2213,7 @@ Needs:
 
 Status: approved
 
-When the podman-kube runtime connector receives a workload with at least one config file assigned, the podman-kube runtime shall reject the workload with an error.
+When the podman-kube runtime connector receives a workload with at least one config file assigned, the podman-kube runtime connector shall reject the workload with an error.
 
 Rationale:
 Podman-kube already has a built-in feature for config files (ConfigMaps), and supporting both introduces side effects.
@@ -2208,6 +2224,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ##### Podman-kube get name returns `podman-kube`
 `swdd~podman-kube-name-returns-podman-kube~1`

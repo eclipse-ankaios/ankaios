@@ -22,6 +22,7 @@ Resource            ../../resources/variables.resource
 
 *** Test Cases ***
 
+# [stest->swdd~podman-create-workload-mounts-config-files~1]
 Test Ankaios starts manifest with config files assigned to workloads
     [Documentation]    Create the assigned config files on the agent's host file system and mount it into workloads.
     [Setup]    Run Keywords    Setup Ankaios
@@ -38,7 +39,50 @@ Test Ankaios starts manifest with config files assigned to workloads
     And the command "curl -Lf localhost:8087/custom" shall finish with exit code "0"
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~podman-create-workload-mounts-config-files~1]
+Test Ankaios updates a workload upon update of its config file content
+    [Documentation]    Re-create the new config file on the host file system and
+    ...                mount it in the new updated version of the workload.
+    [Setup]    Run Keywords    Setup Ankaios
+    [Tags]    run_only
 
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    # Actions
+    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_config_files.yaml"
+    And Ankaios agent is started with name "agent_A"
+    And the workload "workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And user triggers "ank -k --no-wait set state desiredState.workloads.workload_with_mounted_text_file desiredState.configs.web_server_config ${CONFIGS_DIR}/update_state_config_files.yaml"
+    # Asserts
+    Then the workload "workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the command "curl -Lf localhost:8087/update" shall finish with exit code "0"
+    [Teardown]    Clean up Ankaios
+
+# [stest->swdd~podman-create-workload-mounts-config-files~1]
+Test Ankaios updates a workload upon adding additional config files
+    [Documentation]    Re-create all the config files including the new one on the host file system,
+    ...                mount it in the new updated version of the workload and execute it.
+    [Setup]    Run Keywords    Setup Ankaios
+    [Tags]    run_only
+
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    # Actions
+    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_config_files.yaml"
+    And Ankaios agent is started with name "agent_A"
+    And the workload "workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
+    # First update the files only by setting the update mask
+    And user triggers "ank -k --no-wait set state desiredState.workloads.workload_with_mounted_binary_file.files ${CONFIGS_DIR}/update_state_config_files.yaml"
+    And the workload "workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
+    # Now update the runtimeConfig calling the newly added config file
+    And user triggers "ank -k --no-wait set state desiredState.workloads.workload_with_mounted_binary_file.runtimeConfig ${CONFIGS_DIR}/update_state_config_files.yaml"
+    # Asserts
+    Then the workload "workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
+    [Teardown]    Clean up Ankaios
+
+# [stest->swdd~podman-kube-rejects-workloads-with-config-files~1]
 Test Ankaios rejects unsupported config files for workloads using podman-kube runtime
     [Setup]    Run Keywords    Setup Ankaios
 

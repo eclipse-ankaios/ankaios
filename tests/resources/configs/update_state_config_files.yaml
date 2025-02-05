@@ -1,0 +1,56 @@
+desiredState:
+  apiVersion: v0.1
+  workloads:
+    workload_with_mounted_text_file:
+      agent: agent_A
+      tags: []
+      dependencies: {}
+      restartPolicy: NEVER
+      runtime: podman
+      runtimeConfig: |
+        image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+        commandOptions: [ "-p", "8087:80" ]
+      configs:
+        nginx_conf: web_server_config
+      files:
+      - mountPoint: /etc/nginx/nginx.conf
+        data: '{{nginx_conf}}'
+    workload_with_mounted_binary_file:
+      agent: agent_A
+      tags: []
+      dependencies: {}
+      restartPolicy: NEVER
+      runtime: podman
+      runtimeConfig: |
+        image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+        commandOptions: [ "--entrypoint", "/bin/sh" ]
+        commandArgs: [ "-c", "/hello && /second/hello"]
+      configs:
+        bin_data: bin_data
+      files:
+      - mountPoint: /hello
+        binaryData: '{{bin_data}}'
+      - mountPoint: /second/hello
+        binaryData: '{{bin_data}}'
+  configs:
+    web_server_config: |
+      worker_processes  1;
+
+      events {
+          worker_connections  1024;
+      }
+
+      http {
+          server {
+              listen 80;
+              server_name custom_nginx;
+
+              location /update {
+                  default_type text/plain;
+                  return 200 "You have requested the new updated URI!\n";
+              }
+          }
+      }
+workloadStates: {}
+agents: {}
+
