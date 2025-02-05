@@ -20,11 +20,40 @@ use common::PATH_SEPARATOR;
 const WILDCARD_SYMBOL: &str = "*";
 
 pub type PathPatternMatchReason = String;
+
+fn match_rule_with_path(rule: &impl PathPattern, other: &Path) -> (bool, PathPatternMatchReason) {
+    // [impl->swdd~agent-authorizing-rules-without-segments-never-match~1]
+    if rule.sections().is_empty() {
+        return (false, "Empty filter masks in rules never match.".into());
+    }
+
+    for (a, b) in rule.sections().iter().zip(other.sections.iter()) {
+        if !a.matches(b) {
+            return (false, String::new());
+        }
+    }
+
+    (
+        true,
+        rule.sections()
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("."),
+    )
+}
+
 pub trait PathPattern {
+    fn sections(&self) -> &Vec<PathPatternSection>;
+
     fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
 }
 
-impl<T: PathPattern + std::fmt::Debug> PathPattern for Vec<T> {
+pub trait PathPatternMatcher {
+    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
+}
+
+impl<T: PathPatternMatcher + std::fmt::Debug> PathPatternMatcher for Vec<T> {
     fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
         for rule in self {
             if let (true, reason) = rule.matches(path) {
@@ -52,28 +81,20 @@ impl From<&str> for AllowPathPattern {
     }
 }
 
+// [impl->swdd~agent-authorizing-matching-allow-rules~1]
 impl PathPattern for AllowPathPattern {
-    // [impl->swdd~agent-authorizing-matching-allow-rules~1]
+    fn sections(&self) -> &Vec<PathPatternSection> {
+        &self.sections
+    }
+
     fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason) {
         if self.sections.len() > other.sections.len()
             && self.sections.first() != Some(&PathPatternSection::Wildcard)
         {
             return (false, String::new());
         }
-        for (a, b) in self.sections.iter().zip(other.sections.iter()) {
-            if !a.matches(b) {
-                return (false, String::new());
-            }
-        }
 
-        (
-            true,
-            self.sections
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join("."),
-        )
+        match_rule_with_path(self, other)
     }
 }
 
@@ -94,27 +115,19 @@ impl From<&str> for DenyPathPattern {
     }
 }
 
+// [impl->swdd~agent-authorizing-matching-deny-rules~1]
 impl PathPattern for DenyPathPattern {
-    // [impl->swdd~agent-authorizing-matching-deny-rules~1]
+    fn sections(&self) -> &Vec<PathPatternSection> {
+        &self.sections
+    }
+
     fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason) {
-        for (a, b) in self.sections.iter().zip(other.sections.iter()) {
-            if !a.matches(b) {
-                return (false, String::new());
-            }
-        }
-        (
-            true,
-            self.sections
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join("."),
-        )
+        match_rule_with_path(self, other)
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-enum PathPatternSection {
+pub enum PathPatternSection {
     Wildcard,
     String(String),
 }
@@ -172,7 +185,7 @@ mod tests {
         }
     }
 
-    impl PathPattern for MockPathPattern {
+    impl PathPatternMatcher for MockPathPattern {
         fn matches(&self, other: &Path) -> (bool, super::PathPatternMatchReason) {
             (
                 other.sections == self.path_returning_true.sections,
@@ -181,7 +194,17 @@ mod tests {
         }
     }
 
-    use crate::control_interface::authorizer::{AllowPathPattern, DenyPathPattern, PathPattern};
+    use crate::control_interface::authorizer::{
+        AllowPathPattern, DenyPathPattern, PathPattern, PathPatternMatcher,
+    };
+
+    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
+    #[test]
+    fn utest_allow_path_pattern_sections() {
+        let p = AllowPathPattern::from("some.pre.fix");
+
+        assert_eq!(&p.sections, p.sections());
+    }
 
     // [utest->swdd~agent-authorizing-matching-allow-rules~1]
     #[test]
@@ -228,13 +251,21 @@ mod tests {
         assert!(p.matches(&"some.pre.fix.test".into()).0);
     }
 
-    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
+    // [utest->swdd~agent-authorizing-rules-without-segments-never-match~1]
     #[test]
-    fn utest_empty_allow_path_pattern() {
+    fn utest_empty_allow_path_pattern_does_not_match() {
         let p = AllowPathPattern::from("");
 
-        assert!(p.matches(&"".into()).0);
-        assert!(p.matches(&"some.pre".into()).0);
+        assert!(!p.matches(&"".into()).0);
+        assert!(!p.matches(&"some.pre".into()).0);
+    }
+
+    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
+    #[test]
+    fn utest_deny_path_pattern_sections() {
+        let p = DenyPathPattern::from("some.pre.fix");
+
+        assert_eq!(&p.sections, p.sections());
     }
 
     // [utest->swdd~agent-authorizing-matching-deny-rules~1]
@@ -286,13 +317,13 @@ mod tests {
         assert!(p.matches(&"some.pre.fix.test".into()).0);
     }
 
-    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
+    // [utest->swdd~agent-authorizing-rules-without-segments-never-match~1]
     #[test]
-    fn utest_empty_deny_path_pattern() {
+    fn utest_empty_deny_path_pattern_does_not_match() {
         let p = DenyPathPattern::from("");
 
-        assert!(p.matches(&"".into()).0);
-        assert!(p.matches(&"some.pre".into()).0);
+        assert!(!p.matches(&"".into()).0);
+        assert!(!p.matches(&"some.pre".into()).0);
     }
 
     #[test]

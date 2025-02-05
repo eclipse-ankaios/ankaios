@@ -67,9 +67,11 @@ impl WorkloadSpec {
 
     // [impl->swdd~common-workload-naming-convention~1]
     // [impl->swdd~common-agent-naming-convention~1]
+    // [impl->swdd~common-access-rules-filter-mask-convention~1]
     pub fn verify_fields_format(workload_spec: &WorkloadSpec) -> Result<(), String> {
         Self::verify_workload_name_format(workload_spec.instance_name.workload_name())?;
         Self::verify_agent_name_format(workload_spec.instance_name.agent_name())?;
+        workload_spec.control_interface_access.verify_format()?;
         Ok(())
     }
 
@@ -584,6 +586,7 @@ mod tests {
 
     // [utest->swdd~common-workload-naming-convention~1]
     // [utest->swdd~common-agent-naming-convention~1]
+    // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_workload_verify_fields_format_success() {
         let compatible_workload_spec = generate_test_workload_spec();

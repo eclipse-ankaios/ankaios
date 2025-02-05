@@ -73,3 +73,23 @@ Test Control Interface closes connection when initial hello missing
     And the controller workload gets the state
     Then The controller workload shall get a closed connection
     [Teardown]    Clean up Ankaios
+
+# [stest->swdd~server-desired-state-field-conventions~1]
+Test workload with empty Control Interface access field mask rejected
+    [Setup]           Run Keywords    Setup Ankaios
+    # Preconditions
+    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And Ankaios agent is started with name "${agent_name}"
+    And all workloads of agent "{agent_name}" have an initial execution state
+    # Actions
+    When user triggers "ank apply ${CONFIGS_DIR}/faulty_with_control_as_empty.yaml"
+    # Asserts
+    Then the last command finished with exit code "1"
+
+# [stest->swdd~server-desired-state-field-conventions~1]
+Test server started with empty Control Interface access field mask fails
+    [Setup]           Run Keywords    Setup Ankaios
+    # Actions
+    Given Ankaios server is started with config "${CONFIGS_DIR}/faulty_with_control_as_empty.yaml""
+    # Asserts
+    Then the last command finished with exit code "1"

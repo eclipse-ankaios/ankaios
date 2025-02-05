@@ -425,6 +425,24 @@ Needs:
 - utest
 - stest
 
+#### Control Interface access rules filter mask conventions
+`swdd~common-access-rules-filter-mask-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing a non-empty filter mask for Control Interface access rules.
+
+Rationale:
+An empty filter mask for an allow access rules is might be misunderstood as allow nothing.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Provide common conversions between Ankaios and protobuf
 `swdd~common-conversions-between-ankaios-and-proto~1`
 
