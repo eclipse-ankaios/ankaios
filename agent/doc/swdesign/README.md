@@ -1828,7 +1828,7 @@ Needs:
 
 The following diagram describes the behavior when creating config files of a workload on the host file system that will be mounted in the workload.
 
-![Create And Mount Workload Config Files](plantuml/.svg)
+![Create And Mount Workload Config Files](plantuml/seq_config_files.svg)
 
 #### Config files at a predefined path
 `swdd~location-of-workload-config-files-at-predefined-path~1`
