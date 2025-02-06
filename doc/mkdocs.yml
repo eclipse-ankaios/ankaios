@@ -78,6 +78,7 @@ nav:
     - usage/shell-completion.md
     - Manifest:
       - usage/manifest/config-rendering.md
+      - usage/manifest/mount-files.md
     - Upgrading:
       - usage/upgrading/v0_2_to_v0_3.md
       - usage/upgrading/v0_3_to_v0_4.md
