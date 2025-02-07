@@ -24,7 +24,7 @@ desiredState:
       runtimeConfig: |
         image: ghcr.io/eclipse-ankaios/tests/alpine:latest
         commandOptions: [ "--entrypoint", "/bin/sh" ]
-        commandArgs: [ "-c", "/hello && /second/hello"]
+        commandArgs: [ "-c", "cat /hello && cat /second/hello"]
       configs:
         bin_data: bin_data
       files:
