@@ -198,7 +198,7 @@ impl ConfigFilesCreator {
             FileContent::BinaryData(Base64Data {
                 base64_data: binary_data,
             }) => {
-                // [impl->swdd~config-files-creator-decodes-base64-to-executable~1]
+                // [impl->swdd~config-files-creator-decodes-base64-to-binary~1]
                 let binary = general_purpose::STANDARD
                     .decode(binary_data)
                     .map_err(|err| {
@@ -249,7 +249,7 @@ mod tests {
     const TEST_CONFIG_FILE_DATA: &str = "some config";
 
     // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
-    // [utest->swdd~config-files-creator-decodes-base64-to-executable~1]
+    // [utest->swdd~config-files-creator-decodes-base64-to-binary~1]
     #[tokio::test]
     async fn utest_config_files_creator_create_files() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -492,7 +492,7 @@ mod tests {
         }
     }
 
-    // [utest->swdd~config-files-creator-decodes-base64-to-executable~1]
+    // [utest->swdd~config-files-creator-decodes-base64-to-binary~1]
     #[tokio::test]
     async fn utest_config_files_creator_write_config_file_base64_decode_error() {
         let result = ConfigFilesCreator::write_config_file(

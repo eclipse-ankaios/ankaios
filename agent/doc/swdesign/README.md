@@ -1875,13 +1875,11 @@ Needs:
 - utest
 
 #### ConfigFilesCreator decodes base64 to executable
-`swdd~config-files-creator-decodes-base64-to-executable~1`
+`swdd~config-files-creator-decodes-base64-to-binary~1`
 
 Status: approved
 
-When the ConfigFilesCreator is requested to write a config file with content type binary, the ConfigFilesCreator shall:
-* decode the base64 content to a collection of bytes
-* set executable permissions on the written binary file
+When the ConfigFilesCreator is requested to write a config file with content type binary, the ConfigFilesCreator shall decode the base64 content to a collection of bytes.
 
 Tags:
 - ConfigFilesCreator
