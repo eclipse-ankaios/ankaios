@@ -181,7 +181,7 @@ workloads:
 ```
 
 Since the fleet connector needs to access the Ankaios control interface, we need to allow this with the `controlInterfaceAccess` section in the manifest.
-See the [reference documentation](../../reference/_ankaios.proto/#controlinterfaceaccess) for more information on that.
+See the [reference documentation](../reference/_ankaios.proto.md#controlinterfaceaccess) for more information on that.
 
 Now we start Ankaios with:
 
