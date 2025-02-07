@@ -1,6 +1,6 @@
 # Mount files
 
-Ankaios supports to mount files into a workload. Define the mount files in the `files` field of a workload configuration, which supports text and base64 encoded content. Mount files are not supported for a workload with runtime `podman-kube`. Instead, use the built-in `ConfigMaps` feature of `podman-kube`.
+Ankaios supports to mount files into a workload. Define the mount files in the `files` field of a workload configuration, which supports text and base64 encoded content. The files are mounted in readonly mode. Mount files are not supported for a workload with runtime `podman-kube`. Instead, use the built-in `ConfigMaps` feature of `podman-kube`.
 
 The following manifest contains a workload with a mounted web server configuration and another workload executing a mounted binary file. It also combines the [Ankaios Shareable Configuration Approach](config-rendering.md) with mount files by defining the contents of the mount files once and sharing them with workloads. Ankaios expands the templated subfields `data` and `binaryData` using the handlebars template engine.
 
@@ -30,7 +30,8 @@ workloads:
         binaryData: "{{bin_data}}" # (2)!
     runtimeConfig: |
       image: docker.io/alpine:latest
-      commandArgs: [ "/hello"]
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "cat /hello" ]
 configs:
   nginx_config: |
     worker_processes  1;
@@ -50,8 +51,8 @@ configs:
             }
         }
     }
-  # base64 encoded binary printing "Hello, World!"
-  bin_data: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAhgBAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAnwAAAAAAAACfAAAAAAAAAAAQAAAAAAAASGVsbG8sIFdvcmxkIQpqAViJx4015////2oOWg8FuDwAAAAx/w8F
+  # base64 encoded content
+  bin_data: SGVsbG8sIFdvcmxkCg==
 ```
 
 1. The contents of the `data` field will be rendered and replaced with the custom web server configuration of `nginx_config` part of the `configs` field below.

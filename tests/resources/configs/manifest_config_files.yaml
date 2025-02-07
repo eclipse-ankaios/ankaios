@@ -22,7 +22,7 @@ workloads:
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
-      commandArgs: [ "-c", "cp /hello /exec_hello; chmod +x /exec_hello; /exec_hello"]
+      commandArgs: [ "-c", "cat /hello" ]
   kube_workload_with_unsupported_config_files:
     agent: agent_B
     runtime: podman-kube
@@ -64,5 +64,5 @@ configs:
             }
         }
     }
-  # base64 encoded binary printing "Hello, World!" for simple assertions in system tests
-  bin_data: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAhgBAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAnwAAAAAAAACfAAAAAAAAAAAQAAAAAAAASGVsbG8sIFdvcmxkIQpqAViJx4015////2oOWg8FuDwAAAAx/w8F
+  # base64 encoded content
+  bin_data: SGVsbG8sIFdvcmxkCg==
