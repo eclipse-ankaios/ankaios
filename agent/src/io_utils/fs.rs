@@ -127,21 +127,12 @@ pub mod filesystem {
 #[cfg_attr(test, automock)]
 pub mod filesystem_async {
     #[cfg(test)]
-    use super::tests::{
-        remove_dir_all_async as fs_async_remove_dir,
-        set_permissions_async as fs_async_set_permissions, write as fs_async_write,
-    };
+    use super::tests::{remove_dir_all_async as fs_async_remove_dir, write as fs_async_write};
     use super::FileSystemError;
 
-    #[cfg(not(test))]
-    use tokio::fs::{
-        remove_dir_all as fs_async_remove_dir, set_permissions as fs_async_set_permissions,
-        write as fs_async_write,
-    };
-
-    use std::fs::Permissions;
-    use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
+    #[cfg(not(test))]
+    use tokio::fs::{remove_dir_all as fs_async_remove_dir, write as fs_async_write};
 
     pub async fn write_file<C>(file_path: &Path, file_content: C) -> Result<(), FileSystemError>
     where
@@ -150,12 +141,6 @@ pub mod filesystem_async {
         fs_async_write(file_path, file_content)
             .await
             .map_err(|err| FileSystemError::Write(file_path.into(), err.kind()))
-    }
-
-    pub async fn set_permissions(file_path: &Path, mode: u32) -> Result<(), FileSystemError> {
-        fs_async_set_permissions(file_path, Permissions::from_mode(mode))
-            .await
-            .map_err(|err| FileSystemError::Permissions(file_path.into(), err.kind()))
     }
 
     pub async fn remove_dir(path: &Path) -> Result<(), FileSystemError> {
@@ -326,10 +311,6 @@ mod tests {
         );
     }
 
-    pub async fn set_permissions_async(path: &Path, perm: Permissions) -> io::Result<()> {
-        set_permissions(path, perm)
-    }
-
     pub async fn write<C>(path: &Path, file_content: C) -> io::Result<()>
     where
         C: AsRef<[u8]> + 'static,
@@ -384,36 +365,6 @@ mod tests {
                 std::io::ErrorKind::PermissionDenied
             ))
         );
-    }
-
-    #[tokio::test]
-    async fn utest_set_permissions_async_ok() {
-        let _test_lock = TEST_LOCK.lock();
-        let path = Path::new("test_dir");
-        let mode: u32 = 0o777;
-        FAKE_CALL_LIST
-            .lock()
-            .unwrap()
-            .push_back(FakeCall::set_permissions(path.to_path_buf(), mode, Ok(())));
-
-        assert!(filesystem_async::set_permissions(path, mode).await.is_ok());
-    }
-
-    #[tokio::test]
-    async fn utest_set_permissions_async_fails() {
-        let _test_lock = TEST_LOCK.lock();
-        let path = Path::new("test_dir");
-        let mode: u32 = 0o777;
-        FAKE_CALL_LIST
-            .lock()
-            .unwrap()
-            .push_back(FakeCall::set_permissions(
-                path.to_path_buf(),
-                mode,
-                Err(std::io::Error::new(std::io::ErrorKind::Other, "some error")),
-            ));
-
-        assert!(filesystem_async::set_permissions(path, mode).await.is_err());
     }
 
     #[test]

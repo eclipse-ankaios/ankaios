@@ -208,15 +208,7 @@ impl ConfigFilesCreator {
                         ))
                     })?;
 
-                let write_result = filesystem_async::write_file(config_file_path, binary).await;
-
-                if write_result.is_ok() {
-                    const EXECUTABLE_PERMISSIONS: u32 = 0o755;
-                    filesystem_async::set_permissions(config_file_path, EXECUTABLE_PERMISSIONS)
-                        .await
-                } else {
-                    write_result
-                }
+                filesystem_async::write_file(config_file_path, binary).await
             }
         };
 
@@ -315,16 +307,6 @@ mod tests {
                 predicate::eq(DECODED_TEST_BASE64_DATA.to_owned().as_bytes().to_vec()),
             )
             .returning(|_, _: Vec<u8>| Ok(()));
-
-        let mock_permission_context = mock_filesystem_async::set_permissions_context();
-        mock_permission_context
-            .expect()
-            .once()
-            .with(
-                predicate::eq(binary_file_path.clone()),
-                predicate::eq(0o755),
-            )
-            .returning(|_, _| Ok(()));
 
         let expected_host_file_paths = HashMap::from([
             (text_host_file_path, PathBuf::from("/some/path/test.conf")),
