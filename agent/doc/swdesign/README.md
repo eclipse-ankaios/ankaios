@@ -2113,8 +2113,8 @@ Needs:
 
 Status: approved
 
-When the podman runtime connector is called to create workload and the RuntimeFacade requests to mount the config files assigned to the workload,
-the podman runtime connector shall mount the config files into the container in the provided mount points.
+When the podman runtime connector is called to create a workload and the provided host config file path to mount point mapping is not empty,
+the podman runtime connector shall mount the provided files into the container at the provided mount points in `readonly` mode.
 
 Tags:
 - PodmanRuntimeConnector
