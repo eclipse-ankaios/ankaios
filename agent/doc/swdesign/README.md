@@ -36,9 +36,6 @@ Rationale:
 
 Creating the exact same folder structure according to the mount point prevents naming and mapping issues. It allows the creation of multiple files with the same name for different mount points on the host file system with respect to a many-to-many relationship for workloads and config files.
 
-Needs:
-- swdd
-
 Assumptions:
 
 No assumptions were taken.
@@ -1004,8 +1001,8 @@ When the WorkloadControlLoop receives a create command, the WorkloadControlLoop 
     * store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
 * upon failed creation of the workload:
     * delete the config files on the host file system if the workload has config files assigned
-    * if the runtime error is of type `unsupported`, send a `Pending(StartingFailed)` workload state with additional information
-    * otherwise, send a `Pending(Starting)` workload state with additional information about the current retry counter state, appended by the cause of failure for that workload
+    * if the runtime error is of type `unsupported`, send a `Pending(StartingFailed)` workload state with additional information or
+    * send a `Pending(Starting)` workload state with additional information about the current retry counter state, appended by the cause of failure for that workload
 
 Comment:
 For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows.
@@ -1044,7 +1041,7 @@ Status: approved
 
 When the WorkloadControlLoop started during the creation of the workload object receives an update command, the WorkloadControlLoop shall:
 * execute a delete command for the old configuration of the workload
-* delete the workload config files subfolder if the old workload has config files assigned
+* delete the workload config files subfolder
 * delete the workload subfolder if the old and the new workload instance names are different
 * execute a create command for the new configuration of the workload
 
@@ -1826,7 +1823,7 @@ Needs:
 
 ### Workload config files
 
-The following diagram describes the behavior when creating config files of a workload on the host file system that will be mounted in the workload.
+The following diagram describes the behavior when creating a workload with config files.
 
 ![Create And Mount Workload Config Files](plantuml/seq_config_files.svg)
 
@@ -1857,7 +1854,7 @@ Status: approved
 When the ConfigFilesCreator is triggered with the list of config files assigned to a workload and the predefined config files directory, for each config file, the ConfigFilesCreator shall:
 
 * construct a host file path for the config file by appending the mount point to the predefined path
-* recursively create the directory structure of the constructed path on the host file system
+* create the directory structure of the constructed path on the host file system
 * write the config file to the constructed host file path with respect to its content type
 * delete all the config files on the host filesystem upon failure
 

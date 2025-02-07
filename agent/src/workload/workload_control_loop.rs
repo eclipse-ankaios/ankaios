@@ -2953,6 +2953,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-aborts-create-upon-config-files-creation-error~1]
     #[tokio::test]
     async fn utest_create_workload_on_runtime_create_config_files_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
