@@ -27,7 +27,7 @@ Test Ankaios CLI get configs
     And Ankaios server is started with config "${CONFIGS_DIR}/default_with_config.yaml"
     And Ankaios server is available
     # Actions
-    When user triggers "sleep 1; ank -k get configs"
+    When user triggers "ank -k get configs"
     # Asserts
     Then the last command shall list the config "config_1"
     And the last command shall list the config "config_2"
