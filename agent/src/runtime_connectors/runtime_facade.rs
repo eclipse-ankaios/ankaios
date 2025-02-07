@@ -28,6 +28,9 @@ use crate::control_interface::ControlInterface;
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
+#[cfg_attr(test, mockall_double::double)]
+use crate::io_utils::filesystem_async;
+
 use crate::{
     runtime_connectors::{OwnableRuntime, ReusableWorkloadState, RuntimeError, StateChecker},
     workload_operation::ReusableWorkloadSpec,
@@ -147,7 +150,7 @@ impl<
         workload
     }
 
-    // [impl->swdd~agent-delete-old-workload~2]
+    // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload(
         &self,
         instance_name: WorkloadInstanceName,
@@ -329,7 +332,7 @@ impl<
         )
     }
 
-    // [impl->swdd~agent-delete-old-workload~2]
+    // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload_non_blocking(
         &self,
         instance_name: WorkloadInstanceName,
@@ -369,15 +372,17 @@ impl<
                 log::debug!("Workload '{}' already gone.", instance_name);
             }
 
+            log::debug!(
+                "Deleting the workload subfolder of workload '{}'",
+                instance_name
+            );
+
             let workload_dir = instance_name.pipes_folder_name(&run_folder);
-
-            log::debug!("Deleting the workload subfolder '{}'", instance_name);
-
-            tokio::fs::remove_dir_all(workload_dir)
+            filesystem_async::remove_dir(&workload_dir)
                 .await
                 .unwrap_or_else(|err| {
                     log::error!(
-                        "Delete of workload subfolder failed after deletion of workload '{}': '{}'",
+                        "Failed to delete workload subfolder after deletion of workload '{}': '{}'",
                         instance_name,
                         err
                     );
@@ -410,6 +415,7 @@ mod tests {
             authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
             ControlInterfacePath, MockControlInterface,
         },
+        io_utils::mock_filesystem_async,
         runtime_connectors::{
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             GenericRuntimeFacade, OwnableRuntime, ReusableWorkloadState, RuntimeFacade,
@@ -688,7 +694,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-delete-old-workload~2]
+    // [utest->swdd~agent-delete-old-workload~3]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload() {
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -717,6 +723,9 @@ mod tests {
             RUN_FOLDER.into(),
         ));
 
+        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        mock_remove_dir.expect().once().returning(|_| Ok(()));
+
         test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);
 
         tokio::task::yield_now().await;
@@ -736,7 +745,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-delete-old-workload~2]
+    // [utest->swdd~agent-delete-old-workload~3]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload_failed() {
         let mut runtime_mock = MockRuntimeConnector::new();
