@@ -38,9 +38,8 @@ Test Ankaios apply workload specifications showing progress via spinner
 
     # Preconditions
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${simple_yaml_file}"
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
     # Actions
     When user triggers "ank apply ${manifest12_yaml_file}"
     # Asserts
@@ -188,7 +187,7 @@ Test Ankaios apply workload specifications in Ankaios manifest with templated fi
     # Preconditions
     # This test assumes that all containers in Podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/manifest_with_configs.yaml"

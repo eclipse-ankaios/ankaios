@@ -56,7 +56,7 @@ Test Ankaios Podman update workload from empty state
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"
@@ -72,7 +72,7 @@ Test Ankaios Podman Update workload with invalid api version
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"
@@ -91,7 +91,7 @@ Test Ankaios Podman Update workload with invalid workload name
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"
@@ -110,7 +110,7 @@ Test Ankaios Podman Update workload with lengthy workload name
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"
@@ -130,7 +130,7 @@ Test Ankaios Podman Update workload with invalid agent name
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"
@@ -148,7 +148,7 @@ Test Ankaios Podman Update workload with missing api version
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"
