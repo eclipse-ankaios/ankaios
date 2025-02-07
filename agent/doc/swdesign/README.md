@@ -26,7 +26,7 @@ Please note that the Ankaios Agent could also run on the same node as the Server
 ### Design decisions
 
 #### Create a workload config file based on its mount point on the host file system
-`swdd~agent-creates-config-file-based-on-its-mount-point-on-host-file-system~1`
+`swdd~agent-creates-config-file-based-on-mount-point-on-host-file-system~1`
 
 Status: approved
 
@@ -37,7 +37,7 @@ Rationale:
 Creating the exact same folder structure according to the mount point prevents naming and mapping issues. It allows the creation of multiple files with the same name for different mount points on the host file system with respect to a many-to-many relationship for workloads and config files.
 
 Needs:
-- impl
+- swdd
 
 Assumptions:
 
