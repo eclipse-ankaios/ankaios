@@ -372,11 +372,13 @@ impl WorkloadControlLoop {
                     "Successfully created workload '{}'.",
                     new_instance_name.workload_name()
                 );
+                // [impl->swdd~agent-workload-control-loop-updates-internal-state~1]
                 control_loop_state.workload_id = Some(new_workload_id);
                 control_loop_state.state_checker = Some(new_state_checker);
                 control_loop_state
             }
             Err(err) => {
+                // [impl->swdd~agent-workload-control-loop-handles-failed-workload-creation~1]
                 let current_retry_counter = control_loop_state.retry_counter.current_retry();
 
                 Self::delete_folder(&WorkloadConfigFilesPath::from((
@@ -1517,6 +1519,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-updates-internal-state~1]
     #[tokio::test]
     async fn utest_workload_obj_run_create_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1584,6 +1587,8 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-updates-internal-state~1]
+    // [utest->swdd~agent-workload-control-loop-handles-failed-workload-creation~1]
     // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_creation_successful_after_create_command_fails() {
@@ -1661,6 +1666,7 @@ mod tests {
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
     // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
+    // [utest->swdd~agent-workload-control-loop-handles-failed-workload-creation~1]
     #[tokio::test]
     async fn utest_workload_obj_run_create_with_retry_workload_command_channel_closed() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2875,6 +2881,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-updates-internal-state~1]
     #[tokio::test]
     async fn utest_create_workload_on_runtime_create_config_files() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -3015,6 +3022,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-handles-failed-workload-creation~1]
     #[tokio::test]
     async fn utest_create_workload_on_runtime_runtime_fails_with_unsupported_error() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

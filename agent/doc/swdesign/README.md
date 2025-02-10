@@ -996,14 +996,7 @@ Status: approved
 When the WorkloadControlLoop receives a create command, the WorkloadControlLoop shall:
 * send a `Pending(Starting)` with additional information "Triggered at runtime." workload state for that workload
 * request the ConfigFilesCreator to create the config files of the workload on the host file system if the workload has files assigned
-* forward the host file path/mount point mapping received from the ConfigFilesCreator to the corresponding runtime connector if the workload has files assigned
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
-* upon successful creation of the workload:
-    * store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
-* upon failed creation of the workload:
-    * delete the config files on the host file system if the workload has config files assigned
-    * if the runtime error is of type `unsupported`, send a `Pending(StartingFailed)` workload state with additional information or
-    * send a `Pending(Starting)` workload state with additional information about the current retry counter state, appended by the cause of failure for that workload
 
 Comment:
 For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows.
@@ -1014,6 +1007,42 @@ The WorkloadControlLoop allows to asynchronously carry out time consuming action
 Tags:
 - WorkloadControlLoop
 - ConfigFilesCreator
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop updates internal state upon successful workload creation
+`swdd~agent-workload-control-loop-updates-internal-state~1`
+
+Status: approved
+
+When the WorkloadControlLoop created a workload successfully via the corresponding runtime connector, the WorkloadControlLoop shall store the following for the created workload:
+* the new Id
+* the reference to the state checker
+
+Rationale:
+The Id is required to delete a workload via the corresponding runtime connector and the state checker for sending workload states.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop handles failed creation of workload
+`swdd~agent-workload-control-loop-handles-failed-workload-creation~1`
+
+Status: approved
+
+When the WorkloadControlLoop requested the runtime connector to create the workload and the creation failed, the WorkloadControlLoop shall:
+* delete the config files subfolder on the host file system for that workload
+* if the runtime error is of type `unsupported`, send a `Pending(StartingFailed)` workload state with additional information or
+* send a `Pending(Starting)` workload state with additional information about the current retry counter state, appended by the cause of failure for that workload
+
+Tags:
+- WorkloadControlLoop
 
 Needs:
 - impl
