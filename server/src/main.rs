@@ -39,6 +39,8 @@ async fn main() {
         .config_file_path
         .clone()
         .unwrap_or(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string());
+
+    // [impl->swdd~server-loads-config-file~1]
     let mut server_config = match ServerConfig::from_file(&server_config_file_path) {
         Ok(config) => config,
         Err(e) => {
@@ -46,7 +48,6 @@ async fn main() {
             return;
         }
     };
-
     server_config.update_with_args(&args);
 
     log::debug!(

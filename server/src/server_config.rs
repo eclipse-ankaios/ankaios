@@ -48,6 +48,7 @@ where
     Ok(s.parse::<SocketAddr>().ok())
 }
 
+// [impl->swdd~server-loads-config-file~1]
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct ServerConfig {
     pub version: String,
@@ -176,6 +177,7 @@ mod tests {
     const KEY_PEM_CONTENT: &str = r"the content of the
         key.pem file is stored in here";
 
+    // [utest->swdd~server-loads-config-file~1]
     #[test]
     fn utest_default_server_config() {
         let default_server_config = ServerConfig::default();
@@ -188,6 +190,7 @@ mod tests {
         assert_eq!(default_server_config.version, "v1");
     }
 
+    // [utest->swdd~server-loads-config-file~1]
     #[test]
     fn utest_server_config_wrong_version() {
         let server_config_content: &str = r"#
@@ -202,6 +205,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-loads-config-file~1]
     #[test]
     fn utest_server_config_conflicting_certificates() {
         let server_config_content = format!(
@@ -224,6 +228,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-loads-config-file~1]
     #[test]
     fn utest_server_config_update_with_args() {
         let mut server_config = ServerConfig::default();
@@ -253,6 +258,7 @@ mod tests {
         assert_eq!(server_config.key_pem, Some(KEY_PEM_PATH.to_string()));
     }
 
+    // [utest->swdd~server-loads-config-file~1]
     #[test]
     fn utest_server_config_update_with_args_certificates_content() {
         let server_config_content = format!(
@@ -283,6 +289,7 @@ mod tests {
         assert_eq!(server_config.key_pem, Some(KEY_PEM_CONTENT.to_string()));
     }
 
+    // [utest->swdd~server-loads-config-file~1]
     #[test]
     fn utest_server_config_from_file_successful() {
         let server_config_content = format!(

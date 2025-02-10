@@ -90,6 +90,23 @@ The following diagram shows the startup sequence of the Ankaios Server:
 
 ![Startup](plantuml/seq_startup.svg)
 
+#### Server loads config file
+`swdd~server-loads-config-file~1`
+
+Status: approved
+
+There shall exist the possibility to use a server configuration file which enables the configuration of the Ankaios Server. Taking this into account,
+the precedence of means of configuring the Ankaios Server is the following: Ankaios Server CLI arguments, environment variables and after that the
+server configuration file.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Server holds Current State in memory
 `swdd~server-state-in-memory~1`
 
@@ -409,21 +426,6 @@ Tags:
 Needs:
 - impl
 - utest
-
-#### Server loads config file
-`swdd~server-loads-config-file~1`
-
-Status: approved
-
-The config file shall serve as the least prioritized method of updating the server config. It is loaded at the start of the server.
-
-Tags:
-- ServerState
-
-Needs:
-- impl
-- utest
-- stest
 
 ### Distribution of Workload State update sequence
 The following diagram shows the sequence of the distribution and storage of Workload States:
