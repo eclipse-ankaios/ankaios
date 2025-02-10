@@ -12,22 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    ops::Deref,
-    path::{Path, PathBuf},
-};
+use std::{ops::Deref, path::PathBuf};
 
 use common::objects::WorkloadInstanceName;
 
 #[derive(Debug, PartialEq)]
 pub struct WorkloadConfigFilesPath(PathBuf);
 const SUBFOLDER_CONFIG_FILES: &str = "config_files";
-
-impl AsRef<Path> for WorkloadConfigFilesPath {
-    fn as_ref(&self) -> &Path {
-        &self.0
-    }
-}
 
 impl Deref for WorkloadConfigFilesPath {
     type Target = PathBuf;
