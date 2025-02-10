@@ -130,12 +130,33 @@ The following diagram shows the startup sequence of the Ankaios Agent:
 
 ![Startup](plantuml/seq_startup.svg)
 
+#### Agent prepares dedicated run folder
+`swdd~agent-prepares-dedicated-run-folder~1`
+
+Status: approved
+
+The Ankaios agent shall prepare a dedicated run directory during startup by creating a folder with the following name:
+
+`<agent name>_io`
+
+in the specified by the startup arguments location or at the default location under "/tmp/ankaios".
+
+Comment:
+The default folder "/tmp/ankaios" must be created with full permissions if not existing. The specific agent folder will still have scoped permissions, but the default location could be used by other agents running under different users and must be usable.
+
+Rationale:
+The dedicated run folder is required by the agent to store temporary files for the workloads, e.g., Control Interface fifo pipes, mount files, etc.
+
+Needs:
+- impl
+- utest
+
 #### Agent naming convention
 `swdd~agent-naming-convention~1`
 
 Status: approved
 
-The Ankaios CLI shall enforce agent names which respect the naming convention defined in the common library.
+The Ankaios agent shall enforce agent names which respect the naming convention defined in the common library.
 
 Comment:
 We need to check the agent names in order to ensure the proper function of the filtering.
@@ -794,13 +815,19 @@ Needs:
 - stest
 
 ##### RuntimeManager handles existing workloads deletes unneeded workloads
-`swdd~agent-existing-workloads-delete-unneeded~1`
+`swdd~agent-existing-workloads-delete-unneeded~2`
 
 Status: approved
 
-When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall request the RuntimeFacade to delete the workload.
+When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall delete the workload without considering its `DeleteConditions`s by
+* requesting the workload to delete itself if it is in the list of managed workloads or
+* requesting the RuntimeFacade to delete the workload.
 
-Comment: If the RuntimeManager finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload. The Ankaios agent cannot consider the `DeleteCondition`s of the existing workload because the information is not available after an agent restart.
+Rationale:
+Unneeded workloads are only handled after a downtime of either the server, the agent or both. The Ankaios agent cannot consider the `DeleteCondition`s of the existing workload because the information was missed during the downtime and is not available.
+
+Comment:
+In case of an agent downtime, no workload object is available and the unneeded workload can only be deleted via the runtime without going through the object. If there is an object, it must be deleted to clean up the system.
 
 Tags:
 - RuntimeManager
@@ -1261,7 +1288,7 @@ Needs:
 - stest
 
 #### Agent handles new workload operations
-`swdd~agent-handles-new-workload-operations`
+`swdd~agent-handles-new-workload-operations~1`
 
 Status: approved
 
@@ -3169,12 +3196,30 @@ Needs:
 - impl
 - utest
 
+#### Rules without segments never match
+`swdd~agent-authorizing-rules-without-segments-never-match~1`
+
+Status: approved
+
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow or deny rule,
+the Authorizer shall consider them not matching if the rule has no segments.
+
+Comment:
+A rule with no segments is created when the filter mask of the rule is empty. Although such configurations are explicitly forbidden at the verification step, the use-case must be handled also at the authorizer level as it is security related.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
 #### Matching of rule elements
 `swdd~agent-authorizing-matching-rules-elements~1`
 
 Status: approved
 
-When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of a deny rule,
+When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of an allow or deny rule,
 the Authorizer shall consider them matching if one of the following is true:
 
 * both segments are the same

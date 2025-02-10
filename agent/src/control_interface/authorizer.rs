@@ -20,7 +20,7 @@ use common::{
     commands::Request,
     objects::{AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum},
 };
-use path_pattern::{AllowPathPattern, DenyPathPattern, PathPattern};
+use path_pattern::{AllowPathPattern, DenyPathPattern, PathPattern, PathPatternMatcher};
 #[cfg(not(test))]
 use rule::Rule;
 
@@ -236,7 +236,7 @@ mod test {
 
     use super::super::authorizer::path_pattern::{AllowPathPattern, DenyPathPattern};
 
-    use super::{path::Path, path_pattern::PathPattern, Authorizer};
+    use super::{path::Path, path_pattern::PathPatternMatcher, Authorizer};
 
     const MATCHING_PATH: &str = "matching.path";
     const MATCHING_PATH_2: &str = "matching.path.2";
@@ -268,7 +268,7 @@ mod test {
         }
     }
 
-    impl<T> PathPattern for MockRule<T> {
+    impl<T> PathPatternMatcher for MockRule<T> {
         fn matches(&self, path: &Path) -> (bool, String) {
             if path.to_string() == MATCHING_PATH
                 || path.to_string() == MATCHING_PATH_2

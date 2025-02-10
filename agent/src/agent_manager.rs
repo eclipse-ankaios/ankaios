@@ -30,6 +30,32 @@ use crate::workload_state::WorkloadStateReceiver;
 
 const RESOURCE_MEASUREMENT_INTERVAL_TICK: std::time::Duration = tokio::time::Duration::from_secs(2);
 
+struct ResourceMonitor {
+    refresh_kind: RefreshKind,
+    sys: System,
+}
+
+impl ResourceMonitor {
+    fn new() -> ResourceMonitor {
+        let refresh_kind = RefreshKind::new()
+            .with_cpu(CpuRefreshKind::new().with_cpu_usage())
+            .with_memory(MemoryRefreshKind::new().with_ram());
+        ResourceMonitor {
+            refresh_kind,
+            sys: System::new_with_specifics(refresh_kind),
+        }
+    }
+
+    fn sample_resource_usage(&mut self) -> (CpuUsage, FreeMemory) {
+        self.sys.refresh_specifics(self.refresh_kind);
+
+        let cpu_usage = self.sys.global_cpu_usage();
+        let free_memory = self.sys.free_memory();
+
+        (CpuUsage::new(cpu_usage), FreeMemory { free_memory })
+    }
+}
+
 // [impl->swdd~agent-shall-use-interfaces-to-server~1]
 pub struct AgentManager {
     agent_name: String,
@@ -39,6 +65,7 @@ pub struct AgentManager {
     to_server: ToServerSender,
     workload_state_receiver: WorkloadStateReceiver,
     workload_state_store: WorkloadStateStore,
+    res_monitor: ResourceMonitor,
 }
 
 impl AgentManager {
@@ -56,6 +83,7 @@ impl AgentManager {
             to_server,
             workload_state_receiver,
             workload_state_store: WorkloadStateStore::new(),
+            res_monitor: ResourceMonitor::new(),
         }
     }
 
@@ -206,29 +234,20 @@ impl AgentManager {
 
     // [impl->swdd~agent-sends-node-resource-availability-to-server~1]
     async fn measure_and_forward_resource_availability(&mut self) {
-        let mut sys = System::new_with_specifics(
-            RefreshKind::new()
-                .with_cpu(CpuRefreshKind::everything())
-                .with_memory(MemoryRefreshKind::everything()),
-        );
-
-        sys.refresh_all();
-
-        let cpu_usage = sys.global_cpu_usage();
-        let free_memory = sys.free_memory();
+        let (cpu_usage, free_memory) = self.res_monitor.sample_resource_usage();
 
         log::trace!(
             "Agent '{}' reports resource usage: CPU Usage: {}%, Free Memory: {}B",
             self.agent_name,
-            cpu_usage,
-            free_memory,
+            cpu_usage.cpu_usage,
+            free_memory.free_memory,
         );
 
         self.to_server
             .agent_load_status(AgentLoadStatus {
                 agent_name: self.agent_name.clone(),
-                cpu_usage: CpuUsage::new(cpu_usage),
-                free_memory: FreeMemory { free_memory },
+                cpu_usage,
+                free_memory,
             })
             .await
             .unwrap_or_illegal_state();
@@ -580,7 +599,6 @@ mod tests {
         let result = server_receiver.recv().await.unwrap();
         if let ToServer::AgentLoadStatus(load_status) = result {
             assert_eq!(load_status.agent_name, AGENT_NAME.to_string());
-            assert_ne!(load_status.cpu_usage.cpu_usage, 0);
             assert_ne!(load_status.cpu_usage.cpu_usage, 0);
         } else {
             panic!("Expected AgentLoadStatus, got something else");

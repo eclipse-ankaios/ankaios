@@ -606,7 +606,7 @@ The controller workload is forbidden to ${operation} on ${filter_mask}
     The controller workload sends initial hello with correct version
 
 The controller workload does not send hello
-    internal_allow_control_interface    read    ${EMPTY}
+    internal_allow_control_interface    read    *
 
 The controller workload sends initial hello with correct version
     internal_send_initial_hello    ${ANKAIOS_VERSION}

@@ -54,6 +54,12 @@ impl Default for ConfigRenderer {
     fn default() -> Self {
         let mut template_engine = Handlebars::new();
         template_engine.set_strict_mode(true); // enable throwing render errors if context data is valid
+        template_engine.register_escape_fn(handlebars::no_escape); // prevent escaping like double quotes to &quot; ...
+
+        // [impl->swdd~config-renderer-supports-rendering-with-keeping-line-indent~1]
+        template_engine
+            .register_partial("indent", "{{content}}")
+            .unwrap();
         Self { template_engine }
     }
 }
@@ -86,7 +92,7 @@ impl ConfigRenderer {
 
             rendered_workloads.insert(workload_name.clone(), workload_spec);
         }
-        log::debug!("Rendered CompleteState: {:?}", rendered_workloads);
+        log::trace!("Rendered CompleteState: {:?}", rendered_workloads);
         Ok(rendered_workloads)
     }
 
@@ -166,7 +172,7 @@ mod tests {
 
     use common::objects::{
         generate_test_configs, generate_test_stored_workload_spec_with_config,
-        generate_test_workload_spec_with_runtime_config,
+        generate_test_workload_spec_with_runtime_config, ConfigItem,
     };
 
     const WORKLOAD_NAME_1: &str = "workload_1";
@@ -361,5 +367,90 @@ mod tests {
         let renderer = ConfigRenderer::default();
 
         assert!(renderer.render_workloads(&workloads, &configs).is_err());
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    // [utest->swdd~config-renderer-supports-rendering-with-keeping-line-indent~1]
+    #[test]
+    fn utest_render_workloads_with_keeping_indentation_level_with_partial() {
+        let runtime_config_with_partial_template = r#"
+        some:
+          keys:
+            before:
+              config_with_indent: |
+                {{> indent content=ref1}}"#;
+
+        let mut stored_workload = generate_test_stored_workload_spec_with_config(
+            AGENT_A,
+            RUNTIME,
+            runtime_config_with_partial_template,
+        );
+
+        stored_workload.configs = HashMap::from([("ref1".to_owned(), "config_1".to_owned())]);
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let multi_line_config_value = "value_1\nvalue_2\nvalue_3".to_string();
+        let configs = HashMap::from([(
+            "config_1".to_string(),
+            ConfigItem::String(multi_line_config_value),
+        )]);
+        let renderer = ConfigRenderer::default();
+
+        let render_result = renderer.render_workloads(&workloads, &configs);
+        assert!(render_result.is_ok());
+        let rendered_workloads = render_result.unwrap();
+
+        let workload = rendered_workloads.get(WORKLOAD_NAME_1).unwrap();
+
+        let expected_expanded_runtime_config = r#"
+        some:
+          keys:
+            before:
+              config_with_indent: |
+                value_1
+                value_2
+                value_3"#;
+
+        assert_eq!(workload.runtime_config, expected_expanded_runtime_config);
+    }
+
+    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    #[test]
+    fn utest_render_workloads_prevent_escaping_special_characters() {
+        const CONFIG_VALUE: &str = "value\"with\"escape\'characters\'";
+
+        let mut stored_workload = generate_test_stored_workload_spec_with_config(
+            AGENT_A,
+            RUNTIME,
+            "config_of_special_char_sequences: {{special_conf}}",
+        );
+
+        stored_workload.configs =
+            HashMap::from([("special_conf".into(), "config_special_chars".into())]);
+
+        let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
+        let configs = HashMap::from([(
+            "config_special_chars".to_string(),
+            ConfigItem::String(CONFIG_VALUE.to_owned()),
+        )]);
+
+        let renderer = ConfigRenderer::default();
+
+        let expected_workload_spec = generate_test_workload_spec_with_runtime_config(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+            format!("config_of_special_char_sequences: {CONFIG_VALUE}"),
+        );
+
+        let result = renderer.render_workloads(&workloads, &configs);
+
+        assert_eq!(
+            Ok(RenderedWorkloads::from([(
+                WORKLOAD_NAME_1.to_owned(),
+                expected_workload_spec
+            )])),
+            result
+        );
     }
 }

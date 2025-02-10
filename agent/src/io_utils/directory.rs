@@ -14,25 +14,23 @@
 
 use std::path::PathBuf;
 
+use super::fs::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
-use super::filesystem::FileSystem;
-use super::filesystem::FileSystemError;
+use crate::io_utils::filesystem;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Directory {
     path: PathBuf,
-    filesystem: FileSystem,
 }
 
 impl Directory {
     pub fn new(path: PathBuf) -> Result<Self, FileSystemError> {
-        let filesystem = FileSystem::new();
         if path.exists() {
             log::trace!("Reusing existing directory '{:?}'", path);
-            return Ok(Self { path, filesystem });
+            return Ok(Self { path });
         }
-        match filesystem.make_dir(&path) {
-            Ok(_) => Ok(Self { path, filesystem }),
+        match filesystem::make_dir(&path) {
+            Ok(_) => Ok(Self { path }),
             Err(err) => Err(err),
         }
     }
@@ -44,7 +42,7 @@ impl Directory {
 impl Drop for Directory {
     fn drop(&mut self) {
         log::debug!("Deleting directory '{:?}'", self.path);
-        if let Err(err) = self.filesystem.remove_dir(&self.path) {
+        if let Err(err) = filesystem::remove_dir(&self.path) {
             log::warn!("Could not delete {:?}: {err}", self.path);
         }
     }
@@ -103,26 +101,28 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
-    use crate::control_interface::{filesystem::FileSystemError, MockFileSystem};
-    use mockall::predicate;
-
     use super::Directory;
+
+    use crate::io_utils::mock_filesystem;
+    use crate::io_utils::FileSystemError;
+
+    use mockall::predicate;
 
     #[test]
     fn utest_directory_new_ok_and_get_path_valid() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
-        let directory_mock_context = MockFileSystem::new_context();
-        directory_mock_context.expect().return_once(|| {
-            let mut mock = MockFileSystem::default();
-            mock.expect_make_dir()
-                .with(predicate::eq(Path::new("test_path").to_path_buf()))
-                .return_once(|_| Ok(()));
-            mock.expect_remove_dir()
-                .with(predicate::eq(Path::new("test_path").to_path_buf()))
-                .return_once(|_| Ok(()));
-            mock
-        });
+        let mk_dir_context = mock_filesystem::make_dir_context();
+        mk_dir_context
+            .expect()
+            .with(predicate::eq(Path::new("test_path").to_path_buf()))
+            .return_once(|_| Ok(()));
+
+        let rm_dir_context = mock_filesystem::remove_dir_context();
+        rm_dir_context
+            .expect()
+            .with(predicate::eq(Path::new("test_path").to_path_buf()))
+            .return_once(|_| Ok(()));
 
         let directory = Directory::new(Path::new("test_path").to_path_buf());
         assert!(directory.is_ok());
@@ -139,29 +139,28 @@ mod tests {
     fn utest_directory_new_failed() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
 
-        let directory_mock_context = MockFileSystem::new_context();
-        directory_mock_context.expect().return_once(|| {
-            let mut mock = MockFileSystem::default();
-            mock.expect_make_dir()
-                .with(predicate::eq(Path::new("test_path").to_path_buf()))
-                .return_once(|_| {
-                    Err(FileSystemError::CreateDirectory(
-                        OsString::from_str("Could not create directory").unwrap(),
-                        std::io::ErrorKind::Other,
-                    ))
-                });
-            mock.expect_remove_dir().never();
-            mock
-        });
+        let mk_dir_context = mock_filesystem::make_dir_context();
+        mk_dir_context
+            .expect()
+            .with(predicate::eq(Path::new("test_path").to_path_buf()))
+            .return_once(|_| {
+                Err(FileSystemError::CreateDirectory(
+                    OsString::from_str("Could not create directory").unwrap(),
+                    std::io::ErrorKind::Other,
+                ))
+            });
+
+        let rm_dir_context = mock_filesystem::remove_dir_context();
+        rm_dir_context.expect().never();
 
         let directory = Directory::new(Path::new("test_path").to_path_buf());
 
         assert_eq!(
-            directory,
-            Err(FileSystemError::CreateDirectory(
+            directory.unwrap_err(),
+            FileSystemError::CreateDirectory(
                 OsString::from_str("Could not create directory").unwrap(),
                 std::io::ErrorKind::Other,
-            ),)
+            )
         );
     }
     #[test]
@@ -171,28 +170,29 @@ mod tests {
         let actual_error_list: Arc<Mutex<Vec<Result<(), FileSystemError>>>> =
             Arc::new(Mutex::from(vec![]));
         let actual_error_list_clone = actual_error_list.clone();
-        let directory_mock_context = MockFileSystem::new_context();
-        directory_mock_context.expect().return_once(move || {
-            let mut mock = MockFileSystem::default();
-            mock.expect_make_dir()
-                .with(predicate::eq(Path::new("test_path").to_path_buf()))
-                .return_once(|_| Ok(()));
-            mock.expect_remove_dir()
-                .with(predicate::eq(Path::new("test_path").to_path_buf()))
-                .return_once(move |_| {
-                    actual_error_list_clone.lock().unwrap().push(Err(
-                        FileSystemError::RemoveDirectory(
-                            OsString::from_str("Could not remove directory").unwrap(),
-                            std::io::ErrorKind::Other,
-                        ),
-                    ));
-                    Err(FileSystemError::RemoveDirectory(
+
+        let mk_dir_context = mock_filesystem::make_dir_context();
+        mk_dir_context
+            .expect()
+            .with(predicate::eq(Path::new("test_path").to_path_buf()))
+            .return_once(|_| Ok(()));
+
+        let rm_dir_context = mock_filesystem::remove_dir_context();
+        rm_dir_context
+            .expect()
+            .with(predicate::eq(Path::new("test_path").to_path_buf()))
+            .return_once(move |_| {
+                actual_error_list_clone.lock().unwrap().push(Err(
+                    FileSystemError::RemoveDirectory(
                         OsString::from_str("Could not remove directory").unwrap(),
                         std::io::ErrorKind::Other,
-                    ))
-                });
-            mock
-        });
+                    ),
+                ));
+                Err(FileSystemError::RemoveDirectory(
+                    OsString::from_str("Could not remove directory").unwrap(),
+                    std::io::ErrorKind::Other,
+                ))
+            });
 
         let directory = Directory::new(Path::new("test_path").to_path_buf());
         assert!(directory.is_ok());

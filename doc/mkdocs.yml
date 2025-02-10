@@ -76,6 +76,8 @@ nav:
     - usage/awesome-ankaios.md
     - usage/mtls-setup.md
     - usage/shell-completion.md
+    - Manifest:
+      - usage/manifest/config-rendering.md
     - Upgrading:
       - usage/upgrading/v0_2_to_v0_3.md
       - usage/upgrading/v0_3_to_v0_4.md

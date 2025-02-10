@@ -660,12 +660,12 @@ Needs:
 - utest
 - stest
 
-##### Checking naming conventions
-`swdd~server-naming-convention~1`
+##### Checking desired state field conventions
+`swdd~server-desired-state-field-conventions~1`
 
 Status: approved
 
-When the Ankaios Server gets an UpdateStateRequest, the server shall enforce the naming constraints defined in the common library.
+When the Ankaios Server gets an UpdateStateRequest, the server shall enforce the desired state field conventions defined in the common library.
 
 Comment:
 We need to check the names of both the workload and agent names in order to ensure the proper function of the filtering.
@@ -819,6 +819,27 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### ConfigRenderer supports rendering with keeping line indent
+`swdd~config-renderer-supports-rendering-with-keeping-line-indent~1`
+
+Status: approved
+
+The ConfigRenderer shall support rendering templates with keeping line indentation.
+
+Rationale:
+This ensures the validity of certain file layouts that rely on the indentation level of the content when replacing the template with a multi-line config value.
+
+Comment:
+To support keeping the line indentation, a customized templated string syntax is used: `{{> indent content=<config_item_reference>}}` where `conifg_item_reference` is the path to the referenced config value.
+
+Tags:
+- ConfigRenderer
+
+Needs:
+- impl
+- utest
+- stest
 
 #### ServerState rejects state with cycle
 `swdd~server-state-rejects-state-with-cyclic-dependencies~1`
