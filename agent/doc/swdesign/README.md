@@ -999,7 +999,7 @@ When the WorkloadControlLoop receives a create command, the WorkloadControlLoop 
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
 
 Comment:
-For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows.
+For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows. The runtime connector receives a host file path/mount point mapping to be able to mount the files.
 
 Rationale:
 The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
