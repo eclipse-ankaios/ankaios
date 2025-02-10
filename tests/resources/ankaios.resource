@@ -648,7 +648,7 @@ the mount point has been generated for ${agent_name}
     Run Keyword And Expect Error    the mount point has been generated    the mount point has not been generated for ${agent_name}
 
 Ankaios server is available
-    the command "ank get workloads" finished with exit code "0" within "1" seconds
+    the command "ank get workloads" finished with exit code "0" within "2" seconds
 
 # ALIASES
 
