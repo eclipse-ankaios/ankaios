@@ -25,6 +25,26 @@ Please note that the Ankaios Agent could also run on the same node as the Server
 
 ### Design decisions
 
+#### Create a workload config file based on its mount point on the host file system
+`swdd~agent-creates-config-file-based-on-mount-point-on-host-file-system~1`
+
+Status: approved
+
+An Ankaios agent creates a workload's config file on the host file system in the same directory structure as the mount point of the config file.
+
+Rationale:
+
+Creating the exact same folder structure according to the mount point prevents naming and mapping issues. It allows the creation of multiple files with the same name for different mount points on the host file system with respect to a many-to-many relationship for workloads and config files.
+
+Assumptions:
+
+No assumptions were taken.
+
+Considered alternatives:
+
+- Create a config file with a uuid as filename: increases complexity when debugging the config file mount
+- Create a config file in a subdirectory named by hashing the mount point path: affects performance when using more secure hash algorithms
+
 ## Structural view
 
 The following diagram shows the structural view of the Ankaios Agent:
@@ -89,6 +109,10 @@ The ControlInterface is responsible for setting up the communication interface b
 The Authorizer checks for every request send from a workload to the Ankaios agent,
 if the workload is allowed to execute this request.
 
+### ConfigFilesCreator
+
+The ConfigFilesCreator is responsible for creating a workload's configuration files on the host file system.
+
 ### RuntimeConnectorInterfaces
 
 This is not really a component but a collection of traits that define the "requirements" towards specific runtime connectors s.t. they can be used by Ankaios. The following three traits specify the interface of the connectors where for one of them (state checker) a reusable default implementation is provided:
@@ -124,6 +148,7 @@ They are used to connect modules in the Ankaios Agent, more precisely they conne
 ## Behavioral view
 
 This chapter defines the runtime behavior of the Ankaios Agent in details. The following chapters show essential parts of the behavior and describe the requirements towards the Ankaios Agent.
+
 ### Startup sequence
 
 The following diagram shows the startup sequence of the Ankaios Agent:
@@ -574,7 +599,7 @@ Status: approved
 
 The Control Interface Instance shall create the Control Interface pipes at the following path:
 
-    `<Agent run folder>/<Workload execution instance name>/`
+    `<Agent run folder>/<Workload name>.<runtime config hash>/control_interface`
 
 Rationale:
 The Ankaios Agent needs a unique, reproducible name to be able to make the mapping between a workload execution instance and a control interface pipes instance.
@@ -720,7 +745,7 @@ Needs:
 
 Status: approved
 
-When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
+When the RuntimeFacade gets a request to create a workload, the RuntimeFacade shall:
 * start the WorkloadControlLoop waiting for WorkloadCommands
 * create a new ControlInterface instance for the new workload if the workload has access rules configured
 * request the create of the workload by sending a create command to the WorkloadControlLoop
@@ -776,18 +801,18 @@ Needs:
 - utest
 
 ##### RuntimeManager handles existing workloads replace updated Workloads
-`swdd~agent-existing-workloads-replace-updated~3`
+`swdd~agent-existing-workloads-replace-updated~4`
 
 Status: approved
 
 When the agent handles existing workloads, for each found existing workload which is requested to be started and either the workload's configuration has changed or the workload is not in state running or succeeded, the RuntimeManager shall do the following:
 
-- request the RuntimeFacade to delete the existing workload
-- request the RuntimeFacade to create the workload
+- request the RuntimeFacade to resume the existing workload if it does not exist in the list of managed workloads
+- request an update of the existing workload with the new workload configuration
 
-Comment: The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance. The delete operation is executed immediately without considering the `DeleteCondition`s of the workload. The create operation is executed with considering the inter-workload dependencies of the workload.
+Comment: The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance. The delete operation of the update is executed immediately without considering the `DeleteCondition`s of the workload. The create operation of the update is executed with considering the inter-workload dependencies of the workload.
 
-Rationale: The immediate delete prevents the worst case that the workload is existing a long period of time on the Runtime while the create is still pending because of unfulfilled inter-workload dependencies. The Ankaios agent cannot consider the `DeleteCondition`s because the information about the delete dependencies of the existing workload is not available anymore after an agent restart.
+Rationale: The immediate delete operation of the update prevents the worst case that the workload is existing a long period of time on the Runtime while the create is still pending because of unfulfilled inter-workload dependencies. The Ankaios agent cannot consider the `DeleteCondition`s because the information about the delete dependencies of the existing workload is not available anymore after an agent restart.
 
 Tags:
 - RuntimeManager
@@ -837,37 +862,18 @@ Needs:
 - utest
 
 ##### RuntimeFacade delete old workload
-`swdd~agent-delete-old-workload~2`
+`swdd~agent-delete-old-workload~3`
 
 Status: approved
 
 When the RuntimeFacade is requested to delete the workload, then the RuntimeFacade shall delete a workload by:
 * sending a `Stopping(RequestedAtRuntime)` workload state for that workload
 * deleting the workload via the runtime connector
+* delete the workload subfolder in the agent's run folder
 * sending a `Removed` workload state for that workload after the deletion was successful or `Stopping(DeleteFailed)` upon failure
 
 Comment:
 This delete is done by the specific runtime for a workload Id. No internal workload object is involved in this action.
-
-Tags:
-- RuntimeFacade
-
-Needs:
-- impl
-- utest
-
-##### RuntimeFacade deletes old workload without sending workload states
-`swdd~agent-delete-old-workload-without-sending-workload-states~1`
-
-Status: approved
-
-When the RuntimeFacade is requested to delete the workload and the flag `report_workload_states_for_workload` is false, then the RuntimeFacade shall delete the workload via the runtime connector without sending workload states.
-
-Comment:
-This delete is done by the specific runtime for a workload Id. No internal workload object is involved in this action.
-
-Rationale:
-The workaround of enabling and disabling the sending of workload states is required until a dedicated workload restart is implemented.
 
 Tags:
 - RuntimeFacade
@@ -983,23 +989,73 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes create command
-`swdd~agent-workload-control-loop-executes-create~3`
+`swdd~agent-workload-control-loop-executes-create~4`
 
 Status: approved
 
 When the WorkloadControlLoop receives a create command, the WorkloadControlLoop shall:
 * send a `Pending(Starting)` with additional information "Triggered at runtime." workload state for that workload
+* request the ConfigFilesCreator to create the config files of the workload on the host file system if the workload has files assigned
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
-* upon successful creation of the workload:
-    * store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
-* upon failed creation of the workload:
-    * send a `Pending(Starting)` workload state with additional information about the current retry counter state, appended by the cause of failure for that workload
 
 Comment:
-For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows.
+For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows. The runtime connector receives a host file path/mount point mapping to be able to mount the files.
 
 Rationale:
 The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+
+Tags:
+- WorkloadControlLoop
+- ConfigFilesCreator
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop updates internal state upon successful workload creation
+`swdd~agent-workload-control-loop-updates-internal-state~1`
+
+Status: approved
+
+When the WorkloadControlLoop created a workload successfully via the corresponding runtime connector, the WorkloadControlLoop shall store the following for the created workload:
+* the new Id
+* the reference to the state checker
+
+Rationale:
+The Id is required to delete a workload via the corresponding runtime connector and the state checker for sending workload states.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop handles failed creation of workload
+`swdd~agent-workload-control-loop-handles-failed-workload-creation~1`
+
+Status: approved
+
+When the WorkloadControlLoop requested the runtime connector to create the workload and the creation failed, the WorkloadControlLoop shall:
+* delete the config files subfolder on the host file system for that workload
+* if the runtime error is of type `unsupported`, send a `Pending(StartingFailed)` workload state with additional information or
+* send a `Pending(Starting)` workload state with additional information about the current retry counter state, appended by the cause of failure for that workload
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+##### WorkloadControlLoop aborts create upon config files creation error
+`swdd~agent-workload-control-loop-aborts-create-upon-config-files-creation-error~1`
+
+Status: approved
+
+When the WorkloadControlLoop requests the ConfigFilesCreator to create the config files for a workload and the creation of the files fails, the WorkloadControlLoop shall:
+* send a `Pending(StartingFailed)` workload state with additional information
+* abort the creation of the workload
 
 Tags:
 - WorkloadControlLoop
@@ -1009,12 +1065,14 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes update command
-`swdd~agent-workload-control-loop-executes-update~2`
+`swdd~agent-workload-control-loop-executes-update~3`
 
 Status: approved
 
 When the WorkloadControlLoop started during the creation of the workload object receives an update command, the WorkloadControlLoop shall:
 * execute a delete command for the old configuration of the workload
+* delete the workload config files subfolder
+* delete the workload subfolder if the old and the new workload instance names are different
 * execute a create command for the new configuration of the workload
 
 Comment:
@@ -1154,7 +1212,7 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes delete command
-`swdd~agent-workload-control-loop-executes-delete~2`
+`swdd~agent-workload-control-loop-executes-delete~3`
 
 Status: approved
 
@@ -1164,6 +1222,7 @@ When the WorkloadControlLoop started during the creation of the workload object 
 * upon successful deletion of the workload:
     * stop the state checker for the workload
     * send a `Removed` workload state for that workload
+    * delete the workload subfolder in the agent's run folder
     * stop the WorkloadControlLoop
 * upon failed deletion of the workload:
     * send a `Stopping(DeleteFailed)` workload state for that workload
@@ -1792,6 +1851,70 @@ Needs:
 - impl
 - utest
 
+### Workload config files
+
+The following diagram describes the behavior when creating a workload with config files.
+
+![Create And Mount Workload Config Files](plantuml/seq_config_files.svg)
+
+#### Config files at a predefined path
+`swdd~location-of-workload-config-files-at-predefined-path~1`
+
+Status: approved
+
+The ConfigFilesCreator shall create all config files of a workload at the following path:
+
+  `<Agent run folder>/<Workload name>.<runtime config hash>/config_files`
+
+Rationale:
+In case of an update or delete, all of a workload's configuration files can be deleted by deleting the subdirectory. Furthermore, grouping configuration files in the specific workload folder prevents naming conflicts and mapping problems when multiple workloads are assigned the same configuration files.
+
+Tags:
+- ConfigFilesCreator
+
+Needs:
+- impl
+- utest
+
+#### ConfigFilesCreator writes config files at a path depending on their mount point
+`swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1`
+
+Status: approved
+
+When the ConfigFilesCreator is triggered with the list of config files assigned to a workload and the predefined config files directory, for each config file, the ConfigFilesCreator shall:
+
+* construct a host file path for the config file by appending the mount point to the predefined path
+* create the directory structure of the constructed path on the host file system
+* write the config file to the constructed host file path with respect to its content type
+* delete all the config files on the host filesystem upon failure
+
+Comment:
+The host file path of an example config file with mount point at `/path/to/text.conf` is `<Agent run folder>/<Workload name>.<runtime config hash>/config_files/path/to/text.conf`. The content type is text-based or binary.
+
+Rational:
+Removing all config files in case of an failure prevents inconsistency issues.
+
+Tags:
+- ConfigFilesCreator
+
+Needs:
+- impl
+- utest
+
+#### ConfigFilesCreator decodes base64 to executable
+`swdd~config-files-creator-decodes-base64-to-binary~1`
+
+Status: approved
+
+When the ConfigFilesCreator is requested to write a config file with content type binary, the ConfigFilesCreator shall decode the base64 content to a collection of bytes.
+
+Tags:
+- ConfigFilesCreator
+
+Needs:
+- impl
+- utest
+
 ### Runtime connector workflows
 
 Ankaios supports multiple runtimes by providing a runtime connector trait specifying the functions that shall be implemented by the runtime.
@@ -2012,6 +2135,22 @@ Needs:
 - impl
 - utest
 
+##### Podman create workload optionally mounts config files
+`swdd~podman-create-workload-mounts-config-files~1`
+
+Status: approved
+
+When the podman runtime connector is called to create a workload and the provided host config file path to mount point mapping is not empty,
+the podman runtime connector shall mount the provided files into the container at the provided mount points in `readonly` mode.
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
 ##### Podman get workload id uses label
 `swdd~podman-get-workload-id-uses-label~1`
 
@@ -2093,6 +2232,24 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### Podman-kube rejects workloads with config files
+`swdd~podman-kube-rejects-workloads-with-config-files~1`
+
+Status: approved
+
+When the podman-kube runtime connector receives a workload with at least one config file assigned, the podman-kube runtime connector shall reject the workload with an error.
+
+Rationale:
+Podman-kube already has a built-in feature for config files (ConfigMaps), and supporting both introduces side effects.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
 
 ##### Podman-kube get name returns `podman-kube`
 `swdd~podman-kube-name-returns-podman-kube~1`

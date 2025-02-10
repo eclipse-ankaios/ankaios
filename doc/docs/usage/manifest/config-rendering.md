@@ -4,8 +4,9 @@ Ankaios supports a shareable configuration approach, which allows configurations
 
 * `agent`
 * `runtimeConfig`
+* the subfields `data` and `binaryData` within the `files` field
 
-For a basic example of sharing configuration with workloads, see [here](../../reference/startup-configuration.md).
+For a basic example of sharing configuration with workloads, see [here](../../reference/startup-configuration.md). For detailed information about using the `files` field, see [here](mount-files.md).
 
 ## Indentation for multi-line configuration
 
@@ -37,7 +38,7 @@ workloads:
           restartPolicy: Never
           containers:
           - name: nginx-container
-            image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+            image: docker.io/nginx:latest
             ports:
             - containerPort: 80
               hostPort: 8080

@@ -27,6 +27,7 @@ mod runtime_connectors;
 pub mod test_helper;
 mod workload_operation;
 
+mod config_files;
 mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
@@ -85,7 +86,7 @@ async fn main() {
     let podman_facade = Box::new(GenericRuntimeFacade::<
         PodmanWorkloadId,
         GenericPollingStateChecker,
-    >::new(podman_runtime));
+    >::new(podman_runtime, run_directory.get_path()));
     let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
     runtime_facade_map.insert(podman_runtime_name, podman_facade);
 
@@ -95,7 +96,7 @@ async fn main() {
     let podman_kube_facade = Box::new(GenericRuntimeFacade::<
         PodmanKubeWorkloadId,
         GenericPollingStateChecker,
-    >::new(podman_kube_runtime));
+    >::new(podman_kube_runtime, run_directory.get_path()));
     runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
 
     // The RuntimeManager currently directly gets the server ToServerInterface, but it shall get the agent manager interface

@@ -14,6 +14,7 @@
 
 pub mod authorizer;
 pub mod control_interface_info;
+mod control_interface_path;
 mod control_interface_task;
 mod fifo;
 mod from_server_channels;
@@ -21,6 +22,7 @@ mod input_output;
 mod reopen_file;
 mod to_ankaios;
 
+pub use control_interface_path::ControlInterfacePath;
 pub use to_ankaios::ToAnkaios;
 
 #[cfg(test)]
@@ -42,12 +44,7 @@ use from_server_channels::FromServerChannels;
 use input_output::InputOutput;
 #[cfg_attr(test, mockall_double::double)]
 use reopen_file::ReopenFile;
-use std::{
-    fmt,
-    fmt::Display,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{fmt, fmt::Display, path::PathBuf, sync::Arc};
 
 use tokio::task::JoinHandle;
 
@@ -77,13 +74,13 @@ pub struct ControlInterface {
 #[cfg_attr(test, automock)]
 impl ControlInterface {
     pub fn new(
-        run_directory: &Path,
+        control_interface_path: &ControlInterfacePath,
         execution_instance_name: &WorkloadInstanceName,
         output_pipe_channel: ToServerSender,
         authorizer: Authorizer,
     ) -> Result<Self, ControlInterfaceError> {
         // [impl->swdd~agent-control-interface-pipes-path-naming~1]
-        match InputOutput::new(execution_instance_name.pipes_folder_name(run_directory)) {
+        match InputOutput::new(control_interface_path.to_path_buf()) {
             Ok(pipes) => {
                 let input_stream = ReopenFile::open(pipes.get_output().get_path());
                 let output_stream = ReopenFile::create(pipes.get_input().get_path());
@@ -148,7 +145,6 @@ impl Drop for ControlInterface {
 #[cfg(test)]
 mod tests {
     use super::ControlInterface;
-    use std::path::Path;
 
     use common::from_server_interface::FromServer;
     use tokio::sync::mpsc;
@@ -160,6 +156,7 @@ mod tests {
         control_interface_task::generate_test_control_interface_task_mock,
         from_server_channels::MockFromServerChannels,
         input_output::generate_test_input_output_mock, reopen_file::MockReopenFile,
+        ControlInterfacePath,
     };
     use common::objects::WorkloadInstanceName;
 
@@ -194,7 +191,7 @@ mod tests {
         let _control_interface_task_mock = generate_test_control_interface_task_mock();
 
         let control_interface = ControlInterface::new(
-            Path::new("api_pipes_location"),
+            &ControlInterfacePath::new("api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910/control_interface".into()),
             &WorkloadInstanceName::builder()
                 .workload_name("workload_name_1")
                 .config(&String::from(CONFIG))
@@ -209,7 +206,7 @@ mod tests {
                 .get_api_location()
                 .as_os_str()
                 .to_string_lossy(),
-            "api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910"
+            "api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910/control_interface"
         );
     }
 
@@ -244,7 +241,7 @@ mod tests {
         let _control_interface_task_mock = generate_test_control_interface_task_mock();
 
         let control_interface = ControlInterface::new(
-            Path::new("api_pipes_location"),
+            &ControlInterfacePath::new("api_pipes_location".into()),
             &WorkloadInstanceName::builder()
                 .agent_name("workload_name_1")
                 .config(&String::from(CONFIG))
