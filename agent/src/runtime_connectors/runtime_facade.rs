@@ -280,13 +280,17 @@ impl<
         );
 
         // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
-        let control_interface = control_interface_info.and_then(|info| { if workload_spec.needs_control_interface() {
+        let control_interface = if let Some(info) = control_interface_info {
             let control_interface_path = info.get_control_interface_path().clone();
             let output_pipe_sender = info.get_to_server_sender();
             let instance_name = info.get_instance_name().clone();
             let authorizer = info.move_authorizer();
-            match ControlInterface::new(&control_interface_path, &instance_name, output_pipe_sender, authorizer)
-            {
+            match ControlInterface::new(
+                &control_interface_path,
+                &instance_name,
+                output_pipe_sender,
+                authorizer,
+            ) {
                 Ok(control_interface) => Some(control_interface),
                 Err(err) => {
                     log::warn!(
@@ -298,12 +302,10 @@ impl<
                 }
             }
         } else {
-            log::info!(
-                    "No control interface access rights specified for workload '{}'. Skipping creation of control interface.",
-                    workload_spec.instance_name.clone().workload_name()
-                );
+            log::info!("No control interface access rights specified for resumed workload '{}'. Skipping creation of control interface.",
+                workload_spec.instance_name.clone().workload_name());
             None
-        }});
+        };
 
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
@@ -647,8 +649,6 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let control_interface_info_mock = MockControlInterfaceInfo::default();
-
         let control_interface_new_context = MockControlInterface::new_context();
         control_interface_new_context.expect().never();
 
@@ -685,7 +685,7 @@ mod tests {
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
             workload_spec.clone(),
-            Some(control_interface_info_mock),
+            None,
             &wl_state_sender,
         );
 
