@@ -238,7 +238,7 @@ impl<
                 .create()
                 .await
                 .unwrap_or_else(|err| {
-                    log::warn!("Failed to send workload command retry: '{}'", err);
+                    log::warn!("Failed to send workload command create: '{}'", err);
                 });
 
             let control_loop_state = ControlLoopState::builder()
@@ -308,7 +308,7 @@ impl<
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
         workload_command_sender.resume().unwrap_or_else(|err| {
-            log::warn!("Failed to send workload command retry: '{}'", err);
+            log::warn!("Failed to send workload command resume: '{}'", err);
         });
 
         let run_folder = self.run_folder.clone();
