@@ -1,6 +1,6 @@
 apiVersion: v0.1
 workloads:
-  sleepy:
+  nginx:
     runtime: podman
     agent: agent_A
     restartPolicy: NEVER
@@ -8,5 +8,5 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/tests/sleepy:latest
-      commandOptions: ["--name", "test_workload1"]
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+      commandOptions: ["-p", "8081:80"]

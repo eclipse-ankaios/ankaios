@@ -1,7 +1,7 @@
 desiredState:
   apiVersion: v0.1
   workloads:
-    nginx_workload_with_a_really_long_name_that_will_cause_test_failure:
+    sleepy_workload_with_a_really_long_name_that_will_cause_test_failure:
       runtime: podman
       agent: agent_A
       restartPolicy: ALWAYS
@@ -9,5 +9,4 @@ desiredState:
         - key: owner
           value: Ankaios team
       runtimeConfig: |
-        image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
-        commandOptions: ["-p", "8081:80", "--name", "test_workload1"]
+        image: ghcr.io/eclipse-ankaios/tests/sleepy:latest

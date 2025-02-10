@@ -19,9 +19,14 @@ set -e
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 base_dir="$script_dir/.."
 tools_dir="$base_dir/tools"
-tests_dir="$base_dir/tests"
 target_dir="$base_dir/target/robot_tests_result"
 default_executable_dir="$base_dir/target/x86_64-unknown-linux-musl/debug"
+
+cleanup_system() {
+    echo "Cleanup system..."
+    podman system migrate
+    $tools_dir/dev_scripts/ankaios-clean
+}
 
 check_executable() {
     if [[ -x "$1" ]]
@@ -41,6 +46,8 @@ fi
 ANK=$ANK_BIN_DIR/ank
 ANK_SERVER=$ANK_BIN_DIR/ank-server
 ANK_AGENT=$ANK_BIN_DIR/ank-agent
+
+cleanup_system
 
 check_executable $ANK
 check_executable $ANK_SERVER
