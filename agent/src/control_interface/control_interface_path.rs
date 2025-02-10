@@ -12,9 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::PathBuf;
-
 use common::objects::WorkloadInstanceName;
+use std::{ops::Deref, path::PathBuf};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ControlInterfacePath(PathBuf);
@@ -24,8 +23,12 @@ impl ControlInterfacePath {
     pub fn new(path: PathBuf) -> Self {
         Self(path)
     }
+}
 
-    pub fn as_path_buf(&self) -> &PathBuf {
+impl Deref for ControlInterfacePath {
+    type Target = PathBuf;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }

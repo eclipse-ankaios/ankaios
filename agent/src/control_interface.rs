@@ -80,7 +80,7 @@ impl ControlInterface {
         authorizer: Authorizer,
     ) -> Result<Self, ControlInterfaceError> {
         // [impl->swdd~agent-control-interface-pipes-path-naming~1]
-        match InputOutput::new(control_interface_path.as_path_buf().to_owned()) {
+        match InputOutput::new(control_interface_path.to_path_buf()) {
             Ok(pipes) => {
                 let input_stream = ReopenFile::open(pipes.get_output().get_path());
                 let output_stream = ReopenFile::create(pipes.get_input().get_path());

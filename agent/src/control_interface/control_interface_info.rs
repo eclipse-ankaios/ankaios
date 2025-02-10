@@ -113,7 +113,7 @@ mod tests {
 
         assert_eq!(
             Path::new(PIPES_LOCATION).to_path_buf(),
-            *new_context_info.get_control_interface_path().as_path_buf()
+            *new_context_info.get_control_interface_path().as_path()
         );
         assert_eq!(
             workload_instance_name,
@@ -134,8 +134,8 @@ mod tests {
         );
 
         assert_eq!(
-            &path.to_path_buf(),
-            new_context_info.get_control_interface_path().as_path_buf()
+            path.to_path_buf(),
+            new_context_info.get_control_interface_path().to_path_buf()
         );
     }
 

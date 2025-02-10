@@ -359,7 +359,7 @@ impl WorkloadControlLoop {
                 control_loop_state
                     .control_interface_path
                     .clone()
-                    .map(|path| path.as_path_buf().to_owned()),
+                    .map(|path| path.to_path_buf()),
                 control_loop_state
                     .state_checker_workload_state_sender
                     .clone(),
