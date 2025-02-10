@@ -31,7 +31,7 @@ ${new_state_yaml_file}          ${EMPTY}
 # [itest->swdd~server-handle-cli-communication~1]
 Test Ankaios CLI update workload
     [Setup]    Run Keywords    Setup Ankaios
-    ...    AND    Set Global Variable    ${default_state_yaml_file}    ${CONFIGS_DIR}/default.yaml
+    ...    AND    Set Global Variable    ${default_state_yaml_file}    ${CONFIGS_DIR}/nginx.yaml
     ...    AND    Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_update_workload_new_state.yaml
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
@@ -62,7 +62,7 @@ Test Ankaios Podman update workload from empty state
     When user triggers "ank -k get workloads"
     Then list of workloads shall be empty
     When user triggers "ank -k set state desiredState.workloads ${CONFIGS_DIR}/update_state_create_one_workload.yaml"
-    Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+    Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~update-desired-state-with-invalid-version~1]

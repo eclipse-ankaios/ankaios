@@ -25,7 +25,6 @@ ${simple_yaml_file}      ${EMPTY}
 ${manifest12_yaml_file}  ${EMPTY}
 ${manifest1_yaml_file}   ${EMPTY}
 ${manifest2_yaml_file}   ${EMPTY}
-${manifest_no_agent_name_yaml_file}    ${EMPTY}
 ${manifest_wrong_api_version}    ${EMPTY}
 ${manifest_wrong_api_version_format}    ${EMPTY}
 
@@ -44,12 +43,12 @@ Test Ankaios apply workload specifications showing progress via spinner
     When user triggers "ank apply ${manifest12_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
-    And in the last result, the workload "nginx_from_manifest1" shall have the execution state "Pending(Initial)" on agent "agent_A"
-    And in the last result, the workload "nginx_from_manifest1" shall have the execution state "Pending(Starting)" on agent "agent_A"
-    And in the last result, the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And in the last result, the workload "nginx_from_manifest2" shall have the execution state "Pending(Initial)" on agent "agent_A"
-    And in the last result, the workload "nginx_from_manifest2" shall have the execution state "Pending(Starting)" on agent "agent_A"
-    And in the last result, the workload "nginx_from_manifest2" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And in the last result, the workload "sleepy_from_manifest1" shall have the execution state "Pending(Initial)" on agent "agent_A"
+    And in the last result, the workload "sleepy_from_manifest1" shall have the execution state "Pending(Starting)" on agent "agent_A"
+    And in the last result, the workload "sleepy_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And in the last result, the workload "sleepy_from_manifest2" shall have the execution state "Pending(Initial)" on agent "agent_A"
+    And in the last result, the workload "sleepy_from_manifest2" shall have the execution state "Pending(Starting)" on agent "agent_A"
+    And in the last result, the workload "sleepy_from_manifest2" shall have the execution state "Running(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
@@ -70,8 +69,8 @@ Test Ankaios apply workload specifications via Ankaios Manifest files
     When user triggers "ank -v apply ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
-    And the workload "nginx_from_manifest2" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+    And the workload "sleepy_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+    And the workload "sleepy_from_manifest2" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
@@ -88,7 +87,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
     When user triggers "ank apply -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+    And the workload "sleepy_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
@@ -106,39 +105,34 @@ Test Ankaios apply workload specification overwriting the agent names
     When user triggers "ank apply --agent agent_B ${manifest1_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_B" within "20" seconds
+    And the workload "sleepy_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_B" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
 Test Ankaios apply workload specification defining the agent names
     [Setup]           Run Keywords    Setup Ankaios
-    ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
-    ...        AND    Set Global Variable    ${manifest_no_agent}   ${CONFIGS_DIR}/manifest_no_agent_name.yaml
 
     # Preconditions
-    Given Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank apply --agent agent_B ${manifest_no_agent}"
+    When user triggers "ank apply --agent agent_B ${CONFIGS_DIR}/manifest_no_agent_name.yaml"
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "nginx_from_manifest_no_agent_name" shall have the execution state "Running(Ok)" on agent "agent_B" within "20" seconds
+    And the workload "sleepy_from_manifest_no_agent_name" shall have the execution state "Running(Ok)" on agent "agent_B" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
 Test Ankaios apply workload specification without agent name
     [Setup]           Run Keywords    Setup Ankaios
-    ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
-    ...        AND    Set Global Variable    ${manifest_no_agent_name_yaml_file}    ${CONFIGS_DIR}/manifest_no_agent_name.yaml
-
     # Preconditions
-    Given Ankaios server is started with config "${simple_yaml_file}"
+    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank apply ${manifest_no_agent_name_yaml_file}"
+    When user triggers "ank apply ${CONFIGS_DIR}/manifest_no_agent_name.yaml"
     # Asserts
     Then the last command shall finish with an error
     [Teardown]    Clean up Ankaios
@@ -158,8 +152,8 @@ Test Ankaios apply workload specifications via Ankaios Manifest files for deleti
     When user triggers "ank apply -d ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "nginx_from_manifest1" shall not exist within "20" seconds
-    And the workload "nginx_from_manifest2" shall not exist within "20" seconds
+    And the workload "sleepy_from_manifest1" shall not exist within "20" seconds
+    And the workload "sleepy_from_manifest2" shall not exist within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-send-update-state~1]
@@ -177,7 +171,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
     When user triggers "ank apply -d -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "nginx_from_manifest1" shall not exist within "20" seconds
+    And the workload "sleepy_from_manifest1" shall not exist within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-send-update-state~1]
