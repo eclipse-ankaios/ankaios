@@ -18,7 +18,7 @@ A workload specification must contain the following information:
 * `tags`, specify a list of `key` `value`  pairs.
 * `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) is used. Supports templated strings.
 * `configs`: assign configuration items defined in the state's `configs` field to the workload
-* `files`: mount files into a workload, see [here](../usage/manifest/mount-files.md) for details
+* `files`: add config files to a workload, see [here](../usage/manifest/config-files.md) for details
 * `controlInterfaceAccess`, specify the access rights of the workload for the control interface.
 
 Example `startup-config.yaml` file:

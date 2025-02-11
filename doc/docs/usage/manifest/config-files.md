@@ -1,8 +1,8 @@
-# Mount files
+# Config files
 
-Ankaios supports to mount files into a workload. The user defines the mount files in the `files` field of a workload configuration, which supports text and base64 encoded content. The files are mounted in readonly mode. Mount files are not supported for a workload with runtime `podman-kube`. Instead, use the built-in `ConfigMaps` feature of `podman-kube`.
+Ankaios supports to mount config files to a workload. The user defines the config files in the `files` field of a workload configuration, which supports text and base64 encoded content. The files are mounted in readonly mode. Config files are not supported for a workload with runtime `podman-kube`. Instead, use the built-in `ConfigMaps` feature of `podman-kube`.
 
-The following manifest contains a workload with a mounted web server configuration and another workload which outputs the content of a mounted base64 encoded file to the terminal. It also combines the [Ankaios Shareable Configuration Approach](config-rendering.md) with mount files by defining the contents of the mount files once and sharing them with workloads. Ankaios expands the templated subfields `data` and `binaryData` using the handlebars template engine.
+The following manifest contains a workload with a mounted web server configuration and another workload which outputs the content of a mounted base64 encoded file to the terminal. It also combines the [Ankaios Shareable Configuration Approach](config-rendering.md) with config files by defining the contents once and sharing them with workloads. Ankaios expands the templated subfields `data` and `binaryData` using the handlebars template engine.
 
 To get an overview about which workload configuration fields currently support template expansion, see [here](config-rendering.md).
 

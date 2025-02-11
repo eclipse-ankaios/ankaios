@@ -170,7 +170,7 @@ Comment:
 The default folder "/tmp/ankaios" must be created with full permissions if not existing. The specific agent folder will still have scoped permissions, but the default location could be used by other agents running under different users and must be usable.
 
 Rationale:
-The dedicated run folder is required by the agent to store temporary files for the workloads, e.g., Control Interface fifo pipes, mount files, etc.
+The dedicated run folder is required by the agent to store temporary files for the workloads, e.g., Control Interface fifo pipes, config files, etc.
 
 Needs:
 - impl

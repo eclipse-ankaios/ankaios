@@ -6,7 +6,7 @@ Ankaios supports a shareable configuration approach, which allows configurations
 * `runtimeConfig`
 * the subfields `data` and `binaryData` within the `files` field
 
-For a basic example of sharing configuration with workloads, see [here](../../reference/startup-configuration.md). For detailed information about using the `files` field, see [here](mount-files.md).
+For a basic example of sharing configuration with workloads, see [here](../../reference/startup-configuration.md). For detailed information about using the `files` field, see [here](config-files.md).
 
 ## Indentation for multi-line configuration
 
