@@ -354,7 +354,7 @@ message Files {
 }
 
 /**
-* A message describing a File with a mount point and file content.
+* A message describing a file with a mount point and file content.
 */
 message File {
     string mountPoint = 1; /// The path where the file is mounted inside the workload.
@@ -365,7 +365,7 @@ message File {
 }
 
 /**
-* This is a workaround for proto not supporing optional maps
+* This is a workaround for proto not supporting optional maps
 */
 message ConfigMap {
     map<string, ConfigItem> configs = 1;
