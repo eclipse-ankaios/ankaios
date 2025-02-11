@@ -10,8 +10,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
-      commandOptions: ["-p", "8081:80"]
+      image: ghcr.io/eclipse-ankaios/tests/sleepy:latest
   workload_B:
     runtime: podman
     agent: agent_B

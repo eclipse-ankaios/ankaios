@@ -23,13 +23,6 @@ Resource            ../../resources/variables.resource
 Test Setup       Setup Ankaios for Control Interface test
 Test Teardown    Clean up Ankaios
 
-*** Variables ***
-${simple_yaml_file}      ${EMPTY}
-${manifest12_yaml_file}  ${EMPTY}
-${manifest1_yaml_file}   ${EMPTY}
-${manifest2_yaml_file}   ${EMPTY}
-${manifest_no_agent_name_yaml_file}    ${EMPTY}
-
 # [stest->swdd~agent-checks-request-for-authorization~1]
 *** Test Cases ***
 
