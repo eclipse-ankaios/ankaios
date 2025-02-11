@@ -65,4 +65,4 @@ configs:
         }
     }
   # base64 encoded content
-  bin_data: SGVsbG8sIFdvcmxkCg==
+  bin_data: SGVsbG8sIFdvcmxkIQ==

@@ -52,9 +52,13 @@ configs:
         }
     }
   # base64 encoded content
-  bin_data: SGVsbG8sIFdvcmxkCg==
+  bin_data: SGVsbG8sIFdvcmxkIQ==
 ```
 
 1. The contents of the `data` field will be rendered and replaced with the custom web server configuration of `nginx_config` part of the `configs` field below.
 
 2. The contents of the `binaryData` field will be rendered and replaced with the content of `bin_data` part of the `configs` field below.
+
+!!! Note
+
+    Ankaios expects base64 data in the Standard Base64 Encoding including padding according to [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html). Example: `echo -n "Hello, World!" | base64`. Ankaios decodes the base64 data before mounting the file to the workload.
