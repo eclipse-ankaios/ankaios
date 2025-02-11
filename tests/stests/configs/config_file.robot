@@ -12,7 +12,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 *** Settings ***
-Documentation    Tests to verify that ank cli lists configs correctly.
+Documentation    Tests to verify that the configs file are read and respect the priority architecture: cli arguments, env variables and then the config files
 Resource     ../../resources/ankaios.resource
 Resource    ../../resources/variables.resource
 
@@ -22,7 +22,8 @@ Resource    ../../resources/variables.resource
 Test server config file successful start-up
     [Setup]        Setup Ankaios
     # Preconditions
-    Ankaios server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server.conf"
+    Ankaios insecure server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server_with_certificates_paths.conf"
+    And Ankaios server is available
     # Actions
     # Asserts
     [Teardown]    Clean up Ankaios
@@ -31,12 +32,13 @@ Test server config file successful start-up
 Test overwrite config files by cli arguments
     [Setup]        Setup Ankaios
     # Preconditions
-    Ankaios insecure server is started with config "${CONFIGS_DIR}/manifest2.yaml" and server config file "${CONFIGS_DIR}/ank-server.conf"
+    Ankaios insecure server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server.conf"
+    And Ankaios server is available
     And Ankaios insecure agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
     When user triggers "ank -k get workloads"
     # Asserts
-    Then the workload "nginx_from_manifest2" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And the workload "nginx_from_manifest1" shall not exist on agent "agent_A" within "5" seconds
+    Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "simple" shall not exist on agent "agent_A" within "5" seconds
     [Teardown]    Clean up Ankaios

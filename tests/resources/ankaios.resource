@@ -179,7 +179,7 @@ Ankaios insecure server is started with config "${config_path}"
     ...    alias=ank-server
     RETURN    ${server_process}
 
-Ankaios insecure server is started with config "${config_path}" server config file "${server_config_path}"
+Ankaios insecure server is started with config "${config_path}" and server config file "${server_config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-config
