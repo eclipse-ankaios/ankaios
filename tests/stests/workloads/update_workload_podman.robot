@@ -31,7 +31,7 @@ ${new_state_yaml_file}          ${EMPTY}
 # [itest->swdd~server-handle-cli-communication~1]
 Test Ankaios CLI update workload
     [Setup]    Run Keywords    Setup Ankaios
-    ...    AND    Set Global Variable    ${default_state_yaml_file}    ${CONFIGS_DIR}/default.yaml
+    ...    AND    Set Global Variable    ${default_state_yaml_file}    ${CONFIGS_DIR}/nginx.yaml
     ...    AND    Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_update_workload_new_state.yaml
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
@@ -56,13 +56,13 @@ Test Ankaios Podman update workload from empty state
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"
     Then list of workloads shall be empty
     When user triggers "ank -k set state desiredState.workloads ${CONFIGS_DIR}/update_state_create_one_workload.yaml"
-    Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+    Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~update-desired-state-with-invalid-version~1]
@@ -72,7 +72,7 @@ Test Ankaios Podman Update workload with invalid api version
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"
@@ -91,7 +91,7 @@ Test Ankaios Podman Update workload with invalid workload name
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"
@@ -110,7 +110,7 @@ Test Ankaios Podman Update workload with lengthy workload name
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"
@@ -130,7 +130,7 @@ Test Ankaios Podman Update workload with invalid agent name
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"
@@ -148,7 +148,7 @@ Test Ankaios Podman Update workload with missing api version
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started without config
+    And Ankaios server is started without config successfully
     And Ankaios agent is started with name "agent_A"
     # Actions
     When user triggers "ank -k get workloads"

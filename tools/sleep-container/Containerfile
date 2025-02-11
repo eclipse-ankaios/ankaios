@@ -1,0 +1,5 @@
+FROM alpine:latest
+
+COPY sleepy.sh .
+
+CMD ["./sleepy.sh"]
