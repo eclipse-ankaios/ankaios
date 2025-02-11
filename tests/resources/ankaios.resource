@@ -223,11 +223,12 @@ the Ankaios server shall exit with an error code
     Process Should Be Stopped    ${SERVER_PROCESS_HANDLE}
     Should Not Be Equal As Integers   ${process_result.rc}    0
 
-Ankaios server is started without config
+Ankaios server is started without config successfully
     Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
+    Ankaios server is available
 
 Ankaios agent is started with name "${name}" and PEM files: "${ca_pem}" "${crt_pem}" "${key_pem}"
     Start Process
@@ -671,6 +672,8 @@ the mount point has not been generated for ${agent_name}
 the mount point has been generated for ${agent_name}
     Run Keyword And Expect Error    the mount point has been generated    the mount point has not been generated for ${agent_name}
 
+Ankaios server is available
+    the command "%{ANK_BIN_DIR}${/}ank get workloads" finished with exit code "0" within "2" seconds
 
 # ALIASES
 

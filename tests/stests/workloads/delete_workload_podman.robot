@@ -37,14 +37,14 @@ Test Ankaios Podman remove workloads
     And all workloads of agent "agent_B" have an initial execution state
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank -k delete workload nginx"
+    When user triggers "ank -k delete workload sleepy"
     # Asserts
-    Then the workload "nginx" shall not exist on agent "agent_A" within "20" seconds
+    Then the workload "sleepy" shall not exist on agent "agent_A" within "20" seconds
     And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B" within "20" seconds
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "20" seconds
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "20" seconds
     And podman shall not have a container for workload "hello1" on agent "agent_B"
     And podman shall have a container for workload "hello2" on agent "agent_B"
     And podman shall have a container for workload "hello3" on agent "agent_B"
-    And podman shall not have a container for workload "nginx" on agent "agent_A" within "20" seconds
+    And podman shall not have a container for workload "sleepy" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios

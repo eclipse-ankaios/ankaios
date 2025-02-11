@@ -1,9 +1,8 @@
 apiVersion: v0.1
 workloads:
-  nginx_from_manifest2:
+  sleepy_from_manifest2:
     runtime: podman
     restartPolicy: NEVER
     agent: agent_A
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
-      commandOptions: ["-p", "8082:80"]
+      image: ghcr.io/eclipse-ankaios/tests/sleepy:latest
