@@ -792,7 +792,7 @@ Status: approved
 
 When the ConfigRenderer is requested to render the workloads with configuration items, for each provided workload that references config items inside its `configs` field, the ConfigRenderer shall:
 * create a data structure containing memory references to the config items of the CompleteState referenced inside its `configs` field
-* render the workload's `agent`, `runtimeConfig` and `files` fields by replacing each template string with the referenced configuration item content
+* render the workload's `agent`, `runtimeConfig` fields and the subfields `data` and `binaryData` of the `files` field by replacing each template string with the referenced configuration item content
 * create a new workload configuration containing the rendered fields and the new instance name
 
 Comment:
