@@ -396,10 +396,7 @@ impl WorkloadControlLoop {
                         )
                         .await;
 
-                        log::error!(
-                            "Failed to create workload with unrecoverable error: '{}'",
-                            err
-                        );
+                        log::error!("Failed to create workload with error: '{}'", err);
 
                         control_loop_state
                     }
