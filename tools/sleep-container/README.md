@@ -1,6 +1,6 @@
 # Sleepy System Tests container
 
-This container executes a very long sleep and implements a SIGTERM handler that takes care that the workload si quickly stopped by Podman (as opposed to the 10 second wait, if the signal is not handled).
+This container executes a very long sleep and implements a SIGTERM handler that takes care that the workload is quickly stopped by Podman (as opposed to the 10 second wait, if the signal is not handled).
 
 The container is very useful for system test where a running workload is needed, but no ports or anything else is checked.
 
