@@ -51,6 +51,4 @@ desiredState:
               }
           }
       }
-workloadStates: {}
-agents: {}
 
