@@ -539,7 +539,7 @@ mod tests {
         assert!(renderer.render_workloads(&workloads, &configs).is_err());
     }
 
-    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
     // [utest->swdd~config-renderer-supports-rendering-with-keeping-line-indent~1]
     #[test]
     fn utest_render_workloads_with_keeping_indentation_level_with_partial() {
@@ -584,7 +584,7 @@ mod tests {
         assert_eq!(workload.runtime_config, expected_expanded_runtime_config);
     }
 
-    // [utest->swdd~config-renderer-renders-workload-configuration~1]
+    // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_prevent_escaping_special_characters() {
         const CONFIG_VALUE: &str = "value\"with\"escape\'characters\'";
