@@ -593,7 +593,7 @@ Needs:
 - utest
 
 #### Control Interface pipes at predefined path
-`swdd~agent-control-interface-pipes-path-naming~1`
+`swdd~agent-control-interface-pipes-path-naming~2`
 
 Status: approved
 

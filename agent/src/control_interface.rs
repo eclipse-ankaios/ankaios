@@ -79,7 +79,7 @@ impl ControlInterface {
         output_pipe_channel: ToServerSender,
         authorizer: Authorizer,
     ) -> Result<Self, ControlInterfaceError> {
-        // [impl->swdd~agent-control-interface-pipes-path-naming~1]
+        // [impl->swdd~agent-control-interface-pipes-path-naming~2]
         match InputOutput::new(control_interface_path.to_path_buf()) {
             Ok(pipes) => {
                 let input_stream = ReopenFile::open(pipes.get_output().get_path());
@@ -161,7 +161,7 @@ mod tests {
     use common::objects::WorkloadInstanceName;
 
     // [utest->swdd~agent-create-control-interface-pipes-per-workload~2]
-    // [utest->swdd~agent-control-interface-pipes-path-naming~1]
+    // [utest->swdd~agent-control-interface-pipes-path-naming~2]
     #[tokio::test]
     async fn utest_control_interface_get_api_location_returns_valid_location() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
