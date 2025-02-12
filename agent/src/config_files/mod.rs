@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-mod config_file_creator;
-mod config_files_path;
+mod workload_files_creator;
+mod workload_files_path;
 #[cfg(not(test))]
-pub use config_file_creator::ConfigFilesCreator;
+pub use workload_files_creator::WorkloadFilesCreator;
 #[cfg(test)]
-pub use config_file_creator::{ConfigFileCreatorError, MockConfigFilesCreator};
+pub use workload_files_creator::{ConfigFileCreatorError, MockWorkloadFilesCreator};
 #[cfg(test)]
-pub use config_files_path::generate_test_config_files_path;
-pub use config_files_path::WorkloadConfigFilesPath;
+pub use workload_files_path::generate_test_config_files_path;
+pub use workload_files_path::WorkloadFilesPath;

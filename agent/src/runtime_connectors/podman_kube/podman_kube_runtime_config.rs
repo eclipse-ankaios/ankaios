@@ -38,10 +38,10 @@ impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
             ));
         }
 
-        // [impl->swdd~podman-kube-rejects-workloads-with-config-files~1]
+        // [impl->swdd~podman-kube-rejects-workload-files~1]
         if !workload_spec.files.is_empty() {
             return Err(format!(
-                "Workload config files are not supported for runtime {}. Use ConfigMaps instead.",
+                "Workload files are not supported for runtime {}. Use ConfigMaps instead.",
                 PODMAN_KUBE_RUNTIME_NAME
             ));
         }
@@ -97,7 +97,7 @@ mod tests {
         assert!(PodmanKubeRuntimeConfig::try_from(&workload_spec).is_err());
     }
 
-    // [utest->swdd~podman-kube-rejects-workloads-with-config-files~1]
+    // [utest->swdd~podman-kube-rejects-workload-files~1]
     #[tokio::test]
     async fn utest_podman_kube_config_failure_unsupported_files_field() {
         let workload_spec_with_config_files =

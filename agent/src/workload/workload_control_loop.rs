@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config_files::WorkloadConfigFilesPath;
+use crate::config_files::WorkloadFilesPath;
 use crate::control_interface::ControlInterfacePath;
 use crate::io_utils::FileSystemError;
 use crate::runtime_connectors::{RuntimeError, StateChecker};
@@ -29,7 +29,7 @@ use std::str::FromStr;
 use crate::io_utils::filesystem_async;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::config_files::ConfigFilesCreator;
+use crate::config_files::WorkloadFilesCreator;
 
 #[cfg(not(test))]
 const MAX_RETRIES: usize = 20;
@@ -341,7 +341,7 @@ impl WorkloadControlLoop {
                 Ok(mapping) => mapping,
                 Err(err) => {
                     log::error!(
-                        "Failed to create config files for workload '{}': '{}'",
+                        "Failed to create workload files for workload '{}': '{}'",
                         control_loop_state.instance_name(),
                         err
                     );
@@ -381,7 +381,7 @@ impl WorkloadControlLoop {
                 // [impl->swdd~agent-workload-control-loop-handles-failed-workload-creation~1]
                 let current_retry_counter = control_loop_state.retry_counter.current_retry();
 
-                Self::delete_folder(&WorkloadConfigFilesPath::from((
+                Self::delete_folder(&WorkloadFilesPath::from((
                     &control_loop_state.run_folder,
                     &new_instance_name,
                 )))
@@ -432,12 +432,12 @@ impl WorkloadControlLoop {
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         if control_loop_state.workload_spec.has_config_files() {
-            let workload_config_files_dir = WorkloadConfigFilesPath::from((
+            let workload_config_files_dir = WorkloadFilesPath::from((
                 &control_loop_state.run_folder,
                 control_loop_state.instance_name(),
             ));
 
-            match ConfigFilesCreator::create_files(
+            match WorkloadFilesCreator::create_files(
                 &workload_config_files_dir,
                 &control_loop_state.workload_spec.files,
             )
@@ -446,7 +446,7 @@ impl WorkloadControlLoop {
                 Ok(mapping) => Ok(mapping),
                 Err(err) => {
                     let error = Err(err.to_string());
-                    // [impl->swdd~agent-workload-control-loop-aborts-create-upon-config-files-creation-error~1]
+                    // [impl->swdd~agent-workload-control-loop-aborts-create-upon-workload-files-creation-error~1]
                     Self::send_workload_state_to_agent(
                         &control_loop_state.to_agent_workload_state_sender,
                         control_loop_state.instance_name(),
@@ -571,10 +571,10 @@ impl WorkloadControlLoop {
         }
 
         log::debug!(
-            "Deleting the config files of workload '{}'",
+            "Deleting the workload files of workload '{}'",
             control_loop_state.instance_name()
         );
-        Self::delete_folder(&WorkloadConfigFilesPath::from((
+        Self::delete_folder(&WorkloadFilesPath::from((
             &control_loop_state.run_folder,
             control_loop_state.instance_name(),
         )))
@@ -732,7 +732,7 @@ mockall::mock! {
 mod tests {
     use super::{ControlInterfacePath, WorkloadControlLoop};
     use crate::config_files::{
-        ConfigFileCreatorError, MockConfigFilesCreator, WorkloadConfigFilesPath,
+        ConfigFileCreatorError, MockWorkloadFilesCreator, WorkloadFilesPath,
     };
     use crate::io_utils::mock_filesystem_async;
     use crate::runtime_connectors::RuntimeError;
@@ -2898,10 +2898,8 @@ mod tests {
             generate_test_rendered_config_files(),
         );
 
-        let workload_configs_dir = WorkloadConfigFilesPath::from((
-            &PathBuf::from(RUN_FOLDER),
-            &workload_spec.instance_name,
-        ));
+        let workload_configs_dir =
+            WorkloadFilesPath::from((&PathBuf::from(RUN_FOLDER), &workload_spec.instance_name));
 
         let expected_mount_point_mappings = HashMap::from([
             (
@@ -2924,7 +2922,7 @@ mod tests {
             )])
             .await;
 
-        let mock_config_files_creator_context = MockConfigFilesCreator::create_files_context();
+        let mock_config_files_creator_context = MockWorkloadFilesCreator::create_files_context();
         mock_config_files_creator_context
             .expect()
             .once()
@@ -2957,7 +2955,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
-    // [utest->swdd~agent-workload-control-loop-aborts-create-upon-config-files-creation-error~1]
+    // [utest->swdd~agent-workload-control-loop-aborts-create-upon-workload-files-creation-error~1]
     #[tokio::test]
     async fn utest_create_workload_on_runtime_create_config_files_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -2975,13 +2973,13 @@ mod tests {
             generate_test_rendered_config_files(),
         );
 
-        let mock_config_files_creator_context = MockConfigFilesCreator::create_files_context();
+        let mock_config_files_creator_context = MockWorkloadFilesCreator::create_files_context();
         mock_config_files_creator_context
             .expect()
             .once()
             .returning(move |_, _| {
                 Err(ConfigFileCreatorError::new(
-                    "failed to create config files.".to_string(),
+                    "failed to create workload files.".to_string(),
                 ))
             });
 
@@ -3047,7 +3045,7 @@ mod tests {
             )])
             .await;
 
-        let mock_config_files_creator_context = MockConfigFilesCreator::create_files_context();
+        let mock_config_files_creator_context = MockWorkloadFilesCreator::create_files_context();
         mock_config_files_creator_context
             .expect()
             .once()

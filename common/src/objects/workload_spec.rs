@@ -60,7 +60,7 @@ impl WorkloadSpec {
         !self.control_interface_access.allow_rules.is_empty()
     }
 
-    // [impl->swdd~common-workload-has-config-files~1]
+    // [impl->swdd~common-workload-has-files~1]
     pub fn has_config_files(&self) -> bool {
         !self.files.is_empty()
     }
@@ -648,7 +648,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-workload-has-config-files~1]
+    // [utest->swdd~common-workload-has-files~1]
     #[test]
     fn utest_workload_has_config_files() {
         let workload_spec = generate_test_workload_spec_with_rendered_config_files(
@@ -660,7 +660,7 @@ mod tests {
         assert!(workload_spec.has_config_files());
     }
 
-    // [utest->swdd~common-workload-has-config-files~1]
+    // [utest->swdd~common-workload-has-files~1]
     #[test]
     fn utest_workload_has_config_files_empty() {
         let workload_spec = generate_test_workload_spec();

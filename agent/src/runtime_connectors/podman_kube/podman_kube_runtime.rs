@@ -738,7 +738,7 @@ mod tests {
                 workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
     }
 
-    // [utest->swdd~podman-kube-rejects-workloads-with-config-files~1]
+    // [utest->swdd~podman-kube-rejects-workload-files~1]
     #[tokio::test]
     async fn utest_create_workload_unsupported_config_files_error() {
         let runtime = PodmanKubeRuntime {};

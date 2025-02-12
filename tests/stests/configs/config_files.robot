@@ -14,7 +14,7 @@
 
 
 *** Settings ***
-Documentation       Tests to verify that Ankaios creates and mounts config files
+Documentation       Tests to verify that Ankaios creates and mounts workload files
 ...                 assigned to workloads.
 
 Resource            ../../resources/ankaios.resource
@@ -22,9 +22,9 @@ Resource            ../../resources/variables.resource
 
 *** Test Cases ***
 
-# [stest->swdd~podman-create-workload-mounts-config-files~1]
-Test Ankaios starts manifest with config files assigned to workloads
-    [Documentation]    Create the assigned config files on the agent's host file system and mount it into workloads.
+# [stest->swdd~podman-create-mounts-workload-files~1]
+Test Ankaios starts manifest with workload files assigned to workloads
+    [Documentation]    Create the assigned workload files on the agent's host file system and mount it into workloads.
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
@@ -39,9 +39,9 @@ Test Ankaios starts manifest with config files assigned to workloads
     And the command "curl -Lf localhost:8087/custom" shall finish with exit code "0"
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~podman-create-workload-mounts-config-files~1]
-Test Ankaios updates a workload upon update of its config file content
-    [Documentation]    Re-create the new config file on the host file system and
+# [stest->swdd~podman-create-mounts-workload-files~1]
+Test Ankaios updates a workload upon update of its workload file content
+    [Documentation]    Re-create the new workload file on the host file system and
     ...                mount it in the new updated version of the workload.
     [Setup]    Run Keywords    Setup Ankaios
     [Tags]    run_only
@@ -59,9 +59,9 @@ Test Ankaios updates a workload upon update of its config file content
     And the command "curl -Lf localhost:8087/update" shall finish with exit code "0"
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~podman-create-workload-mounts-config-files~1]
-Test Ankaios updates a workload upon adding additional config files
-    [Documentation]    Re-create all the config files including the new one on the host file system,
+# [stest->swdd~podman-create-mounts-workload-files~1]
+Test Ankaios updates a workload upon adding additional workload files
+    [Documentation]    Re-create all the workload files including the new one on the host file system,
     ...                mount it in the new updated version of the workload and execute it.
     [Setup]    Run Keywords    Setup Ankaios
     [Tags]    run_only
@@ -76,14 +76,14 @@ Test Ankaios updates a workload upon adding additional config files
     # First update the files only by setting the update mask
     And user triggers "ank -k --no-wait set state desiredState.workloads.workload_with_mounted_binary_file.files ${CONFIGS_DIR}/update_state_config_files.yaml"
     And the workload "workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
-    # Now update the runtimeConfig calling the newly added config file
+    # Now update the runtimeConfig calling the newly added workload file
     And user triggers "ank -k --no-wait set state desiredState.workloads.workload_with_mounted_binary_file.runtimeConfig ${CONFIGS_DIR}/update_state_config_files.yaml"
     # Asserts
     Then the workload "workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~podman-kube-rejects-workloads-with-config-files~1]
-Test Ankaios rejects unsupported config files for workloads using podman-kube runtime
+# [stest->swdd~podman-kube-rejects-workload-files~1]
+Test Ankaios rejects unsupported workload files for workloads using podman-kube runtime
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
@@ -95,5 +95,5 @@ Test Ankaios rejects unsupported config files for workloads using podman-kube ru
     When Ankaios agent is started with name "agent_B"
     # Asserts
     Then the workload "kube_workload_with_unsupported_config_files" shall have the execution state "Pending(StartingFailed)" on agent "agent_B" within "20" seconds
-    And the mount point for the config files of workload "kube_workload_with_unsupported_config_files" on agent "agent_B" has not been generated
+    And the mount point for the workload files of workload "kube_workload_with_unsupported_config_files" on agent "agent_B" has not been generated
     [Teardown]    Clean up Ankaios

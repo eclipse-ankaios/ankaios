@@ -25,16 +25,16 @@ Please note that the Ankaios Agent could also run on the same node as the Server
 
 ### Design decisions
 
-#### Create a workload config file based on its mount point on the host file system
-`swdd~agent-creates-config-file-based-on-mount-point-on-host-file-system~1`
+#### Create a workload file based on its mount point on the host file system
+`swdd~agent-creates-workload-file-based-on-mount-point-on-host-file-system~1`
 
 Status: approved
 
-An Ankaios agent creates a workload's config file on the host file system in the same directory structure as the mount point of the config file.
+An Ankaios agent creates a workload file on the host file system in the same directory structure as the mount point of the file.
 
 Rationale:
 
-Creating the exact same folder structure according to the mount point prevents naming and mapping issues. It allows the creation of multiple files with the same name for different mount points on the host file system with respect to a many-to-many relationship for workloads and config files.
+Creating the exact same folder structure according to the mount point prevents naming and mapping issues. It allows the creation of multiple files with the same name for different mount points on the host file system with respect to a many-to-many relationship for workloads and workload files.
 
 Assumptions:
 
@@ -42,8 +42,8 @@ No assumptions were taken.
 
 Considered alternatives:
 
-- Create a config file with a uuid as filename: increases complexity when debugging the config file mount
-- Create a config file in a subdirectory named by hashing the mount point path: affects performance when using more secure hash algorithms
+- Create a workload file with a uuid as filename: increases complexity when debugging the workload file mount
+- Create a workload file in a subdirectory named by hashing the mount point path: affects performance when using more secure hash algorithms
 
 ## Structural view
 
@@ -109,9 +109,9 @@ The ControlInterface is responsible for setting up the communication interface b
 The Authorizer checks for every request send from a workload to the Ankaios agent,
 if the workload is allowed to execute this request.
 
-### ConfigFilesCreator
+### WorkloadFilesCreator
 
-The ConfigFilesCreator is responsible for creating a workload's configuration files on the host file system.
+The WorkloadFilesCreator is responsible for creating files assigned to a workload on the host file system.
 
 ### RuntimeConnectorInterfaces
 
@@ -170,7 +170,7 @@ Comment:
 The default folder "/tmp/ankaios" must be created with full permissions if not existing. The specific agent folder will still have scoped permissions, but the default location could be used by other agents running under different users and must be usable.
 
 Rationale:
-The dedicated run folder is required by the agent to store temporary files for the workloads, e.g., Control Interface fifo pipes, config files, etc.
+The dedicated run folder is required by the agent to store temporary files for the workloads, e.g., Control Interface fifo pipes, workload files, etc.
 
 Needs:
 - impl
@@ -995,7 +995,7 @@ Status: approved
 
 When the WorkloadControlLoop receives a create command, the WorkloadControlLoop shall:
 * send a `Pending(Starting)` with additional information "Triggered at runtime." workload state for that workload
-* request the ConfigFilesCreator to create the config files of the workload on the host file system if the workload has files assigned
+* request the WorkloadFilesCreator to create the workload files of the workload on the host file system if the workload has files assigned
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
 
 Comment:
@@ -1006,7 +1006,7 @@ The WorkloadControlLoop allows to asynchronously carry out time consuming action
 
 Tags:
 - WorkloadControlLoop
-- ConfigFilesCreator
+- WorkloadFilesCreator
 
 Needs:
 - impl
@@ -1037,7 +1037,7 @@ Needs:
 Status: approved
 
 When the WorkloadControlLoop requested the runtime connector to create the workload and the creation failed, the WorkloadControlLoop shall:
-* delete the config files subfolder on the host file system for that workload
+* delete the workload files subfolder on the host file system for that workload
 * if the runtime error is of type `unsupported`, send a `Pending(StartingFailed)` workload state with additional information or
 * send a `Pending(Starting)` workload state with additional information about the current retry counter state, appended by the cause of failure for that workload
 
@@ -1048,12 +1048,12 @@ Needs:
 - impl
 - utest
 
-##### WorkloadControlLoop aborts create upon config files creation error
-`swdd~agent-workload-control-loop-aborts-create-upon-config-files-creation-error~1`
+##### WorkloadControlLoop aborts create upon workload files creation error
+`swdd~agent-workload-control-loop-aborts-create-upon-workload-files-creation-error~1`
 
 Status: approved
 
-When the WorkloadControlLoop requests the ConfigFilesCreator to create the config files for a workload and the creation of the files fails, the WorkloadControlLoop shall:
+When the WorkloadControlLoop requests the WorkloadFilesCreator to create the workload files for a workload and the creation of the files fails, the WorkloadControlLoop shall:
 * send a `Pending(StartingFailed)` workload state with additional information
 * abort the creation of the workload
 
@@ -1071,7 +1071,7 @@ Status: approved
 
 When the WorkloadControlLoop started during the creation of the workload object receives an update command, the WorkloadControlLoop shall:
 * execute a delete command for the old configuration of the workload
-* delete the workload config files subfolder
+* delete the workload files subfolder
 * delete the workload subfolder if the old and the new workload instance names are different
 * execute a create command for the new configuration of the workload
 
@@ -1851,65 +1851,65 @@ Needs:
 - impl
 - utest
 
-### Workload config files
+### Workload files
 
-The following diagram describes the behavior when creating a workload with config files.
+The following diagram describes the behavior when creating a workload with workload files.
 
-![Create And Mount Workload Config Files](plantuml/seq_config_files.svg)
+![Create And Mount Workload Files](plantuml/seq_workload_files.svg)
 
-#### Config files at a predefined path
-`swdd~location-of-workload-config-files-at-predefined-path~1`
+#### Workload files at a predefined path
+`swdd~location-of-workload-files-at-predefined-path~1`
 
 Status: approved
 
-The ConfigFilesCreator shall create all config files of a workload at the following path:
+The WorkloadFilesCreator shall create all workload files of a workload at the following path:
 
   `<Agent run folder>/<Workload name>.<runtime config hash>/config_files`
 
 Rationale:
-In case of an update or delete, all of a workload's configuration files can be deleted by deleting the subdirectory. Furthermore, grouping configuration files in the specific workload folder prevents naming conflicts and mapping problems when multiple workloads are assigned the same configuration files.
+In case of an update or delete, all workload files can be deleted by deleting the subdirectory. Furthermore, grouping workload files in the specific workload folder prevents naming conflicts and mapping problems when multiple workloads are assigned the same files.
 
 Tags:
-- ConfigFilesCreator
+- WorkloadFilesCreator
 
 Needs:
 - impl
 - utest
 
-#### ConfigFilesCreator writes config files at a path depending on their mount point
-`swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1`
+#### WorkloadFilesCreator writes workload files at a path depending on their mount point
+`swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1`
 
 Status: approved
 
-When the ConfigFilesCreator is triggered with the list of config files assigned to a workload and the predefined config files directory, for each config file, the ConfigFilesCreator shall:
+When the WorkloadFilesCreator is triggered with the list of workload files assigned to a workload and the predefined workload files directory, for each workload file, the WorkloadFilesCreator shall:
 
-* construct a host file path for the config file by appending the mount point to the predefined path
+* construct a host file path for the workload file by appending the mount point to the predefined path
 * create the directory structure of the constructed path on the host file system
-* write the config file to the constructed host file path with respect to its content type
-* delete all the config files on the host filesystem upon failure
+* write the workload file to the constructed host file path with respect to its content type
+* delete all the workload files on the host filesystem upon failure
 
 Comment:
-The host file path of an example config file with mount point at `/path/to/text.conf` is `<Agent run folder>/<Workload name>.<runtime config hash>/config_files/path/to/text.conf`. The content type is text-based or binary.
+The host file path of an example workload file with mount point at `/path/to/text.conf` is `<Agent run folder>/<Workload name>.<runtime config hash>/config_files/path/to/text.conf`. The content type is text-based or binary.
 
 Rational:
-Removing all config files in case of an failure prevents inconsistency issues.
+Removing all workload files in case of an failure prevents inconsistency issues.
 
 Tags:
-- ConfigFilesCreator
+- WorkloadFilesCreator
 
 Needs:
 - impl
 - utest
 
-#### ConfigFilesCreator decodes base64 to executable
-`swdd~config-files-creator-decodes-base64-to-binary~1`
+#### WorkloadFilesCreator decodes base64 to executable
+`swdd~workload-files-creator-decodes-base64-to-binary~1`
 
 Status: approved
 
-When the ConfigFilesCreator is requested to write a config file with content type binary, the ConfigFilesCreator shall decode the base64 content to a collection of bytes.
+When the WorkloadFilesCreator is requested to write a workload file with content type binary, the WorkloadFilesCreator shall decode the base64 content to a collection of bytes.
 
 Tags:
-- ConfigFilesCreator
+- WorkloadFilesCreator
 
 Needs:
 - impl
@@ -2135,12 +2135,12 @@ Needs:
 - impl
 - utest
 
-##### Podman create workload optionally mounts config files
-`swdd~podman-create-workload-mounts-config-files~1`
+##### Podman create workload optionally mounts workload files
+`swdd~podman-create-mounts-workload-files~1`
 
 Status: approved
 
-When the podman runtime connector is called to create a workload and the provided host config file path to mount point mapping is not empty,
+When the podman runtime connector is called to create a workload and the provided host workload file path to mount point mapping is not empty,
 the podman runtime connector shall mount the provided files into the container at the provided mount points in `readonly` mode.
 
 Tags:
@@ -2233,15 +2233,15 @@ Needs:
 - impl
 - utest
 
-#### Podman-kube rejects workloads with config files
-`swdd~podman-kube-rejects-workloads-with-config-files~1`
+#### Podman-kube rejects workloads with workload files
+`swdd~podman-kube-rejects-workload-files~1`
 
 Status: approved
 
-When the podman-kube runtime connector receives a workload with at least one config file assigned, the podman-kube runtime connector shall reject the workload with an error.
+When the podman-kube runtime connector receives a workload with at least one workload file assigned, the podman-kube runtime connector shall reject the workload with an error.
 
 Rationale:
-Podman-kube already has a built-in feature for config files (ConfigMaps), and supporting both introduces side effects.
+Podman-kube already has a built-in feature for workload files (ConfigMaps), and supporting both introduces side effects.
 
 Tags:
 - PodmanKubeRuntimeConnector

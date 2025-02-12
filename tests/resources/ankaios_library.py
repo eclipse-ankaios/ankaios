@@ -396,7 +396,7 @@ def check_if_mount_point_has_not_been_generated_for(agent_name, command_result):
 
         assert not path.exists(control_interface_path), "the mount point has been generated"
 
-def check_config_files_exists(complete_state_json, workload_name, agent_name):
+def check_workload_files_exists(complete_state_json, workload_name, agent_name):
     DESIRED_STATE_LEVEL = "desiredState"
     WORKLOADS_LEVEL = "workloads"
     WORKLOAD_STATES_LEVEL = "workloadStates"
@@ -415,7 +415,7 @@ def check_config_files_exists(complete_state_json, workload_name, agent_name):
     for file in workload_config_files:
         relative_mount_point = path.relpath(file[MOUNT_POINT], ROOT_PATH)
         config_file_host_path = path.join(tmp_directory, workload_folder_name, "config_files", relative_mount_point)
-        assert path.exists(config_file_host_path), f"the config file for {workload_name} does not exist"
+        assert path.exists(config_file_host_path), f"the workload file for {workload_name} does not exist"
 
 # MANDATORY FOR STABLE SYSTEM TESTS
 def config_name_shall_exist_in_list(config_name, current_result):

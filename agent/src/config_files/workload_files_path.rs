@@ -17,10 +17,10 @@ use std::{ops::Deref, path::PathBuf};
 use common::objects::WorkloadInstanceName;
 
 #[derive(Debug, PartialEq)]
-pub struct WorkloadConfigFilesPath(PathBuf);
+pub struct WorkloadFilesPath(PathBuf);
 const SUBFOLDER_CONFIG_FILES: &str = "config_files";
 
-impl Deref for WorkloadConfigFilesPath {
+impl Deref for WorkloadFilesPath {
     type Target = PathBuf;
 
     fn deref(&self) -> &Self::Target {
@@ -28,8 +28,8 @@ impl Deref for WorkloadConfigFilesPath {
     }
 }
 
-// [impl->swdd~location-of-workload-config-files-at-predefined-path~1]
-impl From<(&PathBuf, &WorkloadInstanceName)> for WorkloadConfigFilesPath {
+// [impl->swdd~location-of-workload-files-at-predefined-path~1]
+impl From<(&PathBuf, &WorkloadInstanceName)> for WorkloadFilesPath {
     fn from((run_folder, workload_instance_name): (&PathBuf, &WorkloadInstanceName)) -> Self {
         let config_files_path = workload_instance_name
             .pipes_folder_name(run_folder.as_path())
@@ -47,9 +47,9 @@ impl From<(&PathBuf, &WorkloadInstanceName)> for WorkloadConfigFilesPath {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
-pub fn generate_test_config_files_path() -> WorkloadConfigFilesPath {
+pub fn generate_test_config_files_path() -> WorkloadFilesPath {
     let instance_name = WorkloadInstanceName::new("agent_A", "workload_1", "123xy");
-    WorkloadConfigFilesPath::from((&"/tmp/ankaios/agent_A_io".into(), &instance_name))
+    WorkloadFilesPath::from((&"/tmp/ankaios/agent_A_io".into(), &instance_name))
 }
 
 #[cfg(test)]
@@ -57,7 +57,7 @@ mod tests {
 
     use super::{generate_test_config_files_path, PathBuf};
 
-    // [utest->swdd~location-of-workload-config-files-at-predefined-path~1]
+    // [utest->swdd~location-of-workload-files-at-predefined-path~1]
     #[test]
     fn utest_workload_config_files_path_from() {
         let workload_config_files_path = generate_test_config_files_path();

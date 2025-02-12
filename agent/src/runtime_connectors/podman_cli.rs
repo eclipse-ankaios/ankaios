@@ -344,7 +344,7 @@ impl PodmanCli {
             );
         }
 
-        // [impl->swdd~podman-create-workload-mounts-config-files~1]
+        // [impl->swdd~podman-create-mounts-workload-files~1]
         for (host_file_path, mount_point) in config_file_path_mapping {
             args.push(
                 [
@@ -1018,7 +1018,7 @@ mod tests {
     // [utest->swdd~podman-create-workload-creates-labels~2]
     // [utest->swdd~podman-create-workload-sets-optionally-container-name~2]
     // [utest->swdd~podman-create-workload-mounts-fifo-files~1]
-    // [utest->swdd~podman-create-workload-mounts-config-files~1]
+    // [utest->swdd~podman-create-mounts-workload-files~1]
     #[tokio::test]
     async fn utest_run_container_success_no_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1095,7 +1095,7 @@ mod tests {
 
     // [utest->swdd~podman-create-workload-sets-optionally-container-name~2]
     // [utest->swdd~podman-create-workload-mounts-fifo-files~1]
-    // [utest->swdd~podman-create-workload-mounts-config-files~1]
+    // [utest->swdd~podman-create-mounts-workload-files~1]
     #[tokio::test]
     async fn utest_run_container_success_with_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;

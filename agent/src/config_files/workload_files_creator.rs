@@ -20,7 +20,7 @@ use std::{
     path::{Path, PathBuf, MAIN_SEPARATOR_STR},
 };
 
-use super::WorkloadConfigFilesPath;
+use super::WorkloadFilesPath;
 #[cfg_attr(test, mockall_double::double)]
 use crate::io_utils::filesystem;
 #[cfg_attr(test, mockall_double::double)]
@@ -42,12 +42,12 @@ impl HostConfigFileLocation {
     }
 }
 
-// [impl->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
-impl TryFrom<(&WorkloadConfigFilesPath, &Path)> for HostConfigFileLocation {
+// [impl->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
+impl TryFrom<(&WorkloadFilesPath, &Path)> for HostConfigFileLocation {
     type Error = String;
 
     fn try_from(
-        (config_files_base_path, mount_point): (&WorkloadConfigFilesPath, &Path),
+        (config_files_base_path, mount_point): (&WorkloadFilesPath, &Path),
     ) -> Result<Self, String> {
         let mount_point_as_string = mount_point.to_str().ok_or_else(|| {
             format!(
@@ -93,7 +93,7 @@ impl TryFrom<(&WorkloadConfigFilesPath, &Path)> for HostConfigFileLocation {
                 // component is not the last one
                 host_config_file_location.directory.push(component);
             } else {
-                // component is the last one and considered as the config file name
+                // component is the last one and considered as the workload file name
                 host_config_file_location.file_name =
                     component.as_os_str().to_str().unwrap().to_owned(); // utf-8 compatibility is checked above
             }
@@ -116,17 +116,17 @@ impl ConfigFileCreatorError {
 
 impl fmt::Display for ConfigFileCreatorError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Failed to create config file: '{}'", self.message)
+        write!(f, "Failed to create workload file: '{}'", self.message)
     }
 }
 
-pub struct ConfigFilesCreator;
+pub struct WorkloadFilesCreator;
 
 #[cfg_attr(test, automock)]
-impl ConfigFilesCreator {
-    // [impl->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
+impl WorkloadFilesCreator {
+    // [impl->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     pub async fn create_files(
-        config_files_base_path: &WorkloadConfigFilesPath,
+        config_files_base_path: &WorkloadFilesPath,
         config_files: &[File],
     ) -> Result<HashMap<PathBuf, PathBuf>, ConfigFileCreatorError> {
         let mut host_file_paths = HashMap::new();
@@ -162,7 +162,7 @@ impl ConfigFilesCreator {
                 });
 
                 ConfigFileCreatorError::new(format!(
-                    "failed to create config file directory structure for '{}': '{}'",
+                    "failed to create workload file directory structure for '{}': '{}'",
                     mount_point.display(),
                     err
                 ))
@@ -198,7 +198,7 @@ impl ConfigFilesCreator {
             FileContent::BinaryData(Base64Data {
                 base64_data: binary_data,
             }) => {
-                // [impl->swdd~config-files-creator-decodes-base64-to-binary~1]
+                // [impl->swdd~workload-files-creator-decodes-base64-to-binary~1]
                 let binary = general_purpose::STANDARD
                     .decode(binary_data)
                     .map_err(|err| {
@@ -235,7 +235,9 @@ mod tests {
 
     use crate::config_files::generate_test_config_files_path;
 
-    use super::{Base64Data, ConfigFilesCreator, Data, File, FileContent, HostConfigFileLocation};
+    use super::{
+        Base64Data, Data, File, FileContent, HostConfigFileLocation, WorkloadFilesCreator,
+    };
 
     use crate::io_utils::{mock_filesystem, mock_filesystem_async, FileSystemError};
 
@@ -248,8 +250,8 @@ mod tests {
     const DECODED_TEST_BASE64_DATA: &str = "data";
     const TEST_CONFIG_FILE_DATA: &str = "some config";
 
-    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
-    // [utest->swdd~config-files-creator-decodes-base64-to-binary~1]
+    // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
+    // [utest->swdd~workload-files-creator-decodes-base64-to-binary~1]
     #[tokio::test]
     async fn utest_config_files_creator_create_files() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -314,11 +316,11 @@ mod tests {
         ]);
         assert_eq!(
             Ok(expected_host_file_paths),
-            ConfigFilesCreator::create_files(&workload_config_files_path, &config_files).await
+            WorkloadFilesCreator::create_files(&workload_config_files_path, &config_files).await
         );
     }
 
-    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
+    // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     #[tokio::test]
     async fn utest_config_files_creator_create_files_create_dir_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -351,10 +353,10 @@ mod tests {
         mock_write_file_context.expect::<String>().never();
 
         let result =
-            ConfigFilesCreator::create_files(&workload_config_files_path, &config_files).await;
+            WorkloadFilesCreator::create_files(&workload_config_files_path, &config_files).await;
 
         assert!(result.is_err());
-        let expected_error_substring = "failed to create config file directory structure";
+        let expected_error_substring = "failed to create workload file directory structure";
         let error = result.unwrap_err();
         assert!(
             error.to_string().contains(expected_error_substring),
@@ -362,7 +364,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
+    // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     #[tokio::test]
     async fn utest_config_files_creator_create_files_write_file_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -402,7 +404,7 @@ mod tests {
             .returning(|_| Ok(()));
 
         let result =
-            ConfigFilesCreator::create_files(&workload_config_files_path, &config_files).await;
+            WorkloadFilesCreator::create_files(&workload_config_files_path, &config_files).await;
 
         assert!(result.is_err());
         let error = result.unwrap_err();
@@ -413,7 +415,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
+    // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     #[tokio::test]
     async fn utest_config_files_creator_create_config_files_fails_with_invalid_path_components() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -441,7 +443,7 @@ mod tests {
         mock_write_file_context.expect::<String>().never();
 
         let result =
-            ConfigFilesCreator::create_files(&workload_config_files_path, &config_files).await;
+            WorkloadFilesCreator::create_files(&workload_config_files_path, &config_files).await;
         assert!(result.is_err());
         let error = result.unwrap_err();
         let expected_error_substring = "contains invalid path components";
@@ -451,7 +453,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
+    // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     #[test]
     fn utest_host_config_file_location_try_from_fails_with_directory_instead_of_file() {
         let workload_config_files_path = generate_test_config_files_path();
@@ -470,7 +472,7 @@ mod tests {
         }
     }
 
-    // [utest->swdd~config-files-creator-writes-config-files-at-mount-point-dependent-path~1]
+    // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     #[test]
     fn utest_host_config_file_location_try_from_fails_with_relative_path() {
         let workload_config_files_path = generate_test_config_files_path();
@@ -492,10 +494,10 @@ mod tests {
         }
     }
 
-    // [utest->swdd~config-files-creator-decodes-base64-to-binary~1]
+    // [utest->swdd~workload-files-creator-decodes-base64-to-binary~1]
     #[tokio::test]
     async fn utest_config_files_creator_write_config_file_base64_decode_error() {
-        let result = ConfigFilesCreator::write_config_file(
+        let result = WorkloadFilesCreator::write_config_file(
             &PathBuf::from("/some/host/file/path/to/binary"),
             &File {
                 mount_point: "/binary".to_string(),

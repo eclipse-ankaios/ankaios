@@ -647,9 +647,9 @@ the mount point for the control interface has not been generated for ${agent_nam
 the mount point for the control interface has been generated for ${agent_name}
     Run Keyword And Expect Error    the mount point has been generated    the mount point for the control interface has not been generated for ${agent_name}
 
-the mount point for the config files of workload "${workload_name}" on agent "${agent_name}" has not been generated
+the mount point for the workload files of workload "${workload_name}" on agent "${agent_name}" has not been generated
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json
-    Run Keyword And Expect Error    the config file for ${workload_name} does not exist    Check Config Files Exists    ${command_result.stdout}    ${workload_name}    ${agent_name}
+    Run Keyword And Expect Error    the workload file for ${workload_name} does not exist    Check Workload Files Exists    ${command_result.stdout}    ${workload_name}    ${agent_name}
 Ankaios server is available
     the command "%{ANK_BIN_DIR}${/}ank get workloads" finished with exit code "0" within "2" seconds
 

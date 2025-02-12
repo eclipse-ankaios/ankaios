@@ -38,7 +38,7 @@ else subsequent update workload call
                 deactivate workload
                 workload_command -->> workload_control_loop --++: receive update (new config)
                 deactivate workload_command
-                workload_control_loop ->> workload_control_loop++: delete old workload\nconfig files
+                workload_control_loop ->> workload_control_loop++: delete old\nworkload files
                 opt old instance name not equal to new instance name
                     workload_control_loop ->> workload_control_loop++: delete workload\nsubfolder
                 end
