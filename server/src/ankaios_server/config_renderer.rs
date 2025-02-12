@@ -243,10 +243,10 @@ mod tests {
     use std::collections::HashMap;
 
     use common::objects::{
-        generate_test_configs, generate_test_rendered_config_files,
+        generate_test_configs, generate_test_rendered_workload_files,
         generate_test_stored_workload_spec_with_config,
-        generate_test_stored_workload_spec_with_config_files,
-        generate_test_workload_spec_with_rendered_config_files,
+        generate_test_stored_workload_spec_with_files,
+        generate_test_workload_spec_with_rendered_files,
         generate_test_workload_spec_with_runtime_config, Base64Data, ConfigItem, Data, File,
         FileContent,
     };
@@ -255,7 +255,7 @@ mod tests {
     const AGENT_A: &str = "agent_A";
     const RUNTIME: &str = "runtime";
 
-    fn generate_test_templated_config_files() -> Vec<File> {
+    fn generate_test_templated_workload_files() -> Vec<File> {
         vec![
             File {
                 mount_point: "/file.json".to_string(),
@@ -309,21 +309,21 @@ mod tests {
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_render_files_fields_successfully() {
-        let stored_workload = generate_test_stored_workload_spec_with_config_files(
+        let stored_workload = generate_test_stored_workload_spec_with_files(
             AGENT_A,
             RUNTIME,
-            generate_test_templated_config_files(),
+            generate_test_templated_workload_files(),
         );
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let configs = generate_test_configs();
         let renderer = ConfigRenderer::default();
 
-        let expected_workload_spec = generate_test_workload_spec_with_rendered_config_files(
+        let expected_workload_spec = generate_test_workload_spec_with_rendered_files(
             AGENT_A.to_owned(),
             WORKLOAD_NAME_1.to_owned(),
             RUNTIME.to_owned(),
-            generate_test_rendered_config_files(),
+            generate_test_rendered_workload_files(),
         );
 
         let result = renderer.render_workloads(&workloads, &configs);
@@ -340,7 +340,7 @@ mod tests {
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_render_files_fields_text_file_render_error() {
-        let stored_workload = generate_test_stored_workload_spec_with_config_files(
+        let stored_workload = generate_test_stored_workload_spec_with_files(
             AGENT_A,
             RUNTIME,
             vec![File {
@@ -365,7 +365,7 @@ mod tests {
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_render_files_fields_binary_file_render_error() {
-        let stored_workload = generate_test_stored_workload_spec_with_config_files(
+        let stored_workload = generate_test_stored_workload_spec_with_files(
             AGENT_A,
             RUNTIME,
             vec![File {

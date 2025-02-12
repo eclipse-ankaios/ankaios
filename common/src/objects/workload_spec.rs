@@ -61,7 +61,7 @@ impl WorkloadSpec {
     }
 
     // [impl->swdd~common-workload-has-files~1]
-    pub fn has_config_files(&self) -> bool {
+    pub fn has_files(&self) -> bool {
         !self.files.is_empty()
     }
 
@@ -343,7 +343,7 @@ pub fn generate_test_workload_spec_with_control_interface_access(
 }
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_spec_with_rendered_config_files(
+pub fn generate_test_workload_spec_with_rendered_files(
     agent_name: impl ToString,
     workload_name: impl ToString,
     runtime_name: impl ToString,
@@ -650,20 +650,20 @@ mod tests {
 
     // [utest->swdd~common-workload-has-files~1]
     #[test]
-    fn utest_workload_has_config_files() {
-        let workload_spec = generate_test_workload_spec_with_rendered_config_files(
+    fn utest_workload_has_files() {
+        let workload_spec = generate_test_workload_spec_with_rendered_files(
             "agent".to_string(),
             "name".to_string(),
             "runtime".to_string(),
-            generate_test_rendered_config_files(),
+            generate_test_rendered_workload_files(),
         );
-        assert!(workload_spec.has_config_files());
+        assert!(workload_spec.has_files());
     }
 
     // [utest->swdd~common-workload-has-files~1]
     #[test]
-    fn utest_workload_has_config_files_empty() {
+    fn utest_workload_has_files_empty() {
         let workload_spec = generate_test_workload_spec();
-        assert!(!workload_spec.has_config_files());
+        assert!(!workload_spec.has_files());
     }
 }

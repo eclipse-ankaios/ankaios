@@ -39,7 +39,7 @@ mod stored_workload_spec;
 #[cfg(any(feature = "test_utils", test))]
 pub use stored_workload_spec::{
     generate_test_stored_workload_spec, generate_test_stored_workload_spec_with_config,
-    generate_test_stored_workload_spec_with_config_files,
+    generate_test_stored_workload_spec_with_files,
 };
 
 pub use stored_workload_spec::{StoredWorkloadSpec, STR_RE_CONFIG_REFERENCES};
@@ -61,7 +61,7 @@ pub use workload_spec::{
     generate_test_runtime_config, generate_test_workload_spec,
     generate_test_workload_spec_with_control_interface_access,
     generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
-    generate_test_workload_spec_with_rendered_config_files,
+    generate_test_workload_spec_with_rendered_files,
     generate_test_workload_spec_with_runtime_config,
 };
 pub use workload_spec::{STR_RE_AGENT, STR_RE_WORKLOAD};
@@ -96,5 +96,5 @@ pub use config::ConfigItem;
 
 mod file;
 #[cfg(any(feature = "test_utils", test))]
-pub use file::generate_test_rendered_config_files;
+pub use file::generate_test_rendered_workload_files;
 pub use file::{Base64Data, Data, File, FileContent};

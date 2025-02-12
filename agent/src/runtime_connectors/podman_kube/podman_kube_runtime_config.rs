@@ -64,8 +64,8 @@ impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
 #[cfg(test)]
 mod tests {
     use common::objects::{
-        generate_test_rendered_config_files, generate_test_workload_spec_with_param,
-        generate_test_workload_spec_with_rendered_config_files,
+        generate_test_rendered_workload_files, generate_test_workload_spec_with_param,
+        generate_test_workload_spec_with_rendered_files,
     };
 
     use super::{PodmanKubeRuntimeConfig, PODMAN_KUBE_RUNTIME_NAME};
@@ -100,15 +100,14 @@ mod tests {
     // [utest->swdd~podman-kube-rejects-workload-files~1]
     #[tokio::test]
     async fn utest_podman_kube_config_failure_unsupported_files_field() {
-        let workload_spec_with_config_files =
-            generate_test_workload_spec_with_rendered_config_files(
-                AGENT_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                DIFFERENT_RUNTIME_NAME.to_string(),
-                generate_test_rendered_config_files(),
-            );
+        let workload_spec_with_files = generate_test_workload_spec_with_rendered_files(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            DIFFERENT_RUNTIME_NAME.to_string(),
+            generate_test_rendered_workload_files(),
+        );
 
-        assert!(PodmanKubeRuntimeConfig::try_from(&workload_spec_with_config_files).is_err());
+        assert!(PodmanKubeRuntimeConfig::try_from(&workload_spec_with_files).is_err());
     }
 
     #[tokio::test]

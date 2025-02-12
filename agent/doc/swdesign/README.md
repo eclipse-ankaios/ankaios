@@ -1864,7 +1864,7 @@ Status: approved
 
 The WorkloadFilesCreator shall create all workload files of a workload at the following path:
 
-  `<Agent run folder>/<Workload name>.<runtime config hash>/config_files`
+  `<Agent run folder>/<Workload name>.<runtime config hash>/files`
 
 Rationale:
 In case of an update or delete, all workload files can be deleted by deleting the subdirectory. Furthermore, grouping workload files in the specific workload folder prevents naming conflicts and mapping problems when multiple workloads are assigned the same files.
@@ -1889,7 +1889,7 @@ When the WorkloadFilesCreator is triggered with the list of workload files assig
 * delete all the workload files on the host filesystem upon failure
 
 Comment:
-The host file path of an example workload file with mount point at `/path/to/text.conf` is `<Agent run folder>/<Workload name>.<runtime config hash>/config_files/path/to/text.conf`. The content type is text-based or binary.
+The host file path of an example workload file with mount point at `/path/to/text.conf` is `<Agent run folder>/<Workload name>.<runtime config hash>/files/path/to/text.conf`. The content type is text-based or binary.
 
 Rational:
 Removing all workload files in case of an failure prevents inconsistency issues.

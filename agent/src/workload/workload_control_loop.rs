@@ -12,11 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config_files::WorkloadFilesPath;
 use crate::control_interface::ControlInterfacePath;
 use crate::io_utils::FileSystemError;
 use crate::runtime_connectors::{RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
+use crate::workload_files::WorkloadFilesPath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec};
 use common::std_extensions::IllegalStateResult;
@@ -29,7 +29,7 @@ use std::str::FromStr;
 use crate::io_utils::filesystem_async;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::config_files::WorkloadFilesCreator;
+use crate::workload_files::WorkloadFilesCreator;
 
 #[cfg(not(test))]
 const MAX_RETRIES: usize = 20;
@@ -431,14 +431,14 @@ impl WorkloadControlLoop {
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        if control_loop_state.workload_spec.has_config_files() {
-            let workload_config_files_dir = WorkloadFilesPath::from((
+        if control_loop_state.workload_spec.has_files() {
+            let workload_files_dir = WorkloadFilesPath::from((
                 &control_loop_state.run_folder,
                 control_loop_state.instance_name(),
             ));
 
             match WorkloadFilesCreator::create_files(
-                &workload_config_files_dir,
+                &workload_files_dir,
                 &control_loop_state.workload_spec.files,
             )
             .await
@@ -731,11 +731,11 @@ mockall::mock! {
 #[cfg(test)]
 mod tests {
     use super::{ControlInterfacePath, WorkloadControlLoop};
-    use crate::config_files::{
-        ConfigFileCreatorError, MockWorkloadFilesCreator, WorkloadFilesPath,
-    };
     use crate::io_utils::mock_filesystem_async;
     use crate::runtime_connectors::RuntimeError;
+    use crate::workload_files::{
+        ConfigFileCreatorError, MockWorkloadFilesCreator, WorkloadFilesPath,
+    };
     use common::objects::PendingSubstate;
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -744,11 +744,10 @@ mod tests {
     use mockall::predicate;
 
     use common::objects::{
-        generate_test_rendered_config_files,
+        generate_test_rendered_workload_files,
         generate_test_workload_spec_with_control_interface_access,
-        generate_test_workload_spec_with_param,
-        generate_test_workload_spec_with_rendered_config_files, ExecutionState, ExecutionStateEnum,
-        WorkloadInstanceName,
+        generate_test_workload_spec_with_param, generate_test_workload_spec_with_rendered_files,
+        ExecutionState, ExecutionStateEnum, WorkloadInstanceName,
     };
     use common::objects::{generate_test_workload_state_with_workload_spec, RestartPolicy};
 
@@ -2880,7 +2879,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
     // [utest->swdd~agent-workload-control-loop-updates-internal-state~1]
     #[tokio::test]
-    async fn utest_create_workload_on_runtime_create_config_files() {
+    async fn utest_create_workload_on_runtime_create_workload_files() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -2891,11 +2890,11 @@ mod tests {
         let (workload_state_forward_tx, _workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_rendered_config_files(
+        let workload_spec = generate_test_workload_spec_with_rendered_files(
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
-            generate_test_rendered_config_files(),
+            generate_test_rendered_workload_files(),
         );
 
         let workload_configs_dir =
@@ -2922,8 +2921,8 @@ mod tests {
             )])
             .await;
 
-        let mock_config_files_creator_context = MockWorkloadFilesCreator::create_files_context();
-        mock_config_files_creator_context
+        let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
+        mock_workload_files_creator_context
             .expect()
             .once()
             .with(
@@ -2957,7 +2956,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
     // [utest->swdd~agent-workload-control-loop-aborts-create-upon-workload-files-creation-error~1]
     #[tokio::test]
-    async fn utest_create_workload_on_runtime_create_config_files_fails() {
+    async fn utest_create_workload_on_runtime_create_workload_files_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -2966,15 +2965,15 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_rendered_config_files(
+        let workload_spec = generate_test_workload_spec_with_rendered_files(
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
-            generate_test_rendered_config_files(),
+            generate_test_rendered_workload_files(),
         );
 
-        let mock_config_files_creator_context = MockWorkloadFilesCreator::create_files_context();
-        mock_config_files_creator_context
+        let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
+        mock_workload_files_creator_context
             .expect()
             .once()
             .returning(move |_, _| {
@@ -3028,11 +3027,11 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_rendered_config_files(
+        let workload_spec = generate_test_workload_spec_with_rendered_files(
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
-            generate_test_rendered_config_files(),
+            generate_test_rendered_workload_files(),
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -3045,8 +3044,8 @@ mod tests {
             )])
             .await;
 
-        let mock_config_files_creator_context = MockWorkloadFilesCreator::create_files_context();
-        mock_config_files_creator_context
+        let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
+        mock_workload_files_creator_context
             .expect()
             .once()
             .returning(move |_, _| Ok(HashMap::default()));

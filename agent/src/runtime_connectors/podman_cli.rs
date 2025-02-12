@@ -307,7 +307,7 @@ impl PodmanCli {
         workload_name: &str,
         agent: &str,
         control_interface_path: Option<PathBuf>,
-        config_file_path_mapping: HashMap<PathBuf, PathBuf>,
+        workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
     ) -> Result<String, String> {
         log::debug!(
             "Creating the workload '{}' with image '{}'",
@@ -345,7 +345,7 @@ impl PodmanCli {
         }
 
         // [impl->swdd~podman-create-mounts-workload-files~1]
-        for (host_file_path, mount_point) in config_file_path_mapping {
+        for (host_file_path, mount_point) in workload_file_path_mappings {
             args.push(
                 [
                     "--mount=type=bind,source=",
@@ -1101,7 +1101,7 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
 
-        const HOST_CONFIG_FILE_PATH: &str = "/some/path/on/host/file/system/file.conf";
+        const HOST_WORKLOAD_FILE_PATH: &str = "/some/path/on/host/file/system/file.conf";
         const MOUNT_POINT_PATH: &str = "/mount/point/in/container/test.conf";
 
         super::CliCommand::new_expect(
@@ -1117,7 +1117,7 @@ mod tests {
                     "--name",
                     "myCont",
                     "--mount=type=bind,source=/test/path,destination=/run/ankaios/control_interface",
-                    &format!("--mount=type=bind,source={HOST_CONFIG_FILE_PATH},destination={MOUNT_POINT_PATH},readonly=true"),
+                    &format!("--mount=type=bind,source={HOST_WORKLOAD_FILE_PATH},destination={MOUNT_POINT_PATH},readonly=true"),
                     "--label=name=test_workload_name",
                     "--label=agent=test_agent",
                     "alpine:latest",
@@ -1137,7 +1137,7 @@ mod tests {
             "test_workload_name",
             "test_agent",
             Some("/test/path".into()),
-            HashMap::from([(HOST_CONFIG_FILE_PATH.into(), MOUNT_POINT_PATH.into())]),
+            HashMap::from([(HOST_WORKLOAD_FILE_PATH.into(), MOUNT_POINT_PATH.into())]),
         )
         .await;
         assert_eq!(res, Ok("test_id".to_string()));

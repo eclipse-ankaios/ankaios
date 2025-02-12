@@ -31,7 +31,7 @@ Test Ankaios starts manifest with workload files assigned to workloads
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_config_files.yaml"
+    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
     And Ankaios agent is started with name "agent_A"
     # Asserts
     Then the workload "workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
@@ -50,10 +50,10 @@ Test Ankaios updates a workload upon update of its workload file content
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_config_files.yaml"
+    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
     And Ankaios agent is started with name "agent_A"
     And the workload "workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And user triggers "ank -k --no-wait set state desiredState.workloads.workload_with_mounted_text_file desiredState.configs.web_server_config ${CONFIGS_DIR}/update_state_config_files.yaml"
+    And user triggers "ank -k --no-wait set state desiredState.workloads.workload_with_mounted_text_file desiredState.configs.web_server_config ${CONFIGS_DIR}/update_state_workload_files.yaml"
     # Asserts
     Then the workload "workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the command "curl -Lf localhost:8087/update" shall finish with exit code "0"
@@ -70,14 +70,14 @@ Test Ankaios updates a workload upon adding additional workload files
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_config_files.yaml"
+    When Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
     And Ankaios agent is started with name "agent_A"
     And the workload "workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # First update the files only by setting the update mask
-    And user triggers "ank -k --no-wait set state desiredState.workloads.workload_with_mounted_binary_file.files ${CONFIGS_DIR}/update_state_config_files.yaml"
+    And user triggers "ank -k --no-wait set state desiredState.workloads.workload_with_mounted_binary_file.files ${CONFIGS_DIR}/update_state_workload_files.yaml"
     And the workload "workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     # Now update the runtimeConfig calling the newly added workload file
-    And user triggers "ank -k --no-wait set state desiredState.workloads.workload_with_mounted_binary_file.runtimeConfig ${CONFIGS_DIR}/update_state_config_files.yaml"
+    And user triggers "ank -k --no-wait set state desiredState.workloads.workload_with_mounted_binary_file.runtimeConfig ${CONFIGS_DIR}/update_state_workload_files.yaml"
     # Asserts
     Then the workload "workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
@@ -90,10 +90,10 @@ Test Ankaios rejects unsupported workload files for workloads using podman-kube 
     # This test assumes that all pods and volumes in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing pods
     And Podman has deleted all existing volumes
-    And Ankaios server is started with config "${CONFIGS_DIR}/manifest_config_files.yaml"
+    And Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
     # Actions
     When Ankaios agent is started with name "agent_B"
     # Asserts
-    Then the workload "kube_workload_with_unsupported_config_files" shall have the execution state "Pending(StartingFailed)" on agent "agent_B" within "20" seconds
-    And the mount point for the workload files of workload "kube_workload_with_unsupported_config_files" on agent "agent_B" has not been generated
+    Then the workload "kube_workload_with_unsupported_files" shall have the execution state "Pending(StartingFailed)" on agent "agent_B" within "20" seconds
+    And the mount point for the workload files of workload "kube_workload_with_unsupported_files" on agent "agent_B" has not been generated
     [Teardown]    Clean up Ankaios

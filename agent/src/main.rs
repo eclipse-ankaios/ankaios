@@ -27,10 +27,10 @@ mod runtime_connectors;
 pub mod test_helper;
 mod workload_operation;
 
-mod config_files;
 mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
+mod workload_files;
 mod workload_scheduler;
 mod workload_state;
 
@@ -77,8 +77,9 @@ async fn main() {
         tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
 
     // [impl->swdd~agent-prepares-dedicated-run-folder~1]
-    let run_directory = io_utils::prepare_agent_run_directory(args.run_folder.as_str(), args.agent_name.as_str())
-        .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
+    let run_directory =
+        io_utils::prepare_agent_run_directory(args.run_folder.as_str(), args.agent_name.as_str())
+            .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
     // [impl->swdd~agent-supports-podman~2]
     let podman_runtime = Box::new(PodmanRuntime {});

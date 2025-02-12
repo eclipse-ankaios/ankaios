@@ -18,7 +18,7 @@ use api::ank_base::{self, ConfigMappings, Dependencies, Tags, WorkloadMap};
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    generate_test_rendered_config_files, generate_test_runtime_config,
+    generate_test_rendered_workload_files, generate_test_runtime_config,
     generate_test_stored_workload_spec_with_config, ConfigItem, DeleteCondition, DeletedWorkload,
     State, StoredWorkloadSpec, WorkloadInstanceName, WorkloadSpec,
 };
@@ -123,14 +123,14 @@ pub fn generate_test_state() -> State {
         RUNTIME_NAME.to_owned(),
         generate_test_runtime_config(),
     );
-    workload_1.files = generate_test_rendered_config_files();
+    workload_1.files = generate_test_rendered_workload_files();
 
     let mut workload_2 = generate_test_stored_workload_spec_with_config(
         AGENT_NAME.to_owned(),
         RUNTIME_NAME.to_owned(),
         generate_test_runtime_config(),
     );
-    workload_2.files = generate_test_rendered_config_files();
+    workload_2.files = generate_test_rendered_workload_files();
 
     ankaios_workloads.insert(workload_name_1, workload_1);
     ankaios_workloads.insert(workload_name_2, workload_2);
@@ -200,7 +200,7 @@ pub fn generate_test_proto_workload_with_param(
             ("ref1".into(), "config_1".into()),
             ("ref2".into(), "config_2".into()),
         ].into()}),
-        files: Some(generate_test_proto_config_files()),
+        files: Some(generate_test_proto_workload_files()),
     }
 }
 
@@ -221,11 +221,11 @@ pub fn generate_test_proto_workload() -> ank_base::Workload {
             ("ref1".into(), "config_1".into()),
             ("ref2".into(), "config_2".into()),
         ].into()}),
-        files: Some(generate_test_proto_config_files()),
+        files: Some(generate_test_proto_workload_files()),
     }
 }
 
-pub fn generate_test_proto_config_files() -> ank_base::Files {
+pub fn generate_test_proto_workload_files() -> ank_base::Files {
     ank_base::Files {
         files: vec![
             ank_base::File {

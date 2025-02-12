@@ -19,5 +19,5 @@ pub use workload_files_creator::WorkloadFilesCreator;
 #[cfg(test)]
 pub use workload_files_creator::{ConfigFileCreatorError, MockWorkloadFilesCreator};
 #[cfg(test)]
-pub use workload_files_path::generate_test_config_files_path;
+pub use workload_files_path::generate_test_workload_files_path;
 pub use workload_files_path::WorkloadFilesPath;

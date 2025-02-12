@@ -4,7 +4,7 @@
 box "Ankaios Agent"
     participant "WorkloadCommandChannel" as workload_command
     participant "WorkloadControlLoop" as workload_control_loop
-    participant "WorkloadFilesCreator" as config_files_creator
+    participant "WorkloadFilesCreator" as workload_files_creator
     participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
 end box
 
@@ -13,31 +13,31 @@ end box
 workload_control_loop -> workload_command++: wait for command
 workload_command -->> workload_control_loop --++: receive create
 deactivate workload_command
-workload_control_loop ->> config_files_creator --++: create files
+workload_control_loop ->> workload_files_creator --++: create files
 loop for each file in workload files
-    config_files_creator ->> config_files_creator++: create host file path
+    workload_files_creator ->> workload_files_creator++: create host file path
     note left
         host workload file dir:
-            /tmp/ankaios/<agent_name>_io/<workload_name>.<id>/config_files
+            /tmp/ankaios/<agent_name>_io/<workload_name>.<id>/files
         file.mountPoint: /some/file.conf
         host file path:
-            /tmp/ankaios/<agent_name>_io/<workload_name>.<id>/config_files/some/file.conf
+            /tmp/ankaios/<agent_name>_io/<workload_name>.<id>/files/some/file.conf
     end note
-    config_files_creator -> config_files_creator++: create host directory\nstructure
-    config_files_creator ->> config_files_creator++: write workload file\nto host file path
-    config_files_creator -->> config_files_creator--
-    deactivate config_files_creator
-    deactivate config_files_creator
+    workload_files_creator -> workload_files_creator++: create host directory\nstructure
+    workload_files_creator ->> workload_files_creator++: write workload file\nto host file path
+    workload_files_creator -->> workload_files_creator--
+    deactivate workload_files_creator
+    deactivate workload_files_creator
     alt creation failed\nat some step
-        config_files_creator ->> config_files_creator++: delete workload files\nsubfolder
-        config_files_creator -->> config_files_creator--
-        config_files_creator -->> workload_control_loop--: ConfigFileCreatorError
+        workload_files_creator ->> workload_files_creator++: delete workload files\nsubfolder
+        workload_files_creator -->> workload_files_creator--
+        workload_files_creator -->> workload_control_loop--: ConfigFileCreatorError
     else
-        config_files_creator -->> workload_control_loop--: host file path to\nmount point mappings
+        workload_files_creator -->> workload_control_loop--: host file path to\nmount point mappings
     end
 end
 workload_control_loop -> runtime ++: create(host file path to mount point mappings, ...)
-runtime -> runtime++: mount\workload files
+runtime -> runtime++: mount workload files
 runtime -->> runtime--
 runtime -->> workload_control_loop--++
 opt create workload fails

@@ -23,7 +23,7 @@ workloads:
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
       commandArgs: [ "-c", "cat /hello" ]
-  kube_workload_with_unsupported_config_files:
+  kube_workload_with_unsupported_files:
     agent: agent_B
     runtime: podman-kube
     configs:

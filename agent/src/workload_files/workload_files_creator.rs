@@ -47,7 +47,7 @@ impl TryFrom<(&WorkloadFilesPath, &Path)> for HostConfigFileLocation {
     type Error = String;
 
     fn try_from(
-        (config_files_base_path, mount_point): (&WorkloadFilesPath, &Path),
+        (files_base_path, mount_point): (&WorkloadFilesPath, &Path),
     ) -> Result<Self, String> {
         let mount_point_as_string = mount_point.to_str().ok_or_else(|| {
             format!(
@@ -73,8 +73,8 @@ impl TryFrom<(&WorkloadFilesPath, &Path)> for HostConfigFileLocation {
             ));
         }
 
-        let mut host_config_file_location = HostConfigFileLocation {
-            directory: config_files_base_path.to_path_buf().clone(),
+        let mut host_workload_file_location = HostConfigFileLocation {
+            directory: files_base_path.to_path_buf().clone(),
             ..Default::default()
         };
 
@@ -91,15 +91,15 @@ impl TryFrom<(&WorkloadFilesPath, &Path)> for HostConfigFileLocation {
 
             if mount_point_components.peek().is_some() {
                 // component is not the last one
-                host_config_file_location.directory.push(component);
+                host_workload_file_location.directory.push(component);
             } else {
                 // component is the last one and considered as the workload file name
-                host_config_file_location.file_name =
+                host_workload_file_location.file_name =
                     component.as_os_str().to_str().unwrap().to_owned(); // utf-8 compatibility is checked above
             }
         }
 
-        Ok(host_config_file_location)
+        Ok(host_workload_file_location)
     }
 }
 
@@ -126,20 +126,20 @@ pub struct WorkloadFilesCreator;
 impl WorkloadFilesCreator {
     // [impl->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     pub async fn create_files(
-        config_files_base_path: &WorkloadFilesPath,
-        config_files: &[File],
+        workload_files_base_path: &WorkloadFilesPath,
+        workload_files: &[File],
     ) -> Result<HashMap<PathBuf, PathBuf>, ConfigFileCreatorError> {
         let mut host_file_paths = HashMap::new();
-        for file in config_files {
+        for file in workload_files {
             let mount_point = Path::new(&file.mount_point);
 
-            let host_config_file_location =
-                HostConfigFileLocation::try_from((config_files_base_path, mount_point)).map_err(
+            let host_workload_file_location =
+                HostConfigFileLocation::try_from((workload_files_base_path, mount_point)).map_err(
                     |err| {
-                        filesystem::remove_dir(config_files_base_path).unwrap_or_else(|err| {
+                        filesystem::remove_dir(workload_files_base_path).unwrap_or_else(|err| {
                             log::error!(
                                 "Failed to remove directory '{}': '{}'",
-                                config_files_base_path.display(),
+                                workload_files_base_path.display(),
                                 err
                             )
                         });
@@ -152,11 +152,11 @@ impl WorkloadFilesCreator {
                     },
                 )?;
 
-            filesystem::make_dir(&host_config_file_location.directory).map_err(|err| {
-                filesystem::remove_dir(config_files_base_path).unwrap_or_else(|err| {
+            filesystem::make_dir(&host_workload_file_location.directory).map_err(|err| {
+                filesystem::remove_dir(workload_files_base_path).unwrap_or_else(|err| {
                     log::error!(
                         "Failed to remove directory '{}': '{}'",
-                        config_files_base_path.display(),
+                        workload_files_base_path.display(),
                         err
                     )
                 });
@@ -168,32 +168,29 @@ impl WorkloadFilesCreator {
                 ))
             })?;
 
-            let host_config_file_path = host_config_file_location.get_absolute_file_path();
-            Self::write_config_file(host_config_file_path.as_path(), file)
+            let host_workload_file_path = host_workload_file_location.get_absolute_file_path();
+            Self::write_file(host_workload_file_path.as_path(), file)
                 .await
                 .map_err(|err| {
-                    filesystem::remove_dir(config_files_base_path).unwrap_or_else(|err| {
+                    filesystem::remove_dir(workload_files_base_path).unwrap_or_else(|err| {
                         log::error!(
                             "Failed to remove directory '{}': '{}'",
-                            config_files_base_path.display(),
+                            workload_files_base_path.display(),
                             err
                         )
                     });
                     err
                 })?;
-            host_file_paths.insert(host_config_file_path, mount_point.to_path_buf());
+            host_file_paths.insert(host_workload_file_path, mount_point.to_path_buf());
         }
 
         Ok(host_file_paths)
     }
 
-    async fn write_config_file(
-        config_file_path: &Path,
-        file: &File,
-    ) -> Result<(), ConfigFileCreatorError> {
+    async fn write_file(file_path: &Path, file: &File) -> Result<(), ConfigFileCreatorError> {
         let file_io_result = match &file.file_content {
             FileContent::Data(Data { data }) => {
-                filesystem_async::write_file(config_file_path, data.clone()).await
+                filesystem_async::write_file(file_path, data.clone()).await
             }
             FileContent::BinaryData(Base64Data {
                 base64_data: binary_data,
@@ -208,7 +205,7 @@ impl WorkloadFilesCreator {
                         ))
                     })?;
 
-                filesystem_async::write_file(config_file_path, binary).await
+                filesystem_async::write_file(file_path, binary).await
             }
         };
 
@@ -233,7 +230,7 @@ impl WorkloadFilesCreator {
 mod tests {
     use mockall::predicate;
 
-    use crate::config_files::generate_test_config_files_path;
+    use crate::workload_files::generate_test_workload_files_path;
 
     use super::{
         Base64Data, Data, File, FileContent, HostConfigFileLocation, WorkloadFilesCreator,
@@ -248,23 +245,23 @@ mod tests {
 
     const TEST_BASE64_DATA: &str = "ZGF0YQ=="; // "data" as base64
     const DECODED_TEST_BASE64_DATA: &str = "data";
-    const TEST_CONFIG_FILE_DATA: &str = "some config";
+    const TEST_WORKLOAD_FILE_DATA: &str = "some config";
 
     // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     // [utest->swdd~workload-files-creator-decodes-base64-to-binary~1]
     #[tokio::test]
-    async fn utest_config_files_creator_create_files() {
+    async fn utest_workload_files_creator_create_files() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let workload_config_files_path = generate_test_config_files_path();
+        let workload_files_path = generate_test_workload_files_path();
 
-        let config_files = vec![
+        let workload_files = vec![
             // Text based file
             File {
                 mount_point: "/some/path/test.conf".to_string(),
                 file_content: FileContent::Data(Data {
-                    data: TEST_CONFIG_FILE_DATA.to_owned(),
+                    data: TEST_WORKLOAD_FILE_DATA.to_owned(),
                 }),
             },
             // Binary file
@@ -280,27 +277,27 @@ mod tests {
         mock_make_dir_context
             .expect()
             .once()
-            .with(predicate::eq(workload_config_files_path.join("some/path")))
+            .with(predicate::eq(workload_files_path.join("some/path")))
             .returning(|_| Ok(()));
 
         mock_make_dir_context
             .expect()
             .once()
-            .with(predicate::eq(workload_config_files_path.clone()))
+            .with(predicate::eq(workload_files_path.clone()))
             .returning(|_| Ok(()));
 
-        let text_host_file_path = workload_config_files_path.join("some/path/test.conf");
+        let text_host_file_path = workload_files_path.join("some/path/test.conf");
         let mock_write_file_context = mock_filesystem_async::write_file_context();
         mock_write_file_context
             .expect()
             .once()
             .with(
                 predicate::eq(text_host_file_path.clone()),
-                predicate::eq(TEST_CONFIG_FILE_DATA.to_owned()),
+                predicate::eq(TEST_WORKLOAD_FILE_DATA.to_owned()),
             )
             .returning(|_, _: String| Ok(()));
 
-        let binary_file_path = workload_config_files_path.join("hello");
+        let binary_file_path = workload_files_path.join("hello");
         mock_write_file_context
             .expect()
             .once()
@@ -316,22 +313,22 @@ mod tests {
         ]);
         assert_eq!(
             Ok(expected_host_file_paths),
-            WorkloadFilesCreator::create_files(&workload_config_files_path, &config_files).await
+            WorkloadFilesCreator::create_files(&workload_files_path, &workload_files).await
         );
     }
 
     // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     #[tokio::test]
-    async fn utest_config_files_creator_create_files_create_dir_fails() {
+    async fn utest_workload_files_creator_create_files_create_dir_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
-        let workload_config_files_path = generate_test_config_files_path();
-        let config_files = vec![File {
+        let workload_files_path = generate_test_workload_files_path();
+        let workload_files = vec![File {
             mount_point: "/some/path/test.conf".to_string(),
             file_content: FileContent::Data(Data {
-                data: TEST_CONFIG_FILE_DATA.to_owned(),
+                data: TEST_WORKLOAD_FILE_DATA.to_owned(),
             }),
         }];
 
@@ -353,7 +350,7 @@ mod tests {
         mock_write_file_context.expect::<String>().never();
 
         let result =
-            WorkloadFilesCreator::create_files(&workload_config_files_path, &config_files).await;
+            WorkloadFilesCreator::create_files(&workload_files_path, &workload_files).await;
 
         assert!(result.is_err());
         let expected_error_substring = "failed to create workload file directory structure";
@@ -366,16 +363,16 @@ mod tests {
 
     // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     #[tokio::test]
-    async fn utest_config_files_creator_create_files_write_file_fails() {
+    async fn utest_workload_files_creator_create_files_write_file_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
-        let workload_config_files_path = generate_test_config_files_path();
-        let config_files = vec![File {
+        let workload_files_path = generate_test_workload_files_path();
+        let workload_files = vec![File {
             mount_point: "/some/path/test.conf".to_string(),
             file_content: FileContent::Data(Data {
-                data: TEST_CONFIG_FILE_DATA.to_owned(),
+                data: TEST_WORKLOAD_FILE_DATA.to_owned(),
             }),
         }];
 
@@ -383,7 +380,7 @@ mod tests {
         mock_make_dir_context
             .expect()
             .once()
-            .with(predicate::eq(workload_config_files_path.join("some/path")))
+            .with(predicate::eq(workload_files_path.join("some/path")))
             .returning(|_| Ok(()));
 
         let mock_write_file_context = mock_filesystem_async::write_file_context();
@@ -404,7 +401,7 @@ mod tests {
             .returning(|_| Ok(()));
 
         let result =
-            WorkloadFilesCreator::create_files(&workload_config_files_path, &config_files).await;
+            WorkloadFilesCreator::create_files(&workload_files_path, &workload_files).await;
 
         assert!(result.is_err());
         let error = result.unwrap_err();
@@ -417,16 +414,16 @@ mod tests {
 
     // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     #[tokio::test]
-    async fn utest_config_files_creator_create_config_files_fails_with_invalid_path_components() {
+    async fn utest_workload_files_creator_create_files_fails_with_invalid_path_components() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
-        let workload_config_files_path = generate_test_config_files_path();
-        let config_files = vec![File {
+        let workload_files_path = generate_test_workload_files_path();
+        let workload_files = vec![File {
             mount_point: "/..".to_string(),
             file_content: FileContent::Data(Data {
-                data: TEST_CONFIG_FILE_DATA.to_owned(),
+                data: TEST_WORKLOAD_FILE_DATA.to_owned(),
             }),
         }];
 
@@ -443,7 +440,7 @@ mod tests {
         mock_write_file_context.expect::<String>().never();
 
         let result =
-            WorkloadFilesCreator::create_files(&workload_config_files_path, &config_files).await;
+            WorkloadFilesCreator::create_files(&workload_files_path, &workload_files).await;
         assert!(result.is_err());
         let error = result.unwrap_err();
         let expected_error_substring = "contains invalid path components";
@@ -455,12 +452,12 @@ mod tests {
 
     // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     #[test]
-    fn utest_host_config_file_location_try_from_fails_with_directory_instead_of_file() {
-        let workload_config_files_path = generate_test_config_files_path();
+    fn utest_host_workload_file_location_try_from_fails_with_directory_instead_of_file() {
+        let workload_files_path = generate_test_workload_files_path();
         let invalid_paths = vec![Path::new("/"), Path::new("/invalid/")];
 
         for path in invalid_paths {
-            let result = HostConfigFileLocation::try_from((&workload_config_files_path, path));
+            let result = HostConfigFileLocation::try_from((&workload_files_path, path));
 
             assert!(result.is_err());
             let error = result.unwrap_err();
@@ -474,8 +471,8 @@ mod tests {
 
     // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     #[test]
-    fn utest_host_config_file_location_try_from_fails_with_relative_path() {
-        let workload_config_files_path = generate_test_config_files_path();
+    fn utest_host_workload_file_location_try_from_fails_with_relative_path() {
+        let workload_files_path = generate_test_workload_files_path();
         let invalid_paths = vec![
             Path::new(""),
             Path::new("invalid/relative/mount/point/file.conf"),
@@ -483,7 +480,7 @@ mod tests {
         ];
 
         for path in invalid_paths {
-            let result = HostConfigFileLocation::try_from((&workload_config_files_path, path));
+            let result = HostConfigFileLocation::try_from((&workload_files_path, path));
             assert!(result.is_err());
             let error = result.unwrap_err();
             let expected_error_substring = "is relative, expected absolute path";
@@ -496,8 +493,8 @@ mod tests {
 
     // [utest->swdd~workload-files-creator-decodes-base64-to-binary~1]
     #[tokio::test]
-    async fn utest_config_files_creator_write_config_file_base64_decode_error() {
-        let result = WorkloadFilesCreator::write_config_file(
+    async fn utest_workload_files_creator_write_file_base64_decode_error() {
+        let result = WorkloadFilesCreator::write_file(
             &PathBuf::from("/some/host/file/path/to/binary"),
             &File {
                 mount_point: "/binary".to_string(),

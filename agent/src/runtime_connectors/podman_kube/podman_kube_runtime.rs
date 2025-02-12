@@ -145,7 +145,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         _reusable_workload_id: Option<PodmanKubeWorkloadId>,
         _control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
-        _config_file_path_mapping: HashMap<PathBuf, PathBuf>,
+        _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
         let instance_name = workload_spec.instance_name.clone();
 
@@ -396,8 +396,8 @@ impl From<OrderedExecutionState> for ExecutionState {
 #[cfg(test)]
 mod tests {
     use common::objects::{
-        generate_test_rendered_config_files, generate_test_workload_spec_with_param,
-        generate_test_workload_spec_with_rendered_config_files,
+        generate_test_rendered_workload_files, generate_test_workload_spec_with_param,
+        generate_test_workload_spec_with_rendered_files,
         generate_test_workload_spec_with_runtime_config,
     };
     use mockall::Sequence;
@@ -740,21 +740,20 @@ mod tests {
 
     // [utest->swdd~podman-kube-rejects-workload-files~1]
     #[tokio::test]
-    async fn utest_create_workload_unsupported_config_files_error() {
+    async fn utest_create_workload_unsupported_workload_files_error() {
         let runtime = PodmanKubeRuntime {};
 
-        let workload_spec_with_config_files =
-            generate_test_workload_spec_with_rendered_config_files(
-                SAMPLE_AGENT,
-                SAMPLE_WORKLOAD_1,
-                PODMAN_KUBE_RUNTIME_NAME,
-                generate_test_rendered_config_files(),
-            );
+        let workload_spec_with_files = generate_test_workload_spec_with_rendered_files(
+            SAMPLE_AGENT,
+            SAMPLE_WORKLOAD_1,
+            PODMAN_KUBE_RUNTIME_NAME,
+            generate_test_rendered_workload_files(),
+        );
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let result = runtime
             .create_workload(
-                workload_spec_with_config_files,
+                workload_spec_with_files,
                 None,
                 None,
                 sender,
