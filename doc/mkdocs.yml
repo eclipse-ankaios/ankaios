@@ -77,8 +77,8 @@ nav:
     - usage/mtls-setup.md
     - usage/shell-completion.md
     - Manifest:
-      - usage/manifest/config-rendering.md
-      - usage/manifest/workload-config-files.md
+      - usage/manifest/config-objects.md
+      - usage/manifest/workload-files.md
     - Upgrading:
       - usage/upgrading/v0_2_to_v0_3.md
       - usage/upgrading/v0_3_to_v0_4.md

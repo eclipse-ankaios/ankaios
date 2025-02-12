@@ -1,12 +1,12 @@
-# Shareable configuration
+# Config objects
 
-Ankaios supports a shareable configuration approach, which allows configurations to be defined once and assigned to any number of workloads. To use sharable configurations, you can define config references in the [handlebars](https://github.com/sunng87/handlebars-rust) templating syntax. The following workload configuration fields currently support template expansion:
+Ankaios supports to define the configuration separated from a workload using it. This allows a user to update the configuration independently of the workloads, which is helpful when maintaining a large number of workloads. You can define templates in the [handlebars](https://github.com/sunng87/handlebars-rust) templating syntax which are expanded with the referenced configuration objects. The following workload configuration fields currently support template expansion:
 
 * `agent`
 * `runtimeConfig`
 * the subfields `data` and `binaryData` within the `files` field
 
-For a basic example of sharing configuration with workloads, see [here](../../reference/startup-configuration.md). For detailed information about using the `files` field, see [here](workload-config-files.md).
+For a basic example of separating configuration from workloads, see [here](../../reference/startup-configuration.md). For detailed information about using the `files` field, see [here](workload-files.md).
 
 ## Indentation for multi-line configuration
 
