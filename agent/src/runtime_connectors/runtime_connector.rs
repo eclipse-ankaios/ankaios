@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt::Display, path::PathBuf, str::FromStr};
+use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
@@ -27,6 +27,7 @@ pub enum RuntimeError {
     Create(String),
     Delete(String),
     List(String),
+    Unsupported(String),
 }
 
 impl Display for RuntimeError {
@@ -39,6 +40,9 @@ impl Display for RuntimeError {
                 write!(f, "{}", msg)
             }
             RuntimeError::List(msg) => {
+                write!(f, "{}", msg)
+            }
+            RuntimeError::Unsupported(msg) => {
                 write!(f, "{}", msg)
             }
         }
@@ -87,6 +91,7 @@ where
         reusable_workload_id: Option<WorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
+        workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<(WorkloadId, StChecker), RuntimeError>;
 
     async fn get_workload_id(
@@ -133,7 +138,11 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use std::{collections::VecDeque, path::PathBuf, sync::Arc};
+    use std::{
+        collections::{HashMap, VecDeque},
+        path::PathBuf,
+        sync::Arc,
+    };
 
     use async_trait::async_trait;
     use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
@@ -202,6 +211,7 @@ pub mod test {
         CreateWorkload(
             WorkloadSpec,
             Option<PathBuf>,
+            HashMap<PathBuf, PathBuf>,
             Result<(String, StubStateChecker), RuntimeError>,
         ),
         GetWorkloadId(WorkloadInstanceName, Result<String, RuntimeError>),
@@ -336,14 +346,18 @@ pub mod test {
             _reusable_workload_id: Option<String>,
             control_interface_path: Option<PathBuf>,
             _update_state_tx: WorkloadStateSender,
+            host_workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
         ) -> Result<(String, StubStateChecker), RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::CreateWorkload(
                     expected_runtime_workload_config,
                     expected_control_interface_path,
+                    expected_host_workload_file_path_mappings,
                     result,
                 ) if expected_runtime_workload_config == runtime_workload_config
-                    && expected_control_interface_path == control_interface_path =>
+                    && expected_control_interface_path == control_interface_path
+                    && host_workload_file_path_mappings
+                        == expected_host_workload_file_path_mappings =>
                 {
                     return result;
                 }

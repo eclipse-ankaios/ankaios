@@ -18,6 +18,7 @@ A workload specification must contain the following information:
 * `tags`, specify a list of `key` `value`  pairs.
 * `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) is used. Supports templated strings.
 * `configs`: assign configuration items defined in the state's `configs` field to the workload
+* `files`: map workload files to a workload, see [here](../usage/manifest/workload-files.md) for details
 * `controlInterfaceAccess`, specify the access rights of the workload for the control interface.
 
 Example `startup-config.yaml` file:
@@ -52,6 +53,7 @@ Ankaios supports templated strings and [essential control directives](https://gi
 
 * `agent`
 * `runtimeConfig`
+* the subfields `data` and `binaryData` within the `files` field
 
 Ankaios renders a templated state at startup or when the state is updated. The rendering replaces the templated strings with the configuration items associated with each workload. The configuration items themselves are defined in a `configs` field, which contains several key-value pairs. The key specifies the name of the configuration item and the value is a string, list or associative data structure. To see templated workload configurations in action, see the tutorial [Manage a fleet of vehicles from the cloud](../usage/tutorial-fleet-management.md#remote-installation-of-a-vehicle-data-sender).
 

@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{cmp::min, fmt::Display, path::PathBuf, str::FromStr};
+use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
 
@@ -145,11 +145,12 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         _reusable_workload_id: Option<PodmanKubeWorkloadId>,
         _control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
+        _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
         let instance_name = workload_spec.instance_name.clone();
 
         let workload_config =
-            PodmanKubeRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Create)?;
+            PodmanKubeRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Unsupported)?;
 
         // [impl->swdd~podman-kube-create-workload-creates-config-volume~1]
         // [impl->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
@@ -395,7 +396,9 @@ impl From<OrderedExecutionState> for ExecutionState {
 #[cfg(test)]
 mod tests {
     use common::objects::{
-        generate_test_workload_spec_with_param, generate_test_workload_spec_with_runtime_config,
+        generate_test_rendered_workload_files, generate_test_workload_spec_with_param,
+        generate_test_workload_spec_with_rendered_files,
+        generate_test_workload_spec_with_runtime_config,
     };
     use mockall::Sequence;
 
@@ -627,7 +630,7 @@ mod tests {
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender)
+            .create_workload(workload_spec, None, None, sender, Default::default())
             .await;
         // [utest->swdd~podman-kube-create-workload-returns-workload-id~1]
         assert!(matches!(workload, Ok((workload_id, _)) if
@@ -677,7 +680,7 @@ mod tests {
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender)
+            .create_workload(workload_spec, None, None, sender, Default::default())
             .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
@@ -726,13 +729,41 @@ mod tests {
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender)
+            .create_workload(workload_spec, None, None, sender, Default::default())
             .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
                 workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
                 workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
+    }
+
+    // [utest->swdd~podman-kube-rejects-workload-files~1]
+    #[tokio::test]
+    async fn utest_create_workload_unsupported_workload_files_error() {
+        let runtime = PodmanKubeRuntime {};
+
+        let workload_spec_with_files = generate_test_workload_spec_with_rendered_files(
+            SAMPLE_AGENT,
+            SAMPLE_WORKLOAD_1,
+            PODMAN_KUBE_RUNTIME_NAME,
+            generate_test_rendered_workload_files(),
+        );
+
+        let (sender, _) = tokio::sync::mpsc::channel(1);
+        let result = runtime
+            .create_workload(
+                workload_spec_with_files,
+                None,
+                None,
+                sender,
+                Default::default(),
+            )
+            .await;
+        assert!(
+            matches!(&result, Err(RuntimeError::Unsupported(_))),
+            "Expected 'RuntimeError::Unsupported', Got: {result:?}"
+        );
     }
 
     // [utest->swdd~podman-kube-state-getter-reset-cache~1]
@@ -789,7 +820,7 @@ mod tests {
 
         let (sender, mut receiver) = tokio::sync::mpsc::channel(1);
         let _workload = runtime
-            .create_workload(workload_spec, None, None, sender)
+            .create_workload(workload_spec, None, None, sender, Default::default())
             .await;
 
         receiver.recv().await;
@@ -826,7 +857,7 @@ mod tests {
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender)
+            .create_workload(workload_spec, None, None, sender, Default::default())
             .await;
 
         assert!(matches!(workload, Err(RuntimeError::Create(msg)) if msg == SAMPLE_ERROR));
