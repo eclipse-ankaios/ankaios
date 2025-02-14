@@ -90,6 +90,27 @@ The following diagram shows the startup sequence of the Ankaios Server:
 
 ![Startup](plantuml/seq_startup.svg)
 
+#### Server loads config file
+`swdd~server-loads-config-file~1`
+
+Status: approved
+
+The Ankaios server shall accept configuration files read at startup that specify the general startup configuration of the server with a lower precedence than environment variables and command line arguments.
+
+Rationale:
+Server configuration files allow a reproducible execution of the server with lower effort.
+
+Comment:
+The Ankaios server expects the configuration files per default in the standard location `/etc/ankaios/ank-server.conf`.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Server holds Current State in memory
 `swdd~server-state-in-memory~1`
 
