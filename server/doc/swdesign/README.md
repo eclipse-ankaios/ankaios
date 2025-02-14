@@ -95,9 +95,13 @@ The following diagram shows the startup sequence of the Ankaios Server:
 
 Status: approved
 
-There shall exist the possibility to use a server configuration file which enables the configuration of the Ankaios Server. Taking this into account,
-the precedence of means of configuring the Ankaios Server is the following: Ankaios Server CLI arguments, environment variables and after that the
-server configuration file.
+The Ankaios server shall accept configuration files read at startup that specify the general startup configuration of the server with a lower precedence than environment variables and command line arguments.
+
+Rationale:
+Server configuration files allow a reproducible execution of the server with lower effort.
+
+Comment:
+The Ankaios server expects the configuration files per default in the standard location `/etc/ankaios/ank-server.conf`.
 
 Tags:
 - ServerState
