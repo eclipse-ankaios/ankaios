@@ -13,8 +13,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::Arguments;
+use common::std_extensions::GracefulExitResult;
 use common::DEFAULT_SOCKET_ADDRESS;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::fmt;
 use std::net::SocketAddr;
 use toml::from_str;
 
@@ -24,28 +26,50 @@ pub const DEFAULT_SERVER_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-server.conf"
 #[cfg(not(test))]
 use std::fs::read_to_string;
 
+// This function is used in order to facilitate testing
 #[cfg(test)]
 fn read_to_string(file_path_content: &str) -> std::io::Result<String> {
     Ok(file_path_content.to_string())
-}
-
-pub fn get_default_address() -> Option<SocketAddr> {
-    DEFAULT_SOCKET_ADDRESS.parse().ok()
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ConversionErrors {
     WrongVersion(String),
     ConflictingCertificates(String),
+    InvalidServerConfig(String),
 }
 
-fn convert_to_socket_address<'de, D>(deserializer: D) -> Result<Option<SocketAddr>, D::Error>
+impl fmt::Display for ConversionErrors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConversionErrors::WrongVersion(msg) => write!(f, "Wrong version: {}", msg),
+            ConversionErrors::ConflictingCertificates(msg) => {
+                write!(f, "Conflicting certificates: {}", msg)
+            }
+            ConversionErrors::InvalidServerConfig(msg) => {
+                write!(
+                    f,
+                    "Server Config could not have been parsed due to: {}",
+                    msg
+                )
+            }
+        }
+    }
+}
+
+pub fn get_default_address() -> SocketAddr {
+    DEFAULT_SOCKET_ADDRESS
+        .parse()
+        .unwrap_or_exit("Default socket address could not have been parsed")
+}
+
+fn convert_to_socket_address<'de, D>(deserializer: D) -> Result<SocketAddr, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s: String = Deserialize::deserialize(deserializer)?;
 
-    Ok(s.parse::<SocketAddr>().ok())
+    s.parse::<SocketAddr>().map_err(serde::de::Error::custom)
 }
 
 // [impl->swdd~server-loads-config-file~1]
@@ -54,11 +78,8 @@ pub struct ServerConfig {
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub startup_config: Option<String>,
-    #[serde(
-        deserialize_with = "convert_to_socket_address",
-        default = "get_default_address"
-    )]
-    pub address: Option<SocketAddr>,
+    #[serde(deserialize_with = "convert_to_socket_address")]
+    pub address: SocketAddr,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub insecure: Option<bool>,
@@ -96,18 +117,16 @@ impl Default for ServerConfig {
 impl ServerConfig {
     pub fn from_file(file_path: &str) -> Result<ServerConfig, ConversionErrors> {
         let config_file_content = read_to_string(file_path).unwrap_or_default();
-        let server_config: ServerConfig = from_str(&config_file_content).unwrap_or_default();
+        let server_config: ServerConfig = from_str(&config_file_content)
+            .map_err(|err| ConversionErrors::InvalidServerConfig(err.to_string()))?;
 
         if server_config.version != CONFIG_VERSION {
             return Err(ConversionErrors::WrongVersion(server_config.version));
         }
 
-        if (server_config.ca_pem.is_some()
-            || server_config.crt_pem.is_some()
-            || server_config.key_pem.is_some())
-            && (server_config.ca_pem_content.is_some()
-                || server_config.crt_pem_content.is_some()
-                || server_config.key_pem_content.is_some())
+        if (server_config.ca_pem.is_some() && server_config.ca_pem_content.is_some())
+            || (server_config.crt_pem.is_some() && server_config.crt_pem_content.is_some())
+            || (server_config.key_pem.is_some() && server_config.key_pem_content.is_some())
         {
             return Err(ConversionErrors::ConflictingCertificates(
                 "Certificate paths and certificate content are both set".to_string(),
@@ -123,7 +142,7 @@ impl ServerConfig {
         }
 
         if let Some(addr) = &args.addr {
-            self.address = Some(*addr);
+            self.address = *addr;
         }
 
         self.insecure = Some(args.insecure);
@@ -164,6 +183,7 @@ mod tests {
     use crate::{cli::Arguments, server_config::ConversionErrors};
 
     use super::ServerConfig;
+    use super::DEFAULT_SERVER_CONFIG_FILE_PATH;
 
     const STARTUP_CONFIG_PATH: &str = "some_path_to_config/config.yaml";
     const TEST_SOCKET_ADDRESS: &str = "127.0.0.1:3333";
@@ -184,7 +204,7 @@ mod tests {
 
         assert_eq!(
             default_server_config.address,
-            DEFAULT_SOCKET_ADDRESS.parse::<SocketAddr>().ok()
+            DEFAULT_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
         );
         assert_eq!(default_server_config.insecure, Some(true));
         assert_eq!(default_server_config.version, "v1");
@@ -234,7 +254,7 @@ mod tests {
         let mut server_config = ServerConfig::default();
         let args = Arguments {
             path: Some(STARTUP_CONFIG_PATH.to_string()),
-            config_file_path: None,
+            config_file_path: DEFAULT_SERVER_CONFIG_FILE_PATH.to_string(),
             addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
             insecure: false,
             ca_pem: Some(CA_PEM_PATH.to_string()),
@@ -250,7 +270,7 @@ mod tests {
         );
         assert_eq!(
             server_config.address,
-            TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok()
+            TEST_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
         );
         assert_eq!(server_config.insecure, Some(false));
         assert_eq!(server_config.ca_pem, Some(CA_PEM_PATH.to_string()));
@@ -274,7 +294,7 @@ mod tests {
         let mut server_config = ServerConfig::from_file(server_config_content.as_str()).unwrap();
         let args = Arguments {
             path: Some(STARTUP_CONFIG_PATH.to_string()),
-            config_file_path: None,
+            config_file_path: DEFAULT_SERVER_CONFIG_FILE_PATH.to_string(),
             addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
             insecure: false,
             ca_pem: None,

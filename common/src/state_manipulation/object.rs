@@ -41,7 +41,7 @@ impl TryFrom<&serde_yaml::Value> for Object {
 
     fn try_from(value: &serde_yaml::Value) -> Result<Self, Self::Error> {
         Ok(Object {
-            data: to_value(value)?,
+            data: value.to_owned(),
         })
     }
 }
@@ -51,8 +51,7 @@ impl TryFrom<&toml::Value> for Object {
 
     fn try_from(value: &toml::Value) -> Result<Self, Self::Error> {
         Ok(Object {
-            data: to_value(value)
-                .map_err(|err| <toml::de::Error as serde::de::Error>::custom(err.to_string()))?,
+            data: to_value(value).map_err(serde::de::Error::custom)?,
         })
     }
 }

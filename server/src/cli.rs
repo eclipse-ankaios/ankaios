@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::server_config::DEFAULT_SERVER_CONFIG_FILE_PATH;
 use clap::{ArgAction, Parser};
 use std::{env, net::SocketAddr};
 
@@ -30,9 +31,14 @@ pub struct Arguments {
     #[clap(short = 'c', long = "startup-manifest", alias = "startup-config")]
     /// The path to the startup manifest yaml.
     pub path: Option<String>,
-    #[clap(required = false, short = 'x', long = "server-config")]
+    #[clap(
+        required = false,
+        short = 'x',
+        long = "server-config",
+        default_value = DEFAULT_SERVER_CONFIG_FILE_PATH,
+    )]
     /// The path to the server config file
-    pub config_file_path: Option<String>,
+    pub config_file_path: String,
     #[clap(required = false, short = 'a', long = "address")]
     /// The address, including the port, the server shall listen at [default: 127.0.0.1:25551].
     pub addr: Option<SocketAddr>,

@@ -25,7 +25,7 @@ use common::objects::State;
 use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
-use server_config::{ServerConfig, DEFAULT_SERVER_CONFIG_FILE_PATH};
+use server_config::ServerConfig;
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 
@@ -35,24 +35,15 @@ async fn main() {
 
     let args = cli::parse();
 
-    let server_config_file_path = args
-        .config_file_path
-        .clone()
-        .unwrap_or(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string());
-
     // [impl->swdd~server-loads-config-file~1]
-    let mut server_config = match ServerConfig::from_file(&server_config_file_path) {
-        Ok(config) => config,
-        Err(e) => {
-            log::error!("Could not parse server config file: {:?}", e);
-            return;
-        }
-    };
+    let mut server_config = ServerConfig::from_file(&args.config_file_path)
+        .unwrap_or_exit("Error reding default server config file");
+
     server_config.update_with_args(&args);
 
     log::debug!(
         "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup config path: '{}'",
-        server_config.address.unwrap(),
+        server_config.address,
         server_config
             .startup_config
             .clone()
@@ -143,7 +134,7 @@ async fn main() {
 
     tokio::select! {
         // [impl->swdd~server-default-communication-grpc~1]
-        communication_result = communications_server.start(agents_receiver, server_config.address.unwrap()) => {
+        communication_result = communications_server.start(agents_receiver, server_config.address) => {
             communication_result.unwrap_or_exit("server error")
         }
 
