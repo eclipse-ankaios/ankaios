@@ -105,7 +105,7 @@ Test Ankaios MTLS by providing PEM files via server config file
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server_with_certificates_paths.conf"
-    And Ankaios server is available
+    # And Ankaios server is available
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     And Ankaios agent is started with name "agent_B"

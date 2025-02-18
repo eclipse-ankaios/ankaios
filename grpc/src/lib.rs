@@ -31,9 +31,9 @@ pub mod security {
     use std::path::Path;
     #[derive(Debug, Default, Clone)]
     pub struct TLSConfig {
-        pub path_to_ca_pem: String,
-        pub path_to_crt_pem: String,
-        pub path_to_key_pem: String,
+        pub ca_pem: String,
+        pub crt_pem: String,
+        pub key_pem: String,
     }
 
     impl TLSConfig {
@@ -57,12 +57,12 @@ pub mod security {
         ) -> Result<Option<TLSConfig>, String> {
             match (insecure, ca_pem, crt_pem, key_pem) {
                 // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
-                (_, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
+                (_, Some(ca_pem), Some(crt_pem), Some(key_pem)) => {
 
                     Ok(Some(TLSConfig {
-                        path_to_ca_pem,
-                        path_to_crt_pem,
-                        path_to_key_pem,
+                        ca_pem,
+                        crt_pem,
+                        key_pem,
                     }))
                 }
                 // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
@@ -84,11 +84,6 @@ pub mod security {
         check_permissions: bool,
     ) -> Result<String, GrpcMiddlewareError> {
         let path_of_pem_file = Path::new(pem_file);
-        log::debug!("path of pem file: {:?}", path_of_pem_file);
-        if !path_of_pem_file.exists() {
-            log::debug!("The certificate content might have been provided as a string.");
-            return Ok(pem_file.to_string());
-        }
 
         let mut file = File::open(path_of_pem_file).map_err(|err| {
             GrpcMiddlewareError::CertificateError(format!(

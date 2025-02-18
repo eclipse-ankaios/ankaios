@@ -76,18 +76,9 @@ async fn main() {
 
     if let Err(err_message) = TLSConfig::is_config_conflicting(
         server_config.insecure.unwrap(),
-        &server_config.ca_pem,
-        &server_config.crt_pem,
-        &server_config.key_pem,
-    ) {
-        log::warn!("{}", err_message);
-    }
-
-    if let Err(err_message) = TLSConfig::is_config_conflicting(
-        server_config.insecure.unwrap(),
-        &server_config.ca_pem,
-        &server_config.crt_pem,
-        &server_config.key_pem,
+        &server_config.ca_pem_content,
+        &server_config.crt_pem_content,
+        &server_config.key_pem_content,
     ) {
         log::warn!("{}", err_message);
     }
@@ -95,35 +86,12 @@ async fn main() {
     // [impl->swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
     // [impl->swdd~server-provides-file-paths-to-communication-middleware~1]
     // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    let tls_config: Result<Option<TLSConfig>, String> = if server_config.ca_pem.is_some()
-        || server_config.crt_pem.is_some()
-        || server_config.key_pem.is_some()
-    {
-        TLSConfig::new(
-            server_config.insecure.unwrap(),
-            server_config.ca_pem,
-            server_config.crt_pem,
-            server_config.key_pem,
-        )
-    } else if server_config.ca_pem_content.is_some()
-        || server_config.crt_pem_content.is_some()
-        || server_config.key_pem_content.is_some()
-    {
-        server_config.insecure = Some(true);
-        TLSConfig::new(
-            server_config.insecure.unwrap(),
-            server_config.ca_pem_content,
-            server_config.crt_pem_content,
-            server_config.key_pem_content,
-        )
-    } else {
-        TLSConfig::new(
-            server_config.insecure.unwrap(),
-            server_config.ca_pem,
-            server_config.crt_pem,
-            server_config.key_pem,
-        )
-    };
+    let tls_config = TLSConfig::new(
+        server_config.insecure.unwrap_or(true),
+        server_config.ca_pem_content,
+        server_config.crt_pem_content,
+        server_config.key_pem_content,
+    );
 
     let mut communications_server = GRPCCommunicationsServer::new(
         to_server.clone(),

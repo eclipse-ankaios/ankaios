@@ -25,7 +25,7 @@ use crate::grpc_api::agent_connection_server::AgentConnectionServer;
 use crate::grpc_cli_connection::GRPCCliConnection;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
-use crate::security::{read_pem_file, TLSConfig};
+use crate::security::TLSConfig;
 
 use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
@@ -62,18 +62,9 @@ impl CommunicationsServer for GRPCCommunicationsServer {
         match &self.tls_config {
             // [impl->swdd~grpc-server-activate-mtls-when-certificates-and-key-provided-upon-start~1]
             Some(tls_config) => {
-                let ca_pem = &tls_config.path_to_ca_pem;
-                let crt_pem = &tls_config.path_to_crt_pem;
-                let key_pem = &tls_config.path_to_key_pem;
-
-                // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                let ca = read_pem_file(ca_pem, false)
-                    .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
-                // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                let cert = read_pem_file(crt_pem, false)
-                    .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
-                let key = read_pem_file(key_pem, true)
-                    .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
+                let ca = &tls_config.ca_pem;
+                let cert = &tls_config.crt_pem;
+                let key = &tls_config.key_pem;
 
                 let server_identity = Identity::from_pem(cert, key);
                 let tls = tonic::transport::ServerTlsConfig::new()

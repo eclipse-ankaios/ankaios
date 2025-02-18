@@ -15,6 +15,7 @@
 use crate::cli::Arguments;
 use common::std_extensions::GracefulExitResult;
 use common::DEFAULT_SOCKET_ADDRESS;
+use grpc::security::read_pem_file;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
 use std::net::SocketAddr;
@@ -37,12 +38,15 @@ pub enum ConversionErrors {
     WrongVersion(String),
     ConflictingCertificates(String),
     InvalidServerConfig(String),
+    InvalidCertificate(String),
 }
 
 impl fmt::Display for ConversionErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ConversionErrors::WrongVersion(msg) => write!(f, "Wrong version: {}", msg),
+            ConversionErrors::WrongVersion(msg) => {
+                write!(f, "Wrong version: {}", msg)
+            }
             ConversionErrors::ConflictingCertificates(msg) => {
                 write!(f, "Conflicting certificates: {}", msg)
             }
@@ -52,6 +56,9 @@ impl fmt::Display for ConversionErrors {
                     "Server Config could not have been parsed due to: {}",
                     msg
                 )
+            }
+            ConversionErrors::InvalidCertificate(msg) => {
+                write!(f, "Certificate could not have been read due to: {}", msg)
             }
         }
     }
@@ -79,16 +86,17 @@ pub struct ServerConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub startup_config: Option<String>,
     #[serde(deserialize_with = "convert_to_socket_address")]
+    #[serde(default = "get_default_address")]
     pub address: SocketAddr,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub insecure: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ca_pem: Option<String>,
+    ca_pem: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub crt_pem: Option<String>,
+    crt_pem: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub key_pem: Option<String>,
+    key_pem: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ca_pem_content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -117,7 +125,7 @@ impl Default for ServerConfig {
 impl ServerConfig {
     pub fn from_file(file_path: &str) -> Result<ServerConfig, ConversionErrors> {
         let config_file_content = read_to_string(file_path).unwrap_or_default();
-        let server_config: ServerConfig = from_str(&config_file_content)
+        let mut server_config: ServerConfig = from_str(&config_file_content)
             .map_err(|err| ConversionErrors::InvalidServerConfig(err.to_string()))?;
 
         if server_config.version != CONFIG_VERSION {
@@ -131,6 +139,22 @@ impl ServerConfig {
             return Err(ConversionErrors::ConflictingCertificates(
                 "Certificate paths and certificate content are both set".to_string(),
             ));
+        }
+
+        if let Some(ca_pem_path) = &server_config.ca_pem {
+            let ca_pem_content = read_pem_file(ca_pem_path, false)
+                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
+            server_config.ca_pem_content = Some(ca_pem_content);
+        }
+        if let Some(crt_pem_path) = &server_config.crt_pem {
+            let crt_pem_content = read_pem_file(crt_pem_path, false)
+                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
+            server_config.crt_pem_content = Some(crt_pem_content);
+        }
+        if let Some(key_pem_path) = &server_config.key_pem {
+            let key_pem_content = read_pem_file(key_pem_path, false)
+                .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
+            server_config.key_pem_content = Some(key_pem_content);
         }
 
         Ok(server_config)
@@ -147,22 +171,21 @@ impl ServerConfig {
 
         self.insecure = Some(args.insecure);
 
-        self.ca_pem = if let Some(ca_pem) = &args.ca_pem {
-            Some(ca_pem.to_string())
-        } else {
-            self.ca_pem_content.clone()
-        };
-        self.crt_pem = if let Some(crt_pem) = &args.crt_pem {
-            Some(crt_pem.to_string())
-        } else {
-            self.crt_pem_content.clone()
-        };
-        self.key_pem = args.key_pem.clone();
-        self.key_pem = if let Some(key_pem) = &args.key_pem {
-            Some(key_pem.to_string())
-        } else {
-            self.key_pem_content.clone()
-        };
+        if let Some(ca_pem_path) = &args.ca_pem {
+            self.ca_pem = Some(ca_pem_path.to_owned());
+            let ca_pem_content = read_pem_file(ca_pem_path, false).unwrap_or_default();
+            self.ca_pem_content = Some(ca_pem_content);
+        }
+        if let Some(crt_pem_path) = &args.crt_pem {
+            self.crt_pem = Some(crt_pem_path.to_owned());
+            let crt_pem_content = read_pem_file(crt_pem_path, false).unwrap_or_default();
+            self.crt_pem_content = Some(crt_pem_content);
+        }
+        if let Some(key_pem_path) = &args.key_pem {
+            self.key_pem = Some(key_pem_path.to_owned());
+            let key_pem_content = read_pem_file(key_pem_path, false).unwrap_or_default();
+            self.key_pem_content = Some(key_pem_content);
+        }
     }
 }
 
@@ -232,7 +255,7 @@ mod tests {
             r"#
         version = 'v1'
         ca_pem = '''{}'''
-        crt_pem_content = '''{}'''
+        ca_pem_content = '''{}'''
         #",
             CA_PEM_PATH, CRT_PEM_CONTENT
         );
@@ -304,9 +327,18 @@ mod tests {
 
         server_config.update_with_args(&args);
 
-        assert_eq!(server_config.ca_pem, Some(CA_PEM_CONTENT.to_string()));
-        assert_eq!(server_config.crt_pem, Some(CRT_PEM_CONTENT.to_string()));
-        assert_eq!(server_config.key_pem, Some(KEY_PEM_CONTENT.to_string()));
+        assert_eq!(
+            server_config.ca_pem_content,
+            Some(CA_PEM_CONTENT.to_string())
+        );
+        assert_eq!(
+            server_config.crt_pem_content,
+            Some(CRT_PEM_CONTENT.to_string())
+        );
+        assert_eq!(
+            server_config.key_pem_content,
+            Some(KEY_PEM_CONTENT.to_string())
+        );
     }
 
     // [utest->swdd~server-loads-config-file~1]
@@ -318,14 +350,15 @@ mod tests {
         startup_config = '/workspaces/ankaios/server/resources/startConfig.yaml'
         address = '127.0.0.1:25551'
         insecure = true
-        ca_pem_content = {}
-        crt_pem_content = {}
-        key_pem_content = {}
+        ca_pem_content = '''{}'''
+        crt_pem_content = '''{}'''
+        key_pem_content = '''{}'''
         #",
             CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
         );
 
         let server_config = ServerConfig::from_file(server_config_content.as_str());
+        println!("{:?}", server_config);
 
         assert!(server_config.is_ok())
     }
