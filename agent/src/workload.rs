@@ -103,12 +103,16 @@ impl Workload {
         }
 
         self.control_interface = control_interface_info.and_then(|info| {
-            let run_folder = info.get_run_folder().clone();
+            let control_interface_path = info.get_control_interface_path().clone();
             let output_pipe_sender = info.get_to_server_sender();
             let instance_name = info.get_instance_name().clone();
             let authorizer = info.move_authorizer();
-            match ControlInterface::new(&run_folder, &instance_name, output_pipe_sender, authorizer)
-            {
+            match ControlInterface::new(
+                &control_interface_path,
+                &instance_name,
+                output_pipe_sender,
+                authorizer,
+            ) {
                 Ok(control_interface) => Some(control_interface),
                 Err(err) => {
                     log::warn!("Could not exchange control interface. Error: '{}'", err);
@@ -219,7 +223,7 @@ mod tests {
     use crate::{
         control_interface::{
             authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
-            MockControlInterface,
+            ControlInterfacePath, MockControlInterface,
         },
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
@@ -400,9 +404,9 @@ mod tests {
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
-            .expect_get_run_folder()
+            .expect_get_control_interface_path()
             .once()
-            .return_const("different_path".into());
+            .return_const(ControlInterfacePath::new("different_path".into()));
 
         new_control_interface_info_mock
             .expect_get_to_server_sender()
@@ -481,9 +485,9 @@ mod tests {
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
-            .expect_get_run_folder()
+            .expect_get_control_interface_path()
             .once()
-            .return_const(PIPES_LOCATION.into());
+            .return_const(ControlInterfacePath::new(PIPES_LOCATION.into()));
 
         new_control_interface_info_mock
             .expect_get_to_server_sender()

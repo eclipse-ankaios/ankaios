@@ -62,8 +62,8 @@ impl WorkloadCommandSender {
             .await
     }
 
-    pub async fn resume(&self) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
-        self.sender.send(WorkloadCommand::Resume).await
+    pub fn resume(&self) -> Result<(), mpsc::error::TrySendError<WorkloadCommand>> {
+        self.sender.try_send(WorkloadCommand::Resume)
     }
 
     pub async fn delete(self) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
@@ -93,7 +93,7 @@ mod tests {
             Some(PathBuf::from(PIPES_LOCATION));
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~3]
+    // [utest->swdd~agent-workload-control-loop-executes-create~4]
     #[tokio::test]
     async fn utest_send_create() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
@@ -105,7 +105,7 @@ mod tests {
         assert_eq!(workload_command, WorkloadCommand::Create);
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~3]
+    // [utest->swdd~agent-workload-control-loop-executes-create~4]
     #[tokio::test]
     async fn utest_send_retry() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
@@ -122,7 +122,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~3]
+    // [utest->swdd~agent-workload-control-loop-executes-create~4]
     #[tokio::test]
     async fn utest_send_update() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
@@ -143,7 +143,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~3]
+    // [utest->swdd~agent-workload-control-loop-executes-create~4]
     #[tokio::test]
     async fn utest_send_delete() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
@@ -159,7 +159,7 @@ mod tests {
     async fn utest_send_resume() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
-        workload_command_sender.resume().await.unwrap();
+        workload_command_sender.resume().unwrap();
 
         let workload_command = workload_command_receiver.recv().await;
 
@@ -173,6 +173,6 @@ mod tests {
         // close the channel to simulate an error
         workload_command_receiver.close();
 
-        assert!(workload_command_sender.resume().await.is_err());
+        assert!(workload_command_sender.resume().is_err());
     }
 }

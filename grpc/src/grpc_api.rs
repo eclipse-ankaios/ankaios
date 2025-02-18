@@ -183,6 +183,11 @@ impl TryFrom<AddedWorkload> for objects::WorkloadSpec {
                 .control_interface_access
                 .unwrap_or_default()
                 .try_into()?,
+            files: workload
+                .files
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
         })
     }
 }
@@ -201,6 +206,7 @@ impl From<objects::WorkloadSpec> for AddedWorkload {
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            files: workload.files.into_iter().map(Into::into).collect(),
             control_interface_access: workload.control_interface_access.into(),
         }
     }
@@ -294,7 +300,10 @@ mod tests {
 
     use api::ank_base::{self, Dependencies};
     use common::{
-        objects::{generate_test_workload_spec, ConfigHash, CpuUsage, FreeMemory},
+        objects::{
+            generate_test_rendered_workload_files, generate_test_workload_spec, ConfigHash,
+            CpuUsage, FreeMemory,
+        },
         test_utils::{self, generate_test_deleted_workload},
     };
 
@@ -313,9 +322,7 @@ mod tests {
         let agent_name = "agent_A".to_string();
 
         let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::AgentHello(AgentHello::new(
-                &agent_name,
-            ))),
+            to_server_enum: Some(ToServerEnum::AgentHello(AgentHello::new(&agent_name))),
         };
 
         let ankaios_command = ankaios::ToServer::AgentHello(ankaios::AgentHello { agent_name });
@@ -578,7 +585,8 @@ mod tests {
 
     #[test]
     fn utest_converts_to_proto_added_workload() {
-        let workload_spec = generate_test_workload_spec();
+        let mut workload_spec = generate_test_workload_spec();
+        workload_spec.files = generate_test_rendered_workload_files();
 
         let proto_workload = AddedWorkload {
             instance_name: Some(ank_base::WorkloadInstanceName {
@@ -604,6 +612,18 @@ mod tests {
                 value: "value".into(),
             }],
             control_interface_access: Default::default(),
+            files: vec![
+                ank_base::File {
+                    mount_point: "/file.json".into(),
+                    file_content: Some(ank_base::file::FileContent::Data("text data".into())),
+                },
+                ank_base::File {
+                    mount_point: "/binary_file".into(),
+                    file_content: Some(ank_base::file::FileContent::BinaryData(
+                        "base64_data".into(),
+                    )),
+                },
+            ],
         };
 
         assert_eq!(AddedWorkload::from(workload_spec), proto_workload);
@@ -631,6 +651,7 @@ mod tests {
             tags: vec![],
             runtime_config: String::from("some config"),
             control_interface_access: Default::default(),
+            files: generate_test_rendered_workload_files(),
         };
 
         let proto_workload = AddedWorkload {
@@ -654,6 +675,18 @@ mod tests {
             runtime_config: String::from("some config"),
             tags: vec![],
             control_interface_access: Default::default(),
+            files: vec![
+                ank_base::File {
+                    mount_point: "/file.json".into(),
+                    file_content: Some(ank_base::file::FileContent::Data("text data".into())),
+                },
+                ank_base::File {
+                    mount_point: "/binary_file".into(),
+                    file_content: Some(ank_base::file::FileContent::BinaryData(
+                        "base64_data".into(),
+                    )),
+                },
+            ],
         };
 
         assert_eq!(
@@ -685,6 +718,7 @@ mod tests {
             runtime_config: String::from("some config"),
             tags: vec![],
             control_interface_access: Default::default(),
+            files: Default::default(),
         };
 
         assert!(ankaios::WorkloadSpec::try_from(proto_workload).is_err());
