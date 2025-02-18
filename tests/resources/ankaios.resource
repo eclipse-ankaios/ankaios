@@ -156,8 +156,6 @@ the command "${cli_command}" finished with exit code "${exit_code}" within "${ti
 Ankaios server is started with config "${config_path}" and PEM files: "${ca_pem}" "${crt_pem}" "${key_pem}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --server-config
-    ...    ${CONFIGS_DIR}/ank-server-default.conf
     ...    --startup-config
     ...    ${config_path}
     ...    --ca_pem
@@ -174,8 +172,6 @@ Ankaios server is started with config "${config_path}" and PEM files: "${ca_pem}
 Ankaios insecure server is started with config "${config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --server-config
-    ...    ${CONFIGS_DIR}/ank-server-default.conf
     ...    --startup-config
     ...    ${config_path}
     ...    --insecure
@@ -200,8 +196,6 @@ Ankaios insecure server is started with config "${config_path}" and server confi
 Ankaios server is started with config "${config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --server-config
-    ...    ${CONFIGS_DIR}/ank-server-default.conf
     ...    --startup-config
     ...    ${config_path}
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
@@ -233,8 +227,6 @@ the Ankaios server shall exit with an error code
 Ankaios server is started without config successfully
     Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --server-config
-    ...    ${CONFIGS_DIR}/ank-server-default.conf
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
     Ankaios server is available
