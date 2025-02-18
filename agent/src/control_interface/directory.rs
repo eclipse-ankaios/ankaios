@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use super::filesystem::FileSystem;
 use super::filesystem::FileSystemError;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Directory {
     path: PathBuf,
     filesystem: FileSystem,
@@ -157,11 +157,11 @@ mod tests {
         let directory = Directory::new(Path::new("test_path").to_path_buf());
 
         assert_eq!(
-            directory,
-            Err(FileSystemError::CreateDirectory(
+            directory.unwrap_err(),
+            FileSystemError::CreateDirectory(
                 OsString::from_str("Could not create directory").unwrap(),
                 std::io::ErrorKind::Other,
-            ),)
+            )
         );
     }
     #[test]
