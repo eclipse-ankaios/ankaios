@@ -42,7 +42,7 @@ async fn main() {
     server_config.update_with_args(&args);
 
     log::debug!(
-        "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup config path: '{}'",
+        "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup manifest path: '{}'",
         server_config.address,
         server_config
             .startup_config

@@ -124,9 +124,12 @@ impl Default for ServerConfig {
 
 impl ServerConfig {
     pub fn from_file(file_path: &str) -> Result<ServerConfig, ConversionErrors> {
-        let config_file_content = read_to_string(file_path).unwrap_or_default();
-        let mut server_config: ServerConfig = from_str(&config_file_content)
-            .map_err(|err| ConversionErrors::InvalidServerConfig(err.to_string()))?;
+        let mut server_config = if let Ok(config_file_content) = read_to_string(file_path) {
+            from_str::<ServerConfig>(&config_file_content)
+                .map_err(|err| ConversionErrors::InvalidServerConfig(err.to_string()))
+        } else {
+            Ok(ServerConfig::default())
+        }?;
 
         if server_config.version != CONFIG_VERSION {
             return Err(ConversionErrors::WrongVersion(server_config.version));
