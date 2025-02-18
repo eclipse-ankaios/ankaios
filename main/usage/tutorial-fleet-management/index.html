@@ -1778,7 +1778,7 @@ The following examples assume that the installation script was used with the def
 <a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;*&quot;</span>
 <a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">    </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NEVER</span>
 <a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/fleet-connector:0.5.3</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/fleet-connector:0.5.4</span>
 <a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">      </span><span class="no">commandOptions: [ &quot;--net=host&quot;, &quot;-e&quot;, &quot;VIN=1&quot;]</span>
 </code></pre></div>
 <p>Since the fleet connector needs to access the Ankaios control interface, we need to allow this with the <code>controlInterfaceAccess</code> section in the manifest.
