@@ -14,6 +14,7 @@
 
 // mod exports
 pub mod control_loop_state;
+pub mod retry_manager;
 pub mod workload_command_channel;
 pub mod workload_control_loop;
 
