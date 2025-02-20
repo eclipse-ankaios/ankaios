@@ -29,7 +29,7 @@ Test server config file successful start-up
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~server-loads-config-file~1]
-Test overwrite config files by cli arguments
+Test server config overwrite manifest with cli arguments
     [Setup]        Setup Ankaios
     # Preconditions
     Ankaios insecure server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server.conf"

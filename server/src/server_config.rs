@@ -67,7 +67,7 @@ impl fmt::Display for ConversionErrors {
 pub fn get_default_address() -> SocketAddr {
     DEFAULT_SOCKET_ADDRESS
         .parse()
-        .unwrap_or_exit("Default socket address could not have been parsed")
+        .unwrap_or_unreachable()
 }
 
 fn convert_to_socket_address<'de, D>(deserializer: D) -> Result<SocketAddr, D::Error>

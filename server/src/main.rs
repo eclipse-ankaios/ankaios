@@ -37,7 +37,7 @@ async fn main() {
 
     // [impl->swdd~server-loads-config-file~1]
     let mut server_config = ServerConfig::from_file(&args.config_file_path)
-        .unwrap_or_exit("Error reding default server config file");
+        .unwrap_or_exit("Error reding server config file");
 
     server_config.update_with_args(&args);
 
