@@ -128,7 +128,7 @@ impl RetryToken {
 mod tests {
     use std::{
         cell::RefCell,
-        ops::RangeToInclusive,
+        ops::{DerefMut, RangeToInclusive},
         pin::{pin, Pin},
         rc::Rc,
         sync::{Arc, Mutex},
@@ -191,6 +191,25 @@ mod tests {
         fn wake(self: std::sync::Arc<Self>) {}
     }
 
+    #[derive(Default)]
+    struct SimpleFuture {
+        has_been_called: bool,
+    }
+
+    impl Future for SimpleFuture {
+        type Output = ();
+
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+            if self.has_been_called {
+                Poll::Ready(())
+            } else {
+                self.deref_mut().has_been_called = true;
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            }
+        }
+    }
+
     fn create_callback() -> (
         impl FnOnce(RetryToken) -> Pin<Box<dyn Future<Output = ()>>>,
         Rc<RefCell<Option<RetryToken>>>,
@@ -202,7 +221,7 @@ mod tests {
             retry_token: RetryToken,
         ) -> Pin<Box<dyn Future<Output = ()>>> {
             *called.borrow_mut() = Some(retry_token);
-            Box::pin(async {})
+            Box::pin(SimpleFuture::default())
         }
         (
             move |retry_token: RetryToken| Box::pin(callback(called_copy, retry_token)),
@@ -246,6 +265,7 @@ mod tests {
         assert!(called.borrow().is_none());
         assert_sleep_for_millis(500 - RANDOM_OFFSET_1);
 
+        assert_eq!(call_res.as_mut().poll(&mut context), Poll::Pending);
         assert_eq!(call_res.as_mut().poll(&mut context), Poll::Ready(()));
         assert!(called.borrow().is_some());
         let token = called.borrow_mut().take().unwrap();
@@ -269,6 +289,7 @@ mod tests {
                 assert!(called.borrow().is_none());
                 assert_sleep_for_millis(millis);
 
+                assert_eq!(call_res.as_mut().poll(&mut context), Poll::Pending);
                 assert_eq!(call_res.as_mut().poll(&mut context), Poll::Ready(()));
                 assert!(called.borrow().is_some());
                 let token = called.borrow_mut().take().unwrap();
