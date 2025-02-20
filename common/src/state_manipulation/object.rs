@@ -46,6 +46,16 @@ impl TryFrom<&serde_yaml::Value> for Object {
     }
 }
 
+impl TryFrom<&toml::Value> for Object {
+    type Error = toml::de::Error;
+
+    fn try_from(value: &toml::Value) -> Result<Self, Self::Error> {
+        Ok(Object {
+            data: to_value(value).map_err(serde::de::Error::custom)?,
+        })
+    }
+}
+
 impl TryFrom<&ankaios::State> for Object {
     type Error = serde_yaml::Error;
 
