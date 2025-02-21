@@ -3,8 +3,8 @@ title: Welcome
 description: Eclipse Ankaios provides workload and container orchestration for automotive High Performance Computing Platforms (HPCs).
 ---
 
-![Image title](assets/Ankaios__logo_for_light_bgrd_clipped.png#only-light)
-![Image title](assets/Ankaios__logo_for_dark_bgrd_clipped.png#only-dark)
+![Ankaios logo](assets/Ankaios__logo_for_light_bgrd_clipped.png#only-light)
+![Ankaios logo](assets/Ankaios__logo_for_dark_bgrd_clipped.png#only-dark)
 
 # Eclipse Ankaios
 
