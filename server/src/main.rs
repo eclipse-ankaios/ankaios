@@ -32,29 +32,16 @@ use server_config::{ServerConfig, DEFAULT_SERVER_CONFIG_FILE_PATH};
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 
 fn prepare_server_config(config_path_arg: &Option<String>) -> Result<ServerConfig, Error> {
-    if let Some(config_path_str) = config_path_arg {
-        let config_path = PathBuf::from(&config_path_str);
-
-        if config_path.try_exists()? {
-            fs::read_to_string(&config_path)?;
-            Ok(ServerConfig::from_file(config_path)
-                .map_err(|err| Error::new(ErrorKind::Other, format!("{}", err)))?)
-        } else {
-            Err(Error::new(
-                ErrorKind::NotFound,
-                format!("Config file not found: {}", config_path_str),
-            ))
-        }
+    let mut path = PathBuf::from(DEFAULT_SERVER_CONFIG_FILE_PATH);
+    if config_path_arg.is_none() && !path.try_exists()? {
+        Ok(ServerConfig::default())
     } else {
-        let default_path = PathBuf::from(DEFAULT_SERVER_CONFIG_FILE_PATH);
-        if !default_path.try_exists()? {
-            Ok(ServerConfig::default())
-        } else {
-            fs::read_to_string(DEFAULT_SERVER_CONFIG_FILE_PATH)?;
-            Ok(ServerConfig::from_file(default_path)
-                .map_err(|err| Error::new(ErrorKind::Other, format!("{}", err)))?)
-        }
+        path = config_path_arg.unwrap_or_unreachable();
     }
+    
+    fs::read_to_string(path)?;
+    Ok(ServerConfig::from_file(default_path)
+        .map_err(|err| Error::new(ErrorKind::Other, format!("{}", err)))?)
 }
 
 #[tokio::main]
