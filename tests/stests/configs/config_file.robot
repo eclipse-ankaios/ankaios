@@ -22,7 +22,7 @@ Resource    ../../resources/variables.resource
 Test server config file successful start-up
     [Setup]        Setup Ankaios
     # Preconditions
-    Ankaios insecure server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server-default.conf"
+    Ankaios insecure server is started with server config file "${CONFIGS_DIR}/ank-server-default.conf"
     And Ankaios server is available
     # Actions
     # Asserts

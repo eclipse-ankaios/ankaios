@@ -17,6 +17,8 @@ mod cli;
 mod server_config;
 
 use std::fs;
+use std::io::{Error, ErrorKind};
+use std::path::PathBuf;
 
 use common::objects::CompleteState;
 
@@ -25,9 +27,35 @@ use common::objects::State;
 use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
-use server_config::ServerConfig;
+use server_config::{ServerConfig, DEFAULT_SERVER_CONFIG_FILE_PATH};
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
+
+fn prepare_server_config(config_path_arg: &Option<String>) -> Result<ServerConfig, Error> {
+    if let Some(config_path_str) = config_path_arg {
+        let config_path = PathBuf::from(&config_path_str);
+
+        if config_path.try_exists()? {
+            fs::read_to_string(&config_path)?;
+            Ok(ServerConfig::from_file(config_path)
+                .map_err(|err| Error::new(ErrorKind::Other, format!("{}", err)))?)
+        } else {
+            Err(Error::new(
+                ErrorKind::NotFound,
+                format!("Config file not found: {}", config_path_str),
+            ))
+        }
+    } else {
+        let default_path = PathBuf::from(DEFAULT_SERVER_CONFIG_FILE_PATH);
+        if !default_path.try_exists()? {
+            Ok(ServerConfig::default())
+        } else {
+            fs::read_to_string(DEFAULT_SERVER_CONFIG_FILE_PATH)?;
+            Ok(ServerConfig::from_file(default_path)
+                .map_err(|err| Error::new(ErrorKind::Other, format!("{}", err)))?)
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -36,8 +64,8 @@ async fn main() {
     let args = cli::parse();
 
     // [impl->swdd~server-loads-config-file~1]
-    let mut server_config = ServerConfig::from_file(&args.config_file_path)
-        .unwrap_or_exit("Error reding server config file");
+    let mut server_config = prepare_server_config(&args.config_path)
+        .unwrap_or_exit("Error evaluating server config file path");
 
     server_config.update_with_args(&args);
 
@@ -45,12 +73,12 @@ async fn main() {
         "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup manifest path: '{}'",
         server_config.address,
         server_config
-            .startup_config
+            .startup_manifest
             .clone()
             .unwrap_or("[no config file provided]".to_string()),
     );
 
-    let startup_state = match &server_config.startup_config {
+    let startup_state = match &server_config.startup_manifest {
         Some(config_path) => {
             let data =
                 fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");

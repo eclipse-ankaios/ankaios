@@ -180,6 +180,17 @@ Ankaios insecure server is started with config "${config_path}"
     ...    alias=ank-server
     RETURN    ${server_process}
 
+Ankaios insecure server is started with server config file "${server_config_path}"
+    ${server_process}=    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    --server-config
+    ...    ${server_config_path}
+    ...    --insecure
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=ank-server
+    RETURN    ${server_process}
+
 Ankaios insecure server is started with config "${config_path}" and server config file "${server_config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server

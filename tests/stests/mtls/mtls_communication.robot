@@ -97,25 +97,3 @@ Test Ankaios insecure mode by providing --insecure command line arguments
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     [Teardown]    Clean up Ankaios
-
-# This shall be added when config files are supported also for agents and CLI
-# # [stest->swdd~server-loads-config-file~1]
-# Test Ankaios MTLS by providing PEM files via server config file
-#     [Setup]    Run Keyword    Setup Ankaios without MTLS Setup
-#     # Preconditions
-#     # This test assumes that all containers in the podman have been created with this test -> clean it up first
-#     Given Podman has deleted all existing containers
-#     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server_with_certificates_paths.conf"
-#     # And Ankaios server is available
-#     And Ankaios agent is started with name "agent_A"
-#     And all workloads of agent "agent_A" have an initial execution state
-#     And Ankaios agent is started with name "agent_B"
-#     And all workloads of agent "agent_B" have an initial execution state
-#     # Actions
-#     When user triggers "ank get workloads"
-#     # Asserts
-#     Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
-#     And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B"
-#     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
-#     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
-#     [Teardown]    Clean up Ankaios

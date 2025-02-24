@@ -13,12 +13,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::Arguments;
-use common::std_extensions::GracefulExitResult;
+use common::std_extensions::{UnreachableOption, UnreachableResult};
 use common::DEFAULT_SOCKET_ADDRESS;
 use grpc::security::read_pem_file;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer};
 use std::fmt;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use toml::from_str;
 
 const CONFIG_VERSION: &str = "v1";
@@ -65,9 +66,7 @@ impl fmt::Display for ConversionErrors {
 }
 
 pub fn get_default_address() -> SocketAddr {
-    DEFAULT_SOCKET_ADDRESS
-        .parse()
-        .unwrap_or_unreachable()
+    DEFAULT_SOCKET_ADDRESS.parse().unwrap_or_unreachable()
 }
 
 fn convert_to_socket_address<'de, D>(deserializer: D) -> Result<SocketAddr, D::Error>
@@ -80,11 +79,11 @@ where
 }
 
 // [impl->swdd~server-loads-config-file~1]
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct ServerConfig {
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub startup_config: Option<String>,
+    pub startup_manifest: Option<String>,
     #[serde(deserialize_with = "convert_to_socket_address")]
     #[serde(default = "get_default_address")]
     pub address: SocketAddr,
@@ -109,9 +108,9 @@ impl Default for ServerConfig {
     fn default() -> Self {
         ServerConfig {
             version: "v1".to_string(),
-            startup_config: None,
+            startup_manifest: None,
             address: get_default_address(),
-            insecure: Some(true),
+            insecure: Some(false),
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
@@ -123,13 +122,11 @@ impl Default for ServerConfig {
 }
 
 impl ServerConfig {
-    pub fn from_file(file_path: &str) -> Result<ServerConfig, ConversionErrors> {
-        let mut server_config = if let Ok(config_file_content) = read_to_string(file_path) {
-            from_str::<ServerConfig>(&config_file_content)
-                .map_err(|err| ConversionErrors::InvalidServerConfig(err.to_string()))
-        } else {
-            Ok(ServerConfig::default())
-        }?;
+    pub fn from_file(file_path: PathBuf) -> Result<ServerConfig, ConversionErrors> {
+        let server_config_content = read_to_string(file_path.to_str().unwrap_or_unreachable())
+            .map_err(|err| ConversionErrors::InvalidServerConfig(err.to_string()))?;
+        let mut server_config: ServerConfig = from_str(&server_config_content)
+            .map_err(|err| ConversionErrors::InvalidServerConfig(err.to_string()))?;
 
         if server_config.version != CONFIG_VERSION {
             return Err(ConversionErrors::WrongVersion(server_config.version));
@@ -164,8 +161,8 @@ impl ServerConfig {
     }
 
     pub fn update_with_args(&mut self, args: &Arguments) {
-        if let Some(path) = &args.path {
-            self.startup_config = Some(path.to_string());
+        if let Some(path) = &args.manifest_path {
+            self.startup_manifest = Some(path.to_string());
         }
 
         if let Some(addr) = &args.addr {
@@ -203,6 +200,7 @@ impl ServerConfig {
 #[cfg(test)]
 mod tests {
     use std::net::SocketAddr;
+    use std::path::PathBuf;
 
     use common::DEFAULT_SOCKET_ADDRESS;
 
@@ -211,7 +209,7 @@ mod tests {
     use super::ServerConfig;
     use super::DEFAULT_SERVER_CONFIG_FILE_PATH;
 
-    const STARTUP_CONFIG_PATH: &str = "some_path_to_config/config.yaml";
+    const STARTUP_MANIFEST_PATH: &str = "some_path_to_config/config.yaml";
     const TEST_SOCKET_ADDRESS: &str = "127.0.0.1:3333";
     const CA_PEM_PATH: &str = "some_path_to_ca_pem/ca.pem";
     const CRT_PEM_PATH: &str = "some_path_to_crt_pem/crt.pem";
@@ -232,7 +230,7 @@ mod tests {
             default_server_config.address,
             DEFAULT_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
         );
-        assert_eq!(default_server_config.insecure, Some(true));
+        assert_eq!(default_server_config.insecure, Some(false));
         assert_eq!(default_server_config.version, "v1");
     }
 
@@ -243,7 +241,7 @@ mod tests {
         version = 'v2'
         #";
 
-        let server_config = ServerConfig::from_file(server_config_content);
+        let server_config = ServerConfig::from_file(PathBuf::from(server_config_content));
 
         assert_eq!(
             server_config,
@@ -262,9 +260,8 @@ mod tests {
         #",
             CA_PEM_PATH, CRT_PEM_CONTENT
         );
-        println!("{:?}", server_config_content);
 
-        let server_config = ServerConfig::from_file(server_config_content.as_str());
+        let server_config = ServerConfig::from_file(PathBuf::from(server_config_content.as_str()));
 
         assert_eq!(
             server_config,
@@ -279,8 +276,8 @@ mod tests {
     fn utest_server_config_update_with_args() {
         let mut server_config = ServerConfig::default();
         let args = Arguments {
-            path: Some(STARTUP_CONFIG_PATH.to_string()),
-            config_file_path: DEFAULT_SERVER_CONFIG_FILE_PATH.to_string(),
+            manifest_path: Some(STARTUP_MANIFEST_PATH.to_string()),
+            config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string()),
             addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
             insecure: false,
             ca_pem: Some(CA_PEM_PATH.to_string()),
@@ -291,8 +288,8 @@ mod tests {
         server_config.update_with_args(&args);
 
         assert_eq!(
-            server_config.startup_config,
-            Some(STARTUP_CONFIG_PATH.to_string())
+            server_config.startup_manifest,
+            Some(STARTUP_MANIFEST_PATH.to_string())
         );
         assert_eq!(
             server_config.address,
@@ -317,10 +314,11 @@ mod tests {
             CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
         );
 
-        let mut server_config = ServerConfig::from_file(server_config_content.as_str()).unwrap();
+        let mut server_config =
+            ServerConfig::from_file(PathBuf::from(server_config_content.as_str())).unwrap();
         let args = Arguments {
-            path: Some(STARTUP_CONFIG_PATH.to_string()),
-            config_file_path: DEFAULT_SERVER_CONFIG_FILE_PATH.to_string(),
+            manifest_path: Some(STARTUP_MANIFEST_PATH.to_string()),
+            config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string()),
             addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
             insecure: false,
             ca_pem: None,
@@ -350,7 +348,7 @@ mod tests {
         let server_config_content = format!(
             r"#
         version = 'v1'
-        startup_config = '/workspaces/ankaios/server/resources/startConfig.yaml'
+        startup_manifest = '/workspaces/ankaios/server/resources/startConfig.yaml'
         address = '127.0.0.1:25551'
         insecure = true
         ca_pem_content = '''{}'''
@@ -360,9 +358,32 @@ mod tests {
             CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
         );
 
-        let server_config = ServerConfig::from_file(server_config_content.as_str());
-        println!("{:?}", server_config);
+        let server_config_res = ServerConfig::from_file(PathBuf::from(server_config_content));
 
-        assert!(server_config.is_ok())
+        assert!(server_config_res.is_ok());
+
+        let server_config = server_config_res.unwrap();
+
+        assert_eq!(
+            server_config.address,
+            "127.0.0.1:25551".parse::<SocketAddr>().unwrap()
+        );
+        assert_eq!(
+            server_config.ca_pem_content,
+            Some(CA_PEM_CONTENT.to_string())
+        );
+        assert_eq!(
+            server_config.crt_pem_content,
+            Some(CRT_PEM_CONTENT.to_string())
+        );
+        assert_eq!(
+            server_config.key_pem_content,
+            Some(KEY_PEM_CONTENT.to_string())
+        );
+        assert_eq!(server_config.insecure, Some(true));
+        assert_eq!(
+            server_config.startup_manifest,
+            Some("/workspaces/ankaios/server/resources/startConfig.yaml".to_string())
+        );
     }
 }
