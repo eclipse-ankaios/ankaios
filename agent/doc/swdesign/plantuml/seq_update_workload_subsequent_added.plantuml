@@ -51,7 +51,7 @@ else subsequent update workload call
 
             workload_command -->> workload_control_loop --++: receive create
             opt workload has workload files assigned
-                workload_control_loop ->> workload_control_loop++: create workload files
+                workload_control_loop -> workload_control_loop++--: create workload files
             end
 
             workload_control_loop -> runtime++: create runtime workload
