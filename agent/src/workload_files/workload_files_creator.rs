@@ -490,6 +490,21 @@ mod tests {
         }
     }
 
+    // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
+    #[test]
+    fn utest_host_workload_file_location_try_from_fails_invalid_path_components() {
+        let workload_files_path = generate_test_workload_files_path();
+        let invalid_path = Path::new("/some/bla/../more/file.txt");
+        let result = WorkloadFileHostPath::try_from((&workload_files_path, invalid_path));
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        let expected_error_substring = "contains invalid path components";
+        assert!(
+            error.to_string().contains(expected_error_substring),
+            "Expected substring '{expected_error_substring}' in error, got '{error}'"
+        );
+    }
+
     // [utest->swdd~workload-files-creator-decodes-base64-to-binary~1]
     #[tokio::test]
     async fn utest_workload_files_creator_write_file_base64_decode_error() {
