@@ -82,25 +82,17 @@ where
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct ServerConfig {
     pub version: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub startup_manifest: Option<String>,
     #[serde(deserialize_with = "convert_to_socket_address")]
     #[serde(default = "get_default_address")]
     pub address: SocketAddr,
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub insecure: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     ca_pem: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     crt_pem: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     key_pem: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub ca_pem_content: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub crt_pem_content: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub key_pem_content: Option<String>,
 }
 

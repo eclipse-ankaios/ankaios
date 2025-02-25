@@ -17,32 +17,18 @@ mod cli;
 mod server_config;
 
 use std::fs;
-use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 
 use common::objects::CompleteState;
 
 use common::communications_server::CommunicationsServer;
 use common::objects::State;
-use common::std_extensions::GracefulExitResult;
+use common::std_extensions::{GracefulExitResult, UnreachableOption, UnreachableResult};
 
 use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
 use server_config::{ServerConfig, DEFAULT_SERVER_CONFIG_FILE_PATH};
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
-
-fn prepare_server_config(config_path_arg: &Option<String>) -> Result<ServerConfig, Error> {
-    let mut path = PathBuf::from(DEFAULT_SERVER_CONFIG_FILE_PATH);
-    if config_path_arg.is_none() && !path.try_exists()? {
-        Ok(ServerConfig::default())
-    } else {
-        path = config_path_arg.unwrap_or_unreachable();
-    }
-    
-    fs::read_to_string(path)?;
-    Ok(ServerConfig::from_file(default_path)
-        .map_err(|err| Error::new(ErrorKind::Other, format!("{}", err)))?)
-}
 
 #[tokio::main]
 async fn main() {
@@ -51,8 +37,15 @@ async fn main() {
     let args = cli::parse();
 
     // [impl->swdd~server-loads-config-file~1]
-    let mut server_config = prepare_server_config(&args.config_path)
-        .unwrap_or_exit("Error evaluating server config file path");
+    let mut path = PathBuf::from(DEFAULT_SERVER_CONFIG_FILE_PATH);
+    let mut server_config =
+        if args.config_path.is_none() && !path.try_exists().unwrap_or_unreachable() {
+            ServerConfig::default()
+        } else {
+            path = PathBuf::from(args.config_path.clone().unwrap_or_unreachable());
+            fs::read_to_string(&path).unwrap_or_exit("Config file cannot be read");
+            ServerConfig::from_file(path).unwrap_or_exit("Config file could not be parsed")
+        };
 
     server_config.update_with_args(&args);
 
