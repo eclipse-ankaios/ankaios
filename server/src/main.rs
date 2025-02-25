@@ -23,12 +23,39 @@ use common::objects::CompleteState;
 
 use common::communications_server::CommunicationsServer;
 use common::objects::State;
-use common::std_extensions::{GracefulExitResult, UnreachableOption, UnreachableResult};
+use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
 use server_config::{ServerConfig, DEFAULT_SERVER_CONFIG_FILE_PATH};
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
+
+fn handle_sever_config(config_path: &Option<String>) -> ServerConfig {
+    match config_path {
+        Some(config_path) => {
+            let config_path = PathBuf::from(config_path);
+            log::info!(
+                "Loading server config from user provided path '{}'",
+                config_path.display()
+            );
+            ServerConfig::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
+        }
+        None => {
+            let default_path = PathBuf::from(DEFAULT_SERVER_CONFIG_FILE_PATH);
+            if !default_path.try_exists().unwrap_or(false) {
+                log::debug!("No config file found at default path '{}'. Using cli arguments and environment variables only.", default_path.display());
+                ServerConfig::default()
+            } else {
+                log::info!(
+                    "Loading server config from default path '{}'",
+                    default_path.display()
+                );
+                ServerConfig::from_file(default_path)
+                    .unwrap_or_exit("Config file could not be parsed")
+            }
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -37,14 +64,7 @@ async fn main() {
     let args = cli::parse();
 
     // [impl->swdd~server-loads-config-file~1]
-    let mut path = PathBuf::from(DEFAULT_SERVER_CONFIG_FILE_PATH);
-    let mut server_config =
-        if args.config_path.is_none() && !path.try_exists().unwrap_or_unreachable() {
-            ServerConfig::default()
-        } else {
-            path = PathBuf::from(args.config_path.clone().unwrap_or_unreachable());
-            ServerConfig::from_file(path).unwrap_or_exit("Config file could not be parsed")
-        };
+    let mut server_config = handle_sever_config(&args.config_path);
 
     server_config.update_with_args(&args);
 
@@ -54,7 +74,7 @@ async fn main() {
         server_config
             .startup_manifest
             .clone()
-            .unwrap_or("[no config file provided]".to_string()),
+            .unwrap_or("[no manifest file provided]".to_string()),
     );
 
     let startup_state = match &server_config.startup_manifest {

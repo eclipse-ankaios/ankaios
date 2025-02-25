@@ -94,7 +94,7 @@ impl AnkaiosServer {
         } else {
             // [impl->swdd~server-starts-without-startup-config~1]
             log::info!(
-                "No startup configuration provided -> waiting for new workloads from the CLI"
+                "No startup manifest provided -> waiting for new workloads from the CLI"
             );
         }
         self.listen_to_agents().await;
