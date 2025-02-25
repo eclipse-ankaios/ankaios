@@ -67,8 +67,7 @@ else subsequent update workload call
             destroy workload
             workload_command -->> workload_control_loop ++: receive delete
             destroy workload_command
-            workload_control_loop ->> workload_control_loop++: delete workload\nsubfolder
-            workload_control_loop -->> workload_control_loop--
+            workload_control_loop -> workload_control_loop++--: delete workload\nsubfolder
             workload_control_loop -> runtime++: perform delete actions
             runtime -->> workload_control_loop--
             destroy workload_control_loop
