@@ -458,7 +458,7 @@ impl WorkloadControlLoop {
                 }
             }
         } else {
-            Ok(Default::default())
+            Ok(HashMap::new())
         }
     }
 
