@@ -1901,7 +1901,7 @@ Needs:
 - impl
 - utest
 
-#### WorkloadFilesCreator decodes base64 to executable
+#### WorkloadFilesCreator decodes base64 to binary
 `swdd~workload-files-creator-decodes-base64-to-binary~1`
 
 Status: approved
