@@ -40,9 +40,8 @@ where
 pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), String> {
     let ank_version = Version::parse(ANKAIOS_VERSION).unwrap_or_illegal_state();
     if let Ok(input_version) = Version::parse(version.as_ref()) {
-        if ank_version.major == input_version.major &&
-        // As we are at a 0 (zero) major version, we also require minor version equality
-        ank_version.minor == input_version.minor
+        if ank_version.major == input_version.major
+            && (ank_version.major > 0 || ank_version.minor == input_version.minor)
         {
             return Ok(());
         }
@@ -53,8 +52,13 @@ pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), Strin
         );
     }
 
+    let supported_version = if ank_version.major > 0 {
+        format!("{}", ank_version.major)
+    } else {
+        format!("{}.{}", ank_version.major, ank_version.minor)
+    };
     Err(format!(
-        "Unsupported protocol version '{}'. Currently supported '{ANKAIOS_VERSION}'",
+        "Unsupported protocol version '{}'. Currently supported '{supported_version}'",
         version.as_ref()
     ))
 }

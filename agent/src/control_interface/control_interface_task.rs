@@ -223,6 +223,8 @@ mod tests {
     use api::{ank_base, control_api};
     use prost::Message;
 
+    use semver::Version;
+
     use super::ControlInterfaceTask;
 
     use crate::control_interface::{
@@ -547,11 +549,18 @@ mod tests {
             .in_sequence(&mut mockall_seq)
             .return_once(move || Ok(workload_hello_binary));
 
+        let ank_version = Version::parse(common::ANKAIOS_VERSION).unwrap();
+        let supported_version = if ank_version.major > 0 {
+            format!("{}", ank_version.major)
+        } else {
+            format!("{}.{}", ank_version.major, ank_version.minor)
+        };
+
         let test_input_command_binary = control_api::FromAnkaios {
             from_ankaios_enum: Some(
                 control_api::from_ankaios::FromAnkaiosEnum::ConnectionClosed(
                     control_api::ConnectionClosed {
-                        reason: format!("Unsupported protocol version '{unsupported_version}'. Currently supported '{}'", common::ANKAIOS_VERSION),
+                        reason: format!("Unsupported protocol version '{unsupported_version}'. Currently supported '{}'", supported_version),
                     },
                 ),
             ),
