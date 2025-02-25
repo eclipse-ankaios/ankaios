@@ -257,6 +257,7 @@ impl RuntimeManager {
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
+                                // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
                                 let control_interface_info =
                                     if new_workload_spec.needs_control_interface() {
                                         Some(ControlInterfaceInfo::new(
