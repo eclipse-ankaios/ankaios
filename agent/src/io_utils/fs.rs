@@ -587,16 +587,24 @@ mod tests {
     #[tokio::test]
     async fn utest_write_file_async_fails() {
         let _test_lock = TEST_LOCK.lock();
+
         let path = Path::new("test_file");
+        let io_error_kind = ErrorKind::Other;
         let file_content = vec![1, 2, 3];
+
         FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::write(
             path.to_path_buf(),
             file_content.clone(),
-            Err(Error::new(ErrorKind::Other, "Some Error!")),
+            Err(Error::new(io_error_kind, "Some Error!")),
         ));
 
-        assert!(filesystem_async::write_file(path, file_content)
-            .await
-            .is_err());
+        let result = filesystem_async::write_file(path, file_content).await;
+        assert_eq!(
+            result,
+            Err(FileSystemError::Write(
+                path.as_os_str().to_os_string(),
+                io_error_kind,
+            )),
+        );
     }
 }
