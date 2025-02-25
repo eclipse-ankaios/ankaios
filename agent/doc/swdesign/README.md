@@ -1908,7 +1908,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadFilesCreator is requested to write a workload file with content type binary, the WorkloadFilesCreator shall decode the base64 content to a collection of bytes.
+When the WorkloadFilesCreator is requested to write a workload file with content type binary, the WorkloadFilesCreator shall decode the base64 content to a collection of bytes which is written to the file.
 
 Tags:
 - WorkloadFilesCreator
