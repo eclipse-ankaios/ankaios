@@ -43,7 +43,6 @@ async fn main() {
             ServerConfig::default()
         } else {
             path = PathBuf::from(args.config_path.clone().unwrap_or_unreachable());
-            fs::read_to_string(&path).unwrap_or_exit("Config file cannot be read");
             ServerConfig::from_file(path).unwrap_or_exit("Config file could not be parsed")
         };
 
