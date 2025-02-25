@@ -6,7 +6,7 @@ Ankaios supports the definition of configurations separated from workloads using
 * `runtimeConfig`
 * the subfields `data` and `binaryData` within the `files` field
 
-For a basic example of separating configuration from workloads, see [here](../../reference/startup-configuration.md). For detailed information about using the `files` field, see [here](workload-files.md).
+For a basic example of separating configurations from workloads, see [here](../../reference/startup-configuration.md). For detailed information about using the `files` field, see [here](workload-files.md).
 
 ## Indentation for multi-line configuration
 
