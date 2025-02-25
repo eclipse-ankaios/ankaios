@@ -1891,7 +1891,7 @@ When the WorkloadFilesCreator is triggered with the list of workload files assig
 * delete all the workload files on the host filesystem upon failure
 
 Comment:
-The host file path of an example workload file with mount point at `/path/to/text.conf` is `<Agent run folder>/<Workload name>.<runtime config hash>/files/path/to/text.conf`. The content type is text-based or binary.
+The host file path of an example workload file with mount point at `/path/to/text.conf` is `<workload files folder>/path/to/text.conf`.
 
 Rational:
 Removing all workload files in case of an failure prevents inconsistency issues.
