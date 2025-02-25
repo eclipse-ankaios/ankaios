@@ -3,13 +3,8 @@
 
 box "Ankaios Agent"
     participant "AgentManager" as manager
-
     participant "RuntimeManager" as runtime_manager
-    participant "Workload" as workload
     participant "RuntimeFacade" as wl_facade
-
-    participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
-
 end box
 
 box "Ankaios Server"
@@ -40,7 +35,7 @@ loop for each runtime connector
                 runtime_manager -> runtime_manager++--: create control interface
             end
             runtime_manager -> wl_facade++: resume workload
-            wl_facade ->> wl_facade ++: decouple the specific actions
+            wl_facade ->> wl_facade ++: decouple the specific\nresume actions
             wl_facade -->> runtime_manager--: workload
             runtime_manager -> runtime_manager++--: store new workload
 
@@ -49,23 +44,20 @@ loop for each runtime connector
         else workload is neither running nor succeeded or instance names are different
             alt agent was restarted
                 runtime_manager -> wl_facade++: resume workload
-                wl_facade ->> wl_facade ++--: decouple the specific actions
+                wl_facade ->> wl_facade ++--: decouple the specific\nresume actions
                 wl_facade -->> runtime_manager--: workload
-                runtime_manager -> runtime_manager++--: store new workload
-                runtime_manager -> runtime_manager++--: request an update of the workload
+                runtime_manager -> runtime_manager++--: store new workload object
+                runtime_manager -> runtime_manager++--: send an update of\nthe workload object
             else server was restarted
-                runtime_manager -> runtime_manager++--: request an update of the workload
+                runtime_manager -> runtime_manager++--: send an update of\nthe workload object
             end
         else workload is not required anymore
             alt server was restarted
-                runtime_manager ->> workload++: send delete
-                workload -->> runtime_manager--
+                runtime_manager -> runtime_manager++--: send delete to workload object
             else agent was restarted
                 runtime_manager -> wl_facade++: delete workload
                 wl_facade -->> runtime_manager
-                wl_facade ->> wl_facade ++: decouple the specific actions
-                wl_facade -> runtime++: perform delete actions
-                runtime -->> wl_facade--
+                wl_facade ->> wl_facade ++: decouple the specific\ndelete actions
                 deactivate wl_facade
                 deactivate wl_facade
             end
