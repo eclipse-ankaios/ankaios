@@ -380,7 +380,7 @@ impl<
             );
 
             let workload_dir = instance_name.pipes_folder_name(&run_folder);
-            filesystem_async::remove_dir(&workload_dir)
+            filesystem_async::remove_dir_all(&workload_dir)
                 .await
                 .unwrap_or_else(|err| {
                     log::error!(
@@ -723,7 +723,7 @@ mod tests {
             RUN_FOLDER.into(),
         ));
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().once().returning(|_| Ok(()));
 
         test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);

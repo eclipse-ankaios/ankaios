@@ -65,13 +65,13 @@ pub mod filesystem {
 
     #[cfg(test)]
     use super::tests::{
-        create_dir_all, metadata, mkfifo, remove_dir_all as fs_remove_dir, remove_file,
+        create_dir_all, metadata, mkfifo, remove_dir_all as fs_remove_dir_all, remove_file,
         set_permissions as fs_set_permissions,
     };
     use super::FileSystemError;
     #[cfg(not(test))]
     use std::fs::{
-        create_dir_all, metadata, remove_dir_all as fs_remove_dir, remove_file,
+        create_dir_all, metadata, remove_dir_all as fs_remove_dir_all, remove_file,
         set_permissions as fs_set_permissions,
     };
     #[cfg(not(test))]
@@ -117,8 +117,8 @@ pub mod filesystem {
         })
     }
 
-    pub fn remove_dir(path: &Path) -> Result<(), FileSystemError> {
-        fs_remove_dir(path).map_err(|err| {
+    pub fn remove_dir_all(path: &Path) -> Result<(), FileSystemError> {
+        fs_remove_dir_all(path).map_err(|err| {
             FileSystemError::RemoveDirectory(path.to_path_buf().into_os_string(), err.kind())
         })
     }
@@ -127,12 +127,12 @@ pub mod filesystem {
 #[cfg_attr(test, automock)]
 pub mod filesystem_async {
     #[cfg(test)]
-    use super::tests::{remove_dir_all_async as fs_async_remove_dir, write as fs_async_write};
+    use super::tests::{remove_dir_all_async as fs_async_remove_dir_all, write as fs_async_write};
     use super::FileSystemError;
 
     use std::path::Path;
     #[cfg(not(test))]
-    use tokio::fs::{remove_dir_all as fs_async_remove_dir, write as fs_async_write};
+    use tokio::fs::{remove_dir_all as fs_async_remove_dir_all, write as fs_async_write};
 
     pub async fn write_file<C>(file_path: &Path, file_content: C) -> Result<(), FileSystemError>
     where
@@ -143,8 +143,8 @@ pub mod filesystem_async {
             .map_err(|err| FileSystemError::Write(file_path.into(), err.kind()))
     }
 
-    pub async fn remove_dir(path: &Path) -> Result<(), FileSystemError> {
-        fs_async_remove_dir(path)
+    pub async fn remove_dir_all(path: &Path) -> Result<(), FileSystemError> {
+        fs_async_remove_dir_all(path)
             .await
             .map_err(|err| match err.kind() {
                 tokio::io::ErrorKind::NotFound => FileSystemError::NotFoundDirectory(path.into()),
@@ -181,7 +181,7 @@ mod tests {
     pub enum FakeCall {
         create_dir_all(PathBuf, io::Result<()>), // create_dir_all(path, fake_result)
         mkfifo(PathBuf, Mode, nix::Result<()>),  // mkfifo(path, mode, fake_result)
-        remove_dir(PathBuf, io::Result<()>),     // remove_dir(path, fake_result)
+        remove_dir_all(PathBuf, io::Result<()>), // remove_dir_all(path, fake_result)
         remove_file(PathBuf, io::Result<()>),    // remove_file(path, fake_result)
         metadata(PathBuf, io::Result<Metadata>), // metadata(path, fake_result)
         set_permissions(PathBuf, u32, io::Result<()>), // set_permissions(path, mode, fake_result)
@@ -263,7 +263,7 @@ mod tests {
         );
     }
     pub fn remove_dir_all(path: &Path) -> io::Result<()> {
-        if let Some(FakeCall::remove_dir(fake_path, fake_result)) =
+        if let Some(FakeCall::remove_dir_all(fake_path, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
         {
             if fake_path == *path {
@@ -272,7 +272,7 @@ mod tests {
         }
 
         panic!(
-            "No mock specified for call remove_dir({})",
+            "No mock specified for call remove_dir_all({})",
             path.to_string_lossy()
         );
     }
@@ -460,12 +460,12 @@ mod tests {
         FAKE_CALL_LIST
             .lock()
             .unwrap()
-            .push_back(FakeCall::remove_dir(
+            .push_back(FakeCall::remove_dir_all(
                 Path::new("test_dir").to_path_buf(),
                 Ok(()),
             ));
 
-        assert!(filesystem::remove_dir(Path::new("test_dir")).is_ok());
+        assert!(filesystem::remove_dir_all(Path::new("test_dir")).is_ok());
     }
     #[test]
     fn utest_filesystem_remove_dir_failed() {
@@ -473,13 +473,13 @@ mod tests {
         FAKE_CALL_LIST
             .lock()
             .unwrap()
-            .push_back(FakeCall::remove_dir(
+            .push_back(FakeCall::remove_dir_all(
                 Path::new("test_dir").to_path_buf(),
                 Err(Error::new(ErrorKind::Other, "Some Error!")),
             ));
 
         assert!(matches!(
-            filesystem::remove_dir(Path::new("test_dir")),
+            filesystem::remove_dir_all(Path::new("test_dir")),
             Err(FileSystemError::RemoveDirectory(_, _))
         ));
     }
@@ -491,9 +491,9 @@ mod tests {
         FAKE_CALL_LIST
             .lock()
             .unwrap()
-            .push_back(FakeCall::remove_dir(path.to_path_buf(), Ok(())));
+            .push_back(FakeCall::remove_dir_all(path.to_path_buf(), Ok(())));
 
-        assert!(filesystem_async::remove_dir(path).await.is_ok());
+        assert!(filesystem_async::remove_dir_all(path).await.is_ok());
     }
 
     #[tokio::test]
@@ -503,12 +503,12 @@ mod tests {
         FAKE_CALL_LIST
             .lock()
             .unwrap()
-            .push_back(FakeCall::remove_dir(
+            .push_back(FakeCall::remove_dir_all(
                 path.to_path_buf(),
                 Err(Error::new(ErrorKind::NotFound, "Path not found!")),
             ));
 
-        let result = filesystem_async::remove_dir(path).await;
+        let result = filesystem_async::remove_dir_all(path).await;
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(
@@ -524,12 +524,12 @@ mod tests {
         FAKE_CALL_LIST
             .lock()
             .unwrap()
-            .push_back(FakeCall::remove_dir(
+            .push_back(FakeCall::remove_dir_all(
                 path.to_path_buf(),
                 Err(Error::new(ErrorKind::Other, "Some Error!")),
             ));
 
-        let result = filesystem_async::remove_dir(path).await;
+        let result = filesystem_async::remove_dir_all(path).await;
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(

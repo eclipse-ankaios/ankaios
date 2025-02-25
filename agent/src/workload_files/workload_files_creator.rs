@@ -133,27 +133,28 @@ impl WorkloadFilesCreator {
         for file in workload_files {
             let mount_point = Path::new(&file.mount_point);
 
-            let host_workload_file_location =
-                WorkloadFileHostPath::try_from((workload_files_base_path, mount_point)).map_err(
-                    |err| {
-                        filesystem::remove_dir(workload_files_base_path).unwrap_or_else(|err| {
-                            log::error!(
-                                "Failed to remove directory '{}': '{}'",
-                                workload_files_base_path.display(),
-                                err
-                            )
-                        });
+            let host_workload_file_location = WorkloadFileHostPath::try_from((
+                workload_files_base_path,
+                mount_point,
+            ))
+            .map_err(|err| {
+                filesystem::remove_dir_all(workload_files_base_path).unwrap_or_else(|err| {
+                    log::error!(
+                        "Failed to remove directory '{}': '{}'",
+                        workload_files_base_path.display(),
+                        err
+                    )
+                });
 
-                        WorkloadFileCreationError::new(format!(
-                            "invalid mount point '{}': '{}'",
-                            mount_point.display(),
-                            err
-                        ))
-                    },
-                )?;
+                WorkloadFileCreationError::new(format!(
+                    "invalid mount point '{}': '{}'",
+                    mount_point.display(),
+                    err
+                ))
+            })?;
 
             filesystem::make_dir(&host_workload_file_location.directory).map_err(|err| {
-                filesystem::remove_dir(workload_files_base_path).unwrap_or_else(|err| {
+                filesystem::remove_dir_all(workload_files_base_path).unwrap_or_else(|err| {
                     log::error!(
                         "Failed to remove directory '{}': '{}'",
                         workload_files_base_path.display(),
@@ -172,7 +173,7 @@ impl WorkloadFilesCreator {
             Self::write_file(host_workload_file_path.as_path(), file)
                 .await
                 .map_err(|err| {
-                    filesystem::remove_dir(workload_files_base_path).unwrap_or_else(|err| {
+                    filesystem::remove_dir_all(workload_files_base_path).unwrap_or_else(|err| {
                         log::error!(
                             "Failed to remove directory '{}': '{}'",
                             workload_files_base_path.display(),
@@ -338,7 +339,7 @@ mod tests {
             ))
         });
 
-        let mock_remove_dir_context = mock_filesystem::remove_dir_context();
+        let mock_remove_dir_context = mock_filesystem::remove_dir_all_context();
         mock_remove_dir_context
             .expect()
             .once()
@@ -392,7 +393,7 @@ mod tests {
                 ))
             });
 
-        let mock_remove_dir_context = mock_filesystem::remove_dir_context();
+        let mock_remove_dir_context = mock_filesystem::remove_dir_all_context();
         mock_remove_dir_context
             .expect()
             .once()
@@ -425,7 +426,7 @@ mod tests {
             }),
         }];
 
-        let mock_remove_dir_context = mock_filesystem::remove_dir_context();
+        let mock_remove_dir_context = mock_filesystem::remove_dir_all_context();
         mock_remove_dir_context
             .expect()
             .once()

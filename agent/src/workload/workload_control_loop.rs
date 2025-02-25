@@ -699,7 +699,7 @@ impl WorkloadControlLoop {
     }
 
     async fn delete_folder(path: &Path) {
-        filesystem_async::remove_dir(path)
+        filesystem_async::remove_dir_all(path)
             .await
             .unwrap_or_else(|err| match err {
                 FileSystemError::NotFoundDirectory(_) => {}
@@ -823,7 +823,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the update command now. It will be buffered until the await receives it.
@@ -899,7 +899,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send only the update to delete the workload
@@ -992,7 +992,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the update delete only
@@ -1089,7 +1089,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the update command now. It will be buffered until the await receives it.
@@ -1177,7 +1177,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the update command now. It will be buffered until the await receives it.
@@ -1272,7 +1272,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the update command now. It will be buffered until the await receives it.
@@ -1346,7 +1346,7 @@ mod tests {
             )])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the delete command now. It will be buffered until the await receives it.
@@ -1419,7 +1419,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the delete command now. It will be buffered until the await receives it.
@@ -1482,7 +1482,7 @@ mod tests {
 
         let runtime_mock = MockRuntimeConnector::new();
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the delete command now. It will be buffered until the await receives it.
@@ -1558,7 +1558,7 @@ mod tests {
             workload_command_sender_clone.delete().await.unwrap();
         });
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let control_loop_state = ControlLoopState::builder()
@@ -1628,7 +1628,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_sender.create().await.unwrap();
@@ -1691,7 +1691,7 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(runtime_expectations).await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_receiver.close();
@@ -1765,7 +1765,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_sender
@@ -1840,7 +1840,7 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(runtime_expectations).await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_sender
@@ -1929,7 +1929,7 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(runtime_expectations).await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_receiver.close();
@@ -2006,7 +2006,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_sender.retry(instance_name).await.unwrap();
@@ -2098,7 +2098,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_sender
@@ -2191,7 +2191,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_sender
@@ -2292,7 +2292,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_sender
@@ -2373,7 +2373,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let mut control_loop_state = ControlLoopState::builder()
@@ -2590,7 +2590,7 @@ mod tests {
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![]).await;
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let workload_command_sender_clone = workload_command_sender.clone();
@@ -2729,7 +2729,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let workload_command_sender_clone = workload_command_sender.clone();
@@ -2982,7 +2982,7 @@ mod tests {
                 ))
             });
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let control_loop_state = ControlLoopState::builder()
@@ -3060,7 +3060,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let _new_control_loop_state = WorkloadControlLoop::create_workload_on_runtime(
