@@ -30,11 +30,11 @@ Please note that the Ankaios Agent could also run on the same node as the Server
 
 Status: approved
 
-An Ankaios agent creates a workload file on the host file system in the same directory structure as the mount point of the file.
+An Ankaios agent creates a workload file on the host file system at a file path consisting of a base path joined by the relative mount point of the file.
 
 Rationale:
 
-Creating the exact same folder structure according to the mount point prevents naming and mapping issues. It allows the creation of multiple files with the same name for different mount points on the host file system with respect to a many-to-many relationship for workloads and workload files.
+Creating the exact same folder structure inside the base path along the mount point path prevents naming and mapping issues. It allows the creation of multiple files with the same name for different mount points on the host file system with respect to a many-to-many relationship for workloads and workload files.
 
 Assumptions:
 
