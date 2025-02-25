@@ -1024,7 +1024,7 @@ When the WorkloadControlLoop created a workload successfully via the correspondi
 * the reference to the state checker
 
 Rationale:
-The Id is required to delete a workload via the corresponding runtime connector and the state checker for sending workload states.
+The Id is required to delete a workload via the corresponding runtime connector and the state checker for sending workload states. The reference to the state checker is needed in order to stop it when deleting/updating the workload.
 
 Tags:
 - WorkloadControlLoop
