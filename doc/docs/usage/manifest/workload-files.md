@@ -1,6 +1,6 @@
 # Workload files
 
-Ankaios supports to map files to a workload. The user defines the files in the `files` field of a workload configuration, which supports text and base64 encoded content. The files are mounted in readonly mode. Workload files are not supported for a workload with runtime `podman-kube`. Instead, use the built-in `ConfigMaps` feature of `podman-kube`.
+Ankaios supports mapping files to workloads. The user can define files in the `files` field of a workload configuration, which supports text and base64 encoded content. The files are mounted in readonly mode. Workload files are not supported for a workload with runtime `podman-kube`. Instead, use the built-in `ConfigMaps` feature of `podman-kube`.
 
 The following manifest contains a workload with a mounted web server configuration and another workload which outputs the content of a mounted base64 encoded file to the terminal. It also combines the [config object approach](config-objects.md) with workload files by defining the configuration separated from the workload. Ankaios expands the templated subfields `data` and `binaryData` using the handlebars template engine.
 
