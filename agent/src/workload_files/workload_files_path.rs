@@ -48,20 +48,32 @@ impl From<(&PathBuf, &WorkloadInstanceName)> for WorkloadFilesBasePath {
 
 #[cfg(test)]
 pub fn generate_test_workload_files_path() -> WorkloadFilesBasePath {
-    let instance_name = WorkloadInstanceName::new("agent_A", "workload_1", "123xy");
-    WorkloadFilesBasePath::from((&"/tmp/ankaios/agent_A_io".into(), &instance_name))
+    WorkloadFilesBasePath(PathBuf::from(
+        "/tmp/ankaios/agent_A_io/workload_1.123xy/files",
+    ))
 }
 
 #[cfg(test)]
 mod tests {
 
-    use super::{generate_test_workload_files_path, PathBuf};
+    use common::objects::WorkloadInstanceName;
+
+    use super::{PathBuf, WorkloadFilesBasePath};
+
+    const AGENT_A_RUN_FOLDER: &str = "/tmp/ankaios/agent_A_io";
+    const AGENT_A: &str = "agent_A";
+    const WORKLOAD_1_NAME: &str = "workload_1";
+    const WORKLOAD_1_ID: &str = "123xy";
 
     // [utest->swdd~location-of-workload-files-at-predefined-path~1]
     #[test]
     fn utest_workload_files_path_from() {
-        let workload_files_path = generate_test_workload_files_path();
-        let expected = PathBuf::from("/tmp/ankaios/agent_A_io/workload_1.123xy/files");
+        let instance_name = WorkloadInstanceName::new(AGENT_A, WORKLOAD_1_NAME, WORKLOAD_1_ID);
+        let workload_files_path =
+            WorkloadFilesBasePath::from((&AGENT_A_RUN_FOLDER.into(), &instance_name));
+        let expected = PathBuf::from(format!(
+            "{AGENT_A_RUN_FOLDER}/{WORKLOAD_1_NAME}.{WORKLOAD_1_ID}/files"
+        ));
         assert_eq!(expected, workload_files_path.to_path_buf());
     }
 }
