@@ -1,6 +1,6 @@
 # Config objects
 
-Ankaios supports to define the configuration separated from a workload using it. This allows a user to update the configuration independently of the workloads, which is helpful when maintaining a large number of workloads. You can define templates in the [handlebars](https://github.com/sunng87/handlebars-rust) templating syntax which are expanded with the referenced configuration objects. The following workload configuration fields currently support template expansion:
+Ankaios supports the definition of configurations separated from workloads using them. This allows users to update configurations independent of workloads, which is helpful when maintaining a large number of workloads. You can define templates in the [handlebars](https://github.com/sunng87/handlebars-rust) templating syntax which are expanded with the referenced configuration objects. The following workload configuration fields currently support template expansion:
 
 * `agent`
 * `runtimeConfig`
