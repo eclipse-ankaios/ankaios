@@ -27,7 +27,7 @@ loop for each file in workload files
     workload_files_creator -> workload_files_creator++--: write workload file\nto host file path
     alt creation failed\nat some step
         workload_files_creator -> workload_files_creator++--: delete workload files\nsubfolder
-        workload_files_creator -->> workload_control_loop: WorkloadFileCreatorError
+        workload_files_creator -->> workload_control_loop: WorkloadFileCreationError
     else creation successful
         workload_files_creator -->> workload_control_loop--: host file path to\nmount point mappings
     end

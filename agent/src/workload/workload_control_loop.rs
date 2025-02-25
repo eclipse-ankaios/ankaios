@@ -16,7 +16,7 @@ use crate::control_interface::ControlInterfacePath;
 use crate::io_utils::FileSystemError;
 use crate::runtime_connectors::{RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
-use crate::workload_files::WorkloadFilesPath;
+use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec};
 use common::std_extensions::IllegalStateResult;
@@ -381,7 +381,7 @@ impl WorkloadControlLoop {
                 // [impl->swdd~agent-workload-control-loop-handles-failed-workload-creation~1]
                 let current_retry_counter = control_loop_state.retry_counter.current_retry();
 
-                Self::delete_folder(&WorkloadFilesPath::from((
+                Self::delete_folder(&WorkloadFilesBasePath::from((
                     &control_loop_state.run_folder,
                     &new_instance_name,
                 )))
@@ -432,7 +432,7 @@ impl WorkloadControlLoop {
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         if control_loop_state.workload_spec.has_files() {
-            let workload_files_dir = WorkloadFilesPath::from((
+            let workload_files_dir = WorkloadFilesBasePath::from((
                 &control_loop_state.run_folder,
                 control_loop_state.instance_name(),
             ));
@@ -574,7 +574,7 @@ impl WorkloadControlLoop {
             "Deleting the workload files of workload '{}'",
             control_loop_state.instance_name()
         );
-        Self::delete_folder(&WorkloadFilesPath::from((
+        Self::delete_folder(&WorkloadFilesBasePath::from((
             &control_loop_state.run_folder,
             control_loop_state.instance_name(),
         )))
@@ -734,7 +734,7 @@ mod tests {
     use crate::io_utils::mock_filesystem_async;
     use crate::runtime_connectors::RuntimeError;
     use crate::workload_files::{
-        ConfigFileCreatorError, MockWorkloadFilesCreator, WorkloadFilesPath,
+        MockWorkloadFilesCreator, WorkloadFileCreationError, WorkloadFilesBasePath,
     };
     use common::objects::PendingSubstate;
     use std::collections::HashMap;
@@ -2898,7 +2898,7 @@ mod tests {
         );
 
         let workload_configs_dir =
-            WorkloadFilesPath::from((&PathBuf::from(RUN_FOLDER), &workload_spec.instance_name));
+            WorkloadFilesBasePath::from((&PathBuf::from(RUN_FOLDER), &workload_spec.instance_name));
 
         let expected_mount_point_mappings = HashMap::from([
             (
@@ -2977,7 +2977,7 @@ mod tests {
             .expect()
             .once()
             .returning(move |_, _| {
-                Err(ConfigFileCreatorError::new(
+                Err(WorkloadFileCreationError::new(
                     "failed to create workload files.".to_string(),
                 ))
             });

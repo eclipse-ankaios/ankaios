@@ -20,7 +20,7 @@ use std::{
     path::{Path, PathBuf, MAIN_SEPARATOR_STR},
 };
 
-use super::WorkloadFilesPath;
+use super::WorkloadFilesBasePath;
 #[cfg_attr(test, mockall_double::double)]
 use crate::io_utils::filesystem;
 #[cfg_attr(test, mockall_double::double)]
@@ -30,12 +30,12 @@ use crate::io_utils::filesystem_async;
 use mockall::automock;
 
 #[derive(Debug, Default)]
-pub struct HostConfigFileLocation {
+pub struct WorkloadFileHostPath {
     pub directory: PathBuf,
     pub file_name: String,
 }
 
-impl HostConfigFileLocation {
+impl WorkloadFileHostPath {
     pub fn get_absolute_file_path(mut self) -> PathBuf {
         self.directory.push(self.file_name);
         self.directory
@@ -43,11 +43,11 @@ impl HostConfigFileLocation {
 }
 
 // [impl->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
-impl TryFrom<(&WorkloadFilesPath, &Path)> for HostConfigFileLocation {
+impl TryFrom<(&WorkloadFilesBasePath, &Path)> for WorkloadFileHostPath {
     type Error = String;
 
     fn try_from(
-        (files_base_path, mount_point): (&WorkloadFilesPath, &Path),
+        (files_base_path, mount_point): (&WorkloadFilesBasePath, &Path),
     ) -> Result<Self, String> {
         let mount_point_as_string = mount_point.to_str().ok_or_else(|| {
             format!(
@@ -73,7 +73,7 @@ impl TryFrom<(&WorkloadFilesPath, &Path)> for HostConfigFileLocation {
             ));
         }
 
-        let mut host_workload_file_location = HostConfigFileLocation {
+        let mut host_workload_file_location = WorkloadFileHostPath {
             directory: files_base_path.to_path_buf().clone(),
             ..Default::default()
         };
@@ -104,17 +104,17 @@ impl TryFrom<(&WorkloadFilesPath, &Path)> for HostConfigFileLocation {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ConfigFileCreatorError {
+pub struct WorkloadFileCreationError {
     message: String,
 }
 
-impl ConfigFileCreatorError {
+impl WorkloadFileCreationError {
     pub fn new(message: String) -> Self {
-        ConfigFileCreatorError { message }
+        WorkloadFileCreationError { message }
     }
 }
 
-impl fmt::Display for ConfigFileCreatorError {
+impl fmt::Display for WorkloadFileCreationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Failed to create workload file: '{}'", self.message)
     }
@@ -126,15 +126,15 @@ pub struct WorkloadFilesCreator;
 impl WorkloadFilesCreator {
     // [impl->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     pub async fn create_files(
-        workload_files_base_path: &WorkloadFilesPath,
+        workload_files_base_path: &WorkloadFilesBasePath,
         workload_files: &[File],
-    ) -> Result<HashMap<PathBuf, PathBuf>, ConfigFileCreatorError> {
+    ) -> Result<HashMap<PathBuf, PathBuf>, WorkloadFileCreationError> {
         let mut host_file_paths = HashMap::new();
         for file in workload_files {
             let mount_point = Path::new(&file.mount_point);
 
             let host_workload_file_location =
-                HostConfigFileLocation::try_from((workload_files_base_path, mount_point)).map_err(
+                WorkloadFileHostPath::try_from((workload_files_base_path, mount_point)).map_err(
                     |err| {
                         filesystem::remove_dir(workload_files_base_path).unwrap_or_else(|err| {
                             log::error!(
@@ -144,7 +144,7 @@ impl WorkloadFilesCreator {
                             )
                         });
 
-                        ConfigFileCreatorError::new(format!(
+                        WorkloadFileCreationError::new(format!(
                             "invalid mount point '{}': '{}'",
                             mount_point.display(),
                             err
@@ -161,7 +161,7 @@ impl WorkloadFilesCreator {
                     )
                 });
 
-                ConfigFileCreatorError::new(format!(
+                WorkloadFileCreationError::new(format!(
                     "failed to create workload file directory structure for '{}': '{}'",
                     mount_point.display(),
                     err
@@ -187,7 +187,7 @@ impl WorkloadFilesCreator {
         Ok(host_file_paths)
     }
 
-    async fn write_file(file_path: &Path, file: &File) -> Result<(), ConfigFileCreatorError> {
+    async fn write_file(file_path: &Path, file: &File) -> Result<(), WorkloadFileCreationError> {
         let file_io_result = match &file.file_content {
             FileContent::Data(Data { data }) => {
                 filesystem_async::write_file(file_path, data.clone()).await
@@ -199,7 +199,7 @@ impl WorkloadFilesCreator {
                 let binary = general_purpose::STANDARD
                     .decode(binary_data)
                     .map_err(|err| {
-                        ConfigFileCreatorError::new(format!(
+                        WorkloadFileCreationError::new(format!(
                             "invalid base64 data in '{}': '{}'",
                             file.mount_point, err
                         ))
@@ -210,7 +210,7 @@ impl WorkloadFilesCreator {
         };
 
         file_io_result.map_err(|err| {
-            ConfigFileCreatorError::new(format!(
+            WorkloadFileCreationError::new(format!(
                 "write failed for '{}': '{}'",
                 file.mount_point, err
             ))
@@ -232,9 +232,7 @@ mod tests {
 
     use crate::workload_files::generate_test_workload_files_path;
 
-    use super::{
-        Base64Data, Data, File, FileContent, HostConfigFileLocation, WorkloadFilesCreator,
-    };
+    use super::{Base64Data, Data, File, FileContent, WorkloadFileHostPath, WorkloadFilesCreator};
 
     use crate::io_utils::{mock_filesystem, mock_filesystem_async, FileSystemError};
 
@@ -457,7 +455,7 @@ mod tests {
         let invalid_paths = vec![Path::new("/"), Path::new("/invalid/")];
 
         for path in invalid_paths {
-            let result = HostConfigFileLocation::try_from((&workload_files_path, path));
+            let result = WorkloadFileHostPath::try_from((&workload_files_path, path));
 
             assert!(result.is_err());
             let error = result.unwrap_err();
@@ -480,7 +478,7 @@ mod tests {
         ];
 
         for path in invalid_paths {
-            let result = HostConfigFileLocation::try_from((&workload_files_path, path));
+            let result = WorkloadFileHostPath::try_from((&workload_files_path, path));
             assert!(result.is_err());
             let error = result.unwrap_err();
             let expected_error_substring = "is relative, expected absolute path";
