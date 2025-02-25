@@ -121,6 +121,8 @@ impl fmt::Display for WorkloadFileCreationError {
 }
 
 pub struct WorkloadFilesCreator;
+pub type HostFilePath = PathBuf;
+pub type MountPointPath = PathBuf;
 
 #[cfg_attr(test, automock)]
 impl WorkloadFilesCreator {
@@ -128,7 +130,7 @@ impl WorkloadFilesCreator {
     pub async fn create_files(
         workload_files_base_path: &WorkloadFilesBasePath,
         workload_files: &[File],
-    ) -> Result<HashMap<PathBuf, PathBuf>, WorkloadFileCreationError> {
+    ) -> Result<HashMap<HostFilePath, MountPointPath>, WorkloadFileCreationError> {
         let mut host_file_paths = HashMap::new();
         for file in workload_files {
             let mount_point = Path::new(&file.mount_point);
