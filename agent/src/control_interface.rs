@@ -190,8 +190,9 @@ mod tests {
 
         let _control_interface_task_mock = generate_test_control_interface_task_mock();
 
+        const PIPES_FOLDER: &str = "api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910/control_interface";
         let control_interface = ControlInterface::new(
-            &ControlInterfacePath::new("api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910/control_interface".into()),
+            &ControlInterfacePath::new(PIPES_FOLDER.into()),
             &WorkloadInstanceName::builder()
                 .workload_name("workload_name_1")
                 .config(&String::from(CONFIG))
@@ -206,7 +207,7 @@ mod tests {
                 .get_api_location()
                 .as_os_str()
                 .to_string_lossy(),
-            "api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910/control_interface"
+            PIPES_FOLDER
         );
     }
 
