@@ -136,7 +136,7 @@ impl WorkloadControlLoop {
                             control_loop_state = Self::update_workload_on_runtime(
                                 control_loop_state,
                                 runtime_workload_config,
-                                control_interface_path.map(ControlInterfacePath::new),
+                                control_interface_path,
                             )
                             .await;
 
@@ -783,6 +783,13 @@ mod tests {
 
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 20;
 
+    use mockall::lazy_static;
+
+    lazy_static! {
+        pub static ref CONTROL_INTERFACE_PATH: Option<ControlInterfacePath> =
+            Some(ControlInterfacePath::new(PathBuf::from(PIPES_LOCATION)));
+    }
+
     // Unfortunately this test also executes a delete of the newly updated workload.
     // We could not avoid this as it is the only possibility to check the internal variables
     // and to properly stop the control loop in the await new command method
@@ -839,7 +846,10 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec.clone()),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -915,7 +925,7 @@ mod tests {
 
         // Send only the update to delete the workload
         workload_command_sender
-            .update(None, Some(PIPES_LOCATION.into()))
+            .update(None, CONTROL_INTERFACE_PATH.clone())
             .await
             .unwrap();
 
@@ -1008,13 +1018,16 @@ mod tests {
 
         // Send the update delete only
         workload_command_sender
-            .update(None, Some(PIPES_LOCATION.into()))
+            .update(None, CONTROL_INTERFACE_PATH.clone())
             .await
             .unwrap();
 
         // Send the update
         workload_command_sender
-            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec.clone()),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
 
@@ -1105,7 +1118,10 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec.clone()),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -1193,7 +1209,10 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec.clone()),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -1288,7 +1307,10 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec.clone()),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -1576,7 +1598,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx.clone())
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender)
@@ -1653,7 +1675,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1710,7 +1732,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1793,7 +1815,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1870,7 +1892,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1948,7 +1970,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -2023,7 +2045,7 @@ mod tests {
         workload_command_sender.retry(instance_name).await.unwrap();
 
         workload_command_sender
-            .update(Some(new_workload_spec), Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec), CONTROL_INTERFACE_PATH.clone())
             .await
             .unwrap();
 
@@ -2037,7 +2059,7 @@ mod tests {
             .workload_spec(workload_spec)
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender)
@@ -2113,7 +2135,7 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_sender
-            .update(Some(new_workload_spec), Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec), CONTROL_INTERFACE_PATH.clone())
             .await
             .unwrap();
 
@@ -2206,7 +2228,7 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_sender
-            .update(Some(new_workload_spec), Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec), CONTROL_INTERFACE_PATH.clone())
             .await
             .unwrap();
 
@@ -2307,12 +2329,18 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         workload_command_sender
-            .update(Some(new_workload_spec_update1), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec_update1),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
 
         workload_command_sender
-            .update(Some(new_workload_spec_update2), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec_update2),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
 
@@ -2391,7 +2419,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender.clone())
@@ -2452,7 +2480,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender.clone())
@@ -2504,7 +2532,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender.clone())
@@ -2558,7 +2586,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender.clone())
@@ -2614,7 +2642,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender)
@@ -2680,7 +2708,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender)
@@ -2753,7 +2781,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender)

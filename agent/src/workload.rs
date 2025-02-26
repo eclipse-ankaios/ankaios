@@ -23,12 +23,13 @@ pub use workload_command_channel::WorkloadCommandSender;
 #[cfg(test)]
 pub use workload_control_loop::MockWorkloadControlLoop;
 
-use std::{fmt::Display, path::PathBuf};
+use std::fmt::Display;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::ControlInterface;
+use crate::control_interface::ControlInterfacePath;
 
 use api::ank_base;
 
@@ -62,7 +63,7 @@ impl Display for WorkloadError {
 #[derive(Debug, PartialEq)]
 pub enum WorkloadCommand {
     Delete,
-    Update(Option<Box<WorkloadSpec>>, Option<PathBuf>),
+    Update(Option<Box<WorkloadSpec>>, Option<ControlInterfacePath>),
     Retry(Box<WorkloadInstanceName>),
     Create,
     Resume,
@@ -237,6 +238,13 @@ mod tests {
     const TEST_WL_COMMAND_BUFFER_SIZE: usize = 5;
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 5;
 
+    use mockall::lazy_static;
+
+    lazy_static! {
+        pub static ref CONTROL_INTERFACE_PATH: ControlInterfacePath =
+            ControlInterfacePath::new(PathBuf::from(PIPES_LOCATION));
+    }
+
     // [utest->swdd~agent-workload-obj-delete-command~1]
     #[tokio::test]
     async fn utest_workload_obj_delete_error() {
@@ -394,7 +402,7 @@ mod tests {
         new_control_interface_mock
             .expect_get_api_location()
             .once()
-            .return_const(PIPES_LOCATION);
+            .return_const(CONTROL_INTERFACE_PATH.clone());
 
         let new_control_interface_context = MockControlInterface::new_context();
         new_control_interface_context
@@ -442,7 +450,7 @@ mod tests {
             .unwrap();
 
         let expected_workload_spec = Box::new(workload_spec);
-        let expected_pipes_path_buf = PathBuf::from(PIPES_LOCATION);
+        let expected_pipes_path_buf = CONTROL_INTERFACE_PATH.clone();
 
         assert_eq!(
             Ok(Some(WorkloadCommand::Update(
@@ -475,7 +483,7 @@ mod tests {
         new_control_interface_mock
             .expect_get_api_location()
             .once()
-            .return_const(PIPES_LOCATION);
+            .return_const(CONTROL_INTERFACE_PATH.clone());
 
         let workload_spec = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),

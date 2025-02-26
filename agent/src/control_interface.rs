@@ -44,7 +44,7 @@ use from_server_channels::FromServerChannels;
 use input_output::InputOutput;
 #[cfg_attr(test, mockall_double::double)]
 use reopen_file::ReopenFile;
-use std::{fmt, fmt::Display, path::PathBuf, sync::Arc};
+use std::{fmt, fmt::Display, sync::Arc};
 
 use tokio::task::JoinHandle;
 
@@ -116,8 +116,8 @@ impl ControlInterface {
 
     #[allow(dead_code)]
     // Used in the tests below for now
-    pub fn get_api_location(&self) -> PathBuf {
-        self.pipes.get_location()
+    pub fn get_api_location(&self) -> ControlInterfacePath {
+        ControlInterfacePath::new(self.pipes.get_location())
     }
     pub fn get_input_pipe_sender(&self) -> FromServerSender {
         self.input_pipe_sender.clone()

@@ -177,7 +177,7 @@ mod tests {
         other_context
             .expect_get_api_location()
             .once()
-            .return_const(pipes_folder);
+            .return_const(ControlInterfacePath::new(pipes_folder));
         other_context
             .expect_get_authorizer()
             .once()
@@ -204,7 +204,7 @@ mod tests {
         other_context
             .expect_get_api_location()
             .once()
-            .return_const(PathBuf::from("other_path"));
+            .return_const(ControlInterfacePath::new(PathBuf::from("other_path")));
 
         assert!(!context_info.has_same_configuration(&other_context));
     }
@@ -232,7 +232,7 @@ mod tests {
         other_context
             .expect_get_api_location()
             .once()
-            .return_const(pipes_folder);
+            .return_const(ControlInterfacePath::new(pipes_folder));
         other_context
             .expect_get_authorizer()
             .once()
