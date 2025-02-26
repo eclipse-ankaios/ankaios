@@ -12,8 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::{Path, PathBuf};
-
+use super::ControlInterfacePath;
 use common::{objects::WorkloadInstanceName, to_server_interface::ToServerSender};
 
 #[cfg(test)]
@@ -25,7 +24,7 @@ use crate::control_interface::authorizer::Authorizer;
 use crate::control_interface::ControlInterface;
 
 pub struct ControlInterfaceInfo {
-    run_folder: PathBuf,
+    control_interface_path: ControlInterfacePath,
     workload_instance_name: WorkloadInstanceName,
     #[cfg_attr(test, allow(dead_code))]
     control_interface_to_server_sender: ToServerSender,
@@ -35,21 +34,21 @@ pub struct ControlInterfaceInfo {
 #[cfg_attr(test, automock)]
 impl ControlInterfaceInfo {
     pub fn new(
-        run_folder: &Path,
+        control_interface_path: ControlInterfacePath,
         control_interface_to_server_sender: ToServerSender,
         workload_instance_name: &WorkloadInstanceName,
         authorizer: Authorizer,
     ) -> Self {
         Self {
-            run_folder: run_folder.to_path_buf(),
+            control_interface_path,
             workload_instance_name: workload_instance_name.clone(),
             control_interface_to_server_sender,
             authorizer,
         }
     }
 
-    pub fn get_run_folder(&self) -> &PathBuf {
-        &self.run_folder
+    pub fn get_control_interface_path(&self) -> &ControlInterfacePath {
+        &self.control_interface_path
     }
 
     pub fn get_to_server_sender(&self) -> ToServerSender {
@@ -68,13 +67,9 @@ impl ControlInterfaceInfo {
 
     // [impl->swdd~agent-compares-control-interface-metadata~2]
     pub fn has_same_configuration(&self, other: &ControlInterface) -> bool {
-        let self_location = self
-            .workload_instance_name
-            .pipes_folder_name(&self.run_folder);
-
-        if self_location != other.get_api_location() {
+        if self.control_interface_path != other.get_api_location() {
             return false;
-        };
+        }
 
         let self_authorizer = &self.authorizer;
         let other_authorizer = other.get_authorizer();
@@ -93,7 +88,8 @@ impl ControlInterfaceInfo {
 
 #[cfg(test)]
 mod tests {
-    use super::{ControlInterfaceInfo, Path, PathBuf, WorkloadInstanceName};
+    use super::{ControlInterfaceInfo, ControlInterfacePath, WorkloadInstanceName};
+    use std::path::{Path, PathBuf};
 
     use crate::control_interface::{authorizer::MockAuthorizer, MockControlInterface};
 
@@ -109,7 +105,7 @@ mod tests {
             .build();
 
         let new_context_info = ControlInterfaceInfo::new(
-            Path::new(PIPES_LOCATION),
+            ControlInterfacePath::new(PIPES_LOCATION.into()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             MockAuthorizer::default(),
@@ -117,7 +113,7 @@ mod tests {
 
         assert_eq!(
             Path::new(PIPES_LOCATION).to_path_buf(),
-            new_context_info.run_folder
+            *new_context_info.get_control_interface_path().as_path()
         );
         assert_eq!(
             workload_instance_name,
@@ -129,7 +125,7 @@ mod tests {
     fn utest_get_run_folder() {
         let path = &Path::new(PIPES_LOCATION);
         let new_context_info = ControlInterfaceInfo::new(
-            path,
+            ControlInterfacePath::new(path.to_path_buf()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &WorkloadInstanceName::builder()
                 .workload_name(WORKLOAD_1_NAME)
@@ -137,15 +133,17 @@ mod tests {
             MockAuthorizer::default(),
         );
 
-        assert_eq!(&path.to_path_buf(), new_context_info.get_run_folder());
+        assert_eq!(
+            path.to_path_buf(),
+            new_context_info.get_control_interface_path().to_path_buf()
+        );
     }
 
     #[test]
     fn utest_get_to_server_sender() {
-        let path = &Path::new(PIPES_LOCATION);
         let (to_server_sender, _) = tokio::sync::mpsc::channel::<ToServer>(1);
         let new_context_info = ControlInterfaceInfo::new(
-            path,
+            ControlInterfacePath::new(PIPES_LOCATION.into()),
             to_server_sender.clone(),
             &WorkloadInstanceName::builder()
                 .workload_name(WORKLOAD_1_NAME)
@@ -169,7 +167,7 @@ mod tests {
         context_info_authorizer.expect_eq().return_const(true);
 
         let context_info = ControlInterfaceInfo::new(
-            run_folder,
+            ControlInterfacePath::new(pipes_folder.clone()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             context_info_authorizer,
@@ -179,7 +177,7 @@ mod tests {
         other_context
             .expect_get_api_location()
             .once()
-            .return_const(pipes_folder);
+            .return_const(ControlInterfacePath::new(pipes_folder));
         other_context
             .expect_get_authorizer()
             .once()
@@ -191,13 +189,12 @@ mod tests {
     // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_has_same_configuration_with_different_location_returns_false() {
-        let run_folder = Path::new(PIPES_LOCATION);
         let workload_instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
         let context_info = ControlInterfaceInfo::new(
-            run_folder,
+            ControlInterfacePath::new(PIPES_LOCATION.into()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             MockAuthorizer::default(),
@@ -207,7 +204,7 @@ mod tests {
         other_context
             .expect_get_api_location()
             .once()
-            .return_const(PathBuf::from("other_path"));
+            .return_const(ControlInterfacePath::new(PathBuf::from("other_path")));
 
         assert!(!context_info.has_same_configuration(&other_context));
     }
@@ -225,7 +222,7 @@ mod tests {
         context_info_authorizer.expect_eq().return_const(false);
 
         let context_info = ControlInterfaceInfo::new(
-            run_folder,
+            ControlInterfacePath::new(pipes_folder.clone()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             context_info_authorizer,
@@ -235,7 +232,7 @@ mod tests {
         other_context
             .expect_get_api_location()
             .once()
-            .return_const(pipes_folder);
+            .return_const(ControlInterfacePath::new(pipes_folder));
         other_context
             .expect_get_authorizer()
             .once()
