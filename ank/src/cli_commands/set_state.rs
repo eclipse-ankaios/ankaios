@@ -68,7 +68,7 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<O
                     error
                 ))
             })?;
-            Ok(Object::try_from(&value)?)
+            Ok(value.into())
         }
         _ => {
             let state_object_data =
@@ -85,7 +85,7 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<O
                         error
                     ))
                 })?;
-            Ok(Object::try_from(&value)?)
+            Ok(value.into())
         }
     }
 }
@@ -245,7 +245,7 @@ mod tests {
         };
         let mut complete_state_object: Object = complete_state.try_into().unwrap();
         let value: serde_yaml::Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
-        let temp_object = Object::try_from(&value).unwrap();
+        let temp_object = value.into();
         let update_mask = vec!["desiredState.workloads.nginx".to_string()];
 
         complete_state_object =
@@ -275,7 +275,7 @@ mod tests {
         let temp_obj = process_inputs(reader, &state_object_file).await.unwrap();
 
         let value: Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
-        let expected_obj = Object::try_from(&value).unwrap();
+        let expected_obj = value.into();
 
         assert_eq!(temp_obj, expected_obj);
     }
@@ -290,7 +290,7 @@ mod tests {
             .unwrap();
 
         let value: Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
-        let expected_obj = Object::try_from(&value).unwrap();
+        let expected_obj = value.into();
 
         assert_eq!(temp_obj, expected_obj);
     }
