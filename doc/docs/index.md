@@ -1,13 +1,10 @@
 ---
 title: Welcome
-description: Eclipse Ankaios provides workload and container orchestration for automotive High Performance Computing Software (HPCs).
+description: Eclipse Ankaios provides workload and container orchestration for automotive High Performance Computing Platforms (HPCs).
 ---
 
-<picture style="padding-bottom: 1em;">
-  <source media="(prefers-color-scheme: dark)" srcset="assets/Ankaios__logo_for_dark_bgrd_clipped.png">
-  <source media="(prefers-color-scheme: light)" srcset="assets/Ankaios__logo_for_light_bgrd_clipped.png">
-  <img alt="Shows Ankaios logo" src="logo/Ankaios__logo_for_light_bgrd_clipped.png">
-</picture>
+![Ankaios logo](assets/Ankaios__logo_for_light_bgrd_clipped.png#only-light)
+![Ankaios logo](assets/Ankaios__logo_for_dark_bgrd_clipped.png#only-dark)
 
 # Eclipse Ankaios
 
@@ -21,7 +18,7 @@ description: Eclipse Ankaios provides workload and container orchestration for a
 ## Scope
 
 Eclipse Ankaios provides workload and container orchestration for automotive
-High Performance Computing (HPC) software. While it can be used for various
+High Performance Computing Platforms (HPCs). While it can be used for various
 fields of applications, it is developed from scratch for automotive use cases
 and provides a slim, yet powerful solution to manage containerized applications.
 It supports various container runtimes with Podman as the first one, but other
