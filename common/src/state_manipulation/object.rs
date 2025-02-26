@@ -36,13 +36,9 @@ impl Default for Object {
     }
 }
 
-impl TryFrom<&serde_yaml::Value> for Object {
-    type Error = serde_yaml::Error;
-
-    fn try_from(value: &serde_yaml::Value) -> Result<Self, Self::Error> {
-        Ok(Object {
-            data: value.to_owned(),
-        })
+impl From<serde_yaml::Value> for Object {
+    fn from(data: serde_yaml::Value) -> Self {
+        Object { data }
     }
 }
 
