@@ -138,3 +138,84 @@ async fn main() {
         }
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        handle_sever_config, server_config::DEFAULT_SERVER_CONFIG_FILE_PATH, ServerConfig,
+    };
+    use std::{
+        fs::{self, File},
+        io::Write,
+        net::SocketAddr,
+        path::PathBuf,
+    };
+    use tempfile::NamedTempFile;
+
+    const VALID_SERVER_CONFIG_CONTENT: &str = r"#
+    version = 'v1'
+    startup_manifest = '/workspaces/ankaios/server/resources/startConfig.yaml'
+    address = '127.0.0.1:25551'
+    insecure = true
+    #";
+
+    #[test]
+    fn utest_handle_server_config_valid_config() {
+        let mut tmp_config = NamedTempFile::new().expect("could not create temp file");
+        write!(tmp_config, "{}", VALID_SERVER_CONFIG_CONTENT)
+            .expect("could not write to temp file");
+
+        let server_config = handle_sever_config(&Some(
+            tmp_config.into_temp_path().to_str().unwrap().to_string(),
+        ));
+
+        assert_eq!(
+            server_config.startup_manifest,
+            Some("/workspaces/ankaios/server/resources/startConfig.yaml".to_string())
+        );
+        assert_eq!(
+            server_config.address,
+            "127.0.0.1:25551".parse::<SocketAddr>().unwrap()
+        );
+        assert_eq!(server_config.insecure, Some(true));
+    }
+
+    #[test]
+    fn utest_handle_server_config_default_path() {
+        if let Some(parent) = PathBuf::from(DEFAULT_SERVER_CONFIG_FILE_PATH).parent() {
+            fs::create_dir_all(parent).expect("Failed to create directories");
+        }
+        let mut file =
+            File::create(DEFAULT_SERVER_CONFIG_FILE_PATH).expect("Failed to create file");
+        writeln!(file, "{}", VALID_SERVER_CONFIG_CONTENT).expect("Failed to write to file");
+
+        let server_config = handle_sever_config(&None);
+
+        assert_eq!(
+            server_config.startup_manifest,
+            Some("/workspaces/ankaios/server/resources/startConfig.yaml".to_string())
+        );
+        assert_eq!(
+            server_config.address,
+            "127.0.0.1:25551".parse::<SocketAddr>().unwrap()
+        );
+        assert_eq!(server_config.insecure, Some(true));
+
+        assert!(fs::remove_file(DEFAULT_SERVER_CONFIG_FILE_PATH).is_ok());
+    }
+
+    #[test]
+    fn utest_handle_server_config_default() {
+        let server_config = handle_sever_config(&None);
+
+        assert_eq!(server_config, ServerConfig::default());
+    }
+}

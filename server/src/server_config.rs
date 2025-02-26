@@ -16,23 +16,21 @@ use crate::cli::Arguments;
 use common::std_extensions::{UnreachableOption, UnreachableResult};
 use common::DEFAULT_SOCKET_ADDRESS;
 use grpc::security::read_pem_file;
+
 use serde::{Deserialize, Deserializer};
 use std::fmt;
+use std::fs::read_to_string;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use toml::from_str;
 
 const CONFIG_VERSION: &str = "v1";
-pub const DEFAULT_SERVER_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-server.conf";
 
 #[cfg(not(test))]
-use std::fs::read_to_string;
+pub const DEFAULT_SERVER_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-server.conf";
 
-// This function is used in order to facilitate testing
 #[cfg(test)]
-fn read_to_string(file_path_content: &str) -> std::io::Result<String> {
-    Ok(file_path_content.to_string())
-}
+pub const DEFAULT_SERVER_CONFIG_FILE_PATH: &str = "/tmp/ankaios/ank-server.conf";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ConversionErrors {
@@ -191,8 +189,10 @@ impl ServerConfig {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
     use std::net::SocketAddr;
     use std::path::PathBuf;
+    use tempfile::NamedTempFile;
 
     use common::DEFAULT_SOCKET_ADDRESS;
 
@@ -233,7 +233,10 @@ mod tests {
         version = 'v2'
         #";
 
-        let server_config = ServerConfig::from_file(PathBuf::from(server_config_content));
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{}", server_config_content).unwrap();
+
+        let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
         assert_eq!(
             server_config,
@@ -253,7 +256,10 @@ mod tests {
             CA_PEM_PATH, CRT_PEM_CONTENT
         );
 
-        let server_config = ServerConfig::from_file(PathBuf::from(server_config_content.as_str()));
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{}", server_config_content).unwrap();
+
+        let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
         assert_eq!(
             server_config,
@@ -306,8 +312,11 @@ mod tests {
             CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
         );
 
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{}", server_config_content).unwrap();
+
         let mut server_config =
-            ServerConfig::from_file(PathBuf::from(server_config_content.as_str())).unwrap();
+            ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
         let args = Arguments {
             manifest_path: Some(STARTUP_MANIFEST_PATH.to_string()),
             config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string()),
@@ -350,7 +359,10 @@ mod tests {
             CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
         );
 
-        let server_config_res = ServerConfig::from_file(PathBuf::from(server_config_content));
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{}", server_config_content).unwrap();
+
+        let server_config_res = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
         assert!(server_config_res.is_ok());
 
