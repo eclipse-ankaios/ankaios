@@ -1,3 +1,5 @@
+#[cfg(test)]
+use mockall::mock;
 use rand::Rng;
 use std::time::Duration;
 use std::{cmp::min, future::Future};
@@ -96,6 +98,41 @@ impl RetryToken {
             2u64.pow(self.counter) * BASE_BACKOFF_IN_MILLIS,
             BACKOFF_MAX_IN_MILLIS,
         )
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, PartialEq)]
+pub struct MockRetryToken {
+    pub mock_id: u32,
+    pub valid: bool,
+}
+
+#[cfg(test)]
+impl MockRetryToken {
+    pub async fn call_with_backoff<F, R>(self, f: F)
+    where
+        F: FnOnce(Self) -> R,
+        R: Future,
+    {
+        println!("IN MOCK");
+        f(self).await;
+    }
+
+    pub fn counter(&self) -> u32 {
+        0
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.valid
+    }
+}
+
+#[cfg(test)]
+mock! {
+    pub RetryManager {
+        pub fn invalidate(&mut self);
+        pub fn new_token(&mut self) -> MockRetryToken;
     }
 }
 

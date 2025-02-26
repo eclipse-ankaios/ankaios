@@ -13,7 +13,6 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
-use crate::workload::workload_control_loop::RetryCounter;
 use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
 use crate::BUFFER_SIZE;
 use common::objects::{WorkloadInstanceName, WorkloadSpec, WorkloadState};
@@ -21,6 +20,9 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 use crate::control_interface::ControlInterfacePath;
+
+#[cfg_attr(test, mockall_double::double)]
+use super::retry_manager::RetryManager;
 
 pub struct ControlLoopState<WorkloadId, StChecker>
 where
@@ -38,7 +40,7 @@ where
     pub runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
     pub command_receiver: WorkloadCommandReceiver,
     pub retry_sender: WorkloadCommandSender,
-    pub retry_counter: RetryCounter,
+    pub retry_manager: RetryManager,
 }
 
 impl<WorkloadId, StChecker> ControlLoopState<WorkloadId, StChecker>
@@ -68,7 +70,6 @@ where
     runtime: Option<Box<dyn RuntimeConnector<WorkloadId, StChecker>>>,
     workload_command_receiver: Option<WorkloadCommandReceiver>,
     retry_sender: Option<WorkloadCommandSender>,
-    retry_counter: RetryCounter,
 }
 
 impl<WorkloadId, StChecker> ControlLoopStateBuilder<WorkloadId, StChecker>
@@ -86,7 +87,6 @@ where
             runtime: None,
             workload_command_receiver: None,
             retry_sender: None,
-            retry_counter: RetryCounter::new(),
         }
     }
 
@@ -162,7 +162,7 @@ where
             retry_sender: self
                 .retry_sender
                 .ok_or_else(|| "WorkloadCommandSender is not set".to_string())?,
-            retry_counter: self.retry_counter,
+            retry_manager: Default::default(),
         })
     }
 }
@@ -181,9 +181,7 @@ mod tests {
     use crate::{
         control_interface::ControlInterfacePath,
         runtime_connectors::test::{MockRuntimeConnector, StubStateChecker},
-        workload::{
-            workload_command_channel::WorkloadCommandSender, workload_control_loop::RetryCounter,
-        },
+        workload::workload_command_channel::WorkloadCommandSender,
         workload_state::WorkloadStateSenderInterface,
     };
     use common::objects::{
@@ -275,8 +273,6 @@ mod tests {
             .await,
             Ok(Some(forwarded_wl_state_to_agent))
         );
-
-        assert_eq!(control_loop_state.retry_counter.current_retry(), 1);
     }
 
     #[test]
@@ -307,7 +303,7 @@ mod tests {
             runtime,
             command_receiver: workload_command_receiver,
             retry_sender,
-            retry_counter: RetryCounter::new(),
+            retry_manager: Default::default(),
         };
 
         assert_eq!(
