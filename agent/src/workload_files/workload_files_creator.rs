@@ -135,35 +135,18 @@ impl WorkloadFilesCreator {
         for file in workload_files {
             let mount_point = Path::new(&file.mount_point);
 
-            let host_workload_file_location = WorkloadFileHostPath::try_from((
-                workload_files_base_path,
-                mount_point,
-            ))
-            .map_err(|err| {
-                filesystem::remove_dir_all(workload_files_base_path).unwrap_or_else(|err| {
-                    log::error!(
-                        "Failed to remove directory '{}': '{}'",
-                        workload_files_base_path.display(),
-                        err
-                    )
-                });
-
-                WorkloadFileCreationError::new(format!(
-                    "invalid mount point '{}': '{}'",
-                    mount_point.display(),
-                    err
-                ))
-            })?;
+            let host_workload_file_location =
+                WorkloadFileHostPath::try_from((workload_files_base_path, mount_point)).map_err(
+                    |err| {
+                        WorkloadFileCreationError::new(format!(
+                            "invalid mount point '{}': '{}'",
+                            mount_point.display(),
+                            err
+                        ))
+                    },
+                )?;
 
             filesystem::make_dir(&host_workload_file_location.directory).map_err(|err| {
-                filesystem::remove_dir_all(workload_files_base_path).unwrap_or_else(|err| {
-                    log::error!(
-                        "Failed to remove directory '{}': '{}'",
-                        workload_files_base_path.display(),
-                        err
-                    )
-                });
-
                 WorkloadFileCreationError::new(format!(
                     "failed to create workload file directory structure for '{}': '{}'",
                     mount_point.display(),
@@ -171,20 +154,9 @@ impl WorkloadFilesCreator {
                 ))
             })?;
 
-            let host_workload_file_path = host_workload_file_location.get_absolute_file_path();
-            Self::write_file(host_workload_file_path.as_path(), file)
-                .await
-                .map_err(|err| {
-                    filesystem::remove_dir_all(workload_files_base_path).unwrap_or_else(|err| {
-                        log::error!(
-                            "Failed to remove directory '{}': '{}'",
-                            workload_files_base_path.display(),
-                            err
-                        )
-                    });
-                    err
-                })?;
-            host_file_paths.insert(host_workload_file_path, mount_point.to_path_buf());
+            let workload_file_host_path = host_workload_file_location.get_absolute_file_path();
+            Self::write_file(workload_file_host_path.as_path(), file).await?;
+            host_file_paths.insert(workload_file_host_path, mount_point.to_path_buf());
         }
 
         Ok(host_file_paths)
@@ -341,12 +313,6 @@ mod tests {
             ))
         });
 
-        let mock_remove_dir_context = mock_filesystem::remove_dir_all_context();
-        mock_remove_dir_context
-            .expect()
-            .once()
-            .returning(|_| Ok(()));
-
         let mock_write_file_context = mock_filesystem_async::write_file_context();
         mock_write_file_context.expect::<String>().never();
 
@@ -395,12 +361,6 @@ mod tests {
                 ))
             });
 
-        let mock_remove_dir_context = mock_filesystem::remove_dir_all_context();
-        mock_remove_dir_context
-            .expect()
-            .once()
-            .returning(|_| Ok(()));
-
         let result =
             WorkloadFilesCreator::create_files(&workload_files_path, &workload_files).await;
 
@@ -427,12 +387,6 @@ mod tests {
                 data: TEST_WORKLOAD_FILE_DATA.to_owned(),
             }),
         }];
-
-        let mock_remove_dir_context = mock_filesystem::remove_dir_all_context();
-        mock_remove_dir_context
-            .expect()
-            .once()
-            .returning(|_| Ok(()));
 
         let mock_make_dir_context = mock_filesystem::make_dir_context();
         mock_make_dir_context.expect().never();

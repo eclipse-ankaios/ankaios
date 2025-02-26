@@ -1056,8 +1056,12 @@ Needs:
 Status: approved
 
 When the WorkloadControlLoop requests the WorkloadFilesCreator to create the workload files for a workload and the creation of the files fails, the WorkloadControlLoop shall:
+* delete all the workload files on the host filesystem
 * send a `Pending(StartingFailed)` workload state with additional information
 * abort the creation of the workload
+
+Rational:
+Removing all workload files in case of an failure prevents inconsistency issues.
 
 Tags:
 - WorkloadControlLoop
@@ -1888,13 +1892,9 @@ When the WorkloadFilesCreator is triggered with the list of workload files assig
 * construct a host file path for the workload file by appending the mount point to the predefined path
 * create the directory structure of the constructed path on the host file system
 * write the workload file to the constructed host file path with respect to its content type
-* delete all the workload files on the host filesystem upon failure
 
 Comment:
 The host file path of an example workload file with mount point at `/path/to/text.conf` is `<workload files folder>/path/to/text.conf`.
-
-Rational:
-Removing all workload files in case of an failure prevents inconsistency issues.
 
 Tags:
 - WorkloadFilesCreator

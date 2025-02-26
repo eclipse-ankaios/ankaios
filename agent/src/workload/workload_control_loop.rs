@@ -432,21 +432,32 @@ impl WorkloadControlLoop {
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         if control_loop_state.workload_spec.has_files() {
-            let workload_files_dir = WorkloadFilesBasePath::from((
+            let workload_files_base_path = WorkloadFilesBasePath::from((
                 &control_loop_state.run_folder,
                 control_loop_state.instance_name(),
             ));
 
             match WorkloadFilesCreator::create_files(
-                &workload_files_dir,
+                &workload_files_base_path,
                 &control_loop_state.workload_spec.files,
             )
             .await
             {
                 Ok(mapping) => Ok(mapping),
                 Err(err) => {
-                    let error = Err(err.to_string());
                     // [impl->swdd~agent-workload-control-loop-aborts-create-upon-workload-files-creation-error~1]
+                    filesystem_async::remove_dir_all(&workload_files_base_path)
+                        .await
+                        .unwrap_or_else(|err| {
+                            log::error!(
+                                "Failed to remove workload files base folder after failed creation '{}': '{}'",
+                                workload_files_base_path.display(),
+                                err
+                            )
+                        });
+
+                    let error = Err(err.to_string());
+
                     Self::send_workload_state_to_agent(
                         &control_loop_state.to_agent_workload_state_sender,
                         control_loop_state.instance_name(),
@@ -2983,7 +2994,7 @@ mod tests {
             });
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
+        mock_remove_dir.expect().once().returning(|_| Ok(()));
 
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
