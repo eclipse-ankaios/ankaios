@@ -456,16 +456,14 @@ impl WorkloadControlLoop {
                             )
                         });
 
-                    let error = Err(err.to_string());
-
                     Self::send_workload_state_to_agent(
                         &control_loop_state.to_agent_workload_state_sender,
                         control_loop_state.instance_name(),
-                        ExecutionState::starting_failed(err),
+                        ExecutionState::starting_failed(&err),
                     )
                     .await;
 
-                    error
+                    Err(err.to_string())
                 }
             }
         } else {
