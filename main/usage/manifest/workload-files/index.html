@@ -8,28 +8,28 @@
       
       
       
-        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/main/development/unit-verification/">
+        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/workload-files/">
       
       
-        <link rel="prev" href="../rust-coding-guidelines/">
+        <link rel="prev" href="../config-objects/">
       
       
-        <link rel="next" href="../run-unit-tests/">
+        <link rel="next" href="../../upgrading/v0_2_to_v0_3/">
       
       
-      <link rel="icon" href="../../assets/favicon128x128.png">
+      <link rel="icon" href="../../../assets/favicon128x128.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.34">
     
     
       
-        <title>Unit verification - Eclipse Ankaios</title>
+        <title>Workload files - Eclipse Ankaios</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.35f28582.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.35f28582.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -48,7 +48,7 @@
       
     
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -57,11 +57,11 @@
       
         <meta  property="og:type"  content="website" >
       
-        <meta  property="og:title"  content="Unit verification - Eclipse Ankaios" >
+        <meta  property="og:title"  content="Workload files - Eclipse Ankaios" >
       
         <meta  property="og:description"  content="None" >
       
-        <meta  property="og:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/development/unit-verification.png" >
+        <meta  property="og:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/usage/manifest/workload-files.png" >
       
         <meta  property="og:image:type"  content="image/png" >
       
@@ -69,15 +69,15 @@
       
         <meta  property="og:image:height"  content="630" >
       
-        <meta  property="og:url"  content="https://eclipse-ankaios.github.io/ankaios/main/development/unit-verification/" >
+        <meta  property="og:url"  content="https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/workload-files/" >
       
         <meta  name="twitter:card"  content="summary_large_image" >
       
-        <meta  name="twitter:title"  content="Unit verification - Eclipse Ankaios" >
+        <meta  name="twitter:title"  content="Workload files - Eclipse Ankaios" >
       
         <meta  name="twitter:description"  content="None" >
       
-        <meta  name="twitter:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/development/unit-verification.png" >
+        <meta  name="twitter:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/usage/manifest/workload-files.png" >
       
     
     
@@ -100,7 +100,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#unit-verification" class="md-skip">
+        <a href="#workload-files" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
             <div class="md-banner__inner md-grid md-typeset">
               
   You're not viewing the latest release.
-  <a href="../../..">
+  <a href="../../../..">
     <strong>Click here to go to the latest release.</strong>
   </a>
 
@@ -130,9 +130,9 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="Eclipse Ankaios" class="md-header__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
+    <a href="../../.." title="Eclipse Ankaios" class="md-header__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
       
-  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+  <img src="../../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -149,7 +149,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Unit verification
+              Workload files
             
           </span>
         </div>
@@ -266,7 +266,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
+      <a href="../../.." class="md-tabs__link">
         
   
     
@@ -283,7 +283,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../architecture/" class="md-tabs__link">
+      <a href="../../../architecture/" class="md-tabs__link">
         
   
     
@@ -298,11 +298,13 @@
         
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../usage/installation/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../installation/" class="md-tabs__link">
           
   
   Usage
@@ -320,7 +322,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../reference/startup-configuration/" class="md-tabs__link">
+        <a href="../../../reference/startup-configuration/" class="md-tabs__link">
           
   
   Reference
@@ -334,13 +336,11 @@
         
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../build/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../../development/build/" class="md-tabs__link">
           
   
   Contributing
@@ -356,7 +356,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../support/" class="md-tabs__link">
+      <a href="../../../support/" class="md-tabs__link">
         
   
     
@@ -390,9 +390,9 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="Eclipse Ankaios" class="md-nav__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
+    <a href="../../.." title="Eclipse Ankaios" class="md-nav__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
       
-  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+  <img src="../../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
 
     </a>
     Eclipse Ankaios
@@ -419,7 +419,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -439,7 +439,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/" class="md-nav__link">
+      <a href="../../../architecture/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -456,25 +456,30 @@
       
   
   
+    
   
   
+  
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -485,7 +490,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             Usage
@@ -499,7 +504,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/installation/" class="md-nav__link">
+      <a href="../../installation/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -520,7 +525,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/quickstart/" class="md-nav__link">
+      <a href="../../quickstart/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -541,7 +546,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/tutorial-vehicle-signals/" class="md-nav__link">
+      <a href="../../tutorial-vehicle-signals/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -562,7 +567,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/tutorial-fleet-management/" class="md-nav__link">
+      <a href="../../tutorial-fleet-management/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -583,7 +588,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/awesome-ankaios/" class="md-nav__link">
+      <a href="../../awesome-ankaios/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -604,7 +609,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/mtls-setup/" class="md-nav__link">
+      <a href="../../mtls-setup/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -625,7 +630,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/shell-completion/" class="md-nav__link">
+      <a href="../../shell-completion/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -643,25 +648,30 @@
                 
   
   
+    
   
   
+  
     
     
     
       
       
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" >
         
           
-          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_8" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -672,7 +682,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3_8">
             <span class="md-nav__icon md-icon"></span>
             Manifest
@@ -686,7 +696,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/manifest/config-objects/" class="md-nav__link">
+      <a href="../config-objects/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -704,10 +714,19 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../usage/manifest/workload-files/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -716,6 +735,7 @@
   
 
       </a>
+      
     </li>
   
 
@@ -741,17 +761,20 @@
       
       
         
+          
+          
+        
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
         <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" >
         
           
-          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -776,7 +799,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/upgrading/v0_2_to_v0_3/" class="md-nav__link">
+      <a href="../../upgrading/v0_2_to_v0_3/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -797,7 +820,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/upgrading/v0_3_to_v0_4/" class="md-nav__link">
+      <a href="../../upgrading/v0_3_to_v0_4/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -818,7 +841,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/upgrading/v0_4_to_v0_5/" class="md-nav__link">
+      <a href="../../upgrading/v0_4_to_v0_5/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -894,7 +917,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/startup-configuration/" class="md-nav__link">
+      <a href="../../../reference/startup-configuration/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -915,7 +938,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/interacting-with-ankaios/" class="md-nav__link">
+      <a href="../../../reference/interacting-with-ankaios/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -936,7 +959,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/complete-state/" class="md-nav__link">
+      <a href="../../../reference/complete-state/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -957,7 +980,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/control-interface/" class="md-nav__link">
+      <a href="../../../reference/control-interface/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -978,7 +1001,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/inter-workload-dependencies/" class="md-nav__link">
+      <a href="../../../reference/inter-workload-dependencies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -999,7 +1022,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/restart-policy/" class="md-nav__link">
+      <a href="../../../reference/restart-policy/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1020,7 +1043,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/resource-usage/" class="md-nav__link">
+      <a href="../../../reference/resource-usage/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1041,7 +1064,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/glossary/" class="md-nav__link">
+      <a href="../../../reference/glossary/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1062,7 +1085,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/_ankaios.proto/" class="md-nav__link">
+      <a href="../../../reference/_ankaios.proto/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1087,30 +1110,25 @@
       
   
   
-    
   
   
-  
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1121,7 +1139,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Contributing
@@ -1135,7 +1153,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../build/" class="md-nav__link">
+      <a href="../../../development/build/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1156,7 +1174,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../rust-coding-guidelines/" class="md-nav__link">
+      <a href="../../../development/rust-coding-guidelines/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1174,30 +1192,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    Unit verification
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../../development/unit-verification/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1206,131 +1204,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#verification-tools-and-procedures" class="md-nav__link">
-    <span class="md-ellipsis">
-      Verification tools and procedures
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Verification tools and procedures">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#code-review" class="md-nav__link">
-    <span class="md-ellipsis">
-      Code review
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#verification-by-unit-test" class="md-nav__link">
-    <span class="md-ellipsis">
-      Verification by unit test
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Verification by unit test">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#test-focus-and-goal" class="md-nav__link">
-    <span class="md-ellipsis">
-      Test focus and goal
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Test focus and goal">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#unit-test-case-naming-convention" class="md-nav__link">
-    <span class="md-ellipsis">
-      Unit test case naming convention
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#unit-test-organization" class="md-nav__link">
-    <span class="md-ellipsis">
-      Unit test organization
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Unit test organization">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#example-for-unit-tests-in-source-file-in-rust" class="md-nav__link">
-    <span class="md-ellipsis">
-      Example for unit tests in source file in Rust
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#test-execution-and-reports" class="md-nav__link">
-    <span class="md-ellipsis">
-      Test Execution and Reports
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#goals-and-metrics" class="md-nav__link">
-    <span class="md-ellipsis">
-      Goals and Metrics
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1343,7 +1216,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../run-unit-tests/" class="md-nav__link">
+      <a href="../../../development/run-unit-tests/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1364,7 +1237,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test-coverage/" class="md-nav__link">
+      <a href="../../../development/test-coverage/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1385,7 +1258,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../system-tests/" class="md-nav__link">
+      <a href="../../../development/system-tests/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1406,7 +1279,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../requirement-tracing/" class="md-nav__link">
+      <a href="../../../development/requirement-tracing/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1427,7 +1300,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../requirement-template/" class="md-nav__link">
+      <a href="../../../development/requirement-template/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1448,7 +1321,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../extending-dev-container/" class="md-nav__link">
+      <a href="../../../development/extending-dev-container/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1469,7 +1342,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ci-cd/" class="md-nav__link">
+      <a href="../../../development/ci-cd/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1490,7 +1363,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ci-cd-release/" class="md-nav__link">
+      <a href="../../../development/ci-cd-release/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1511,7 +1384,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../self-service/" class="md-nav__link">
+      <a href="../../../development/self-service/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1532,7 +1405,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../documentation-guidelines/" class="md-nav__link">
+      <a href="../../../development/documentation-guidelines/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1560,7 +1433,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../support/" class="md-nav__link">
+      <a href="../../../support/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1593,119 +1466,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#verification-tools-and-procedures" class="md-nav__link">
-    <span class="md-ellipsis">
-      Verification tools and procedures
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Verification tools and procedures">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#code-review" class="md-nav__link">
-    <span class="md-ellipsis">
-      Code review
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#verification-by-unit-test" class="md-nav__link">
-    <span class="md-ellipsis">
-      Verification by unit test
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Verification by unit test">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#test-focus-and-goal" class="md-nav__link">
-    <span class="md-ellipsis">
-      Test focus and goal
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Test focus and goal">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#unit-test-case-naming-convention" class="md-nav__link">
-    <span class="md-ellipsis">
-      Unit test case naming convention
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#unit-test-organization" class="md-nav__link">
-    <span class="md-ellipsis">
-      Unit test organization
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Unit test organization">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#example-for-unit-tests-in-source-file-in-rust" class="md-nav__link">
-    <span class="md-ellipsis">
-      Example for unit tests in source file in Rust
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#test-execution-and-reports" class="md-nav__link">
-    <span class="md-ellipsis">
-      Test Execution and Reports
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#goals-and-metrics" class="md-nav__link">
-    <span class="md-ellipsis">
-      Goals and Metrics
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1719,7 +1479,7 @@
                   
 
   
-    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/development/unit-verification.md" title="Edit this page" class="md-content__button md-icon">
+    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/usage/manifest/workload-files.md" title="Edit this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1727,74 +1487,114 @@
   
 
 
-<h1 id="unit-verification">Unit verification<a class="headerlink" href="#unit-verification" title="Permanent link">&para;</a></h1>
-<p>This page defines which tools and processes are used in in this project for the purposes of software unit verification. The unit verification process is performed during implementation phase and is as automated as possible, one exception is the code review which cannot be done automatically. Automated unit test runs are executed by the <a href="https://github.com/eclipse-ankaios/ankaios/actions">CI build system</a> as well as during the regular releasing process.</p>
-<h2 id="verification-tools-and-procedures">Verification tools and procedures<a class="headerlink" href="#verification-tools-and-procedures" title="Permanent link">&para;</a></h2>
-<p>Ankaios development follows the guidelines specified in the <a href="../rust-coding-guidelines/">Rust coding guidelines</a>.</p>
-<h3 id="code-review">Code review<a class="headerlink" href="#code-review" title="Permanent link">&para;</a></h3>
-<p>Code reviews are part of the implementation process and performed before code is merged to the main branch. Contributors create pull requests and request a review s.t. the process can be started. The review is performed by at least one committer who has good knowledge of the area under review.
-When all applicable review criteria and checklists are passed and reviewer(s) have accepted the change, code can be merged to the main branch.</p>
-<h3 id="verification-by-unit-test">Verification by unit test<a class="headerlink" href="#verification-by-unit-test" title="Permanent link">&para;</a></h3>
-<h4 id="test-focus-and-goal">Test focus and goal<a class="headerlink" href="#test-focus-and-goal" title="Permanent link">&para;</a></h4>
-<p>The objective of the unit test is to confirm the correct internal behavior of a software unit according to the design aspects documented in the SW design.
-A unit test will test the unit in the target environment by triggering unit methods/functions and verifying the behavior. Stubbed interfaces/mocking techniques can be used to meet the code coverage requirements. This means that unit tests shall be written according to the detailed requirements. Requirement source is SW design.</p>
-<h5 id="unit-test-case-naming-convention">Unit test case naming convention<a class="headerlink" href="#unit-test-case-naming-convention" title="Permanent link">&para;</a></h5>
-<p>By introducing a naming convention for unit test cases a harmonized test code-base can be achieved. This simplifies reading and understanding the intention of the unit test case. Please see the naming convention defined <a href="../rust-coding-guidelines/">in Rust coding guidelines</a>.</p>
-<h5 id="unit-test-organization">Unit test organization<a class="headerlink" href="#unit-test-organization" title="Permanent link">&para;</a></h5>
-<p>The unit tests shall be written in the same file as the source code like suggested in the <a href="https://doc.rust-lang.org/book/ch11-03-test-organization.html">Rust Language Book</a> and shall be prefixed with <code>utest_</code>.</p>
-<h6 id="example-for-unit-tests-in-source-file-in-rust">Example for unit tests in source file in Rust<a class="headerlink" href="#example-for-unit-tests-in-source-file-in-rust" title="Permanent link">&para;</a></h6>
-<p>At the end of the file e.g. <code>my_module/src/my_component.rs</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="o">..</span><span class="p">.</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">fn</span><span class="w"> </span><span class="nf">my_algorithm</span><span class="p">(</span><span class="n">input</span><span class="p">:</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="o">..</span><span class="p">.</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">}</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">my_async_function</span><span class="p">(</span><span class="n">input</span><span class="p">:</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="o">..</span><span class="p">.</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">}</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="o">..</span><span class="p">.</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="cp">#[cfg(test)]</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="k">mod</span><span class="w"> </span><span class="nn">tests</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="o">..</span><span class="p">.</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="cp">#[test]</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">utest_my_algorithm_returns_empty_array_when_input_is_0_or_negative</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">        </span><span class="o">..</span><span class="p">.</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">    </span><span class="cp">#[tokio::test]</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">utest_my_async_function_returns_empty_array_when_input_is_0_or_negative</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">        </span><span class="o">..</span><span class="p">.</span>
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="p">}</span>
-</code></pre></div>
-<h4 id="test-execution-and-reports">Test Execution and Reports<a class="headerlink" href="#test-execution-and-reports" title="Permanent link">&para;</a></h4>
-<p>Unit test cases are executed manually by the developer during implementation phase and later automatically in <a href="https://woodpecker.conoa.ebcloud.eu/conoa/ankaios">CI builds</a>. Unit test and coverage reports are generated and stored automatically by the CI build system.
-If unit test case fails before code is merged to main branch (merge verification), the merge is not allowed until the issue is fixed. If unit test case fails after the code is merged to main branch, it is reported via email and fixed via internal Jira ticket reported by the developer.</p>
-<p>Regression testing is done by the <a href="https://github.com/eclipse-ankaios/ankaios/actions">CI build system</a>.</p>
-<h4 id="goals-and-metrics">Goals and Metrics<a class="headerlink" href="#goals-and-metrics" title="Permanent link">&para;</a></h4>
-<p>The following table show how test coverage is currently shown in the coverage report:</p>
-<table>
-<thead>
-<tr>
-<th>Goal</th>
-<th>Metric</th>
-<th>Red</th>
-<th>Yellow</th>
-<th>Green</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Code coverage</td>
-<td></td>
-<td>&lt;80%</td>
-<td>&gt;80%</td>
-<td>100%</td>
-</tr>
-</tbody>
-</table>
-<p>Currently there is no proper way of explicitly excluding parts of the code from the test coverage report in order to get to an easily observable value of 100%. The explicitly excluded code would have a corresponding comment stating the reason for excluding it.
-As this is not possible, we would initially <strong>target at least 80% line coverage in each file</strong>.</p>
+<h1 id="workload-files">Workload files<a class="headerlink" href="#workload-files" title="Permanent link">&para;</a></h1>
+<p>Ankaios supports mapping files to workloads. The user can define files in the <code>files</code> field of a workload configuration, which supports text and base64 encoded content. The files are mounted in readonly mode. Workload files are not supported for a workload with runtime <code>podman-kube</code>. Instead, use the built-in <code>ConfigMaps</code> feature of <code>podman-kube</code>.</p>
+<p>The following manifest contains a workload with a mounted web server configuration and another workload which outputs the content of a mounted base64 encoded file to the terminal. It also combines the <a href="../config-objects/">config object approach</a> with workload files by defining the configuration separated from the workload. Ankaios expands the templated subfields <code>data</code> and <code>binaryData</code> using the handlebars template engine.</p>
+<p>To get an overview about which workload configuration fields currently support template expansion, see <a href="../config-objects/">here</a>.</p>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1"> 1</a></span>
+<span class="normal"><a href="#__codelineno-0-2"> 2</a></span>
+<span class="normal"><a href="#__codelineno-0-3"> 3</a></span>
+<span class="normal"><a href="#__codelineno-0-4"> 4</a></span>
+<span class="normal"><a href="#__codelineno-0-5"> 5</a></span>
+<span class="normal"><a href="#__codelineno-0-6"> 6</a></span>
+<span class="normal"><a href="#__codelineno-0-7"> 7</a></span>
+<span class="normal"><a href="#__codelineno-0-8"> 8</a></span>
+<span class="normal"><a href="#__codelineno-0-9"> 9</a></span>
+<span class="normal"><a href="#__codelineno-0-10">10</a></span>
+<span class="normal"><a href="#__codelineno-0-11">11</a></span>
+<span class="normal"><a href="#__codelineno-0-12">12</a></span>
+<span class="normal"><a href="#__codelineno-0-13">13</a></span>
+<span class="normal"><a href="#__codelineno-0-14">14</a></span>
+<span class="normal"><a href="#__codelineno-0-15">15</a></span>
+<span class="normal"><a href="#__codelineno-0-16">16</a></span>
+<span class="normal"><a href="#__codelineno-0-17">17</a></span>
+<span class="normal"><a href="#__codelineno-0-18">18</a></span>
+<span class="normal"><a href="#__codelineno-0-19">19</a></span>
+<span class="normal"><a href="#__codelineno-0-20">20</a></span>
+<span class="normal"><a href="#__codelineno-0-21">21</a></span>
+<span class="normal"><a href="#__codelineno-0-22">22</a></span>
+<span class="normal"><a href="#__codelineno-0-23">23</a></span>
+<span class="normal"><a href="#__codelineno-0-24">24</a></span>
+<span class="normal"><a href="#__codelineno-0-25">25</a></span>
+<span class="normal"><a href="#__codelineno-0-26">26</a></span>
+<span class="normal"><a href="#__codelineno-0-27">27</a></span>
+<span class="normal"><a href="#__codelineno-0-28">28</a></span>
+<span class="normal"><a href="#__codelineno-0-29">29</a></span>
+<span class="normal"><a href="#__codelineno-0-30">30</a></span>
+<span class="normal"><a href="#__codelineno-0-31">31</a></span>
+<span class="normal"><a href="#__codelineno-0-32">32</a></span>
+<span class="normal"><a href="#__codelineno-0-33">33</a></span>
+<span class="normal"><a href="#__codelineno-0-34">34</a></span>
+<span class="normal"><a href="#__codelineno-0-35">35</a></span>
+<span class="normal"><a href="#__codelineno-0-36">36</a></span>
+<span class="normal"><a href="#__codelineno-0-37">37</a></span>
+<span class="normal"><a href="#__codelineno-0-38">38</a></span>
+<span class="normal"><a href="#__codelineno-0-39">39</a></span>
+<span class="normal"><a href="#__codelineno-0-40">40</a></span>
+<span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span>
+<span class="normal"><a href="#__codelineno-0-43">43</a></span>
+<span class="normal"><a href="#__codelineno-0-44">44</a></span>
+<span class="normal"><a href="#__codelineno-0-45">45</a></span>
+<span class="normal"><a href="#__codelineno-0-46">46</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="nt">workloads</span><span class="p">:</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="w">  </span><span class="nt">nginx</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="w">    </span><span class="nt">configs</span><span class="p">:</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="w">      </span><span class="nt">nginx_conf</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx_config</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="hll"><span class="w">    </span><span class="nt">files</span><span class="p">:</span>
+</span><a id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="hll"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">mountPoint</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/etc/nginx/nginx.conf&quot;</span><span class="w"> </span><span class="c1"># mount point in the container</span>
+</span><a id="__codelineno-0-10" name="__codelineno-0-10"></a><span class="hll"><span class="w">        </span><span class="nt">data</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{nginx_conf}}&quot;</span><span class="w"> </span><span class="c1"># (1)!</span>
+</span><a id="__codelineno-0-11" name="__codelineno-0-11"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12"></a><span class="w">      </span><span class="no">image: docker.io/nginx:latest</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13"></a><span class="w">      </span><span class="no">commandOptions: [ &quot;-p&quot;, &quot;8087:80&quot; ]</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14"></a><span class="w">  </span><span class="nt">hello</span><span class="p">:</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17"></a><span class="w">    </span><span class="nt">configs</span><span class="p">:</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18"></a><span class="w">      </span><span class="nt">bin_data</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bin_data</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19"></a><span class="hll"><span class="w">    </span><span class="nt">files</span><span class="p">:</span>
+</span><a id="__codelineno-0-20" name="__codelineno-0-20"></a><span class="hll"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">mountPoint</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/hello&quot;</span><span class="w"> </span><span class="c1"># mount point in the container</span>
+</span><a id="__codelineno-0-21" name="__codelineno-0-21"></a><span class="hll"><span class="w">        </span><span class="nt">binaryData</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{bin_data}}&quot;</span><span class="w"> </span><span class="c1"># (2)!</span>
+</span><a id="__codelineno-0-22" name="__codelineno-0-22"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="w">      </span><span class="no">image: docker.io/alpine:latest</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="w">      </span><span class="no">commandOptions: [ &quot;--entrypoint&quot;, &quot;/bin/sh&quot; ]</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="w">      </span><span class="no">commandArgs: [ &quot;-c&quot;, &quot;cat /hello&quot; ]</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="nt">configs</span><span class="p">:</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="w">  </span><span class="nt">nginx_config</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="w">    </span><span class="no">worker_processes  1;</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29"></a>
+<a id="__codelineno-0-30" name="__codelineno-0-30"></a><span class="w">    </span><span class="no">events {</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31"></a><span class="w">        </span><span class="no">worker_connections  1024;</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32"></a><span class="w">    </span><span class="no">}</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33"></a>
+<a id="__codelineno-0-34" name="__codelineno-0-34"></a><span class="w">    </span><span class="no">http {</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35"></a><span class="w">        </span><span class="no">server {</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36"></a><span class="w">            </span><span class="no">listen 80;</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37"></a><span class="w">            </span><span class="no">server_name custom_nginx;</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38"></a>
+<a id="__codelineno-0-39" name="__codelineno-0-39"></a><span class="w">            </span><span class="no">location /custom {</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40"></a><span class="w">                </span><span class="no">default_type text/plain;</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41"></a><span class="w">                </span><span class="no">return 200 &quot;The mounted custom nginx.conf is being used!\n&quot;;</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a><span class="w">            </span><span class="no">}</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43"></a><span class="w">        </span><span class="no">}</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44"></a><span class="w">    </span><span class="no">}</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="w">  </span><span class="c1"># base64 encoded content</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="w">  </span><span class="nt">bin_data</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SGVsbG8sIFdvcmxkIQ==</span>
+</code></pre></div></td></tr></table></div>
+<ol>
+<li>
+<p>The contents of the <code>data</code> field will be expanded and replaced with the custom web server configuration of <code>nginx_config</code> part of the <code>configs</code> field below.</p>
+</li>
+<li>
+<p>The contents of the <code>binaryData</code> field will be expanded and replaced with the content of <code>bin_data</code> part of the <code>configs</code> field below.</p>
+</li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Ankaios expects base64 data in the Standard Base64 Encoding including padding according to <a href="https://www.rfc-editor.org/rfc/rfc4648.html">RFC 4648</a>. Example: <code>echo -n "Hello, World!" | base64</code>. Ankaios decodes the base64 data before mounting the file to the workload.</p>
+</div>
 
 
 
@@ -1827,7 +1627,7 @@ As this is not possible, we would initially <strong>target at least 80% line cov
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../rust-coding-guidelines/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Rust coding guidelines">
+          <a href="../config-objects/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Config objects">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1837,20 +1637,20 @@ As this is not possible, we would initially <strong>target at least 80% line cov
                 Previous
               </span>
               <div class="md-ellipsis">
-                Rust coding guidelines
+                Config objects
               </div>
             </div>
           </a>
         
         
           
-          <a href="../run-unit-tests/" class="md-footer__link md-footer__link--next" aria-label="Next: Unit tests with cargo-nextest">
+          <a href="../../upgrading/v0_2_to_v0_3/" class="md-footer__link md-footer__link--next" aria-label="Next: Upgrading v0.2 to v0.3">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Unit tests with cargo-nextest
+                Upgrading v0.2 to v0.3
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -1888,10 +1688,10 @@ As this is not possible, we would initially <strong>target at least 80% line cov
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "content.code.copy", "content.code.annotate", "content.action.edit", "navigation.footer"], "search": "../../assets/javascripts/workers/search.07f07601.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "content.code.copy", "content.code.annotate", "content.action.edit", "navigation.footer"], "search": "../../../assets/javascripts/workers/search.07f07601.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.56dfad97.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.56dfad97.min.js"></script>
       
     
   </body>

@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/config-rendering/">
+        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/config-objects/">
       
       
         <link rel="prev" href="../../shell-completion/">
       
       
-        <link rel="next" href="../../upgrading/v0_2_to_v0_3/">
+        <link rel="next" href="../workload-files/">
       
       
       <link rel="icon" href="../../../assets/favicon128x128.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>Shareable configuration - Eclipse Ankaios</title>
+        <title>Config objects - Eclipse Ankaios</title>
       
     
     
@@ -57,11 +57,11 @@
       
         <meta  property="og:type"  content="website" >
       
-        <meta  property="og:title"  content="Shareable configuration - Eclipse Ankaios" >
+        <meta  property="og:title"  content="Config objects - Eclipse Ankaios" >
       
         <meta  property="og:description"  content="None" >
       
-        <meta  property="og:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/usage/manifest/config-rendering.png" >
+        <meta  property="og:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/usage/manifest/config-objects.png" >
       
         <meta  property="og:image:type"  content="image/png" >
       
@@ -69,15 +69,15 @@
       
         <meta  property="og:image:height"  content="630" >
       
-        <meta  property="og:url"  content="https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/config-rendering/" >
+        <meta  property="og:url"  content="https://eclipse-ankaios.github.io/ankaios/main/usage/manifest/config-objects/" >
       
         <meta  name="twitter:card"  content="summary_large_image" >
       
-        <meta  name="twitter:title"  content="Shareable configuration - Eclipse Ankaios" >
+        <meta  name="twitter:title"  content="Config objects - Eclipse Ankaios" >
       
         <meta  name="twitter:description"  content="None" >
       
-        <meta  name="twitter:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/usage/manifest/config-rendering.png" >
+        <meta  name="twitter:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/usage/manifest/config-objects.png" >
       
     
     
@@ -100,7 +100,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#shareable-configuration" class="md-skip">
+        <a href="#config-objects" class="md-skip">
           Skip to content
         </a>
       
@@ -149,7 +149,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Shareable configuration
+              Config objects
             
           </span>
         </div>
@@ -709,7 +709,7 @@
           
   
   <span class="md-ellipsis">
-    Shareable configuration
+    Config objects
   </span>
   
 
@@ -720,7 +720,7 @@
         
   
   <span class="md-ellipsis">
-    Shareable configuration
+    Config objects
   </span>
   
 
@@ -754,6 +754,27 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workload-files/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Workload files
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -1514,7 +1535,7 @@
                   
 
   
-    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/usage/manifest/config-rendering.md" title="Edit this page" class="md-content__button md-icon">
+    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/usage/manifest/config-objects.md" title="Edit this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1522,13 +1543,14 @@
   
 
 
-<h1 id="shareable-configuration">Shareable configuration<a class="headerlink" href="#shareable-configuration" title="Permanent link">&para;</a></h1>
-<p>Ankaios supports a shareable configuration approach, which allows configurations to be defined once and assigned to any number of workloads. To use sharable configurations, you can define config references in the <a href="https://github.com/sunng87/handlebars-rust">handlebars</a> templating syntax. The following workload configuration fields currently support template expansion:</p>
+<h1 id="config-objects">Config objects<a class="headerlink" href="#config-objects" title="Permanent link">&para;</a></h1>
+<p>Ankaios supports the definition of configurations separated from workloads using them. This allows users to update configurations independent of workloads, which is helpful when maintaining a large number of workloads. You can define templates in the <a href="https://github.com/sunng87/handlebars-rust">handlebars</a> templating syntax which are expanded with the referenced configuration objects. The following workload configuration fields currently support template expansion:</p>
 <ul>
 <li><code>agent</code></li>
 <li><code>runtimeConfig</code></li>
+<li>the subfields <code>data</code> and <code>binaryData</code> within the <code>files</code> field</li>
 </ul>
-<p>For a basic example of sharing configuration with workloads, see <a href="../../../reference/startup-configuration/">here</a>.</p>
+<p>For a basic example of separating configurations from workloads, see <a href="../../../reference/startup-configuration/">here</a>. For detailed information about using the <code>files</code> field, see <a href="../workload-files/">here</a>.</p>
 <h2 id="indentation-for-multi-line-configuration">Indentation for multi-line configuration<a class="headerlink" href="#indentation-for-multi-line-configuration" title="Permanent link">&para;</a></h2>
 <p>When using the default handlebars template syntax (<code>{{config_variable}}</code>), the line indentation of the current context is not considered. To ensure the validity of certain layouts that rely on the indentation level of multi-line configuration, utilize the following custom <code>indent</code> control structure, highlighted below:</p>
 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1"> 1</a></span>
@@ -1611,7 +1633,7 @@
 <a id="__codelineno-0-23" name="__codelineno-0-23"></a><span class="w">          </span><span class="no">restartPolicy: Never</span>
 <a id="__codelineno-0-24" name="__codelineno-0-24"></a><span class="w">          </span><span class="no">containers:</span>
 <a id="__codelineno-0-25" name="__codelineno-0-25"></a><span class="w">          </span><span class="no">- name: nginx-container</span>
-<a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="w">            </span><span class="no">image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26"></a><span class="w">            </span><span class="no">image: docker.io/nginx:latest</span>
 <a id="__codelineno-0-27" name="__codelineno-0-27"></a><span class="w">            </span><span class="no">ports:</span>
 <a id="__codelineno-0-28" name="__codelineno-0-28"></a><span class="w">            </span><span class="no">- containerPort: 80</span>
 <a id="__codelineno-0-29" name="__codelineno-0-29"></a><span class="w">              </span><span class="no">hostPort: 8080</span>
@@ -1732,13 +1754,13 @@
         
         
           
-          <a href="../../upgrading/v0_2_to_v0_3/" class="md-footer__link md-footer__link--next" aria-label="Next: Upgrading v0.2 to v0.3">
+          <a href="../workload-files/" class="md-footer__link md-footer__link--next" aria-label="Next: Workload files">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Upgrading v0.2 to v0.3
+                Workload files
               </div>
             </div>
             <div class="md-footer__button md-icon">

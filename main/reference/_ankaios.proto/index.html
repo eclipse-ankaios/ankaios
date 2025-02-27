@@ -686,11 +686,32 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/manifest/config-rendering/" class="md-nav__link">
+      <a href="../../usage/manifest/config-objects/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Shareable configuration
+    Config objects
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/manifest/workload-files/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Workload files
   </span>
   
 
@@ -1372,6 +1393,24 @@
   <a href="#executionsstatesofworkloadwlnamestatemapentry" class="md-nav__link">
     <span class="md-ellipsis">
       ExecutionsStatesOfWorkload.WlNameStateMapEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#file" class="md-nav__link">
+    <span class="md-ellipsis">
+      File
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Files
     </span>
   </a>
   
@@ -2303,6 +2342,24 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#file" class="md-nav__link">
+    <span class="md-ellipsis">
+      File
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Files
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#freememory" class="md-nav__link">
     <span class="md-ellipsis">
       FreeMemory
@@ -2622,6 +2679,8 @@
 <li><a href="#ank_base-ExecutionsStatesForId-IdStateMapEntry">ExecutionsStatesForId.IdStateMapEntry</a></li>
 <li><a href="#ank_base-ExecutionsStatesOfWorkload">ExecutionsStatesOfWorkload</a></li>
 <li><a href="#ank_base-ExecutionsStatesOfWorkload-WlNameStateMapEntry">ExecutionsStatesOfWorkload.WlNameStateMapEntry</a></li>
+<li><a href="#ank_base-File">File</a></li>
+<li><a href="#ank_base-Files">Files</a></li>
 <li><a href="#ank_base-FreeMemory">FreeMemory</a></li>
 <li><a href="#ank_base-Request">Request</a></li>
 <li><a href="#ank_base-Response">Response</a></li>
@@ -2981,7 +3040,7 @@ This is usually answered with a <a href="#completestate">CompleteState</a> messa
 </table>
 <p><a name="ank_base-ConfigMap"></a></p>
 <h3 id="configmap">ConfigMap<a class="headerlink" href="#configmap" title="Permanent link">&para;</a></h3>
-<p>This is a workaround for proto not supporing optional maps</p>
+<p>This is a workaround for proto not supporting optional maps</p>
 <table>
 <thead>
 <tr>
@@ -3400,6 +3459,60 @@ This level is needed as a workload could be running more than once on one agent 
 </tr>
 </tbody>
 </table>
+<p><a name="ank_base-File"></a></p>
+<h3 id="file">File<a class="headerlink" href="#file" title="Permanent link">&para;</a></h3>
+<p>A message describing a file with a mount point and file content.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mountPoint</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The path where the file is mounted inside the workload.</td>
+</tr>
+<tr>
+<td>data</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The content of the file.</td>
+</tr>
+<tr>
+<td>binaryData</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The base64 encoded content of the file.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Files"></a></p>
+<h3 id="files">Files<a class="headerlink" href="#files" title="Permanent link">&para;</a></h3>
+<p>A message containing the files assigned to a workload.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>files</td>
+<td><a href="#ank_base-File">File</a></td>
+<td>repeated</td>
+<td></td>
+</tr>
+</tbody>
+</table>
 <p><a name="ank_base-FreeMemory"></a></p>
 <h3 id="freememory">FreeMemory<a class="headerlink" href="#freememory" title="Permanent link">&para;</a></h3>
 <p>A message containing the amount of free memory of the agent.</p>
@@ -3719,6 +3832,12 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td><a href="#ank_base-ConfigMappings">ConfigMappings</a></td>
 <td></td>
 <td>A mapping containing the configurations assigned to the workload.</td>
+</tr>
+<tr>
+<td>files</td>
+<td><a href="#ank_base-Files">Files</a></td>
+<td></td>
+<td>A list of files assigned to the workload.</td>
 </tr>
 </tbody>
 </table>
