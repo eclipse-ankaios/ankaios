@@ -23,12 +23,13 @@ pub use workload_command_channel::WorkloadCommandSender;
 #[cfg(test)]
 pub use workload_control_loop::MockWorkloadControlLoop;
 
-use std::{fmt::Display, path::PathBuf};
+use std::fmt::Display;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::ControlInterface;
+use crate::control_interface::ControlInterfacePath;
 
 use api::ank_base;
 
@@ -62,7 +63,7 @@ impl Display for WorkloadError {
 #[derive(Debug, PartialEq)]
 pub enum WorkloadCommand {
     Delete,
-    Update(Option<Box<WorkloadSpec>>, Option<PathBuf>),
+    Update(Option<Box<WorkloadSpec>>, Option<ControlInterfacePath>),
     Retry(Box<WorkloadInstanceName>),
     Create,
     Resume,
@@ -103,12 +104,16 @@ impl Workload {
         }
 
         self.control_interface = control_interface_info.and_then(|info| {
-            let run_folder = info.get_run_folder().clone();
+            let control_interface_path = info.get_control_interface_path().clone();
             let output_pipe_sender = info.get_to_server_sender();
             let instance_name = info.get_instance_name().clone();
             let authorizer = info.move_authorizer();
-            match ControlInterface::new(&run_folder, &instance_name, output_pipe_sender, authorizer)
-            {
+            match ControlInterface::new(
+                &control_interface_path,
+                &instance_name,
+                output_pipe_sender,
+                authorizer,
+            ) {
                 Ok(control_interface) => Some(control_interface),
                 Err(err) => {
                     log::warn!("Could not exchange control interface. Error: '{}'", err);
@@ -219,7 +224,7 @@ mod tests {
     use crate::{
         control_interface::{
             authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
-            MockControlInterface,
+            ControlInterfacePath, MockControlInterface,
         },
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
@@ -232,6 +237,13 @@ mod tests {
 
     const TEST_WL_COMMAND_BUFFER_SIZE: usize = 5;
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 5;
+
+    use mockall::lazy_static;
+
+    lazy_static! {
+        pub static ref CONTROL_INTERFACE_PATH: ControlInterfacePath =
+            ControlInterfacePath::new(PathBuf::from(PIPES_LOCATION));
+    }
 
     // [utest->swdd~agent-workload-obj-delete-command~1]
     #[tokio::test]
@@ -390,7 +402,7 @@ mod tests {
         new_control_interface_mock
             .expect_get_api_location()
             .once()
-            .return_const(PIPES_LOCATION);
+            .return_const(CONTROL_INTERFACE_PATH.clone());
 
         let new_control_interface_context = MockControlInterface::new_context();
         new_control_interface_context
@@ -400,9 +412,9 @@ mod tests {
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
-            .expect_get_run_folder()
+            .expect_get_control_interface_path()
             .once()
-            .return_const("different_path".into());
+            .return_const(ControlInterfacePath::new("different_path".into()));
 
         new_control_interface_info_mock
             .expect_get_to_server_sender()
@@ -438,7 +450,7 @@ mod tests {
             .unwrap();
 
         let expected_workload_spec = Box::new(workload_spec);
-        let expected_pipes_path_buf = PathBuf::from(PIPES_LOCATION);
+        let expected_pipes_path_buf = CONTROL_INTERFACE_PATH.clone();
 
         assert_eq!(
             Ok(Some(WorkloadCommand::Update(
@@ -471,7 +483,7 @@ mod tests {
         new_control_interface_mock
             .expect_get_api_location()
             .once()
-            .return_const(PIPES_LOCATION);
+            .return_const(CONTROL_INTERFACE_PATH.clone());
 
         let workload_spec = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
@@ -481,9 +493,9 @@ mod tests {
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
-            .expect_get_run_folder()
+            .expect_get_control_interface_path()
             .once()
-            .return_const(PIPES_LOCATION.into());
+            .return_const(ControlInterfacePath::new(PIPES_LOCATION.into()));
 
         new_control_interface_info_mock
             .expect_get_to_server_sender()

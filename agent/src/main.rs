@@ -30,6 +30,7 @@ mod workload_operation;
 mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
+mod workload_files;
 mod workload_scheduler;
 mod workload_state;
 
@@ -76,8 +77,9 @@ async fn main() {
         tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
 
     // [impl->swdd~agent-prepares-dedicated-run-folder~1]
-    let run_directory = io_utils::prepare_agent_run_directory(args.run_folder.as_str(), args.agent_name.as_str())
-        .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
+    let run_directory =
+        io_utils::prepare_agent_run_directory(args.run_folder.as_str(), args.agent_name.as_str())
+            .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
     // [impl->swdd~agent-supports-podman~2]
     let podman_runtime = Box::new(PodmanRuntime {});
@@ -85,7 +87,7 @@ async fn main() {
     let podman_facade = Box::new(GenericRuntimeFacade::<
         PodmanWorkloadId,
         GenericPollingStateChecker,
-    >::new(podman_runtime));
+    >::new(podman_runtime, run_directory.get_path()));
     let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
     runtime_facade_map.insert(podman_runtime_name, podman_facade);
 
@@ -95,7 +97,7 @@ async fn main() {
     let podman_kube_facade = Box::new(GenericRuntimeFacade::<
         PodmanKubeWorkloadId,
         GenericPollingStateChecker,
-    >::new(podman_kube_runtime));
+    >::new(podman_kube_runtime, run_directory.get_path()));
     runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
 
     // The RuntimeManager currently directly gets the server ToServerInterface, but it shall get the agent manager interface

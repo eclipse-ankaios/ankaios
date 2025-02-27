@@ -527,6 +527,7 @@ mod tests {
                     runtime_config: None,
                     control_interface_access: None,
                     configs: None,
+                    files: None,
                 },
             ),
             (
@@ -548,6 +549,9 @@ mod tests {
                     runtime_config: Some(w1.runtime_config.clone()),
                     control_interface_access: w1.control_interface_access.into(),
                     configs: Some(Default::default()),
+                    files: Some(ank_base::Files {
+                        files: w1.files.into_iter().map(Into::into).collect(),
+                    }),
                 },
             ),
         ];

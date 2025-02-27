@@ -382,6 +382,7 @@ def check_if_mount_point_has_not_been_generated_for(agent_name, command_result):
     AGENT_NAME = agent_name
     TMP_DIRECTORY = path.join(path.sep, f"tmp/ankaios/{AGENT_NAME}_io")
     WORKLOAD_STATES_LEVEL = "workloadStates"
+    CONTROL_INTERFACE_SUBFOLDER = "control_interface"
     SHA_ENCODING_LEVEL = 0
 
     json_result = json.loads(command_result.stdout)
@@ -390,10 +391,31 @@ def check_if_mount_point_has_not_been_generated_for(agent_name, command_result):
     for idx, _ in enumerate(workloads_list):
         state_sha_encoding = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME][workloads_list[idx]].keys())[SHA_ENCODING_LEVEL]
 
-        control_interface_name = f"{workloads_list[idx]}.{state_sha_encoding}"
-        control_interface_path = path.join(TMP_DIRECTORY, control_interface_name)
+        workload_folder_name = f"{workloads_list[idx]}.{state_sha_encoding}"
+        control_interface_path = path.join(TMP_DIRECTORY, workload_folder_name, CONTROL_INTERFACE_SUBFOLDER)
 
         assert not path.exists(control_interface_path), "the mount point has been generated"
+
+def check_workload_files_exists(complete_state_json, workload_name, agent_name):
+    DESIRED_STATE_LEVEL = "desiredState"
+    WORKLOADS_LEVEL = "workloads"
+    WORKLOAD_STATES_LEVEL = "workloadStates"
+    SHA_ENCODING_LEVEL = 0
+    FILES_KEY = "files"
+    MOUNT_POINT = "mountPoint"
+    ROOT_PATH = "/"
+    tmp_directory = path.join(path.sep, f"tmp/ankaios/{agent_name}_io")
+    complete_state = json.loads(complete_state_json)
+    workload_files = complete_state[DESIRED_STATE_LEVEL][WORKLOADS_LEVEL][workload_name][FILES_KEY]
+    workload_id = list(complete_state[WORKLOAD_STATES_LEVEL][agent_name][workload_name].keys())[SHA_ENCODING_LEVEL]
+    workload_folder_name = f"{workload_name}.{workload_id}"
+
+    assert len(workload_files) > 0, f"empty field 'files' for {workload_name}"
+
+    for file in workload_files:
+        relative_mount_point = path.relpath(file[MOUNT_POINT], ROOT_PATH)
+        workload_file_host_path = path.join(tmp_directory, workload_folder_name, "files", relative_mount_point)
+        assert path.exists(workload_file_host_path), f"the workload file for {workload_name} does not exist"
 
 # MANDATORY FOR STABLE SYSTEM TESTS
 def config_name_shall_exist_in_list(config_name, current_result):

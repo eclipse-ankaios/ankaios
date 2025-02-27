@@ -180,6 +180,7 @@ pub struct Stop {}
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::generate_test_proto_workload_files;
     use std::collections::HashMap;
 
     mod ank_base {
@@ -194,8 +195,9 @@ mod tests {
         pub use crate::{
             commands::{CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
             objects::{
-                generate_test_agent_map, generate_test_workload_states_map_with_data,
-                CompleteState, ExecutionState, RestartPolicy, State, StoredWorkloadSpec, Tag,
+                generate_test_agent_map, generate_test_workload_states_map_with_data, Base64Data,
+                CompleteState, Data, ExecutionState, File, FileContent, RestartPolicy, State,
+                StoredWorkloadSpec, Tag,
             },
         };
     }
@@ -297,6 +299,7 @@ mod tests {
                     ]
                     .into(),
                 }),
+                files: Some(generate_test_proto_workload_files()),
             }
         };
         (ankaios) => {
@@ -316,6 +319,20 @@ mod tests {
                     ("ref2".into(), "config_2".into()),
                 ]
                 .into(),
+                files: vec![
+                    ankaios::File {
+                        mount_point: "/file.json".to_string(),
+                        file_content: ankaios::FileContent::Data(ankaios::Data {
+                            data: "text data".into(),
+                        }),
+                    },
+                    ankaios::File {
+                        mount_point: "/binary_file".to_string(),
+                        file_content: ankaios::FileContent::BinaryData(ankaios::Base64Data {
+                            base64_data: "base64_data".into(),
+                        }),
+                    },
+                ],
             }
         };
     }

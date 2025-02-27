@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 use common::{
@@ -27,6 +27,9 @@ use crate::control_interface::ControlInterface;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
+
+#[cfg_attr(test, mockall_double::double)]
+use crate::io_utils::filesystem_async;
 
 use crate::{
     runtime_connectors::{OwnableRuntime, ReusableWorkloadState, RuntimeError, StateChecker},
@@ -69,7 +72,6 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
-        report_workload_states_for_workload: bool,
     );
 }
 
@@ -78,6 +80,7 @@ pub struct GenericRuntimeFacade<
     StChecker: StateChecker<WorkloadId> + Send + Sync,
 > {
     runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
+    run_folder: PathBuf,
 }
 
 impl<WorkloadId, StChecker> GenericRuntimeFacade<WorkloadId, StChecker>
@@ -85,8 +88,14 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    pub fn new(runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>) -> Self {
-        GenericRuntimeFacade { runtime }
+    pub fn new(
+        runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
+        run_folder: PathBuf,
+    ) -> Self {
+        GenericRuntimeFacade {
+            runtime,
+            run_folder,
+        }
     }
 }
 
@@ -141,20 +150,13 @@ impl<
         workload
     }
 
-    // [impl->swdd~agent-delete-old-workload~2]
-    // [impl->swdd~agent-delete-old-workload-without-sending-workload-states~1]
+    // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload(
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
-        report_workload_states_for_workload: bool,
     ) {
-        let _task_handle = Self::delete_workload_non_blocking(
-            self,
-            instance_name,
-            update_state_tx,
-            report_workload_states_for_workload,
-        );
+        let _task_handle = Self::delete_workload_non_blocking(self, instance_name, update_state_tx);
     }
 }
 
@@ -188,21 +190,22 @@ impl<
 
         let (control_interface_path, control_interface) = if let Some(info) = control_interface_info
         {
-            let run_folder = info.get_run_folder().clone();
+            let control_interface_path = info.get_control_interface_path().clone();
             let output_pipe_sender = info.get_to_server_sender();
             let instance_name = info.get_instance_name().clone();
             let authorizer = info.move_authorizer();
-            match ControlInterface::new(&run_folder, &instance_name, output_pipe_sender, authorizer)
-            {
-                Ok(result) => {
+            match ControlInterface::new(
+                &control_interface_path,
+                &instance_name,
+                output_pipe_sender,
+                authorizer,
+            ) {
+                Ok(control_interface) => {
                     log::info!(
                         "Successfully created control interface for workload '{}'.",
                         workload_name
                     );
-                    (
-                        Some(workload_spec.instance_name.pipes_folder_name(&run_folder)),
-                        Some(result),
-                    )
+                    (Some(control_interface_path), Some(control_interface))
                 }
                 Err(err) => {
                     log::warn!(
@@ -226,20 +229,23 @@ impl<
             runtime.name(),
             workload_name,
         );
+
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
+        let run_folder = self.run_folder.clone();
         let task_handle = tokio::spawn(async move {
             workload_command_sender
                 .create()
                 .await
                 .unwrap_or_else(|err| {
-                    log::warn!("Failed to send workload command retry: '{}'", err);
+                    log::warn!("Failed to send workload command create: '{}'", err);
                 });
 
             let control_loop_state = ControlLoopState::builder()
                 .workload_spec(workload_spec)
                 .workload_id(workload_id)
                 .control_interface_path(control_interface_path)
+                .run_folder(run_folder)
                 .workload_state_sender(update_state_tx)
                 .runtime(runtime)
                 .workload_command_receiver(workload_command_receiver)
@@ -274,14 +280,18 @@ impl<
         );
 
         // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
-        let control_interface = control_interface_info.and_then(|info| { if workload_spec.needs_control_interface() {
-            let run_folder = info.get_run_folder().clone();
+        let control_interface = if let Some(info) = control_interface_info {
+            let control_interface_path = info.get_control_interface_path().clone();
             let output_pipe_sender = info.get_to_server_sender();
             let instance_name = info.get_instance_name().clone();
             let authorizer = info.move_authorizer();
-            match ControlInterface::new(&run_folder, &instance_name, output_pipe_sender, authorizer)
-            {
-                Ok(result) => Some(result),
+            match ControlInterface::new(
+                &control_interface_path,
+                &instance_name,
+                output_pipe_sender,
+                authorizer,
+            ) {
+                Ok(control_interface) => Some(control_interface),
                 Err(err) => {
                     log::warn!(
                                 "Could not reuse or create control interface when resuming workload '{}': '{}'",
@@ -292,28 +302,24 @@ impl<
                 }
             }
         } else {
-            log::info!(
-                    "No control interface access rights specified for workload '{}'. Skipping creation of control interface.",
-                    workload_spec.instance_name.clone().workload_name()
-                );
+            log::info!("No control interface access rights specified for resumed workload '{}'. Skipping creation of control interface.",
+                workload_spec.instance_name.clone().workload_name());
             None
-        }});
+        };
 
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
-        let task_handle = tokio::spawn(async move {
-            // let instance_name = workload_spec.instance_name.clone();
-            workload_command_sender
-                .resume()
-                .await
-                .unwrap_or_else(|err| {
-                    log::warn!("Failed to send workload command retry: '{}'", err);
-                });
+        workload_command_sender.resume().unwrap_or_else(|err| {
+            log::warn!("Failed to send workload command resume: '{}'", err);
+        });
 
+        let run_folder = self.run_folder.clone();
+        let task_handle = tokio::spawn(async move {
             let control_loop_state = ControlLoopState::builder()
                 .workload_spec(workload_spec)
                 .workload_state_sender(update_state_tx)
                 .runtime(runtime)
+                .run_folder(run_folder)
                 .workload_command_receiver(workload_command_receiver)
                 .retry_sender(workload_command_sender)
                 .build()
@@ -328,16 +334,11 @@ impl<
         )
     }
 
-    // [impl->swdd~agent-delete-old-workload~2]
-    // [impl->swdd~agent-delete-old-workload-without-sending-workload-states~1]
+    // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload_non_blocking(
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
-        /* The boolean flag to disable sending of workload states is a temporary workaround
-        until direct start of bundles is implemented to prevent workload states
-        from being overwritten by the delete. */
-        report_workload_states_for_workload: bool,
     ) -> JoinHandle<()> {
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
@@ -349,37 +350,49 @@ impl<
             instance_name.agent_name(),
         );
 
+        let run_folder = self.run_folder.clone();
         tokio::spawn(async move {
-            if report_workload_states_for_workload {
-                update_state_tx
-                    .report_workload_execution_state(
-                        &instance_name,
-                        ExecutionState::stopping_requested(),
-                    )
-                    .await;
-            }
+            update_state_tx
+                .report_workload_execution_state(
+                    &instance_name,
+                    ExecutionState::stopping_requested(),
+                )
+                .await;
 
             if let Ok(id) = runtime.get_workload_id(&instance_name).await {
                 if let Err(err) = runtime.delete_workload(&id).await {
-                    if report_workload_states_for_workload {
-                        update_state_tx
-                            .report_workload_execution_state(
-                                &instance_name,
-                                ExecutionState::delete_failed(err),
-                            )
-                            .await;
-                    }
+                    update_state_tx
+                        .report_workload_execution_state(
+                            &instance_name,
+                            ExecutionState::delete_failed(err),
+                        )
+                        .await;
+
                     return; // The early exit is needed to skip sending the removed message.
                 }
             } else {
                 log::debug!("Workload '{}' already gone.", instance_name);
             }
 
-            if report_workload_states_for_workload {
-                update_state_tx
-                    .report_workload_execution_state(&instance_name, ExecutionState::removed())
-                    .await;
-            }
+            log::debug!(
+                "Deleting the workload subfolder of workload '{}'",
+                instance_name
+            );
+
+            let workload_dir = instance_name.pipes_folder_name(&run_folder);
+            filesystem_async::remove_dir_all(&workload_dir)
+                .await
+                .unwrap_or_else(|err| {
+                    log::error!(
+                        "Failed to delete workload subfolder after deletion of workload '{}': '{}'",
+                        instance_name,
+                        err
+                    );
+                });
+
+            update_state_tx
+                .report_workload_execution_state(&instance_name, ExecutionState::removed())
+                .await;
         })
     }
 }
@@ -402,8 +415,9 @@ mod tests {
     use crate::{
         control_interface::{
             authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
-            MockControlInterface,
+            ControlInterfacePath, MockControlInterface,
         },
+        io_utils::mock_filesystem_async,
         runtime_connectors::{
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             GenericRuntimeFacade, OwnableRuntime, ReusableWorkloadState, RuntimeFacade,
@@ -417,6 +431,7 @@ mod tests {
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_ID: &str = "workload_id_1";
+    const RUN_FOLDER: &str = "/some";
     const PIPES_LOCATION: &str = "/some/path";
     const TEST_CHANNEL_BUFFER_SIZE: usize = 20;
 
@@ -446,6 +461,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
         assert_eq!(
@@ -491,9 +507,9 @@ mod tests {
 
         let mut control_interface_info_mock = MockControlInterfaceInfo::default();
         control_interface_info_mock
-            .expect_get_run_folder()
+            .expect_get_control_interface_path()
             .once()
-            .return_const(PIPES_LOCATION.into());
+            .return_const(ControlInterfacePath::new(PIPES_LOCATION.into()));
 
         control_interface_info_mock
             .expect_get_to_server_sender()
@@ -527,6 +543,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
         let mock_control_loop = MockWorkloadControlLoop::run_context();
@@ -557,9 +574,9 @@ mod tests {
 
         let mut control_interface_info_mock = MockControlInterfaceInfo::default();
         control_interface_info_mock
-            .expect_get_run_folder()
+            .expect_get_control_interface_path()
             .once()
-            .return_const(PIPES_LOCATION.into());
+            .return_const(ControlInterfacePath::new(PIPES_LOCATION.into()));
         control_interface_info_mock
             .expect_get_to_server_sender()
             .once()
@@ -611,6 +628,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
@@ -630,8 +648,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let control_interface_info_mock = MockControlInterfaceInfo::default();
 
         let control_interface_new_context = MockControlInterface::new_context();
         control_interface_new_context.expect().never();
@@ -664,11 +680,12 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
             workload_spec.clone(),
-            Some(control_interface_info_mock),
+            None,
             &wl_state_sender,
         );
 
@@ -677,7 +694,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-delete-old-workload~2]
+    // [utest->swdd~agent-delete-old-workload~3]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload() {
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -703,14 +720,13 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
-        let report_workload_states_for_workload = true;
-        test_runtime_facade.delete_workload(
-            workload_instance_name.clone(),
-            &wl_state_sender,
-            report_workload_states_for_workload,
-        );
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
+        mock_remove_dir.expect().once().returning(|_| Ok(()));
+
+        test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);
 
         tokio::task::yield_now().await;
 
@@ -729,49 +745,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-delete-old-workload-without-sending-workload-states~1]
-    #[tokio::test]
-    async fn utest_runtime_facade_delete_workload_without_reporting_workload_states() {
-        let mut runtime_mock = MockRuntimeConnector::new();
-
-        let (wl_state_sender, mut wl_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
-
-        let workload_instance_name = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME)
-            .build();
-
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::GetWorkloadId(
-                    workload_instance_name.clone(),
-                    Ok(WORKLOAD_ID.to_string()),
-                ),
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
-
-        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
-            Box::new(runtime_mock.clone());
-        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
-            ownable_runtime_mock,
-        ));
-
-        let report_workload_states_for_workload = false;
-        test_runtime_facade.delete_workload(
-            workload_instance_name.clone(),
-            &wl_state_sender,
-            report_workload_states_for_workload,
-        );
-
-        tokio::task::yield_now().await;
-
-        assert!(wl_state_receiver.try_recv().is_err());
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-delete-old-workload~2]
+    // [utest->swdd~agent-delete-old-workload~3]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload_failed() {
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -802,14 +776,10 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
+            RUN_FOLDER.into(),
         ));
 
-        let report_workload_states_for_workload = true;
-        test_runtime_facade.delete_workload(
-            workload_instance_name.clone(),
-            &wl_state_sender,
-            report_workload_states_for_workload,
-        );
+        test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);
 
         tokio::task::yield_now().await;
 

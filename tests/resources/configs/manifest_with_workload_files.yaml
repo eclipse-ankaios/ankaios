@@ -1,0 +1,68 @@
+apiVersion: v0.1
+workloads:
+  workload_with_mounted_text_file:
+    agent: agent_A
+    runtime: podman
+    configs:
+      nginx_conf: web_server_config
+    files:
+      - mountPoint: "/etc/nginx/nginx.conf"
+        data: "{{nginx_conf}}"
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+      commandOptions: [ "-p", "8087:80" ]
+  workload_with_mounted_binary_file:
+    agent: agent_A
+    runtime: podman
+    configs:
+      bin_data: bin_data
+    files:
+      - mountPoint: "/hello"
+        binaryData: "{{bin_data}}"
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "cat /hello" ]
+  kube_workload_with_unsupported_files:
+    agent: agent_B
+    runtime: podman-kube
+    configs:
+      nginx_conf: web_server_config
+    files:
+      - mountPoint: "/etc/nginx/nginx.conf"
+        data: "{{nginx_conf}}"
+    runtimeConfig: |
+      manifest: |
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: nginx-pod
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: nginx-container
+            image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+            ports:
+            - containerPort: 80
+              hostPort: 8081
+configs:
+  web_server_config: |
+    worker_processes  1;
+
+    events {
+        worker_connections  1024;
+    }
+
+    http {
+        server {
+            listen 80;
+            server_name custom_nginx;
+
+            location /custom {
+                default_type text/plain;
+                return 200 "The mounted custom nginx.conf is being used!\n";
+            }
+        }
+    }
+  # base64 encoded content
+  bin_data: SGVsbG8sIFdvcmxkIQ==

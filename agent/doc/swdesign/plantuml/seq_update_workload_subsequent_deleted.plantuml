@@ -38,9 +38,13 @@ else subsequent update workload call
                 deactivate workload
                 workload_command -->> workload_control_loop --++: receive update (new config)
                 deactivate workload_command
+                workload_control_loop -> workload_control_loop++--: delete old\nworkload files
+                opt old instance name not equal to new instance name
+                    workload_control_loop -> workload_control_loop++--: delete workload\nsubfolder
+                end
                 workload_control_loop -> runtime ++: perform update actions
                 runtime -->> workload_control_loop--
-                workload_control_loop -> workload_command ++: wait for command
+                workload_control_loop -> workload_command --++: wait for command
                 note right
                     afterwards the WorkloadControlLoop
                     waits again for incoming workload commands
@@ -63,6 +67,7 @@ else subsequent update workload call
             destroy workload
             workload_command -->> workload_control_loop ++: receive delete
             destroy workload_command
+            workload_control_loop -> workload_control_loop++--: delete workload\nsubfolder
             workload_control_loop -> runtime++: perform delete actions
             runtime -->> workload_control_loop--
             destroy workload_control_loop

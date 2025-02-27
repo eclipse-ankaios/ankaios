@@ -49,6 +49,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "ControlInterfaceAccess.denyRules",
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
         )
+        .field_attribute("Files.files", "#[serde(default)]")
+        .field_attribute(
+            "Files.files",
+            "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
+        )
         .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]")
         .compile(&["proto/control_api.proto"], &["proto"])
         .unwrap();

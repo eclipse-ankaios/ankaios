@@ -3,12 +3,8 @@
 
 box "Ankaios Agent"
     participant "AgentManager" as manager
-
     participant "RuntimeManager" as runtime_manager
     participant "RuntimeFacade" as wl_facade
-
-    participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
-
 end box
 
 box "Ankaios Server"
@@ -22,54 +18,56 @@ note over manager, server
 The communication between the Agent Manager and the Ankaios Server is simpliefied here. The actuall calls go over the Communication Middleware.
 end note
 
-manager <<- server ++: UpdateWorkload
+manager <<- server ++: ServerHello
 
 ... general steps of handling the UpdateWorkload command ...
 
-manager -> runtime_manager ++: handle update workload
+manager -> runtime_manager ++: handle server hello
 
-alt first update workload call for the current agent execution
+alt received server hello for the current agent execution
 
 loop for each runtime connector
     runtime_manager -> runtime_manager ++--: finds existing workloads for that runtime
 
-    loop for each found running workload
-        alt found running workload is required
-            runtime_manager -> runtime_manager++--: create control interface
-
-            alt found running workload has different config
-                runtime_manager -> wl_facade++: delete workload
-                wl_facade ->> wl_facade ++: decopule the specific actions
-                wl_facade -> runtime++: perform delete actions
-                runtime -->> wl_facade--
-                wl_facade -->> runtime_manager--
-                runtime_manager -> runtime_manager ++--: add workload
-                note right
-                    see add workload digram for details
-                endnote
-                deactivate wl_facade
-            else found running workload is identical to required workload
-                runtime_manager -> wl_facade++: resume workload
-                wl_facade ->> wl_facade ++: decopule the specific actions
-                wl_facade -> runtime++: perform resume actions
-                runtime -->> wl_facade--
-                deactivate wl_facade
-                wl_facade -->> runtime_manager--
+    loop for each found existing workload
+        alt workload is running and instance names are equal
+            opt workload has control interface access rights
+                runtime_manager -> runtime_manager++--: create control interface
             end
-
+            runtime_manager -> wl_facade++: resume workload
+            wl_facade ->> wl_facade ++: decouple the specific\nresume actions
+            wl_facade -->> runtime_manager--: workload
             runtime_manager -> runtime_manager++--: store new workload
 
-        else found running workload is not required anymore
-            runtime_manager -> wl_facade: delete (found running workload)
+        else workload is succeeded and instance names are equal
+            runtime_manager -> runtime_manager++--: request a reuse of the workload
+        else workload is neither running nor succeeded or instance names are different
+            alt agent was restarted
+                runtime_manager -> wl_facade++: resume workload
+                wl_facade ->> wl_facade ++--: decouple the specific\nresume actions
+                wl_facade -->> runtime_manager--: workload
+                runtime_manager -> runtime_manager++--: store new workload object
+                runtime_manager -> runtime_manager++--: send an update of\nthe workload object
+            else server was restarted
+                runtime_manager -> runtime_manager++--: send an update of\nthe workload object
+            end
+        else workload is not required anymore
+            alt server was restarted
+                runtime_manager -> runtime_manager++--: send delete to workload object
+            else agent was restarted
+                runtime_manager -> wl_facade++: delete workload
+                wl_facade -->> runtime_manager
+                wl_facade ->> wl_facade ++: decouple the specific\ndelete actions
+                deactivate wl_facade
+                deactivate wl_facade
+            end
         end
     end
 end
 
-loop remaining added workloads not found in the list of running workloads
+loop remaining added workloads not found in the list of existing workloads
         runtime_manager -> runtime_manager ++--: add workload
-        note right
-            see add workload digram for details
-        endnote
+        note right: see add workload diagram for details
 end
 
 

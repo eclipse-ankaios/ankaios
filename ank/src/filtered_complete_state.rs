@@ -18,7 +18,8 @@ use api::ank_base;
 use common::{
     helpers::serialize_to_ordered_map,
     objects::{
-        AddCondition, ConfigItem, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap,
+        AddCondition, ConfigItem, ControlInterfaceAccess, File, RestartPolicy, Tag,
+        WorkloadStatesMap,
     },
 };
 use serde::{Deserialize, Serialize, Serializer};
@@ -144,6 +145,8 @@ pub struct FilteredWorkloadSpec {
     #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub configs: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub files: Option<Vec<File>>,
 }
 
 impl From<ank_base::CompleteState> for FilteredCompleteState {
@@ -216,7 +219,10 @@ impl From<ank_base::Workload> for FilteredWorkloadSpec {
                 .map(|x| x.try_into().unwrap_or_else(|error| {
                     output_and_error!("Could not convert the ControlInterfaceAccess.\nError: '{error}'. Check the Ankaios component compatibility.")
                 })),
-            configs: value.configs.map(|x| x.configs)
+            configs: value.configs.map(|x| x.configs),
+            files: value.files.map(|files|files.files.into_iter().map(|file| file.try_into().unwrap_or_else(|error| {
+                output_and_error!("Could not convert files.\nError: '{error}'. Check the Ankaios component compatibility.")
+            })).collect()),
         }
     }
 }

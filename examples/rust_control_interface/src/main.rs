@@ -80,8 +80,7 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
                 dependencies: Some(Dependencies {
                     dependencies: HashMap::new(),
                 }),
-                configs: None,
-                control_interface_access: None,
+                ..Default::default()
             },
         )]),
     });

@@ -109,6 +109,14 @@ pub fn generate_test_configs() -> HashMap<String, ConfigItem> {
                     "agent_name".to_string(),
                     ConfigItem::String("agent_A".to_owned()),
                 ),
+                (
+                    "config_file".to_string(),
+                    ConfigItem::String("text data".to_owned()),
+                ),
+                (
+                    "binary_file".to_string(),
+                    ConfigItem::String("base64_data".to_owned()),
+                ),
             ])),
         ),
         (

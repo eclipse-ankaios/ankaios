@@ -11,7 +11,6 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-
 use nix::errno::Errno;
 use std::ffi::OsString;
 use std::fmt::{self, Display};
@@ -27,6 +26,7 @@ pub enum FileSystemError {
     RemoveFifo(OsString, std::io::ErrorKind),
     RemoveDirectory(OsString, std::io::ErrorKind),
     Permissions(OsString, std::io::ErrorKind),
+    Write(OsString, std::io::ErrorKind),
 }
 
 impl Display for FileSystemError {
@@ -50,6 +50,9 @@ impl Display for FileSystemError {
             FileSystemError::Permissions(path, err) => {
                 write!(f, "Could not set permissions to {path:?}  {err:?}")
             }
+            FileSystemError::Write(path, err) => {
+                write!(f, "Could not write to {path:?}  {err:?}")
+            }
         }
     }
 }
@@ -62,13 +65,13 @@ pub mod filesystem {
 
     #[cfg(test)]
     use super::tests::{
-        create_dir_all, metadata, mkfifo, remove_dir as fs_remove_dir, remove_file,
+        create_dir_all, metadata, mkfifo, remove_dir_all as fs_remove_dir_all, remove_file,
         set_permissions as fs_set_permissions,
     };
     use super::FileSystemError;
     #[cfg(not(test))]
     use std::fs::{
-        create_dir_all, metadata, remove_dir as fs_remove_dir, remove_file,
+        create_dir_all, metadata, remove_dir_all as fs_remove_dir_all, remove_file,
         set_permissions as fs_set_permissions,
     };
     #[cfg(not(test))]
@@ -114,10 +117,39 @@ pub mod filesystem {
         })
     }
 
-    pub fn remove_dir(path: &Path) -> Result<(), FileSystemError> {
-        fs_remove_dir(path).map_err(|err| {
+    pub fn remove_dir_all(path: &Path) -> Result<(), FileSystemError> {
+        fs_remove_dir_all(path).map_err(|err| {
             FileSystemError::RemoveDirectory(path.to_path_buf().into_os_string(), err.kind())
         })
+    }
+}
+
+#[cfg_attr(test, automock)]
+pub mod filesystem_async {
+    #[cfg(test)]
+    use super::tests::{remove_dir_all_async as fs_async_remove_dir_all, write as fs_async_write};
+    use super::FileSystemError;
+
+    use std::path::Path;
+    #[cfg(not(test))]
+    use tokio::fs::{remove_dir_all as fs_async_remove_dir_all, write as fs_async_write};
+
+    pub async fn write_file<C>(file_path: &Path, file_content: C) -> Result<(), FileSystemError>
+    where
+        C: AsRef<[u8]> + 'static,
+    {
+        fs_async_write(file_path, file_content)
+            .await
+            .map_err(|err| FileSystemError::Write(file_path.into(), err.kind()))
+    }
+
+    pub async fn remove_dir_all(path: &Path) -> Result<(), FileSystemError> {
+        fs_async_remove_dir_all(path)
+            .await
+            .map_err(|err| match err.kind() {
+                tokio::io::ErrorKind::NotFound => FileSystemError::NotFoundDirectory(path.into()),
+                _ => FileSystemError::RemoveDirectory(path.into(), err.kind()),
+            })
     }
 }
 
@@ -143,16 +175,17 @@ mod tests {
     use mockall::lazy_static;
     use nix::sys::stat::Mode;
 
-    use super::{filesystem, FileSystemError};
+    use super::{filesystem, filesystem_async, FileSystemError};
 
     #[allow(non_camel_case_types)]
     pub enum FakeCall {
         create_dir_all(PathBuf, io::Result<()>), // create_dir_all(path, fake_result)
         mkfifo(PathBuf, Mode, nix::Result<()>),  // mkfifo(path, mode, fake_result)
-        remove_dir(PathBuf, io::Result<()>),     // remove_dir(path, fake_result)
+        remove_dir_all(PathBuf, io::Result<()>), // remove_dir_all(path, fake_result)
         remove_file(PathBuf, io::Result<()>),    // remove_file(path, fake_result)
         metadata(PathBuf, io::Result<Metadata>), // metadata(path, fake_result)
         set_permissions(PathBuf, u32, io::Result<()>), // set_permissions(path, mode, fake_result)
+        write(PathBuf, Vec<u8>, io::Result<()>), // write(path, content, fake_result)
     }
 
     lazy_static! {
@@ -213,6 +246,7 @@ mod tests {
             path.to_string_lossy()
         );
     }
+
     pub fn mkfifo(path: &Path, mode: Mode) -> nix::Result<()> {
         if let Some(FakeCall::mkfifo(fake_path, fake_mode, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
@@ -228,8 +262,8 @@ mod tests {
             mode
         );
     }
-    pub fn remove_dir(path: &Path) -> io::Result<()> {
-        if let Some(FakeCall::remove_dir(fake_path, fake_result)) =
+    pub fn remove_dir_all(path: &Path) -> io::Result<()> {
+        if let Some(FakeCall::remove_dir_all(fake_path, fake_result)) =
             FAKE_CALL_LIST.lock().unwrap().pop_front()
         {
             if fake_path == *path {
@@ -238,9 +272,13 @@ mod tests {
         }
 
         panic!(
-            "No mock specified for call remove_dir({})",
+            "No mock specified for call remove_dir_all({})",
             path.to_string_lossy()
         );
+    }
+
+    pub async fn remove_dir_all_async(path: &Path) -> io::Result<()> {
+        remove_dir_all(path)
     }
 
     pub fn remove_file(path: &Path) -> io::Result<()> {
@@ -270,6 +308,24 @@ mod tests {
         panic!(
             "No mock specified for call set_permissions({:?}, {:?})",
             path, perm
+        );
+    }
+
+    pub async fn write<C>(path: &Path, file_content: C) -> io::Result<()>
+    where
+        C: AsRef<[u8]> + 'static,
+    {
+        if let Some(FakeCall::write(fake_path, fake_content, fake_result)) =
+            FAKE_CALL_LIST.lock().unwrap().pop_front()
+        {
+            if fake_path == *path && fake_content == file_content.as_ref() {
+                return fake_result;
+            }
+        }
+
+        panic!(
+            "No mock specified for call write({})",
+            path.to_string_lossy()
         );
     }
 
@@ -404,12 +460,12 @@ mod tests {
         FAKE_CALL_LIST
             .lock()
             .unwrap()
-            .push_back(FakeCall::remove_dir(
+            .push_back(FakeCall::remove_dir_all(
                 Path::new("test_dir").to_path_buf(),
                 Ok(()),
             ));
 
-        assert!(filesystem::remove_dir(Path::new("test_dir")).is_ok());
+        assert!(filesystem::remove_dir_all(Path::new("test_dir")).is_ok());
     }
     #[test]
     fn utest_filesystem_remove_dir_failed() {
@@ -417,16 +473,71 @@ mod tests {
         FAKE_CALL_LIST
             .lock()
             .unwrap()
-            .push_back(FakeCall::remove_dir(
+            .push_back(FakeCall::remove_dir_all(
                 Path::new("test_dir").to_path_buf(),
                 Err(Error::new(ErrorKind::Other, "Some Error!")),
             ));
 
         assert!(matches!(
-            filesystem::remove_dir(Path::new("test_dir")),
+            filesystem::remove_dir_all(Path::new("test_dir")),
             Err(FileSystemError::RemoveDirectory(_, _))
         ));
     }
+
+    #[tokio::test]
+    async fn utest_filesystem_remove_dir_async_ok() {
+        let _test_lock = TEST_LOCK.lock();
+        let path = Path::new("test_dir");
+        FAKE_CALL_LIST
+            .lock()
+            .unwrap()
+            .push_back(FakeCall::remove_dir_all(path.to_path_buf(), Ok(())));
+
+        assert!(filesystem_async::remove_dir_all(path).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_filesystem_remove_dir_async_fails_with_path_not_found() {
+        let _test_lock = TEST_LOCK.lock();
+        let path = Path::new("test_dir");
+        FAKE_CALL_LIST
+            .lock()
+            .unwrap()
+            .push_back(FakeCall::remove_dir_all(
+                path.to_path_buf(),
+                Err(Error::new(ErrorKind::NotFound, "Path not found!")),
+            ));
+
+        let result = filesystem_async::remove_dir_all(path).await;
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(
+            matches!(&error, FileSystemError::NotFoundDirectory(_)),
+            "Expected FileSystemError::NotFoundDirectory, got {error:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_filesystem_remove_dir_async_fails_with_generic_reason() {
+        let _test_lock = TEST_LOCK.lock();
+        let path = Path::new("test_dir");
+        FAKE_CALL_LIST
+            .lock()
+            .unwrap()
+            .push_back(FakeCall::remove_dir_all(
+                path.to_path_buf(),
+                Err(Error::new(ErrorKind::Other, "Some Error!")),
+            ));
+
+        let result = filesystem_async::remove_dir_all(path).await;
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(
+            matches!(&error, FileSystemError::RemoveDirectory(_, _)),
+            "Expected FileSystemError::RemoveDirectory, got {error:?}"
+        );
+    }
+
     #[test]
     fn utest_filesystem_remove_fifo_ok() {
         let _test_lock = TEST_LOCK.lock();
@@ -455,5 +566,45 @@ mod tests {
             filesystem::remove_fifo(Path::new("test_file")),
             Err(FileSystemError::RemoveFifo(_, _))
         ));
+    }
+
+    #[tokio::test]
+    async fn utest_write_file_async_ok() {
+        let _test_lock = TEST_LOCK.lock();
+        let path = Path::new("test_file");
+        let file_content = vec![1, 2, 3];
+        FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::write(
+            path.to_path_buf(),
+            file_content.clone(),
+            Ok(()),
+        ));
+
+        assert!(filesystem_async::write_file(path, file_content)
+            .await
+            .is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_write_file_async_fails() {
+        let _test_lock = TEST_LOCK.lock();
+
+        let path = Path::new("test_file");
+        let io_error_kind = ErrorKind::Other;
+        let file_content = vec![1, 2, 3];
+
+        FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::write(
+            path.to_path_buf(),
+            file_content.clone(),
+            Err(Error::new(io_error_kind, "Some Error!")),
+        ));
+
+        let result = filesystem_async::write_file(path, file_content).await;
+        assert_eq!(
+            result,
+            Err(FileSystemError::Write(
+                path.as_os_str().to_os_string(),
+                io_error_kind,
+            )),
+        );
     }
 }

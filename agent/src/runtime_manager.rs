@@ -31,6 +31,8 @@ use common::{
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
+use crate::control_interface::ControlInterfacePath;
+
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
 
@@ -150,11 +152,11 @@ impl RuntimeManager {
             added_workloads.len()
         );
 
-        let new_added_workloads = self
+        let (new_added_workloads, deleted_workloads) = self
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
 
-        self.execute_workloads(new_added_workloads, vec![], workload_state_db)
+        self.execute_workloads(new_added_workloads, deleted_workloads, workload_state_db)
             .await;
     }
 
@@ -204,7 +206,7 @@ impl RuntimeManager {
     async fn resume_and_remove_from_added_workloads(
         &mut self,
         added_workloads: Vec<WorkloadSpec>,
-    ) -> Vec<ReusableWorkloadSpec> {
+    ) -> (Vec<ReusableWorkloadSpec>, Vec<DeletedWorkload>) {
         log::debug!("Handling initial workload list.");
 
         // create a list per runtime
@@ -229,6 +231,7 @@ impl RuntimeManager {
         }
 
         let mut new_added_workloads = Vec::new();
+        let mut deleted_workloads = Vec::new();
         // Go through each runtime and find existing workloads
         // [impl->swdd~agent-existing-workloads-finds-list~1]
         for (runtime_name, runtime) in &self.runtime_map {
@@ -254,12 +257,23 @@ impl RuntimeManager {
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
-                                let control_interface_info = Some(ControlInterfaceInfo::new(
-                                    &self.run_folder,
-                                    self.control_interface_tx.clone(),
-                                    &new_instance_name,
-                                    Authorizer::from(&new_workload_spec.control_interface_access),
-                                ));
+                                // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
+                                let control_interface_info =
+                                    if new_workload_spec.needs_control_interface() {
+                                        Some(ControlInterfaceInfo::new(
+                                            ControlInterfacePath::from((
+                                                &self.run_folder,
+                                                &new_instance_name,
+                                            )),
+                                            self.control_interface_tx.clone(),
+                                            &new_instance_name,
+                                            Authorizer::from(
+                                                &new_workload_spec.control_interface_access,
+                                            ),
+                                        ))
+                                    } else {
+                                        None
+                                    };
 
                                 log::info!(
                                     "Resuming workload '{}'",
@@ -292,28 +306,63 @@ impl RuntimeManager {
                                     workload_id,
                                 ));
                             } else {
-                                // [impl->swdd~agent-existing-workloads-replace-updated~3]
+                                // [impl->swdd~agent-existing-workloads-replace-updated~4]
 
                                 log::info!(
                                     "Replacing existing workload '{}'.",
                                     workload_state.instance_name.workload_name()
                                 );
 
-                                /* This prevents workload states from being overwritten by the delete. The decoupled create and a potential enqueue
-                                on unmet inter-workload dependencies might run earlier than the delete and the delete overwrites the
-                                pending workload states.*/
-                                const REPORT_WORKLOAD_STATES_FOR_WORKLOAD: bool = false;
-                                runtime.delete_workload(
-                                    workload_state.instance_name,
-                                    &self.update_state_tx,
-                                    REPORT_WORKLOAD_STATES_FOR_WORKLOAD,
-                                );
-                                new_added_workloads
-                                    .push(ReusableWorkloadSpec::new(new_workload_spec, None));
+                                if !self
+                                    .workloads
+                                    .contains_key(workload_state.instance_name.workload_name())
+                                {
+                                    // Replace workload when agent was restarted.
+
+                                    let old_workload_spec = WorkloadSpec {
+                                        instance_name: workload_state.instance_name.clone(),
+                                        ..Default::default() // dummy workload spec with existing instance name to resume
+                                    };
+
+                                    /* Resume the workload and update it to ensure the correct order
+                                    and synchronization between the update steps. */
+                                    let resumed_workload = runtime.resume_workload(
+                                        old_workload_spec,
+                                        None,
+                                        &self.update_state_tx,
+                                    );
+
+                                    self.workloads.insert(
+                                        new_instance_name.workload_name().to_owned(),
+                                        resumed_workload,
+                                    );
+
+                                    new_added_workloads
+                                        .push(ReusableWorkloadSpec::new(new_workload_spec, None));
+
+                                    deleted_workloads.push(DeletedWorkload {
+                                        instance_name: workload_state.instance_name,
+                                        dependencies: HashMap::new(),
+                                    });
+                                } else {
+                                    /* Replace workload when server was restarted.
+                                    The runtime manager will request an update of the workload
+                                    when putting the workload into both added and deleted ones.*/
+                                    new_added_workloads
+                                        .push(ReusableWorkloadSpec::new(new_workload_spec, None));
+
+                                    deleted_workloads.push(DeletedWorkload {
+                                        instance_name: workload_state.instance_name,
+                                        dependencies: HashMap::new(),
+                                    });
+                                }
                             }
                         } else {
                             let workload_name = workload_state.instance_name.workload_name();
-                            log::info!("Found existing workload '{}' is not needed.", workload_name);
+                            log::info!(
+                                "Found existing workload '{}' is not needed.",
+                                workload_name
+                            );
                             // [impl->swdd~agent-existing-workloads-delete-unneeded~2]
                             if let Some(workload) = self.workloads.remove(workload_name) {
                                 if let Err(err) = workload.delete().await {
@@ -325,12 +374,9 @@ impl RuntimeManager {
                                 }
                             } else {
                                 log::info!("Directly deleting workload {}", workload_name);
-                                // workload states are allowed to send because the workload is not created anymore afterwards
-                                const REPORT_WORKLOAD_STATES_FOR_WORKLOAD: bool = true;
                                 runtime.delete_workload(
                                     workload_state.instance_name,
                                     &self.update_state_tx,
-                                    REPORT_WORKLOAD_STATES_FOR_WORKLOAD,
                                 );
                             }
                         }
@@ -343,7 +389,7 @@ impl RuntimeManager {
         // [impl->swdd~agent-existing-workloads-starts-new-if-not-found~1]
         new_added_workloads.extend(flatten(added_workloads_per_runtime));
 
-        new_added_workloads
+        (new_added_workloads, deleted_workloads)
     }
 
     fn is_resumable_workload(
@@ -470,7 +516,7 @@ impl RuntimeManager {
         // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
         let control_interface_info = if workload_spec.needs_control_interface() {
             Some(ControlInterfaceInfo::new(
-                &self.run_folder,
+                ControlInterfacePath::from((&self.run_folder, &workload_spec.instance_name)),
                 self.control_interface_tx.clone(),
                 &workload_spec.instance_name,
                 Authorizer::from(&workload_spec.control_interface_access),
@@ -541,7 +587,7 @@ impl RuntimeManager {
             // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
             let control_interface_info = if workload_spec.needs_control_interface() {
                 Some(ControlInterfaceInfo::new(
-                    &self.run_folder,
+                    ControlInterfacePath::from((&self.run_folder, &workload_spec.instance_name)),
                     self.control_interface_tx.clone(),
                     &workload_spec.instance_name,
                     Authorizer::from(&workload_spec.control_interface_access),
@@ -608,6 +654,7 @@ mod tests {
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
     use crate::workload_state::WorkloadStateReceiver;
     use ank_base::response::ResponseContent;
+    use api::ank_base::Files;
     use common::objects::{
         self, generate_test_control_interface_access,
         generate_test_workload_spec_with_control_interface_access,
@@ -1011,7 +1058,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-existing-workloads-replace-updated~3]
+    // [utest->swdd~agent-existing-workloads-replace-updated~4]
     #[tokio::test]
     async fn utest_replace_existing_workload_with_different_config() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1040,7 +1087,7 @@ mod tests {
             .build();
 
         let reusable_workload_state_running = ReusableWorkloadState::new(
-            existing_workload_with_other_config,
+            existing_workload_with_other_config.clone(),
             ExecutionState::running(),
             None,
         );
@@ -1052,9 +1099,9 @@ mod tests {
             .return_once(|_| Box::pin(async { Ok(vec![reusable_workload_state_running]) }));
 
         runtime_facade_mock
-            .expect_delete_workload()
+            .expect_resume_workload()
             .once()
-            .return_const(());
+            .return_once(|_, _, _| MockWorkload::default());
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
@@ -1065,17 +1112,24 @@ mod tests {
 
         let expected_new_added_workloads: Vec<ReusableWorkloadSpec> =
             added_workloads.clone().into_reusable_workload_specs();
-        let new_added_workloads = runtime_manager
+        let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
 
         assert_eq!(expected_new_added_workloads, new_added_workloads);
-        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert_eq!(
+            vec![DeletedWorkload {
+                instance_name: existing_workload_with_other_config,
+                ..Default::default()
+            }],
+            deleted_workloads
+        );
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME)); // existing workload is resumed
     }
 
-    // [utest->swdd~agent-existing-workloads-replace-updated~3]
+    // [utest->swdd~agent-existing-workloads-replace-updated~4]
     #[tokio::test]
-    async fn utest_replace_existing_not_running_workload() {
+    async fn utest_replace_existing_not_running_workload_after_agent_restart() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1093,9 +1147,9 @@ mod tests {
             .once()
             .return_once(|_| MockWorkloadScheduler::default());
 
-        let resuable_workload_state_succeeded = ReusableWorkloadState::new(
-            existing_workload.instance_name,
-            ExecutionState::succeeded(),
+        let reusable_workload_state_succeeded = ReusableWorkloadState::new(
+            existing_workload.instance_name.clone(),
+            ExecutionState::failed("some error"),
             None,
         );
 
@@ -1103,11 +1157,11 @@ mod tests {
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![resuable_workload_state_succeeded]) }));
+            .return_once(|_| Box::pin(async { Ok(vec![reusable_workload_state_succeeded]) }));
         runtime_facade_mock
-            .expect_delete_workload()
+            .expect_resume_workload()
             .once()
-            .return_const(());
+            .return_once(|_, _, _| MockWorkload::default());
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
@@ -1118,12 +1172,82 @@ mod tests {
 
         let expected_added_workloads: Vec<ReusableWorkloadSpec> =
             added_workloads.clone().into_reusable_workload_specs();
-        let new_added_workloads = runtime_manager
+        let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
 
         assert_eq!(expected_added_workloads, new_added_workloads);
-        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert_eq!(
+            vec![DeletedWorkload {
+                instance_name: existing_workload.instance_name,
+                ..Default::default()
+            }],
+            deleted_workloads
+        );
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME)); // existing workload is resumed
+    }
+
+    // [utest->swdd~agent-existing-workloads-replace-updated~4]
+    #[tokio::test]
+    async fn utest_replace_existing_not_running_workload_after_server_restart() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let existing_workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let added_workloads = vec![existing_workload.clone()];
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| MockWorkloadScheduler::default());
+
+        let resuable_workload_state_succeeded = ReusableWorkloadState::new(
+            existing_workload.instance_name.clone(),
+            ExecutionState::failed("some error"),
+            None,
+        );
+
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        runtime_facade_mock
+            .expect_get_reusable_workloads()
+            .once()
+            .return_once(|_| Box::pin(async { Ok(vec![resuable_workload_state_succeeded]) }));
+        runtime_facade_mock.expect_resume_workload().never();
+
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        runtime_manager
+            .workloads
+            .insert(WORKLOAD_1_NAME.to_owned(), MockWorkload::default()); // workload is known
+
+        let expected_added_workloads: Vec<ReusableWorkloadSpec> =
+            added_workloads.clone().into_reusable_workload_specs();
+        let (new_added_workloads, deleted_workloads) = runtime_manager
+            .resume_and_remove_from_added_workloads(added_workloads)
+            .await;
+
+        // workload is updated through putting it into added and deleted workloads
+        assert_eq!(expected_added_workloads, new_added_workloads);
+        assert_eq!(
+            vec![DeletedWorkload {
+                instance_name: existing_workload.instance_name,
+                ..Default::default()
+            }],
+            deleted_workloads
+        );
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
     // [utest->swdd~agent-existing-workloads-reuse-unmodified~1]
@@ -1174,11 +1298,12 @@ mod tests {
             .into_iter()
             .map(|w| ReusableWorkloadSpec::new(w, Some(WORKLOAD_ID.to_string())))
             .collect();
-        let new_added_workloads = runtime_manager
+        let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
 
         assert_eq!(expected_new_added_workloads, new_added_workloads);
+        assert!(deleted_workloads.is_empty());
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
@@ -1281,9 +1406,7 @@ mod tests {
                 })
             });
 
-        runtime_facade_mock
-            .expect_delete_workload()
-            .never();
+        runtime_facade_mock.expect_delete_workload().never();
 
         let (_, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
             .with_runtime(
@@ -1293,10 +1416,7 @@ mod tests {
             .build();
 
         let mut workload_mock = MockWorkload::default();
-        workload_mock
-            .expect_delete()
-            .once()
-            .return_once(|| Ok(()));
+        workload_mock.expect_delete().once().return_once(|| Ok(()));
 
         runtime_manager
             .workloads
@@ -1410,7 +1530,7 @@ mod tests {
             .await;
     }
 
-    // [utest->swdd~agent-existing-workloads-replace-updated~3]
+    // [utest->swdd~agent-existing-workloads-replace-updated~4]
     #[tokio::test]
     async fn utest_handle_update_workload_initial_call_replace_workload_with_unfulfilled_dependencies(
     ) {
@@ -1421,7 +1541,17 @@ mod tests {
         let control_interface_mock = MockControlInterface::new_context();
         control_interface_mock.expect().never();
 
-        let workload_operations = vec![];
+        // create workload with different config string to simulate a replace of a existing workload
+        let existing_workload_with_other_config = WorkloadInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .config(&String::from("different config"))
+            .agent_name(AGENT_NAME)
+            .build();
+
+        let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(DeletedWorkload {
+            instance_name: existing_workload_with_other_config.clone(),
+            dependencies: HashMap::new(),
+        })];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
             .expect_enqueue_filtered_workload_operations()
@@ -1440,13 +1570,6 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        // create workload with different config string to simulate a replace of a existing workload
-        let existing_workload_with_other_config = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME)
-            .config(&String::from("different config"))
-            .agent_name(AGENT_NAME)
-            .build();
-
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_get_reusable_workloads()
@@ -1461,12 +1584,15 @@ mod tests {
                 })
             });
 
-        runtime_facade_mock
-            .expect_delete_workload()
+        let mut mock_workload = MockWorkload::default();
+        mock_workload
+            .expect_update()
             .once()
-            .return_const(());
-
-        runtime_facade_mock.expect_create_workload().never();
+            .returning(|_, _| Ok(()));
+        runtime_facade_mock
+            .expect_resume_workload()
+            .once()
+            .return_once(|_, _, _| mock_workload);
 
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
@@ -1481,7 +1607,8 @@ mod tests {
             .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        // the old workload is resumed followed by an update delete only
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
     // [utest->swdd~agent-updates-deleted-and-added-workloads~1]
@@ -2147,7 +2274,8 @@ mod tests {
                                 runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()),
                                 control_interface_access: None,
                                 configs: Some(ank_base::ConfigMappings {
-                                    configs: Default::default()})
+                                    configs: Default::default()}),
+                                files: Some(Files::default()),
                             })];
         let mut complete_state = test_utils::generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {

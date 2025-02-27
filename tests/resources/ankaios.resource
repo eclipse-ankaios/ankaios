@@ -677,13 +677,16 @@ The controller workload has no access to Control Interface
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     internal_check_no_access_to_control_interface    ${ankaios_config_folder.name}
 
-the mount point has not been generated for ${agent_name}
+the mount point for the control interface has not been generated for ${agent_name}
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json
     check_if_mount_point_has_not_been_generated_for    ${agent_name}    ${command_result}
 
-the mount point has been generated for ${agent_name}
-    Run Keyword And Expect Error    the mount point has been generated    the mount point has not been generated for ${agent_name}
+the mount point for the control interface has been generated for ${agent_name}
+    Run Keyword And Expect Error    the mount point has been generated    the mount point for the control interface has not been generated for ${agent_name}
 
+the mount point for the workload files of workload "${workload_name}" on agent "${agent_name}" has not been generated
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json
+    Run Keyword And Expect Error    the workload file for ${workload_name} does not exist    Check Workload Files Exists    ${command_result.stdout}    ${workload_name}    ${agent_name}
 Ankaios server is available
     the command "%{ANK_BIN_DIR}${/}ank get workloads" finished with exit code "0" within "2" seconds
 

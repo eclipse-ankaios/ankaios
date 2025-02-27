@@ -21,7 +21,7 @@ Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
 
 *** Test Cases ***
-# [stest->swdd~agent-existing-workloads-replace-updated~3]
+# [stest->swdd~agent-existing-workloads-replace-updated~4]
 # [stest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
 # [stest->swdd~agent-enqueues-unfulfilled-create~1]
 # [stest->swdd~agent-existing-workloads-reuse-unmodified~1]

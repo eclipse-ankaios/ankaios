@@ -263,6 +263,7 @@ message Workload {
     optional string runtimeConfig  = 6; /// The configuration information specific to the runtime.
     ControlInterfaceAccess controlInterfaceAccess = 7;
     ConfigMappings configs = 8; /// A mapping containing the configurations assigned to the workload.
+    Files files = 9; /// A list of files assigned to the workload.
 }
 
 /**
@@ -345,15 +346,30 @@ message ConfigMappings {
     map<string, string> configs = 1;
 }
 
+/**
+* A message containing the files assigned to a workload.
+*/
+message Files {
+   repeated File files = 1;
+}
 
 /**
-* This is a workaround for proto not supporing optional maps
+* A message describing a file with a mount point and file content.
+*/
+message File {
+    string mountPoint = 1; /// The path where the file is mounted inside the workload.
+    oneof FileContent {
+        string data = 2; /// The content of the file.
+        string binaryData = 3; /// The base64 encoded content of the file.
+    }
+}
+
+/**
+* This is a workaround for proto not supporting optional maps
 */
 message ConfigMap {
     map<string, ConfigItem> configs = 1;
 }
-
-
 
 /**
 * An enum type describing possible configuration objects.
@@ -365,7 +381,6 @@ message ConfigItem {
         ConfigObject object = 3;
     }
 }
-
 
 message ConfigArray {
     repeated ConfigItem values = 1;

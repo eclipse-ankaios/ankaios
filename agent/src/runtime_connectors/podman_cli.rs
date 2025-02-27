@@ -307,6 +307,7 @@ impl PodmanCli {
         workload_name: &str,
         agent: &str,
         control_interface_path: Option<PathBuf>,
+        workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
     ) -> Result<String, String> {
         log::debug!(
             "Creating the workload '{}' with image '{}'",
@@ -338,6 +339,20 @@ impl PodmanCli {
                     &path.to_string_lossy(),
                     ",destination=",
                     API_PIPES_MOUNT_POINT,
+                ]
+                .concat(),
+            );
+        }
+
+        // [impl->swdd~podman-create-mounts-workload-files~1]
+        for (host_file_path, mount_point) in workload_file_path_mappings {
+            args.push(
+                [
+                    "--mount=type=bind,source=",
+                    &host_file_path.to_string_lossy(),
+                    ",destination=",
+                    &mount_point.to_string_lossy(),
+                    ",readonly=true",
                 ]
                 .concat(),
             );
@@ -551,6 +566,7 @@ mod tests {
     use common::objects::ExecutionState;
     use common::test_utils::serialize_as_map;
     use serde::Serialize;
+    use std::collections::HashMap;
     use std::sync::Arc;
     use std::time::{self, Duration};
 
@@ -1002,6 +1018,7 @@ mod tests {
     // [utest->swdd~podman-create-workload-creates-labels~2]
     // [utest->swdd~podman-create-workload-sets-optionally-container-name~2]
     // [utest->swdd~podman-create-workload-mounts-fifo-files~1]
+    // [utest->swdd~podman-create-mounts-workload-files~1]
     #[tokio::test]
     async fn utest_run_container_success_no_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1028,7 +1045,14 @@ mod tests {
             image: "alpine:latest".into(),
             command_args: Vec::new(),
         };
-        let res = PodmanCli::podman_run(run_config, "test_workload_name", "test_agent", None).await;
+        let res = PodmanCli::podman_run(
+            run_config,
+            "test_workload_name",
+            "test_agent",
+            None,
+            Default::default(),
+        )
+        .await;
         assert_eq!(res, Ok("test_id".to_string()));
     }
 
@@ -1058,16 +1082,27 @@ mod tests {
             image: "alpine:latest".into(),
             command_args: Vec::new(),
         };
-        let res = PodmanCli::podman_run(run_config, "test_workload_name", "test_agent", None).await;
+        let res = PodmanCli::podman_run(
+            run_config,
+            "test_workload_name",
+            "test_agent",
+            None,
+            Default::default(),
+        )
+        .await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
     // [utest->swdd~podman-create-workload-sets-optionally-container-name~2]
     // [utest->swdd~podman-create-workload-mounts-fifo-files~1]
+    // [utest->swdd~podman-create-mounts-workload-files~1]
     #[tokio::test]
     async fn utest_run_container_success_with_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
+
+        const HOST_WORKLOAD_FILE_PATH: &str = "/some/path/on/host/file/system/file.conf";
+        const MOUNT_POINT_PATH: &str = "/mount/point/in/container/test.conf";
 
         super::CliCommand::new_expect(
             "podman",
@@ -1082,6 +1117,7 @@ mod tests {
                     "--name",
                     "myCont",
                     "--mount=type=bind,source=/test/path,destination=/run/ankaios/control_interface",
+                    &format!("--mount=type=bind,source={HOST_WORKLOAD_FILE_PATH},destination={MOUNT_POINT_PATH},readonly=true"),
                     "--label=name=test_workload_name",
                     "--label=agent=test_agent",
                     "alpine:latest",
@@ -1101,6 +1137,7 @@ mod tests {
             "test_workload_name",
             "test_agent",
             Some("/test/path".into()),
+            HashMap::from([(HOST_WORKLOAD_FILE_PATH.into(), MOUNT_POINT_PATH.into())]),
         )
         .await;
         assert_eq!(res, Ok("test_id".to_string()));
