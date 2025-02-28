@@ -19,6 +19,7 @@ use generic_polling_state_checker::GenericPollingStateChecker;
 use grpc::security::TLSConfig;
 use std::collections::HashMap;
 
+mod agent_config;
 mod agent_manager;
 mod cli;
 mod control_interface;

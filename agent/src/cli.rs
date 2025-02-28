@@ -14,10 +14,8 @@
 
 use regex::Regex;
 
-use crate::io_utils::DEFAULT_RUN_FOLDER;
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use common::objects::STR_RE_AGENT;
-use common::DEFAULT_SERVER_ADDRESS;
 
 // [impl->swdd~agent-naming-convention~1]
 fn validate_agent_name(name: &str) -> Result<String, String> {
@@ -44,17 +42,18 @@ pub struct Arguments {
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
     /// Agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
     pub agent_name: String,
-    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.to_string())]
+    #[clap(short = 's', long = "server-url", required = false)]
     /// The server url.
     pub server_url: String,
     /// An existing directory where agent specific runtime files will be stored. If not specified, a default folder is created.
-    #[clap(short = 'r', long = "run-folder", default_value_t = DEFAULT_RUN_FOLDER.into())]
+    #[clap(short = 'r', long = "run-folder", required = false)]
     pub run_folder: String,
     #[clap(
         short = 'k',
         long = "insecure",
-        env = "ANKAGENT_INSECURE",
-        default_value_t = false
+        action=ArgAction::SetTrue,
+        default_value_t = false,
+        env="ANKSERVER_INSECURE",
     )]
     /// Flag to disable TLS communication between Ankaios agent and server.
     pub insecure: bool,
