@@ -34,35 +34,29 @@ const WORKLOAD_LEVEL: usize = 1;
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
     let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
         .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
-    match Object::try_from(&state_obj_parsing_check) {
-        Err(err) => Err(format!(
-            "Error while parsing the manifest data.\nError: {err}"
-        )),
-        Ok(obj) => {
-            let mut workload_paths: HashSet<Path> = HashSet::new();
-            let obj_paths = Vec::<Path>::from(&obj);
-            for path in obj_paths {
-                let parts = path.parts();
-                if parts.len() > 1 {
-                    let _ = &mut workload_paths
-                        .insert(Path::from(format!("{}.{}", parts[0], parts[1])));
-                } else if parts.contains(&"apiVersion".to_string()) {
-                    let manifest_api_version = obj
-                        .get(&path)
-                        .and_then(|value| value.as_str())
-                        .unwrap_or("Invalid manifest API version or format provided.");
-                    if manifest_api_version != CURRENT_API_VERSION {
-                        return Err(format!(
-                            "Invalid manifest API version provided. Expected: '{}', got: '{}'.",
-                            CURRENT_API_VERSION, manifest_api_version
-                        ));
-                    }
-                }
-            }
+    let obj = state_obj_parsing_check.into();
 
-            Ok((obj, workload_paths.into_iter().collect()))
+    let mut workload_paths: HashSet<Path> = HashSet::new();
+    let obj_paths = Vec::<Path>::from(&obj);
+    for path in obj_paths {
+        let parts = path.parts();
+        if parts.len() > 1 {
+            let _ = &mut workload_paths.insert(Path::from(format!("{}.{}", parts[0], parts[1])));
+        } else if parts.contains(&"apiVersion".to_string()) {
+            let manifest_api_version = obj
+                .get(&path)
+                .and_then(|value| value.as_str())
+                .unwrap_or("Invalid manifest API version or format provided.");
+            if manifest_api_version != CURRENT_API_VERSION {
+                return Err(format!(
+                    "Invalid manifest API version provided. Expected: '{}', got: '{}'.",
+                    CURRENT_API_VERSION, manifest_api_version
+                ));
+            }
         }
     }
+
+    Ok((obj, workload_paths.into_iter().collect()))
 }
 
 // [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
@@ -313,14 +307,14 @@ mod tests {
         "#,
         )
         .unwrap();
-        let cur_obj = Object::try_from(&content_value).unwrap();
+        let expected_obj: Object = content_value.into();
+        let cur_obj = expected_obj.clone();
         let paths = vec![
             Path::from("workloads.simple"),
             Path::from("workloads.complex"),
         ];
-        let expected_obj = Object::try_from(&content_value).unwrap();
 
-        assert!(update_request_obj(&mut req_obj, &cur_obj, &paths,).is_ok());
+        assert!(update_request_obj(&mut req_obj, &cur_obj, &paths).is_ok());
         assert_eq!(expected_obj, req_obj);
     }
 
@@ -333,10 +327,10 @@ mod tests {
         "#,
         )
         .unwrap();
-        let cur_obj = Object::try_from(&content_value).unwrap();
+        let cur_obj: Object = content_value.into();
 
         // simulates the workload 'same_workload_name' is already there
-        let mut req_obj = Object::try_from(&content_value).unwrap();
+        let mut req_obj = cur_obj.clone();
 
         let paths = vec![Path::from("workloads.same_workload_name")];
 
@@ -356,7 +350,7 @@ mod tests {
         "#,
         )
         .unwrap();
-        let cur_obj = Object::try_from(&content_value).unwrap();
+        let cur_obj = content_value.into();
         let paths = vec![
             Path::from("workloads.simple"),
             Path::from("workloads.complex"),
