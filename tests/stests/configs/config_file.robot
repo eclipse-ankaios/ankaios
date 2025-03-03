@@ -28,6 +28,14 @@ Test server config file successful start-up
     # Asserts
     [Teardown]    Clean up Ankaios
 
+Test agent config file successful start-up
+    [Setup]        Setup Ankaios
+    # Preconditions
+    Ankaios server is started without config successfully
+    And Ankaios server is available
+    And Ankaios agent is started with config file "${CONFIGS_DIR}/ank-agent-default.conf"
+    [Teardown]    Clean up Ankaios
+
 # [stest->swdd~server-loads-config-file~1]
 Test server config overwrite manifest with cli arguments
     [Setup]        Setup Ankaios

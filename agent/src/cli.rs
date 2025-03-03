@@ -38,16 +38,19 @@ fn validate_agent_name(name: &str) -> Result<String, String> {
         about="Ankaios - your friendly automotive workload orchestrator.\nWhat can the agent do for you?")
 ]
 pub struct Arguments {
-    #[clap(short = 'n', long = "name", value_parser = clap::builder::ValueParser::new(validate_agent_name))]
+    #[clap(required = false, short = 'x', long = "agent-config")]
+    /// The path to the agent config file
+    pub config_path: Option<String>,
+    #[clap(short = 'n', long = "name", required = false, value_parser = clap::builder::ValueParser::new(validate_agent_name))]
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
     /// Agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
-    pub agent_name: String,
+    pub agent_name: Option<String>,
     #[clap(short = 's', long = "server-url", required = false)]
     /// The server url.
-    pub server_url: String,
+    pub server_url: Option<String>,
     /// An existing directory where agent specific runtime files will be stored. If not specified, a default folder is created.
     #[clap(short = 'r', long = "run-folder", required = false)]
-    pub run_folder: String,
+    pub run_folder: Option<String>,
     #[clap(
         short = 'k',
         long = "insecure",

@@ -34,6 +34,7 @@ ${TEST_FOLDER_NAME}    ${EMPTY}
 ${ANKAIOS_VERSION}    ${EMPTY}
 ${CONFIGS_DIR}=    ${CURDIR}/configs
 
+
 *** Keywords ***
 Get MTLS Enabled
     ${result}=    Get Environment Variable    name=MTLS_ENABLED    default=False
@@ -274,6 +275,15 @@ Ankaios agent is started with name "${name}"
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=${name}
+
+Ankaios agent is started with config file "${config_file_path}"
+    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-agent
+    ...    --config_path
+    ...    ${config_file_path}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/default_agent_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=default_agent
 
 Ankaios server is terminated
     Terminate Process    ank-server    kill=True

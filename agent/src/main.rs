@@ -18,6 +18,7 @@ use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use grpc::security::TLSConfig;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 mod agent_config;
 mod agent_manager;
@@ -38,9 +39,10 @@ mod workload_state;
 mod io_utils;
 
 use common::from_server_interface::FromServer;
-use common::std_extensions::GracefulExitResult;
+use common::std_extensions::{GracefulExitResult, UnreachableOption};
 use grpc::client::GRPCCommunicationsClient;
 
+use agent_config::{AgentConfig, DEFAULT_AGENT_CONFIG_FILE_PATH};
 use agent_manager::AgentManager;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -53,22 +55,53 @@ use runtime_connectors::{
 
 const BUFFER_SIZE: usize = 20;
 
+fn handle_agent_config(config_path: &Option<String>) -> AgentConfig {
+    match config_path {
+        Some(config_path) => {
+            let config_path = PathBuf::from(config_path);
+            log::info!(
+                "Loading agent config from user provided path '{}'",
+                config_path.display()
+            );
+            AgentConfig::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
+        }
+        None => {
+            let default_path = PathBuf::from(DEFAULT_AGENT_CONFIG_FILE_PATH);
+            if !default_path.try_exists().unwrap_or(false) {
+                log::debug!("No config file found at default path '{}'. Using cli arguments and environment variables only.", default_path.display());
+                AgentConfig::default()
+            } else {
+                log::info!(
+                    "Loading agent config from default path '{}'",
+                    default_path.display()
+                );
+                AgentConfig::from_file(default_path)
+                    .unwrap_or_exit("Config file could not be parsed")
+            }
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let args = cli::parse();
 
-    let server_url = match args.insecure {
-        true => args.server_url.replace("http[s]", "http"),
-        false => args.server_url.replace("http[s]", "https"),
+    let mut agent_config = handle_agent_config(&args.config_path);
+
+    agent_config.update_with_args(&args);
+
+    let server_url = match agent_config.insecure.unwrap_or_unreachable() {
+        true => agent_config.server_url.replace("http[s]", "http"),
+        false => agent_config.server_url.replace("http[s]", "https"),
     };
 
     log::debug!(
         "Starting the Ankaios agent with \n\tname: '{}', \n\tserver url: '{}', \n\trun directory: '{}'",
-        args.agent_name,
+        agent_config.name.clone().unwrap_or_unreachable(),
         server_url,
-        args.run_folder,
+        agent_config.run_folder.clone().unwrap_or_unreachable(),
     );
 
     // [impl->swdd~agent-uses-async-channels~1]
@@ -78,9 +111,11 @@ async fn main() {
         tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
 
     // [impl->swdd~agent-prepares-dedicated-run-folder~1]
-    let run_directory =
-        io_utils::prepare_agent_run_directory(args.run_folder.as_str(), args.agent_name.as_str())
-            .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
+    let run_directory = io_utils::prepare_agent_run_directory(
+        agent_config.run_folder.unwrap_or_unreachable().as_str(),
+        agent_config.name.clone().unwrap_or_unreachable().as_str(),
+    )
+    .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
     // [impl->swdd~agent-supports-podman~2]
     let podman_runtime = Box::new(PodmanRuntime {});
@@ -105,26 +140,34 @@ async fn main() {
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
     // The pipe connecting the workload to Ankaios must be in the runtime adapter
     let runtime_manager = RuntimeManager::new(
-        AgentName::from(args.agent_name.as_str()),
+        AgentName::from(agent_config.name.clone().unwrap_or_unreachable().as_str()),
         run_directory.get_path(),
         to_server.clone(),
         runtime_facade_map,
         workload_state_sender,
     );
 
-    if let Err(err_message) =
-        TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem)
-    {
+    if let Err(err_message) = TLSConfig::is_config_conflicting(
+        agent_config.insecure.unwrap_or_unreachable(),
+        &agent_config.ca_pem_content,
+        &agent_config.crt_pem_content,
+        &agent_config.key_pem_content,
+    ) {
         log::warn!("{}", err_message);
     }
 
     // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
     // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
     // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    let tls_config = TLSConfig::new(args.insecure, args.ca_pem, args.crt_pem, args.key_pem);
+    let tls_config = TLSConfig::new(
+        agent_config.insecure.unwrap_or_unreachable(),
+        agent_config.ca_pem_content,
+        agent_config.crt_pem_content,
+        agent_config.key_pem_content,
+    );
 
     let mut communications_client = GRPCCommunicationsClient::new_agent_communication(
-        args.agent_name.clone(),
+        agent_config.name.clone().unwrap_or_unreachable(),
         server_url,
         // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
         tls_config.unwrap_or_exit("Missing certificate file"),
@@ -132,7 +175,7 @@ async fn main() {
     .unwrap_or_exit("Failed to create communications client.");
 
     let mut agent_manager = AgentManager::new(
-        args.agent_name,
+        agent_config.name.unwrap_or_unreachable(),
         manager_receiver,
         runtime_manager,
         to_server,
@@ -148,5 +191,78 @@ async fn main() {
         _agent_mgr_result = agent_manager.start() => {
             log::info!("AgentManager exited.");
         }
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use crate::{agent_config::DEFAULT_AGENT_CONFIG_FILE_PATH, handle_agent_config, AgentConfig};
+    use std::{
+        fs::{self, File},
+        io::Write,
+        path::PathBuf,
+    };
+    use tempfile::NamedTempFile;
+
+    const VALID_AGENT_CONFIG_CONTENT: &str = r"#
+    version = 'v1'
+    name = 'agent_1'
+    server_url = 'http[s]://127.0.0.1:25551'
+    run_folder = '/tmp/ankaios/'
+    insecure = true
+    #";
+
+    #[test]
+    fn utest_handle_agent_config_valid_config() {
+        let mut tmp_config = NamedTempFile::new().expect("could not create temp file");
+        write!(tmp_config, "{}", VALID_AGENT_CONFIG_CONTENT).expect("could not write to temp file");
+
+        let agent_config = handle_agent_config(&Some(
+            tmp_config.into_temp_path().to_str().unwrap().to_string(),
+        ));
+
+        assert_eq!(agent_config.name, Some("agent_1".to_string()));
+        assert_eq!(
+            agent_config.server_url,
+            "http[s]://127.0.0.1:25551".to_string()
+        );
+        assert_eq!(agent_config.run_folder, Some("/tmp/ankaios/".to_string()));
+        assert_eq!(agent_config.insecure, Some(true));
+    }
+
+    #[test]
+    fn utest_handle_server_config_default_path() {
+        if let Some(parent) = PathBuf::from(DEFAULT_AGENT_CONFIG_FILE_PATH).parent() {
+            fs::create_dir_all(parent).expect("Failed to create directories");
+        }
+        let mut file = File::create(DEFAULT_AGENT_CONFIG_FILE_PATH).expect("Failed to create file");
+        writeln!(file, "{}", VALID_AGENT_CONFIG_CONTENT).expect("Failed to write to file");
+
+        let agent_config = handle_agent_config(&None);
+
+        assert_eq!(agent_config.name, Some("agent_1".to_string()));
+        assert_eq!(
+            agent_config.server_url,
+            "http[s]://127.0.0.1:25551".to_string()
+        );
+        assert_eq!(agent_config.run_folder, Some("/tmp/ankaios/".to_string()));
+        assert_eq!(agent_config.insecure, Some(true));
+
+        assert!(fs::remove_file(DEFAULT_AGENT_CONFIG_FILE_PATH).is_ok());
+    }
+
+    #[test]
+    fn utest_handle_agent_config_default() {
+        let agent_config = handle_agent_config(&None);
+
+        assert_eq!(agent_config, AgentConfig::default());
     }
 }

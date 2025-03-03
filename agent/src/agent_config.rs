@@ -32,6 +32,8 @@ pub const DEFAULT_AGENT_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-agent.conf";
 #[cfg(test)]
 pub const DEFAULT_AGENT_CONFIG_FILE_PATH: &str = "/tmp/ankaios/ank-agent.conf";
 
+pub const DEFAULT_AGENT_NAME: &str = "agent_x";
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ConversionErrors {
     WrongVersion(String),
@@ -59,8 +61,12 @@ impl fmt::Display for ConversionErrors {
     }
 }
 
-pub fn get_default_url() -> Option<String> {
-    Some(DEFAULT_SERVER_ADDRESS.to_string())
+pub fn get_default_agent_name() -> Option<String> {
+    Some(DEFAULT_AGENT_NAME.to_string())
+}
+
+pub fn get_default_url() -> String {
+    DEFAULT_SERVER_ADDRESS.to_string()
 }
 
 fn get_default_run_folder() -> Option<String> {
@@ -70,9 +76,10 @@ fn get_default_run_folder() -> Option<String> {
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AgentConfig {
     pub version: String,
+    #[serde(default = "get_default_agent_name")]
     pub name: Option<String>,
     #[serde(default = "get_default_url")]
-    pub server_url: Option<String>,
+    pub server_url: String,
     #[serde(default = "get_default_run_folder")]
     pub run_folder: Option<String>,
     #[serde(default)]
@@ -89,7 +96,7 @@ impl Default for AgentConfig {
     fn default() -> Self {
         AgentConfig {
             version: CONFIG_VERSION.to_string(),
-            name: None,
+            name: get_default_agent_name(),
             server_url: get_default_url(),
             run_folder: get_default_run_folder(),
             insecure: Some(false),
@@ -145,11 +152,17 @@ impl AgentConfig {
     }
 
     pub fn update_with_args(&mut self, args: &Arguments) {
-        self.name = Some(args.agent_name.clone());
+        if let Some(name) = &args.agent_name {
+            self.name = Some(name.to_string());
+        }
 
-        self.server_url = Some(args.server_url.clone());
+        if let Some(url) = &args.server_url {
+            self.server_url = url.to_string();
+        }
 
-        self.run_folder = Some(args.run_folder.clone());
+        if let Some(run_folder) = &args.run_folder {
+            self.run_folder = Some(run_folder.to_string());
+        }
 
         self.insecure = Some(args.insecure);
 
@@ -165,7 +178,7 @@ impl AgentConfig {
         }
         if let Some(key_pem_path) = &args.key_pem {
             self.key_pem = Some(key_pem_path.to_owned());
-            let key_pem_content = read_pem_file(key_pem_path, false).unwrap_or_default();
+            let key_pem_content = read_pem_file(key_pem_path, true).unwrap_or_default();
             self.key_pem_content = Some(key_pem_content);
         }
     }
@@ -191,7 +204,7 @@ mod tests {
     use crate::{agent_config::ConversionErrors, cli::Arguments};
 
     use super::AgentConfig;
-    use super::CONFIG_VERSION;
+    use super::{CONFIG_VERSION, DEFAULT_AGENT_NAME};
 
     const AGENT_NAME: &str = "agent_1";
     const CA_PEM_PATH: &str = "some_path_to_ca_pem/ca.pem";
@@ -209,8 +222,12 @@ mod tests {
         let default_agent_config = AgentConfig::default();
 
         assert_eq!(
+            default_agent_config.name,
+            Some(DEFAULT_AGENT_NAME.to_string())
+        );
+        assert_eq!(
             default_agent_config.server_url,
-            Some(DEFAULT_SERVER_ADDRESS.to_string())
+            DEFAULT_SERVER_ADDRESS.to_string()
         );
         assert_eq!(default_agent_config.insecure, Some(false));
         assert_eq!(default_agent_config.version, CONFIG_VERSION);
@@ -261,9 +278,10 @@ mod tests {
     fn utest_agent_config_update_with_args() {
         let mut agent_config = AgentConfig::default();
         let args = Arguments {
-            agent_name: AGENT_NAME.to_string(),
-            server_url: DEFAULT_SERVER_ADDRESS.to_string(),
-            run_folder: DEFAULT_RUN_FOLDER.to_string(),
+            config_path: None,
+            agent_name: Some(AGENT_NAME.to_string()),
+            server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
+            run_folder: Some(DEFAULT_RUN_FOLDER.to_string()),
             insecure: false,
             ca_pem: Some(CA_PEM_PATH.to_string()),
             crt_pem: Some(CRT_PEM_PATH.to_string()),
@@ -273,10 +291,7 @@ mod tests {
         agent_config.update_with_args(&args);
 
         assert_eq!(agent_config.name, Some(AGENT_NAME.to_string()));
-        assert_eq!(
-            agent_config.server_url,
-            Some(DEFAULT_SERVER_ADDRESS.to_string())
-        );
+        assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
         assert_eq!(
             agent_config.run_folder,
             Some(DEFAULT_RUN_FOLDER.to_string())
@@ -305,9 +320,10 @@ mod tests {
         let mut agent_config =
             AgentConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
         let args = Arguments {
-            agent_name: AGENT_NAME.to_string(),
-            server_url: DEFAULT_SERVER_ADDRESS.to_string(),
-            run_folder: DEFAULT_RUN_FOLDER.to_string(),
+            config_path: None,
+            agent_name: Some(AGENT_NAME.to_string()),
+            server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
+            run_folder: Some(DEFAULT_RUN_FOLDER.to_string()),
             insecure: false,
             ca_pem: None,
             crt_pem: None,
@@ -356,10 +372,7 @@ mod tests {
         let agent_config = agent_config_res.unwrap();
 
         assert_eq!(agent_config.name, Some(AGENT_NAME.to_string()));
-        assert_eq!(
-            agent_config.server_url,
-            Some(DEFAULT_SERVER_ADDRESS.to_string())
-        );
+        assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
         assert_eq!(
             agent_config.run_folder,
             Some(DEFAULT_RUN_FOLDER.to_string())
