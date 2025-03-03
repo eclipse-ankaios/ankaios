@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cli::Arguments;
+use crate::cli::{validate_agent_name, Arguments};
 use crate::io_utils::DEFAULT_RUN_FOLDER;
 use common::std_extensions::UnreachableOption;
 use common::DEFAULT_SERVER_ADDRESS;
@@ -39,6 +39,7 @@ pub enum ConversionErrors {
     WrongVersion(String),
     ConflictingCertificates(String),
     InvalidAgentConfig(String),
+    InvalidAgentName(String),
     InvalidCertificate(String),
 }
 
@@ -53,6 +54,9 @@ impl fmt::Display for ConversionErrors {
             }
             ConversionErrors::InvalidAgentConfig(msg) => {
                 write!(f, "Agent Config could not have been parsed due to: {}", msg)
+            }
+            ConversionErrors::InvalidAgentName(msg) => {
+                write!(f, "Invalid agent name present in config: {}", msg)
             }
             ConversionErrors::InvalidCertificate(msg) => {
                 write!(f, "Certificate could not have been read due to: {}", msg)
@@ -121,7 +125,8 @@ impl AgentConfig {
             return Err(ConversionErrors::WrongVersion(agent_config.version));
         }
 
-        // TODO: add check for agent name
+        validate_agent_name(&agent_config.name.clone().unwrap_or_unreachable())
+            .map_err(|err| ConversionErrors::InvalidAgentName(err.to_string()))?;
 
         if (agent_config.ca_pem.is_some() && agent_config.ca_pem_content.is_some())
             || (agent_config.crt_pem.is_some() && agent_config.crt_pem_content.is_some())
@@ -153,6 +158,7 @@ impl AgentConfig {
 
     pub fn update_with_args(&mut self, args: &Arguments) {
         if let Some(name) = &args.agent_name {
+            // TODO: move agent name checking inside in order to avoid duplicate calls
             self.name = Some(name.to_string());
         }
 
@@ -200,6 +206,7 @@ mod tests {
 
     use common::DEFAULT_SERVER_ADDRESS;
 
+    use crate::cli::validate_agent_name;
     use crate::io_utils::DEFAULT_RUN_FOLDER;
     use crate::{agent_config::ConversionErrors, cli::Arguments};
 
@@ -270,6 +277,27 @@ mod tests {
             agent_config,
             Err(ConversionErrors::ConflictingCertificates(
                 "Certificate paths and certificate content are both set".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn utest_agent_config_invalid_agent_name() {
+        let agent_config_content = r"#
+        version = 'v1'
+        name = 'AgentBo$$'
+        #"
+        .to_string();
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{}", agent_config_content).unwrap();
+
+        let agent_config = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
+
+        assert_eq!(
+            agent_config,
+            Err(ConversionErrors::InvalidAgentName(
+                validate_agent_name("AgentBo$$").err().unwrap().to_string()
             ))
         );
     }

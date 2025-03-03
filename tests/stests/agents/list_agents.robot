@@ -56,3 +56,5 @@ Test Ankaios CLI enforces agent naming convention
     # Asserts
     Pass Execution If    ${result} == False    The agent name "agent.A" is not allowed
     [Teardown]    Clean up Ankaios
+
+# TODO: add a test for naming convention in case of the config file

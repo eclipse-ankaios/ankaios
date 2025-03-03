@@ -18,7 +18,7 @@ use clap::{ArgAction, Parser};
 use common::objects::STR_RE_AGENT;
 
 // [impl->swdd~agent-naming-convention~1]
-fn validate_agent_name(name: &str) -> Result<String, String> {
+pub fn validate_agent_name(name: &str) -> Result<String, String> {
     let re = Regex::new(STR_RE_AGENT).unwrap();
     if re.is_match(name) {
         Ok(name.to_string())
