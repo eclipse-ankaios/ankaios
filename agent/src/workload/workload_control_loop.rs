@@ -34,11 +34,6 @@ use crate::workload_files::WorkloadFilesCreator;
 #[cfg_attr(test, mockall_double::double)]
 use super::retry_manager::RetryToken;
 
-#[cfg(not(test))]
-const RETRY_WAITING_TIME_MS: u64 = 1000;
-
-#[cfg(test)]
-const RETRY_WAITING_TIME_MS: u64 = 50;
 
 pub struct WorkloadControlLoop;
 
@@ -265,8 +260,6 @@ impl WorkloadControlLoop {
             error_msg
         );
 
-        // [impl->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
-        tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_WAITING_TIME_MS)).await;
         log::debug!("Send WorkloadCommand::Retry.");
 
         control_loop_state
