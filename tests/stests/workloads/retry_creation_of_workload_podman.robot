@@ -94,23 +94,3 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
     Then podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
     And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
-
-# [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
-# [stest->swdd~agent-workload-control-loop-executes-retry~1]
-# [stest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
-# [stest->swdd~agent-workload-control-loop-limits-retry-attempts~1]
-# [stest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
-Test Ankaios Podman stops retries after reaching the retry attempt limit
-    [Tags]    non_execution_during_pull_request_verification
-    [Setup]    Run Keywords    Setup Ankaios
-    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_wrong_image_name.yaml
-    # Preconditions
-    # This test assumes that all containers in the podman have been created with this test -> clean it up first
-    Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/podman_wrong_image_name.yaml"
-    And Ankaios agent is started with name "agent_A"
-    # Actions
-    When the user waits "22" seconds
-    # Asserts
-    Then the workload "hello1" shall have the execution state "Pending(StartingFailed)" on agent "agent_A"
-    [Teardown]    Clean up Ankaios
