@@ -34,7 +34,6 @@ use crate::workload_files::WorkloadFilesCreator;
 #[cfg_attr(test, mockall_double::double)]
 use super::retry_manager::RetryToken;
 
-
 pub struct WorkloadControlLoop;
 
 impl WorkloadControlLoop {
@@ -81,18 +80,21 @@ impl WorkloadControlLoop {
                         // [impl->swdd~agent-workload-control-loop-executes-delete~3]
                         Some(WorkloadCommand::Delete) => {
                             log::debug!("Received WorkloadCommand::Delete.");
+
+                            // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
                             control_loop_state.retry_manager.invalidate();
 
                             if let Some(new_control_loop_state) = Self::delete_workload_on_runtime(control_loop_state).await {
                                 control_loop_state = new_control_loop_state;
                             } else {
-                                // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
                                 return;
                             }
                         }
                         // [impl->swdd~agent-workload-control-loop-executes-update~3]
                         Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
                             log::debug!("Received WorkloadCommand::Update.");
+
+                            // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
                             control_loop_state.retry_manager.invalidate();
 
                             control_loop_state = Self::update_workload_on_runtime(
@@ -118,7 +120,6 @@ impl WorkloadControlLoop {
                         // [impl->swdd~agent-workload-control-loop-executes-create~4]
                         Some(WorkloadCommand::Create) => {
                             log::debug!("Received WorkloadCommand::Create.");
-                            control_loop_state.retry_manager.invalidate();
 
                             Self::send_workload_state_to_agent(
                                 &control_loop_state.to_agent_workload_state_sender,
@@ -139,7 +140,6 @@ impl WorkloadControlLoop {
                         // [impl->swdd~agent-workload-control-loop-executes-resume~1]
                         Some(WorkloadCommand::Resume) => {
                             log::debug!("Received WorkloadCommand::Resume.");
-                            control_loop_state.retry_manager.invalidate();
 
                             control_loop_state = Self::resume_workload_on_runtime(control_loop_state).await;
                         }
@@ -260,6 +260,7 @@ impl WorkloadControlLoop {
             error_msg
         );
 
+        // [impl->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
         log::debug!("Send WorkloadCommand::Retry.");
 
         control_loop_state
@@ -815,6 +816,7 @@ mod tests {
             .build()
             .unwrap();
 
+        // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
         control_loop_state
             .retry_manager
             .expect_invalidate()
@@ -824,6 +826,7 @@ mod tests {
         let mock_retry_token = MockRetryToken {
             mock_id: 7,
             valid: true,
+            has_been_called: false,
         };
         control_loop_state
             .retry_manager
@@ -909,6 +912,7 @@ mod tests {
             .build()
             .unwrap();
 
+        // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
         control_loop_state
             .retry_manager
             .expect_invalidate()
@@ -918,6 +922,7 @@ mod tests {
         let mock_retry_token = MockRetryToken {
             mock_id: 7,
             valid: true,
+            has_been_called: false,
         };
         control_loop_state
             .retry_manager
@@ -1029,6 +1034,7 @@ mod tests {
             .build()
             .unwrap();
 
+        // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
         control_loop_state
             .retry_manager
             .expect_invalidate()
@@ -1038,6 +1044,7 @@ mod tests {
         let mock_retry_token = MockRetryToken {
             mock_id: 7,
             valid: true,
+            has_been_called: false,
         };
         control_loop_state
             .retry_manager
@@ -1140,6 +1147,8 @@ mod tests {
             .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
+
+        // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
         control_loop_state
             .retry_manager
             .expect_invalidate()
@@ -1149,6 +1158,7 @@ mod tests {
         let mock_retry_token = MockRetryToken {
             mock_id: 7,
             valid: true,
+            has_been_called: false,
         };
         control_loop_state
             .retry_manager
@@ -1179,6 +1189,8 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-update-delete-failed-allows-retry~1]
+    // [utest->swdd~agent-workload-control-loop-delete-failed-allows-retry~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_delete_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1242,6 +1254,8 @@ mod tests {
             .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
+
+        // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
         control_loop_state
             .retry_manager
             .expect_invalidate()
@@ -1464,11 +1478,12 @@ mod tests {
         control_loop_state
             .retry_manager
             .expect_invalidate()
-            .times(2)
+            .once()
             .return_const(());
         let mock_retry_token = MockRetryToken {
             mock_id: 3,
             valid: true,
+            has_been_called: false,
         };
         control_loop_state
             .retry_manager
@@ -1544,7 +1559,7 @@ mod tests {
         control_loop_state
             .retry_manager
             .expect_invalidate()
-            .times(2)
+            .once()
             .return_const(());
 
         control_loop_state.state_checker_workload_state_sender =
@@ -1944,6 +1959,7 @@ mod tests {
         let mock_retry_token = MockRetryToken {
             mock_id: 12,
             valid: true,
+            has_been_called: false,
         };
         control_loop_state
             .retry_manager
@@ -2146,6 +2162,7 @@ mod tests {
         let retry_token = MockRetryToken {
             mock_id: 42,
             valid: true,
+            has_been_called: false,
         };
 
         let new_control_loop_state = WorkloadControlLoop::create_workload_on_runtime(
@@ -2211,6 +2228,7 @@ mod tests {
         let retry_token = MockRetryToken {
             mock_id: 42,
             valid: true,
+            has_been_called: false,
         };
 
         WorkloadControlLoop::create_workload_on_runtime(
@@ -2288,6 +2306,7 @@ mod tests {
         let retry_token = MockRetryToken {
             mock_id: 42,
             valid: true,
+            has_been_called: false,
         };
 
         WorkloadControlLoop::create_workload_on_runtime(
@@ -2313,8 +2332,11 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
+    // [utest->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
     #[tokio::test]
-    async fn utest_workload_obj_run_update_create_failed_sends_retry() {
+    async fn utest_workload_obj_run_create_failed_sends_retry() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -2353,6 +2375,7 @@ mod tests {
         let retry_token = MockRetryToken {
             mock_id: 42,
             valid: true,
+            has_been_called: false,
         };
 
         workload_command_sender.create().await.unwrap();
@@ -2377,7 +2400,7 @@ mod tests {
         control_loop_state
             .retry_manager
             .expect_invalidate()
-            .times(2)
+            .once()
             .return_const(());
 
         control_loop_state
@@ -2406,7 +2429,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_workload_obj_run_delete_failed_send_retry() {
+    async fn utest_workload_obj_update_create_failed_send_retry() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -2459,6 +2482,7 @@ mod tests {
         let retry_token = MockRetryToken {
             mock_id: 42,
             valid: true,
+            has_been_called: false,
         };
 
         workload_command_sender
@@ -2481,6 +2505,7 @@ mod tests {
             .build()
             .unwrap();
 
+        // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
         control_loop_state
             .retry_manager
             .expect_invalidate()
@@ -2515,6 +2540,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2553,6 +2579,7 @@ mod tests {
         let retry_token = MockRetryToken {
             mock_id: 42,
             valid: true,
+            has_been_called: false,
         };
 
         workload_command_sender
@@ -2628,6 +2655,7 @@ mod tests {
         let retry_token = MockRetryToken {
             mock_id: 42,
             valid: false,
+            has_been_called: false,
         };
 
         workload_command_sender
@@ -2670,6 +2698,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_failed_sends_retry() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2712,6 +2741,7 @@ mod tests {
         let retry_token = MockRetryToken {
             mock_id: 42,
             valid: true,
+            has_been_called: false,
         };
 
         workload_command_sender
