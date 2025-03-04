@@ -97,7 +97,7 @@ pub struct ServerConfig {
 impl Default for ServerConfig {
     fn default() -> Self {
         ServerConfig {
-            version: "v1".to_string(),
+            version: CONFIG_VERSION.to_string(),
             startup_manifest: None,
             address: get_default_address(),
             insecure: Some(false),
