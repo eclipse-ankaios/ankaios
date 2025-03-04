@@ -1714,9 +1714,9 @@ The following diagram describes the retry behavior when a workload is created an
 
 ![Retry Creation of Workload On Create Failure](plantuml/seq_retry_workload_creation_on_create_failure.svg)
 
-The following diagram describes the retry behavior when an update command is received within the WorkloadControlLoop and the create of the new workload fails:
+The following diagram describes the retry behavior when the create fails and an update is received while waiting before retrying.
 
-![Retry Creation of Workload On Update With Create Failure](plantuml/seq_retry_workload_creation_on_update_with_create_failure.svg)
+![Retry Interrupted by Update](plantuml/seq_retry_interrupted_by_update.svg)
 
 #### WorkloadControlLoop retries a workload on failing create
 `swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1`
