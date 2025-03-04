@@ -47,16 +47,19 @@ pub struct RetryToken {
 }
 
 impl RetryManager {
+    // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
     pub fn invalidate(&mut self) {
         _ = self.current_is_valid.send(false);
     }
 
     pub fn new_token(&mut self) -> RetryToken {
+        // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
         self.invalidate();
 
         let (sender, receiver) = watch::channel(true);
         self.current_is_valid = sender;
 
+        // [impl->swdd~agent-workload-control-loop-reset-backoff-on-update]
         RetryToken {
             counter: 0,
             valid: receiver,
@@ -79,10 +82,11 @@ impl RetryToken {
         self.counter += 1;
     }
 
+    // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
     pub fn is_valid(&self) -> bool {
         *self.valid.borrow()
     }
-
+    // [impl->swdd~agent-workload-control-loop-exponential-backoff-retries~1]
     pub async fn call_with_backoff<F, R>(mut self, f: F)
     where
         F: FnOnce(Self) -> R,
@@ -121,16 +125,17 @@ impl RetryToken {
 pub struct MockRetryToken {
     pub mock_id: u32,
     pub valid: bool,
+    pub has_been_called: bool,
 }
 
 #[cfg(test)]
 impl MockRetryToken {
-    pub async fn call_with_backoff<F, R>(self, f: F)
+    pub async fn call_with_backoff<F, R>(mut self, f: F)
     where
         F: FnOnce(Self) -> R,
         R: Future,
     {
-        println!("IN MOCK");
+        self.has_been_called = true;
         f(self).await;
     }
 
@@ -282,6 +287,7 @@ mod tests {
             .unwrap();
     }
 
+    // [utest->swdd~agent-workload-control-loop-exponential-backoff-retries~1]
     #[test]
     fn utest_one_retry() {
         let _lock = TEST_MUTEX.lock().unwrap();
@@ -307,6 +313,7 @@ mod tests {
         assert_eq!(token.counter(), 1);
     }
 
+    // [utest->swdd~agent-workload-control-loop-exponential-backoff-retries~1]
     #[test]
     fn utest_max_retry_time() {
         trait TimeoutAssertion {
@@ -353,6 +360,60 @@ mod tests {
         assert_eq!(token.counter(), 11);
     }
 
+    // [utest->swdd~agent-workload-control-loop-reset-backoff-on-update]
+    #[test]
+    fn utest_new_toke_resets_timeout() {
+        let _lock = TEST_MUTEX.lock().unwrap();
+        reset_random();
+        let mut manager = super::RetryManager::default();
+
+        let waker = waker();
+        let mut context = Context::from_waker(&waker);
+
+        let token = manager.new_token();
+
+        assert_eq!(token.counter(), 0);
+        let (callback, called) = create_callback();
+        let mut call_res = pin!(token.call_with_backoff(callback));
+        assert_eq!(call_res.as_mut().poll(&mut context), Poll::Pending);
+        assert!(called.borrow().is_none());
+        assert_sleep_for_millis(500 - RANDOM_OFFSET_1);
+
+        assert_eq!(call_res.as_mut().poll(&mut context), Poll::Pending);
+        assert_eq!(call_res.as_mut().poll(&mut context), Poll::Ready(()));
+        assert!(called.borrow().is_some());
+        let token = called.borrow_mut().take().unwrap();
+        assert_eq!(token.counter(), 1);
+
+        let (callback, called) = create_callback();
+        let mut call_res = pin!(token.call_with_backoff(callback));
+        assert_eq!(call_res.as_mut().poll(&mut context), Poll::Pending);
+        assert!(called.borrow().is_none());
+        assert_sleep_for_millis(1000 - RANDOM_OFFSET_2);
+
+        assert_eq!(call_res.as_mut().poll(&mut context), Poll::Pending);
+        assert_eq!(call_res.as_mut().poll(&mut context), Poll::Ready(()));
+        assert!(called.borrow().is_some());
+        let token = called.borrow_mut().take().unwrap();
+        assert_eq!(token.counter(), 2);
+
+        let token = manager.new_token();
+
+        assert_eq!(token.counter(), 0);
+        let (callback, called) = create_callback();
+        let mut call_res = pin!(token.call_with_backoff(callback));
+        assert_eq!(call_res.as_mut().poll(&mut context), Poll::Pending);
+        assert!(called.borrow().is_none());
+        assert_sleep_for_millis(500 - RANDOM_OFFSET_3);
+
+        assert_eq!(call_res.as_mut().poll(&mut context), Poll::Pending);
+        assert_eq!(call_res.as_mut().poll(&mut context), Poll::Ready(()));
+        assert!(called.borrow().is_some());
+        let token = called.borrow_mut().take().unwrap();
+        assert_eq!(token.counter(), 1);
+    }
+
+    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
     #[test]
     fn utest_invalidate_invalidates_token() {
         let _lock = TEST_MUTEX.lock().unwrap();
@@ -364,6 +425,7 @@ mod tests {
         assert!(!token.is_valid());
     }
 
+    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
     #[test]
     fn utest_invalidate_stops_retry() {
         let _lock = TEST_MUTEX.lock().unwrap();
@@ -386,6 +448,7 @@ mod tests {
         assert!(called.borrow().is_none());
     }
 
+    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
     #[test]
     fn utest_new_token_invalidates_old_token() {
         let _lock = TEST_MUTEX.lock().unwrap();
@@ -397,6 +460,7 @@ mod tests {
         assert!(!token.is_valid());
     }
 
+    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
     #[test]
     fn utest_new_token_stops_retry() {
         let _lock = TEST_MUTEX.lock().unwrap();

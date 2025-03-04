@@ -1739,18 +1739,18 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop requests retry of a workload creation on failing retry attempt
-`swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1`
+#### WorkloadControlLoop uses exponential backoff for retries
+`swdd~agent-workload-control-loop-exponential-backoff-retries~1`
 
 Status: approved
 
-When the WorkloadControlLoop executes a retry of a workload creation and the runtime connector fails to create the workload, the WorkloadControlLoop shall request a retry of the creation of the workload within 1 sec time interval.
-
-Comment:
-The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandSender to send the WorkloadCommand Retry.
+When the WorkloadControlLoop sends a WorkloadCommand Retry,
+it shall hold back the command by an exponential backoff with jitter.
 
 Rationale:
-The retry behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
+The creation of a workload can fail temporarily, for example if a image repository is currently not available.
+The wait time is increased exponentially to not to produce to much load on the system or external resources.
+The jitter is added, to once workloads can be created again, not to overwhelm the system or external resources.
 
 Tags:
 - WorkloadControlLoop
@@ -1758,7 +1758,6 @@ Tags:
 Needs:
 - impl
 - utest
-- stest
 
 #### WorkloadControlLoop retries creation of a workload
 `swdd~agent-workload-control-loop-executes-retry~1`
@@ -1770,43 +1769,7 @@ When the WorkloadControlLoop receives a retry command, the WorkloadControlLoop s
 * store the new Id and reference to the state checker inside the WorkloadControlLoop
 
 Comment:
-The `Pending(Starting)` execution state of the workload is kept on a failed retry until the retry limit is exceeded to avoid fast execution state changes on the user side.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-- stest
-
-#### WorkloadControlLoop stops retries after the defined maximum amount of retry attempts
-`swdd~agent-workload-control-loop-limits-retry-attempts~1`
-
-Status: approved
-
-The WorkloadControlLoop shall execute a maximum of 20 retry attempts.
-
-Rationale:
-Limiting the retry attempts prevents pointless attempts if the workload cannot be started due to a configuration conflict that the runtime rejects in general.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-- stest
-
-#### WorkloadControlLoop sets execution state of workload to failed after reaching the retry limit
-`swdd~agent-workload-control-loop-retry-limit-set-execution-state~2`
-
-Status: approved
-
-When the WorkloadControlLoop receives a retry command and the maximum amount of retry attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)` with additional information about the failure cause prefixed with "No more retries: ".
-
-Rationale:
-The workload has a well defined state after reaching the retry attempt limit indicating that the create of the workload has failed.
+The `Pending(Starting)` execution state of the workload is kept on a failed to avoid fast execution state changes on the user side.
 
 Tags:
 - WorkloadControlLoop
@@ -1817,11 +1780,11 @@ Needs:
 - stest
 
 #### WorkloadControlLoop prevents retries when receiving other workload commands
-`swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1`
+`swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2`
 
 Status: approved
 
-When the WorkloadControlLoop receives an update or delete from the WorkloadCommandSender, the WorkloadControlLoop shall stop triggering retry attempts.
+When the WorkloadControlLoop receives an update or delete from the WorkloadCommandSender, the WorkloadControlLoop shall stop executing retry attempts.
 
 Comment:
 When executing the retry attempts the WorkloadControlLoop might receive other WorkloadCommands like update or delete making the retry attempts with the previous workload configuration obsolete.
@@ -1837,18 +1800,16 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop resets retry attempts when receiving an update
-`swdd~agent-workload-control-loop-reset-retry-attempts-on-update~1`
+### WorkloadControlLoop reset backoff on update
+`swdd~agent-workload-control-loop-reset-backoff-on-update`
 
 Status: approved
 
-When the WorkloadControlLoop receives an update from the WorkloadCommandSender, the WorkloadControlLoop shall reset the retry counter.
-
-Comment:
-The retry counter might be already incremented when the workload that shall be updated was already failing a few times during its initial creation.
+When the WorkloadControlLoop receives an update from the WorkloadCommandSender, the WorkloadControlLoop shall reset the backoff.
 
 Rationale:
-This enables new retry attempts for the new workload again.
+On update of a workload shall behave similar as a delete with subsequent create of a workload with the same name.
+Hence if the creation of the updated workload fails, the backoff should be the same as for a new workload.
 
 Tags:
 - WorkloadControlLoop

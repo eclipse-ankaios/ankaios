@@ -50,6 +50,7 @@ impl WorkloadCommandSender {
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         let sender = self.sender.clone();
 
+        // [impl->swdd~agent-workload-control-loop-exponential-backoff-retries~1]
         tokio::spawn(retry_token.call_with_backoff(|retry_token| async move {
             if sender
                 .send(WorkloadCommand::Retry(Box::new(instance_name), retry_token))
@@ -123,12 +124,14 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-exponential-backoff-retries~1]
     #[tokio::test]
     async fn utest_send_retry() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
         let retry_token = MockRetryToken {
             mock_id: 23,
             valid: true,
+            has_been_called: false,
         };
 
         workload_command_sender
@@ -138,9 +141,15 @@ mod tests {
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
-        assert!(
-            matches!(workload_command, WorkloadCommand::Retry(received_instance_name, retry_token) if *received_instance_name == WORKLOAD_SPEC.instance_name && retry_token.mock_id == 23)
-        );
+        let (WorkloadCommand::Retry(received_instance_name, received_retry_token)) =
+            workload_command
+        else {
+            panic!("Expected WorkloadCommand::Retry");
+        };
+
+        assert_eq!(*received_instance_name, WORKLOAD_SPEC.instance_name);
+        assert_eq!(received_retry_token.mock_id, 23);
+        assert!(received_retry_token.has_been_called);
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
