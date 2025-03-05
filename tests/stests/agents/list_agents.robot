@@ -50,11 +50,10 @@ Test Ankaios CLI enforces agent naming convention
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with name "agent.A"
+    And Ankaios agent is started with config file "${CONFIGS_DIR}/ank-agent.conf"
     # Actions
     When user triggers "ank -k get agents"
     ${result}=  Run Keyword And Return Status    the last command shall list the connected agent "agent.A"
     # Asserts
     Pass Execution If    ${result} == False    The agent name "agent.A" is not allowed
     [Teardown]    Clean up Ankaios
-
-# TODO: add a test for naming convention in case of the config file

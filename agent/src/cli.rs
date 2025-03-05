@@ -12,23 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use regex::Regex;
-
 use clap::{ArgAction, Parser};
-use common::objects::STR_RE_AGENT;
-
-// [impl->swdd~agent-naming-convention~1]
-pub fn validate_agent_name(name: &str) -> Result<String, String> {
-    let re = Regex::new(STR_RE_AGENT).unwrap();
-    if re.is_match(name) {
-        Ok(name.to_string())
-    } else {
-        Err(format!(
-            "Agent name '{}' is invalid. It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.",
-            name
-        ))
-    }
-}
 
 // [impl->swdd~agent-supports-cli-argument-for-insecure-communication~1]
 // [impl->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
@@ -41,7 +25,7 @@ pub struct Arguments {
     #[clap(required = false, short = 'x', long = "agent-config")]
     /// The path to the agent config file
     pub config_path: Option<String>,
-    #[clap(short = 'n', long = "name", required = false, value_parser = clap::builder::ValueParser::new(validate_agent_name))]
+    #[clap(short = 'n', long = "name", required = false)]
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
     /// Agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
     pub agent_name: Option<String>,
@@ -73,33 +57,4 @@ pub struct Arguments {
 
 pub fn parse() -> Arguments {
     Arguments::parse()
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//                 ########  #######    #########  #########                //
-//                    ##     ##        ##             ##                    //
-//                    ##     #####     #########      ##                    //
-//                    ##     ##                ##     ##                    //
-//                    ##     #######   #########      ##                    //
-//////////////////////////////////////////////////////////////////////////////
-
-#[cfg(test)]
-mod tests {
-
-    // [utest->swdd~agent-naming-convention~1]
-    #[test]
-    fn utest_validate_agent_name_ok() {
-        assert!(super::validate_agent_name("").is_ok());
-
-        let name = "test_AgEnt-name1_56";
-        assert_eq!(super::validate_agent_name(name), Ok(name.to_string()));
-    }
-
-    // [utest->swdd~agent-naming-convention~1]
-    #[test]
-    fn utest_validate_agent_name_fail() {
-        assert!(super::validate_agent_name("a.b").is_err());
-        assert!(super::validate_agent_name("a_b_%#").is_err());
-        assert!(super::validate_agent_name("a b").is_err());
-    }
 }

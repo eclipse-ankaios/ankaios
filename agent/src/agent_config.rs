@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cli::{validate_agent_name, Arguments};
+use crate::cli::Arguments;
 use crate::io_utils::DEFAULT_RUN_FOLDER;
 use common::std_extensions::UnreachableOption;
 use common::DEFAULT_SERVER_ADDRESS;
@@ -32,14 +32,11 @@ pub const DEFAULT_AGENT_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-agent.conf";
 #[cfg(test)]
 pub const DEFAULT_AGENT_CONFIG_FILE_PATH: &str = "/tmp/ankaios/ank-agent.conf";
 
-pub const DEFAULT_AGENT_NAME: &str = "agent_x";
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ConversionErrors {
     WrongVersion(String),
     ConflictingCertificates(String),
     InvalidAgentConfig(String),
-    InvalidAgentName(String),
     InvalidCertificate(String),
 }
 
@@ -55,18 +52,11 @@ impl fmt::Display for ConversionErrors {
             ConversionErrors::InvalidAgentConfig(msg) => {
                 write!(f, "Agent Config could not have been parsed due to: {}", msg)
             }
-            ConversionErrors::InvalidAgentName(msg) => {
-                write!(f, "Invalid agent name present in config: {}", msg)
-            }
             ConversionErrors::InvalidCertificate(msg) => {
                 write!(f, "Certificate could not have been read due to: {}", msg)
             }
         }
     }
-}
-
-pub fn get_default_agent_name() -> Option<String> {
-    Some(DEFAULT_AGENT_NAME.to_string())
 }
 
 pub fn get_default_url() -> String {
@@ -80,7 +70,6 @@ fn get_default_run_folder() -> Option<String> {
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AgentConfig {
     pub version: String,
-    #[serde(default = "get_default_agent_name")]
     pub name: Option<String>,
     #[serde(default = "get_default_url")]
     pub server_url: String,
@@ -100,7 +89,7 @@ impl Default for AgentConfig {
     fn default() -> Self {
         AgentConfig {
             version: CONFIG_VERSION.to_string(),
-            name: get_default_agent_name(),
+            name: None,
             server_url: get_default_url(),
             run_folder: get_default_run_folder(),
             insecure: Some(false),
@@ -124,9 +113,6 @@ impl AgentConfig {
         if agent_config.version != CONFIG_VERSION {
             return Err(ConversionErrors::WrongVersion(agent_config.version));
         }
-
-        validate_agent_name(&agent_config.name.clone().unwrap_or_unreachable())
-            .map_err(|err| ConversionErrors::InvalidAgentName(err.to_string()))?;
 
         if (agent_config.ca_pem.is_some() && agent_config.ca_pem_content.is_some())
             || (agent_config.crt_pem.is_some() && agent_config.crt_pem_content.is_some())
@@ -158,7 +144,6 @@ impl AgentConfig {
 
     pub fn update_with_args(&mut self, args: &Arguments) {
         if let Some(name) = &args.agent_name {
-            // TODO: move agent name checking inside in order to avoid duplicate calls
             self.name = Some(name.to_string());
         }
 
@@ -206,12 +191,10 @@ mod tests {
 
     use common::DEFAULT_SERVER_ADDRESS;
 
-    use crate::cli::validate_agent_name;
     use crate::io_utils::DEFAULT_RUN_FOLDER;
     use crate::{agent_config::ConversionErrors, cli::Arguments};
 
-    use super::AgentConfig;
-    use super::{CONFIG_VERSION, DEFAULT_AGENT_NAME};
+    use super::{AgentConfig, CONFIG_VERSION};
 
     const AGENT_NAME: &str = "agent_1";
     const CA_PEM_PATH: &str = "some_path_to_ca_pem/ca.pem";
@@ -228,10 +211,6 @@ mod tests {
     fn utest_default_agent_config() {
         let default_agent_config = AgentConfig::default();
 
-        assert_eq!(
-            default_agent_config.name,
-            Some(DEFAULT_AGENT_NAME.to_string())
-        );
         assert_eq!(
             default_agent_config.server_url,
             DEFAULT_SERVER_ADDRESS.to_string()
@@ -277,27 +256,6 @@ mod tests {
             agent_config,
             Err(ConversionErrors::ConflictingCertificates(
                 "Certificate paths and certificate content are both set".to_string()
-            ))
-        );
-    }
-
-    #[test]
-    fn utest_agent_config_invalid_agent_name() {
-        let agent_config_content = r"#
-        version = 'v1'
-        name = 'AgentBo$$'
-        #"
-        .to_string();
-
-        let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", agent_config_content).unwrap();
-
-        let agent_config = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
-
-        assert_eq!(
-            agent_config,
-            Err(ConversionErrors::InvalidAgentName(
-                validate_agent_name("AgentBo$$").err().unwrap().to_string()
             ))
         );
     }

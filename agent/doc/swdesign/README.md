@@ -155,6 +155,27 @@ The following diagram shows the startup sequence of the Ankaios Agent:
 
 ![Startup](plantuml/seq_startup.svg)
 
+#### Agent loads config file
+`swdd~agent-loads-config-file~1`
+
+Status: approved
+
+The Ankaios agent shall accept configuration files read at startup that specify the general startup configuration of the agent with a lower precedence than environment variables and command line arguments.
+
+Rationale:
+Agent configuration files allow a reproducible execution of the agent with lower effort.
+
+Comment:
+The Ankaios agent expects the configuration files per default in the standard location `/etc/ankaios/ank-agent.conf`.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Agent prepares dedicated run folder
 `swdd~agent-prepares-dedicated-run-folder~1`
 

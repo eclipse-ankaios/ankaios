@@ -281,9 +281,9 @@ Ankaios agent is started with config file "${config_file_path}"
     ...    %{ANK_BIN_DIR}${/}ank-agent
     ...    --config_path
     ...    ${config_file_path}
-    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/default_agent_logs.txt
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${config_file_path}_agent_logs.txt
     ...    env:RUST_LOG=debug
-    ...    alias=default_agent
+    ...    alias=${config_file_path}_agent
 
 Ankaios server is terminated
     Terminate Process    ank-server    kill=True

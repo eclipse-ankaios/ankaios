@@ -13,10 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use common::communications_client::CommunicationsClient;
-use common::objects::{AgentName, WorkloadState};
+use common::objects::{AgentName, WorkloadState, STR_RE_AGENT};
 use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use grpc::security::TLSConfig;
+use regex::Regex;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -82,6 +83,24 @@ fn handle_agent_config(config_path: &Option<String>) -> AgentConfig {
     }
 }
 
+// [impl->swdd~agent-naming-convention~1]
+pub fn validate_agent_name(agent_name: Option<String>) -> Result<(), String> {
+    match agent_name.as_deref() {
+        Some(name) => {
+            let re = Regex::new(STR_RE_AGENT).unwrap();
+            if re.is_match(name) {
+                Ok(())
+            } else {
+                Err(format!(
+            "Agent name '{}' is invalid. It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.",
+            name
+        ))
+            }
+        }
+        None => Err("Agent name needs to be provided!".to_string()),
+    }
+}
+
 #[tokio::main]
 async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
@@ -91,6 +110,9 @@ async fn main() {
     let mut agent_config = handle_agent_config(&args.config_path);
 
     agent_config.update_with_args(&args);
+
+    validate_agent_name(agent_config.name.clone())
+        .unwrap_or_exit("Error encountered while checking agent name!");
 
     let server_url = match agent_config.insecure.unwrap_or_unreachable() {
         true => agent_config.server_url.replace("http[s]", "http"),
@@ -264,5 +286,22 @@ mod tests {
         let agent_config = handle_agent_config(&None);
 
         assert_eq!(agent_config, AgentConfig::default());
+    }
+
+    // [utest->swdd~agent-naming-convention~1]
+    #[test]
+    fn utest_validate_agent_name_ok() {
+        assert!(super::validate_agent_name("").is_ok());
+
+        let name = "test_AgEnt-name1_56";
+        assert_eq!(super::validate_agent_name(name), Ok(name.to_string()));
+    }
+
+    // [utest->swdd~agent-naming-convention~1]
+    #[test]
+    fn utest_validate_agent_name_fail() {
+        assert!(super::validate_agent_name("a.b").is_err());
+        assert!(super::validate_agent_name("a_b_%#").is_err());
+        assert!(super::validate_agent_name("a b").is_err());
     }
 }
