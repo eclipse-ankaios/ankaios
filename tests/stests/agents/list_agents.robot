@@ -43,6 +43,7 @@ Test Ankaios CLI lists connected agents
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-naming-convention~1]
+# [stest->swdd~agent-loads-config-file~1]
 Test Ankaios CLI enforces agent naming convention
     [Setup]        Setup Ankaios
     # Preconditions

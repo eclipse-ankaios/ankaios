@@ -28,6 +28,7 @@ Test server config file successful start-up
     # Asserts
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~agent-loads-config-file~1]
 Test agent config file successful start-up
     [Setup]        Setup Ankaios
     # Preconditions

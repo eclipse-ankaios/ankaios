@@ -67,6 +67,7 @@ fn get_default_run_folder() -> Option<String> {
     Some(DEFAULT_RUN_FOLDER.to_string())
 }
 
+// [impl->swdd~agent-loads-config-file~1]
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AgentConfig {
     pub version: String,
@@ -207,6 +208,7 @@ mod tests {
     const KEY_PEM_CONTENT: &str = r"the content of the
         key.pem file is stored in here";
 
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
     fn utest_default_agent_config() {
         let default_agent_config = AgentConfig::default();
@@ -219,6 +221,7 @@ mod tests {
         assert_eq!(default_agent_config.version, CONFIG_VERSION);
     }
 
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
     fn utest_agent_config_wrong_version() {
         let agent_config_content: &str = r"#
@@ -236,6 +239,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
     fn utest_agent_config_conflicting_certificates() {
         let agent_config_content = format!(
@@ -260,6 +264,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
     fn utest_agent_config_update_with_args() {
         let mut agent_config = AgentConfig::default();
@@ -288,6 +293,7 @@ mod tests {
         assert_eq!(agent_config.key_pem, Some(KEY_PEM_PATH.to_string()));
     }
 
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
     fn utest_agent_config_update_with_args_certificates_content() {
         let agent_config_content = format!(
@@ -332,6 +338,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
     fn utest_server_config_from_file_successful() {
         let agent_config_content = format!(

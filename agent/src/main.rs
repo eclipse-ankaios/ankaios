@@ -92,9 +92,9 @@ pub fn validate_agent_name(agent_name: Option<String>) -> Result<(), String> {
                 Ok(())
             } else {
                 Err(format!(
-            "Agent name '{}' is invalid. It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.",
-            name
-        ))
+                    "Agent name '{}' is invalid. It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.",
+                    name
+                ))
             }
         }
         None => Err("Agent name needs to be provided!".to_string()),
@@ -107,6 +107,7 @@ async fn main() {
 
     let args = cli::parse();
 
+    // [impl->swdd~agent-loads-config-file~1]
     let mut agent_config = handle_agent_config(&args.config_path);
 
     agent_config.update_with_args(&args);
@@ -261,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_handle_server_config_default_path() {
+    fn utest_handle_agent_config_default_path() {
         if let Some(parent) = PathBuf::from(DEFAULT_AGENT_CONFIG_FILE_PATH).parent() {
             fs::create_dir_all(parent).expect("Failed to create directories");
         }
@@ -294,14 +295,14 @@ mod tests {
         assert!(super::validate_agent_name("").is_ok());
 
         let name = "test_AgEnt-name1_56";
-        assert_eq!(super::validate_agent_name(name), Ok(name.to_string()));
+        assert!(super::validate_agent_name(Some(name.to_string)).is_ok());
     }
 
     // [utest->swdd~agent-naming-convention~1]
     #[test]
     fn utest_validate_agent_name_fail() {
-        assert!(super::validate_agent_name("a.b").is_err());
-        assert!(super::validate_agent_name("a_b_%#").is_err());
-        assert!(super::validate_agent_name("a b").is_err());
+        assert!(super::validate_agent_name(Some("a.b".to_string)).is_err());
+        assert!(super::validate_agent_name(Some("a_b_%#".to_string)).is_err());
+        assert!(super::validate_agent_name(Some("a b".to_string)).is_err());
     }
 }
