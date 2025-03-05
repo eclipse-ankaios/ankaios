@@ -92,25 +92,25 @@ impl CliCommands {
                         let new_state = wl_state.execution_state.state.to_string();
 
                         if !workloads_table_data.contains_key(&instance_name) {
-                            let new_infos = self.get_workloads().await?;
-                            let mut new_data: BTreeMap<String, WorkloadTableRow> = new_infos
+                            let updated_workloads = self.get_workloads().await?;
+                            let mut updated_workloads_btree: BTreeMap<String, WorkloadTableRow> = updated_workloads
                                 .into_iter()
                                 .map(|(i_name, row)| (i_name.to_string(), row))
                                 .collect();
 
                             //Filtering BTree
                             if let Some(agent_name) = &agent_name {
-                                new_data.retain(|_k, row| row.agent == *agent_name);
+                                updated_workloads_btree.retain(|_k, row| row.agent == *agent_name);
                             }
 
                             if let Some(state) = &state {
-                                new_data.retain(|_k, row| row.execution_state.eq_ignore_ascii_case(state));
+                                updated_workloads_btree.retain(|_k, row| row.execution_state.eq_ignore_ascii_case(state));
                             }
 
                             if !workload_name.is_empty() {
-                                new_data.retain(|_k, row| workload_name.iter().any(|wn| wn == &row.name));
+                                updated_workloads_btree.retain(|_k, row| workload_name.iter().any(|wn| wn == &row.name));
                             }
-                            workloads_table_data = new_data;
+                            workloads_table_data = updated_workloads_btree;
                         } else {
                             // Update existing entry
 
