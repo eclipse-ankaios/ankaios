@@ -95,16 +95,18 @@ async fn main() {
                 workload_name,
                 agent_name,
                 state,
+                watch,
             }) => {
                 output_debug!(
-                    "Received get workload with workload_name='{:?}', agent_name='{:?}', state='{:?}'",
+                    "Received get workload with workload_name='{:?}', agent_name='{:?}', state='{:?}', watch='{:?}'",
                     workload_name,
                     agent_name,
                     state,
+                    watch,
                 );
 
                 match cmd
-                    .get_workloads_table(agent_name, state, workload_name)
+                    .get_workloads_table(agent_name, state, workload_name, watch)
                     .await
                 {
                     Ok(out_text) => output_and_exit!("{}", out_text),

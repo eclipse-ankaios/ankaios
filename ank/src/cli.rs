@@ -238,6 +238,9 @@ pub enum GetCommands {
         /// Select which workload(s) shall be returned [default: empty = all workloads]
         #[arg(add = ArgValueCompleter::new(workload_completer))]
         workload_name: Vec<String>,
+        /// Continuously monitor and fetch workload(s) instead of retrieving them once and exiting.
+        #[arg(short = 'w', long = "watch", required = false)]
+        watch: bool,
     },
     /// Information about the Ankaios agents connected to the Ankaios server
     /// For automation use "ank get state -o json" and process the agents
