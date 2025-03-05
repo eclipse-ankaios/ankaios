@@ -340,7 +340,7 @@ mod tests {
 
     // [utest->swdd~agent-loads-config-file~1]
     #[test]
-    fn utest_server_config_from_file_successful() {
+    fn utest_agent_config_from_file_successful() {
         let agent_config_content = format!(
             r"#
         version = 'v1'

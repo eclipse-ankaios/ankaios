@@ -168,9 +168,6 @@ Agent configuration files allow a reproducible execution of the agent with lower
 Comment:
 The Ankaios agent expects the configuration files per default in the standard location `/etc/ankaios/ank-agent.conf`.
 
-Tags:
-- ServerState
-
 Needs:
 - impl
 - utest
