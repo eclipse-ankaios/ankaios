@@ -292,17 +292,17 @@ mod tests {
     // [utest->swdd~agent-naming-convention~1]
     #[test]
     fn utest_validate_agent_name_ok() {
-        assert!(super::validate_agent_name("").is_ok());
+        assert!(super::validate_agent_name(Some("".to_string())).is_ok());
 
         let name = "test_AgEnt-name1_56";
-        assert!(super::validate_agent_name(Some(name.to_string)).is_ok());
+        assert!(super::validate_agent_name(Some(name.to_string())).is_ok());
     }
 
     // [utest->swdd~agent-naming-convention~1]
     #[test]
     fn utest_validate_agent_name_fail() {
-        assert!(super::validate_agent_name(Some("a.b".to_string)).is_err());
-        assert!(super::validate_agent_name(Some("a_b_%#".to_string)).is_err());
-        assert!(super::validate_agent_name(Some("a b".to_string)).is_err());
+        assert!(super::validate_agent_name(Some("a.b".to_string())).is_err());
+        assert!(super::validate_agent_name(Some("a_b_%#".to_string())).is_err());
+        assert!(super::validate_agent_name(Some("a b".to_string())).is_err());
     }
 }

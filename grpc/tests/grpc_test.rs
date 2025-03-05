@@ -181,24 +181,6 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         }
         pub fn get_agent_tls_config(&self) -> TLSConfig {
             TLSConfig {
-                // ca_pem: self
-                //     .ca_pem_file_path
-                //     .clone()
-                //     .into_os_string()
-                //     .into_string()
-                //     .unwrap(),
-                // crt_pem: self
-                //     .agent_pem_file_path
-                //     .clone()
-                //     .into_os_string()
-                //     .into_string()
-                //     .unwrap(),
-                // key_pem: self
-                //     .agent_key_pem_file_path
-                //     .clone()
-                //     .into_os_string()
-                //     .into_string()
-                //     .unwrap(),
                 ca_pem: read_pem_file(&self.ca_pem_file_path, false).unwrap(),
                 crt_pem: read_pem_file(&self.agent_pem_file_path, false).unwrap(),
                 key_pem: read_pem_file(&self.agent_key_pem_file_path, true).unwrap(),
