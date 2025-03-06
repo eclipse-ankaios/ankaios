@@ -277,7 +277,7 @@ Ankaios agent is started with name "${name}"
     ...    alias=${name}
 
 Ankaios agent is started with config file "${config_file_path}"
-    &{agent_name}=    Run Keyword And Return    extract agent name from config file ${config_file_path}
+    &{agent_name}=    Run Keyword And Return    extract agent name from config file    ${config_file_path}
     Start Process
     ...    %{ANK_BIN_DIR}${/}ank-agent
     ...    --config_path
