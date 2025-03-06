@@ -22,6 +22,7 @@ from robot.libraries.BuiltIn import BuiltIn
 from tempfile import TemporaryDirectory
 from os import path, popen
 import shutil
+import tomllib
 
 import re
 list_pattern = re.compile("^[\"|\']*\[.*\][\"|\']*$")
@@ -428,3 +429,10 @@ def config_name_shall_exist_in_list(config_name, current_result):
             break
 
     assert found, f"Config name {config_name} does not exist in the list"
+
+def extract_agent_name_from_config_file(config_file):
+    with open(config_file, "rb") as f:
+        parsed_config_file = tomllib.load(f)
+        agent_name = parsed_config_file["name"]
+
+        return agent_name

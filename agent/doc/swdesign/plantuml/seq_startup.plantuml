@@ -18,6 +18,8 @@ box "Ankaios Server"
 end box
 
 -> main ++
+main -> main ++--: load agent config file
+note right: The precedence of means of configuring the Ankaios Agent\n is the following: Ankaios Agent CLI arguments,\n environment variables and after that the agent configuration file.
 main -> main ++--: create communication channels
 main ->> grpc_client ** : create and start in a new thread
 activate grpc_client
