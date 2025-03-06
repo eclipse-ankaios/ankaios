@@ -115,7 +115,6 @@ impl CommunicationsClient for GRPCCommunicationsClient {
         // [impl->swdd~grpc-client-retries-connection~2]
         loop {
             let result = self.run_internal(&mut server_rx, &agent_tx).await;
-            log::info!("THIS IS THE RESULT: {:?}", result);
 
             // Take care of general errors
             if let Err(GrpcMiddlewareError::VersionMismatch(err)) = result {

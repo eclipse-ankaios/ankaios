@@ -130,7 +130,7 @@ RUN curl -sL https://github.com/plantuml/plantuml/releases/download/v1.2024.0/pl
 COPY plantuml /usr/local/bin
 
 # MkDocs Material
-RUN PIP_BREAK_SYSTEM_PACKAGES=1 pip install mkdocs-material pillow cairosvg mike robotframework==7.0.1
+RUN PIP_BREAK_SYSTEM_PACKAGES=1 pip install toml mkdocs-material pillow cairosvg mike robotframework==7.0.1
 
 # protoc-gen-doc
 RUN curl -sL https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_${TARGETARCH}.tar.gz | tar xz --directory=/usr/local/bin protoc-gen-doc
