@@ -56,6 +56,7 @@ use runtime_connectors::{
 
 const BUFFER_SIZE: usize = 20;
 
+// [impl->swdd~agent-loads-config-file~1]
 fn handle_agent_config(config_path: &Option<String>) -> AgentConfig {
     match config_path {
         Some(config_path) => {

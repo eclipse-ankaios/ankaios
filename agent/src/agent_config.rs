@@ -104,6 +104,7 @@ impl Default for AgentConfig {
     }
 }
 
+// [impl->swdd~agent-loads-config-file~1]
 impl AgentConfig {
     pub fn from_file(file_path: PathBuf) -> Result<AgentConfig, ConversionErrors> {
         let agent_config_content = read_to_string(file_path.to_str().unwrap_or_unreachable())
