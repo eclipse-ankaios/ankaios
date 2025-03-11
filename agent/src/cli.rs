@@ -23,7 +23,8 @@ use clap::{ArgAction, Parser};
 ]
 pub struct Arguments {
     #[clap(required = false, short = 'x', long = "agent-config")]
-    /// The path to the agent config file
+    /// The path to the agent config file.
+    /// The default path is /etc/ankaios/ank-agent.conf
     pub config_path: Option<String>,
     #[clap(short = 'n', long = "name", required = false)]
     /// The name to use for the registration with the server. Every agent has to register with a unique name.

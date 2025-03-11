@@ -63,21 +63,22 @@ pub fn get_default_url() -> String {
     DEFAULT_SERVER_ADDRESS.to_string()
 }
 
-fn get_default_run_folder() -> Option<String> {
-    Some(DEFAULT_RUN_FOLDER.to_string())
+fn get_default_run_folder() -> String {
+    DEFAULT_RUN_FOLDER.to_string()
 }
 
 // [impl->swdd~agent-loads-config-file~1]
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct AgentConfig {
     pub version: String,
-    pub name: Option<String>,
+    #[serde(default)]
+    pub name: String,
     #[serde(default = "get_default_url")]
     pub server_url: String,
     #[serde(default = "get_default_run_folder")]
-    pub run_folder: Option<String>,
+    pub run_folder: String,
     #[serde(default)]
-    pub insecure: Option<bool>,
+    pub insecure: bool,
     ca_pem: Option<String>,
     crt_pem: Option<String>,
     key_pem: Option<String>,
@@ -90,10 +91,10 @@ impl Default for AgentConfig {
     fn default() -> Self {
         AgentConfig {
             version: CONFIG_VERSION.to_string(),
-            name: None,
+            name: String::new(),
             server_url: get_default_url(),
             run_folder: get_default_run_folder(),
-            insecure: Some(false),
+            insecure: false,
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
@@ -146,7 +147,7 @@ impl AgentConfig {
 
     pub fn update_with_args(&mut self, args: &Arguments) {
         if let Some(name) = &args.agent_name {
-            self.name = Some(name.to_string());
+            self.name = name.to_string();
         }
 
         if let Some(url) = &args.server_url {
@@ -154,10 +155,10 @@ impl AgentConfig {
         }
 
         if let Some(run_folder) = &args.run_folder {
-            self.run_folder = Some(run_folder.to_string());
+            self.run_folder = run_folder.to_string();
         }
 
-        self.insecure = Some(args.insecure);
+        self.insecure = args.insecure;
 
         if let Some(ca_pem_path) = &args.ca_pem {
             self.ca_pem = Some(ca_pem_path.to_owned());
@@ -218,7 +219,7 @@ mod tests {
             default_agent_config.server_url,
             DEFAULT_SERVER_ADDRESS.to_string()
         );
-        assert_eq!(default_agent_config.insecure, Some(false));
+        assert_eq!(default_agent_config.insecure, false);
         assert_eq!(default_agent_config.version, CONFIG_VERSION);
     }
 
@@ -282,13 +283,10 @@ mod tests {
 
         agent_config.update_with_args(&args);
 
-        assert_eq!(agent_config.name, Some(AGENT_NAME.to_string()));
+        assert_eq!(agent_config.name, AGENT_NAME.to_string());
         assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
-        assert_eq!(
-            agent_config.run_folder,
-            Some(DEFAULT_RUN_FOLDER.to_string())
-        );
-        assert_eq!(agent_config.insecure, Some(false));
+        assert_eq!(agent_config.run_folder, DEFAULT_RUN_FOLDER.to_string());
+        assert_eq!(agent_config.insecure, false);
         assert_eq!(agent_config.ca_pem, Some(CA_PEM_PATH.to_string()));
         assert_eq!(agent_config.crt_pem, Some(CRT_PEM_PATH.to_string()));
         assert_eq!(agent_config.key_pem, Some(KEY_PEM_PATH.to_string()));
@@ -346,7 +344,7 @@ mod tests {
             r"#
         version = 'v1'
         name = 'agent_1'
-        server_url = 'http[s]://127.0.0.1:25551'
+        server_url = 'https://127.0.0.1:25551'
         run_folder = '/tmp/ankaios/'
         insecure = true
         ca_pem_content = '''{}'''
@@ -365,13 +363,10 @@ mod tests {
 
         let agent_config = agent_config_res.unwrap();
 
-        assert_eq!(agent_config.name, Some(AGENT_NAME.to_string()));
+        assert_eq!(agent_config.name, AGENT_NAME.to_string());
         assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
-        assert_eq!(
-            agent_config.run_folder,
-            Some(DEFAULT_RUN_FOLDER.to_string())
-        );
-        assert_eq!(agent_config.insecure, Some(true));
+        assert_eq!(agent_config.run_folder, DEFAULT_RUN_FOLDER.to_string());
+        assert_eq!(agent_config.insecure, true);
         assert_eq!(
             agent_config.ca_pem_content,
             Some(CA_PEM_CONTENT.to_string())

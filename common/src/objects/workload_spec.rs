@@ -29,7 +29,7 @@ pub type DeletedWorkloadCollection = Vec<DeletedWorkload>;
 
 const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
 pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]+*$";
-pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
+pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]+$";
 
 // [impl->swdd~common-object-serialization~1]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -620,6 +620,21 @@ mod tests {
     fn utest_workload_verify_fields_incompatible_agent_name() {
         let spec_with_wrong_agent_name = generate_test_workload_spec_with_param(
             "incompatible.agent_name".to_owned(),
+            "workload_1".to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        assert_eq!(
+            WorkloadSpec::verify_fields_format(&spec_with_wrong_agent_name),
+            Err(format!(
+                "Unsupported agent name. Received '{}', expected to have characters in {}",
+                spec_with_wrong_agent_name.instance_name.agent_name(),
+                super::STR_RE_AGENT
+            ))
+        );
+
+        let spec_with_wrong_agent_name = generate_test_workload_spec_with_param(
+            "".to_owned(),
             "workload_1".to_owned(),
             RUNTIME.to_owned(),
         );

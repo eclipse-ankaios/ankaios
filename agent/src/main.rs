@@ -40,7 +40,7 @@ mod workload_state;
 mod io_utils;
 
 use common::from_server_interface::FromServer;
-use common::std_extensions::{GracefulExitResult, UnreachableOption};
+use common::std_extensions::GracefulExitResult;
 use grpc::client::GRPCCommunicationsClient;
 
 use agent_config::{AgentConfig, DEFAULT_AGENT_CONFIG_FILE_PATH};
@@ -85,20 +85,16 @@ fn handle_agent_config(config_path: &Option<String>) -> AgentConfig {
 }
 
 // [impl->swdd~agent-naming-convention~1]
-pub fn validate_agent_name(agent_name: Option<String>) -> Result<(), String> {
-    match agent_name.as_deref() {
-        Some(name) => {
-            let re = Regex::new(STR_RE_AGENT).unwrap();
-            if re.is_match(name) {
-                Ok(())
-            } else {
-                Err(format!(
+pub fn validate_agent_name(agent_name: &String) -> Result<(), String> {
+    let re = Regex::new(STR_RE_AGENT).unwrap();
+
+    if re.is_match(agent_name) {
+        Ok(())
+    } else {
+        Err(format!(
                     "Agent name '{}' is invalid. It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.",
-                    name
+                    agent_name
                 ))
-            }
-        }
-        None => Err("Agent name needs to be provided!".to_string()),
     }
 }
 
@@ -113,19 +109,14 @@ async fn main() {
 
     agent_config.update_with_args(&args);
 
-    validate_agent_name(agent_config.name.clone())
+    validate_agent_name(&agent_config.name)
         .unwrap_or_exit("Error encountered while checking agent name!");
-
-    let server_url = match agent_config.insecure.unwrap_or_unreachable() {
-        true => agent_config.server_url.replace("http[s]", "http"),
-        false => agent_config.server_url.replace("http[s]", "https"),
-    };
 
     log::debug!(
         "Starting the Ankaios agent with \n\tname: '{}', \n\tserver url: '{}', \n\trun directory: '{}'",
-        agent_config.name.clone().unwrap_or_unreachable(),
-        server_url,
-        agent_config.run_folder.clone().unwrap_or_unreachable(),
+        agent_config.name,
+        agent_config.server_url,
+        agent_config.run_folder,
     );
 
     // [impl->swdd~agent-uses-async-channels~1]
@@ -136,8 +127,8 @@ async fn main() {
 
     // [impl->swdd~agent-prepares-dedicated-run-folder~1]
     let run_directory = io_utils::prepare_agent_run_directory(
-        agent_config.run_folder.unwrap_or_unreachable().as_str(),
-        agent_config.name.clone().unwrap_or_unreachable().as_str(),
+        agent_config.run_folder.as_str(),
+        agent_config.name.as_str(),
     )
     .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
@@ -164,7 +155,7 @@ async fn main() {
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
     // The pipe connecting the workload to Ankaios must be in the runtime adapter
     let runtime_manager = RuntimeManager::new(
-        AgentName::from(agent_config.name.clone().unwrap_or_unreachable().as_str()),
+        AgentName::from(agent_config.name.as_str()),
         run_directory.get_path(),
         to_server.clone(),
         runtime_facade_map,
@@ -172,7 +163,7 @@ async fn main() {
     );
 
     if let Err(err_message) = TLSConfig::is_config_conflicting(
-        agent_config.insecure.unwrap_or_unreachable(),
+        agent_config.insecure,
         &agent_config.ca_pem_content,
         &agent_config.crt_pem_content,
         &agent_config.key_pem_content,
@@ -184,22 +175,22 @@ async fn main() {
     // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
     // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
     let tls_config = TLSConfig::new(
-        agent_config.insecure.unwrap_or_unreachable(),
+        agent_config.insecure,
         agent_config.ca_pem_content,
         agent_config.crt_pem_content,
         agent_config.key_pem_content,
     );
 
     let mut communications_client = GRPCCommunicationsClient::new_agent_communication(
-        agent_config.name.clone().unwrap_or_unreachable(),
-        server_url,
+        agent_config.name.clone(),
+        agent_config.server_url,
         // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
         tls_config.unwrap_or_exit("Missing certificate file"),
     )
     .unwrap_or_exit("Failed to create communications client.");
 
     let mut agent_manager = AgentManager::new(
-        agent_config.name.unwrap_or_unreachable(),
+        agent_config.name.clone(),
         manager_receiver,
         runtime_manager,
         to_server,
@@ -239,7 +230,7 @@ mod tests {
     const VALID_AGENT_CONFIG_CONTENT: &str = r"#
     version = 'v1'
     name = 'agent_1'
-    server_url = 'http[s]://127.0.0.1:25551'
+    server_url = 'https://127.0.0.1:25551'
     run_folder = '/tmp/ankaios/'
     insecure = true
     #";
@@ -253,13 +244,13 @@ mod tests {
             tmp_config.into_temp_path().to_str().unwrap().to_string(),
         ));
 
-        assert_eq!(agent_config.name, Some("agent_1".to_string()));
+        assert_eq!(agent_config.name, "agent_1".to_string());
         assert_eq!(
             agent_config.server_url,
-            "http[s]://127.0.0.1:25551".to_string()
+            "https://127.0.0.1:25551".to_string()
         );
-        assert_eq!(agent_config.run_folder, Some("/tmp/ankaios/".to_string()));
-        assert_eq!(agent_config.insecure, Some(true));
+        assert_eq!(agent_config.run_folder, "/tmp/ankaios/".to_string());
+        assert!(agent_config.insecure);
     }
 
     #[test]
@@ -272,13 +263,13 @@ mod tests {
 
         let agent_config = handle_agent_config(&None);
 
-        assert_eq!(agent_config.name, Some("agent_1".to_string()));
+        assert_eq!(agent_config.name, "agent_1".to_string());
         assert_eq!(
             agent_config.server_url,
-            "http[s]://127.0.0.1:25551".to_string()
+            "https://127.0.0.1:25551".to_string()
         );
-        assert_eq!(agent_config.run_folder, Some("/tmp/ankaios/".to_string()));
-        assert_eq!(agent_config.insecure, Some(true));
+        assert_eq!(agent_config.run_folder, "/tmp/ankaios/".to_string());
+        assert!(agent_config.insecure);
 
         assert!(fs::remove_file(DEFAULT_AGENT_CONFIG_FILE_PATH).is_ok());
     }
@@ -293,17 +284,16 @@ mod tests {
     // [utest->swdd~agent-naming-convention~1]
     #[test]
     fn utest_validate_agent_name_ok() {
-        assert!(super::validate_agent_name(Some("".to_string())).is_ok());
-
         let name = "test_AgEnt-name1_56";
-        assert!(super::validate_agent_name(Some(name.to_string())).is_ok());
+        assert!(super::validate_agent_name(&name.to_string()).is_ok());
     }
 
     // [utest->swdd~agent-naming-convention~1]
     #[test]
     fn utest_validate_agent_name_fail() {
-        assert!(super::validate_agent_name(Some("a.b".to_string())).is_err());
-        assert!(super::validate_agent_name(Some("a_b_%#".to_string())).is_err());
-        assert!(super::validate_agent_name(Some("a b".to_string())).is_err());
+        assert!(super::validate_agent_name(&"a.b".to_string()).is_err());
+        assert!(super::validate_agent_name(&"a_b_%#".to_string()).is_err());
+        assert!(super::validate_agent_name(&"a b".to_string()).is_err());
+        assert!(super::validate_agent_name(&"".to_string()).is_err());
     }
 }

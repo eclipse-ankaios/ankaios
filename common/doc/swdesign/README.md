@@ -376,7 +376,9 @@ Needs:
 
 Status: approved
 
-The Common library shall provide functionality for enforcing an agent name to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+The Common library shall provide functionality for enforcing an agent name to:
+* contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+* have a minimal length of 1 character
 
 Rationale:
 A consistent naming manner assures stability in usage and compatibility with Ankaios internal structure by ensuring proper function of the filtering.
