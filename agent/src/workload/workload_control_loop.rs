@@ -12,11 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config_files::WorkloadConfigFilesPath;
 use crate::control_interface::ControlInterfacePath;
 use crate::io_utils::FileSystemError;
 use crate::runtime_connectors::{RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
+use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec};
 use common::std_extensions::IllegalStateResult;
@@ -29,7 +29,7 @@ use std::str::FromStr;
 use crate::io_utils::filesystem_async;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::config_files::ConfigFilesCreator;
+use crate::workload_files::WorkloadFilesCreator;
 
 #[cfg_attr(test, mockall_double::double)]
 use super::retry_manager::RetryToken;
@@ -100,7 +100,7 @@ impl WorkloadControlLoop {
                             control_loop_state = Self::update_workload_on_runtime(
                                 control_loop_state,
                                 runtime_workload_config,
-                                control_interface_path.map(ControlInterfacePath::new),
+                                control_interface_path,
                             )
                             .await;
 
@@ -294,7 +294,7 @@ impl WorkloadControlLoop {
                 Ok(mapping) => mapping,
                 Err(err) => {
                     log::error!(
-                        "Failed to create config files for workload '{}': '{}'",
+                        "Failed to create workload files for workload '{}': '{}'",
                         control_loop_state.instance_name(),
                         err
                     );
@@ -311,8 +311,8 @@ impl WorkloadControlLoop {
                 control_loop_state.workload_id.clone(),
                 control_loop_state
                     .control_interface_path
-                    .clone()
-                    .map(|path| path.as_path_buf().to_owned()),
+                    .as_ref()
+                    .map(|path| path.to_path_buf()),
                 control_loop_state
                     .state_checker_workload_state_sender
                     .clone(),
@@ -325,12 +325,15 @@ impl WorkloadControlLoop {
                     "Successfully created workload '{}'.",
                     new_instance_name.workload_name()
                 );
+                // [impl->swdd~agent-workload-control-loop-updates-internal-state~1]
                 control_loop_state.workload_id = Some(new_workload_id);
                 control_loop_state.state_checker = Some(new_state_checker);
                 control_loop_state
             }
             Err(err) => {
-                Self::delete_folder(&WorkloadConfigFilesPath::from((
+                // [impl->swdd~agent-workload-control-loop-handles-failed-workload-creation~1]
+
+                Self::delete_folder(&WorkloadFilesBasePath::from((
                     &control_loop_state.run_folder,
                     &new_instance_name,
                 )))
@@ -345,10 +348,7 @@ impl WorkloadControlLoop {
                         )
                         .await;
 
-                        log::error!(
-                            "Failed to create workload with unrecoverable error: '{}'",
-                            err
-                        );
+                        log::error!("Failed to create workload with error: '{}'", err);
 
                         control_loop_state
                     }
@@ -380,34 +380,43 @@ impl WorkloadControlLoop {
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        if control_loop_state.workload_spec.has_config_files() {
-            let workload_config_files_dir = WorkloadConfigFilesPath::from((
+        if control_loop_state.workload_spec.has_files() {
+            let workload_files_base_path = WorkloadFilesBasePath::from((
                 &control_loop_state.run_folder,
                 control_loop_state.instance_name(),
             ));
 
-            match ConfigFilesCreator::create_files(
-                &workload_config_files_dir,
+            match WorkloadFilesCreator::create_files(
+                &workload_files_base_path,
                 &control_loop_state.workload_spec.files,
             )
             .await
             {
                 Ok(mapping) => Ok(mapping),
                 Err(err) => {
-                    let error = Err(err.to_string());
-                    // [impl->swdd~agent-workload-control-loop-aborts-create-upon-config-files-creation-error~1]
+                    // [impl->swdd~agent-workload-control-loop-aborts-create-upon-workload-files-creation-error~1]
+                    filesystem_async::remove_dir_all(&workload_files_base_path)
+                        .await
+                        .unwrap_or_else(|err| {
+                            log::error!(
+                                "Failed to remove workload files base folder after failed creation '{}': '{}'",
+                                workload_files_base_path.display(),
+                                err
+                            )
+                        });
+
                     Self::send_workload_state_to_agent(
                         &control_loop_state.to_agent_workload_state_sender,
                         control_loop_state.instance_name(),
-                        ExecutionState::starting_failed(err),
+                        ExecutionState::starting_failed(&err),
                     )
                     .await;
 
-                    error
+                    Err(err.to_string())
                 }
             }
         } else {
-            Ok(Default::default())
+            Ok(HashMap::new())
         }
     }
 
@@ -520,10 +529,10 @@ impl WorkloadControlLoop {
         }
 
         log::debug!(
-            "Deleting the config files of workload '{}'",
+            "Deleting the workload files of workload '{}'",
             control_loop_state.instance_name()
         );
-        Self::delete_folder(&WorkloadConfigFilesPath::from((
+        Self::delete_folder(&WorkloadFilesBasePath::from((
             &control_loop_state.run_folder,
             control_loop_state.instance_name(),
         )))
@@ -648,7 +657,7 @@ impl WorkloadControlLoop {
     }
 
     async fn delete_folder(path: &Path) {
-        filesystem_async::remove_dir(path)
+        filesystem_async::remove_dir_all(path)
             .await
             .unwrap_or_else(|err| match err {
                 FileSystemError::NotFoundDirectory(_) => {}
@@ -680,13 +689,13 @@ mockall::mock! {
 #[cfg(test)]
 mod tests {
     use super::{ControlInterfacePath, WorkloadControlLoop};
-    use crate::config_files::{
-        ConfigFileCreatorError, MockConfigFilesCreator, WorkloadConfigFilesPath,
-    };
     use crate::io_utils::mock_filesystem_async;
     use crate::runtime_connectors::RuntimeError;
     use crate::workload::retry_manager::MockRetryToken;
     use crate::workload::WorkloadCommand;
+    use crate::workload_files::{
+        MockWorkloadFilesCreator, WorkloadFileCreationError, WorkloadFilesBasePath,
+    };
     use common::objects::PendingSubstate;
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -695,9 +704,10 @@ mod tests {
     use mockall::predicate;
 
     use common::objects::{
-        generate_test_rendered_config_files, generate_test_workload_spec_with_param,
-        generate_test_workload_spec_with_rendered_config_files, ExecutionState, ExecutionStateEnum,
-        WorkloadInstanceName,
+        generate_test_rendered_workload_files,
+        generate_test_workload_spec_with_control_interface_access,
+        generate_test_workload_spec_with_param, generate_test_workload_spec_with_rendered_files,
+        ExecutionState, ExecutionStateEnum, WorkloadInstanceName,
     };
     use common::objects::{generate_test_workload_state_with_workload_spec, RestartPolicy};
 
@@ -720,6 +730,13 @@ mod tests {
     const OLD_WORKLOAD_ID: &str = "old_workload_id";
 
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 20;
+
+    use mockall::lazy_static;
+
+    lazy_static! {
+        pub static ref CONTROL_INTERFACE_PATH: Option<ControlInterfacePath> =
+            Some(ControlInterfacePath::new(PathBuf::from(PIPES_LOCATION)));
+    }
 
     // Unfortunately this test also executes a delete of the newly updated workload.
     // We could not avoid this as it is the only possibility to check the internal variables
@@ -773,12 +790,15 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec.clone()),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -869,12 +889,12 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send only the update to delete the workload
         workload_command_sender
-            .update(None, Some(PIPES_LOCATION.into()))
+            .update(None, CONTROL_INTERFACE_PATH.clone())
             .await
             .unwrap();
 
@@ -982,18 +1002,21 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the update delete only
         workload_command_sender
-            .update(None, Some(PIPES_LOCATION.into()))
+            .update(None, CONTROL_INTERFACE_PATH.clone())
             .await
             .unwrap();
 
         // Send the update
         workload_command_sender
-            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec.clone()),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
 
@@ -1099,12 +1122,15 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec.clone()),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -1203,12 +1229,15 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec.clone()),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -1282,7 +1311,7 @@ mod tests {
             )])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the delete command now. It will be buffered until the await receives it.
@@ -1349,7 +1378,7 @@ mod tests {
 
         let runtime_mock = MockRuntimeConnector::new();
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the delete command now. It will be buffered until the await receives it.
@@ -1390,6 +1419,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-updates-internal-state~1]
     #[tokio::test]
     async fn utest_workload_obj_run_create_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1432,14 +1462,14 @@ mod tests {
             workload_command_sender.delete().await.unwrap();
         });
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx.clone())
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1513,14 +1543,14 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1590,7 +1620,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1646,7 +1676,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1704,7 +1734,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1751,7 +1781,7 @@ mod tests {
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![]).await;
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         tokio::spawn(async move {
@@ -1763,7 +1793,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1837,7 +1867,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1900,7 +1930,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         tokio::spawn(async move {
@@ -1912,7 +1942,7 @@ mod tests {
             .workload_spec(workload_spec.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -2065,8 +2095,9 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-updates-internal-state~1]
     #[tokio::test]
-    async fn utest_create_workload_on_runtime_create_config_files() {
+    async fn utest_create_workload_on_runtime_create_workload_files() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -2078,17 +2109,15 @@ mod tests {
         let (workload_state_forward_tx, _workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_rendered_config_files(
+        let workload_spec = generate_test_workload_spec_with_rendered_files(
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
-            generate_test_rendered_config_files(),
+            generate_test_rendered_workload_files(),
         );
 
-        let workload_configs_dir = WorkloadConfigFilesPath::from((
-            &PathBuf::from(RUN_FOLDER),
-            &workload_spec.instance_name,
-        ));
+        let workload_configs_dir =
+            WorkloadFilesBasePath::from((&PathBuf::from(RUN_FOLDER), &workload_spec.instance_name));
 
         let expected_mount_point_mappings = HashMap::from([
             (
@@ -2111,8 +2140,8 @@ mod tests {
             )])
             .await;
 
-        let mock_config_files_creator_context = MockConfigFilesCreator::create_files_context();
-        mock_config_files_creator_context
+        let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
+        mock_workload_files_creator_context
             .expect()
             .once()
             .with(
@@ -2155,8 +2184,9 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-aborts-create-upon-workload-files-creation-error~1]
     #[tokio::test]
-    async fn utest_create_workload_on_runtime_create_config_files_fails() {
+    async fn utest_create_workload_on_runtime_create_workload_files_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -2166,25 +2196,25 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_rendered_config_files(
+        let workload_spec = generate_test_workload_spec_with_rendered_files(
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
-            generate_test_rendered_config_files(),
+            generate_test_rendered_workload_files(),
         );
 
-        let mock_config_files_creator_context = MockConfigFilesCreator::create_files_context();
-        mock_config_files_creator_context
+        let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
+        mock_workload_files_creator_context
             .expect()
             .once()
             .returning(move |_, _| {
-                Err(ConfigFileCreatorError::new(
-                    "failed to create config files.".to_string(),
+                Err(WorkloadFileCreationError::new(
+                    "failed to create workload files.".to_string(),
                 ))
             });
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
+        mock_remove_dir.expect().once().returning(|_| Ok(()));
 
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
@@ -2226,6 +2256,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-handles-failed-workload-creation~1]
     #[tokio::test]
     async fn utest_create_workload_on_runtime_runtime_fails_with_unsupported_error() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -2237,11 +2268,11 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_rendered_config_files(
+        let workload_spec = generate_test_workload_spec_with_rendered_files(
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
-            generate_test_rendered_config_files(),
+            generate_test_rendered_workload_files(),
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -2254,8 +2285,8 @@ mod tests {
             )])
             .await;
 
-        let mock_config_files_creator_context = MockConfigFilesCreator::create_files_context();
-        mock_config_files_creator_context
+        let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
+        mock_workload_files_creator_context
             .expect()
             .once()
             .returning(move |_, _| Ok(HashMap::default()));
@@ -2270,7 +2301,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
@@ -2339,7 +2370,7 @@ mod tests {
             )])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
@@ -2359,7 +2390,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -2446,7 +2477,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
@@ -2456,7 +2487,10 @@ mod tests {
         };
 
         workload_command_sender
-            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
+            .update(
+                Some(new_workload_spec.clone()),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
             .await
             .unwrap();
         workload_command_sender.delete().await.unwrap();
@@ -2464,7 +2498,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(old_workload_spec)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -2540,7 +2574,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
@@ -2563,7 +2597,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -2616,7 +2650,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
@@ -2639,7 +2673,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -2702,7 +2736,7 @@ mod tests {
             ])
             .await;
 
-        let mock_remove_dir = mock_filesystem_async::remove_dir_context();
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
@@ -2725,7 +2759,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
             .run_folder(RUN_FOLDER.into())
-            .control_interface_path(Some(ControlInterfacePath::new(PIPES_LOCATION.into())))
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)

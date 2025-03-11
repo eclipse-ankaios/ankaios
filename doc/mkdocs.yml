@@ -11,18 +11,29 @@ theme:
   favicon: assets/favicon128x128.png
   custom_dir: overrides
   palette:
-    - scheme: default
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+      primary: teal
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
       primary: teal
 
     # Palette toggle for dark mode
-    - scheme: slate
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
       primary: teal
+
   features:
     - navigation.instant
     - navigation.sections
@@ -77,7 +88,8 @@ nav:
     - usage/mtls-setup.md
     - usage/shell-completion.md
     - Manifest:
-      - usage/manifest/config-rendering.md
+      - usage/manifest/config-objects.md
+      - usage/manifest/workload-files.md
     - Upgrading:
       - usage/upgrading/v0_2_to_v0_3.md
       - usage/upgrading/v0_3_to_v0_4.md

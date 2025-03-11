@@ -173,7 +173,7 @@ Comment:
 The default folder "/tmp/ankaios" must be created with full permissions if not existing. The specific agent folder will still have scoped permissions, but the default location could be used by other agents running under different users and must be usable.
 
 Rationale:
-The dedicated run folder is required by the agent to store temporary files for the workloads, e.g., Control Interface fifo pipes, mount files, etc.
+The dedicated run folder is required by the agent to store temporary files for the workloads, e.g., Control Interface fifo pipes, workload files, etc.
 
 Needs:
 - impl
@@ -596,7 +596,7 @@ Needs:
 - utest
 
 #### Control Interface pipes at predefined path
-`swdd~agent-control-interface-pipes-path-naming~1`
+`swdd~agent-control-interface-pipes-path-naming~2`
 
 Status: approved
 
@@ -865,13 +865,14 @@ Needs:
 - utest
 
 ##### RuntimeFacade delete old workload
-`swdd~agent-delete-old-workload~2`
+`swdd~agent-delete-old-workload~3`
 
 Status: approved
 
 When the RuntimeFacade is requested to delete the workload, then the RuntimeFacade shall delete a workload by:
 * sending a `Stopping(RequestedAtRuntime)` workload state for that workload
 * deleting the workload via the runtime connector
+* delete the workload subfolder in the agent's run folder
 * sending a `Removed` workload state for that workload after the deletion was successful or `Stopping(DeleteFailed)` upon failure
 
 Comment:
@@ -1008,7 +1009,7 @@ When the WorkloadControlLoop receives a create command, the WorkloadControlLoop 
     * otherwise, send a `Pending(Starting)` workload state with additional information about the current retry counter state, appended by the cause of failure for that workload
 
 Comment:
-For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows.
+For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows. The runtime connector receives a host file path/mount point mapping to be able to mount the files.
 
 Rationale:
 The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.

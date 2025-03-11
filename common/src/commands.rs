@@ -180,7 +180,7 @@ pub struct Stop {}
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::generate_test_proto_config_files;
+    use crate::test_utils::generate_test_proto_workload_files;
     use std::collections::HashMap;
 
     mod ank_base {
@@ -299,7 +299,7 @@ mod tests {
                     ]
                     .into(),
                 }),
-                files: Some(generate_test_proto_config_files()),
+                files: Some(generate_test_proto_workload_files()),
             }
         };
         (ankaios) => {

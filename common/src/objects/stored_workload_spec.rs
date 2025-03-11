@@ -212,7 +212,7 @@ pub fn generate_test_stored_workload_spec_with_config(
 }
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_stored_workload_spec_with_config_files(
+pub fn generate_test_stored_workload_spec_with_files(
     agent: impl Into<String>,
     runtime_name: impl Into<String>,
     files: Vec<File>,

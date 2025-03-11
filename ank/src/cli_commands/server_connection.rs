@@ -245,7 +245,7 @@ mod tests {
             CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadInstanceName,
             WorkloadState,
         },
-        test_utils::{self, generate_test_proto_config_files},
+        test_utils::{self, generate_test_proto_workload_files},
         to_server_interface::ToServer,
     };
     use tokio::sync::mpsc::Receiver;
@@ -433,7 +433,7 @@ mod tests {
                             ]
                             .into(),
                         }),
-                        files: Some(generate_test_proto_config_files()),
+                        files: Some(generate_test_proto_workload_files()),
                     },
                 )]),
             ),
@@ -465,7 +465,7 @@ mod tests {
                         ]
                         .into()
                     }),
-                    files: Some(generate_test_proto_config_files()),
+                    files: Some(generate_test_proto_workload_files()),
                 },
             )])
             .into())
@@ -549,7 +549,7 @@ mod tests {
                             ]
                             .into(),
                         }),
-                        files: Some(generate_test_proto_config_files()),
+                        files: Some(generate_test_proto_workload_files()),
                     },
                 )]),
             )),
@@ -585,7 +585,7 @@ mod tests {
                             ]
                             .into(),
                         }),
-                        files: Some(generate_test_proto_config_files()),
+                        files: Some(generate_test_proto_workload_files()),
                     },
                 )]),
             ),
@@ -617,7 +617,7 @@ mod tests {
                         ]
                         .into()
                     }),
-                    files: Some(generate_test_proto_config_files()),
+                    files: Some(generate_test_proto_workload_files()),
                 },
             )])
             .into())
@@ -666,7 +666,7 @@ mod tests {
                             ]
                             .into(),
                         }),
-                        files: Some(generate_test_proto_config_files()),
+                        files: Some(generate_test_proto_workload_files()),
                     },
                 )]),
             ),
@@ -698,7 +698,7 @@ mod tests {
                         ]
                         .into()
                     }),
-                    files: Some(generate_test_proto_config_files()),
+                    files: Some(generate_test_proto_workload_files()),
                 },
             )])
             .into())
@@ -852,7 +852,7 @@ mod tests {
                             ]
                             .into(),
                         }),
-                        files: Some(generate_test_proto_config_files()),
+                        files: Some(generate_test_proto_workload_files()),
                     },
                 )]),
             )),

@@ -94,7 +94,7 @@ impl AnkaiosServer {
         } else {
             // [impl->swdd~server-starts-without-startup-config~1]
             log::info!(
-                "No startup configuration provided -> waiting for new workloads from the CLI"
+                "No startup manifest provided -> waiting for new workloads from the CLI"
             );
         }
         self.listen_to_agents().await;
@@ -438,7 +438,7 @@ mod tests {
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-fails-on-invalid-startup-state~1]
     #[tokio::test]
-    async fn utest_server_start_fail_on_invalid_startup_config() {
+    async fn utest_server_start_fail_on_invalid_startup_manifest() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
@@ -480,7 +480,7 @@ mod tests {
 
     // [utest->swdd~server-fails-on-invalid-startup-state~1]
     #[tokio::test]
-    async fn utest_server_start_fail_on_startup_config_with_invalid_version() {
+    async fn utest_server_start_fail_on_startup_manifest_with_invalid_version() {
         let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
@@ -627,7 +627,7 @@ mod tests {
     // [utest->swdd~server-sets-state-of-new-workloads-to-pending~1]
     // [utest->swdd~server-uses-async-channels~1]
     #[tokio::test]
-    async fn utest_server_start_with_valid_startup_config() {
+    async fn utest_server_start_with_valid_startup_manifest() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =

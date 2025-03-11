@@ -32,6 +32,7 @@ ${TEST_FOLDER_NAME}    ${EMPTY}
 &{ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
 &{ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}
 ${ANKAIOS_VERSION}    ${EMPTY}
+${CONFIGS_DIR}=    ${CURDIR}/configs
 
 *** Keywords ***
 Get MTLS Enabled
@@ -179,11 +180,47 @@ Ankaios insecure server is started with config "${config_path}"
     ...    alias=ank-server
     RETURN    ${server_process}
 
+Ankaios insecure server is started with server config file "${server_config_path}"
+    ${server_process}=    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    --server-config
+    ...    ${server_config_path}
+    ...    --insecure
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=ank-server
+    RETURN    ${server_process}
+
+Ankaios insecure server is started with config "${config_path}" and server config file "${server_config_path}"
+    ${server_process}=    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    --startup-config
+    ...    ${config_path}
+    ...    --server-config
+    ...    ${server_config_path}
+    ...    --insecure
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=ank-server
+    RETURN    ${server_process}
+
 Ankaios server is started with config "${config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-config
     ...    ${config_path}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=ank-server
+    RETURN    ${server_process}
+
+Ankaios server is started with config "${config_path}" and server config file "${server_config_path}"
+    ${server_process}=    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    --startup-config
+    ...    ${config_path}
+    ...    --server-config
+    ...    ${server_config_path}
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=ank-server
@@ -198,11 +235,12 @@ the Ankaios server shall exit with an error code
     Process Should Be Stopped    ${SERVER_PROCESS_HANDLE}
     Should Not Be Equal As Integers   ${process_result.rc}    0
 
-Ankaios server is started without config
+Ankaios server is started without config successfully
     Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
+    Ankaios server is available
 
 Ankaios agent is started with name "${name}" and PEM files: "${ca_pem}" "${crt_pem}" "${key_pem}"
     Start Process
@@ -646,9 +684,11 @@ the mount point for the control interface has not been generated for ${agent_nam
 the mount point for the control interface has been generated for ${agent_name}
     Run Keyword And Expect Error    the mount point has been generated    the mount point for the control interface has not been generated for ${agent_name}
 
-the mount point for the config files of workload "${workload_name}" on agent "${agent_name}" has not been generated
+the mount point for the workload files of workload "${workload_name}" on agent "${agent_name}" has not been generated
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json
-    Run Keyword And Expect Error    the config file for ${workload_name} does not exist    Check Config Files Exists    ${command_result.stdout}    ${workload_name}    ${agent_name}
+    Run Keyword And Expect Error    the workload file for ${workload_name} does not exist    Check Workload Files Exists    ${command_result.stdout}    ${workload_name}    ${agent_name}
+Ankaios server is available
+    the command "%{ANK_BIN_DIR}${/}ank get workloads" finished with exit code "0" within "2" seconds
 
 # ALIASES
 

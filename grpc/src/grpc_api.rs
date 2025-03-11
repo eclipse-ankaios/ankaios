@@ -301,8 +301,8 @@ mod tests {
     use api::ank_base::{self, Dependencies};
     use common::{
         objects::{
-            generate_test_rendered_config_files, generate_test_workload_spec, ConfigHash, CpuUsage,
-            FreeMemory,
+            generate_test_rendered_workload_files, generate_test_workload_spec, ConfigHash,
+            CpuUsage, FreeMemory,
         },
         test_utils::{self, generate_test_deleted_workload},
     };
@@ -586,7 +586,7 @@ mod tests {
     #[test]
     fn utest_converts_to_proto_added_workload() {
         let mut workload_spec = generate_test_workload_spec();
-        workload_spec.files = generate_test_rendered_config_files();
+        workload_spec.files = generate_test_rendered_workload_files();
 
         let proto_workload = AddedWorkload {
             instance_name: Some(ank_base::WorkloadInstanceName {
@@ -651,7 +651,7 @@ mod tests {
             tags: vec![],
             runtime_config: String::from("some config"),
             control_interface_access: Default::default(),
-            files: generate_test_rendered_config_files(),
+            files: generate_test_rendered_workload_files(),
         };
 
         let proto_workload = AddedWorkload {

@@ -28,6 +28,9 @@ use crate::control_interface::ControlInterface;
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
+#[cfg_attr(test, mockall_double::double)]
+use crate::io_utils::filesystem_async;
+
 use crate::{
     runtime_connectors::{OwnableRuntime, ReusableWorkloadState, RuntimeError, StateChecker},
     workload_operation::ReusableWorkloadSpec,
@@ -147,7 +150,7 @@ impl<
         workload
     }
 
-    // [impl->swdd~agent-delete-old-workload~2]
+    // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload(
         &self,
         instance_name: WorkloadInstanceName,
@@ -235,7 +238,7 @@ impl<
                 .create()
                 .await
                 .unwrap_or_else(|err| {
-                    log::warn!("Failed to send workload command retry: '{}'", err);
+                    log::warn!("Failed to send workload command create: '{}'", err);
                 });
 
             let control_loop_state = ControlLoopState::builder()
@@ -277,13 +280,17 @@ impl<
         );
 
         // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
-        let control_interface = control_interface_info.and_then(|info| { if workload_spec.needs_control_interface() {
+        let control_interface = if let Some(info) = control_interface_info {
             let control_interface_path = info.get_control_interface_path().clone();
             let output_pipe_sender = info.get_to_server_sender();
             let instance_name = info.get_instance_name().clone();
             let authorizer = info.move_authorizer();
-            match ControlInterface::new(&control_interface_path, &instance_name, output_pipe_sender, authorizer)
-            {
+            match ControlInterface::new(
+                &control_interface_path,
+                &instance_name,
+                output_pipe_sender,
+                authorizer,
+            ) {
                 Ok(control_interface) => Some(control_interface),
                 Err(err) => {
                     log::warn!(
@@ -295,17 +302,15 @@ impl<
                 }
             }
         } else {
-            log::info!(
-                    "No control interface access rights specified for workload '{}'. Skipping creation of control interface.",
-                    workload_spec.instance_name.clone().workload_name()
-                );
+            log::info!("No control interface access rights specified for resumed workload '{}'. Skipping creation of control interface.",
+                workload_spec.instance_name.clone().workload_name());
             None
-        }});
+        };
 
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
         workload_command_sender.resume().unwrap_or_else(|err| {
-            log::warn!("Failed to send workload command retry: '{}'", err);
+            log::warn!("Failed to send workload command resume: '{}'", err);
         });
 
         let run_folder = self.run_folder.clone();
@@ -329,7 +334,7 @@ impl<
         )
     }
 
-    // [impl->swdd~agent-delete-old-workload~2]
+    // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload_non_blocking(
         &self,
         instance_name: WorkloadInstanceName,
@@ -369,15 +374,17 @@ impl<
                 log::debug!("Workload '{}' already gone.", instance_name);
             }
 
+            log::debug!(
+                "Deleting the workload subfolder of workload '{}'",
+                instance_name
+            );
+
             let workload_dir = instance_name.pipes_folder_name(&run_folder);
-
-            log::debug!("Deleting the workload subfolder '{}'", instance_name);
-
-            tokio::fs::remove_dir_all(workload_dir)
+            filesystem_async::remove_dir_all(&workload_dir)
                 .await
                 .unwrap_or_else(|err| {
                     log::error!(
-                        "Delete of workload subfolder failed after deletion of workload '{}': '{}'",
+                        "Failed to delete workload subfolder after deletion of workload '{}': '{}'",
                         instance_name,
                         err
                     );
@@ -410,6 +417,7 @@ mod tests {
             authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
             ControlInterfacePath, MockControlInterface,
         },
+        io_utils::mock_filesystem_async,
         runtime_connectors::{
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             GenericRuntimeFacade, OwnableRuntime, ReusableWorkloadState, RuntimeFacade,
@@ -641,8 +649,6 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let control_interface_info_mock = MockControlInterfaceInfo::default();
-
         let control_interface_new_context = MockControlInterface::new_context();
         control_interface_new_context.expect().never();
 
@@ -679,7 +685,7 @@ mod tests {
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
             workload_spec.clone(),
-            Some(control_interface_info_mock),
+            None,
             &wl_state_sender,
         );
 
@@ -688,7 +694,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-delete-old-workload~2]
+    // [utest->swdd~agent-delete-old-workload~3]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload() {
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -717,6 +723,9 @@ mod tests {
             RUN_FOLDER.into(),
         ));
 
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
+        mock_remove_dir.expect().once().returning(|_| Ok(()));
+
         test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);
 
         tokio::task::yield_now().await;
@@ -736,7 +745,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-delete-old-workload~2]
+    // [utest->swdd~agent-delete-old-workload~3]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload_failed() {
         let mut runtime_mock = MockRuntimeConnector::new();

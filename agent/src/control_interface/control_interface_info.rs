@@ -113,7 +113,7 @@ mod tests {
 
         assert_eq!(
             Path::new(PIPES_LOCATION).to_path_buf(),
-            *new_context_info.get_control_interface_path().as_path_buf()
+            *new_context_info.get_control_interface_path().as_path()
         );
         assert_eq!(
             workload_instance_name,
@@ -134,8 +134,8 @@ mod tests {
         );
 
         assert_eq!(
-            &path.to_path_buf(),
-            new_context_info.get_control_interface_path().as_path_buf()
+            path.to_path_buf(),
+            new_context_info.get_control_interface_path().to_path_buf()
         );
     }
 
@@ -177,7 +177,7 @@ mod tests {
         other_context
             .expect_get_api_location()
             .once()
-            .return_const(pipes_folder);
+            .return_const(ControlInterfacePath::new(pipes_folder));
         other_context
             .expect_get_authorizer()
             .once()
@@ -204,7 +204,7 @@ mod tests {
         other_context
             .expect_get_api_location()
             .once()
-            .return_const(PathBuf::from("other_path"));
+            .return_const(ControlInterfacePath::new(PathBuf::from("other_path")));
 
         assert!(!context_info.has_same_configuration(&other_context));
     }
@@ -232,7 +232,7 @@ mod tests {
         other_context
             .expect_get_api_location()
             .once()
-            .return_const(pipes_folder);
+            .return_const(ControlInterfacePath::new(pipes_folder));
         other_context
             .expect_get_authorizer()
             .once()

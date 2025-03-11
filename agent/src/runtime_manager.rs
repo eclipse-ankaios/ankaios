@@ -257,6 +257,7 @@ impl RuntimeManager {
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
+                                // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
                                 let control_interface_info =
                                     if new_workload_spec.needs_control_interface() {
                                         Some(ControlInterfaceInfo::new(
@@ -1128,7 +1129,7 @@ mod tests {
 
     // [utest->swdd~agent-existing-workloads-replace-updated~4]
     #[tokio::test]
-    async fn utest_replace_existing_not_running_workload() {
+    async fn utest_replace_existing_not_running_workload_after_agent_restart() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1146,7 +1147,7 @@ mod tests {
             .once()
             .return_once(|_| MockWorkloadScheduler::default());
 
-        let resuable_workload_state_succeeded = ReusableWorkloadState::new(
+        let reusable_workload_state_succeeded = ReusableWorkloadState::new(
             existing_workload.instance_name.clone(),
             ExecutionState::failed("some error"),
             None,
@@ -1156,7 +1157,7 @@ mod tests {
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![resuable_workload_state_succeeded]) }));
+            .return_once(|_| Box::pin(async { Ok(vec![reusable_workload_state_succeeded]) }));
         runtime_facade_mock
             .expect_resume_workload()
             .once()
@@ -1188,7 +1189,7 @@ mod tests {
 
     // [utest->swdd~agent-existing-workloads-replace-updated~4]
     #[tokio::test]
-    async fn utest_replace_existing_not_running_workload_when_workload_is_known() {
+    async fn utest_replace_existing_not_running_workload_after_server_restart() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;

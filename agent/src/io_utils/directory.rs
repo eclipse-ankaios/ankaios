@@ -42,7 +42,7 @@ impl Directory {
 impl Drop for Directory {
     fn drop(&mut self) {
         log::debug!("Deleting directory '{:?}'", self.path);
-        if let Err(err) = filesystem::remove_dir(&self.path) {
+        if let Err(err) = filesystem::remove_dir_all(&self.path) {
             log::warn!("Could not delete {:?}: {err}", self.path);
         }
     }
@@ -118,7 +118,7 @@ mod tests {
             .with(predicate::eq(Path::new("test_path").to_path_buf()))
             .return_once(|_| Ok(()));
 
-        let rm_dir_context = mock_filesystem::remove_dir_context();
+        let rm_dir_context = mock_filesystem::remove_dir_all_context();
         rm_dir_context
             .expect()
             .with(predicate::eq(Path::new("test_path").to_path_buf()))
@@ -150,7 +150,7 @@ mod tests {
                 ))
             });
 
-        let rm_dir_context = mock_filesystem::remove_dir_context();
+        let rm_dir_context = mock_filesystem::remove_dir_all_context();
         rm_dir_context.expect().never();
 
         let directory = Directory::new(Path::new("test_path").to_path_buf());
@@ -177,7 +177,7 @@ mod tests {
             .with(predicate::eq(Path::new("test_path").to_path_buf()))
             .return_once(|_| Ok(()));
 
-        let rm_dir_context = mock_filesystem::remove_dir_context();
+        let rm_dir_context = mock_filesystem::remove_dir_all_context();
         rm_dir_context
             .expect()
             .with(predicate::eq(Path::new("test_path").to_path_buf()))

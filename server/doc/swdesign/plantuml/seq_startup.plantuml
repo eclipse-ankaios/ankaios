@@ -16,6 +16,8 @@ end box
 agent <- ++: start
 
 -> main ++
+main -> main ++--: load server config file
+note right: The precedence of means of configuring the Ankaios Server\n is the following: Ankaios Server CLI arguments,\n environment variables and after that the server configuration file.
 main -> main ++--: load startup config
 note right: Empty state is loaded,\nif the startup config is empty.
 main -> main ++--: create communication channels

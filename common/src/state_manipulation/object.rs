@@ -46,6 +46,16 @@ impl TryFrom<&serde_yaml::Value> for Object {
     }
 }
 
+impl TryFrom<&toml::Value> for Object {
+    type Error = toml::de::Error;
+
+    fn try_from(value: &toml::Value) -> Result<Self, Self::Error> {
+        Ok(Object {
+            data: to_value(value).map_err(serde::de::Error::custom)?,
+        })
+    }
+}
+
 impl TryFrom<&ankaios::State> for Object {
     type Error = serde_yaml::Error;
 
@@ -289,8 +299,8 @@ impl Object {
 mod tests {
     use crate::{
         objects::{
-            generate_test_agent_map_from_specs, generate_test_rendered_config_files,
-            generate_test_workload_spec_with_rendered_config_files,
+            generate_test_agent_map_from_specs, generate_test_rendered_workload_files,
+            generate_test_workload_spec_with_rendered_files,
             generate_test_workload_states_map_with_data, CompleteState, ExecutionState, State,
         },
         test_utils::generate_test_state_from_workloads,
@@ -301,11 +311,11 @@ mod tests {
     #[test]
     fn utest_object_from_state() {
         let state: State = generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_rendered_config_files(
+            generate_test_workload_spec_with_rendered_files(
                 "agent".to_string(),
                 "name".to_string(),
                 "runtime".to_string(),
-                generate_test_rendered_config_files(),
+                generate_test_rendered_workload_files(),
             ),
         ]);
 
@@ -324,11 +334,11 @@ mod tests {
 
         let actual: State = object.try_into().unwrap();
         let expected = generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_rendered_config_files(
+            generate_test_workload_spec_with_rendered_files(
                 "agent".to_string(),
                 "name".to_string(),
                 "runtime".to_string(),
-                generate_test_rendered_config_files(),
+                generate_test_rendered_workload_files(),
             ),
         ]);
 
@@ -337,11 +347,11 @@ mod tests {
 
     #[test]
     fn utest_object_from_complete_state() {
-        let wl_spec = generate_test_workload_spec_with_rendered_config_files(
+        let wl_spec = generate_test_workload_spec_with_rendered_files(
             "agent".to_string(),
             "name".to_string(),
             "runtime".to_string(),
-            generate_test_rendered_config_files(),
+            generate_test_rendered_workload_files(),
         );
         let specs = vec![wl_spec];
         let agent_map = generate_test_agent_map_from_specs(&specs);
@@ -371,11 +381,11 @@ mod tests {
         let object = Object {
             data: object::generate_test_complete_state().into(),
         };
-        let wl_spec = generate_test_workload_spec_with_rendered_config_files(
+        let wl_spec = generate_test_workload_spec_with_rendered_files(
             "agent".to_string(),
             "name".to_string(),
             "runtime".to_string(),
-            generate_test_rendered_config_files(),
+            generate_test_rendered_workload_files(),
         );
         let specs = vec![wl_spec];
         let agent_map = generate_test_agent_map_from_specs(&specs);
