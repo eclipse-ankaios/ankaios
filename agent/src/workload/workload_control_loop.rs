@@ -107,12 +107,11 @@ impl WorkloadControlLoop {
                             log::debug!("Update workload complete");
                         }
                         // [impl->swdd~agent-workload-control-loop-executes-retry~1]
-                        Some(WorkloadCommand::Retry(instance_name, retry_token)) => {
+                        Some(WorkloadCommand::Retry(_instance_name, retry_token)) => {
                             log::debug!("Received WorkloadCommand::Retry.");
 
                             control_loop_state = Self::retry_create_workload_on_runtime(
                                 control_loop_state,
-                                *instance_name,
                                 retry_token
                             )
                             .await;
@@ -586,7 +585,6 @@ impl WorkloadControlLoop {
 
     async fn retry_create_workload_on_runtime<WorkloadId, StChecker>(
         control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        instance_name: WorkloadInstanceName,
         retry_token: RetryToken,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
@@ -704,10 +702,9 @@ mod tests {
     use mockall::predicate;
 
     use common::objects::{
-        generate_test_rendered_workload_files,
-        generate_test_workload_spec_with_control_interface_access,
-        generate_test_workload_spec_with_param, generate_test_workload_spec_with_rendered_files,
-        ExecutionState, ExecutionStateEnum, WorkloadInstanceName,
+        generate_test_rendered_workload_files, generate_test_workload_spec_with_param,
+        generate_test_workload_spec_with_rendered_files, ExecutionState, ExecutionStateEnum,
+        WorkloadInstanceName,
     };
     use common::objects::{generate_test_workload_state_with_workload_spec, RestartPolicy};
 

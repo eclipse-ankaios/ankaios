@@ -149,8 +149,6 @@ impl ConfigRenderer {
 
         let rendered_files = self.render_files_field(&workload.files, wl_config_map)?;
 
-        let rendered_files = self.render_files_field(&workload.files, wl_config_map)?;
-
         Ok(WorkloadSpec {
             instance_name: WorkloadInstanceName::builder()
                 .workload_name(workload_name)

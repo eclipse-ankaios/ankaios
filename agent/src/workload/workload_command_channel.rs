@@ -15,7 +15,6 @@ use crate::{control_interface::ControlInterfacePath, workload::WorkloadCommand};
 use common::objects::{WorkloadInstanceName, WorkloadSpec};
 #[cfg(test)]
 use mockall_double::double;
-use std::path::PathBuf;
 use tokio::sync::mpsc;
 
 #[cfg_attr(test, double)]
@@ -142,8 +141,7 @@ mod tests {
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
-        let (WorkloadCommand::Retry(received_instance_name, received_retry_token)) =
-            workload_command
+        let WorkloadCommand::Retry(received_instance_name, received_retry_token) = workload_command
         else {
             panic!("Expected WorkloadCommand::Retry");
         };
