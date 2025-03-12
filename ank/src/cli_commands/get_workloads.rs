@@ -66,10 +66,10 @@ impl CliCommands {
 
 
         if !watch {
-            // // [impl->swdd~cli-shall-present-list-of-workloads~1]
+            // [impl->swdd~cli-shall-present-list-of-workloads~1]
             let table_rows: Vec<WorkloadTableRow> = workloads_table_data.values().cloned().collect();
 
-            // // [impl->swdd~cli-shall-present-workloads-as-table~1]
+            // [impl->swdd~cli-shall-present-workloads-as-table~1]
             let table = CliTable::new(&table_rows)
                 .table_with_wrapped_column_to_remaining_terminal_width(WorkloadTableRow::ADDITIONAL_INFO_POS)
                 .unwrap_or_else(|_| {
