@@ -230,38 +230,14 @@ impl WorkloadControlLoop {
         control_loop_state.workload_id = None;
         control_loop_state.state_checker = None;
 
-        // [impl->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
-        control_loop_state
-            .retry_sender
-            .retry(instance_name, retry_token)
-            .await
-            .unwrap_or_else(|err| log::info!("Could not send WorkloadCommand::Retry: '{}'", err));
-        control_loop_state
-    }
-
-    async fn send_retry_when_limit_not_exceeded<WorkloadId, StChecker>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        instance_name: WorkloadInstanceName,
-        retry_token: RetryToken,
-        error_msg: String,
-    ) -> ControlLoopState<WorkloadId, StChecker>
-    where
-        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-    {
-        control_loop_state.workload_id = None;
-        control_loop_state.state_checker = None;
-
-        log::info!(
-            "Retry {}: Failed to create workload: '{}': '{}'",
-            retry_token.counter(),
-            instance_name,
-            error_msg
-        );
+        Self::send_workload_state_to_agent(
+            &control_loop_state.to_agent_workload_state_sender,
+            &instance_name,
+            ExecutionState::retry_starting(retry_token.counter() + 1, error_msg),
+        )
+        .await;
 
         // [impl->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
-        log::debug!("Send WorkloadCommand::Retry.");
-
         control_loop_state
             .retry_sender
             .retry(instance_name, retry_token)
@@ -352,13 +328,6 @@ impl WorkloadControlLoop {
                         control_loop_state
                     }
                     _ => {
-                        Self::send_workload_state_to_agent(
-                            &control_loop_state.to_agent_workload_state_sender,
-                            &new_instance_name,
-                            ExecutionState::retry_starting(err.to_string()),
-                        )
-                        .await;
-
                         func_on_recoverable_error(
                             control_loop_state,
                             new_instance_name,
@@ -595,7 +564,7 @@ impl WorkloadControlLoop {
             Self::create_workload_on_runtime(
                 control_loop_state,
                 retry_token,
-                Self::send_retry_when_limit_not_exceeded,
+                Self::send_retry_for_workload,
             )
             .await
         } else {
