@@ -14,10 +14,9 @@
 
 use std::{error::Error, ffi::OsStr};
 
-use clap::{command, CommandFactory, Parser, Subcommand, ValueHint};
+use clap::{command, ArgAction, CommandFactory, Parser, Subcommand, ValueHint};
 
 use clap_complete::{ArgValueCompleter, CompleteEnv, CompletionCandidate};
-use common::DEFAULT_SERVER_ADDRESS;
 
 use crate::filtered_complete_state::FilteredCompleteState;
 
@@ -150,27 +149,26 @@ fn object_field_mask_completer(current: &OsStr) -> Vec<CompletionCandidate> {
 pub struct AnkCli {
     #[command(subcommand)]
     pub command: Commands,
-    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.to_string(), env = ANK_SERVER_URL_ENV_KEY)]
+    #[clap(required = false, short = 'x', long = "ank-config")]
+    /// The path to the server config file.
+    /// The default path is
+    pub config_path: Option<String>,
+    #[clap(short = 's', long = "server-url", required=false, env = ANK_SERVER_URL_ENV_KEY)]
     /// The url to Ankaios server.
-    pub server_url: String,
-    #[clap(long = "response-timeout", default_value_t = 3000)]
+    pub server_url: Option<String>,
+    #[clap(long = "response-timeout", required = false)]
     /// The timeout in milliseconds to wait for a response.
-    pub response_timeout_ms: u64,
-    #[clap(short = 'v', long = "verbose")]
+    pub response_timeout_ms: Option<u64>,
+    #[clap(short = 'v', long = "verbose", action=ArgAction::SetTrue, default_value_t = false)]
     /// Enable debug traces
     pub verbose: bool,
-    #[clap(short = 'q', long = "quiet")]
+    #[clap(short = 'q', long = "quiet", action=ArgAction::SetTrue, default_value_t = false)]
     /// Disable all output
     pub quiet: bool,
-    #[clap(long = "no-wait")]
+    #[clap(long = "no-wait", action=ArgAction::SetTrue, default_value_t = false)]
     /// Do not wait for workloads to be created/deleted
     pub no_wait: bool,
-    #[clap(
-        short = 'k',
-        long = "insecure",
-        env = "ANK_INSECURE",
-        default_value_t = false
-    )]
+    #[clap(short = 'k', long = "insecure", action=ArgAction::SetTrue, default_value_t = false, env="ANKSERVER_INSECURE")]
     /// Flag to disable TLS communication between ank CLI and Ankaios server.
     pub insecure: bool,
     #[clap(long = "ca_pem", env = "ANK_CA_PEM")]

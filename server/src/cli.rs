@@ -31,7 +31,8 @@ pub struct Arguments {
     /// The path to the startup manifest yaml.
     pub manifest_path: Option<String>,
     #[clap(required = false, short = 'x', long = "server-config")]
-    /// The path to the server config file
+    /// The path to the server config file.
+    /// The default path is /etc/ankaios/ank-server.conf
     pub config_path: Option<String>,
     #[clap(required = false, short = 'a', long = "address")]
     /// The address, including the port, the server shall listen at [default: 127.0.0.1:25551].

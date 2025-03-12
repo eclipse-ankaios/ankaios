@@ -11,6 +11,7 @@ DEFAULT_AGENT_OPT="--insecure --name agent_A"
 AGENT_OPT="$DEFAULT_AGENT_OPT"
 CONFIG_DEST="/etc/ankaios"
 FILE_STARTUP_STATE="${CONFIG_DEST}/state.yaml"
+# TODO: move this to the default config file
 DEFAULT_SERVER_OPT="--insecure --startup-config ${FILE_STARTUP_STATE}"
 SERVER_OPT="$DEFAULT_SERVER_OPT"
 INSTALL_TYPE="both"
