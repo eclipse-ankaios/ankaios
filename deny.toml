@@ -11,8 +11,7 @@ allow = [
 ]
 private = { ignore = true }
 exceptions = [
-    { name = "unicode-ident", allow = ["Unicode-DFS-2016"] },
-    { allow = ["OpenSSL"], crate = "ring" },
+    { name = "unicode-ident", allow = ["Unicode-3.0"] },
 ]
 
 [[licenses.clarify]]
