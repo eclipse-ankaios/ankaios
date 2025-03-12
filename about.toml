@@ -22,6 +22,6 @@ targets = [
 ignore-dev-dependencies = true
 
 [unicode-ident]
-accepted = ["Unicode-DFS-2016"]
+accepted = ["Unicode-3.0"]
 
 
