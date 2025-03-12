@@ -319,12 +319,10 @@ impl ExecutionState {
         }
     }
 
-    pub fn retry_starting(
-        additional_info: impl ToString,
-    ) -> Self {
+    pub fn retry_starting(retry_count: u32, additional_info: impl ToString) -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::Starting),
-            additional_info: format!("Retry: {}", additional_info.to_string()),
+            additional_info: format!("Retry {}: {}", retry_count, additional_info.to_string()),
         }
     }
 
