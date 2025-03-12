@@ -28,8 +28,8 @@ pub type WorkloadCollection = Vec<WorkloadSpec>;
 pub type DeletedWorkloadCollection = Vec<DeletedWorkload>;
 
 const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
-pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]+*$";
-pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
+pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]+$";
+pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]+$";
 
 // [impl->swdd~common-object-serialization~1]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -66,7 +66,7 @@ impl WorkloadSpec {
     }
 
     // [impl->swdd~common-workload-naming-convention~1]
-    // [impl->swdd~common-agent-naming-convention~1]
+    // [impl->swdd~common-agent-naming-convention~2]
     // [impl->swdd~common-access-rules-filter-mask-convention~1]
     pub fn verify_fields_format(workload_spec: &WorkloadSpec) -> Result<(), String> {
         Self::verify_workload_name_format(workload_spec.instance_name.workload_name())?;
@@ -96,7 +96,7 @@ impl WorkloadSpec {
         }
     }
 
-    // [impl->swdd~common-agent-naming-convention~1]
+    // [impl->swdd~common-agent-naming-convention~2]
     fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
         let re_agent = Regex::new(STR_RE_AGENT).unwrap();
         if !re_agent.is_match(agent_name) {
@@ -585,7 +585,7 @@ mod tests {
     }
 
     // [utest->swdd~common-workload-naming-convention~1]
-    // [utest->swdd~common-agent-naming-convention~1]
+    // [utest->swdd~common-agent-naming-convention~2]
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_workload_verify_fields_format_success() {
@@ -615,11 +615,26 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-agent-naming-convention~1]
+    // [utest->swdd~common-agent-naming-convention~2]
     #[test]
     fn utest_workload_verify_fields_incompatible_agent_name() {
         let spec_with_wrong_agent_name = generate_test_workload_spec_with_param(
             "incompatible.agent_name".to_owned(),
+            "workload_1".to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        assert_eq!(
+            WorkloadSpec::verify_fields_format(&spec_with_wrong_agent_name),
+            Err(format!(
+                "Unsupported agent name. Received '{}', expected to have characters in {}",
+                spec_with_wrong_agent_name.instance_name.agent_name(),
+                super::STR_RE_AGENT
+            ))
+        );
+
+        let spec_with_wrong_agent_name = generate_test_workload_spec_with_param(
+            "".to_owned(),
             "workload_1".to_owned(),
             RUNTIME.to_owned(),
         );

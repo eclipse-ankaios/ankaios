@@ -121,7 +121,7 @@ Test Ankaios Podman Update workload with lengthy workload name
 
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~common-agent-naming-convention~1]
+# [stest->swdd~common-agent-naming-convention~2]
 # [stest->swdd~server-desired-state-field-conventions~1]
 # [stest->swdd~agent-naming-convention~1]
 Test Ankaios Podman Update workload with invalid agent name
