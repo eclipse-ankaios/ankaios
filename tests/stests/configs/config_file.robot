@@ -35,6 +35,11 @@ Test agent config file successful start-up
     Ankaios server is started without config successfully
     And Ankaios server is available
     And Ankaios agent is started with config file "${CONFIGS_DIR}/ank-agent-default.conf"
+    # Actions
+    When user triggers "ank -k get agents"
+    ${result_config}=  Run Keyword And Return Status    the last command shall list the connected agent "agent_1"
+    # Asserts
+    Pass Execution If    ${result_config} == False    The agent name "Invalid@gent.name" is not allowed
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~server-loads-config-file~1]
