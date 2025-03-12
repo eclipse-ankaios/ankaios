@@ -219,7 +219,7 @@ mod tests {
             default_agent_config.server_url,
             DEFAULT_SERVER_ADDRESS.to_string()
         );
-        assert_eq!(default_agent_config.insecure, false);
+        assert!(!default_agent_config.insecure);
         assert_eq!(default_agent_config.version, CONFIG_VERSION);
     }
 
@@ -286,7 +286,7 @@ mod tests {
         assert_eq!(agent_config.name, AGENT_NAME.to_string());
         assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
         assert_eq!(agent_config.run_folder, DEFAULT_RUN_FOLDER.to_string());
-        assert_eq!(agent_config.insecure, false);
+        assert!(!agent_config.insecure);
         assert_eq!(agent_config.ca_pem, Some(CA_PEM_PATH.to_string()));
         assert_eq!(agent_config.crt_pem, Some(CRT_PEM_PATH.to_string()));
         assert_eq!(agent_config.key_pem, Some(KEY_PEM_PATH.to_string()));
@@ -366,7 +366,7 @@ mod tests {
         assert_eq!(agent_config.name, AGENT_NAME.to_string());
         assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
         assert_eq!(agent_config.run_folder, DEFAULT_RUN_FOLDER.to_string());
-        assert_eq!(agent_config.insecure, true);
+        assert!(agent_config.insecure);
         assert_eq!(
             agent_config.ca_pem_content,
             Some(CA_PEM_CONTENT.to_string())

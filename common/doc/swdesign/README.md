@@ -372,7 +372,7 @@ Needs:
 - stest
 
 #### Agent naming convention
-`swdd~common-agent-naming-convention~1`
+`swdd~common-agent-naming-convention~2`
 
 Status: approved
 
