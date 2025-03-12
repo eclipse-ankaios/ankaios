@@ -2,6 +2,6 @@ desiredState:
   apiVersion: "v0.1"
   workloads:
     simple:
-      agent: ""
+      agent: "_"
       runtime: ""
       runtimeConfig: ""
