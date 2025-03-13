@@ -33,25 +33,9 @@ impl CliCommands {
         output_debug!("The table before filtering:\n{:?}", workload_infos);
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if let Some(agent_name) = &agent_name {
-            workload_infos
-                .get_mut()
-                .retain(|wi| wi.1.agent == *agent_name);
-        }
-
-        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if let Some(state) = &state {
-            workload_infos
-                .get_mut()
-                .retain(|wi| wi.1.execution_state.to_lowercase() == state.to_lowercase());
-        }
-
-        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if !workload_name.is_empty() {
-            workload_infos
-                .get_mut()
-                .retain(|wi| workload_name.iter().any(|wn| wn == &wi.1.name));
-        }
+        workload_infos.get_mut().retain(|wi| {
+            check_workload_filters(&wi.1, &agent_name, &state, &workload_name)
+        });
 
         // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
         // [impl->swdd~cli-shall-sort-list-of-workloads~1]
@@ -98,23 +82,16 @@ impl CliCommands {
                                 .map(|(i_name, row)| (i_name.to_string(), row))
                                 .collect();
 
-                            //Filtering BTree
-                            if let Some(agent_name) = &agent_name {
-                                updated_workloads_btree.retain(|_k, row| row.agent == *agent_name);
-                            }
+                            // Filtering BTree
+                            updated_workloads_btree.retain(|_k, row| {
+                                check_workload_filters(row, &agent_name, &state, &workload_name)
+                            });
 
-                            if let Some(state) = &state {
-                                updated_workloads_btree.retain(|_k, row| row.execution_state.eq_ignore_ascii_case(state));
-                            }
-
-                            if !workload_name.is_empty() {
-                                updated_workloads_btree.retain(|_k, row| workload_name.iter().any(|wn| wn == &row.name));
-                            }
                             workloads_table_data = updated_workloads_btree;
                         } else {
                             // Update existing entry
 
-                            //if state is removed, delete it from the table instead of keeping it with "removed state"
+                            // If state is removed, delete it from the table instead of keeping it with "removed state"
                             if new_state == "Removed" {
                                 workloads_table_data.remove(&instance_name);
                             } else if let Some(row) = workloads_table_data.get_mut(&instance_name) {
@@ -140,6 +117,33 @@ fn update_table(table_data: &BTreeMap<String, WorkloadTableRow>) {
         .table_with_wrapped_column_to_remaining_terminal_width(WorkloadTableRow::ADDITIONAL_INFO_POS)
         .unwrap_or_else(|_| CliTable::new(&rows).create_default_table());
     output_update!("{}", table);
+}
+
+fn check_workload_filters(
+    row: &WorkloadTableRow,
+    agent_name: &Option<String>,
+    state: &Option<String>,
+    workload_names: &[String],
+) -> bool {
+
+    if let Some(agent) = agent_name {
+        if row.agent != *agent {
+            return false;
+        }
+    }
+
+    if let Some(state) = state {
+        if row.execution_state.to_lowercase() != state.to_lowercase() {
+            return false;
+        }
+    }
+
+    if !workload_names.is_empty() && !workload_names.iter().any(|wn| wn == &row.name){
+            return false;
+
+    }
+
+    true
 }
 
 //////////////////////////////////////////////////////////////////////////////
