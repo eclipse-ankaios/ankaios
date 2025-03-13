@@ -319,19 +319,10 @@ impl ExecutionState {
         }
     }
 
-    pub fn retry_starting(
-        current_retry: usize,
-        max_retries: usize,
-        additional_info: impl ToString,
-    ) -> Self {
+    pub fn retry_starting(retry_count: u32, additional_info: impl ToString) -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::Starting),
-            additional_info: format!(
-                "Retry {} of {}: {}",
-                current_retry,
-                max_retries,
-                additional_info.to_string()
-            ),
+            additional_info: format!("Retry {}: {}", retry_count, additional_info.to_string()),
         }
     }
 
@@ -921,10 +912,6 @@ mod tests {
         assert_eq!(
             ExecutionState::agent_disconnected().to_string(),
             String::from("AgentDisconnected")
-        );
-        assert_eq!(
-            ExecutionState::retry_starting(1, 2, additional_info).to_string(),
-            format!("Pending(Starting): 'Retry 1 of 2: {additional_info}'")
         );
         assert_eq!(
             ExecutionState::retry_failed_no_retry(additional_info).to_string(),

@@ -13,8 +13,12 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{control_interface::ControlInterfacePath, workload::WorkloadCommand};
 use common::objects::{WorkloadInstanceName, WorkloadSpec};
+#[cfg(test)]
+use mockall_double::double;
 use tokio::sync::mpsc;
 
+#[cfg_attr(test, double)]
+use super::retry_manager::RetryToken;
 static COMMAND_BUFFER_SIZE: usize = 5;
 
 pub type WorkloadCommandReceiver = mpsc::Receiver<WorkloadCommand>;
@@ -42,10 +46,22 @@ impl WorkloadCommandSender {
     pub async fn retry(
         &self,
         instance_name: WorkloadInstanceName,
+        retry_token: RetryToken,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
-        self.sender
-            .send(WorkloadCommand::Retry(Box::new(instance_name)))
-            .await
+        let sender = self.sender.clone();
+
+        // [impl->swdd~agent-workload-control-loop-exponential-backoff-retries~1]
+        tokio::spawn(retry_token.call_with_backoff(|retry_token| async move {
+            if sender
+                .send(WorkloadCommand::Retry(Box::new(instance_name), retry_token))
+                .await
+                .is_err()
+            {
+                log::debug!("Could not send retry command");
+            };
+        }));
+
+        Ok(())
     }
 
     pub async fn update(
@@ -80,6 +96,8 @@ impl WorkloadCommandSender {
 
 #[cfg(test)]
 mod tests {
+    use crate::workload::retry_manager::MockRetryToken;
+
     use super::{ControlInterfacePath, WorkloadCommand, WorkloadCommandSender, WorkloadSpec};
     use common::objects::generate_test_workload_spec;
     use std::path::PathBuf;
@@ -106,20 +124,29 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
+    // [utest->swdd~agent-workload-control-loop-exponential-backoff-retries~1]
     #[tokio::test]
     async fn utest_send_retry() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
+        let retry_token = MockRetryToken {
+            valid: true,
+            has_been_called: false,
+        };
 
         workload_command_sender
-            .retry(WORKLOAD_SPEC.instance_name.clone())
+            .retry(WORKLOAD_SPEC.instance_name.clone(), retry_token)
             .await
             .unwrap();
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
-        assert!(
-            matches!(workload_command, WorkloadCommand::Retry(received_instance_name) if *received_instance_name == WORKLOAD_SPEC.instance_name)
-        );
+        let WorkloadCommand::Retry(received_instance_name, received_retry_token) = workload_command
+        else {
+            panic!("Expected WorkloadCommand::Retry");
+        };
+
+        assert_eq!(*received_instance_name, WORKLOAD_SPEC.instance_name);
+        assert!(received_retry_token.has_been_called);
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]

@@ -5,6 +5,7 @@ box "Ankaios Agent"
     participant "RuntimeFacade" as runtime_facade
     participant "WorkloadCommandChannel" as workload_command
     participant "WorkloadControlLoop" as workload_control_loop
+    participant "RetryManager" as retry_manager
     participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
 end box
 
@@ -18,21 +19,16 @@ workload_control_loop -> workload_command++: wait for command
 workload_command -->> workload_control_loop --++: receive create
 workload_control_loop -> runtime ++: create
 runtime -->> workload_control_loop--
-opt create workload fails
-    opt retry_counter < limit
-    workload_control_loop -> workload_command ++: send retry command
-    workload_command -->> workload_control_loop--
-    deactivate workload_control_loop
-    workload_control_loop -> workload_command ++: wait for command
-    workload_command -->> workload_control_loop --++: retry command
-        workload_control_loop -> runtime ++: create workload
-        runtime -->> workload_control_loop--
-        opt create workload fails
-            workload_control_loop ->> workload_control_loop ++: spawn retry
-            workload_control_loop -> workload_command ++: send retry command
-            workload_command -->> workload_control_loop--
-        end
-    end
+loop while create workload fails
+    workload_control_loop ->> retry_manager--++
+    ...wait for backoff time...
+    retry_manager ->> workload_command--: send retry command
+
+    workload_control_loop -> workload_command++: wait for command
+    workload_control_loop <<-- workload_command--++: retry command
+
+    workload_control_loop -> runtime ++: create workload
+       runtime -->> workload_control_loop--
 end
 workload_control_loop -> workload_command ++: wait for command
 ...
