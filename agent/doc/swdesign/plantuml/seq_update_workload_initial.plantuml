@@ -4,7 +4,6 @@
 box "Ankaios Agent"
     participant "AgentManager" as manager
     participant "RuntimeManager" as runtime_manager
-    participant "Workload" as workload
     participant "RuntimeFacade" as wl_facade
 end box
 
