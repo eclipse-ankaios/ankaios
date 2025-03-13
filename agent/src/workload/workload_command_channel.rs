@@ -129,7 +129,6 @@ mod tests {
     async fn utest_send_retry() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
         let retry_token = MockRetryToken {
-            mock_id: 23,
             valid: true,
             has_been_called: false,
         };
@@ -147,7 +146,6 @@ mod tests {
         };
 
         assert_eq!(*received_instance_name, WORKLOAD_SPEC.instance_name);
-        assert_eq!(received_retry_token.mock_id, 23);
         assert!(received_retry_token.has_been_called);
     }
 

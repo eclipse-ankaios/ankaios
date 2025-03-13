@@ -123,7 +123,6 @@ impl RetryToken {
 #[cfg(test)]
 #[derive(Debug, PartialEq)]
 pub struct MockRetryToken {
-    pub mock_id: u32,
     pub valid: bool,
     pub has_been_called: bool,
 }
