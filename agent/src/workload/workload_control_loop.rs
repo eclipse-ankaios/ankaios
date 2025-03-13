@@ -791,7 +791,6 @@ mod tests {
             .return_const(());
 
         let mock_retry_token = MockRetryToken {
-            mock_id: 7,
             valid: true,
             has_been_called: false,
         };
@@ -887,7 +886,6 @@ mod tests {
             .return_const(());
 
         let mock_retry_token = MockRetryToken {
-            mock_id: 7,
             valid: true,
             has_been_called: false,
         };
@@ -1009,7 +1007,6 @@ mod tests {
             .return_const(());
 
         let mock_retry_token = MockRetryToken {
-            mock_id: 7,
             valid: true,
             has_been_called: false,
         };
@@ -1123,7 +1120,6 @@ mod tests {
             .return_const(());
 
         let mock_retry_token = MockRetryToken {
-            mock_id: 7,
             valid: true,
             has_been_called: false,
         };
@@ -1448,7 +1444,6 @@ mod tests {
             .once()
             .return_const(());
         let mock_retry_token = MockRetryToken {
-            mock_id: 3,
             valid: true,
             has_been_called: false,
         };
@@ -1924,7 +1919,6 @@ mod tests {
             .once()
             .return_const(());
         let mock_retry_token = MockRetryToken {
-            mock_id: 12,
             valid: true,
             has_been_called: false,
         };
@@ -2127,7 +2121,6 @@ mod tests {
             .unwrap();
 
         let retry_token = MockRetryToken {
-            mock_id: 42,
             valid: true,
             has_been_called: false,
         };
@@ -2193,7 +2186,6 @@ mod tests {
             .unwrap();
 
         let retry_token = MockRetryToken {
-            mock_id: 42,
             valid: true,
             has_been_called: false,
         };
@@ -2271,7 +2263,6 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
-            mock_id: 42,
             valid: true,
             has_been_called: false,
         };
@@ -2340,7 +2331,6 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
-            mock_id: 42,
             valid: true,
             has_been_called: false,
         };
@@ -2383,13 +2373,12 @@ mod tests {
         .await
         .is_ok());
 
-        let Some(WorkloadCommand::Retry(received_instance_name, received_retry_token)) =
+        let Some(WorkloadCommand::Retry(received_instance_name, _received_retry_token)) =
             workload_command_receiver2.recv().await
         else {
             panic!()
         };
         assert_eq!(received_instance_name.as_ref(), &instance_name);
-        assert_eq!(received_retry_token.mock_id, 42);
         assert!(workload_command_receiver2.is_empty());
         assert!(workload_command_receiver2.is_closed());
         runtime_mock.assert_all_expectations().await;
@@ -2447,7 +2436,6 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
-            mock_id: 42,
             valid: true,
             has_been_called: false,
         };
@@ -2495,13 +2483,12 @@ mod tests {
         .await
         .is_ok());
 
-        let Some(WorkloadCommand::Retry(received_instance_name, received_retry_token)) =
+        let Some(WorkloadCommand::Retry(received_instance_name, _received_retry_token)) =
             workload_command_receiver2.recv().await
         else {
             panic!()
         };
         assert_eq!(received_instance_name.as_ref(), &new_instance_name);
-        assert_eq!(received_retry_token.mock_id, 42);
         assert!(workload_command_receiver2.is_empty());
         assert!(workload_command_receiver2.is_closed());
         runtime_mock.assert_all_expectations().await;
@@ -2544,7 +2531,6 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
-            mock_id: 42,
             valid: true,
             has_been_called: false,
         };
@@ -2620,7 +2606,6 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
-            mock_id: 42,
             valid: false,
             has_been_called: false,
         };
@@ -2706,7 +2691,6 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let retry_token = MockRetryToken {
-            mock_id: 42,
             valid: true,
             has_been_called: false,
         };
@@ -2746,13 +2730,12 @@ mod tests {
         .await
         .is_ok());
 
-        let Some(WorkloadCommand::Retry(received_instance_name, received_retry_token)) =
+        let Some(WorkloadCommand::Retry(received_instance_name, _received_retry_token)) =
             workload_command_receiver2.recv().await
         else {
             panic!()
         };
         assert_eq!(received_instance_name.as_ref(), &instance_name);
-        assert_eq!(received_retry_token.mock_id, 42);
         assert!(workload_command_receiver2.is_empty());
         assert!(workload_command_receiver2.is_closed());
         runtime_mock.assert_all_expectations().await;
