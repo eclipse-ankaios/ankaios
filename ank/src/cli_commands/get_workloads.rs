@@ -51,7 +51,7 @@ impl CliCommands {
 
         if !watch {
             // [impl->swdd~cli-shall-present-list-of-workloads~1]
-            let table_rows: Vec<WorkloadTableRow> = workloads_table_data.values().cloned().collect();
+            let table_rows: Vec<&WorkloadTableRow> = workloads_table_data.values().collect();
 
             // [impl->swdd~cli-shall-present-workloads-as-table~1]
             let table = CliTable::new(&table_rows)
@@ -112,7 +112,7 @@ impl CliCommands {
 }
 
 fn update_table(table_data: &BTreeMap<String, WorkloadTableRow>) {
-    let rows: Vec<_> = table_data.values().cloned().collect();
+    let rows: Vec<&WorkloadTableRow> = table_data.values().collect();
     let table = CliTable::new(&rows)
         .table_with_wrapped_column_to_remaining_terminal_width(WorkloadTableRow::ADDITIONAL_INFO_POS)
         .unwrap_or_else(|_| CliTable::new(&rows).create_default_table());
