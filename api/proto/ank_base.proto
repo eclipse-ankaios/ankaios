@@ -26,7 +26,7 @@ message Request {
         UpdateStateRequest updateStateRequest = 2; /// A message to Ankaios server to update the state of one or more agent(s).
         CompleteStateRequest completeStateRequest = 3; /// A message to Ankaios server to request the complete state by the given request id and the optional field mask.
         LogsRequest logsRequest = 4; /// A message to Ankaios server to request workload logs.
-        LogsStopRequest logsCancelRequest = 5; /// A message to Ankaios server to stop the request for workload logs.
+        LogsCancelRequest logsCancelRequest = 5; /// A message to Ankaios server to stop the request for workload logs.
     }
 }
 
@@ -49,16 +49,16 @@ message Response {
 */
 message LogsRequest {
     repeated WorkloadInstanceName workloadNames = 1; /// The names of the workloads for which logs are requested.
-    optional bool follow = 2; /// If true, the server will stream the logs to the client until a LogsStopRequest with the same Id is sent.
+    optional bool follow = 2; /// If true, the server will stream the logs to the client until a LogsCancelRequest with the same Id is sent.
     optional int32 tail = 3; /// The number of lines to show from the end of the logs. Default is -1, which means all logs.
     optional string since = 4; /// Only return logs after a specific TIMESTAMP. The TIMESTAMP is a string in RFC3339 format.
     optional string until = 5; /// Only return logs before a specific TIMESTAMP. The TIMESTAMP is a string in RFC3339 format.
 }
 
 /**
-* A message stopping the streaming of logs requested via a follow request.
+* A message stopping the streaming of logs requested via a request with the follow flag.
 */
-message LogsStopRequest {
+message LogsCancelRequest {
 }
 
 /**
