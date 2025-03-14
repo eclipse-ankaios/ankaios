@@ -65,27 +65,15 @@ message LogsStopRequest {
 * A message containing the requested logs.
 */
 message LogsResponse {
-    repeated LogEntry logs = 1; /// The logs of the requested workloads.
+    repeated LogEntry logEntries = 1; /// The logs of the requested workloads.
 }
 
 /**
 * A message containing a single log entry.
 */
 message LogEntry {
-    WorkloadInstanceName workloadNames = 1; /// The name of the workloads for which logs are requested.
-    oneof Timestamp {
-        string utc = 2; /// The timestamp of the log entry.
-        UnixTime time = 3; /// The timestamp of the log entry.
-    }
+    WorkloadInstanceName workloadName = 1; /// The name of the workloads for which logs are requested.
     string message = 5; /// The log message.
-}
-
-/**
-* A Unix timestamp.
-*/
-message UnixTime {
-    int64 seconds = 1; /// The number of seconds since the Unix epoch.
-    int32 nanos = 2; /// The number of nanoseconds since the Unix time in seconds.
 }
 
 /**
