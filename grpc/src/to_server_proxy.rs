@@ -98,6 +98,8 @@ pub async fn forward_from_proto_to_ankaios(
                         )
                         .await?;
                     }
+                    RequestContent::LogsRequest(_logs_request) => todo!(),
+                    RequestContent::LogsCancelRequest(_logs_stop_request) => todo!(),
                 }
             }
 

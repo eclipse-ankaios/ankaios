@@ -162,6 +162,8 @@ impl Authorizer {
                     false
                 })
             }
+            common::commands::RequestContent::LogsRequest(_logs_request) => todo!(),
+            common::commands::RequestContent::LogsCancelRequest => todo!(),
         }
     }
 }
@@ -186,7 +188,9 @@ impl From<&ControlInterfaceAccess> for Authorizer {
             };
 
             for access_rights in rule_list {
-                let AccessRightsRule::StateRule(state_rule) = access_rights;
+                let AccessRightsRule::StateRule(state_rule) = access_rights else {
+                    todo!()
+                };
                 let rule = Rule::create(
                     state_rule
                         .filter_mask
