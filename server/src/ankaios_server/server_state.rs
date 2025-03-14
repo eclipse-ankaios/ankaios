@@ -334,7 +334,8 @@ impl ServerState {
         workloads: &RenderedWorkloads,
     ) -> Result<(), UpdateStateError> {
         for workload_spec in workloads.values() {
-            WorkloadSpec::verify_fields_format(workload_spec)
+            workload_spec
+                .verify_fields_format()
                 .map_err(UpdateStateError::ResultInvalid)?;
         }
         Ok(())
