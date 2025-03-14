@@ -12,7 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::objects::{CompleteState, CpuUsage, DeletedWorkload, FreeMemory, WorkloadSpec};
+use crate::objects::{
+    CompleteState, CpuUsage, DeletedWorkload, FreeMemory, WorkloadInstanceName, WorkloadSpec,
+};
 use api::ank_base;
 use serde::{Deserialize, Serialize};
 
@@ -76,6 +78,8 @@ impl TryFrom<ank_base::Request> for Request {
 pub enum RequestContent {
     CompleteStateRequest(CompleteStateRequest),
     UpdateStateRequest(Box<UpdateStateRequest>),
+    LogsRequest(LogsRequest),
+    LogsCancelRequest,
 }
 
 impl From<RequestContent> for ank_base::request::RequestContent {
@@ -86,6 +90,13 @@ impl From<RequestContent> for ank_base::request::RequestContent {
             }
             RequestContent::UpdateStateRequest(content) => {
                 ank_base::request::RequestContent::UpdateStateRequest(Box::new((*content).into()))
+            }
+            // TODO: tests are missing for the next two cases
+            RequestContent::LogsRequest(logs_request) => {
+                ank_base::request::RequestContent::LogsRequest(logs_request.into())
+            }
+            RequestContent::LogsCancelRequest => {
+                ank_base::request::RequestContent::LogsCancelRequest(ank_base::LogsCancelRequest {})
             }
         }
     }
@@ -101,7 +112,61 @@ impl TryFrom<ank_base::request::RequestContent> for RequestContent {
             ank_base::request::RequestContent::CompleteStateRequest(value) => {
                 RequestContent::CompleteStateRequest(value.into())
             }
+            // TODO: tests are missing for the next two cases
+            ank_base::request::RequestContent::LogsRequest(logs_request) => {
+                RequestContent::LogsRequest(logs_request.into())
+            }
+            ank_base::request::RequestContent::LogsCancelRequest(_logs_stop_request) => {
+                RequestContent::LogsCancelRequest
+            }
         })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogsRequest {
+    pub workload_names: Vec<WorkloadInstanceName>,
+    pub follow: bool,
+    pub tail: i32,
+    pub since: Option<String>,
+    pub until: Option<String>,
+}
+
+// TODO: add tests
+impl From<LogsRequest> for ank_base::LogsRequest {
+    fn from(item: LogsRequest) -> Self {
+        ank_base::LogsRequest {
+            workload_names: item
+                .workload_names
+                .into_iter()
+                .map(|name| name.into())
+                .collect(),
+            follow: if !item.follow { None } else { Some(true) },
+            tail: if -1 == item.tail {
+                None
+            } else {
+                Some(item.tail)
+            },
+            since: item.since,
+            until: item.until,
+        }
+    }
+}
+
+// TODO: add tests
+impl From<ank_base::LogsRequest> for LogsRequest {
+    fn from(value: ank_base::LogsRequest) -> Self {
+        LogsRequest {
+            workload_names: value
+                .workload_names
+                .into_iter()
+                .map(|name: ank_base::WorkloadInstanceName| name.into())
+                .collect(),
+            follow: value.follow.unwrap_or(false),
+            tail: value.tail.unwrap_or(-1),
+            since: value.since,
+            until: value.until,
+        }
     }
 }
 
