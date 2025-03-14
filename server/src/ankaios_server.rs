@@ -313,6 +313,8 @@ impl AnkaiosServer {
                             }
                         }
                     }
+                    common::commands::RequestContent::LogsRequest(_logs_request) => todo!(),
+                    common::commands::RequestContent::LogsCancelRequest => todo!(),
                 },
                 ToServer::UpdateWorkloadState(method_obj) => {
                     log::debug!(
