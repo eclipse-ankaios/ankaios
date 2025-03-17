@@ -17,7 +17,7 @@ The minimum system requirements are (tested with [EB corbos Linux – built on U
 | Resource | Min     |
 | -------- | ------- |
 | CPU      | 1 core  |
-| RAM      | 128 MB  |
+| RAM      | 256 MB  |
 
 [Podman](https://podman.io) needs to be installed as this is used as
 container runtime
