@@ -20,6 +20,8 @@ pub mod workload_control_loop;
 
 // public api exports
 pub use control_loop_state::ControlLoopState;
+#[cfg_attr(test, mockall_double::double)]
+use retry_manager::RetryToken;
 pub use workload_command_channel::WorkloadCommandSender;
 #[cfg(test)]
 pub use workload_control_loop::MockWorkloadControlLoop;
@@ -61,11 +63,12 @@ impl Display for WorkloadError {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum WorkloadCommand {
     Delete,
     Update(Option<Box<WorkloadSpec>>, Option<ControlInterfacePath>),
-    Retry(Box<WorkloadInstanceName>),
+    Retry(Box<WorkloadInstanceName>, RetryToken),
     Create,
     Resume,
 }

@@ -31,49 +31,14 @@ use crate::io_utils::filesystem_async;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_files::WorkloadFilesCreator;
 
-#[cfg(not(test))]
-const MAX_RETRIES: usize = 20;
-
-#[cfg(test)]
-const MAX_RETRIES: usize = 2;
+#[cfg_attr(test, mockall_double::double)]
+use super::retry_manager::RetryToken;
 
 #[cfg(not(test))]
 const RETRY_WAITING_TIME_MS: u64 = 1000;
 
 #[cfg(test)]
 const RETRY_WAITING_TIME_MS: u64 = 50;
-
-pub struct RetryCounter {
-    retry_counter: usize,
-}
-
-impl RetryCounter {
-    pub fn new() -> Self {
-        RetryCounter { retry_counter: 1 }
-    }
-
-    pub fn reset(&mut self) {
-        self.retry_counter = 1;
-    }
-
-    pub fn limit(&self) -> usize {
-        MAX_RETRIES
-    }
-
-    pub fn limit_exceeded(&self) -> bool {
-        self.retry_counter > MAX_RETRIES
-    }
-
-    pub fn count_retry(&mut self) {
-        if self.retry_counter <= MAX_RETRIES {
-            self.retry_counter += 1;
-        }
-    }
-
-    pub fn current_retry(&self) -> usize {
-        self.retry_counter
-    }
-}
 
 pub struct WorkloadControlLoop;
 
@@ -121,6 +86,7 @@ impl WorkloadControlLoop {
                         // [impl->swdd~agent-workload-control-loop-executes-delete~3]
                         Some(WorkloadCommand::Delete) => {
                             log::debug!("Received WorkloadCommand::Delete.");
+                            control_loop_state.retry_manager.invalidate();
 
                             if let Some(new_control_loop_state) = Self::delete_workload_on_runtime(control_loop_state).await {
                                 control_loop_state = new_control_loop_state;
@@ -132,6 +98,7 @@ impl WorkloadControlLoop {
                         // [impl->swdd~agent-workload-control-loop-executes-update~3]
                         Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
                             log::debug!("Received WorkloadCommand::Update.");
+                            control_loop_state.retry_manager.invalidate();
 
                             control_loop_state = Self::update_workload_on_runtime(
                                 control_loop_state,
@@ -143,18 +110,20 @@ impl WorkloadControlLoop {
                             log::debug!("Update workload complete");
                         }
                         // [impl->swdd~agent-workload-control-loop-executes-retry~1]
-                        Some(WorkloadCommand::Retry(instance_name)) => {
+                        Some(WorkloadCommand::Retry(instance_name, retry_token)) => {
                             log::debug!("Received WorkloadCommand::Retry.");
 
                             control_loop_state = Self::retry_create_workload_on_runtime(
                                 control_loop_state,
                                 *instance_name,
+                                retry_token
                             )
                             .await;
                         }
                         // [impl->swdd~agent-workload-control-loop-executes-create~4]
                         Some(WorkloadCommand::Create) => {
                             log::debug!("Received WorkloadCommand::Create.");
+                            control_loop_state.retry_manager.invalidate();
 
                             Self::send_workload_state_to_agent(
                                 &control_loop_state.to_agent_workload_state_sender,
@@ -163,8 +132,11 @@ impl WorkloadControlLoop {
                             )
                             .await;
 
+                            let retry_token = control_loop_state.retry_manager.new_token();
+
                             control_loop_state = Self::create_workload_on_runtime(
                                 control_loop_state,
+                                retry_token,
                                 Self::send_retry_for_workload,
                             )
                             .await;
@@ -172,6 +144,8 @@ impl WorkloadControlLoop {
                         // [impl->swdd~agent-workload-control-loop-executes-resume~1]
                         Some(WorkloadCommand::Resume) => {
                             log::debug!("Received WorkloadCommand::Resume.");
+                            control_loop_state.retry_manager.invalidate();
+
                             control_loop_state = Self::resume_workload_on_runtime(control_loop_state).await;
                         }
                         _ => {
@@ -247,6 +221,7 @@ impl WorkloadControlLoop {
     async fn send_retry_for_workload<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         instance_name: WorkloadInstanceName,
+        retry_token: RetryToken,
         error_msg: String,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
@@ -264,7 +239,7 @@ impl WorkloadControlLoop {
         // [impl->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
         control_loop_state
             .retry_sender
-            .retry(instance_name)
+            .retry(instance_name, retry_token)
             .await
             .unwrap_or_else(|err| log::info!("Could not send WorkloadCommand::Retry: '{}'", err));
         control_loop_state
@@ -273,6 +248,7 @@ impl WorkloadControlLoop {
     async fn send_retry_when_limit_not_exceeded<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         instance_name: WorkloadInstanceName,
+        retry_token: RetryToken,
         error_msg: String,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
@@ -283,57 +259,40 @@ impl WorkloadControlLoop {
         control_loop_state.state_checker = None;
 
         log::info!(
-            "Retry '{}' out of '{}': Failed to create workload: '{}': '{}'",
-            control_loop_state.retry_counter.current_retry(),
-            control_loop_state.retry_counter.limit(),
+            "Retry {}: Failed to create workload: '{}': '{}'",
+            retry_token.counter(),
             instance_name,
             error_msg
         );
 
-        let retry_counter: &mut RetryCounter = &mut control_loop_state.retry_counter;
-        retry_counter.count_retry();
+        // [impl->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
+        tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_WAITING_TIME_MS)).await;
+        log::debug!("Send WorkloadCommand::Retry.");
 
-        // [impl->swdd~agent-workload-control-loop-limits-retry-attempts~1]
-        if retry_counter.limit_exceeded() {
-            log::warn!(
-                "Abort retries: reached maximum amount of retries ('{}')",
-                retry_counter.limit()
-            );
-
-            // [impl->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
-            Self::send_workload_state_to_agent(
-                &control_loop_state.to_agent_workload_state_sender,
-                control_loop_state.instance_name(),
-                ExecutionState::retry_failed_no_retry(error_msg),
-            )
-            .await;
-
-            return control_loop_state;
-        }
-
-        let sender = control_loop_state.retry_sender.clone();
-        tokio::task::spawn(async move {
-            // [impl->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
-            tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_WAITING_TIME_MS)).await;
-            log::debug!("Send WorkloadCommand::Retry.");
-
-            sender.retry(instance_name).await.unwrap_or_else(|err| {
-                log::info!("Could not send WorkloadCommand::Retry: '{}'", err)
-            });
-        });
+        control_loop_state
+            .retry_sender
+            .retry(instance_name, retry_token)
+            .await
+            .unwrap_or_else(|err| log::info!("Could not send WorkloadCommand::Retry: '{}'", err));
         control_loop_state
     }
 
     // [impl->swdd~agent-workload-control-loop-executes-create~4]
     async fn create_workload_on_runtime<WorkloadId, StChecker, ErrorFunc, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+        retry_token: RetryToken,
         func_on_recoverable_error: ErrorFunc,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
         Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>> + 'static,
-        ErrorFunc: FnOnce(ControlLoopState<WorkloadId, StChecker>, WorkloadInstanceName, String) -> Fut
+        ErrorFunc: FnOnce(
+                ControlLoopState<WorkloadId, StChecker>,
+                WorkloadInstanceName,
+                RetryToken,
+                String,
+            ) -> Fut
             + 'static,
     {
         let host_file_path_mount_point_mappings =
@@ -379,7 +338,6 @@ impl WorkloadControlLoop {
             }
             Err(err) => {
                 // [impl->swdd~agent-workload-control-loop-handles-failed-workload-creation~1]
-                let current_retry_counter = control_loop_state.retry_counter.current_retry();
 
                 Self::delete_folder(&WorkloadFilesBasePath::from((
                     &control_loop_state.run_folder,
@@ -404,17 +362,14 @@ impl WorkloadControlLoop {
                         Self::send_workload_state_to_agent(
                             &control_loop_state.to_agent_workload_state_sender,
                             &new_instance_name,
-                            ExecutionState::retry_starting(
-                                current_retry_counter,
-                                MAX_RETRIES,
-                                err.to_string(),
-                            ),
+                            ExecutionState::retry_starting(err.to_string()),
                         )
                         .await;
 
                         func_on_recoverable_error(
                             control_loop_state,
                             new_instance_name,
+                            retry_token,
                             err.to_string(),
                         )
                         .await
@@ -610,9 +565,6 @@ impl WorkloadControlLoop {
         )
         .await;
 
-        // [impl->swdd~agent-workload-control-loop-reset-retry-attempts-on-update~1]
-        control_loop_state.retry_counter.reset();
-
         // [impl->swdd~agent-workload-control-loop-executes-update-delete-only~1]
         if let Some(spec) = new_workload_spec {
             // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
@@ -626,9 +578,14 @@ impl WorkloadControlLoop {
             )
             .await;
 
-            control_loop_state =
-                Self::create_workload_on_runtime(control_loop_state, Self::send_retry_for_workload)
-                    .await;
+            let retry_token = control_loop_state.retry_manager.new_token();
+
+            control_loop_state = Self::create_workload_on_runtime(
+                control_loop_state,
+                retry_token,
+                Self::send_retry_for_workload,
+            )
+            .await;
         }
         control_loop_state
     }
@@ -636,23 +593,21 @@ impl WorkloadControlLoop {
     async fn retry_create_workload_on_runtime<WorkloadId, StChecker>(
         control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         instance_name: WorkloadInstanceName,
+        retry_token: RetryToken,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        if Self::is_same_workload(control_loop_state.instance_name(), &instance_name)
-            && control_loop_state.workload_id.is_none()
-        {
-            log::debug!("Next retry attempt.");
+        if retry_token.is_valid() {
             Self::create_workload_on_runtime(
                 control_loop_state,
+                retry_token,
                 Self::send_retry_when_limit_not_exceeded,
             )
             .await
         } else {
-            // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
-            log::debug!("Skip retry creation of workload.");
+            log::debug!("Ignore outdated retry command");
             control_loop_state
         }
     }
@@ -742,6 +697,8 @@ mod tests {
     use super::{ControlInterfacePath, WorkloadControlLoop};
     use crate::io_utils::mock_filesystem_async;
     use crate::runtime_connectors::RuntimeError;
+    use crate::workload::retry_manager::MockRetryToken;
+    use crate::workload::WorkloadCommand;
     use crate::workload_files::{
         MockWorkloadFilesCreator, WorkloadFileCreationError, WorkloadFilesBasePath,
     };
@@ -753,10 +710,9 @@ mod tests {
     use mockall::predicate;
 
     use common::objects::{
-        generate_test_rendered_workload_files,
-        generate_test_workload_spec_with_control_interface_access,
-        generate_test_workload_spec_with_param, generate_test_workload_spec_with_rendered_files,
-        ExecutionState, ExecutionStateEnum, WorkloadInstanceName,
+        generate_test_rendered_workload_files, generate_test_workload_spec_with_param,
+        generate_test_workload_spec_with_rendered_files, ExecutionState, ExecutionStateEnum,
+        WorkloadInstanceName,
     };
     use common::objects::{generate_test_workload_state_with_workload_spec, RestartPolicy};
 
@@ -774,7 +730,6 @@ mod tests {
     const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_ID: &str = "workload_id_1";
     const WORKLOAD_ID_2: &str = "workload_id_2";
-    const WORKLOAD_ID_3: &str = "workload_id_3";
     const PIPES_LOCATION: &str = "/some/path";
     const RUN_FOLDER: &str = "/some";
     const OLD_WORKLOAD_ID: &str = "old_workload_id";
@@ -799,6 +754,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
@@ -851,7 +807,7 @@ mod tests {
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
-        workload_command_sender.clone().delete().await.unwrap();
+        workload_command_sender.delete().await.unwrap();
 
         let old_instance_name = old_workload_spec.instance_name.clone();
         let new_instance_name = new_workload_spec.instance_name.clone();
@@ -862,9 +818,24 @@ mod tests {
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .times(2)
+            .return_const(());
+
+        let mock_retry_token = MockRetryToken {
+            mock_id: 7,
+            valid: true,
+        };
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .return_once(|| mock_retry_token);
 
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
         control_loop_state.state_checker = Some(old_mock_state_checker);
@@ -888,6 +859,8 @@ mod tests {
         )
         .await;
 
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -899,6 +872,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
@@ -928,7 +902,7 @@ mod tests {
             .unwrap();
 
         // Send also a delete command so that we can properly get out of the loop
-        workload_command_sender.clone().delete().await.unwrap();
+        workload_command_sender.delete().await.unwrap();
 
         let old_instance_name = old_workload_spec.instance_name.clone();
 
@@ -938,9 +912,24 @@ mod tests {
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .times(2)
+            .return_const(());
+
+        let mock_retry_token = MockRetryToken {
+            mock_id: 7,
+            valid: true,
+        };
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .return_once(|| mock_retry_token);
 
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
         control_loop_state.state_checker = Some(old_mock_state_checker);
@@ -961,6 +950,8 @@ mod tests {
         )
         .await;
 
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -972,6 +963,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
@@ -1030,7 +1022,7 @@ mod tests {
             .unwrap();
 
         // Send also a delete command so that we can properly get out of the loop
-        workload_command_sender.clone().delete().await.unwrap();
+        workload_command_sender.delete().await.unwrap();
 
         let old_instance_name = old_workload_spec.instance_name.clone();
 
@@ -1040,9 +1032,24 @@ mod tests {
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .times(3)
+            .return_const(());
+
+        let mock_retry_token = MockRetryToken {
+            mock_id: 7,
+            valid: true,
+        };
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .return_once(|| mock_retry_token);
 
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
         control_loop_state.state_checker = Some(old_mock_state_checker);
@@ -1065,6 +1072,8 @@ mod tests {
         )
         .await;
 
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -1076,6 +1085,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         // Since we also send a delete command to exit the control loop properly, the new state
@@ -1123,20 +1133,34 @@ mod tests {
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
-        workload_command_sender.clone().delete().await.unwrap();
+        workload_command_sender.delete().await.unwrap();
 
         let old_instance_name = old_workload_spec.instance_name.clone();
         let new_instance_name = new_workload_spec.instance_name.clone();
 
-        let control_loop_state = ControlLoopState::builder()
+        let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(old_workload_spec)
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .times(2)
+            .return_const(());
+
+        let mock_retry_token = MockRetryToken {
+            mock_id: 7,
+            valid: true,
+        };
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .return_once(|| mock_retry_token);
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -1157,21 +1181,20 @@ mod tests {
         )
         .await;
 
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-update-delete-failed-allows-retry~1]
     #[tokio::test]
-    async fn utest_workload_obj_run_update_delete_failed_allows_retry() {
+    async fn utest_workload_obj_run_update_delete_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let mut old_mock_state_checker = StubStateChecker::new();
-        old_mock_state_checker.panic_if_not_stopped();
 
         let old_workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1192,12 +1215,10 @@ mod tests {
             .expect(vec![
                 RuntimeCall::DeleteWorkload(
                     OLD_WORKLOAD_ID.to_string(),
-                    Err(crate::runtime_connectors::RuntimeError::Delete(
-                        "some delete error".to_string(),
-                    )),
+                    Err(RuntimeError::Delete("some delete error".into())),
                 ),
-                // Since we also send a delete command to exit the control loop properly, we need to delete the workload now
-                // This also tests if the old workload id was properly stored.
+                // Since we also send a delete command to exit the control loop properly, the new workload
+                // will also be deleted. This also tests if the new workload id was properly stored.
                 RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
             ])
             .await;
@@ -1214,22 +1235,25 @@ mod tests {
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
-        workload_command_sender.clone().delete().await.unwrap();
+        workload_command_sender.delete().await.unwrap();
 
         let old_instance_name = old_workload_spec.instance_name.clone();
 
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(old_workload_spec)
+            .workload_id(Some(OLD_WORKLOAD_ID.into()))
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
-
-        control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
-        control_loop_state.state_checker = Some(old_mock_state_checker);
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .times(2)
+            .return_const(());
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -1252,107 +1276,8 @@ mod tests {
         )
         .await;
 
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
-    #[tokio::test]
-    async fn utest_workload_obj_run_update_create_failed_allows_retry() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let mut old_mock_state_checker = StubStateChecker::new();
-        old_mock_state_checker.panic_if_not_stopped();
-
-        let old_workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut new_workload_spec = old_workload_spec.clone();
-        new_workload_spec.runtime_config = "changed config".to_string();
-        new_workload_spec.instance_name = WorkloadInstanceName::builder()
-            .agent_name(old_workload_spec.instance_name.agent_name())
-            .workload_name(old_workload_spec.instance_name.workload_name())
-            .config(&new_workload_spec.runtime_config)
-            .build();
-
-        let create_runtime_error_msg = "some create error";
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Err(crate::runtime_connectors::RuntimeError::Create(
-                        create_runtime_error_msg.to_owned(),
-                    )),
-                ),
-                // We also send a delete command, but as no new workload was generated, there is also no
-                // new ID so no call to the runtime is expected to happen here.
-            ])
-            .await;
-
-        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
-
-        // Send the update command now. It will be buffered until the await receives it.
-        workload_command_sender
-            .update(
-                Some(new_workload_spec.clone()),
-                CONTROL_INTERFACE_PATH.clone(),
-            )
-            .await
-            .unwrap();
-        // Send also a delete command so that we can properly get out of the loop
-        workload_command_sender.clone().delete().await.unwrap();
-
-        let old_instance_name = old_workload_spec.instance_name.clone();
-        let new_instance_name = new_workload_spec.instance_name.clone();
-
-        let mut control_loop_state = ControlLoopState::builder()
-            .workload_spec(old_workload_spec)
-            .workload_state_sender(state_change_tx)
-            .run_folder(RUN_FOLDER.into())
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
-        control_loop_state.state_checker = Some(old_mock_state_checker);
-
-        assert!(timeout(
-            Duration::from_millis(200),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
-        assert_execution_state_sequence(
-            state_change_rx,
-            vec![
-                (&old_instance_name, ExecutionState::stopping_requested()),
-                (&old_instance_name, ExecutionState::removed()),
-                (&new_instance_name, ExecutionState::starting_triggered()),
-                (
-                    &new_instance_name,
-                    ExecutionState::retry_starting(1, super::MAX_RETRIES, create_runtime_error_msg),
-                ),
-                (&new_instance_name, ExecutionState::stopping_requested()),
-                (&new_instance_name, ExecutionState::removed()),
-            ],
-        )
-        .await;
-
+        assert!(workload_command_receiver2.is_empty());
+        assert!(workload_command_receiver2.is_closed());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -1364,6 +1289,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut mock_state_checker = StubStateChecker::new();
@@ -1381,7 +1307,7 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the delete command now. It will be buffered until the await receives it.
-        workload_command_sender.clone().delete().await.unwrap();
+        workload_command_sender.delete().await.unwrap();
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1397,9 +1323,15 @@ mod tests {
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .once()
+            .return_const(());
 
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
         control_loop_state.state_checker = Some(mock_state_checker);
@@ -1420,84 +1352,8 @@ mod tests {
         )
         .await;
 
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-control-loop-delete-failed-allows-retry~1]
-    #[tokio::test]
-    async fn utest_workload_obj_run_delete_failed_allows_retry() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let mut mock_state_checker = StubStateChecker::new();
-        mock_state_checker.panic_if_not_stopped();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(
-                    OLD_WORKLOAD_ID.to_string(),
-                    Err(crate::runtime_connectors::RuntimeError::Delete(
-                        "some delete error".to_string(),
-                    )),
-                ),
-                // First fail, now success
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
-
-        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
-
-        // Send the delete command now. It will be buffered until the await receives it.
-        workload_command_sender.clone().delete().await.unwrap();
-        workload_command_sender.clone().delete().await.unwrap();
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-        let instance_name = workload_spec.instance_name.clone();
-
-        let mut control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .workload_state_sender(state_change_tx)
-            .run_folder(RUN_FOLDER.into())
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
-        control_loop_state.state_checker = Some(mock_state_checker);
-
-        assert!(timeout(
-            Duration::from_millis(200),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
-        assert_execution_state_sequence(
-            state_change_rx,
-            vec![
-                (&instance_name, ExecutionState::stopping_requested()),
-                (
-                    &instance_name,
-                    ExecutionState::delete_failed("some delete error"),
-                ),
-                (&instance_name, ExecutionState::stopping_requested()),
-                (&instance_name, ExecutionState::removed()),
-            ],
-        )
-        .await;
-
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -1509,6 +1365,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let runtime_mock = MockRuntimeConnector::new();
@@ -1517,7 +1374,7 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         // Send the delete command now. It will be buffered until the await receives it.
-        workload_command_sender.clone().delete().await.unwrap();
+        workload_command_sender.delete().await.unwrap();
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1525,15 +1382,21 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let control_loop_state = ControlLoopState::builder()
+        let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec)
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .once()
+            .return_const(());
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -1542,6 +1405,8 @@ mod tests {
         .await
         .is_ok());
 
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -1555,6 +1420,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -1583,25 +1449,38 @@ mod tests {
 
         workload_command_sender.create().await.unwrap();
 
-        let workload_command_sender_clone = workload_command_sender.clone();
         tokio::spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-            workload_command_sender_clone.delete().await.unwrap();
+            workload_command_sender.delete().await.unwrap();
         });
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
-        let control_loop_state = ControlLoopState::builder()
+        let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(state_change_tx.clone())
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .times(2)
+            .return_const(());
+        let mock_retry_token = MockRetryToken {
+            mock_id: 3,
+            valid: true,
+        };
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .return_once(|| mock_retry_token);
 
         assert!(timeout(
             Duration::from_millis(100),
@@ -1610,764 +1489,8 @@ mod tests {
         .await
         .is_ok());
 
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-control-loop-executes-create~4]
-    // [utest->swdd~agent-workload-control-loop-updates-internal-state~1]
-    // [utest->swdd~agent-workload-control-loop-handles-failed-workload-creation~1]
-    // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
-    #[tokio::test]
-    async fn utest_workload_obj_run_retry_creation_successful_after_create_command_fails() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut new_mock_state_checker = StubStateChecker::new();
-        new_mock_state_checker.panic_if_not_stopped();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Err(crate::runtime_connectors::RuntimeError::Create(
-                        "some create error".to_string(),
-                    )),
-                ),
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also be deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
-
-        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
-
-        workload_command_sender.create().await.unwrap();
-
-        let workload_command_sender_clone = workload_command_sender.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-            workload_command_sender_clone.delete().await.unwrap();
-        });
-
-        let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .run_folder(RUN_FOLDER.into())
-            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
-            .workload_state_sender(state_change_tx)
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        assert!(timeout(
-            Duration::from_millis(200),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-control-loop-executes-create~4]
-    // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
-    // [utest->swdd~agent-workload-control-loop-handles-failed-workload-creation~1]
-    #[tokio::test]
-    async fn utest_workload_obj_run_create_with_retry_workload_command_channel_closed() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let runtime_expectations = vec![RuntimeCall::CreateWorkload(
-            workload_spec.clone(),
-            Some(PIPES_LOCATION.into()),
-            HashMap::default(),
-            Err(crate::runtime_connectors::RuntimeError::Create(
-                "some create error".to_string(),
-            )),
-        )];
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(runtime_expectations).await;
-
-        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
-
-        workload_command_receiver.close();
-
-        let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .run_folder(RUN_FOLDER.into())
-            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
-            .workload_state_sender(state_change_tx)
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        let new_control_loop_state = WorkloadControlLoop::create_workload_on_runtime(
-            control_loop_state,
-            WorkloadControlLoop::send_retry_for_workload,
-        )
-        .await;
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        // send some randomly selected command
-        assert!(new_control_loop_state.retry_sender.delete().await.is_err());
-    }
-
-    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
-    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
-    #[tokio::test]
-    async fn utest_workload_obj_run_retry_creation_successful_after_create_fails() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let instance_name = workload_spec.instance_name.clone();
-
-        let mut new_mock_state_checker = StubStateChecker::new();
-        new_mock_state_checker.panic_if_not_stopped();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Err(crate::runtime_connectors::RuntimeError::Create(
-                        "some create error".to_string(),
-                    )),
-                ),
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also be deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
-
-        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
-
-        workload_command_sender
-            .retry(instance_name.clone())
-            .await
-            .unwrap();
-
-        let workload_command_sender_clone = workload_command_sender.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-            workload_command_sender_clone.delete().await.unwrap();
-        });
-
-        let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .run_folder(RUN_FOLDER.into())
-            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
-            .workload_state_sender(state_change_tx)
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
-    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
-    // [utest->swdd~agent-workload-control-loop-limits-retry-attempts~1]
-    // [utest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
-    #[tokio::test]
-    async fn utest_workload_obj_run_retry_attempts_exceeded_workload_creation() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let instance_name = workload_spec.instance_name.clone();
-
-        let create_runtime_error_msg = "some create error";
-        let mut runtime_expectations = vec![];
-
-        // instead of short vector initialization a for loop is used because RuntimeCall with its submembers shall not be clone-able.
-        for _ in 0..super::MAX_RETRIES {
-            runtime_expectations.push(RuntimeCall::CreateWorkload(
-                workload_spec.clone(),
-                Some(PIPES_LOCATION.into()),
-                HashMap::default(),
-                Err(crate::runtime_connectors::RuntimeError::Create(
-                    create_runtime_error_msg.to_owned(),
-                )),
-            ));
-        }
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(runtime_expectations).await;
-
-        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
-
-        workload_command_sender
-            .retry(instance_name.clone())
-            .await
-            .unwrap();
-
-        // We also send a delete command, but as no new workload was generated, there is also no
-        // new ID so no call to the runtime is expected to happen here.
-        let workload_command_sender_clone = workload_command_sender.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-            workload_command_sender_clone.delete().await.unwrap();
-        });
-
-        let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .run_folder(RUN_FOLDER.into())
-            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
-            .workload_state_sender(state_change_tx)
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
-        assert_execution_state_sequence(
-            state_change_rx,
-            vec![
-                (
-                    &instance_name,
-                    ExecutionState::retry_starting(1, super::MAX_RETRIES, create_runtime_error_msg),
-                ),
-                (
-                    &instance_name,
-                    ExecutionState::retry_starting(2, super::MAX_RETRIES, create_runtime_error_msg),
-                ),
-                (
-                    &instance_name,
-                    ExecutionState::retry_failed_no_retry(create_runtime_error_msg),
-                ),
-                (&instance_name, ExecutionState::stopping_requested()),
-                (&instance_name, ExecutionState::removed()),
-            ],
-        )
-        .await;
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
-    #[tokio::test]
-    async fn utest_workload_obj_run_retry_creation_workload_command_channel_closed() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let instance_name = workload_spec.instance_name.clone();
-
-        let runtime_expectations = vec![RuntimeCall::CreateWorkload(
-            workload_spec.clone(),
-            Some(PIPES_LOCATION.into()),
-            HashMap::default(),
-            Err(crate::runtime_connectors::RuntimeError::Create(
-                "some create error".to_string(),
-            )),
-        )];
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(runtime_expectations).await;
-
-        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
-
-        workload_command_receiver.close();
-
-        let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .run_folder(RUN_FOLDER.into())
-            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
-            .workload_state_sender(state_change_tx)
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        let new_control_loop_state = WorkloadControlLoop::retry_create_workload_on_runtime(
-            control_loop_state,
-            instance_name,
-        )
-        .await;
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        // send some randomly selected command
-        assert!(new_control_loop_state.retry_sender.delete().await.is_err());
-    }
-
-    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
-    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
-    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
-    #[tokio::test]
-    async fn utest_workload_obj_run_retry_stop_retry_commands_on_update_command() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-        let instance_name = workload_spec.instance_name.clone();
-
-        let mut new_workload_spec = workload_spec.clone();
-        new_workload_spec.runtime_config = "Changed".to_string();
-
-        let mut new_mock_state_checker = StubStateChecker::new();
-        new_mock_state_checker.panic_if_not_stopped();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Err(crate::runtime_connectors::RuntimeError::Create(
-                        "some create error".to_string(),
-                    )),
-                ),
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also be deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID_2.to_string(), Ok(())),
-            ])
-            .await;
-
-        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
-
-        workload_command_sender.retry(instance_name).await.unwrap();
-
-        workload_command_sender
-            .update(Some(new_workload_spec), CONTROL_INTERFACE_PATH.clone())
-            .await
-            .unwrap();
-
-        let workload_command_sender_clone = workload_command_sender.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-            workload_command_sender_clone.delete().await.unwrap();
-        });
-
-        let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .workload_state_sender(state_change_tx)
-            .run_folder(RUN_FOLDER.into())
-            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
-    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
-    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
-    #[tokio::test]
-    async fn utest_workload_obj_run_retry_on_update_with_create_failure() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut new_workload_spec = workload_spec.clone();
-        new_workload_spec.runtime_config = "Changed".to_string();
-
-        let mut old_state_checker = StubStateChecker::new();
-        old_state_checker.panic_if_not_stopped();
-
-        let mut new_mock_state_checker = StubStateChecker::new();
-        new_mock_state_checker.panic_if_not_stopped();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                // the update deletes first the old workload
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-                // next the create workload fails
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Err(crate::runtime_connectors::RuntimeError::Create(
-                        "some create error".to_string(),
-                    )),
-                ),
-                // after 1 retry attempt the create with the new workload is successful
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also be deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID_2.to_string(), Ok(())),
-            ])
-            .await;
-
-        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
-
-        workload_command_sender
-            .update(Some(new_workload_spec), CONTROL_INTERFACE_PATH.clone())
-            .await
-            .unwrap();
-
-        let workload_command_sender_clone = workload_command_sender.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(125)).await;
-            workload_command_sender_clone.delete().await.unwrap();
-        });
-
-        let mut control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .workload_state_sender(state_change_tx)
-            .run_folder(RUN_FOLDER.into())
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        control_loop_state.workload_id = Some(WORKLOAD_ID.to_string());
-        control_loop_state.state_checker = Some(old_state_checker);
-
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
-    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
-    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
-    // [utest->swdd~agent-workload-control-loop-reset-retry-attempts-on-update~1]
-    #[tokio::test]
-    async fn utest_workload_obj_run_retry_reset_retry_counter_on_update() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut new_workload_spec = workload_spec.clone();
-        new_workload_spec.runtime_config = "Changed".to_string();
-
-        let mut old_state_checker = StubStateChecker::new();
-        old_state_checker.panic_if_not_stopped();
-
-        let mut new_mock_state_checker = StubStateChecker::new();
-        new_mock_state_checker.panic_if_not_stopped();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                // the update deletes first the old workload
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-                // next the create workload fails
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Err(crate::runtime_connectors::RuntimeError::Create(
-                        "some create error".to_string(),
-                    )),
-                ),
-                // after 1 retry attempt the create with the new workload is successful
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also be deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID_2.to_string(), Ok(())),
-            ])
-            .await;
-
-        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
-
-        workload_command_sender
-            .update(Some(new_workload_spec), CONTROL_INTERFACE_PATH.clone())
-            .await
-            .unwrap();
-
-        let workload_command_sender_clone = workload_command_sender.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(125)).await;
-            workload_command_sender_clone.delete().await.unwrap();
-        });
-
-        let mut control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .workload_state_sender(state_change_tx)
-            .run_folder(RUN_FOLDER.into())
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        control_loop_state.workload_id = Some(WORKLOAD_ID.to_string());
-        control_loop_state.state_checker = Some(old_state_checker);
-
-        // simulate an already incremented retry counter due to retry attempts on initial workload creation
-        control_loop_state.retry_counter.count_retry();
-        control_loop_state.retry_counter.count_retry();
-        assert_eq!(control_loop_state.retry_counter.current_retry(), 3);
-
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
-    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
-    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
-    #[tokio::test]
-    async fn utest_workload_obj_run_retry_create_correct_workload_on_two_updates() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut new_workload_spec_update1 = workload_spec.clone();
-        new_workload_spec_update1.runtime_config = "Changed".to_string();
-
-        let mut new_workload_spec_update2 = workload_spec.clone();
-        new_workload_spec_update2.runtime_config = "Changed again".to_string();
-
-        let mut old_state_checker = StubStateChecker::new();
-        old_state_checker.panic_if_not_stopped();
-
-        let mut new_mock_state_checker_update2 = StubStateChecker::new();
-        new_mock_state_checker_update2.panic_if_not_stopped();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                // the update deletes first the old workload
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-                // next the create workload fails for the first update
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec_update1.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Err(crate::runtime_connectors::RuntimeError::Create(
-                        "some create error".to_string(),
-                    )),
-                ),
-                // next the second update is executed and shall be successful
-                // no delete expected because no workload was created within update1
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec_update2.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID_3.to_string(), new_mock_state_checker_update2)),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also be deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID_3.to_string(), Ok(())),
-            ])
-            .await;
-
-        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
-        mock_remove_dir.expect().returning(|_| Ok(()));
-
-        workload_command_sender
-            .update(
-                Some(new_workload_spec_update1),
-                CONTROL_INTERFACE_PATH.clone(),
-            )
-            .await
-            .unwrap();
-
-        workload_command_sender
-            .update(
-                Some(new_workload_spec_update2),
-                CONTROL_INTERFACE_PATH.clone(),
-            )
-            .await
-            .unwrap();
-
-        let workload_command_sender_clone = workload_command_sender.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(125)).await;
-            workload_command_sender_clone.delete().await.unwrap();
-        });
-
-        let mut control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .workload_state_sender(state_change_tx)
-            .run_folder(RUN_FOLDER.into())
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        control_loop_state.workload_id = Some(WORKLOAD_ID.to_string());
-        control_loop_state.state_checker = Some(old_state_checker);
-
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -2380,6 +1503,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
@@ -2420,9 +1544,15 @@ mod tests {
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender.clone())
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .times(2)
+            .return_const(());
 
         control_loop_state.state_checker_workload_state_sender =
             state_checker_workload_state_sender;
@@ -2439,6 +1569,8 @@ mod tests {
         .await
         .is_ok());
 
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -2447,7 +1579,8 @@ mod tests {
     async fn utest_resume_workload_workload_id_and_state_checker_updated() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (_, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
@@ -2481,7 +1614,7 @@ mod tests {
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender.clone())
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
 
@@ -2499,6 +1632,9 @@ mod tests {
         assert_eq!(new_control_loop_state.workload_id, Some(WORKLOAD_ID.into()));
         assert!(new_control_loop_state.state_checker.is_some());
 
+        drop(new_control_loop_state);
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -2507,7 +1643,8 @@ mod tests {
     async fn utest_resume_workload_get_workload_id_fails() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (_, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -2533,7 +1670,7 @@ mod tests {
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender.clone())
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
 
@@ -2543,6 +1680,9 @@ mod tests {
         assert!(new_control_loop_state.workload_id.is_none());
         assert!(new_control_loop_state.state_checker.is_none());
 
+        drop(new_control_loop_state);
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -2551,7 +1691,8 @@ mod tests {
     async fn utest_resume_workload_start_state_checker_fails() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (_, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
@@ -2587,7 +1728,7 @@ mod tests {
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender.clone())
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
 
@@ -2602,6 +1743,9 @@ mod tests {
         assert_eq!(new_control_loop_state.workload_id, Some(WORKLOAD_ID.into()));
         assert!(new_control_loop_state.state_checker.is_none());
 
+        drop(new_control_loop_state);
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -2616,6 +1760,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -2630,22 +1775,27 @@ mod tests {
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
-        let workload_command_sender_clone = workload_command_sender.clone();
         tokio::spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
-            workload_command_sender_clone.delete().await.unwrap();
+            workload_command_sender.delete().await.unwrap();
         });
 
-        let control_loop_state = ControlLoopState::builder()
+        let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .once()
+            .return_const(());
 
         // clone the control loop state's internally created workload state sender used by the state checker
         let state_checker_wl_state_sender = control_loop_state
@@ -2676,6 +1826,8 @@ mod tests {
             timeout(Duration::from_millis(100), workload_state_forward_rx.recv()).await
         );
 
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -2684,6 +1836,7 @@ mod tests {
     #[should_panic]
     async fn utest_panic_on_closed_workload_state_channel() {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -2696,10 +1849,9 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![]).await;
 
-        let workload_command_sender_clone = workload_command_sender.clone();
         tokio::spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
-            workload_command_sender_clone.delete().await.unwrap();
+            workload_command_sender.delete().await.unwrap();
         });
 
         let control_loop_state = ControlLoopState::builder()
@@ -2709,7 +1861,7 @@ mod tests {
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
 
@@ -2723,6 +1875,8 @@ mod tests {
         .await
         .is_ok());
 
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -2737,6 +1891,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, _workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -2769,10 +1924,9 @@ mod tests {
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
-        let workload_command_sender_clone = workload_command_sender.clone();
         tokio::spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
-            workload_command_sender_clone.delete().await.unwrap();
+            workload_command_sender.delete().await.unwrap();
         });
 
         let mut control_loop_state = ControlLoopState::builder()
@@ -2782,12 +1936,27 @@ mod tests {
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
 
         control_loop_state.workload_id = Some(WORKLOAD_ID.into());
         control_loop_state.state_checker = Some(old_mock_state_checker);
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .once()
+            .return_const(());
+        let mock_retry_token = MockRetryToken {
+            mock_id: 12,
+            valid: true,
+        };
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .once()
+            .return_once(|| mock_retry_token);
 
         // clone the control loop state's internally created workload state sender used by the state checker
         let state_checker_wl_state_sender = control_loop_state
@@ -2813,6 +1982,8 @@ mod tests {
         .await
         .is_ok());
 
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         runtime_mock.assert_all_expectations().await;
     }
 
@@ -2923,7 +2094,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (_, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, _workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -2974,12 +2146,18 @@ mod tests {
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
 
+        let retry_token = MockRetryToken {
+            mock_id: 42,
+            valid: true,
+        };
+
         let new_control_loop_state = WorkloadControlLoop::create_workload_on_runtime(
             control_loop_state,
+            retry_token,
             WorkloadControlLoop::send_retry_for_workload,
         )
         .await;
@@ -2988,6 +2166,10 @@ mod tests {
             new_control_loop_state.workload_spec.files,
             workload_spec.files
         );
+
+        drop(new_control_loop_state);
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
@@ -2998,7 +2180,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (_, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -3028,12 +2211,18 @@ mod tests {
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(MockRuntimeConnector::new()))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
 
-        let _new_control_loop_state = WorkloadControlLoop::create_workload_on_runtime(
+        let retry_token = MockRetryToken {
+            mock_id: 42,
+            valid: true,
+        };
+
+        WorkloadControlLoop::create_workload_on_runtime(
             control_loop_state,
+            retry_token,
             WorkloadControlLoop::send_retry_for_workload,
         )
         .await;
@@ -3045,6 +2234,8 @@ mod tests {
         assert!(workload_state_result.is_some());
         let workload_state = workload_state_result.unwrap().unwrap();
 
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         let expected_execution_state = ExecutionStateEnum::Pending(PendingSubstate::StartingFailed);
         assert_eq!(
             workload_state.execution_state.state,
@@ -3060,7 +2251,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (_, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -3093,15 +2285,21 @@ mod tests {
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock))
             .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
+            .retry_sender(workload_command_sender2)
             .build()
             .unwrap();
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
-        let _new_control_loop_state = WorkloadControlLoop::create_workload_on_runtime(
+        let retry_token = MockRetryToken {
+            mock_id: 42,
+            valid: true,
+        };
+
+        WorkloadControlLoop::create_workload_on_runtime(
             control_loop_state,
+            retry_token,
             WorkloadControlLoop::send_retry_for_workload,
         )
         .await;
@@ -3113,10 +2311,460 @@ mod tests {
         assert!(workload_state_result.is_some());
         let workload_state = workload_state_result.unwrap().unwrap();
 
+        assert!(workload_command_receiver2.is_closed());
+        assert!(workload_command_receiver2.is_empty());
         let expected_execution_state = ExecutionStateEnum::Pending(PendingSubstate::StartingFailed);
         assert_eq!(
             workload_state.execution_state.state,
             expected_execution_state
         );
+    }
+
+    #[tokio::test]
+    async fn utest_workload_obj_run_update_create_failed_sends_retry() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, mut workload_command_receiver2) =
+            WorkloadCommandSender::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let instance_name = workload_spec.instance_name.clone();
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![RuntimeCall::CreateWorkload(
+                workload_spec.clone(),
+                Some(PIPES_LOCATION.into()),
+                HashMap::default(),
+                Err(crate::runtime_connectors::RuntimeError::Create(
+                    "some create error".to_string(),
+                )),
+                // We also send a delete command, but as no new workload was generated, there is also no
+                // new ID so no call to the runtime is expected to happen here.
+            )])
+            .await;
+
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
+        mock_remove_dir.expect().returning(|_| Ok(()));
+
+        let retry_token = MockRetryToken {
+            mock_id: 42,
+            valid: true,
+        };
+
+        workload_command_sender.create().await.unwrap();
+
+        let workload_command_sender_clone = workload_command_sender.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            workload_command_sender_clone.delete().await.unwrap();
+        });
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .run_folder(RUN_FOLDER.into())
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
+            .workload_state_sender(state_change_tx)
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .times(2)
+            .return_const(());
+
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .once()
+            .return_once(|| retry_token);
+
+        assert!(timeout(
+            Duration::from_millis(150),
+            WorkloadControlLoop::run(control_loop_state)
+        )
+        .await
+        .is_ok());
+
+        let Some(WorkloadCommand::Retry(received_instance_name, received_retry_token)) =
+            workload_command_receiver2.recv().await
+        else {
+            panic!()
+        };
+        assert_eq!(received_instance_name.as_ref(), &instance_name);
+        assert_eq!(received_retry_token.mock_id, 42);
+        assert!(workload_command_receiver2.is_empty());
+        assert!(workload_command_receiver2.is_closed());
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    #[tokio::test]
+    async fn utest_workload_obj_run_delete_failed_send_retry() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, mut workload_command_receiver2) =
+            WorkloadCommandSender::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let mut old_mock_state_checker = StubStateChecker::new();
+        old_mock_state_checker.panic_if_not_stopped();
+
+        let old_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut new_workload_spec = old_workload_spec.clone();
+        new_workload_spec.runtime_config = "changed config".to_string();
+        new_workload_spec.instance_name = WorkloadInstanceName::builder()
+            .agent_name(old_workload_spec.instance_name.agent_name())
+            .workload_name(old_workload_spec.instance_name.workload_name())
+            .config(&new_workload_spec.runtime_config)
+            .build();
+
+        let new_instance_name = new_workload_spec.instance_name.clone();
+
+        let create_runtime_error_msg = "some create error";
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+                RuntimeCall::CreateWorkload(
+                    new_workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    HashMap::default(),
+                    Err(crate::runtime_connectors::RuntimeError::Create(
+                        create_runtime_error_msg.to_owned(),
+                    )),
+                ), // We also send a delete command, but as no new workload was generated, there is also no
+                   // new ID so no call to the runtime is expected to happen here.
+            ])
+            .await;
+
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
+        mock_remove_dir.expect().returning(|_| Ok(()));
+
+        let retry_token = MockRetryToken {
+            mock_id: 42,
+            valid: true,
+        };
+
+        workload_command_sender
+            .update(
+                Some(new_workload_spec.clone()),
+                CONTROL_INTERFACE_PATH.clone(),
+            )
+            .await
+            .unwrap();
+        workload_command_sender.delete().await.unwrap();
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(old_workload_spec)
+            .run_folder(RUN_FOLDER.into())
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
+            .workload_state_sender(state_change_tx)
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .times(2)
+            .return_const(());
+
+        control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
+        control_loop_state.state_checker = Some(old_mock_state_checker);
+
+        control_loop_state
+            .retry_manager
+            .expect_new_token()
+            .once()
+            .return_once(|| retry_token);
+
+        assert!(timeout(
+            Duration::from_millis(150),
+            WorkloadControlLoop::run(control_loop_state)
+        )
+        .await
+        .is_ok());
+
+        let Some(WorkloadCommand::Retry(received_instance_name, received_retry_token)) =
+            workload_command_receiver2.recv().await
+        else {
+            panic!()
+        };
+        assert_eq!(received_instance_name.as_ref(), &new_instance_name);
+        assert_eq!(received_retry_token.mock_id, 42);
+        assert!(workload_command_receiver2.is_empty());
+        assert!(workload_command_receiver2.is_closed());
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    #[tokio::test]
+    async fn utest_workload_obj_run_retry_successful() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let instance_name = workload_spec.instance_name.clone();
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::CreateWorkload(
+                    workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    HashMap::default(),
+                    Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
+                ),
+                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+            ])
+            .await;
+
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
+        mock_remove_dir.expect().returning(|_| Ok(()));
+
+        let retry_token = MockRetryToken {
+            mock_id: 42,
+            valid: true,
+        };
+
+        workload_command_sender
+            .retry(instance_name.clone(), retry_token)
+            .await
+            .unwrap();
+
+        let workload_command_sender_clone = workload_command_sender.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            workload_command_sender_clone.delete().await.unwrap();
+        });
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .run_folder(RUN_FOLDER.into())
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
+            .workload_state_sender(state_change_tx)
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .once()
+            .return_const(());
+
+        assert!(timeout(
+            Duration::from_millis(150),
+            WorkloadControlLoop::run(control_loop_state)
+        )
+        .await
+        .is_ok());
+
+        assert!(workload_command_receiver2.is_empty());
+        assert!(workload_command_receiver2.is_closed());
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    #[tokio::test]
+    async fn utest_workload_obj_run_retry_skip_if_retry_token_invalid() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let instance_name = workload_spec.instance_name.clone();
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![
+                // We also send a delete command, but as no new workload was generated, there is also no
+                // new ID so no call to the runtime is expected to happen here.
+            ])
+            .await;
+
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
+        mock_remove_dir.expect().returning(|_| Ok(()));
+
+        let retry_token = MockRetryToken {
+            mock_id: 42,
+            valid: false,
+        };
+
+        workload_command_sender
+            .retry(instance_name.clone(), retry_token)
+            .await
+            .unwrap();
+
+        let workload_command_sender_clone = workload_command_sender.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            workload_command_sender_clone.delete().await.unwrap();
+        });
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .run_folder(RUN_FOLDER.into())
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
+            .workload_state_sender(state_change_tx)
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .once()
+            .return_const(());
+
+        assert!(timeout(
+            Duration::from_millis(150),
+            WorkloadControlLoop::run(control_loop_state)
+        )
+        .await
+        .is_ok());
+
+        assert!(workload_command_receiver2.is_empty());
+        assert!(workload_command_receiver2.is_closed());
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    #[tokio::test]
+    async fn utest_workload_obj_run_retry_failed_sends_retry() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, mut workload_command_receiver2) =
+            WorkloadCommandSender::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let instance_name = workload_spec.instance_name.clone();
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        let create_runtime_error_msg = "some create error";
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::CreateWorkload(
+                    workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    HashMap::default(),
+                    Err(crate::runtime_connectors::RuntimeError::Create(
+                        create_runtime_error_msg.to_owned(),
+                    )),
+                ), // We also send a delete command, but as no new workload was generated, there is also no
+                   // new ID so no call to the runtime is expected to happen here.
+            ])
+            .await;
+
+        let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
+        mock_remove_dir.expect().returning(|_| Ok(()));
+
+        let retry_token = MockRetryToken {
+            mock_id: 42,
+            valid: true,
+        };
+
+        workload_command_sender
+            .retry(instance_name.clone(), retry_token)
+            .await
+            .unwrap();
+
+        let workload_command_sender_clone = workload_command_sender.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            workload_command_sender_clone.delete().await.unwrap();
+        });
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .run_folder(RUN_FOLDER.into())
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
+            .workload_state_sender(state_change_tx)
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        control_loop_state
+            .retry_manager
+            .expect_invalidate()
+            .once()
+            .return_const(());
+
+        assert!(timeout(
+            Duration::from_millis(150),
+            WorkloadControlLoop::run(control_loop_state)
+        )
+        .await
+        .is_ok());
+
+        let Some(WorkloadCommand::Retry(received_instance_name, received_retry_token)) =
+            workload_command_receiver2.recv().await
+        else {
+            panic!()
+        };
+        assert_eq!(received_instance_name.as_ref(), &instance_name);
+        assert_eq!(received_retry_token.mock_id, 42);
+        assert!(workload_command_receiver2.is_empty());
+        assert!(workload_command_receiver2.is_closed());
+        runtime_mock.assert_all_expectations().await;
     }
 }
