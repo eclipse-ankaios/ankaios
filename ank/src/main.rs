@@ -18,7 +18,7 @@ use std::path::PathBuf;
 mod ank_config;
 mod cli;
 mod cli_commands;
-use ank_config::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH, DEFAULT_CONFIG};
+use ank_config::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
 use cli_commands::CliCommands;
 use common::std_extensions::GracefulExitResult;
 use grpc::security::TLSConfig;
@@ -61,261 +61,255 @@ async fn main() {
     let args = cli::parse();
     let ank_config = AnkConfig::from_file(PathBuf::from("/workspaces/ankaios/ank/config/ank.conf"));
     println!("{:?}", ank_config);
-    // let mut ank_config = handle_ank_config(&args.config_path);
+    let mut ank_config = handle_ank_config(&args.config_path);
 
-    // ank_config.update_with_args(&args);
+    ank_config.update_with_args(&args);
 
-    // println!("{:?}", ank_config);
+    println!("{:?}", ank_config);
 
-    // let cli_name = "ank-cli";
-    // env::set_var(log::VERBOSITY_KEY, ank_config.verbose.to_string());
-    // env::set_var(log::QUIET_KEY, ank_config.quiet.to_string());
+    let cli_name = "ank-cli";
+    env::set_var(log::VERBOSITY_KEY, ank_config.verbose.to_string());
+    env::set_var(log::QUIET_KEY, ank_config.quiet.to_string());
 
-    // output_debug!(
-    //     "Started '{}' with the following parameters: '{:?}'",
-    //     cli_name,
-    //     ank_config
-    // );
+    output_debug!(
+        "Started '{}' with the following parameters: '{:?}'",
+        cli_name,
+        ank_config
+    );
 
-    // if let Err(err_message) = TLSConfig::is_config_conflicting(
-    //     ank_config.config_variant[DEFAULT_CONFIG].insecure,
-    //     &ank_config.config_variant[DEFAULT_CONFIG].ca_pem_content,
-    //     &ank_config.config_variant[DEFAULT_CONFIG].crt_pem_content,
-    //     &ank_config.config_variant[DEFAULT_CONFIG].key_pem_content,
-    // ) {
-    //     output_warn!("{}", err_message);
-    // }
+    if let Err(err_message) = TLSConfig::is_config_conflicting(
+        ank_config.insecure,
+        &ank_config.ca_pem_content,
+        &ank_config.crt_pem_content,
+        &ank_config.key_pem_content,
+    ) {
+        output_warn!("{}", err_message);
+    }
 
-    // // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
-    // // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
-    // // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    // let tls_config = TLSConfig::new(
-    //     ank_config.config_variant[DEFAULT_CONFIG].insecure,
-    //     ank_config.config_variant[DEFAULT_CONFIG]
-    //         .ca_pem_content
-    //         .clone(),
-    //     ank_config.config_variant[DEFAULT_CONFIG]
-    //         .crt_pem_content
-    //         .clone(),
-    //     ank_config.config_variant[DEFAULT_CONFIG]
-    //         .key_pem_content
-    //         .clone(),
-    // );
+    // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
+    // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+    // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+    let tls_config = TLSConfig::new(
+        ank_config.insecure,
+        ank_config.ca_pem_content.clone(),
+        ank_config.crt_pem_content.clone(),
+        ank_config.key_pem_content.clone(),
+    );
 
-    // let mut cmd = CliCommands::init(
-    //     ank_config.response_timeout,
-    //     cli_name.to_string(),
-    //     ank_config.config_variant[DEFAULT_CONFIG].server_url.clone(),
-    //     ank_config.no_wait,
-    //     // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    //     tls_config.unwrap_or_exit_func(
-    //         |err| output_and_error!("Missing certificate files: {}", err),
-    //         -1,
-    //     ),
-    // )
-    // .unwrap_or_else(|err| {
-    //     output_and_error!("Cannot connect to server: '{}'", err);
-    // });
+    let mut cmd = CliCommands::init(
+        ank_config.response_timeout,
+        cli_name.to_string(),
+        ank_config.server_url.clone(),
+        ank_config.no_wait,
+        // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+        tls_config.unwrap_or_exit_func(
+            |err| output_and_error!("Missing certificate files: {}", err),
+            -1,
+        ),
+    )
+    .unwrap_or_else(|err| {
+        output_and_error!("Cannot connect to server: '{}'", err);
+    });
 
-    // match args.command {
-    //     cli::Commands::Get(get_args) => match get_args.command {
-    //         // [impl->swdd~cli-provides-get-desired-state~1]
-    //         // [impl->swdd~cli-provides-object-field-mask-arg-to-get-partial-desired-state~1]
-    //         Some(cli::GetCommands::State {
-    //             object_field_mask,
-    //             output_format,
-    //         }) => {
-    //             // [impl->swdd~cli-provides-get-desired-state~1]
-    //             // [impl->swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1]
-    //             if let Ok(out_text) = cmd.get_state(object_field_mask, output_format).await {
-    //                 // [impl -> swdd~cli-returns-desired-state-from-server~1]
-    //                 output_and_exit!("{}", out_text);
-    //             } else {
-    //                 output_and_error!("Could not retrieve state.");
-    //             }
-    //         }
+    match args.command {
+        cli::Commands::Get(get_args) => match get_args.command {
+            // [impl->swdd~cli-provides-get-desired-state~1]
+            // [impl->swdd~cli-provides-object-field-mask-arg-to-get-partial-desired-state~1]
+            Some(cli::GetCommands::State {
+                object_field_mask,
+                output_format,
+            }) => {
+                // [impl->swdd~cli-provides-get-desired-state~1]
+                // [impl->swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1]
+                if let Ok(out_text) = cmd.get_state(object_field_mask, output_format).await {
+                    // [impl -> swdd~cli-returns-desired-state-from-server~1]
+                    output_and_exit!("{}", out_text);
+                } else {
+                    output_and_error!("Could not retrieve state.");
+                }
+            }
 
-    //         // [impl->swdd~cli-provides-list-of-workloads~1]
-    //         Some(cli::GetCommands::Workload {
-    //             workload_name,
-    //             agent_name,
-    //             state,
-    //         }) => {
-    //             output_debug!(
-    //                 "Received get workload with workload_name='{:?}', agent_name='{:?}', state='{:?}'",
-    //                 workload_name,
-    //                 agent_name,
-    //                 state,
-    //             );
+            // [impl->swdd~cli-provides-list-of-workloads~1]
+            Some(cli::GetCommands::Workload {
+                workload_name,
+                agent_name,
+                state,
+            }) => {
+                output_debug!(
+                    "Received get workload with workload_name='{:?}', agent_name='{:?}', state='{:?}'",
+                    workload_name,
+                    agent_name,
+                    state,
+                );
 
-    //             match cmd
-    //                 .get_workloads_table(agent_name, state, workload_name)
-    //                 .await
-    //             {
-    //                 Ok(out_text) => output_and_exit!("{}", out_text),
-    //                 Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
-    //             }
-    //         }
-    //         // [impl->swdd~cli-provides-list-of-agents~1]
-    //         Some(cli::GetCommands::Agent {}) => {
-    //             output_debug!("Received get agent.");
+                match cmd
+                    .get_workloads_table(agent_name, state, workload_name)
+                    .await
+                {
+                    Ok(out_text) => output_and_exit!("{}", out_text),
+                    Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
+                }
+            }
+            // [impl->swdd~cli-provides-list-of-agents~1]
+            Some(cli::GetCommands::Agent {}) => {
+                output_debug!("Received get agent.");
 
-    //             match cmd.get_agents().await {
-    //                 Ok(out_text) => output_and_exit!("{}", out_text),
-    //                 Err(error) => output_and_error!("Failed to get agents: '{}'", error),
-    //             }
-    //         }
-    //         // [impl->swdd~cli-provides-list-of-configs~1]
-    //         Some(cli::GetCommands::Config {}) => {
-    //             output_debug!("Received get config.");
+                match cmd.get_agents().await {
+                    Ok(out_text) => output_and_exit!("{}", out_text),
+                    Err(error) => output_and_error!("Failed to get agents: '{}'", error),
+                }
+            }
+            // [impl->swdd~cli-provides-list-of-configs~1]
+            Some(cli::GetCommands::Config {}) => {
+                output_debug!("Received get config.");
 
-    //             match cmd.get_configs().await {
-    //                 Ok(out_text) => output_and_exit!("{}", out_text),
-    //                 Err(error) => output_and_error!("Failed to get configs: '{}'", error),
-    //             }
-    //         }
-    //         None => unreachable!("Unreachable code."),
-    //     },
-    //     cli::Commands::Set(set_args) => match set_args.command {
-    //         // [impl->swdd~cli-provides-set-desired-state~1]
-    //         Some(cli::SetCommands::State {
-    //             object_field_mask,
-    //             state_object_file,
-    //         }) => {
-    //             output_debug!(
-    //                 "Received set with object_field_mask='{:?}' and state_object_file='{:?}'",
-    //                 object_field_mask,
-    //                 state_object_file
-    //             );
+                match cmd.get_configs().await {
+                    Ok(out_text) => output_and_exit!("{}", out_text),
+                    Err(error) => output_and_error!("Failed to get configs: '{}'", error),
+                }
+            }
+            None => unreachable!("Unreachable code."),
+        },
+        cli::Commands::Set(set_args) => match set_args.command {
+            // [impl->swdd~cli-provides-set-desired-state~1]
+            Some(cli::SetCommands::State {
+                object_field_mask,
+                state_object_file,
+            }) => {
+                output_debug!(
+                    "Received set with object_field_mask='{:?}' and state_object_file='{:?}'",
+                    object_field_mask,
+                    state_object_file
+                );
 
-    //             // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
-    //             if let Err(err) = cmd.set_state(object_field_mask, state_object_file).await {
-    //                 output_and_error!("Failed to set state: '{}'", err)
-    //             }
-    //         }
-    //         None => unreachable!("Unreachable code."),
-    //     },
-    //     cli::Commands::Delete(delete_args) => match delete_args.command {
-    //         Some(cli::DeleteCommands::Workload { workload_name }) => {
-    //             output_debug!(
-    //                 "Received delete workload with workload_name = '{:?}'",
-    //                 workload_name
-    //             );
-    //             if let Err(error) = cmd.delete_workloads(workload_name).await {
-    //                 output_and_error!("Failed to delete workloads: '{}'", error);
-    //             }
-    //         }
-    //         // [impl->swdd~cli-provides-delete-configs~1]]
-    //         Some(cli::DeleteCommands::Config { config_name }) => {
-    //             output_debug!(
-    //                 "Received delete config with config_name = '{:?}'",
-    //                 config_name
-    //             );
-    //             if let Err(error) = cmd.delete_configs(config_name).await {
-    //                 output_and_error!("Failed to delete configs: '{}'", error);
-    //             }
-    //         }
-    //         None => unreachable!("Unreachable code."),
-    //     },
-    //     cli::Commands::Run(run_args) => match run_args.command {
-    //         Some(cli::RunCommands::Workload {
-    //             workload_name,
-    //             runtime_name,
-    //             runtime_config,
-    //             agent_name,
-    //             tags,
-    //         }) => {
-    //             output_debug!(
-    //                 "Received run workload with workload_name='{:?}', runtime='{:?}', runtime_config='{:?}', agent_name='{:?}', tags='{:?}'",
-    //                 workload_name,
-    //                 runtime_name,
-    //                 runtime_config,
-    //                 agent_name,
-    //                 tags,
-    //             );
-    //             if let Err(error) = cmd
-    //                 .run_workload(
-    //                     workload_name,
-    //                     runtime_name,
-    //                     runtime_config,
-    //                     agent_name,
-    //                     tags,
-    //                 )
-    //                 .await
-    //             {
-    //                 output_and_error!("Failed to run workloads: '{}'", error);
-    //             }
-    //         }
-    //         None => unreachable!("Unreachable code."),
-    //     },
-    //     cli::Commands::Apply(apply_args) => {
-    //         if let Err(err) = cmd.apply_manifests(apply_args).await {
-    //             output_and_error!("{}", err);
-    //         }
-    //     }
-    // }
-    // cmd.shut_down().await;
+                // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
+                if let Err(err) = cmd.set_state(object_field_mask, state_object_file).await {
+                    output_and_error!("Failed to set state: '{}'", err)
+                }
+            }
+            None => unreachable!("Unreachable code."),
+        },
+        cli::Commands::Delete(delete_args) => match delete_args.command {
+            Some(cli::DeleteCommands::Workload { workload_name }) => {
+                output_debug!(
+                    "Received delete workload with workload_name = '{:?}'",
+                    workload_name
+                );
+                if let Err(error) = cmd.delete_workloads(workload_name).await {
+                    output_and_error!("Failed to delete workloads: '{}'", error);
+                }
+            }
+            // [impl->swdd~cli-provides-delete-configs~1]]
+            Some(cli::DeleteCommands::Config { config_name }) => {
+                output_debug!(
+                    "Received delete config with config_name = '{:?}'",
+                    config_name
+                );
+                if let Err(error) = cmd.delete_configs(config_name).await {
+                    output_and_error!("Failed to delete configs: '{}'", error);
+                }
+            }
+            None => unreachable!("Unreachable code."),
+        },
+        cli::Commands::Run(run_args) => match run_args.command {
+            Some(cli::RunCommands::Workload {
+                workload_name,
+                runtime_name,
+                runtime_config,
+                agent_name,
+                tags,
+            }) => {
+                output_debug!(
+                    "Received run workload with workload_name='{:?}', runtime='{:?}', runtime_config='{:?}', agent_name='{:?}', tags='{:?}'",
+                    workload_name,
+                    runtime_name,
+                    runtime_config,
+                    agent_name,
+                    tags,
+                );
+                if let Err(error) = cmd
+                    .run_workload(
+                        workload_name,
+                        runtime_name,
+                        runtime_config,
+                        agent_name,
+                        tags,
+                    )
+                    .await
+                {
+                    output_and_error!("Failed to run workloads: '{}'", error);
+                }
+            }
+            None => unreachable!("Unreachable code."),
+        },
+        cli::Commands::Apply(apply_args) => {
+            if let Err(err) = cmd.apply_manifests(apply_args).await {
+                output_and_error!("{}", err);
+            }
+        }
+    }
+    cmd.shut_down().await;
 }
 
-// //////////////////////////////////////////////////////////////////////////////
-// //                 ########  #######    #########  #########                //
-// //                    ##     ##        ##             ##                    //
-// //                    ##     #####     #########      ##                    //
-// //                    ##     ##                ##     ##                    //
-// //                    ##     #######   #########      ##                    //
-// //////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::{ank_config::DEFAULT_ANK_CONFIG_FILE_PATH, handle_ank_config, AnkConfig};
-//     use std::{
-//         fs::{self, File},
-//         io::Write,
-//         path::PathBuf,
-//     };
-//     use tempfile::NamedTempFile;
+#[cfg(test)]
+mod tests {
+    use crate::{ank_config::DEFAULT_ANK_CONFIG_FILE_PATH, handle_ank_config, AnkConfig};
+    use std::{
+        fs::{self, File},
+        io::Write,
+        path::PathBuf,
+    };
+    use tempfile::NamedTempFile;
 
-//     const VALID_ANK_CONFIG_CONTENT: &str = r"#
-//     version = 'v1'
-//     response_timeout = 2500
-//     [default]
-//     #";
+    const VALID_ANK_CONFIG_CONTENT: &str = r"#
+    version = 'v1'
+    response_timeout = 2500
+    [default]
+    #";
 
-//     #[test]
-//     fn utest_handle_ank_config_valid_config() {
-//         let mut tmp_config_file = NamedTempFile::new().expect("could not create temp file");
-//         write!(tmp_config_file, "{}", VALID_ANK_CONFIG_CONTENT)
-//             .expect("could not write to temp file");
+    #[test]
+    fn utest_handle_ank_config_valid_config() {
+        let mut tmp_config_file = NamedTempFile::new().expect("could not create temp file");
+        write!(tmp_config_file, "{}", VALID_ANK_CONFIG_CONTENT)
+            .expect("could not write to temp file");
 
-//         let ank_config = handle_ank_config(&Some(
-//             tmp_config_file
-//                 .into_temp_path()
-//                 .to_str()
-//                 .unwrap()
-//                 .to_string(),
-//         ));
+        let ank_config = handle_ank_config(&Some(
+            tmp_config_file
+                .into_temp_path()
+                .to_str()
+                .unwrap()
+                .to_string(),
+        ));
 
-//         assert_eq!(ank_config.response_timeout, 2500);
-//     }
+        assert_eq!(ank_config.response_timeout, 2500);
+    }
 
-//     #[test]
-//     fn utest_handle_ank_config_default_path() {
-//         if let Some(parent) = PathBuf::from(DEFAULT_ANK_CONFIG_FILE_PATH).parent() {
-//             fs::create_dir_all(parent).expect("Failed to create directories");
-//         }
-//         let mut file = File::create(DEFAULT_ANK_CONFIG_FILE_PATH).expect("Failed to create file");
-//         writeln!(file, "{}", VALID_ANK_CONFIG_CONTENT).expect("Failed to write to file");
+    #[test]
+    fn utest_handle_ank_config_default_path() {
+        if let Some(parent) = PathBuf::from(DEFAULT_ANK_CONFIG_FILE_PATH).parent() {
+            fs::create_dir_all(parent).expect("Failed to create directories");
+        }
+        let mut file = File::create(DEFAULT_ANK_CONFIG_FILE_PATH).expect("Failed to create file");
+        writeln!(file, "{}", VALID_ANK_CONFIG_CONTENT).expect("Failed to write to file");
 
-//         let ank_config = handle_ank_config(&None);
+        let ank_config = handle_ank_config(&None);
 
-//         assert_eq!(ank_config.response_timeout, 2500);
-//         assert!(fs::remove_file(DEFAULT_ANK_CONFIG_FILE_PATH).is_ok());
-//     }
+        assert_eq!(ank_config.response_timeout, 2500);
+        assert!(fs::remove_file(DEFAULT_ANK_CONFIG_FILE_PATH).is_ok());
+    }
 
-//     #[test]
-//     fn utest_handle_ank_config_default() {
-//         let ank_config = handle_ank_config(&None);
+    #[test]
+    fn utest_handle_ank_config_default() {
+        let ank_config = handle_ank_config(&None);
 
-//         assert_eq!(ank_config, AnkConfig::default());
-//     }
-// }
+        assert_eq!(ank_config, AnkConfig::default());
+    }
+}
