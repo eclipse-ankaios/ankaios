@@ -76,16 +76,16 @@ impl CliCommands {
                         let new_state = wl_state.execution_state.state.to_string();
 
                         if !workloads_table_data.contains_key(&instance_name) {
-                            let updated_workloads = self.get_workloads().await?;
-                            let mut updated_workloads_btree: BTreeMap<String, WorkloadTableRow> = updated_workloads
+                            let mut updated_workloads = self.get_workloads().await?;
+                            
+                            updated_workloads.get_mut().retain(|wi| {
+                                check_workload_filters(&wi.1, &agent_name, &state, &workload_name)
+                            });
+
+                            let updated_workloads_btree: BTreeMap<String, WorkloadTableRow> = updated_workloads
                                 .into_iter()
                                 .map(|(i_name, row)| (i_name.to_string(), row))
                                 .collect();
-
-                            // Filtering BTree
-                            updated_workloads_btree.retain(|_k, row| {
-                                check_workload_filters(row, &agent_name, &state, &workload_name)
-                            });
 
                             workloads_table_data = updated_workloads_btree;
                         } else {
@@ -98,6 +98,10 @@ impl CliCommands {
                                 row.execution_state = new_state;
                                 row.set_additional_info(&wl_state.execution_state.additional_info);
                             }
+
+                            workloads_table_data.retain(|_k, row| {
+                                check_workload_filters(row, &agent_name, &state, &workload_name)
+                            });
                         }
                     }
                     update_table(&workloads_table_data);
