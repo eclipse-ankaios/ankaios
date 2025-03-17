@@ -59,13 +59,9 @@ fn handle_ank_config(config_path: &Option<String>) -> AnkConfig {
 #[tokio::main]
 async fn main() {
     let args = cli::parse();
-    let ank_config = AnkConfig::from_file(PathBuf::from("/workspaces/ankaios/ank/config/ank.conf"));
-    println!("{:?}", ank_config);
     let mut ank_config = handle_ank_config(&args.config_path);
 
     ank_config.update_with_args(&args);
-
-    println!("{:?}", ank_config);
 
     let cli_name = "ank-cli";
     env::set_var(log::VERBOSITY_KEY, ank_config.verbose.to_string());
