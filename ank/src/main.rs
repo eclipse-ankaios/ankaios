@@ -29,6 +29,7 @@ mod log;
 #[cfg(test)]
 pub mod test_helper;
 
+// [impl->swdd~cli-loads-config-file~1]
 fn handle_ank_config(config_path: &Option<String>) -> AnkConfig {
     match config_path {
         Some(config_path) => {
@@ -59,8 +60,9 @@ fn handle_ank_config(config_path: &Option<String>) -> AnkConfig {
 #[tokio::main]
 async fn main() {
     let args = cli::parse();
-    let mut ank_config = handle_ank_config(&args.config_path);
 
+    // [impl->swdd~cli-loads-config-file~1]
+    let mut ank_config = handle_ank_config(&args.config_path);
     ank_config.update_with_args(&args);
 
     let cli_name = "ank-cli";

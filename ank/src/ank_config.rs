@@ -67,6 +67,7 @@ fn get_default_url() -> String {
     DEFAULT_SERVER_ADDRESS.to_string()
 }
 
+// [impl->swdd~cli-loads-config-file~1]
 #[derive(Debug, PartialEq)]
 pub struct AnkConfig {
     pub version: String,
@@ -201,6 +202,7 @@ impl Default for AnkConfig {
 }
 
 impl AnkConfig {
+    // [impl->swdd~cli-loads-config-file~1]
     pub fn from_file(file_path: PathBuf) -> Result<AnkConfig, ConversionErrors> {
         let ank_config_content = read_to_string(file_path.to_str().unwrap_or_unreachable())
             .map_err(|err| ConversionErrors::InvalidAnkConfig(err.to_string()))?;
@@ -301,6 +303,7 @@ mod tests {
     const KEY_PEM_CONTENT: &str = r"the content of the
         key.pem file is stored in here";
 
+    // [utest->swdd~cli-loads-config-file~1]
     #[test]
     fn utest_default_ank_config() {
         let default_ank_config = AnkConfig::default();
@@ -321,6 +324,7 @@ mod tests {
         assert!(default_ank_config.key_pem_content.is_none());
     }
 
+    // [utest->swdd~cli-loads-config-file~1]
     #[test]
     fn utest_ank_config_wrong_version() {
         let ank_config_content: &str = r"#
@@ -338,6 +342,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-loads-config-file~1]
     #[test]
     fn utest_ank_config_conflicting_certificates() {
         let ank_config_content = format!(
@@ -363,6 +368,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-loads-config-file~1]
     #[test]
     fn utest_ank_config_update_with_args() {
         let mut ank_config = AnkConfig::default();
@@ -397,6 +403,7 @@ mod tests {
         assert_eq!(ank_config.key_pem, Some(KEY_PEM_PATH.to_string()));
     }
 
+    // [utest->swdd~cli-loads-config-file~1]
     #[test]
     fn utest_ank_config_update_with_args_certificates_content() {
         let ank_config_content = format!(
@@ -446,6 +453,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-loads-config-file~1]
     #[test]
     fn utest_ank_config_no_context_returns_default() {
         let ank_config_content = r"#
@@ -466,6 +474,7 @@ mod tests {
         assert!(ank_config.key_pem_content.is_none());
     }
 
+    // [utest->swdd~cli-loads-config-file~1]
     #[test]
     fn utest_ank_config_multiple_contexts_found() {
         let ank_config_content = r"#
@@ -481,6 +490,7 @@ mod tests {
         assert!(ank_config.is_ok());
     }
 
+    // [utest->swdd~cli-loads-config-file~1]
     #[test]
     fn utest_ank_config_from_file_successful() {
         let ank_config_content = format!(

@@ -18,7 +18,7 @@ use crate::grpc_api::{
     cli_connection_client::CliConnectionClient, to_server::ToServerEnum, AgentHello,
 };
 use crate::grpc_middleware_error::GrpcMiddlewareError;
-use crate::security::{read_pem_file, TLSConfig};
+use crate::security::TLSConfig;
 use crate::to_server_proxy;
 use crate::{from_server_proxy, CommanderHello};
 

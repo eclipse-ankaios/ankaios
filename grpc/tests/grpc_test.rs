@@ -188,9 +188,9 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         }
         pub fn get_cli_tls_config(&self) -> TLSConfig {
             TLSConfig {
-                ca_pem: read_pem_file(&self.ca_pem_file_path, false),
-                crt_pem: read_pem_file(&self.cli_pem_file_path, false),
-                key_pem: read_pem_file(&self.cli_key_pem_file_path, false),
+                ca_pem: read_pem_file(&self.ca_pem_file_path, false).unwrap(),
+                crt_pem: read_pem_file(&self.cli_pem_file_path, false).unwrap(),
+                key_pem: read_pem_file(&self.cli_key_pem_file_path, false).unwrap(),
             }
         }
     }

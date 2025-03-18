@@ -38,6 +38,7 @@ Test Ankaios CLI get workloads
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~cli-loads-config-file~1]
 Test Ankaios CLI get workloads with config files
     [Setup]    Setup Ankaios
     # Preconditions
