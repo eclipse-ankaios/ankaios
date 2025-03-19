@@ -180,7 +180,7 @@ mod tests {
 
     use super::RetryToken;
 
-    static TEST_MUTEX: Mutex<()> = Mutex::new(());
+    use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     static SLEEP_SENDER: Mutex<Option<oneshot::Sender<()>>> = Mutex::new(None);
     static SLEEP_LAST_DURATION: Mutex<Option<Duration>> = Mutex::new(None);
@@ -289,7 +289,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-exponential-backoff-retries~1]
     #[test]
     fn utest_one_retry() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = MOCKALL_CONTEXT_SYNC.get_lock();
         reset_random();
         let mut manager = super::RetryManager::default();
         let token = manager.new_token();
@@ -338,7 +338,7 @@ mod tests {
             }
         }
 
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = MOCKALL_CONTEXT_SYNC.get_lock();
         reset_random();
         let mut manager = super::RetryManager::default();
         let token = Box::new(manager.new_token());
@@ -362,7 +362,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-reset-backoff-on-update]
     #[test]
     fn utest_new_toke_resets_timeout() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = MOCKALL_CONTEXT_SYNC.get_lock();
         reset_random();
         let mut manager = super::RetryManager::default();
 
@@ -415,7 +415,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
     #[test]
     fn utest_invalidate_invalidates_token() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = MOCKALL_CONTEXT_SYNC.get_lock();
         reset_random();
         let mut manager = super::RetryManager::default();
         let token = manager.new_token();
@@ -427,7 +427,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
     #[test]
     fn utest_invalidate_stops_retry() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = MOCKALL_CONTEXT_SYNC.get_lock();
         reset_random();
         let mut manager = super::RetryManager::default();
         let token = manager.new_token();
@@ -450,7 +450,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
     #[test]
     fn utest_new_token_invalidates_old_token() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = MOCKALL_CONTEXT_SYNC.get_lock();
         reset_random();
         let mut manager = super::RetryManager::default();
         let token = manager.new_token();
@@ -462,7 +462,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
     #[test]
     fn utest_new_token_stops_retry() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = MOCKALL_CONTEXT_SYNC.get_lock();
         reset_random();
         let mut manager = super::RetryManager::default();
         let token = manager.new_token();
