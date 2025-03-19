@@ -1777,7 +1777,7 @@ When the WorkloadControlLoop receives a retry command, the WorkloadControlLoop s
 * store the new Id and reference to the state checker inside the WorkloadControlLoop
 
 Comment:
-The `Pending(Starting)` execution state of the workload is kept on a failed to avoid fast execution state changes on the user side.
+The `Pending(Starting)` execution state of the workload is kept upon a startup failure to avoid fast execution state changes on the user side.
 
 Tags:
 - WorkloadControlLoop
@@ -1816,8 +1816,8 @@ Status: approved
 When the WorkloadControlLoop receives an update from the WorkloadCommandSender, the WorkloadControlLoop shall reset the backoff.
 
 Rationale:
-On update of a workload shall behave similar as a delete with subsequent create of a workload with the same name.
-Hence if the creation of the updated workload fails, the backoff should be the same as for a new workload.
+Workload updates shall behave similar to a delete with subsequent create of a workload with the same name.
+Hence, if the creation of the updated workload fails, the backoff should be the same as for a new workload.
 
 Tags:
 - WorkloadControlLoop
