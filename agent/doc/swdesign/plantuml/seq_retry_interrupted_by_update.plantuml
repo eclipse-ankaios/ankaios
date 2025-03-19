@@ -22,6 +22,8 @@ runtime -->> workload_control_loop--: create failed
 workload_control_loop ->> retry_manager--++
 note right of retry_manager: wait for backoff time
 
+...
+
 workload ->> workload_command: send update workload A
 
 workload_control_loop -> workload_command++: wait for command
