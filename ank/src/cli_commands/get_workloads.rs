@@ -16,6 +16,7 @@ use crate::{cli_error::CliError, output_debug, output_update};
 use super::cli_table::CliTable;
 use super::workload_table_row::WorkloadTableRow;
 use super::CliCommands;
+use common::commands::UpdateWorkloadState;
 
 use std::collections::BTreeMap;
 
@@ -70,40 +71,12 @@ impl CliCommands {
 
             match workload_update_result {
                 Ok(update) => {
-                    // Process each updated workload
-                    for wl_state in update.workload_states {
-                        let instance_name = wl_state.instance_name.to_string();
-                        let new_state = wl_state.execution_state.state.to_string();
-
-                        if !workloads_table_data.contains_key(&instance_name) {
-                            let mut updated_workloads = self.get_workloads().await?;
-                            
-                            updated_workloads.get_mut().retain(|wi| {
-                                check_workload_filters(&wi.1, &agent_name, &state, &workload_name)
-                            });
-
-                            let updated_workloads_btree: BTreeMap<String, WorkloadTableRow> = updated_workloads
-                                .into_iter()
-                                .map(|(i_name, row)| (i_name.to_string(), row))
-                                .collect();
-
-                            workloads_table_data = updated_workloads_btree;
-                        } else {
-                            // Update existing entry
-
-                            // If state is removed, delete it from the table instead of keeping it with "removed state"
-                            if new_state == "Removed" {
-                                workloads_table_data.remove(&instance_name);
-                            } else if let Some(row) = workloads_table_data.get_mut(&instance_name) {
-                                row.execution_state = new_state;
-                                row.set_additional_info(&wl_state.execution_state.additional_info);
-                            }
-
-                            workloads_table_data.retain(|_k, row| {
-                                check_workload_filters(row, &agent_name, &state, &workload_name)
-                            });
-                        }
-                    }
+                    self.process_workload_updates(
+                        update,
+                        &agent_name,
+                        &state,
+                        &workload_name,
+                        &mut workloads_table_data).await?;
                     update_table(&workloads_table_data);
                 }
                 Err(e) => {
@@ -112,6 +85,46 @@ impl CliCommands {
             }
 
         }
+    }
+
+    async fn process_workload_updates(
+        &mut self,
+        update: UpdateWorkloadState,
+        agent_name: &Option<String>,
+        state: &Option<String>,
+        workload_name: &[String],
+        workloads_table_data: &mut BTreeMap<String, WorkloadTableRow>,
+    ) -> Result<(), CliError> {
+        for wl_state in update.workload_states {
+            let instance_name = wl_state.instance_name.to_string();
+            let new_state = wl_state.execution_state.state.to_string();
+
+            if !workloads_table_data.contains_key(&instance_name) {
+                let mut updated_workloads = self.get_workloads().await?;
+
+                updated_workloads.get_mut().retain(|wi| {
+                    check_workload_filters(&wi.1, agent_name, state, workload_name)
+                });
+
+                *workloads_table_data = updated_workloads
+                    .into_iter()
+                    .map(|(i_name, row)| (i_name.to_string(), row))
+                    .collect();
+            } else {
+                // Update existing entry
+                if new_state == "Removed" {
+                    workloads_table_data.remove(&instance_name);
+                } else if let Some(row) = workloads_table_data.get_mut(&instance_name) {
+                    row.execution_state = new_state;
+                    row.set_additional_info(&wl_state.execution_state.additional_info);
+                }
+
+                workloads_table_data.retain(|_k, row| {
+                    check_workload_filters(row, agent_name, state, workload_name)
+                });
+            }
+        }
+        Ok(())
     }
 }
 
