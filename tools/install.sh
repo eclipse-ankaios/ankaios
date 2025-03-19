@@ -49,9 +49,11 @@ display_usage() {
     echo -e "Usage: $0 [-v] [-i] [-t] [-s] [-a]"
     echo -e "Install Ankaios on a system."
     echo -e "  -v VERSION: Ankaios specific VERSION to install. Default: latest version."
+    # TODO: kick out the installation path
     echo -e "  -i PATH: Installation PATH. Default: $DEFAULT_BIN_DESTINATION"
     echo -e "  -t TARGET: Install systemd unit files for TARGET"
     echo -e "             'server', 'agent', 'none' or 'both' (default)"
+    # TODO: remove this and only leave --agent-name="agent_A"
     echo -e "  -s OPTIONS: OPTIONS which will be passed to the server. Default '$DEFAULT_SERVER_OPT'"
     echo -e "  -a OPTIONS: OPTIONS which will be passed to the agent. Default '$DEFAULT_AGENT_OPT'"
 }
