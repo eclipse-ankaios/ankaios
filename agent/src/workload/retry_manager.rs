@@ -37,7 +37,7 @@ const BACKOFF_MAX_IN_MILLIS: u64 = 300000;
 
 #[derive(Default)]
 pub struct RetryManager {
-    current_is_valid: watch::Sender<bool>,
+    current_token_is_valid_sink: watch::Sender<bool>,
 }
 
 #[derive(Debug)]
@@ -49,7 +49,7 @@ pub struct RetryToken {
 impl RetryManager {
     // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
     pub fn invalidate(&mut self) {
-        _ = self.current_is_valid.send(false);
+        _ = self.current_token_is_valid_sink.send(false);
     }
 
     pub fn new_token(&mut self) -> RetryToken {
@@ -57,7 +57,7 @@ impl RetryManager {
         self.invalidate();
 
         let (sender, receiver) = watch::channel(true);
-        self.current_is_valid = sender;
+        self.current_token_is_valid_sink = sender;
 
         // [impl->swdd~agent-workload-control-loop-reset-backoff-on-update]
         RetryToken {
