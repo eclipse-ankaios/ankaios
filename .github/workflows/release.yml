@@ -52,8 +52,6 @@ jobs:
           path: dist/
       - name: Package release artifacts
         run: tools/create_release.sh
-      - name: Package config files
-        run: tools/create_configs.sh
       - name: Upload release artifacts
         run: |
           cd dist

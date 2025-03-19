@@ -21,4 +21,7 @@ cp "${ROOT_DIR}"/api/proto/*.proto "${DIST_DIR}"
 echo "Exporting install script"
 cp "${ROOT_DIR}"/tools/install.sh "${DIST_DIR}"
 
+echo "Exporting config files"
+"${SCRIPT_DIR}"/create_configs.sh
+
 echo "Finished."
