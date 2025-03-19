@@ -45,6 +45,19 @@ Considered alternatives:
 - Create a workload file with a uuid as filename: increases complexity when debugging the workload file mount
 - Create a workload file in a subdirectory named by hashing the mount point path: affects performance when using more secure hash algorithms
 
+#### Use exponential backoff with jitter when retrying to create workloads
+`swdd~agent-decision-exponential-backoff-with-jitter-workload-creation-retry~1`
+
+Status approved
+
+When the Ankaios agents fails to create a workload, the agents uses exponential backoff with jitter as timeout before it retries to create the workload.
+The maximal timeout is 5 minutes.
+
+Rationale:
+- The timeout is exponentially increased to not overload the system with retries.
+- The jitter prevents, that too many retries are executed an the same moment.
+- The timeout is limited to 5 minutes, as it is expected with this timeout the retries will not overload the system anymore.
+
 ## Structural view
 
 The following diagram shows the structural view of the Ankaios Agent:
@@ -1746,11 +1759,6 @@ Status: approved
 
 When the WorkloadControlLoop sends a WorkloadCommand Retry,
 it shall hold back the command by an exponential backoff with jitter.
-
-Rationale:
-The creation of a workload can fail temporarily, for example if a image repository is currently not available.
-The wait time is increased exponentially to not to produce to much load on the system or external resources.
-The jitter is added, to once workloads can be created again, not to overwhelm the system or external resources.
 
 Tags:
 - WorkloadControlLoop
