@@ -11,6 +11,9 @@ echo "ROOT_DIR: $ROOT_DIR"
 "${SCRIPT_DIR}"/create_artifacts.sh -p linux-amd64
 "${SCRIPT_DIR}"/create_artifacts.sh -p linux-arm64
 
+echo "Exporting config files"
+"${SCRIPT_DIR}"/create_configs.sh
+
 echo "Exporting coverage report"
 tar -cvzf "${DIST_DIR}/"coverage-report.tar.gz --directory="${DIST_DIR}/coverage" $(ls "${DIST_DIR}/coverage")
 (cd "${DIST_DIR}/coverage" && zip -r "${DIST_DIR}/"coverage-report.zip .)
@@ -20,8 +23,5 @@ cp "${ROOT_DIR}"/api/proto/*.proto "${DIST_DIR}"
 
 echo "Exporting install script"
 cp "${ROOT_DIR}"/tools/install.sh "${DIST_DIR}"
-
-echo "Exporting config files"
-"${SCRIPT_DIR}"/create_configs.sh
 
 echo "Finished."
