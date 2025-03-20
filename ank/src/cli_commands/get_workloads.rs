@@ -71,12 +71,12 @@ impl CliCommands {
 
             match workload_update_result {
                 Ok(update) => {
-                    self.process_workload_updates(
+                    workloads_table_data = self.process_workload_updates(
                         update,
                         &agent_name,
                         &state,
                         &workload_name,
-                        &mut workloads_table_data).await?;
+                        workloads_table_data).await?;
                     update_table(&workloads_table_data);
                 }
                 Err(e) => {
@@ -93,8 +93,8 @@ impl CliCommands {
         agent_name: &Option<String>,
         state: &Option<String>,
         workload_name: &[String],
-        workloads_table_data: &mut BTreeMap<String, WorkloadTableRow>,
-    ) -> Result<(), CliError> {
+        mut workloads_table_data: BTreeMap<String, WorkloadTableRow>,
+    ) -> Result<BTreeMap<String, WorkloadTableRow>, CliError> {
         for wl_state in update.workload_states {
             let instance_name = wl_state.instance_name.to_string();
             let new_state = wl_state.execution_state.state.to_string();
@@ -106,7 +106,7 @@ impl CliCommands {
                     check_workload_filters(&wi.1, agent_name, state, workload_name)
                 });
 
-                *workloads_table_data = updated_workloads
+                workloads_table_data = updated_workloads
                     .into_iter()
                     .map(|(i_name, row)| (i_name.to_string(), row))
                     .collect();
@@ -124,7 +124,7 @@ impl CliCommands {
                 });
             }
         }
-        Ok(())
+        Ok(workloads_table_data)
     }
 }
 
