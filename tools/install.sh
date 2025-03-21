@@ -164,6 +164,15 @@ fi
 echo "Extracting the binaries into install folder: '${BIN_DESTINATION}'"
 ${BIN_SUDO} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}/"
 
+
+# Unizp the config files
+ANK_CONFIG_FILE_PATH="${HOME}/.config/ankaios/"
+CONFIGS_FILE_NAME="ankaios_configs.tar.gz"
+
+${BIN_SUDO} tar -xzvf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-server.conf
+${BIN_SUDO} tar -xzvf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-agent.conf
+${BIN_SUDO} tar -xzvf "${CONFIGS_FILE_NAME}" -C "${ANK_CONFIG_FILE_PATH}" ank.conf
+
 # Install systemd unit files
 if [ -d "$SERVICE_DEST" ]; then
     SVC_SUDO="sudo"
