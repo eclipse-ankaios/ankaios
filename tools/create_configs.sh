@@ -15,4 +15,7 @@ tar -cvzf "${CONFIG_FILES_NAME_BASE}".tar.gz \
     -C "$(dirname "$AGENT_CONFIG_FILE")" "$(basename "$AGENT_CONFIG_FILE")" \
     -C "$(dirname "$ANK_CONFIG_FILE")" "$(basename "$ANK_CONFIG_FILE")"
 
+echo "Creating checksums"
+sha512sum "${CONFIG_FILES_NAME_BASE}".tar.gz > "${CONFIG_FILES_NAME_BASE}".tar.gz.sha512sum.txt
+
 echo "Packaging config files for release '$CONFIG_FILES_NAME_BASE' finished."

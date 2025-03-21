@@ -169,9 +169,11 @@ ${BIN_SUDO} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}/"
 ANK_CONFIG_FILE_PATH="${HOME}/.config/ankaios/"
 CONFIGS_FILE_NAME="ankaios_configs.tar.gz"
 
-${BIN_SUDO} tar -xzvf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-server.conf
-${BIN_SUDO} tar -xzvf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-agent.conf
-${BIN_SUDO} tar -xzvf "${CONFIGS_FILE_NAME}" -C "${ANK_CONFIG_FILE_PATH}" ank.conf
+echo "Extracting the config files"
+
+${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-server.conf
+${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-agent.conf
+${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${ANK_CONFIG_FILE_PATH}" ank.conf
 
 # Install systemd unit files
 if [ -d "$SERVICE_DEST" ]; then
