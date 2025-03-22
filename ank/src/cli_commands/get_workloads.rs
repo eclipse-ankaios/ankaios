@@ -11,11 +11,14 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::{cli_error::CliError, output_debug};
+use crate::{cli_error::CliError, output_debug, output_update};
 
 use super::cli_table::CliTable;
 use super::workload_table_row::WorkloadTableRow;
 use super::CliCommands;
+use common::commands::UpdateWorkloadState;
+
+use std::collections::BTreeMap;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-list-of-workloads~1]
@@ -24,31 +27,16 @@ impl CliCommands {
         agent_name: Option<String>,
         state: Option<String>,
         workload_name: Vec<String>,
+        watch: bool,
     ) -> Result<String, CliError> {
         // [impl->swdd~cli-blocks-until-ankaios-server-responds-list-workloads~1]
         let mut workload_infos = self.get_workloads().await?;
         output_debug!("The table before filtering:\n{:?}", workload_infos);
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if let Some(agent_name) = agent_name {
-            workload_infos
-                .get_mut()
-                .retain(|wi| wi.1.agent == agent_name);
-        }
-
-        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if let Some(state) = state {
-            workload_infos
-                .get_mut()
-                .retain(|wi| wi.1.execution_state.to_lowercase() == state.to_lowercase());
-        }
-
-        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if !workload_name.is_empty() {
-            workload_infos
-                .get_mut()
-                .retain(|wi| workload_name.iter().any(|wn| wn == &wi.1.name));
-        }
+        workload_infos.get_mut().retain(|wi| {
+            check_workload_filters(&wi.1, &agent_name, &state, &workload_name)
+        });
 
         // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
         // [impl->swdd~cli-shall-sort-list-of-workloads~1]
@@ -56,16 +44,123 @@ impl CliCommands {
 
         output_debug!("The table after filtering:\n{:?}", workload_infos);
 
-        // [impl->swdd~cli-shall-present-list-of-workloads~1]
-        let table_rows: Vec<WorkloadTableRow> = workload_infos.into_iter().map(|x| x.1).collect();
+        let mut workloads_table_data: BTreeMap<String, WorkloadTableRow> = workload_infos
+        .into_iter()
+        .map(|(i_name, row)| (i_name.to_string(), row))
+        .collect();
 
-        // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        Ok(CliTable::new(&table_rows)
-            .table_with_wrapped_column_to_remaining_terminal_width(
-                WorkloadTableRow::ADDITIONAL_INFO_POS,
-            )
-            .unwrap_or_else(|_err| CliTable::new(&table_rows).create_default_table()))
+
+        if !watch {
+            // [impl->swdd~cli-shall-present-list-of-workloads~1]
+            let table_rows: Vec<&WorkloadTableRow> = workloads_table_data.values().collect();
+
+            // [impl->swdd~cli-shall-present-workloads-as-table~1]
+            let table = CliTable::new(&table_rows)
+                .table_with_wrapped_column_to_remaining_terminal_width(WorkloadTableRow::ADDITIONAL_INFO_POS)
+                .unwrap_or_else(|_| {
+                    CliTable::new(&table_rows).create_default_table()
+                });
+
+            return Ok(table);
+        }
+
+        update_table(&workloads_table_data);
+        // [impl->swdd~cli-watches-workloads~1]
+        loop {
+            let workload_update_result = self.server_connection.read_next_update_workload_state().await;
+
+            match workload_update_result {
+                Ok(update) => {
+                    workloads_table_data = self.process_workload_updates(
+                        update,
+                        &agent_name,
+                        &state,
+                        &workload_name,
+                        workloads_table_data).await?;
+                    update_table(&workloads_table_data);
+                }
+                Err(e) => {
+                    return Err(CliError::ExecutionError(format!("Error reading workload updates: {e:?}")));
+                }
+            }
+
+        }
     }
+
+    async fn process_workload_updates(
+        &mut self,
+        update: UpdateWorkloadState,
+        agent_name: &Option<String>,
+        state: &Option<String>,
+        workload_name: &[String],
+        mut workloads_table_data: BTreeMap<String, WorkloadTableRow>,
+    ) -> Result<BTreeMap<String, WorkloadTableRow>, CliError> {
+        for wl_state in update.workload_states {
+            let instance_name = wl_state.instance_name.to_string();
+            let new_state = wl_state.execution_state.state.to_string();
+
+            if !workloads_table_data.contains_key(&instance_name) {
+                let mut updated_workloads = self.get_workloads().await?;
+
+                updated_workloads.get_mut().retain(|wi| {
+                    check_workload_filters(&wi.1, agent_name, state, workload_name)
+                });
+
+                workloads_table_data = updated_workloads
+                    .into_iter()
+                    .map(|(i_name, row)| (i_name.to_string(), row))
+                    .collect();
+            } else {
+                // Update existing entry
+                if new_state == "Removed" {
+                    workloads_table_data.remove(&instance_name);
+                } else if let Some(row) = workloads_table_data.get_mut(&instance_name) {
+                    row.execution_state = new_state;
+                    row.set_additional_info(&wl_state.execution_state.additional_info);
+                }
+
+                workloads_table_data.retain(|_k, row| {
+                    check_workload_filters(row, agent_name, state, workload_name)
+                });
+            }
+        }
+        Ok(workloads_table_data)
+    }
+}
+
+fn update_table(table_data: &BTreeMap<String, WorkloadTableRow>) {
+    let rows: Vec<&WorkloadTableRow> = table_data.values().collect();
+    let table = CliTable::new(&rows)
+        .table_with_wrapped_column_to_remaining_terminal_width(WorkloadTableRow::ADDITIONAL_INFO_POS)
+        .unwrap_or_else(|_| CliTable::new(&rows).create_default_table());
+    output_update!("{}", table);
+}
+
+fn check_workload_filters(
+    row: &WorkloadTableRow,
+    agent_name: &Option<String>,
+    state: &Option<String>,
+    workload_names: &[String],
+) -> bool {
+
+    if let Some(agent) = agent_name {
+        if row.agent != *agent {
+            return false;
+        }
+    }
+
+    if let Some(state) = state {
+        if row.execution_state.to_lowercase() != state.to_lowercase() {
+            return false;
+        }
+    }
+
+    if !workload_names.is_empty() && !workload_names.iter().any(|wn| wn == &row.name){
+            return false;
+
+    }
+
+    true
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -112,7 +207,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
+        let cmd_text = cmd.get_workloads_table(None, None, Vec::new(), false).await;
         assert!(cmd_text.is_ok());
 
         let expected_table_output =
@@ -159,7 +254,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
+        let cmd_text = cmd.get_workloads_table(None, None, Vec::new(), false).await;
         assert!(cmd_text.is_ok());
 
         let expected_table_output = [
@@ -206,7 +301,7 @@ mod tests {
         };
 
         let cmd_text = cmd
-            .get_workloads_table(None, None, vec!["name1".to_string()])
+            .get_workloads_table(None, None, vec!["name1".to_string()], false)
             .await;
         assert!(cmd_text.is_ok());
 
@@ -251,7 +346,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
         let cmd_text = cmd
-            .get_workloads_table(Some("agent_B".to_string()), None, Vec::new())
+            .get_workloads_table(Some("agent_B".to_string()), None, Vec::new(), false)
             .await;
         assert!(cmd_text.is_ok());
 
@@ -297,7 +392,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
         let cmd_text = cmd
-            .get_workloads_table(None, Some("Failed".to_string()), Vec::new())
+            .get_workloads_table(None, Some("Failed".to_string()), Vec::new(), false)
             .await;
         assert!(cmd_text.is_ok());
 
@@ -331,7 +426,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
+        let cmd_text = cmd.get_workloads_table(None, None, Vec::new(), false).await;
         assert!(cmd_text.is_ok());
 
         let expected_table_output = [
