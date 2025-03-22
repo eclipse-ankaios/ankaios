@@ -136,6 +136,24 @@ Implementation of each command is detailed in the next sub-chapters.
 
 ![Startup](plantuml/seq_cmd_startup.svg)
 
+#### Ankaios CLI loads config file
+`swdd~cli-loads-config-file~1`
+
+Status: approved
+
+The Ankaios CLI shall accept configuration files read at startup that specify the general startup configuration of the CLI with a lower precedence than environment variables and command line arguments.
+
+Rationale:
+Ankaios CLI configuration files allow a reproducible execution of the CLI with lower effort.
+
+Comment:
+The Ankaios CLI expects the configuration files per default in the standard location `$HOME/.config/ankaios/ank.conf`.
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Ankaios CLI communicates only with the Ankaios Server
 `swdd~server-handle-cli-communication~1`
 
