@@ -15,7 +15,7 @@ use crate::{cli_error::CliError, output_debug, output_update};
 
 use super::cli_table::CliTable;
 use super::workload_table_row::WorkloadTableRow;
-use super::CliCommands;
+use super::{CliCommands, WorkloadInfos};
 use common::commands::UpdateWorkloadState;
 
 use std::collections::BTreeMap;
@@ -27,16 +27,65 @@ impl CliCommands {
         agent_name: Option<String>,
         state: Option<String>,
         workload_name: Vec<String>,
-        watch: bool,
     ) -> Result<String, CliError> {
+        let workload_infos = self.fetch_filtered_workloads(&agent_name, &state, &workload_name).await?;
+
+        // [impl->swdd~cli-shall-present-list-of-workloads~1]
+        let table_rows: Vec<WorkloadTableRow> = workload_infos.into_iter().map(|x| x.1).collect();
+
+        // [impl->swdd~cli-shall-present-workloads-as-table~1]
+        Ok(CliTable::new(&table_rows)
+            .table_with_wrapped_column_to_remaining_terminal_width(
+                WorkloadTableRow::ADDITIONAL_INFO_POS,
+            )
+            .unwrap_or_else(|_err| CliTable::new(&table_rows).create_default_table()))
+
+
+    }
+
+    // [impl->swdd~cli-watches-workloads~1]
+    pub async fn watch_workloads(
+        &mut self,
+        agent_name: Option<String>,
+        state: Option<String>,
+        workload_name: Vec<String>,
+    ) -> Result<(), CliError> {
+
+        let workload_infos = self.fetch_filtered_workloads(&agent_name, &state, &workload_name).await?;
+
+        let mut workloads_table_data: BTreeMap<String, WorkloadTableRow> = workload_infos
+            .into_iter()
+            .map(|(i_name, row)| (i_name.to_string(), row))
+            .collect();
+
+        update_table(&workloads_table_data);
+
+        loop {
+            let update = self.server_connection.read_next_update_workload_state().await?;
+            workloads_table_data = self.process_workload_updates(
+                update,
+                &agent_name,
+                &state,
+                &workload_name,
+                workloads_table_data,
+            ).await?;
+            update_table(&workloads_table_data);
+        }
+    }
+
+    async fn fetch_filtered_workloads(
+        &mut self,
+        agent_name: &Option<String>,
+        state: &Option<String>,
+        workload_names: &[String],
+    ) -> Result<WorkloadInfos, CliError> {
         // [impl->swdd~cli-blocks-until-ankaios-server-responds-list-workloads~1]
         let mut workload_infos = self.get_workloads().await?;
+
         output_debug!("The table before filtering:\n{:?}", workload_infos);
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        workload_infos.get_mut().retain(|wi| {
-            check_workload_filters(&wi.1, &agent_name, &state, &workload_name)
-        });
+        workload_infos.get_mut().retain(|wi| check_workload_filters(&wi.1, agent_name, state, workload_names));
 
         // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
         // [impl->swdd~cli-shall-sort-list-of-workloads~1]
@@ -44,47 +93,7 @@ impl CliCommands {
 
         output_debug!("The table after filtering:\n{:?}", workload_infos);
 
-        let mut workloads_table_data: BTreeMap<String, WorkloadTableRow> = workload_infos
-        .into_iter()
-        .map(|(i_name, row)| (i_name.to_string(), row))
-        .collect();
-
-
-        if !watch {
-            // [impl->swdd~cli-shall-present-list-of-workloads~1]
-            let table_rows: Vec<&WorkloadTableRow> = workloads_table_data.values().collect();
-
-            // [impl->swdd~cli-shall-present-workloads-as-table~1]
-            let table = CliTable::new(&table_rows)
-                .table_with_wrapped_column_to_remaining_terminal_width(WorkloadTableRow::ADDITIONAL_INFO_POS)
-                .unwrap_or_else(|_| {
-                    CliTable::new(&table_rows).create_default_table()
-                });
-
-            return Ok(table);
-        }
-
-        update_table(&workloads_table_data);
-        // [impl->swdd~cli-watches-workloads~1]
-        loop {
-            let workload_update_result = self.server_connection.read_next_update_workload_state().await;
-
-            match workload_update_result {
-                Ok(update) => {
-                    workloads_table_data = self.process_workload_updates(
-                        update,
-                        &agent_name,
-                        &state,
-                        &workload_name,
-                        workloads_table_data).await?;
-                    update_table(&workloads_table_data);
-                }
-                Err(e) => {
-                    return Err(CliError::ExecutionError(format!("Error reading workload updates: {e:?}")));
-                }
-            }
-
-        }
+        Ok(workload_infos)
     }
 
     async fn process_workload_updates(
@@ -207,7 +216,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let cmd_text = cmd.get_workloads_table(None, None, Vec::new(), false).await;
+        let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
         let expected_table_output =
@@ -254,7 +263,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let cmd_text = cmd.get_workloads_table(None, None, Vec::new(), false).await;
+        let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
         let expected_table_output = [
@@ -301,7 +310,7 @@ mod tests {
         };
 
         let cmd_text = cmd
-            .get_workloads_table(None, None, vec!["name1".to_string()], false)
+            .get_workloads_table(None, None, vec!["name1".to_string()])
             .await;
         assert!(cmd_text.is_ok());
 
@@ -346,7 +355,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
         let cmd_text = cmd
-            .get_workloads_table(Some("agent_B".to_string()), None, Vec::new(), false)
+            .get_workloads_table(Some("agent_B".to_string()), None, Vec::new())
             .await;
         assert!(cmd_text.is_ok());
 
@@ -392,7 +401,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
         let cmd_text = cmd
-            .get_workloads_table(None, Some("Failed".to_string()), Vec::new(), false)
+            .get_workloads_table(None, Some("Failed".to_string()), Vec::new())
             .await;
         assert!(cmd_text.is_ok());
 
@@ -426,7 +435,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let cmd_text = cmd.get_workloads_table(None, None, Vec::new(), false).await;
+        let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
         let expected_table_output = [

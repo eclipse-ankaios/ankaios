@@ -105,12 +105,19 @@ async fn main() {
                     watch,
                 );
 
-                match cmd
-                    .get_workloads_table(agent_name, state, workload_name, watch)
-                    .await
-                {
-                    Ok(out_text) => output_and_exit!("{}", out_text),
-                    Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
+                if watch {
+                    // [impl->swdd~cli-watches-workloads~1]
+                    if let Err(error) = cmd.watch_workloads(agent_name, state, workload_name).await {
+                        output_and_error!("Failed to watch workloads: '{}'", error);
+                    }
+                } else {
+                    match cmd
+                        .get_workloads_table(agent_name, state, workload_name)
+                        .await
+                    {
+                        Ok(out_text) => output_and_exit!("{}", out_text),
+                        Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
+                    }
                 }
             }
             // [impl->swdd~cli-provides-list-of-agents~1]
