@@ -48,7 +48,7 @@ test: utest stest
 
 # Run unit tests
 utest:
-    cargo nextest run
+    RUST_LOG=debug cargo nextest --config-file nextest.toml run
 
 # Build debug and run all system tests
 stest: build stest-only
