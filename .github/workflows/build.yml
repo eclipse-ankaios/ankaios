@@ -83,22 +83,22 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         run: just check-advisories
 
-  code_coverage_linux_amd64:
-    name: Create code coverage report
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.2
-      options: --privileged
-    steps:
-      - uses: actions/checkout@v4.1.1
-      - name: Create code coverage html report
-        run: |
-          rustup component add llvm-tools-preview
-          just coverage
-      - uses: actions/upload-artifact@v4.3.3
-        with:
-          name: code-coverage
-          path: target/llvm-cov/html
+  # code_coverage_linux_amd64:
+  #   name: Create code coverage report
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.2
+  #     options: --privileged
+  #   steps:
+  #     - uses: actions/checkout@v4.1.1
+  #     - name: Create code coverage html report
+  #       run: |
+  #         rustup component add llvm-tools-preview
+  #         just coverage
+  #     - uses: actions/upload-artifact@v4.3.3
+  #       with:
+  #         name: code-coverage
+  #         path: target/llvm-cov/html
 
 
   build_linux_amd64_debian_package:
