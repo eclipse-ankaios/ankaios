@@ -62,8 +62,8 @@ clippy:
     cargo clippy --all-targets --no-deps --all-features -- -D warnings
 
 # Generate test coverage report
-coverage:
-    tools/generate_test_coverage_report.sh test --html
+# coverage:
+#     tools/generate_test_coverage_report.sh test --html
 
 # Create requirement tracing report
 trace-requirements report="build/req/req_tracing_report.html":
