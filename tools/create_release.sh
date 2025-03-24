@@ -14,9 +14,9 @@ echo "ROOT_DIR: $ROOT_DIR"
 echo "Exporting config files"
 "${SCRIPT_DIR}"/create_configs.sh
 
-echo "Exporting coverage report"
-tar -cvzf "${DIST_DIR}/"coverage-report.tar.gz --directory="${DIST_DIR}/coverage" $(ls "${DIST_DIR}/coverage")
-(cd "${DIST_DIR}/coverage" && zip -r "${DIST_DIR}/"coverage-report.zip .)
+# echo "Exporting coverage report"
+# tar -cvzf "${DIST_DIR}/"coverage-report.tar.gz --directory="${DIST_DIR}/coverage" $(ls "${DIST_DIR}/coverage")
+# (cd "${DIST_DIR}/coverage" && zip -r "${DIST_DIR}/"coverage-report.zip .)
 
 echo "Exporting control api protos"
 cp "${ROOT_DIR}"/api/proto/*.proto "${DIST_DIR}"
