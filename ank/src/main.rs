@@ -41,7 +41,7 @@ fn handle_ank_config(config_path: &Option<String>) -> AnkConfig {
             AnkConfig::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
         }
         None => {
-            let default_path = PathBuf::from(DEFAULT_ANK_CONFIG_FILE_PATH);
+            let default_path = PathBuf::from(&*DEFAULT_ANK_CONFIG_FILE_PATH);
             if !default_path.try_exists().unwrap_or(false) {
                 output_debug!("No config file found at default path '{}'. Using cli arguments and environment variables only.", default_path.display());
                 AnkConfig::default()

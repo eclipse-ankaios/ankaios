@@ -13,12 +13,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::AnkCli;
-use common::std_extensions::UnreachableOption;
+use common::std_extensions::{GracefulExitResult, UnreachableOption};
 use common::DEFAULT_SERVER_ADDRESS;
 use grpc::security::read_pem_file;
+use once_cell::sync::Lazy;
 use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use std::collections::BTreeMap;
+use std::env;
 use std::fmt;
 use std::fs::read_to_string;
 use std::path::PathBuf;
@@ -29,7 +31,10 @@ pub const DEFAULT_CONFIG: &str = "default";
 pub const DEFAULT_RESPONSE_TIMEOUT: u64 = 3000;
 
 #[cfg(not(test))]
-pub const DEFAULT_ANK_CONFIG_FILE_PATH: &str = "$HOME/.config/ankaios/ank.conf";
+pub static DEFAULT_ANK_CONFIG_FILE_PATH: Lazy<String> = Lazy::new(|| {
+    let home_dir = env::var("HOME").unwrap_or_exit("HOME environment variable not set");
+    format!("{}/.config/ankaios/ank.conf", home_dir)
+});
 
 #[cfg(test)]
 pub const DEFAULT_ANK_CONFIG_FILE_PATH: &str = "/tmp/ankaios/ank.conf";
