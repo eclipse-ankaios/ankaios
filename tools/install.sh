@@ -119,10 +119,12 @@ if [ -z "$ANKAIOS_VERSION" ] ; then
     echo "No version provided, use default: latest"
     ANKAIOS_RELEASE_URL="${RELEASE_URL_BASE}/latest/download/${RELEASE_FILE_NAME}"
     ANKAIOS_RELEASE_URL_SHA="${RELEASE_URL_BASE}/latest/download/${RELEASE_FILE_NAME_WITH_SHA}"
+    ANKAIOS_CONFIGS_URL="${RELEASE_URL_BASE}/latest/download/ankaios_configs.tar.gz"
 else
     echo "Version provided, use version '${ANKAIOS_VERSION}'"
     ANKAIOS_RELEASE_URL="${RELEASE_URL_BASE}/download/${ANKAIOS_VERSION}/${RELEASE_FILE_NAME}"
     ANKAIOS_RELEASE_URL_SHA="${RELEASE_URL_BASE}/download/${ANKAIOS_VERSION}/${RELEASE_FILE_NAME_WITH_SHA}"
+    ANKAIOS_CONFIGS_URL="${RELEASE_URL_BASE}/download/${ANKAIOS_VERSION}/ankaios_configs.tar.gz"
 fi
 
 if [ -z "$INSTALL_ANK_SERVER_RUST_LOG" ] ; then
@@ -146,6 +148,9 @@ cd "${ANKAIOS_TMP_DIR}"
 echo "Downloading the release: '${ANKAIOS_RELEASE_URL}'"
 download_release "${ANKAIOS_RELEASE_URL_SHA}"
 download_release "${ANKAIOS_RELEASE_URL}"
+
+echo "Downloading the configs: '${ANKAIOS_CONFIGS_URL}'"
+download_release "${ANKAIOS_CONFIGS_URL}"
 
 # Skip checksum validation if sha512sum is not available
 if command -v sha512sum >/dev/null; then
