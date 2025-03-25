@@ -43,7 +43,7 @@ impl CliCommands {
 
     }
 
-    // [impl->swdd~cli-watches-workloads-on-updates~1]
+    // [impl->swdd~cli-get-workloads-with-watch~1]
     pub async fn watch_workloads(
         &mut self,
         agent_name: Option<String>,
