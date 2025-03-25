@@ -622,7 +622,7 @@ Needs:
 - utest
 
 #### CLI watches workloads
-`swdd~cli-watches-workloads~1`
+`swdd~cli-watches-workloads-on-updates~1`
 
 Status: approved
 
