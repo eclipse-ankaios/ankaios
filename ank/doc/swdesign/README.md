@@ -547,8 +547,8 @@ When the CLI requests a list of workload with the `watch` option enabled, the CL
     - Modifying existing workloads' execution states or metadata.
 
 Comment:
-- User termination via `Ctrl+C`.
-- Supports user-defined filters (agent, state, names).
+- The `watch` mode executes infinitely until the user explicitly terminates it using `Ctrl+C`.
+- All received workload data is filtered with user-defined parameters (agent, state, workload names).
 
 Tags:
 - Cli
