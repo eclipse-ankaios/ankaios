@@ -535,6 +535,28 @@ Needs:
 - impl
 - utest
 
+#### CLI shall provides continuous workload monitoring with watch mode
+`swdd~cli-get-workloads-with-watch~1`
+
+When the CLI requests a list of workload with the `watch` option enabled, the CLI shall continuously watch for workload changes by:
+- Fetch and display the initial list of workloads from the Ankaios Server.
+- Continuously listen for `UpdateWorkloadState` messages.
+- Dynamically update the table by:
+    - Adding newly created workloads.
+    - Removing workloads marked as `Removed`.
+    - Modifying existing workloads' execution states or metadata.
+
+Comment:
+The `watch` mode executes infinitely until the user explicitly terminates it using `Ctrl+C`. All received workload data is filtered with user-defined parameters (agent, state, workload names).
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+- utest
+
 ### `ank set state`
 
 ![Set desired state](plantuml/seq_set_state.svg)
@@ -622,7 +644,7 @@ Needs:
 - utest
 
 #### CLI watches workloads
-`swdd~cli-watches-workloads~1`
+`swdd~cli-watches-workloads-on-updates~1`
 
 Status: approved
 

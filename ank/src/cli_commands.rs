@@ -265,7 +265,7 @@ impl CliCommands {
         }
     }
 
-    // [impl->swdd~cli-watches-workloads~1]
+    // [impl->swdd~cli-watches-workloads-on-updates~1]
     async fn wait_for_complete(
         &mut self,
         update_state_success: ParsedUpdateStateSuccess,
