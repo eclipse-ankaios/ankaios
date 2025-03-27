@@ -1,0 +1,36 @@
+@startuml seq_retry_interrupted_by_update
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Agent"
+    participant "Workload" as workload
+    participant "WorkloadCommandChannel A" as workload_command
+    participant "WorkloadControlLoop A" as workload_control_loop
+    participant "RetryManager" as retry_manager
+    participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
+end box
+
+activate workload
+activate workload_control_loop
+
+workload ->> workload_command: send create workload A
+
+workload_control_loop -> workload_command++: wait for command
+workload_command -->> workload_control_loop --++: receive create
+workload_control_loop -> runtime ++: create
+runtime -->> workload_control_loop--: create failed
+
+workload_control_loop ->> retry_manager--++
+note right of retry_manager: wait for backoff time
+
+...
+
+workload ->> workload_command: send update workload A
+
+workload_control_loop -> workload_command++: wait for command
+workload_control_loop <<-- workload_command--++: received update
+
+workload_control_loop ->> retry_manager: invalidate
+destroy retry_manager
+
+...continue with standard update procedure...
+@enduml
