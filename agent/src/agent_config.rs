@@ -94,7 +94,7 @@ impl Default for AgentConfig {
             name: String::new(),
             server_url: get_default_url(),
             run_folder: get_default_run_folder(),
-            insecure: false,
+            insecure: bool::default(),
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
@@ -158,7 +158,9 @@ impl AgentConfig {
             self.run_folder = run_folder.to_string();
         }
 
-        self.insecure = args.insecure;
+        if let Some(insecure) = args.insecure {
+            self.insecure = insecure;
+        }
 
         if let Some(ca_pem_path) = &args.ca_pem {
             self.ca_pem = Some(ca_pem_path.to_owned());

@@ -159,18 +159,18 @@ pub struct AnkCli {
     #[clap(long = "response-timeout", required = false)]
     /// The timeout in milliseconds to wait for a response.
     pub response_timeout_ms: Option<u64>,
-    #[clap(short = 'v', long = "verbose", action=ArgAction::SetTrue, default_value_t = false)]
+    #[clap(short = 'v', long = "verbose")]
     /// Enable debug traces
-    pub verbose: bool,
-    #[clap(short = 'q', long = "quiet", action=ArgAction::SetTrue, default_value_t = false)]
+    pub verbose: Option<bool>,
+    #[clap(short = 'q', long = "quiet")]
     /// Disable all output
-    pub quiet: bool,
-    #[clap(long = "no-wait", action=ArgAction::SetTrue, default_value_t = false)]
+    pub quiet: Option<bool>,
+    #[clap(long = "no-wait")]
     /// Do not wait for workloads to be created/deleted
-    pub no_wait: bool,
-    #[clap(short = 'k', long = "insecure", action=ArgAction::SetTrue, default_value_t = false, env="ANKSERVER_INSECURE")]
+    pub no_wait: Option<bool>,
+    #[clap(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANK_INSECURE")]
     /// Flag to disable TLS communication between ank CLI and Ankaios server.
-    pub insecure: bool,
+    pub insecure: Option<bool>,
     #[clap(long = "ca_pem", env = "ANK_CA_PEM")]
     /// Path to cli ca pem file.
     pub ca_pem: Option<String>,

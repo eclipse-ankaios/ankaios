@@ -100,7 +100,7 @@ impl Default for ServerConfig {
             version: CONFIG_VERSION.to_string(),
             startup_manifest: None,
             address: get_default_address(),
-            insecure: Some(false),
+            insecure: Some(bool::default()),
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
@@ -159,7 +159,9 @@ impl ServerConfig {
             self.address = *addr;
         }
 
-        self.insecure = Some(args.insecure);
+        if let Some(insecure) = args.insecure {
+            self.insecure = Some(insecure);
+        }
 
         if let Some(ca_pem_path) = &args.ca_pem {
             self.ca_pem = Some(ca_pem_path.to_owned());

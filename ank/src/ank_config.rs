@@ -13,18 +13,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::AnkCli;
-use common::std_extensions::{GracefulExitResult, UnreachableOption};
+use common::std_extensions::UnreachableOption;
 use common::DEFAULT_SERVER_ADDRESS;
 use grpc::security::read_pem_file;
-use once_cell::sync::Lazy;
 use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 use std::collections::BTreeMap;
-use std::env;
 use std::fmt;
 use std::fs::read_to_string;
 use std::path::PathBuf;
 use toml::{from_str, Value};
+
+#[cfg(not(test))]
+use common::std_extensions::GracefulExitResult;
+#[cfg(not(test))]
+use once_cell::sync::Lazy;
+#[cfg(not(test))]
+use std::env;
 
 pub const CONFIG_VERSION: &str = "v1";
 pub const DEFAULT_CONFIG: &str = "default";
@@ -82,9 +87,9 @@ pub struct AnkConfig {
     pub no_wait: bool,
     pub server_url: String,
     pub insecure: bool,
-    pub ca_pem: Option<String>,
-    pub crt_pem: Option<String>,
-    pub key_pem: Option<String>,
+    ca_pem: Option<String>,
+    crt_pem: Option<String>,
+    key_pem: Option<String>,
     pub ca_pem_content: Option<String>,
     pub crt_pem_content: Option<String>,
     pub key_pem_content: Option<String>,
@@ -141,7 +146,7 @@ impl<'de> Visitor<'de> for AnkConfigVisitor {
     type Value = AnkConfig;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a TOML map for AnkConfig with merged nested table fields")
+        formatter.write_str("a TOML map for AnkConfig with some table fields")
     }
 
     fn visit_map<V>(self, mut map: V) -> Result<AnkConfig, V::Error>
@@ -251,11 +256,18 @@ impl AnkConfig {
             self.response_timeout = response_timeout;
         }
 
-        self.verbose = args.verbose;
-        self.quiet = args.quiet;
-        self.no_wait = args.no_wait;
-
-        self.insecure = args.insecure;
+        if let Some(verbose) = args.verbose {
+            self.verbose = verbose;
+        }
+        if let Some(quiet) = args.quiet {
+            self.quiet = quiet;
+        }
+        if let Some(no_wait) = args.no_wait {
+            self.no_wait = no_wait;
+        }
+        if let Some(insecure) = args.insecure {
+            self.insecure = insecure;
+        }
 
         if let Some(ca_pem_path) = &args.ca_pem {
             self.ca_pem = Some(ca_pem_path.to_owned());
@@ -387,10 +399,10 @@ mod tests {
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
             config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATH.to_string()),
             response_timeout_ms: Some(5000),
-            insecure: false,
-            verbose: true,
-            quiet: true,
-            no_wait: true,
+            insecure: Some(false),
+            verbose: Some(true),
+            quiet: Some(true),
+            no_wait: Some(true),
             ca_pem: Some(CA_PEM_PATH.to_string()),
             crt_pem: Some(CRT_PEM_PATH.to_string()),
             key_pem: Some(KEY_PEM_PATH.to_string()),
@@ -436,10 +448,10 @@ mod tests {
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
             config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATH.to_string()),
             response_timeout_ms: Some(5000),
-            insecure: false,
-            verbose: true,
-            quiet: true,
-            no_wait: true,
+            insecure: Some(false),
+            verbose: Some(true),
+            quiet: Some(true),
+            no_wait: Some(true),
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
@@ -456,6 +468,51 @@ mod tests {
             ank_config.key_pem_content,
             Some(KEY_PEM_CONTENT.to_string())
         );
+    }
+
+    // [utest->swdd~cli-loads-config-file~1]
+    #[test]
+    fn utest_ank_config_update_with_args_flags_unset() {
+        let ank_config_content = format!(
+            r"#
+        version = 'v1'
+        [default]
+        ca_pem_content = '''{}'''
+        crt_pem_content = '''{}'''
+        key_pem_content = '''{}'''
+        #",
+            CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
+        );
+
+        let mut tmp_config_file = NamedTempFile::new().unwrap();
+        write!(tmp_config_file, "{}", ank_config_content).unwrap();
+
+        let mut ank_config = AnkConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
+        let args = AnkCli {
+            command: Commands::Get(GetArgs {
+                command: Some(GetCommands::State {
+                    output_format: crate::cli::OutputFormat::Yaml,
+                    object_field_mask: Vec::new(),
+                }),
+            }),
+            server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
+            config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATH.to_string()),
+            response_timeout_ms: Some(5000),
+            insecure: None,
+            verbose: None,
+            quiet: None,
+            no_wait: None,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
+        };
+
+        ank_config.update_with_args(&args);
+
+        assert!(!ank_config.verbose);
+        assert!(!ank_config.quiet);
+        assert!(!ank_config.no_wait);
+        assert!(!ank_config.insecure);
     }
 
     // [utest->swdd~cli-loads-config-file~1]
