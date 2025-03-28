@@ -159,13 +159,13 @@ pub struct AnkCli {
     #[clap(long = "response-timeout", required = false)]
     /// The timeout in milliseconds to wait for a response.
     pub response_timeout_ms: Option<u64>,
-    #[clap(short = 'v', long = "verbose")]
+    #[clap(short = 'v', long = "verbose", action=ArgAction::Set, num_args=0, default_missing_value="true")]
     /// Enable debug traces
     pub verbose: Option<bool>,
-    #[clap(short = 'q', long = "quiet")]
+    #[clap(short = 'q', long = "quiet", action=ArgAction::Set, num_args=0, default_missing_value="true")]
     /// Disable all output
     pub quiet: Option<bool>,
-    #[clap(long = "no-wait")]
+    #[clap(long = "no-wait", action=ArgAction::Set, num_args=0, default_missing_value="true")]
     /// Do not wait for workloads to be created/deleted
     pub no_wait: Option<bool>,
     #[clap(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANK_INSECURE")]
