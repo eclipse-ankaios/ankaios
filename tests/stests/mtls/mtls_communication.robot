@@ -97,3 +97,20 @@ Test Ankaios insecure mode by providing --insecure command line arguments
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     [Teardown]    Clean up Ankaios
+
+# [stest->swdd~server-loads-config-file~1]
+# [stest->swdd~agent-loads-config-file~1]
+# [stest->swdd~cli-loads-config-file~1]
+Test Ankaios MTLS by providing PEM files via config files
+    [Setup]    Run Keyword    Setup Ankaios without MTLS Setup
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server_with_certificates_paths.conf"
+    And Ankaios agent is started with name "agent_A" and config file "${CONFIGS_DIR}/ank-agent_with_certificates_paths.conf"
+    And Ankaios agent is started with name "agent_B" and config file "${CONFIGS_DIR}/ank-agent_with_certificates_paths.conf"
+    # Actions
+    When user triggers "ank -x ${CONFIGS_DIR}/ank.conf get workloads"
+    # Asserts
+    Then the last command finished with exit code "0"
+    [Teardown]    Clean up Ankaios

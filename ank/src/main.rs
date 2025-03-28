@@ -13,9 +13,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::env;
+use std::path::PathBuf;
 
+mod ank_config;
 mod cli;
 mod cli_commands;
+use ank_config::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
 use cli_commands::CliCommands;
 use common::std_extensions::GracefulExitResult;
 use grpc::security::TLSConfig;
@@ -26,42 +29,77 @@ mod log;
 #[cfg(test)]
 pub mod test_helper;
 
+// [impl->swdd~cli-loads-config-file~1]
+fn handle_ank_config(config_path: &Option<String>) -> AnkConfig {
+    match config_path {
+        Some(config_path) => {
+            let config_path = PathBuf::from(config_path);
+            output_debug!(
+                "Loading server config from user provided path '{}'",
+                config_path.display()
+            );
+            AnkConfig::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
+        }
+        None => {
+            let default_path =
+                PathBuf::from(DEFAULT_ANK_CONFIG_FILE_PATH.as_ref() as &std::path::Path);
+            if !default_path.try_exists().unwrap_or(false) {
+                output_debug!("No config file found at default path '{}'. Using cli arguments and environment variables only.", default_path.display());
+                AnkConfig::default()
+            } else {
+                output_debug!(
+                    "Loading server config from default path '{}'",
+                    default_path.display()
+                );
+                AnkConfig::from_file(default_path).expect("Config file could not be parsed")
+            }
+        }
+    }
+}
+
 // [impl->swdd~cli-standalone-application~1]
 #[tokio::main]
 async fn main() {
     let args = cli::parse();
 
+    // [impl->swdd~cli-loads-config-file~1]
+    let mut ank_config = handle_ank_config(&args.config_path);
+    ank_config.update_with_args(&args);
+
     let cli_name = "ank-cli";
-    env::set_var(log::VERBOSITY_KEY, args.verbose.to_string());
-    env::set_var(log::QUIET_KEY, args.quiet.to_string());
+    env::set_var(log::VERBOSITY_KEY, ank_config.verbose.to_string());
+    env::set_var(log::QUIET_KEY, ank_config.quiet.to_string());
 
     output_debug!(
         "Started '{}' with the following parameters: '{:?}'",
         cli_name,
-        args
+        ank_config
     );
 
-    let server_url = match args.insecure {
-        true => args.server_url.replace("http[s]", "http"),
-        false => args.server_url.replace("http[s]", "https"),
-    };
-
-    if let Err(err_message) =
-        TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem)
-    {
+    if let Err(err_message) = TLSConfig::is_config_conflicting(
+        ank_config.insecure,
+        &ank_config.ca_pem_content,
+        &ank_config.crt_pem_content,
+        &ank_config.key_pem_content,
+    ) {
         output_warn!("{}", err_message);
     }
 
     // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
     // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
     // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-    let tls_config = TLSConfig::new(args.insecure, args.ca_pem, args.crt_pem, args.key_pem);
+    let tls_config = TLSConfig::new(
+        ank_config.insecure,
+        ank_config.ca_pem_content.clone(),
+        ank_config.crt_pem_content.clone(),
+        ank_config.key_pem_content.clone(),
+    );
 
     let mut cmd = CliCommands::init(
-        args.response_timeout_ms,
+        ank_config.response_timeout,
         cli_name.to_string(),
-        server_url,
-        args.no_wait,
+        ank_config.server_url.clone(),
+        ank_config.no_wait,
         // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
         tls_config.unwrap_or_exit_func(
             |err| output_and_error!("Missing certificate files: {}", err),
@@ -210,4 +248,67 @@ async fn main() {
         }
     }
     cmd.shut_down().await;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use crate::{ank_config::DEFAULT_ANK_CONFIG_FILE_PATH, handle_ank_config, AnkConfig};
+    use std::{
+        fs::{self, File},
+        io::Write,
+        path::PathBuf,
+    };
+    use tempfile::NamedTempFile;
+
+    const VALID_ANK_CONFIG_CONTENT: &str = r"#
+    version = 'v1'
+    response_timeout = 2500
+    [default]
+    #";
+
+    #[test]
+    fn utest_handle_ank_config_valid_config() {
+        let mut tmp_config_file = NamedTempFile::new().expect("could not create temp file");
+        write!(tmp_config_file, "{}", VALID_ANK_CONFIG_CONTENT)
+            .expect("could not write to temp file");
+
+        let ank_config = handle_ank_config(&Some(
+            tmp_config_file
+                .into_temp_path()
+                .to_str()
+                .unwrap()
+                .to_string(),
+        ));
+
+        assert_eq!(ank_config.response_timeout, 2500);
+    }
+
+    #[test]
+    fn utest_handle_ank_config_default_path() {
+        if let Some(parent) = PathBuf::from(DEFAULT_ANK_CONFIG_FILE_PATH).parent() {
+            fs::create_dir_all(parent).expect("Failed to create directories");
+        }
+        let mut file = File::create(DEFAULT_ANK_CONFIG_FILE_PATH).expect("Failed to create file");
+        writeln!(file, "{}", VALID_ANK_CONFIG_CONTENT).expect("Failed to write to file");
+
+        let ank_config = handle_ank_config(&None);
+
+        assert_eq!(ank_config.response_timeout, 2500);
+        assert!(fs::remove_file(DEFAULT_ANK_CONFIG_FILE_PATH).is_ok());
+    }
+
+    #[test]
+    fn utest_handle_ank_config_default() {
+        let ank_config = handle_ank_config(&None);
+
+        assert_eq!(ank_config, AnkConfig::default());
+    }
 }
