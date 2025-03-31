@@ -269,6 +269,10 @@ impl AnkConfig {
             self.insecure = insecure;
         }
 
+        if let Some(server_url) = &args.server_url {
+            self.server_url = server_url.to_owned();
+        }
+
         if let Some(ca_pem_path) = &args.ca_pem {
             self.ca_pem = Some(ca_pem_path.to_owned());
             let ca_pem_content = read_pem_file(ca_pem_path, false).unwrap_or_default();
@@ -319,6 +323,7 @@ mod tests {
         crt.pem file is stored in here";
     const KEY_PEM_CONTENT: &str = r"the content of the
         key.pem file is stored in here";
+    const TEST_SERVER_URL: &str = r"https://127.0.0.1:25555";
 
     // [utest->swdd~cli-loads-config-file~1]
     #[test]
@@ -396,7 +401,7 @@ mod tests {
                     object_field_mask: Vec::new(),
                 }),
             }),
-            server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
+            server_url: Some(TEST_SERVER_URL.to_string()),
             config_path: Some(DEFAULT_ANK_CONFIG_FILE_PATH.to_string()),
             response_timeout_ms: Some(5000),
             insecure: Some(false),
@@ -415,6 +420,7 @@ mod tests {
         assert!(ank_config.quiet);
         assert!(ank_config.no_wait);
         assert!(!ank_config.insecure);
+        assert_eq!(ank_config.server_url, TEST_SERVER_URL.to_string());
         assert_eq!(ank_config.ca_pem, Some(CA_PEM_PATH.to_string()));
         assert_eq!(ank_config.crt_pem, Some(CRT_PEM_PATH.to_string()));
         assert_eq!(ank_config.key_pem, Some(KEY_PEM_PATH.to_string()));
