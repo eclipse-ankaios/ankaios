@@ -6,3 +6,30 @@
     <strong>Click here to go to the latest release.</strong>
   </a>
 {% endblock %}
+
+{% block footer %}
+  <!-- Add original footer content -->
+  {{ super() }}
+  <!-- Add custom footer -->
+  <footer class="md-footer">
+    <div class="md-footer-meta md-typeset">
+        <div class="md-footer-meta__inner md-grid">
+            <div class="md-copyright">&nbsp;</div>
+            <div class="md-copyright">
+                <a href="https://eclipse.org/" target="_blank" rel="noopener">Eclipse Foundation</a>
+                &nbsp;|&nbsp;
+                <a href="https://eclipse.org/legal/privacy.php" target="_blank" rel="noopener">Privacy Policy</a>
+                &nbsp;|&nbsp;
+                <a href="https://eclipse.org/legal/termsofuse.php" target="_blank" rel="noopener">Terms of Use</a>
+                &nbsp;|&nbsp;
+                <a href="https://eclipse.org/legal/copyright.php" target="_blank" rel="noopener">Copyright Agent</a>
+                &nbsp;|&nbsp;
+                <a href="https://eclipse.org/legal/" target="_blank" rel="noopener">Legal</a>
+            </div>
+            <div class="md-copyright">
+              <img src="{{ 'assets/eclipse-foundation.png' | url }}" alt="Eclipse Foundation" width="120">
+            </div>
+        </div>
+    </div>
+  </footer>
+{% endblock %}
