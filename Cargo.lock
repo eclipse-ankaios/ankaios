@@ -53,11 +53,14 @@ dependencies = [
  "grpc",
  "mockall",
  "mockall_double",
+ "once_cell",
  "serde",
  "serde_json",
  "serde_yaml",
  "tabled",
+ "tempfile",
  "tokio",
+ "toml",
  "uuid",
 ]
 
