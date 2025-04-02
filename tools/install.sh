@@ -4,15 +4,12 @@ set -e
 
 # GITHUB RELEASE URL SCHEMA for concrete release artifact: https://github.com/<organisation>/<repo>/releases/download/<tag>/<concrete_artifact>
 # GITHUB RELEASE URL SCHEMA for latest release artifact: https://github.com/<organisation>/<repo>/releases/latest/download/<concrete_artifact> (takes the release marked as latest)
-RELEASE_URL_BASE="https://github.com/HorjuRares/ankaios/releases"
-DEFAULT_BIN_DESTINATION="/usr/local/bin"
-BIN_DESTINATION="${DEFAULT_BIN_DESTINATION}"
-DEFAULT_AGENT_OPT="--insecure --name agent_A"
-AGENT_OPT="$DEFAULT_AGENT_OPT"
+RELEASE_URL_BASE="https://github.com/eclipse-ankaios/ankaios/releases"
+BIN_DESTINATION="/usr/local/bin"
+AGENT_OPT="--name agent_A"
 CONFIG_DEST="/etc/ankaios"
 FILE_STARTUP_STATE="${CONFIG_DEST}/state.yaml"
-DEFAULT_SERVER_OPT="--insecure --startup-config ${FILE_STARTUP_STATE}"
-SERVER_OPT="$DEFAULT_SERVER_OPT"
+SERVER_OPT="--startup-config ${FILE_STARTUP_STATE}"
 INSTALL_TYPE="both"
 SERVICE_DEST=/etc/systemd/system
 ANK_SERVER_SERVICE="ank-server"
@@ -49,13 +46,8 @@ display_usage() {
     echo -e "Usage: $0 [-v] [-i] [-t] [-s] [-a]"
     echo -e "Install Ankaios on a system."
     echo -e "  -v VERSION: Ankaios specific VERSION to install. Default: latest version."
-    # TODO: kick out the installation path
-    echo -e "  -i PATH: Installation PATH. Default: $DEFAULT_BIN_DESTINATION"
     echo -e "  -t TARGET: Install systemd unit files for TARGET"
     echo -e "             'server', 'agent', 'none' or 'both' (default)"
-    # TODO: remove this and only leave --agent-name="agent_A"
-    echo -e "  -s OPTIONS: OPTIONS which will be passed to the server. Default '$DEFAULT_SERVER_OPT'"
-    echo -e "  -a OPTIONS: OPTIONS which will be passed to the agent. Default '$DEFAULT_AGENT_OPT'"
 }
 
 fail() {
@@ -81,13 +73,10 @@ cleanup_routine() {
 trap cleanup_routine EXIT
 
 # parse script args
-while getopts v:i:t:s:a: opt; do
+while getopts v:t: opt; do
     case $opt in
         v) ANKAIOS_VERSION="$OPTARG";;
-        i) BIN_DESTINATION="$OPTARG";;
         t) INSTALL_TYPE="$OPTARG";;
-        s) SERVER_OPT="$OPTARG";;
-        a) AGENT_OPT="$OPTARG";;
         *)
             fail "Error: Invalid parameter, aborting"
         ;;
@@ -148,9 +137,6 @@ cd "${ANKAIOS_TMP_DIR}"
 echo "Downloading the release: '${ANKAIOS_RELEASE_URL}'"
 download_release "${ANKAIOS_RELEASE_URL_SHA}"
 download_release "${ANKAIOS_RELEASE_URL}"
-
-echo "Downloading the configs: '${ANKAIOS_CONFIGS_URL}'"
-download_release "${ANKAIOS_CONFIGS_URL}"
 
 # Skip checksum validation if sha512sum is not available
 if command -v sha512sum >/dev/null; then
@@ -236,7 +222,10 @@ EOF
     fi
 fi
 
-# Unizp the config files
+echo "Downloading the configs: '${ANKAIOS_CONFIGS_URL}'"
+download_release "${ANKAIOS_CONFIGS_URL}"
+
+# Unzip the config files
 ANK_CONFIG_FILE_PATH="${HOME}/.config/ankaios/"
 CONFIGS_FILE_NAME="ankaios_configs.tar.gz"
 

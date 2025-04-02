@@ -56,7 +56,9 @@ jobs:
         run: |
           cd dist
           tree
-          gh release upload ${{ github.ref_name }} req_tracing_report.html \
+          gh release upload ${{ github.ref_name }} coverage-report.tar.gz \
+          coverage-report.zip \
+          req_tracing_report.html \
           install.sh \
           ank_base.proto \
           control_api.proto \
