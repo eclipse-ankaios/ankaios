@@ -103,6 +103,7 @@ nav:
     - reference/restart-policy.md
     - reference/resource-usage.md
     - reference/glossary.md
+    - reference/config-files.md
     - Protobuf data structures: reference/_ankaios.proto.md
   - Contributing:
     - development/build.md
