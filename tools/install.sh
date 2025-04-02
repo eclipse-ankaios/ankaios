@@ -241,6 +241,7 @@ ANK_CONFIG_FILE_PATH="${HOME}/.config/ankaios/"
 CONFIGS_FILE_NAME="ankaios_configs.tar.gz"
 
 echo "Extracting the config files"
+mkdir -p "${ANK_CONFIG_FILE_PATH}"
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-server.conf
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-agent.conf
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${ANK_CONFIG_FILE_PATH}" ank.conf
