@@ -40,11 +40,11 @@ jobs:
         with:
           name: requirement-tracing-report
           path: dist/
-      # - name: Download artifacts for code-coverage
-      #   uses: actions/download-artifact@v4.1.7
-      #   with:
-      #     name: code-coverage
-      #     path: dist/coverage
+      - name: Download artifacts for code-coverage
+        uses: actions/download-artifact@v4.1.7
+        with:
+          name: code-coverage
+          path: dist/coverage
       - name: Download license report
         uses: actions/download-artifact@v4.1.7
         with:

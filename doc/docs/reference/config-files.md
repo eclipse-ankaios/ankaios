@@ -165,4 +165,5 @@ ank -x /path/to/ank.conf
 - You can specify either the path to the certificate files or the content of the certificate files, but not both.
 - The `version` field is mandatory to ensure compatibility.
 
-This documentation should help you get started with using the configuration files for Ankaios components. If you have any questions or need further assistance, please feel free to ask!
+This documentation provides an introduction in the usage of config files for Ankaios components. Please fell free to contact us if you have any
+any questions or need further assistance.
