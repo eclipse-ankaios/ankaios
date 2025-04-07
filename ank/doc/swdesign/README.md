@@ -535,23 +535,40 @@ Needs:
 - impl
 - utest
 
-#### CLI shall provides continuous workload monitoring with watch mode
-`swdd~cli-get-workloads-with-watch~1`
+#### CLI initiates continuous workload monitoring
+`swdd~cli-get-workloads-with-watch-init~1`
 
-When the CLI requests a list of workload with the `watch` option enabled, the CLI shall continuously watch for workload changes by:
-- Fetch and display the initial list of workloads from the Ankaios Server.
-- Continuously listen for `UpdateWorkloadState` messages.
-- Dynamically update the table by:
-    - Adding newly created workloads.
-    - Removing workloads marked as `Removed`.
-    - Modifying existing workloads' execution states or metadata.
+When the CLI executes a workloads request with watch option enabled, the CLI shall:
 
-Comment:
-The `watch` mode executes infinitely until the user explicitly terminates it using `Ctrl+C`. All received workload data is filtered with user-defined parameters (agent, state, workload names).
+- Fetch initial workload states from Ankaios Server
+- Display the workloads in a sorted alphabetically table format.
+- Establish persistent connection to UpdateWorkloadState stream
+- Process updates continuously until user termination
+
+Comment: The `watch` mode executes infinitely until the user explicitly terminates it using `Ctrl+C`. All received workload data is filtered with user-defined parameters (agent, state, workload names).
 
 Tags:
 - Cli
 - CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI processes workload state updates for watch mode
+`swdd~cli-process-workload-updates~1`
+
+When processing UpdateWorkloadState messages during watch mode, the CLI shall:
+
+- Add new workloads: Full state re-fetch on unknown instances.
+- Update existing workloads: Modify workload data then revalidate filters.
+- Remove workloads: Immediate deletion on "Removed" state detection.
+- Reapply filters after every update cycle.
+
+Comment: Filters for unknown instances are applied prior to transitioning to the BTreeMap to ensure that workloads not matching the filters are excluded from insertion.
+
+Tags:
+- Cli
 
 Needs:
 - impl
