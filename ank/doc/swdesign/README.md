@@ -559,10 +559,9 @@ Needs:
 
 When processing UpdateWorkloadState messages during watch mode, the CLI shall:
 
-- Add new workloads: Full state re-fetch on unknown instances.
-- Update existing workloads: Modify workload data then revalidate filters.
-- Remove workloads: Immediate deletion on "Removed" state detection.
-- Reapply filters after every update cycle.
+* either update the current list of workloads with a new list of workloads from the Ankaios Server if the received workload state is from a newly added workload
+* or delete workload from the current list if the received state is `Removed`
+* or update the current state with new state inside the current list
 
 Comment:
 All received workload data is filtered with user-defined parameters (agent, state, workload names).
