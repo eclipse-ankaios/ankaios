@@ -557,7 +557,7 @@ Needs:
 #### CLI processes workload state updates for watch mode
 `swdd~cli-process-workload-updates~1`
 
-When processing UpdateWorkloadState messages during watch mode, the CLI shall:
+When processing `UpdateWorkloadState` messages during watch mode, for each workload state the CLI shall:
 
 * either update the current list of workloads with a new list of workloads from the Ankaios Server if the received workload state is from a newly added workload
 * or delete workload from the current list if the received state is `Removed`
