@@ -564,7 +564,8 @@ When processing UpdateWorkloadState messages during watch mode, the CLI shall:
 - Remove workloads: Immediate deletion on "Removed" state detection.
 - Reapply filters after every update cycle.
 
-Comment: Filters for unknown instances are applied prior to transitioning to the BTreeMap to ensure that workloads not matching the filters are excluded from insertion.
+Comment:
+All received workload data is filtered with user-defined parameters (agent, state, workload names).
 
 Tags:
 - Cli
