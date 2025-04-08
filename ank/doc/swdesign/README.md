@@ -540,10 +540,9 @@ Needs:
 
 When the CLI requests a list of workloads with the `watch` option enabled, the CLI shall continuously watch for workload changes by:
 
-- Fetch initial workload states from Ankaios Server
-- Display the workloads in a sorted alphabetically table format.
-- Establish persistent connection to UpdateWorkloadState stream
-- Process updates continuously until user termination
+- requesting the initial list of workloads from the Ankaios Server
+- displaying the workloads in an alphabetically sorted table
+- updating the initial list of workloads by continuously listening for `UpdateWorkloadState` messages
 
 Comment: The `watch` mode executes infinitely until the user explicitly terminates it using `Ctrl+C`. All received workload data is filtered with user-defined parameters (agent, state, workload names).
 
