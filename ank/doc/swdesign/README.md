@@ -538,7 +538,7 @@ Needs:
 #### CLI initiates continuous workload monitoring
 `swdd~cli-get-workloads-with-watch-init~1`
 
-When the CLI executes a workloads request with watch option enabled, the CLI shall:
+When the CLI requests a list of workloads with the `watch` option enabled, the CLI shall continuously watch for workload changes by:
 
 - Fetch initial workload states from Ankaios Server
 - Display the workloads in a sorted alphabetically table format.
