@@ -544,7 +544,8 @@ When the CLI requests a list of workloads with the `watch` option enabled, the C
 - displaying the workloads in an alphabetically sorted table
 - updating the initial list of workloads by continuously listening for `UpdateWorkloadState` messages
 
-Comment: The `watch` mode executes infinitely until the user explicitly terminates it using `Ctrl+C`. All received workload data is filtered with user-defined parameters (agent, state, workload names).
+Comment:
+The `watch` mode executes infinitely until the user explicitly terminates it using `Ctrl+C`. All received workload data is filtered with user-defined parameters (agent, state, workload names).
 
 Tags:
 - Cli
