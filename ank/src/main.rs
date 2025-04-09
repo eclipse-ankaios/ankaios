@@ -106,7 +106,7 @@ async fn main() {
                 );
 
                 if watch {
-                    // [impl->swdd~cli-get-workloads-with-watch~1]
+                    // [impl->swdd~cli-get-workloads-with-watch-init~1]
                     if let Err(error) = cmd.watch_workloads(agent_name, state, workload_name).await {
                         output_and_error!("Failed to watch workloads: '{}'", error);
                     }

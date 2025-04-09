@@ -62,6 +62,8 @@ impl CliCommands {
 
         loop {
             let update = self.server_connection.read_next_update_workload_state().await?;
+
+            // [impl->swdd~cli-process-workload-updates~1]
             workloads_table_data = self.process_workload_updates(
                 update,
                 &agent_name,
@@ -69,6 +71,7 @@ impl CliCommands {
                 &workload_name,
                 workloads_table_data,
             ).await?;
+
             update_table(&workloads_table_data);
         }
     }
@@ -96,6 +99,7 @@ impl CliCommands {
         Ok(workload_infos)
     }
 
+    // [impl->swdd~cli-process-workload-updates~1]
     async fn process_workload_updates(
         &mut self,
         update: UpdateWorkloadState,
@@ -145,6 +149,7 @@ fn update_table(table_data: &BTreeMap<String, WorkloadTableRow>) {
     output_update!("{}", table);
 }
 
+// [impl->swdd~cli-shall-filter-list-of-workloads~1]
 fn check_workload_filters(
     row: &WorkloadTableRow,
     agent_name: &Option<String>,
