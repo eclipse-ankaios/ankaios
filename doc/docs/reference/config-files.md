@@ -6,15 +6,19 @@ Ankaios now supports configuration files to manage settings more efficiently. Th
 2. Environment variables
 3. Configuration file
 
-The configuration files are formatted in TOML, which is easy to parse and fast to process.
+The configuration files are formatted in [TOML](https://toml.io/), which is easy to parse and fast to process.
 
 ## Configuration File Locations
+
+The Ankaios configuration files are per default loaded from the following location:
 
 - **Server Configuration**: `/etc/ankaios/server.toml`
 - **Agent Configuration**: `/etc/ankaios/server.toml`
 - **CLI Configuration**: `$HOME/.config/ankaios/ank.toml`
 
 ## Configuration File Structure
+
+The following three examples show how the Ankaios configuration files look like:
 
 ### Ankaios Server Configuration (`ank-server.conf`)
 
@@ -151,7 +155,7 @@ key_pem = '${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank-key.pem'
 
 ## Using the Configuration Files
 
-To use the configuration files, you can specify the path to the configuration file using the `-x` command-line argument:
+To use the configuration files, just place a config file at the default location specified [above](#configuration-file-locations), or specify the path to the configuration file using the `-x` command-line argument:
 
 ```sh
 ank-server -x /path/to/ank-server.conf
@@ -165,5 +169,5 @@ ank -x /path/to/ank.conf
 - You can specify either the path to the certificate files or the content of the certificate files, but not both.
 - The `version` field is mandatory to ensure compatibility.
 
-This documentation provides an introduction in the usage of config files for Ankaios components. Please fell free to contact us if you have any
+This documentation provides an introduction in the usage of config files for Ankaios components. Please fell free to contact us if you have
 any questions or need further assistance.

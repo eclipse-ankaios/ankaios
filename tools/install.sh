@@ -155,7 +155,6 @@ fi
 echo "Extracting the binaries into install folder: '${BIN_DESTINATION}'"
 ${BIN_SUDO} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}/"
 
-
 # Install systemd unit files
 if [ -d "$SERVICE_DEST" ]; then
     SVC_SUDO="sudo"
