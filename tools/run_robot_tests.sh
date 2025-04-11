@@ -60,4 +60,4 @@ echo Generate certificates and keys for stests...
 $tools_dir/certs/create_certs.sh /tmp/.certs
 echo done.
 
-ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:TRACE -d ${target_dir} "$@"
+ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:TRACE -x xunitOut.xml -d ${target_dir} "$@"
