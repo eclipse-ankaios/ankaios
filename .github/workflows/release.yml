@@ -80,3 +80,16 @@ jobs:
           linux-arm64/ankaios-linux-arm64.tar.gz \
           linux-arm64/ankaios-linux-arm64.tar.gz.sha512sum.txt \
           licenses.html
+      - name: Collect quality artifacts
+        id: collect_quality_artifacts
+        uses: eclipse-dash/quevee@770b5e569ebbd4ff3603ee2ed4e17a4791fc028f
+        with:
+          release_url: "https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          artifacts_documentation: "https://eclipse-ankaios.github.io/ankaios"
+          artifacts_license: "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/licenses.html"
+          artifacts_readme: "https://raw.githubusercontent.com/${{ github.repository }}/refs/tags/${{ github.ref_name }}/README.md"
+          artifacts_requirements: "https://github.com/${{ github.repository }}/releases/download${{ github.ref_name }}/req_tracing_report.html"
+          artifacts_testing: "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/test-results.zip,https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/test-results.tar.gz"
+      - name: Upload quality manifest
+        run: |
+          gh release upload ${{ github.ref_name }} ${{ steps.collect_quality_artifacts.outputs.manifest_file }}
