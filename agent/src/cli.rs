@@ -36,15 +36,9 @@ pub struct Arguments {
     /// An existing directory where agent specific runtime files will be stored. If not specified, a default folder is created.
     #[clap(short = 'r', long = "run-folder", required = false)]
     pub run_folder: Option<String>,
-    #[clap(
-        short = 'k',
-        long = "insecure",
-        action=ArgAction::SetTrue,
-        default_value_t = false,
-        env="ANKSERVER_INSECURE",
-    )]
+    #[clap(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANKAGENT_INSECURE")]
     /// Flag to disable TLS communication between Ankaios agent and server.
-    pub insecure: bool,
+    pub insecure: Option<bool>,
     #[clap(long = "ca_pem", env = "ANKAGENT_CA_PEM")]
     /// Path to agent ca pem file.
     pub ca_pem: Option<String>,

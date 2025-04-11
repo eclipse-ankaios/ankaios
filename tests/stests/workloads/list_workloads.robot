@@ -37,3 +37,23 @@ Test Ankaios CLI get workloads
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     [Teardown]    Clean up Ankaios
+
+# [stest->swdd~cli-loads-config-file~1]
+Test Ankaios CLI get workloads with config files
+    [Setup]    Setup Ankaios
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And Ankaios agent is started with name "agent_B"
+    And all workloads of agent "agent_B" have an initial execution state
+    And Ankaios agent is started with name "agent_A"
+    And all workloads of agent "agent_A" have an initial execution state
+    # Actions
+    When user triggers "ank -x ${CONFIGS_DIR}/ank.conf get workloads"
+    # Asserts
+    Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B"
+    And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
+    And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
+    [Teardown]    Clean up Ankaios
