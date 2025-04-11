@@ -67,7 +67,7 @@ mod tests {
 
     // [utest->swdd~cli-provides-delete-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
-    // [utest->swdd~cli-watches-workloads~1]
+    // [utest->swdd~cli-watches-workloads-on-updates~1]
     #[tokio::test]
     async fn utest_delete_workloads_two_workloads() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
