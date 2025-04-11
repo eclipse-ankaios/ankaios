@@ -5,14 +5,11 @@ set -e
 # GITHUB RELEASE URL SCHEMA for concrete release artifact: https://github.com/<organisation>/<repo>/releases/download/<tag>/<concrete_artifact>
 # GITHUB RELEASE URL SCHEMA for latest release artifact: https://github.com/<organisation>/<repo>/releases/latest/download/<concrete_artifact> (takes the release marked as latest)
 RELEASE_URL_BASE="https://github.com/eclipse-ankaios/ankaios/releases"
-DEFAULT_BIN_DESTINATION="/usr/local/bin"
-BIN_DESTINATION="${DEFAULT_BIN_DESTINATION}"
-DEFAULT_AGENT_OPT="--insecure --name agent_A"
-AGENT_OPT="$DEFAULT_AGENT_OPT"
+BIN_DESTINATION="/usr/local/bin"
+AGENT_OPT="--name agent_A"
 CONFIG_DEST="/etc/ankaios"
 FILE_STARTUP_STATE="${CONFIG_DEST}/state.yaml"
-DEFAULT_SERVER_OPT="--insecure --startup-config ${FILE_STARTUP_STATE}"
-SERVER_OPT="$DEFAULT_SERVER_OPT"
+SERVER_OPT="--startup-config ${FILE_STARTUP_STATE}"
 INSTALL_TYPE="both"
 SERVICE_DEST=/etc/systemd/system
 ANK_SERVER_SERVICE="ank-server"
@@ -49,11 +46,8 @@ display_usage() {
     echo -e "Usage: $0 [-v] [-i] [-t] [-s] [-a]"
     echo -e "Install Ankaios on a system."
     echo -e "  -v VERSION: Ankaios specific VERSION to install. Default: latest version."
-    echo -e "  -i PATH: Installation PATH. Default: $DEFAULT_BIN_DESTINATION"
     echo -e "  -t TARGET: Install systemd unit files for TARGET"
     echo -e "             'server', 'agent', 'none' or 'both' (default)"
-    echo -e "  -s OPTIONS: OPTIONS which will be passed to the server. Default '$DEFAULT_SERVER_OPT'"
-    echo -e "  -a OPTIONS: OPTIONS which will be passed to the agent. Default '$DEFAULT_AGENT_OPT'"
 }
 
 fail() {
@@ -79,13 +73,10 @@ cleanup_routine() {
 trap cleanup_routine EXIT
 
 # parse script args
-while getopts v:i:t:s:a: opt; do
+while getopts v:t: opt; do
     case $opt in
         v) ANKAIOS_VERSION="$OPTARG";;
-        i) BIN_DESTINATION="$OPTARG";;
         t) INSTALL_TYPE="$OPTARG";;
-        s) SERVER_OPT="$OPTARG";;
-        a) AGENT_OPT="$OPTARG";;
         *)
             fail "Error: Invalid parameter, aborting"
         ;;
@@ -117,10 +108,12 @@ if [ -z "$ANKAIOS_VERSION" ] ; then
     echo "No version provided, use default: latest"
     ANKAIOS_RELEASE_URL="${RELEASE_URL_BASE}/latest/download/${RELEASE_FILE_NAME}"
     ANKAIOS_RELEASE_URL_SHA="${RELEASE_URL_BASE}/latest/download/${RELEASE_FILE_NAME_WITH_SHA}"
+    ANKAIOS_CONFIGS_URL="${RELEASE_URL_BASE}/latest/download/ankaios_configs.tar.gz"
 else
     echo "Version provided, use version '${ANKAIOS_VERSION}'"
     ANKAIOS_RELEASE_URL="${RELEASE_URL_BASE}/download/${ANKAIOS_VERSION}/${RELEASE_FILE_NAME}"
     ANKAIOS_RELEASE_URL_SHA="${RELEASE_URL_BASE}/download/${ANKAIOS_VERSION}/${RELEASE_FILE_NAME_WITH_SHA}"
+    ANKAIOS_CONFIGS_URL="${RELEASE_URL_BASE}/download/${ANKAIOS_VERSION}/ankaios_configs.tar.gz"
 fi
 
 if [ -z "$INSTALL_ANK_SERVER_RUST_LOG" ] ; then
@@ -227,6 +220,19 @@ EOF
         echo "Skipping creation of sample startup file in $FILE_STARTUP_STATE as one already exists."
     fi
 fi
+
+echo "Downloading the configs: '${ANKAIOS_CONFIGS_URL}'"
+download_release "${ANKAIOS_CONFIGS_URL}"
+
+# Unzip the config files
+ANK_CONFIG_FILE_PATH="${HOME}/.config/ankaios/"
+CONFIGS_FILE_NAME="ankaios_configs.tar.gz"
+
+echo "Extracting the config files"
+mkdir -p "${ANK_CONFIG_FILE_PATH}"
+${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-server.conf
+${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-agent.conf
+${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${ANK_CONFIG_FILE_PATH}" ank.conf
 
 # Write uninstall script
 ${BIN_SUDO} tee "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}" >/dev/null << EOF
