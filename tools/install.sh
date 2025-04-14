@@ -43,7 +43,7 @@ setup_verify_arch() {
 }
 
 display_usage() {
-    echo -e "Usage: $0 [-v] [-i] [-t] [-s] [-a]"
+    echo -e "Usage: $0 [-v] [-t]"
     echo -e "Install Ankaios on a system."
     echo -e "  -v VERSION: Ankaios specific VERSION to install. Default: latest version."
     echo -e "  -t TARGET: Install systemd unit files for TARGET"
@@ -233,6 +233,12 @@ mkdir -p "${ANK_CONFIG_FILE_PATH}"
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-server.conf
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-agent.conf
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${ANK_CONFIG_FILE_PATH}" ank.conf
+
+
+echo "Customization of your Ankaios system (agent name, server address, etc.) can be done by modifying the following files:"
+echo "  - ${ANK_CONFIG_FILE_PATH}/ank.conf for the Ankaios CLI"
+echo "  - ${CONFIG_DEST}/ank-server.conf for the Ankaios server"
+echo "  - ${CONFIG_DEST}/ank-agent.conf for the Ankaios agent"
 
 # Write uninstall script
 ${BIN_SUDO} tee "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}" >/dev/null << EOF
