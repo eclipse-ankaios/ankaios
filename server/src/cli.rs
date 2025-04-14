@@ -31,14 +31,15 @@ pub struct Arguments {
     /// The path to the startup manifest yaml.
     pub manifest_path: Option<String>,
     #[clap(required = false, short = 'x', long = "server-config")]
-    /// The path to the server config file
+    /// The path to the server config file.
+    /// The default path is /etc/ankaios/ank-server.conf
     pub config_path: Option<String>,
     #[clap(required = false, short = 'a', long = "address")]
     /// The address, including the port, the server shall listen at [default: 127.0.0.1:25551].
     pub addr: Option<SocketAddr>,
-    #[clap(short = 'k', long = "insecure", action=ArgAction::SetTrue, default_value_t = false, env="ANKSERVER_INSECURE")]
+    #[clap(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANKSERVER_INSECURE")]
     /// Flag to disable TLS communication between Ankaios server, agent and ank CLI.
-    pub insecure: bool,
+    pub insecure: Option<bool>,
     #[clap(long = "ca_pem", env = "ANKSERVER_CA_PEM")]
     /// Path to server ca certificate pem file.
     pub ca_pem: Option<String>,

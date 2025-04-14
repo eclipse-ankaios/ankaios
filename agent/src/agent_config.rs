@@ -13,30 +13,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::Arguments;
-use common::std_extensions::{UnreachableOption, UnreachableResult};
-use common::DEFAULT_SOCKET_ADDRESS;
+use crate::io_utils::DEFAULT_RUN_FOLDER;
+use common::std_extensions::UnreachableOption;
+use common::DEFAULT_SERVER_ADDRESS;
 use grpc::security::read_pem_file;
 
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 use std::fmt;
 use std::fs::read_to_string;
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use toml::from_str;
 
 const CONFIG_VERSION: &str = "v1";
 
 #[cfg(not(test))]
-pub const DEFAULT_SERVER_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-server.conf";
+pub const DEFAULT_AGENT_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-agent.conf";
 
 #[cfg(test)]
-pub const DEFAULT_SERVER_CONFIG_FILE_PATH: &str = "/tmp/ankaios/ank-server.conf";
+pub const DEFAULT_AGENT_CONFIG_FILE_PATH: &str = "/tmp/ankaios/ank-agent.conf";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ConversionErrors {
     WrongVersion(String),
     ConflictingCertificates(String),
-    InvalidServerConfig(String),
+    InvalidAgentConfig(String),
     InvalidCertificate(String),
 }
 
@@ -49,12 +49,8 @@ impl fmt::Display for ConversionErrors {
             ConversionErrors::ConflictingCertificates(msg) => {
                 write!(f, "Conflicting certificates: {}", msg)
             }
-            ConversionErrors::InvalidServerConfig(msg) => {
-                write!(
-                    f,
-                    "Server Config could not have been parsed due to: {}",
-                    msg
-                )
+            ConversionErrors::InvalidAgentConfig(msg) => {
+                write!(f, "Agent Config could not have been parsed due to: {}", msg)
             }
             ConversionErrors::InvalidCertificate(msg) => {
                 write!(f, "Certificate could not have been read due to: {}", msg)
@@ -63,29 +59,26 @@ impl fmt::Display for ConversionErrors {
     }
 }
 
-pub fn get_default_address() -> SocketAddr {
-    DEFAULT_SOCKET_ADDRESS.parse().unwrap_or_unreachable()
+pub fn get_default_url() -> String {
+    DEFAULT_SERVER_ADDRESS.to_string()
 }
 
-fn convert_to_socket_address<'de, D>(deserializer: D) -> Result<SocketAddr, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s: String = Deserialize::deserialize(deserializer)?;
-
-    s.parse::<SocketAddr>().map_err(serde::de::Error::custom)
+fn get_default_run_folder() -> String {
+    DEFAULT_RUN_FOLDER.to_string()
 }
 
-// [impl->swdd~server-loads-config-file~1]
+// [impl->swdd~agent-loads-config-file~1]
 #[derive(Debug, Deserialize, PartialEq)]
-pub struct ServerConfig {
+pub struct AgentConfig {
     pub version: String,
-    pub startup_manifest: Option<String>,
-    #[serde(deserialize_with = "convert_to_socket_address")]
-    #[serde(default = "get_default_address")]
-    pub address: SocketAddr,
     #[serde(default)]
-    pub insecure: Option<bool>,
+    pub name: String,
+    #[serde(default = "get_default_url")]
+    pub server_url: String,
+    #[serde(default = "get_default_run_folder")]
+    pub run_folder: String,
+    #[serde(default)]
+    pub insecure: bool,
     ca_pem: Option<String>,
     crt_pem: Option<String>,
     key_pem: Option<String>,
@@ -94,13 +87,14 @@ pub struct ServerConfig {
     pub key_pem_content: Option<String>,
 }
 
-impl Default for ServerConfig {
+impl Default for AgentConfig {
     fn default() -> Self {
-        ServerConfig {
+        AgentConfig {
             version: CONFIG_VERSION.to_string(),
-            startup_manifest: None,
-            address: get_default_address(),
-            insecure: Some(bool::default()),
+            name: String::new(),
+            server_url: get_default_url(),
+            run_folder: get_default_run_folder(),
+            insecure: bool::default(),
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
@@ -111,56 +105,61 @@ impl Default for ServerConfig {
     }
 }
 
-impl ServerConfig {
-    pub fn from_file(file_path: PathBuf) -> Result<ServerConfig, ConversionErrors> {
-        let server_config_content = read_to_string(file_path.to_str().unwrap_or_unreachable())
-            .map_err(|err| ConversionErrors::InvalidServerConfig(err.to_string()))?;
-        let mut server_config: ServerConfig = from_str(&server_config_content)
-            .map_err(|err| ConversionErrors::InvalidServerConfig(err.to_string()))?;
+// [impl->swdd~agent-loads-config-file~1]
+impl AgentConfig {
+    pub fn from_file(file_path: PathBuf) -> Result<AgentConfig, ConversionErrors> {
+        let agent_config_content = read_to_string(file_path.to_str().unwrap_or_unreachable())
+            .map_err(|err| ConversionErrors::InvalidAgentConfig(err.to_string()))?;
+        let mut agent_config: AgentConfig = from_str(&agent_config_content)
+            .map_err(|err| ConversionErrors::InvalidAgentConfig(err.to_string()))?;
 
-        if server_config.version != CONFIG_VERSION {
-            return Err(ConversionErrors::WrongVersion(server_config.version));
+        if agent_config.version != CONFIG_VERSION {
+            return Err(ConversionErrors::WrongVersion(agent_config.version));
         }
 
-        if (server_config.ca_pem.is_some() && server_config.ca_pem_content.is_some())
-            || (server_config.crt_pem.is_some() && server_config.crt_pem_content.is_some())
-            || (server_config.key_pem.is_some() && server_config.key_pem_content.is_some())
+        if (agent_config.ca_pem.is_some() && agent_config.ca_pem_content.is_some())
+            || (agent_config.crt_pem.is_some() && agent_config.crt_pem_content.is_some())
+            || (agent_config.key_pem.is_some() && agent_config.key_pem_content.is_some())
         {
             return Err(ConversionErrors::ConflictingCertificates(
                 "Certificate paths and certificate content are both set".to_string(),
             ));
         }
 
-        if let Some(ca_pem_path) = &server_config.ca_pem {
+        if let Some(ca_pem_path) = &agent_config.ca_pem {
             let ca_pem_content = read_pem_file(ca_pem_path, false)
                 .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
-            server_config.ca_pem_content = Some(ca_pem_content);
+            agent_config.ca_pem_content = Some(ca_pem_content);
         }
-        if let Some(crt_pem_path) = &server_config.crt_pem {
+        if let Some(crt_pem_path) = &agent_config.crt_pem {
             let crt_pem_content = read_pem_file(crt_pem_path, false)
                 .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
-            server_config.crt_pem_content = Some(crt_pem_content);
+            agent_config.crt_pem_content = Some(crt_pem_content);
         }
-        if let Some(key_pem_path) = &server_config.key_pem {
+        if let Some(key_pem_path) = &agent_config.key_pem {
             let key_pem_content = read_pem_file(key_pem_path, false)
                 .map_err(|err| ConversionErrors::InvalidCertificate(err.to_string()))?;
-            server_config.key_pem_content = Some(key_pem_content);
+            agent_config.key_pem_content = Some(key_pem_content);
         }
 
-        Ok(server_config)
+        Ok(agent_config)
     }
 
     pub fn update_with_args(&mut self, args: &Arguments) {
-        if let Some(path) = &args.manifest_path {
-            self.startup_manifest = Some(path.to_string());
+        if let Some(name) = &args.agent_name {
+            self.name = name.to_string();
         }
 
-        if let Some(addr) = &args.addr {
-            self.address = *addr;
+        if let Some(url) = &args.server_url {
+            self.server_url = url.to_string();
+        }
+
+        if let Some(run_folder) = &args.run_folder {
+            self.run_folder = run_folder.to_string();
         }
 
         if let Some(insecure) = args.insecure {
-            self.insecure = Some(insecure);
+            self.insecure = insecure;
         }
 
         if let Some(ca_pem_path) = &args.ca_pem {
@@ -175,7 +174,7 @@ impl ServerConfig {
         }
         if let Some(key_pem_path) = &args.key_pem {
             self.key_pem = Some(key_pem_path.to_owned());
-            let key_pem_content = read_pem_file(key_pem_path, false).unwrap_or_default();
+            let key_pem_content = read_pem_file(key_pem_path, true).unwrap_or_default();
             self.key_pem_content = Some(key_pem_content);
         }
     }
@@ -192,19 +191,17 @@ impl ServerConfig {
 #[cfg(test)]
 mod tests {
     use std::io::Write;
-    use std::net::SocketAddr;
     use std::path::PathBuf;
     use tempfile::NamedTempFile;
 
-    use common::DEFAULT_SOCKET_ADDRESS;
+    use common::DEFAULT_SERVER_ADDRESS;
 
-    use crate::{cli::Arguments, server_config::ConversionErrors};
+    use crate::io_utils::DEFAULT_RUN_FOLDER;
+    use crate::{agent_config::ConversionErrors, cli::Arguments};
 
-    use super::ServerConfig;
-    use super::DEFAULT_SERVER_CONFIG_FILE_PATH;
+    use super::{AgentConfig, CONFIG_VERSION};
 
-    const STARTUP_MANIFEST_PATH: &str = "some_path_to_config/config.yaml";
-    const TEST_SOCKET_ADDRESS: &str = "127.0.0.1:3333";
+    const AGENT_NAME: &str = "agent_1";
     const CA_PEM_PATH: &str = "some_path_to_ca_pem/ca.pem";
     const CRT_PEM_PATH: &str = "some_path_to_crt_pem/crt.pem";
     const KEY_PEM_PATH: &str = "some_path_to_key_pem/key.pem";
@@ -215,41 +212,41 @@ mod tests {
     const KEY_PEM_CONTENT: &str = r"the content of the
         key.pem file is stored in here";
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
-    fn utest_default_server_config() {
-        let default_server_config = ServerConfig::default();
+    fn utest_default_agent_config() {
+        let default_agent_config = AgentConfig::default();
 
         assert_eq!(
-            default_server_config.address,
-            DEFAULT_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
+            default_agent_config.server_url,
+            DEFAULT_SERVER_ADDRESS.to_string()
         );
-        assert_eq!(default_server_config.insecure, Some(false));
-        assert_eq!(default_server_config.version, "v1");
+        assert!(!default_agent_config.insecure);
+        assert_eq!(default_agent_config.version, CONFIG_VERSION);
     }
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
-    fn utest_server_config_wrong_version() {
-        let server_config_content: &str = r"#
+    fn utest_agent_config_wrong_version() {
+        let agent_config_content: &str = r"#
         version = 'v2'
         #";
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", server_config_content).unwrap();
+        write!(tmp_config_file, "{}", agent_config_content).unwrap();
 
-        let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let agent_config = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
         assert_eq!(
-            server_config,
+            agent_config,
             Err(ConversionErrors::WrongVersion("v2".to_string()))
         );
     }
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
-    fn utest_server_config_conflicting_certificates() {
-        let server_config_content = format!(
+    fn utest_agent_config_conflicting_certificates() {
+        let agent_config_content = format!(
             r"#
         version = 'v1'
         ca_pem = '''{}'''
@@ -259,52 +256,48 @@ mod tests {
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", server_config_content).unwrap();
+        write!(tmp_config_file, "{}", agent_config_content).unwrap();
 
-        let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let agent_config = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
         assert_eq!(
-            server_config,
+            agent_config,
             Err(ConversionErrors::ConflictingCertificates(
                 "Certificate paths and certificate content are both set".to_string()
             ))
         );
     }
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
-    fn utest_server_config_update_with_args() {
-        let mut server_config = ServerConfig::default();
+    fn utest_agent_config_update_with_args() {
+        let mut agent_config = AgentConfig::default();
         let args = Arguments {
-            manifest_path: Some(STARTUP_MANIFEST_PATH.to_string()),
-            config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string()),
-            addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
+            config_path: None,
+            agent_name: Some(AGENT_NAME.to_string()),
+            server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
+            run_folder: Some(DEFAULT_RUN_FOLDER.to_string()),
             insecure: Some(false),
             ca_pem: Some(CA_PEM_PATH.to_string()),
             crt_pem: Some(CRT_PEM_PATH.to_string()),
             key_pem: Some(KEY_PEM_PATH.to_string()),
         };
 
-        server_config.update_with_args(&args);
+        agent_config.update_with_args(&args);
 
-        assert_eq!(
-            server_config.startup_manifest,
-            Some(STARTUP_MANIFEST_PATH.to_string())
-        );
-        assert_eq!(
-            server_config.address,
-            TEST_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
-        );
-        assert_eq!(server_config.insecure, Some(false));
-        assert_eq!(server_config.ca_pem, Some(CA_PEM_PATH.to_string()));
-        assert_eq!(server_config.crt_pem, Some(CRT_PEM_PATH.to_string()));
-        assert_eq!(server_config.key_pem, Some(KEY_PEM_PATH.to_string()));
+        assert_eq!(agent_config.name, AGENT_NAME.to_string());
+        assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
+        assert_eq!(agent_config.run_folder, DEFAULT_RUN_FOLDER.to_string());
+        assert!(!agent_config.insecure);
+        assert_eq!(agent_config.ca_pem, Some(CA_PEM_PATH.to_string()));
+        assert_eq!(agent_config.crt_pem, Some(CRT_PEM_PATH.to_string()));
+        assert_eq!(agent_config.key_pem, Some(KEY_PEM_PATH.to_string()));
     }
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
-    fn utest_server_config_update_with_args_certificates_content() {
-        let server_config_content = format!(
+    fn utest_agent_config_update_with_args_certificates_content() {
+        let agent_config_content = format!(
             r"#
         version = 'v1'
         ca_pem_content = '''{}'''
@@ -315,44 +308,46 @@ mod tests {
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", server_config_content).unwrap();
+        write!(tmp_config_file, "{}", agent_config_content).unwrap();
 
-        let mut server_config =
-            ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
+        let mut agent_config =
+            AgentConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
         let args = Arguments {
-            manifest_path: Some(STARTUP_MANIFEST_PATH.to_string()),
-            config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string()),
-            addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
+            config_path: None,
+            agent_name: Some(AGENT_NAME.to_string()),
+            server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
+            run_folder: Some(DEFAULT_RUN_FOLDER.to_string()),
             insecure: Some(false),
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
         };
 
-        server_config.update_with_args(&args);
+        agent_config.update_with_args(&args);
 
         assert_eq!(
-            server_config.ca_pem_content,
+            agent_config.ca_pem_content,
             Some(CA_PEM_CONTENT.to_string())
         );
         assert_eq!(
-            server_config.crt_pem_content,
+            agent_config.crt_pem_content,
             Some(CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
-            server_config.key_pem_content,
+            agent_config.key_pem_content,
             Some(KEY_PEM_CONTENT.to_string())
         );
     }
 
-    // [utest->swdd~server-loads-config-file~1]
+    // [utest->swdd~agent-loads-config-file~1]
     #[test]
-    fn utest_server_config_from_file_successful() {
-        let server_config_content = format!(
+    fn utest_agent_config_from_file_successful() {
+        let agent_config_content = format!(
             r"#
         version = 'v1'
-        startup_manifest = '/workspaces/ankaios/server/resources/startConfig.yaml'
-        address = '127.0.0.1:25551'
+        name = 'agent_1'
+        server_url = 'https://127.0.0.1:25551'
+        run_folder = '/tmp/ankaios/'
         insecure = true
         ca_pem_content = '''{}'''
         crt_pem_content = '''{}'''
@@ -362,34 +357,29 @@ mod tests {
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", server_config_content).unwrap();
+        write!(tmp_config_file, "{}", agent_config_content).unwrap();
 
-        let server_config_res = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
+        let agent_config_res = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
-        assert!(server_config_res.is_ok());
+        assert!(agent_config_res.is_ok());
 
-        let server_config = server_config_res.unwrap();
+        let agent_config = agent_config_res.unwrap();
 
+        assert_eq!(agent_config.name, AGENT_NAME.to_string());
+        assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
+        assert_eq!(agent_config.run_folder, DEFAULT_RUN_FOLDER.to_string());
+        assert!(agent_config.insecure);
         assert_eq!(
-            server_config.address,
-            "127.0.0.1:25551".parse::<SocketAddr>().unwrap()
-        );
-        assert_eq!(
-            server_config.ca_pem_content,
+            agent_config.ca_pem_content,
             Some(CA_PEM_CONTENT.to_string())
         );
         assert_eq!(
-            server_config.crt_pem_content,
+            agent_config.crt_pem_content,
             Some(CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
-            server_config.key_pem_content,
+            agent_config.key_pem_content,
             Some(KEY_PEM_CONTENT.to_string())
-        );
-        assert_eq!(server_config.insecure, Some(true));
-        assert_eq!(
-            server_config.startup_manifest,
-            Some("/workspaces/ankaios/server/resources/startConfig.yaml".to_string())
         );
     }
 }

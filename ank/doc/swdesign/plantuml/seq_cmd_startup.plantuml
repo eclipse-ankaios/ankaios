@@ -18,6 +18,8 @@ user-> main ++ : a command
 
 == startup ==
 
+main -> main ++--: load ank CLI config file
+note right: The precedence of means of configuring the Ankaios CLI\n is the following: Ankaios ank CLI arguments,\n environment variables and after that the CLI configuration file.
 main -> cli **
 main -> cli ++: parse
 cli ->> main --

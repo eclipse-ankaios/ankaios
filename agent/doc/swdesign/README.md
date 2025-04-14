@@ -45,6 +45,19 @@ Considered alternatives:
 - Create a workload file with a uuid as filename: increases complexity when debugging the workload file mount
 - Create a workload file in a subdirectory named by hashing the mount point path: affects performance when using more secure hash algorithms
 
+#### Use exponential backoff with jitter when retrying to create workloads
+`swdd~agent-decision-exponential-backoff-with-jitter-workload-creation-retry~1`
+
+Status approved
+
+When the Ankaios agents fails to create a workload, the agents uses exponential backoff with jitter as timeout before it retries to create the workload.
+The maximal timeout is 5 minutes.
+
+Rationale:
+- The timeout is exponentially increased to not overload the system with retries.
+- The jitter prevents, that too many retries are executed an the same moment.
+- The timeout is limited to 5 minutes, as it is expected with this timeout the retries will not overload the system anymore.
+
 ## Structural view
 
 The following diagram shows the structural view of the Ankaios Agent:
@@ -154,6 +167,24 @@ This chapter defines the runtime behavior of the Ankaios Agent in details. The f
 The following diagram shows the startup sequence of the Ankaios Agent:
 
 ![Startup](plantuml/seq_startup.svg)
+
+#### Agent loads config file
+`swdd~agent-loads-config-file~1`
+
+Status: approved
+
+The Ankaios agent shall accept configuration files read at startup that specify the general startup configuration of the agent with a lower precedence than environment variables and command line arguments.
+
+Rationale:
+Agent configuration files allow a reproducible execution of the agent with lower effort.
+
+Comment:
+The Ankaios agent expects the configuration files per default in the standard location `/etc/ankaios/ank-agent.conf`.
+
+Needs:
+- impl
+- utest
+- stest
 
 #### Agent prepares dedicated run folder
 `swdd~agent-prepares-dedicated-run-folder~1`
@@ -1714,9 +1745,9 @@ The following diagram describes the retry behavior when a workload is created an
 
 ![Retry Creation of Workload On Create Failure](plantuml/seq_retry_workload_creation_on_create_failure.svg)
 
-The following diagram describes the retry behavior when an update command is received within the WorkloadControlLoop and the create of the new workload fails:
+The following diagram describes the retry behavior when the create fails and an update is received while waiting before retrying.
 
-![Retry Creation of Workload On Update With Create Failure](plantuml/seq_retry_workload_creation_on_update_with_create_failure.svg)
+![Retry Interrupted by Update](plantuml/seq_retry_interrupted_by_update.svg)
 
 #### WorkloadControlLoop retries a workload on failing create
 `swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1`
@@ -1739,18 +1770,13 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop requests retry of a workload creation on failing retry attempt
-`swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1`
+#### WorkloadControlLoop uses exponential backoff for retries
+`swdd~agent-workload-control-loop-exponential-backoff-retries~1`
 
 Status: approved
 
-When the WorkloadControlLoop executes a retry of a workload creation and the runtime connector fails to create the workload, the WorkloadControlLoop shall request a retry of the creation of the workload within 1 sec time interval.
-
-Comment:
-The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandSender to send the WorkloadCommand Retry.
-
-Rationale:
-The retry behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
+When the WorkloadControlLoop sends a WorkloadCommand Retry,
+it shall hold back the command by an exponential backoff with jitter.
 
 Tags:
 - WorkloadControlLoop
@@ -1758,7 +1784,6 @@ Tags:
 Needs:
 - impl
 - utest
-- stest
 
 #### WorkloadControlLoop retries creation of a workload
 `swdd~agent-workload-control-loop-executes-retry~1`
@@ -1770,43 +1795,7 @@ When the WorkloadControlLoop receives a retry command, the WorkloadControlLoop s
 * store the new Id and reference to the state checker inside the WorkloadControlLoop
 
 Comment:
-The `Pending(Starting)` execution state of the workload is kept on a failed retry until the retry limit is exceeded to avoid fast execution state changes on the user side.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-- stest
-
-#### WorkloadControlLoop stops retries after the defined maximum amount of retry attempts
-`swdd~agent-workload-control-loop-limits-retry-attempts~1`
-
-Status: approved
-
-The WorkloadControlLoop shall execute a maximum of 20 retry attempts.
-
-Rationale:
-Limiting the retry attempts prevents pointless attempts if the workload cannot be started due to a configuration conflict that the runtime rejects in general.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-- stest
-
-#### WorkloadControlLoop sets execution state of workload to failed after reaching the retry limit
-`swdd~agent-workload-control-loop-retry-limit-set-execution-state~2`
-
-Status: approved
-
-When the WorkloadControlLoop receives a retry command and the maximum amount of retry attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)` with additional information about the failure cause prefixed with "No more retries: ".
-
-Rationale:
-The workload has a well defined state after reaching the retry attempt limit indicating that the create of the workload has failed.
+The `Pending(Starting)` execution state of the workload is kept upon a startup failure to avoid fast execution state changes on the user side.
 
 Tags:
 - WorkloadControlLoop
@@ -1817,11 +1806,11 @@ Needs:
 - stest
 
 #### WorkloadControlLoop prevents retries when receiving other workload commands
-`swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1`
+`swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2`
 
 Status: approved
 
-When the WorkloadControlLoop receives an update or delete from the WorkloadCommandSender, the WorkloadControlLoop shall stop triggering retry attempts.
+When the WorkloadControlLoop receives an update or delete from the WorkloadCommandSender, the WorkloadControlLoop shall stop executing retry attempts.
 
 Comment:
 When executing the retry attempts the WorkloadControlLoop might receive other WorkloadCommands like update or delete making the retry attempts with the previous workload configuration obsolete.
@@ -1837,18 +1826,16 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop resets retry attempts when receiving an update
-`swdd~agent-workload-control-loop-reset-retry-attempts-on-update~1`
+### WorkloadControlLoop reset backoff on update
+`swdd~agent-workload-control-loop-reset-backoff-on-update`
 
 Status: approved
 
-When the WorkloadControlLoop receives an update from the WorkloadCommandSender, the WorkloadControlLoop shall reset the retry counter.
-
-Comment:
-The retry counter might be already incremented when the workload that shall be updated was already failing a few times during its initial creation.
+When the WorkloadControlLoop receives an update from the WorkloadCommandSender, the WorkloadControlLoop shall reset the backoff.
 
 Rationale:
-This enables new retry attempts for the new workload again.
+Workload updates shall behave similar to a delete with subsequent create of a workload with the same name.
+Hence, if the creation of the updated workload fails, the backoff should be the same as for a new workload.
 
 Tags:
 - WorkloadControlLoop

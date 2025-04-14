@@ -18,7 +18,7 @@ use crate::grpc_api::{
     cli_connection_client::CliConnectionClient, to_server::ToServerEnum, AgentHello,
 };
 use crate::grpc_middleware_error::GrpcMiddlewareError;
-use crate::security::{read_pem_file, TLSConfig};
+use crate::security::TLSConfig;
 use crate::to_server_proxy;
 use crate::{from_server_proxy, CommanderHello};
 
@@ -229,15 +229,12 @@ impl GRPCCommunicationsClient {
                 // [impl->swdd~grpc-agent-activate-mtls-when-certificates-and-key-provided-upon-start~1]
                 Some(tls_config) => {
                     // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                    let ca_pem = read_pem_file(&tls_config.ca_pem, false)?;
-                    let ca = Certificate::from_pem(ca_pem);
+                    let ca = Certificate::from_pem(&tls_config.ca_pem);
                     // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                    let client_cert_pem = read_pem_file(&tls_config.crt_pem, false)?;
-                    let client_cert = Certificate::from_pem(client_cert_pem);
+                    let client_cert = Certificate::from_pem(&tls_config.crt_pem);
 
                     // [impl->swdd~grpc-supports-pem-file-format-for-keys~1]
-                    let client_key_pem = read_pem_file(&tls_config.key_pem, true)?;
-                    let client_key = Certificate::from_pem(client_key_pem);
+                    let client_key = Certificate::from_pem(&tls_config.key_pem);
                     let client_identity = Identity::from_pem(client_cert, client_key);
 
                     let tls = ClientTlsConfig::new()
@@ -274,15 +271,12 @@ impl GRPCCommunicationsClient {
                 // [impl->swdd~grpc-cli-activate-mtls-when-certificates-and-key-provided-upon-start~1]
                 Some(tls_config) => {
                     // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                    let ca_pem = read_pem_file(&tls_config.ca_pem, false)?;
-                    let ca = Certificate::from_pem(ca_pem);
+                    let ca = Certificate::from_pem(&tls_config.ca_pem);
                     // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-                    let client_cert_pem = read_pem_file(&tls_config.crt_pem, false)?;
-                    let client_cert = Certificate::from_pem(client_cert_pem);
+                    let client_cert = Certificate::from_pem(&tls_config.crt_pem);
 
                     // [impl->swdd~grpc-supports-pem-file-format-for-keys~1]
-                    let client_key_pem = read_pem_file(&tls_config.key_pem, true)?;
-                    let client_key = Certificate::from_pem(client_key_pem);
+                    let client_key = Certificate::from_pem(&tls_config.key_pem);
                     let client_identity = Identity::from_pem(client_cert, client_key);
 
                     let tls = ClientTlsConfig::new()

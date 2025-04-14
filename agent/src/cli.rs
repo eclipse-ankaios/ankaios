@@ -12,25 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use regex::Regex;
-
-use crate::io_utils::DEFAULT_RUN_FOLDER;
-use clap::Parser;
-use common::objects::STR_RE_AGENT;
-use common::DEFAULT_SERVER_ADDRESS;
-
-// [impl->swdd~agent-naming-convention~1]
-fn validate_agent_name(name: &str) -> Result<String, String> {
-    let re = Regex::new(STR_RE_AGENT).unwrap();
-    if re.is_match(name) {
-        Ok(name.to_string())
-    } else {
-        Err(format!(
-            "Agent name '{}' is invalid. It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.",
-            name
-        ))
-    }
-}
+use clap::{ArgAction, Parser};
 
 // [impl->swdd~agent-supports-cli-argument-for-insecure-communication~1]
 // [impl->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
@@ -40,24 +22,23 @@ fn validate_agent_name(name: &str) -> Result<String, String> {
         about="Ankaios - your friendly automotive workload orchestrator.\nWhat can the agent do for you?")
 ]
 pub struct Arguments {
-    #[clap(short = 'n', long = "name", value_parser = clap::builder::ValueParser::new(validate_agent_name))]
+    #[clap(required = false, short = 'x', long = "agent-config")]
+    /// The path to the agent config file.
+    /// The default path is /etc/ankaios/ank-agent.conf
+    pub config_path: Option<String>,
+    #[clap(short = 'n', long = "name", required = false)]
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
     /// Agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
-    pub agent_name: String,
-    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.to_string())]
+    pub agent_name: Option<String>,
+    #[clap(short = 's', long = "server-url", required = false)]
     /// The server url.
-    pub server_url: String,
+    pub server_url: Option<String>,
     /// An existing directory where agent specific runtime files will be stored. If not specified, a default folder is created.
-    #[clap(short = 'r', long = "run-folder", default_value_t = DEFAULT_RUN_FOLDER.into())]
-    pub run_folder: String,
-    #[clap(
-        short = 'k',
-        long = "insecure",
-        env = "ANKAGENT_INSECURE",
-        default_value_t = false
-    )]
+    #[clap(short = 'r', long = "run-folder", required = false)]
+    pub run_folder: Option<String>,
+    #[clap(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANKAGENT_INSECURE")]
     /// Flag to disable TLS communication between Ankaios agent and server.
-    pub insecure: bool,
+    pub insecure: Option<bool>,
     #[clap(long = "ca_pem", env = "ANKAGENT_CA_PEM")]
     /// Path to agent ca pem file.
     pub ca_pem: Option<String>,
@@ -71,33 +52,4 @@ pub struct Arguments {
 
 pub fn parse() -> Arguments {
     Arguments::parse()
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//                 ########  #######    #########  #########                //
-//                    ##     ##        ##             ##                    //
-//                    ##     #####     #########      ##                    //
-//                    ##     ##                ##     ##                    //
-//                    ##     #######   #########      ##                    //
-//////////////////////////////////////////////////////////////////////////////
-
-#[cfg(test)]
-mod tests {
-
-    // [utest->swdd~agent-naming-convention~1]
-    #[test]
-    fn utest_validate_agent_name_ok() {
-        assert!(super::validate_agent_name("").is_ok());
-
-        let name = "test_AgEnt-name1_56";
-        assert_eq!(super::validate_agent_name(name), Ok(name.to_string()));
-    }
-
-    // [utest->swdd~agent-naming-convention~1]
-    #[test]
-    fn utest_validate_agent_name_fail() {
-        assert!(super::validate_agent_name("a.b").is_err());
-        assert!(super::validate_agent_name("a_b_%#").is_err());
-        assert!(super::validate_agent_name("a b").is_err());
-    }
 }
