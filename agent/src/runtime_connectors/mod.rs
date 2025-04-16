@@ -39,3 +39,4 @@ pub use state_checker::{RuntimeStateGetter, StateChecker};
 
 #[cfg(test)]
 pub use state_checker::MockRuntimeStateGetter;
+pub mod log_channel;
