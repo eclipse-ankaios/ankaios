@@ -177,14 +177,14 @@ impl AgentConnection for GRPCAgentConnection {
                         sans
                     )));
                 }
+                Ok(Response::new(Box::pin(ReceiverStream::new(
+                    new_agent_receiver,
+                ))))
             }
-            _ => Err::<(), &str>("No AgentHello received.").unwrap_or_exit("Protocol error."),
+            _ => Err(Status::invalid_argument("No AgentHello received.")),
         }
 
         // [impl->swdd~grpc-agent-connection-responds-with-from-server-channel-rx~1]
-        Ok(Response::new(Box::pin(ReceiverStream::new(
-            new_agent_receiver,
-        ))))
     }
 }
 
