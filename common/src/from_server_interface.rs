@@ -12,9 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands;
+use crate::commands::{self, LogsCancelRequest, LogsRequest};
 use crate::objects::{DeletedWorkload, WorkloadSpec, WorkloadState};
-use api::ank_base;
+use api::ank_base::{self};
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -40,6 +40,8 @@ pub enum FromServer {
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Response(ank_base::Response),
     Stop(commands::Stop),
+    LogsRequest(String, LogsRequest),
+    LogsCancelRequest(LogsCancelRequest),
 }
 
 // [impl->swdd~from-server-channel~1]
@@ -70,6 +72,16 @@ pub trait FromServerInterface {
         request_id: String,
         added_workloads: Vec<String>,
         deleted_workloads: Vec<String>,
+    ) -> Result<(), FromServerInterfaceError>;
+    async fn logs_request(
+        &self,
+        request_id: String,
+        logs_request: ank_base::LogsRequest,
+    ) -> Result<(), FromServerInterfaceError>;
+    async fn logs_response(
+        &self,
+        request_id: String,
+        logs_response: ank_base::LogsResponse,
     ) -> Result<(), FromServerInterfaceError>;
     async fn error(
         &self,
@@ -160,6 +172,30 @@ impl FromServerInterface for FromServerSender {
                 .into(),
             }))
             .await?)
+    }
+
+    async fn logs_request(
+        &self,
+        request_id: String,
+        logs_request: ank_base::LogsRequest,
+    ) -> Result<(), FromServerInterfaceError> {
+        self.send(FromServer::LogsRequest(request_id, logs_request.into()))
+            .await?;
+        Ok(())
+    }
+
+    async fn logs_response(
+        &self,
+        request_id: String,
+        logs_response: ank_base::LogsResponse,
+    ) -> Result<(), FromServerInterfaceError> {
+        self.send(FromServer::Response(ank_base::Response {
+            request_id,
+            response_content: ank_base::response::ResponseContent::LogsResponse(logs_response)
+                .into(),
+        }))
+        .await?;
+        Ok(())
     }
 
     async fn error(

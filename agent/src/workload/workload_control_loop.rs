@@ -14,9 +14,8 @@
 
 use crate::control_interface::ControlInterfacePath;
 use crate::io_utils::FileSystemError;
-use crate::runtime_connectors::generic_log_collector::GenericLogCollector;
-use crate::runtime_connectors::log_collector::{self, LogCollector};
-use crate::runtime_connectors::{log_channel, LogRequestOptions, RuntimeError, StateChecker};
+use crate::runtime_connectors::log_collector::LogCollector;
+use crate::runtime_connectors::{LogRequestOptions, RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
@@ -24,7 +23,6 @@ use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, Workl
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 

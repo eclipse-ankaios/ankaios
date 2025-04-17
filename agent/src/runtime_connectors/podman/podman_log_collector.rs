@@ -1,14 +1,10 @@
-use futures_util::stream::FuturesUnordered;
-use futures_util::task::AtomicWaker;
-use std::pin::{pin, Pin};
+use std::pin::Pin;
 use std::process::Stdio;
 use tokio::process::{Child, Command};
 
 use tokio::io::AsyncRead;
 
-use crate::runtime_connectors::{
-    log_channel, log_collector::LogCollector, runtime_connector::LogRequestOptions,
-};
+use crate::runtime_connectors::runtime_connector::LogRequestOptions;
 
 use super::PodmanWorkloadId;
 

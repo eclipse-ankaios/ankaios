@@ -19,10 +19,7 @@ use crate::{
 use common::objects::{WorkloadInstanceName, WorkloadSpec};
 #[cfg(test)]
 use mockall_double::double;
-use tokio::sync::{
-    mpsc,
-    oneshot::{self, error::RecvError},
-};
+use tokio::sync::{mpsc, oneshot};
 
 #[cfg_attr(test, double)]
 use super::retry_manager::RetryToken;

@@ -132,6 +132,9 @@ pub struct LogsRequest {
     pub until: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogsCancelRequest {}
+
 // TODO: add tests
 impl From<LogsRequest> for ank_base::LogsRequest {
     fn from(item: LogsRequest) -> Self {
