@@ -224,7 +224,7 @@ fi
 echo "Downloading the configs: '${ANKAIOS_CONFIGS_URL}'"
 download_release "${ANKAIOS_CONFIGS_URL}"
 
-# Unzip the config files
+# Extract the config files
 ANK_CONFIG_FILE_PATH="${HOME}/.config/ankaios/"
 CONFIGS_FILE_NAME="ankaios_configs.tar.gz"
 
