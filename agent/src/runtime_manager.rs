@@ -20,6 +20,7 @@ use crate::control_interface::authorizer::Authorizer;
 use api::ank_base;
 
 use common::{
+    commands::LogsRequest,
     objects::{
         AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec,
         WorkloadState,
@@ -27,11 +28,15 @@ use common::{
     request_id_prepending::detach_prefix_from_request_id,
     to_server_interface::ToServerSender,
 };
+use tokio::runtime;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
-use crate::control_interface::ControlInterfacePath;
+use crate::{
+    control_interface::ControlInterfacePath,
+    runtime_connectors::{log_collector::LogCollector, LogRequestOptions},
+};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
@@ -625,6 +630,34 @@ impl RuntimeManager {
                 log::error!("Failed to update workload '{}': '{}'", workload_name, err);
             }
         }
+    }
+
+    pub async fn get_logs(
+        &self,
+        log_request: LogsRequest,
+    ) -> Vec<(WorkloadInstanceName, Box<dyn LogCollector>)> {
+        let mut res = Vec::new();
+        let log_request_options: LogRequestOptions = log_request.clone().into();
+        for workload in log_request.workload_names {
+            let Some(workload_instance) = self.workloads.get(workload.workload_name()) else {
+                log::info!("Could not find workload '{}'", workload.workload_name());
+                continue;
+            };
+
+            match workload_instance
+                .start_log_collector(log_request_options.clone())
+                .await
+            {
+                Ok(log_collector) => res.push((workload, log_collector)),
+                Err(err) => log::info!(
+                    "Did not get log collector for '{}': '{}'.",
+                    workload.workload_name(),
+                    err
+                ),
+            };
+        }
+
+        res
     }
 }
 

@@ -22,17 +22,21 @@ pub mod workload_control_loop;
 pub use control_loop_state::ControlLoopState;
 #[cfg_attr(test, mockall_double::double)]
 use retry_manager::RetryToken;
+use tokio::sync::oneshot;
 pub use workload_command_channel::WorkloadCommandSender;
 #[cfg(test)]
 pub use workload_control_loop::MockWorkloadControlLoop;
 
-use std::fmt::Display;
+use std::{error::Error, fmt::Display};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::ControlInterface;
-use crate::control_interface::ControlInterfacePath;
+use crate::{
+    control_interface::ControlInterfacePath,
+    runtime_connectors::{log_collector::LogCollector, LogRequestOptions},
+};
 
 use api::ank_base;
 
@@ -64,13 +68,28 @@ impl Display for WorkloadError {
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
 pub enum WorkloadCommand {
     Delete,
     Update(Option<Box<WorkloadSpec>>, Option<ControlInterfacePath>),
     Retry(Box<WorkloadInstanceName>, RetryToken),
     Create,
     Resume,
+    StartLogCollector(LogRequestOptions, oneshot::Sender<Box<dyn LogCollector>>),
+}
+
+#[cfg(test)]
+impl PartialEq for WorkloadCommand {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Delete, Self::Delete) => true,
+            (Self::Update(l0, l1), Self::Update(r0, r1)) => (l0, l1) == (r0, r1),
+            (Self::Retry(l0, l1), Self::Retry(r0, r1)) => (l0, l1) == (r0, r1),
+            (Self::Create, Self::Create) => true,
+            (Self::Resume, Self::Resume) => true,
+            (Self::StartLogCollector(_, _), Self::StartLogCollector(_, _)) => false,
+            _ => false,
+        }
+    }
 }
 
 pub struct Workload {
@@ -198,6 +217,15 @@ impl Workload {
             .send(FromServer::Response(response))
             .await
             .map_err(|err| WorkloadError::CompleteState(err.to_string()))
+    }
+
+    pub async fn start_log_collector(
+        &self,
+        log_request_options: LogRequestOptions,
+    ) -> Result<Box<dyn LogCollector>, Box<dyn Error>> {
+        self.channel
+            .start_collecting_logs(log_request_options)
+            .await
     }
 }
 
