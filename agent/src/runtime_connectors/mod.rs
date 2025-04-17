@@ -42,3 +42,5 @@ pub use state_checker::MockRuntimeStateGetter;
 
 pub mod generic_log_collector;
 pub mod log_channel;
+pub mod log_collector;
+pub mod log_collector_subscription;
