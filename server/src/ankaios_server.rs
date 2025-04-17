@@ -24,6 +24,7 @@ use common::objects::{
     CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap,
 };
 
+use common::request_id_prepending;
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
@@ -46,6 +47,8 @@ pub fn create_to_server_channel(capacity: usize) -> ToServerChannel {
 pub fn create_from_server_channel(capacity: usize) -> FromServerChannel {
     channel::<FromServer>(capacity)
 }
+
+type AgentId = String;
 
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
@@ -311,7 +314,13 @@ impl AnkaiosServer {
                             }
                         }
                     }
-                    common::commands::RequestContent::LogsRequest(_logs_request) => todo!(),
+                    common::commands::RequestContent::LogsRequest(logs_request) => {
+                        log::debug!("Got log request with ID: {}", request_id);
+                        self.to_agents
+                            .logs_request(request_id, logs_request.into())
+                            .await
+                            .unwrap_or_illegal_state();
+                    }
                     common::commands::RequestContent::LogsCancelRequest => todo!(),
                 },
                 ToServer::UpdateWorkloadState(method_obj) => {
@@ -337,6 +346,12 @@ impl AnkaiosServer {
                     log::debug!("Received Stop from communications server");
                     // TODO: handle the call
                     break;
+                }
+                ToServer::LogsResponse(request_id, logs_response) => {
+                    self.to_agents
+                        .logs_response(request_id, logs_response)
+                        .await
+                        .unwrap_or_illegal_state();
                 }
                 unknown_message => {
                     log::warn!(

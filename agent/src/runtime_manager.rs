@@ -28,7 +28,6 @@ use common::{
     request_id_prepending::detach_prefix_from_request_id,
     to_server_interface::ToServerSender,
 };
-use tokio::runtime;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;

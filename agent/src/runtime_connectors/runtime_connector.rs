@@ -23,7 +23,7 @@ use common::{
 
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
-use super::{log_channel, log_collector::LogCollector};
+use super::log_collector::LogCollector;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {

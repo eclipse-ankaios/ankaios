@@ -12,6 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
+use std::mem::take;
+
 use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_api::{self, from_server::FromServerEnum};
@@ -20,12 +23,13 @@ use api::ank_base;
 use api::ank_base::response::ResponseContent;
 
 use async_trait::async_trait;
+use common::commands::LogsRequest;
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
 };
 use common::objects::{
     get_workloads_per_agent, DeletedWorkload, DeletedWorkloadCollection, WorkloadCollection,
-    WorkloadSpec, WorkloadState,
+    WorkloadInstanceName, WorkloadSpec, WorkloadState,
 };
 use common::request_id_prepending::detach_prefix_from_request_id;
 
@@ -100,6 +104,16 @@ pub async fn forward_from_proto_to_ankaios(
                 FromServerEnum::Response(response) => {
                     // [impl->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
                     agent_tx.response(response).await?;
+                }
+                FromServerEnum::LogsRequest(grpc_api::LogsRequest {
+                    request_id,
+                    logs_request,
+                }) => {
+                    let Some(logs_request) = logs_request else {
+                        log::warn!("LogRequest '{}' did not return actual request", request_id);
+                        return Ok(());
+                    };
+                    agent_tx.logs_request(request_id, logs_request).await?;
                 }
             }
             Ok(()) as Result<(), GrpcMiddlewareError>
@@ -196,6 +210,14 @@ pub async fn forward_from_ankaios_to_proto(
                     log::warn!("Unknown agent with name: '{}'", agent_name);
                 }
             }
+            FromServer::LogsRequest(request_id, logs_request) => {
+                log::trace!("Received LogsRequest from server: {:?}", logs_request);
+                distribute_log_requests_to_agent(agent_senders, request_id, logs_request).await;
+            }
+            FromServer::LogsCancelRequest(_logs_cancel_request) => {
+                log::trace!("Received LogsCancelRequest from server");
+                distribute_log_cancel_requests_to_agent(agent_senders).await;
+            }
             FromServer::Stop(_method_obj) => {
                 log::debug!("Received Stop from server.");
                 // TODO: handle the call
@@ -204,6 +226,10 @@ pub async fn forward_from_ankaios_to_proto(
         }
     }
 }
+
+// async fn forward_to_all_agents(agent_senders: &AgentSendersMap) {
+//     for sender in agent_senders {}
+// }
 
 // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workload_states_to_agents(
@@ -295,6 +321,67 @@ async fn distribute_workloads_to_agents(
     }
 }
 
+async fn distribute_log_requests_to_agent(
+    agent_senders: &AgentSendersMap,
+    request_id: String,
+    mut logs_request: LogsRequest,
+) {
+    for (agent, workloads) in
+        group_workload_instance_names_by_agent(take(&mut logs_request.workload_names))
+    {
+        let logs_requests_for_agent = LogsRequest {
+            workload_names: workloads,
+            ..logs_request.clone()
+        };
+        if let Some(sender) = agent_senders.get(&agent) {
+            log::trace!(
+                "Sending logs request '{:?}' to agent '{}'",
+                logs_requests_for_agent,
+                agent
+            );
+            let res = sender
+                .send(Ok(grpc_api::FromServer {
+                    from_server_enum: Some(FromServerEnum::LogsRequest(grpc_api::LogsRequest {
+                        request_id: request_id.clone(),
+                        logs_request: Some(logs_requests_for_agent.into()),
+                    })),
+                }))
+                .await;
+            if let Err(err) = res {
+                log::warn!(
+                    "Could not send logs request to agent '{}': {:?}",
+                    agent,
+                    err
+                )
+            }
+        }
+    }
+}
+
+async fn distribute_log_cancel_requests_to_agent(agent_senders: &AgentSendersMap) {
+    for agent in agent_senders.get_all_agent_names() {
+        let Some(_sender) = agent_senders.get(&agent) else {
+            log::debug!(
+                "Sender for agent '{}' gone while iterating all agents",
+                agent
+            );
+            continue;
+        };
+        todo!()
+        //sender.send(Ok(grpc_api::FromServer{from_server_enum: Some(FromServerEnum::LogsRequest(()))}))
+    }
+}
+
+fn group_workload_instance_names_by_agent(
+    workloads: Vec<WorkloadInstanceName>,
+) -> HashMap<String, Vec<WorkloadInstanceName>> {
+    let mut res: HashMap<String, Vec<WorkloadInstanceName>> = HashMap::new();
+    for w in workloads {
+        res.entry(w.agent_name().to_owned()).or_default().push(w);
+    }
+    res
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -307,7 +394,6 @@ async fn distribute_workloads_to_agents(
 mod tests {
     extern crate serde;
     extern crate tonic;
-
     use super::ank_base;
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use crate::grpc_api::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};

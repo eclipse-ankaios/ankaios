@@ -24,11 +24,9 @@ use common::{
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        log_channel,
-        log_collector::{self, LogCollector},
-        podman_cli::PodmanStartConfig,
-        runtime_connector::LogRequestOptions,
-        ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
+        log_collector::LogCollector, podman_cli::PodmanStartConfig,
+        runtime_connector::LogRequestOptions, ReusableWorkloadState, RuntimeConnector,
+        RuntimeError, RuntimeStateGetter, StateChecker,
     },
     workload_state::WorkloadStateSender,
 };

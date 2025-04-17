@@ -98,8 +98,14 @@ pub async fn forward_from_proto_to_ankaios(
                         )
                         .await?;
                     }
-                    RequestContent::LogsRequest(_logs_request) => todo!(),
-                    RequestContent::LogsCancelRequest(_logs_stop_request) => todo!(),
+                    RequestContent::LogsRequest(logs_request) => {
+                        log::trace!("Received LogsRequest from '{}'", agent_name);
+                        sink.logs_request(request_id, logs_request.into()).await?;
+                    }
+                    RequestContent::LogsCancelRequest(_logs_stop_request) => {
+                        log::trace!("Received LogsCancelRequest from '{}'", agent_name);
+                        sink.logs_cancel_request(request_id).await?;
+                    }
                 }
             }
 
@@ -130,6 +136,19 @@ pub async fn forward_from_proto_to_ankaios(
                     agent_load_status.agent_name
                 );
                 sink.agent_load_status(agent_load_status.into()).await?;
+            }
+
+            ToServerEnum::LogsResponse(logs_response) => {
+                log::trace!("Received LogsResponse from '{}'", agent_name);
+                if let Some(logs_response_object) = logs_response.logs_response {
+                    sink.logs_response(logs_response.request_id, logs_response_object)
+                        .await?;
+                } else {
+                    log::warn!(
+                        "Received a LogsResponse from '{}' without actual data",
+                        agent_name
+                    );
+                }
             }
 
             unknown_message => {
@@ -199,6 +218,21 @@ pub async fn forward_from_ankaios_to_proto(
             ToServer::AgentGone(_) => {
                 panic!("AgentGone internal messages is not intended to be sent over the network");
             }
+
+            ToServer::LogsResponse(request_id, logs_response) => {
+                log::trace!("Received LogsResponse for '{}'", request_id);
+                grpc_tx
+                    .send(grpc_api::ToServer {
+                        to_server_enum: Some(grpc_api::to_server::ToServerEnum::LogsResponse(
+                            grpc_api::LogsResponse {
+                                request_id,
+                                logs_response: Some(logs_response),
+                            },
+                        )),
+                    })
+                    .await?;
+            }
+
             ToServer::Goodbye(_) => {
                 panic!("Goodbye was not expected at this point.");
             }
