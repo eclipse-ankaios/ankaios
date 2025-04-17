@@ -1,3 +1,7 @@
+use std::{future::Future, pin::Pin};
+
+use api::ank_base;
+use futures_util::{stream::FuturesUnordered, StreamExt};
 // Copyright (c) 2023 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
@@ -16,7 +20,7 @@ use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 use common::{
     commands::AgentLoadStatus,
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{CpuUsage, FreeMemory, WorkloadState},
+    objects::{CpuUsage, FreeMemory, WorkloadInstanceName, WorkloadState},
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -26,7 +30,13 @@ use crate::workload_state::workload_state_store::WorkloadStateStore;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
-use crate::workload_state::WorkloadStateReceiver;
+use crate::{
+    runtime_connectors::{
+        log_channel::Receiver, log_collector_subscription::LogCollectorSubscription,
+    },
+    subscription_store::SubscriptionStore,
+    workload_state::WorkloadStateReceiver,
+};
 
 const RESOURCE_MEASUREMENT_INTERVAL_TICK: std::time::Duration = tokio::time::Duration::from_secs(2);
 
@@ -66,6 +76,7 @@ pub struct AgentManager {
     workload_state_receiver: WorkloadStateReceiver,
     workload_state_store: WorkloadStateStore,
     res_monitor: ResourceMonitor,
+    subscription_store: SubscriptionStore,
 }
 
 impl AgentManager {
@@ -84,6 +95,7 @@ impl AgentManager {
             workload_state_receiver,
             workload_state_store: WorkloadStateStore::new(),
             res_monitor: ResourceMonitor::new(),
+            subscription_store: Default::default(),
         }
     }
 
@@ -138,9 +150,9 @@ impl AgentManager {
             }
             FromServer::UpdateWorkload(method_obj) => {
                 log::debug!("Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
-                    self.agent_name,
-                    method_obj.added_workloads,
-                    method_obj.deleted_workloads);
+                            self.agent_name,
+                            method_obj.added_workloads,
+                            method_obj.deleted_workloads);
 
                 // [impl->swdd~agent-handles-update-workload-requests~1]
                 self.runtime_manager
@@ -165,7 +177,7 @@ impl AgentManager {
                     // [impl->swdd~agent-manager-stores-all-workload-states~1]
                     for new_workload_state in new_workload_states {
                         log::debug!("The server reports workload state '{:?}' for the workload '{}' in the agent '{}'", new_workload_state.execution_state,
-                    new_workload_state.instance_name.workload_name(), new_workload_state.instance_name.agent_name());
+                            new_workload_state.instance_name.workload_name(), new_workload_state.instance_name.agent_name());
                         self.workload_state_store
                             .update_workload_state(new_workload_state);
                     }
@@ -193,6 +205,67 @@ impl AgentManager {
                 log::debug!("Agent '{}' received Stop from server", self.agent_name);
                 None
             }
+            FromServer::LogsRequest(request_id, logs_request) => {
+                let (names, log_collectors): (Vec<_>, _) = self
+                    .runtime_manager
+                    .get_logs(logs_request)
+                    .await
+                    .into_iter()
+                    .unzip();
+                let (subscription, receivers) =
+                    LogCollectorSubscription::start_collecting_logs(log_collectors);
+                let _receivers = names.into_iter().zip(receivers).collect::<Vec<_>>();
+                self.subscription_store
+                    .add_subscription(request_id.clone(), subscription);
+                let to_server = self.to_server.clone();
+                tokio::spawn(async move {
+                    let mut futures = FuturesUnordered::from_iter(_receivers.into_iter().map(
+                        |mut x| -> Pin<
+                            Box<
+                                dyn Future<
+                                        Output = (
+                                            WorkloadInstanceName,
+                                            Receiver,
+                                            Option<Vec<String>>,
+                                        ),
+                                    > + Send,
+                            >,
+                        > {
+                            Box::pin(async {
+                                let n = x.1.read_log_lines().await;
+                                (x.0, x.1, n)
+                            })
+                        },
+                    ));
+                    while let Some((workload, mut receiver, log_lines)) = futures.next().await {
+                        log::debug!("Got new log lines: {:?}", log_lines);
+                        if let Some(log_lines) = log_lines {
+                            to_server
+                                .logs_response(
+                                    request_id.clone(),
+                                    ank_base::LogsResponse {
+                                        log_entries: log_lines
+                                            .into_iter()
+                                            .map(|x| ank_base::LogEntry {
+                                                workload_name: Some(workload.clone().into()),
+                                                message: x,
+                                            })
+                                            .collect(),
+                                    },
+                                )
+                                .await
+                                .unwrap();
+                            let x = async move {
+                                let n = receiver.read_log_lines().await;
+                                (workload, receiver, n)
+                            };
+                            futures.push(Box::pin(x));
+                        }
+                    }
+                });
+                Some(())
+            }
+            FromServer::LogsCancelRequest(_logs_cancel_request) => todo!(),
         }
     }
 
