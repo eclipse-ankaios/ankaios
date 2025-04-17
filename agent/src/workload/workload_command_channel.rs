@@ -11,11 +11,18 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::{control_interface::ControlInterfacePath, workload::WorkloadCommand};
+use crate::{
+    control_interface::ControlInterfacePath,
+    runtime_connectors::{log_collector::LogCollector, LogRequestOptions},
+    workload::WorkloadCommand,
+};
 use common::objects::{WorkloadInstanceName, WorkloadSpec};
 #[cfg(test)]
 use mockall_double::double;
-use tokio::sync::mpsc;
+use tokio::sync::{
+    mpsc,
+    oneshot::{self, error::RecvError},
+};
 
 #[cfg_attr(test, double)]
 use super::retry_manager::RetryToken;
@@ -83,6 +90,20 @@ impl WorkloadCommandSender {
 
     pub async fn delete(self) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender.send(WorkloadCommand::Delete).await
+    }
+
+    pub async fn start_collecting_logs(
+        &self,
+        log_request_options: LogRequestOptions,
+    ) -> Result<Box<dyn LogCollector>, Box<dyn std::error::Error>> {
+        let (sender, receiver) = oneshot::channel();
+        self.sender
+            .send(WorkloadCommand::StartLogCollector(
+                log_request_options,
+                sender,
+            ))
+            .await?;
+        Ok(receiver.await?)
     }
 }
 

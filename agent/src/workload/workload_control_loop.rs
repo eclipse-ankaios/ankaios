@@ -14,7 +14,9 @@
 
 use crate::control_interface::ControlInterfacePath;
 use crate::io_utils::FileSystemError;
-use crate::runtime_connectors::{RuntimeError, StateChecker};
+use crate::runtime_connectors::generic_log_collector::GenericLogCollector;
+use crate::runtime_connectors::log_collector::{self, LogCollector};
+use crate::runtime_connectors::{log_channel, LogRequestOptions, RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
@@ -22,6 +24,7 @@ use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, Workl
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
@@ -141,6 +144,14 @@ impl WorkloadControlLoop {
                             log::debug!("Received WorkloadCommand::Resume.");
 
                             control_loop_state = Self::resume_workload_on_runtime(control_loop_state).await;
+                        }
+                        Some(WorkloadCommand::StartLogCollector(log_request_options, result_sink)) =>  {
+                            match Self::start_logger(&control_loop_state, &log_request_options) {
+                                Ok(logger) => {result_sink.send(logger);},
+                                Err(error) => {
+                                    log::warn!("{:?}", error);
+                                }
+                            }
                         }
                         _ => {
                             log::warn!(
@@ -300,6 +311,7 @@ impl WorkloadControlLoop {
                     "Successfully created workload '{}'.",
                     new_instance_name.workload_name()
                 );
+
                 // [impl->swdd~agent-workload-control-loop-updates-internal-state~1]
                 control_loop_state.workload_id = Some(new_workload_id);
                 control_loop_state.state_checker = Some(new_state_checker);
@@ -630,6 +642,25 @@ impl WorkloadControlLoop {
                 FileSystemError::NotFoundDirectory(_) => {}
                 _ => log::warn!("Failed to delete folder: '{}'", err),
             });
+    }
+
+    fn start_logger<WorkloadId, StChecker>(
+        control_loop_state: &ControlLoopState<WorkloadId, StChecker>,
+        log_request_options: &LogRequestOptions,
+    ) -> Result<Box<dyn LogCollector + Send>, RuntimeError>
+    where
+        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
+        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+    {
+        let Some(workload_id) = &control_loop_state.workload_id else {
+            return Err(RuntimeError::CollectLog(
+                "Could not start collecting logs for as it has no workload ID yet.".into(),
+            ));
+        };
+
+        control_loop_state
+            .runtime
+            .get_logs(workload_id.clone(), log_request_options)
     }
 }
 
