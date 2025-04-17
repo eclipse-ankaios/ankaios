@@ -129,6 +129,15 @@ impl TryFrom<from_server_interface::FromServer> for FromServer {
             from_server_interface::FromServer::Stop(_) => {
                 Err("Stop command not implemented in proto")
             }
+            from_server_interface::FromServer::LogsRequest(request_id, logs_request) => {
+                Ok(FromServer {
+                    from_server_enum: Some(from_server::FromServerEnum::LogsRequest(LogsRequest {
+                        request_id,
+                        logs_request: Some(logs_request.into()),
+                    })),
+                })
+            }
+            from_server_interface::FromServer::LogsCancelRequest(_logs_cancel_request) => todo!(),
         }
     }
 }
@@ -234,6 +243,18 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
             }
             ToServerEnum::Request(protobuf) => {
                 to_server_interface::ToServer::Request(protobuf.try_into()?)
+            }
+            ToServerEnum::LogsResponse(logs_reponse) => {
+                let Some(logs_response_object) = logs_reponse.logs_response else {
+                    return Err(format!(
+                        "LogResponse for '{}' does not container actual response.",
+                        logs_reponse.request_id
+                    ));
+                };
+                to_server_interface::ToServer::LogsResponse(
+                    logs_reponse.request_id,
+                    logs_response_object,
+                )
             }
             ToServerEnum::Goodbye(_) => {
                 to_server_interface::ToServer::Goodbye(commands::Goodbye {})
