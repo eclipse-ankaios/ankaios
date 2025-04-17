@@ -23,6 +23,12 @@ impl Receiver {
     pub async fn read_log_lines(&mut self) -> Option<Vec<String>> {
         self.log_line_receiver.recv().await
     }
+
+    #[cfg(test)]
+    pub fn take_log_line_receiver(&mut self) -> mpsc::Receiver<Vec<String>> {
+        let (_, new_receiver) = mpsc::channel(1);
+        std::mem::replace(&mut self.log_line_receiver, new_receiver)
+    }
 }
 
 impl Drop for Receiver {
