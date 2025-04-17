@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-display_usage() {  
+display_usage() {
     echo -e "Usage: $0 -p"
     echo -e "Prepare Ankaios release."
     echo -e "  -p: System platform, e.g. linux-amd64.\n"
