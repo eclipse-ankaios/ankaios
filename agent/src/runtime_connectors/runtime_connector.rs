@@ -16,18 +16,31 @@ use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
-use common::objects::{
-    AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
+use common::{
+    commands::LogsRequest,
+    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState},
 };
 
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
+
+use super::{log_channel, log_collector::LogCollector};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
     Create(String),
     Delete(String),
     List(String),
+    CollectLog(String),
     Unsupported(String),
+}
+
+#[derive(Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
+pub struct LogRequestOptions {
+    pub follow: bool,
+    pub tail: Option<i32>,
+    pub since: Option<String>,
+    pub until: Option<String>,
 }
 
 impl Display for RuntimeError {
@@ -42,9 +55,23 @@ impl Display for RuntimeError {
             RuntimeError::List(msg) => {
                 write!(f, "{}", msg)
             }
+            RuntimeError::CollectLog(msg) => {
+                write!(f, "{}", msg)
+            }
             RuntimeError::Unsupported(msg) => {
                 write!(f, "{}", msg)
             }
+        }
+    }
+}
+
+impl From<LogsRequest> for LogRequestOptions {
+    fn from(value: LogsRequest) -> Self {
+        Self {
+            follow: value.follow,
+            tail: Some(value.tail),
+            since: value.since,
+            until: value.until,
         }
     }
 }
@@ -106,6 +133,12 @@ where
         update_state_tx: WorkloadStateSender,
     ) -> Result<StChecker, RuntimeError>;
 
+    fn get_logs(
+        &self,
+        workload_id: WorkloadId,
+        options: &LogRequestOptions,
+    ) -> Result<Box<dyn LogCollector + Send>, RuntimeError>;
+
     async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;
 }
 
@@ -146,14 +179,18 @@ pub mod test {
 
     use async_trait::async_trait;
     use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
-    use tokio::sync::Mutex;
+    use tokio::sync::{mpsc, Mutex};
 
     use crate::{
-        runtime_connectors::{ReusableWorkloadState, RuntimeStateGetter, StateChecker},
+        runtime_connectors::{
+            log_channel, log_collector::LogCollector,
+            podman_kube::podman_kube_log_collector::PodmanLogCollector, ReusableWorkloadState,
+            RuntimeStateGetter, StateChecker,
+        },
         workload_state::WorkloadStateSender,
     };
 
-    use super::{RuntimeConnector, RuntimeError};
+    use super::{LogRequestOptions, RuntimeConnector, RuntimeError};
 
     #[async_trait]
     impl RuntimeStateGetter<String> for StubStateChecker {
@@ -408,6 +445,14 @@ pub mod test {
                     panic!("Unexpected start_checker call. Expected: '{expected_call:?}' \n\nGot: {workload_id:?}, {runtime_workload_config:?}, {update_state_tx:?}");
                 }
             }
+        }
+
+        fn get_logs(
+            &self,
+            workload_id: String,
+            options: &LogRequestOptions,
+        ) -> Result<Box<dyn LogCollector + Send>, RuntimeError> {
+            todo!()
         }
 
         async fn delete_workload(&self, workload_id: &String) -> Result<(), RuntimeError> {

@@ -22,7 +22,7 @@ pub(crate) mod podman_kube;
 
 mod runtime_connector;
 pub use runtime_connector::{
-    OwnableRuntime, ReusableWorkloadState, RuntimeConnector, RuntimeError,
+    LogRequestOptions, OwnableRuntime, ReusableWorkloadState, RuntimeConnector, RuntimeError,
 };
 
 #[cfg(test)]
