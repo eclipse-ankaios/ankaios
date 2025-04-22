@@ -176,7 +176,7 @@ Description=Ankaios agent
 
 [Service]
 Environment="RUST_LOG=${INSTALL_ANK_AGENT_RUST_LOG}"
-ExecStart=${BIN_DESTINATION}/ank-agent --name agent_A
+ExecStart=${BIN_DESTINATION}/ank-agent
 
 [Install]
 WantedBy=default.target
