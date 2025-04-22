@@ -6,10 +6,8 @@ set -e
 # GITHUB RELEASE URL SCHEMA for latest release artifact: https://github.com/<organisation>/<repo>/releases/latest/download/<concrete_artifact> (takes the release marked as latest)
 RELEASE_URL_BASE="https://github.com/eclipse-ankaios/ankaios/releases"
 BIN_DESTINATION="/usr/local/bin"
-AGENT_OPT="--name agent_A"
 CONFIG_DEST="/etc/ankaios"
 FILE_STARTUP_STATE="${CONFIG_DEST}/state.yaml"
-SERVER_OPT="--startup-config ${FILE_STARTUP_STATE}"
 INSTALL_TYPE="both"
 SERVICE_DEST=/etc/systemd/system
 ANK_SERVER_SERVICE="ank-server"
@@ -83,13 +81,7 @@ while getopts v:t: opt; do
     esac
 done
 
-# Use absolute path for tar -C option otherwise relative paths as script argument are failing on tar extraction
-case $BIN_DESTINATION in
-    /*) ;;
-    *) BIN_DESTINATION="$(pwd)/${BIN_DESTINATION}";;
-esac
-
-# Fail if default or custom installation dir does not exist
+# Fail if default installation dir does not exist
 if [ ! -d "${BIN_DESTINATION}" ]; then
     fail "Error: installation path '${BIN_DESTINATION}' does not exist."
 fi
@@ -152,7 +144,7 @@ if [ -w "${BIN_DESTINATION}" ]; then
     BIN_SUDO=""
 fi
 
-echo "Extracting the binaries into install folder: '${BIN_DESTINATION}'"
+echo "Extracting the binaries into default install folder: '${BIN_DESTINATION}'"
 ${BIN_SUDO} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}/"
 
 # Install systemd unit files
@@ -169,7 +161,7 @@ Description=Ankaios server
 
 [Service]
 Environment="RUST_LOG=${INSTALL_ANK_SERVER_RUST_LOG}"
-ExecStart=${BIN_DESTINATION}/ank-server $SERVER_OPT
+ExecStart=${BIN_DESTINATION}/ank-server --startup-config ${FILE_STARTUP_STATE}
 
 [Install]
 WantedBy=default.target
@@ -184,7 +176,7 @@ Description=Ankaios agent
 
 [Service]
 Environment="RUST_LOG=${INSTALL_ANK_AGENT_RUST_LOG}"
-ExecStart=${BIN_DESTINATION}/ank-agent $AGENT_OPT
+ExecStart=${BIN_DESTINATION}/ank-agent --name agent_A
 
 [Install]
 WantedBy=default.target

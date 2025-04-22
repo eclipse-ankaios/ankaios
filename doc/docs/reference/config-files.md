@@ -33,7 +33,7 @@ startup_manifest = '/workspaces/ankaios/server/resources/startConfig.yaml'
 address = '127.0.0.1:25551'
 
 # The flag to disable TLS communication.
-insecure = true
+insecure = false
 
 # The path to ca certificate pem file.
 ca_pem = '/etc/ankaios/certs/ca.pem'
