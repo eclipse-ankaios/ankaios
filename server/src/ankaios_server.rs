@@ -24,7 +24,6 @@ use common::objects::{
     CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap,
 };
 
-use common::request_id_prepending;
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
@@ -47,8 +46,6 @@ pub fn create_to_server_channel(capacity: usize) -> ToServerChannel {
 pub fn create_from_server_channel(capacity: usize) -> FromServerChannel {
     channel::<FromServer>(capacity)
 }
-
-type AgentId = String;
 
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
