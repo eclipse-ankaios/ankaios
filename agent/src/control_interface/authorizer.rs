@@ -162,8 +162,8 @@ impl Authorizer {
                     false
                 })
             }
-            common::commands::RequestContent::LogsRequest(_logs_request) => todo!(),
-            common::commands::RequestContent::LogsCancelRequest => todo!(),
+            common::commands::RequestContent::LogsRequest(_logs_request) => true,
+            common::commands::RequestContent::LogsCancelRequest => true,
         }
     }
 }
