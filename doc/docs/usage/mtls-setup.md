@@ -181,7 +181,7 @@ curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/in
 
 To use the CA, certificate and key for the server, add the following lines to `/etc/ankaios/ank-server.conf`:
 
-```
+```toml
 ca_pem = '/etc/ankaios/certs/ca.pem'
 crt_pem = '/etc/ankaios/certs/ank-server.pem'
 key_pem = '/etc/ankaios/certs/ank-server-key.pem'
@@ -189,7 +189,7 @@ key_pem = '/etc/ankaios/certs/ank-server-key.pem'
 
 For the agent add the following lines to `/etc/ankaios/ank-agent.conf`:
 
-```
+```toml
 ca_pem = '/etc/ankaios/certs/ca.pem'
 crt_pem = '/etc/ankaios/certs/ank-agent.pem'
 key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
