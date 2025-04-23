@@ -219,18 +219,9 @@ impl AgentManager {
                     .add_subscription(request_id.clone(), subscription);
                 let to_server = self.to_server.clone();
                 tokio::spawn(async move {
+                    type ContinuableResult = (WorkloadInstanceName, Receiver, Option<Vec<String>>);
                     let mut futures = FuturesUnordered::from_iter(_receivers.into_iter().map(
-                        |mut x| -> Pin<
-                            Box<
-                                dyn Future<
-                                        Output = (
-                                            WorkloadInstanceName,
-                                            Receiver,
-                                            Option<Vec<String>>,
-                                        ),
-                                    > + Send,
-                            >,
-                        > {
+                        |mut x| -> Pin<Box<dyn Future<Output = ContinuableResult> + Send>> {
                             Box::pin(async {
                                 let n = x.1.read_log_lines().await;
                                 (x.0, x.1, n)

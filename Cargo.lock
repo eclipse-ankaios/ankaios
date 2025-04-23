@@ -66,11 +66,12 @@ dependencies = [
 
 [[package]]
 name = "ank-agent"
-version = "0.6.0-pre"
+version = "0.5.0-pre"
 dependencies = [
  "api",
  "async-trait",
  "base64 0.22.1",
+ "bytes",
  "clap",
  "common",
  "env_logger",

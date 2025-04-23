@@ -46,8 +46,6 @@ use crate::workload::WorkloadCommandSender;
 
 use tokio::task::JoinHandle;
 
-use super::{log_collector::LogCollector, LogRequestOptions};
-
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait RuntimeFacade: Send + Sync + 'static {
@@ -75,12 +73,6 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
     );
-
-    async fn get_logs(
-        &self,
-        workload_id: &str,
-        options: &LogRequestOptions,
-    ) -> Result<Box<dyn LogCollector + Send>, RuntimeError>;
 }
 
 pub struct GenericRuntimeFacade<
@@ -165,20 +157,6 @@ impl<
         update_state_tx: &WorkloadStateSender,
     ) {
         let _task_handle = Self::delete_workload_non_blocking(self, instance_name, update_state_tx);
-    }
-
-    async fn get_logs(
-        &self,
-        workload_id: &str,
-        options: &LogRequestOptions,
-    ) -> Result<Box<dyn LogCollector + Send>, RuntimeError> {
-        let Ok(workload_id) = workload_id.parse() else {
-            return Err(RuntimeError::CollectLog(format!(
-                "Could not parse workload id '{}'",
-                workload_id
-            )));
-        };
-        self.runtime.get_logs(workload_id, options)
     }
 }
 
