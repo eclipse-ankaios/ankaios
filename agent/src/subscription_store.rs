@@ -12,7 +12,8 @@ impl SubscriptionStore {
         self.store.insert(id, Box::new(subscription));
     }
 
-    pub fn delete_subscritptino(&mut self, id: &SubscriptionId) {
-        self.store.remove(id);
-    }
+    // will be used to cancel subscriptions, comment for now to pass clippy
+    // pub fn delete_subscritption(&mut self, id: &SubscriptionId) {
+    //     self.store.remove(id);
+    // }
 }

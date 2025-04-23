@@ -28,7 +28,7 @@ use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        log_channel, log_collector::LogCollector, podman_cli, runtime_connector::LogRequestOptions,
+        log_collector::LogCollector, podman_cli, runtime_connector::LogRequestOptions,
         ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
     },
     workload_state::WorkloadStateSender,

@@ -1,9 +1,6 @@
 use async_trait::async_trait;
 use bytes::BytesMut;
-use tokio::{
-    io::{AsyncRead, AsyncReadExt},
-    pin,
-};
+use tokio::io::{AsyncRead, AsyncReadExt};
 
 use super::log_collector::LogCollector;
 

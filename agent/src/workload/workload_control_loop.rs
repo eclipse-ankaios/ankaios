@@ -145,9 +145,11 @@ impl WorkloadControlLoop {
                         }
                         Some(WorkloadCommand::StartLogCollector(log_request_options, result_sink)) =>  {
                             match Self::start_logger(&control_loop_state, &log_request_options) {
-                                Ok(logger) => {result_sink.send(logger);},
+                                Ok(logger) => {if let Err(error) = result_sink.send(logger){
+                                    log::warn!("Could not return log collector: '{:?}'", error);
+                                }},
                                 Err(error) => {
-                                    log::warn!("{:?}", error);
+                                    log::warn!("Could not start log collector: '{:?}'", error);
                                 }
                             }
                         }
