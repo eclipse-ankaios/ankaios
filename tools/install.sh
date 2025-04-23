@@ -81,7 +81,7 @@ while getopts v:t: opt; do
     esac
 done
 
-# Fail if default installation dir does not exist
+# Fail if installation dir does not exist
 if [ ! -d "${BIN_DESTINATION}" ]; then
     fail "Error: installation path '${BIN_DESTINATION}' does not exist."
 fi
@@ -144,7 +144,7 @@ if [ -w "${BIN_DESTINATION}" ]; then
     BIN_SUDO=""
 fi
 
-echo "Extracting the binaries into default install folder: '${BIN_DESTINATION}'"
+echo "Extracting the binaries into install folder: '${BIN_DESTINATION}'"
 ${BIN_SUDO} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}/"
 
 # Install systemd unit files
@@ -224,7 +224,7 @@ echo "Extracting the config files"
 mkdir -p "${ANK_CONFIG_FILE_PATH}"
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-server.conf
 ${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${CONFIG_DEST}" ank-agent.conf
-${BIN_SUDO} tar -xvzf "${CONFIGS_FILE_NAME}" -C "${ANK_CONFIG_FILE_PATH}" ank.conf
+tar -xvzf "${CONFIGS_FILE_NAME}" -C "${ANK_CONFIG_FILE_PATH}" ank.conf
 
 
 echo "Customization of your Ankaios system (agent name, server address, etc.) can be done by modifying the following files:"

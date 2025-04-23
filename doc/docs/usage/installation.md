@@ -54,7 +54,7 @@ curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/in
     If you want to install Ankaios during an automated workflow, please install a specific version as described below.
 
 The installation process automatically detects the platform and downloads the appropriate binaries.
-The default installation path for the binaries is `/usr/local/bin`.
+The installation path for the binaries is `/usr/local/bin`.
 The installation also creates systemd unit files and an uninstall script.
 
 Supported platforms: `linux/amd64`, `linux/arm64`
@@ -64,7 +64,7 @@ Supported platforms: `linux/amd64`, `linux/arm64`
     The script requires root privileges to install the pre-built binaries into
     the default installation path `/usr/local/bin` and also for systemd
     integration. You can disable systemd unit
-    file generation if only non-root privileges are available.
+    file generation if required.
 
 The following table shows the optional arguments that can be passed to the script:
 
