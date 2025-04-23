@@ -161,7 +161,7 @@ Description=Ankaios server
 
 [Service]
 Environment="RUST_LOG=${INSTALL_ANK_SERVER_RUST_LOG}"
-ExecStart=${BIN_DESTINATION}/ank-server --startup-config ${FILE_STARTUP_STATE}
+ExecStart=${BIN_DESTINATION}/ank-server
 
 [Install]
 WantedBy=default.target
