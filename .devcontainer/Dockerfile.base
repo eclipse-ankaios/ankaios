@@ -90,7 +90,7 @@ RUN mkdir -p -m 2777 $RUSTUP_HOME \
     && mkdir -p -m 2777 $CARGO_HOME \
     && chgrp rustlang $CARGO_HOME \
     && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-       sh -s -- -y --default-toolchain 1.80.1 --target x86_64-unknown-linux-musl aarch64-unknown-linux-musl --no-modify-path \
+       sh -s -- -y --default-toolchain 1.86 --target x86_64-unknown-linux-musl aarch64-unknown-linux-musl --no-modify-path \
     && chmod -R ag+w $RUSTUP_HOME $CARGO_HOME
 
 VOLUME /var/lib/containers
@@ -106,7 +106,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     else \
         exit 1; \
     fi; \
-    curl -sL https://github.com/casey/just/releases/download/1.35.0/just-1.35.0-${ITEMARCH}-unknown-linux-musl.tar.gz | \
+    curl -sL https://github.com/casey/just/releases/download/1.40.0/just-1.40.0-${ITEMARCH}-unknown-linux-musl.tar.gz | \
     tar xz --directory=/usr/local/bin just \
     && echo 'source <(just --completions bash)' >> /home/${USERNAME}/.bashrc \
     && echo 'source <(just --completions zsh)' >> /home/${USERNAME}/.zshrc
