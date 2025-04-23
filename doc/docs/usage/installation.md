@@ -62,7 +62,7 @@ Supported platforms: `linux/amd64`, `linux/arm64`
 !!! note
 
     The script requires root privileges to install the pre-built binaries into
-    the default installation path `/usr/local/bin` and also for systemd
+    the installation path `/usr/local/bin` and also for systemd
     integration. You can disable systemd unit
     file generation if required.
 
