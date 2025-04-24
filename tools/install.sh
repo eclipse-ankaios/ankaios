@@ -4,7 +4,7 @@ set -e
 
 # GITHUB RELEASE URL SCHEMA for concrete release artifact: https://github.com/<organisation>/<repo>/releases/download/<tag>/<concrete_artifact>
 # GITHUB RELEASE URL SCHEMA for latest release artifact: https://github.com/<organisation>/<repo>/releases/latest/download/<concrete_artifact> (takes the release marked as latest)
-RELEASE_URL_BASE="https://github.com/HorjuRares/ankaios/releases"
+RELEASE_URL_BASE="https://github.com/eclipse-ankaios/ankaios/releases"
 BIN_DESTINATION="/usr/local/bin"
 CONFIG_DEST="/etc/ankaios"
 FILE_STARTUP_STATE="${CONFIG_DEST}/state.yaml"
