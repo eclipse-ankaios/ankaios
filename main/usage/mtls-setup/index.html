@@ -1200,6 +1200,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../../reference/config-files/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuration files
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../reference/_ankaios.proto/" class="md-nav__link">
         
   
@@ -1810,23 +1831,34 @@
 <h2 id="perform-ankaios-installation-with-mtls-support">Perform Ankaios installation with mTLS support<a class="headerlink" href="#perform-ankaios-installation-with-mtls-support" title="Permanent link">&para;</a></h2>
 <p>To set up Ankaios with mTLS support, you need to supply the necessary mTLS certificates to the <code>ank-server</code>, <code>ank-agent</code>, and <code>ank</code> CLI components. Here's a step-by-step guide:</p>
 <h3 id="install-ank-server-and-ank-agent-with-mtls-certificates">Install <code>ank-server</code> and <code>ank-agent</code> with mTLS certificates<a class="headerlink" href="#install-ank-server-and-ank-agent-with-mtls-certificates" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-s<span class="w"> </span>--<span class="w"> </span>-s<span class="w"> </span><span class="s2">&quot;--startup-config /etc/ankaios/state.yaml --ca_pem /etc/ankaios/certs/ca.pem --crt_pem /etc/ankaios/certs/ank-server.pem --key_pem /etc/ankaios/certs/ank-server-key.pem&quot;</span><span class="w"> </span>-a<span class="w"> </span><span class="s2">&quot;--name agent_A --ca_pem /etc/ankaios/certs/ca.pem --crt_pem /etc/ankaios/certs/ank-agent.pem --key_pem /etc/ankaios/certs/ank-agent-key.pem&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
 </code></pre></div>
+<p>To use the CA, certificate and key for the server, add the following lines to <code>/etc/ankaios/ank-server.conf</code> and set the <code>insecure</code> flag inside it to <code>false</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">ca_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ca.pem&#39;</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">crt_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ank-server.pem&#39;</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">key_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ank-server-key.pem&#39;</span>
+</code></pre></div>
+<p>For the agent add the following lines to <code>/etc/ankaios/ank-agent.conf</code> and set the <code>insecure</code> flag inside it to <code>false</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">ca_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ca.pem&#39;</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">crt_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ank-agent.pem&#39;</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="n">key_pem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;/etc/ankaios/certs/ank-agent-key.pem&#39;</span>
+</code></pre></div>
+<p>For more information on how the server, agent and CLI can be configured please consult <a href="../../reference/config-files/">configuration files</a>.</p>
 <p>Start the Ankaios server and an Ankaios agent as described in the <a href="../quickstart/">Quickstart</a> and continue below to configure the CLI with mTLS.</p>
 <h3 id="configure-the-ank-cli-with-mtls-certificates">Configure the <code>ank</code> CLI with mTLS certificates<a class="headerlink" href="#configure-the-ank-cli-with-mtls-certificates" title="Permanent link">&para;</a></h3>
 <p>To make it easier, we will set the mTLS certificates for the <code>ank</code> CLI by using environment variables:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_CA_PEM</span><span class="o">=</span>/etc/ankaios/certs/ca.pem
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_CRT_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank.pem
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_KEY_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank-key.pem
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_CA_PEM</span><span class="o">=</span>/etc/ankaios/certs/ca.pem
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_CRT_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank.pem
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANK_KEY_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank-key.pem
 </code></pre></div>
 <p>Now you can use the <code>ank</code> CLI as follows:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <p>Or in a single line call:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nv">ANK_CA_PEM</span><span class="o">=</span>/etc/ankaios/certs/ca.pem<span class="w"> </span><span class="nv">ANK_CRT_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank.pem<span class="w"> </span><span class="nv">ANK_KEY_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank-key.pem<span class="w"> </span>ank<span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nv">ANK_CA_PEM</span><span class="o">=</span>/etc/ankaios/certs/ca.pem<span class="w"> </span><span class="nv">ANK_CRT_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank.pem<span class="w"> </span><span class="nv">ANK_KEY_PEM</span><span class="o">=</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span>/ankaios/ank-key.pem<span class="w"> </span>ank<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <p>Alternatively, you can pass the mTLS certificates as command line arguments:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>ank<span class="w"> </span>--ca_pem<span class="o">=</span>/etc/ankaios/certs/ca.pem<span class="w"> </span>--crt_pem<span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span><span class="s2">/ankaios/ank.pem&quot;</span><span class="w"> </span>--key_pem<span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span><span class="s2">/ankaios/ank-key.pem&quot;</span><span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>ank<span class="w"> </span>--ca_pem<span class="o">=</span>/etc/ankaios/certs/ca.pem<span class="w"> </span>--crt_pem<span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span><span class="s2">/ankaios/ank.pem&quot;</span><span class="w"> </span>--key_pem<span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/.config</span><span class="si">}</span><span class="s2">/ankaios/ank-key.pem&quot;</span><span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 
 
