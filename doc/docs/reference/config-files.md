@@ -1,4 +1,4 @@
-# Configuration Files
+# Configuration files
 
 Ankaios now supports configuration files to manage settings more efficiently. These configuration files are optional but provide a convenient way to manage parameters that you may not want to pass as command-line arguments. The priority for parameters is as follows:
 

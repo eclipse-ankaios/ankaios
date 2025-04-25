@@ -195,7 +195,7 @@ crt_pem = '/etc/ankaios/certs/ank-agent.pem'
 key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
 ```
 
-For more information on how the server, agent and CLI can be configured please consult [Configuration Files](../reference/config-files.md).
+For more information on how the server, agent and CLI can be configured please consult [configuration files](../reference/config-files.md).
 
 Start the Ankaios server and an Ankaios agent as described in the [Quickstart](quickstart.md) and continue below to configure the CLI with mTLS.
 
