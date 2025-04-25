@@ -75,6 +75,7 @@ jobs:
           install.sh \
           ank_base.proto \
           control_api.proto \
+          ankaios_configs.tar.gz \
           linux-amd64/ankaios-linux-amd64.tar.gz \
           linux-amd64/ankaios-linux-amd64.tar.gz.sha512sum.txt \
           linux-arm64/ankaios-linux-arm64.tar.gz \

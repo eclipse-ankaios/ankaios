@@ -176,8 +176,26 @@ To set up Ankaios with mTLS support, you need to supply the necessary mTLS certi
 ### Install `ank-server` and `ank-agent` with mTLS certificates
 
 ```shell
-curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -s -- -s "--startup-config /etc/ankaios/state.yaml --ca_pem /etc/ankaios/certs/ca.pem --crt_pem /etc/ankaios/certs/ank-server.pem --key_pem /etc/ankaios/certs/ank-server-key.pem" -a "--name agent_A --ca_pem /etc/ankaios/certs/ca.pem --crt_pem /etc/ankaios/certs/ank-agent.pem --key_pem /etc/ankaios/certs/ank-agent-key.pem"
+curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash
 ```
+
+To use the CA, certificate and key for the server, add the following lines to `/etc/ankaios/ank-server.conf` and set the `insecure` flag inside it to `false`:
+
+```toml
+ca_pem = '/etc/ankaios/certs/ca.pem'
+crt_pem = '/etc/ankaios/certs/ank-server.pem'
+key_pem = '/etc/ankaios/certs/ank-server-key.pem'
+```
+
+For the agent add the following lines to `/etc/ankaios/ank-agent.conf` and set the `insecure` flag inside it to `false`:
+
+```toml
+ca_pem = '/etc/ankaios/certs/ca.pem'
+crt_pem = '/etc/ankaios/certs/ank-agent.pem'
+key_pem = '/etc/ankaios/certs/ank-agent-key.pem'
+```
+
+For more information on how the server, agent and CLI can be configured please consult [configuration files](../reference/config-files.md).
 
 Start the Ankaios server and an Ankaios agent as described in the [Quickstart](quickstart.md) and continue below to configure the CLI with mTLS.
 
