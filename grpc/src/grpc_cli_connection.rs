@@ -14,7 +14,6 @@
 
 use std::pin::Pin;
 
-use common::std_extensions::GracefulExitResult;
 use common::{check_version_compatibility, to_server_interface};
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
