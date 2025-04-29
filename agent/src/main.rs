@@ -235,6 +235,10 @@ mod tests {
     insecure = true
     #";
 
+    mockall::lazy_static! {
+        pub static ref CONTEXT_SYNC: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    }
+
     #[test]
     fn utest_handle_agent_config_valid_config() {
         let mut tmp_config = NamedTempFile::new().expect("could not create temp file");
@@ -255,6 +259,8 @@ mod tests {
 
     #[test]
     fn utest_handle_agent_config_default_path() {
+        let _guard = CONTEXT_SYNC.lock().unwrap();
+
         if let Some(parent) = PathBuf::from(DEFAULT_AGENT_CONFIG_FILE_PATH).parent() {
             fs::create_dir_all(parent).expect("Failed to create directories");
         }
@@ -276,6 +282,11 @@ mod tests {
 
     #[test]
     fn utest_handle_agent_config_default() {
+        // The guard here is a quick workaround for the sync issues resulting from using real files
+        // on the filesystem instead of mocking the calls to try_exists(). More information on a
+        // proper fix is available here: https://github.com/eclipse-ankaios/ankaios/issues/480
+        let _guard = CONTEXT_SYNC.lock().unwrap();
+
         let agent_config = handle_agent_config(&None);
 
         assert_eq!(agent_config, AgentConfig::default());
