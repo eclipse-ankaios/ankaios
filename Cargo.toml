@@ -8,5 +8,5 @@ members = [
     "server",
     "grpc",
     "ank",
-    "tests/resources/image",
+    "tests/resources/control_interface_tester",
 ]
