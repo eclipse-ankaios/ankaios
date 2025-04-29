@@ -71,6 +71,14 @@ plugins:
   - social
   - search
   - mike
+  - htmlproofer:
+      enabled: !ENV [ENABLED_HTMLPROOFER, True]
+      raise_error_after_finish: True
+      ignore_pages:
+        - reference/_ankaios.proto.md
+      raise_error_excludes:
+        503: ['https://otterdog.eclipse.org/organizations/eclipse-ankaios/playground/']
+        404: ['https://crates.io/crates/symphony']
 
 extra:
   version:
