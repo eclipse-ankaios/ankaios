@@ -264,8 +264,12 @@ impl AgentManager {
                     }
                 });
                 Some(())
-            }
-            FromServer::LogsCancelRequest(_logs_cancel_request) => todo!(),
+            },
+            FromServer::LogsCancelRequest(request_id) => {
+                log::debug!("Agent '{}' received LogsCancelRequest with id {}", self.agent_name, request_id);
+                self.subscription_store.delete_subscription(&request_id);
+                Some(())
+            },
         }
     }
 

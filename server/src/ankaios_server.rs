@@ -318,7 +318,13 @@ impl AnkaiosServer {
                             .await
                             .unwrap_or_illegal_state();
                     }
-                    common::commands::RequestContent::LogsCancelRequest => todo!(),
+                    common::commands::RequestContent::LogsCancelRequest => {
+                        log::debug!("Got log cancel request with ID: {}", request_id);
+                        self.to_agents
+                            .logs_cancel_request(request_id)
+                            .await
+                            .unwrap_or_illegal_state();
+                    }
                 },
                 ToServer::UpdateWorkloadState(method_obj) => {
                     log::debug!(

@@ -115,6 +115,9 @@ pub async fn forward_from_proto_to_ankaios(
                     };
                     agent_tx.logs_request(request_id, logs_request).await?;
                 }
+                FromServerEnum::LogsCancelRequest(grpc_api::LogsCancelRequest { request_id }) => {
+                    agent_tx.logs_cancel_request(request_id).await?;
+                }
             }
             Ok(()) as Result<(), GrpcMiddlewareError>
         }
@@ -214,9 +217,9 @@ pub async fn forward_from_ankaios_to_proto(
                 log::trace!("Received LogsRequest from server: {:?}", logs_request);
                 distribute_log_requests_to_agent(agent_senders, request_id, logs_request).await;
             }
-            FromServer::LogsCancelRequest(_logs_cancel_request) => {
+            FromServer::LogsCancelRequest(request_id) => {
                 log::trace!("Received LogsCancelRequest from server");
-                distribute_log_cancel_requests_to_agent(agent_senders).await;
+                distribute_log_cancel_requests_to_agent(agent_senders, request_id).await;
             }
             FromServer::Stop(_method_obj) => {
                 log::debug!("Received Stop from server.");
@@ -354,17 +357,40 @@ async fn distribute_log_requests_to_agent(
     }
 }
 
-async fn distribute_log_cancel_requests_to_agent(agent_senders: &AgentSendersMap) {
+async fn distribute_log_cancel_requests_to_agent(
+    agent_senders: &AgentSendersMap,
+    request_id: String,
+) {
     for agent in agent_senders.get_all_agent_names() {
-        let Some(_sender) = agent_senders.get(&agent) else {
+        if let Some(sender) = agent_senders.get(&agent) {
+            log::trace!(
+                "Sending logs cancel request with id '{}' to agent '{}'",
+                request_id.clone(),
+                agent
+            );
+            let res = sender
+                .send(Ok(grpc_api::FromServer {
+                    from_server_enum: Some(FromServerEnum::LogsCancelRequest(
+                        grpc_api::LogsCancelRequest {
+                            request_id: request_id.clone(),
+                        },
+                    )),
+                }))
+                .await;
+            if let Err(err) = res {
+                log::warn!(
+                    "Could not send logs cancel request to agent '{}': {:?}",
+                    agent,
+                    err
+                )
+            }
+        } else {
             log::debug!(
                 "Sender for agent '{}' gone while iterating all agents",
                 agent
             );
             continue;
         };
-        todo!()
-        //sender.send(Ok(grpc_api::FromServer{from_server_enum: Some(FromServerEnum::LogsRequest(()))}))
     }
 }
 
