@@ -173,6 +173,20 @@ impl From<ank_base::LogsRequest> for LogsRequest {
     }
 }
 
+// TODO: add tests
+impl From<LogsCancelRequest> for ank_base::LogsCancelRequest {
+    fn from(_logs_cancel_request: LogsCancelRequest) -> Self {
+        ank_base::LogsCancelRequest {}
+    }
+}
+
+// TODO: add tests
+impl From<ank_base::LogsCancelRequest> for LogsCancelRequest {
+    fn from(_logs_cancel_request: ank_base::LogsCancelRequest) -> Self {
+        LogsCancelRequest {}
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompleteStateRequest {
     pub field_mask: Vec<String>,

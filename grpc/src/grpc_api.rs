@@ -137,7 +137,13 @@ impl TryFrom<from_server_interface::FromServer> for FromServer {
                     })),
                 })
             }
-            from_server_interface::FromServer::LogsCancelRequest(_logs_cancel_request) => todo!(),
+            from_server_interface::FromServer::LogsCancelRequest(request_id) => {
+                Ok(FromServer {
+                    from_server_enum: Some(from_server::FromServerEnum::LogsCancelRequest(
+                        LogsCancelRequest { request_id },
+                    )),
+                })
+            },
         }
     }
 }
