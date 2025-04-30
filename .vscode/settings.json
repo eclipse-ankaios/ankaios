@@ -23,7 +23,7 @@
         "editor.defaultFormatter": "rust-lang.rust-analyzer",
         "editor.formatOnSave": true
     },
-    "rust-analyzer.runnables.command": "clippy",
+    "rust-analyzer.check.command": "clippy",
     "yaml.schemas": {
         "https://squidfunk.github.io/mkdocs-material/schema.json": "mkdocs.yml"
     },
