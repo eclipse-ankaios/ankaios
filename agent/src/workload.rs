@@ -152,7 +152,7 @@ impl Workload {
             self.exchange_control_interface(
                 control_interface_info,
                 spec.clone()
-                    .map_or(false, |spec| !spec.needs_control_interface()),
+                    .is_some_and(|spec| !spec.needs_control_interface()),
             );
         }
 

@@ -387,7 +387,7 @@ impl AnkaiosServer {
             && self
                 .workload_states_map
                 .get_workload_state_for_workload(&deleted_workload.instance_name)
-                .map_or(false, |current_execution_state| {
+                .is_some_and(|current_execution_state| {
                     current_execution_state.is_pending_initial()
                 })
     }
