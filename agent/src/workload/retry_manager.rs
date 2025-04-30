@@ -249,6 +249,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     fn create_callback() -> (
         impl FnOnce(RetryToken) -> Pin<Box<dyn Future<Output = ()>>>,
         Rc<RefCell<Option<RetryToken>>>,
