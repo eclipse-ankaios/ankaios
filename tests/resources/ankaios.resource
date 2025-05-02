@@ -286,6 +286,18 @@ Ankaios agent is started with config file "${config_file_path}"
     ...    env:RUST_LOG=debug
     ...    alias=${agent_name}
 
+Ankaios agent is started with name "${agent_name}" and config file "${config_file_path}"
+    &{agent_name}=    Run Keyword And Return    extract agent name from config file    ${config_file_path}
+    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-agent
+    ...    --name
+    ...    ${agent_name}
+    ...    --config_path
+    ...    ${config_file_path}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${agent_name}_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=${agent_name}
+
 Ankaios server is terminated
     Terminate Process    ank-server    kill=True
     ${server_running}=    Is Process Running    ank-server

@@ -12,7 +12,7 @@ It is planned to automate the process of building and pushing a new version of t
 To build a new image run the following command from the project root folder:
 
 ```bash
-podman build -t ghcr.io/eclipse-ankaios/control_interface_tester:manual-build-<new version number> . -f tests/resources/image/Dockerfile
+podman build -t ghcr.io/eclipse-ankaios/control_interface_tester:manual-build-<new version number> . -f tests/resources/control_interface_tester/Dockerfile
 ```
 
 To push the new image to GitHub container registry, you will need to generate an access token that is allowed to write packages and login to `ghcr.io`:

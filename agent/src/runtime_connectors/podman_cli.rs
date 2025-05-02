@@ -2189,7 +2189,7 @@ mod tests {
         pod: &'a str,
     }
 
-    impl<'a> ToJson for [TestPodmanContainerInfo<'a>] {
+    impl ToJson for [TestPodmanContainerInfo<'_>] {
         fn to_json(&self) -> String {
             serde_json::to_string(self).unwrap()
         }

@@ -17,7 +17,6 @@
                 "files.watcherExclude": {
                     "**/target/**": true
                 },
-                "rust-analyzer.checkOnSave.command": "clippy",
                 "remote.autoForwardPorts": false
             },
             // Add the IDs of extensions you want installed when the container is created.

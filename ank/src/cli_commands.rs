@@ -216,7 +216,7 @@ impl CliCommands {
                         && wl_spec
                             .agent
                             .as_deref()
-                            .map_or(false, |x| x == table_row.agent)
+                            .is_some_and(|x| x == table_row.agent)
                         && wl_spec.runtime.as_ref().is_some()
                 })
                 // runtime is valid because the filter above has found one

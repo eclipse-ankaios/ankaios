@@ -14,11 +14,15 @@
 
 use tokio::sync::{mpsc, watch};
 
+#[cfg(test)]
+use mockall::automock;
+
 pub struct Receiver {
     log_line_receiver: mpsc::Receiver<Vec<String>>,
     receiver_dropped_sink: watch::Sender<bool>,
 }
 
+#[cfg_attr(test, automock)]
 impl Receiver {
     pub async fn read_log_lines(&mut self) -> Option<Vec<String>> {
         self.log_line_receiver.recv().await

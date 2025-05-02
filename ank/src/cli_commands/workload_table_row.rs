@@ -41,7 +41,7 @@ impl WorkloadTableRowWithSpinner<'_> {
     pub const ADDITIONAL_INFO_POS: usize = WorkloadTableRow::ADDITIONAL_INFO_POS;
 }
 
-impl<'a> Tabled for WorkloadTableRowWithSpinner<'a> {
+impl Tabled for WorkloadTableRowWithSpinner<'_> {
     const LENGTH: usize = WorkloadTableRow::LENGTH;
 
     fn fields(&self) -> Vec<std::borrow::Cow<'_, str>> {

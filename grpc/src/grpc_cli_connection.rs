@@ -14,7 +14,6 @@
 
 use std::pin::Pin;
 
-use common::std_extensions::GracefulExitResult;
 use common::{check_version_compatibility, to_server_interface};
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
@@ -110,11 +109,10 @@ impl CliConnection for GRPCCliConnection {
                         cli_connection_name
                     );
                 });
+                // [impl->swdd~grpc-commander-connection-responds-with-from-server-channel-rx~1]
+                Ok(Response::new(Box::pin(ReceiverStream::new(new_receiver))))
             }
-            _ => Err::<(), &str>("No CommanderHello received.").unwrap_or_exit("Protocol error."),
+            _ => Err(Status::invalid_argument("No CommanderHello received.")),
         }
-
-        // [impl->swdd~grpc-commander-connection-responds-with-from-server-channel-rx~1]
-        Ok(Response::new(Box::pin(ReceiverStream::new(new_receiver))))
     }
 }

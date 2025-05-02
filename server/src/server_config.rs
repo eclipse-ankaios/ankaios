@@ -100,7 +100,7 @@ impl Default for ServerConfig {
             version: CONFIG_VERSION.to_string(),
             startup_manifest: None,
             address: get_default_address(),
-            insecure: Some(false),
+            insecure: Some(bool::default()),
             ca_pem: None,
             crt_pem: None,
             key_pem: None,
@@ -159,7 +159,9 @@ impl ServerConfig {
             self.address = *addr;
         }
 
-        self.insecure = Some(args.insecure);
+        if let Some(insecure) = args.insecure {
+            self.insecure = Some(insecure);
+        }
 
         if let Some(ca_pem_path) = &args.ca_pem {
             self.ca_pem = Some(ca_pem_path.to_owned());
@@ -277,7 +279,7 @@ mod tests {
             manifest_path: Some(STARTUP_MANIFEST_PATH.to_string()),
             config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string()),
             addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
-            insecure: false,
+            insecure: Some(false),
             ca_pem: Some(CA_PEM_PATH.to_string()),
             crt_pem: Some(CRT_PEM_PATH.to_string()),
             key_pem: Some(KEY_PEM_PATH.to_string()),
@@ -321,7 +323,7 @@ mod tests {
             manifest_path: Some(STARTUP_MANIFEST_PATH.to_string()),
             config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string()),
             addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
-            insecure: false,
+            insecure: Some(false),
             ca_pem: None,
             crt_pem: None,
             key_pem: None,

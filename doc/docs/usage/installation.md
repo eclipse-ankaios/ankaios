@@ -54,7 +54,7 @@ curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/in
     If you want to install Ankaios during an automated workflow, please install a specific version as described below.
 
 The installation process automatically detects the platform and downloads the appropriate binaries.
-The default installation path for the binaries is `/usr/local/bin` but can be changed.
+The installation path for the binaries is `/usr/local/bin`.
 The installation also creates systemd unit files and an uninstall script.
 
 Supported platforms: `linux/amd64`, `linux/arm64`
@@ -62,19 +62,16 @@ Supported platforms: `linux/amd64`, `linux/arm64`
 !!! note
 
     The script requires root privileges to install the pre-built binaries into
-    the default installation path `/usr/local/bin` and also for systemd
-    integration. You can set a custom installation path and disable systemd unit
-    file generation if only non-root privileges are available.
+    the installation path `/usr/local/bin` and also for systemd
+    integration. You can disable systemd unit
+    file generation if required.
 
 The following table shows the optional arguments that can be passed to the script:
 
 | Supported parameters | Description |
 | --- | --- |
 | -v <version\> | e.g. `v0.1.0`, default: latest version |
-| -i <install-path\> | File path where Ankaios will be installed, default: `/usr/local/bin` |
 | -t <install-type\> | Installation type for systemd integration: `server`, `agent`, `none` or `both` (default) |
-| -s <server-options\> | Options which will be passed to the Ankaios server. Default `--insecure --startup-config /etc/ankaios/state.yaml` |
-| -a <agent-options\> | Options which will be passed to the Ankaios agent. Default `--insecure --name agent_A` |
 
 To install a specific version run the following command and substitute `<version>` with a specific version tag e.g. `v0.1.0`:
 
@@ -95,13 +92,13 @@ To configure the log levels for `ank-server` and `ank-agent` during the installa
     For a specific version:
 
     ```shell
-    curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/<version>/install.sh | INSTALL_ANK_SERVER_RUST_LOG=debug INSTALL_ANK_AGENT_RUST_LOG=info bash -s -- -i /usr/local/bin -t both -v <version>
+    curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/<version>/install.sh | INSTALL_ANK_SERVER_RUST_LOG=debug INSTALL_ANK_AGENT_RUST_LOG=info bash -s -- -t both -v <version>
     ```
 
     For the latest version:
 
     ```shell
-    curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/latest/install.sh | INSTALL_ANK_SERVER_RUST_LOG=debug INSTALL_ANK_AGENT_RUST_LOG=info bash -s -- -i /usr/local/bin -t both
+    curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/latest/install.sh | INSTALL_ANK_SERVER_RUST_LOG=debug INSTALL_ANK_AGENT_RUST_LOG=info bash -s -- -t both
     ```
 
 Now, both services will output logs according to the specified log levels. If no explicit value was provided during installation, both services will default to `info` log level. You can always change the log level by updating the environment variables and reinstalling the services.

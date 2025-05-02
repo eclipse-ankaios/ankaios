@@ -24,7 +24,7 @@ use std::collections::{HashSet, VecDeque};
 ///
 /// * `state` - The State with workloads representing the directed graph to check for a cycle
 /// * `start_nodes` - Start visiting the graph only for the passed workloads
-///                   if [`None`] the search is started from all workloads of the state
+///   if [`None`] the search is started from all workloads of the state
 ///
 pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
     log::trace!(

@@ -15,10 +15,13 @@
 use std::ops::DerefMut;
 
 use async_trait::async_trait;
+#[cfg(test)]
+use mockall::automock;
 use tokio::select;
 
 use super::log_channel;
 
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait LogCollector: std::fmt::Debug + Send {
     async fn next_lines(&mut self) -> Option<Vec<String>>;
