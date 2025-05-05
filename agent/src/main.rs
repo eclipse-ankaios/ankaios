@@ -57,7 +57,7 @@ use runtime_connectors::{
 const BUFFER_SIZE: usize = 20;
 
 // [impl->swdd~agent-loads-config-file~1]
-fn handle_agent_config(config_path: &Option<String>) -> AgentConfig {
+fn handle_agent_config(config_path: &Option<String>, default_path: &str) -> AgentConfig {
     match config_path {
         Some(config_path) => {
             let config_path = PathBuf::from(config_path);
@@ -68,7 +68,7 @@ fn handle_agent_config(config_path: &Option<String>) -> AgentConfig {
             AgentConfig::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
         }
         None => {
-            let default_path = PathBuf::from(DEFAULT_AGENT_CONFIG_FILE_PATH);
+            let default_path = PathBuf::from(default_path);
             if !default_path.try_exists().unwrap_or(false) {
                 log::debug!("No config file found at default path '{}'. Using cli arguments and environment variables only.", default_path.display());
                 AgentConfig::default()
@@ -105,7 +105,7 @@ async fn main() {
     let args = cli::parse();
 
     // [impl->swdd~agent-loads-config-file~1]
-    let mut agent_config = handle_agent_config(&args.config_path);
+    let mut agent_config = handle_agent_config(&args.config_path, DEFAULT_AGENT_CONFIG_FILE_PATH);
 
     agent_config.update_with_args(&args);
 
@@ -220,11 +220,7 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use crate::{agent_config::DEFAULT_AGENT_CONFIG_FILE_PATH, handle_agent_config, AgentConfig};
-    use std::{
-        fs::{self, File},
-        io::Write,
-        path::PathBuf,
-    };
+    use std::io::Write;
     use tempfile::NamedTempFile;
 
     const VALID_AGENT_CONFIG_CONTENT: &str = r"#
@@ -235,18 +231,15 @@ mod tests {
     insecure = true
     #";
 
-    mockall::lazy_static! {
-        pub static ref CONTEXT_SYNC: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    }
-
     #[test]
     fn utest_handle_agent_config_valid_config() {
         let mut tmp_config = NamedTempFile::new().expect("could not create temp file");
         write!(tmp_config, "{}", VALID_AGENT_CONFIG_CONTENT).expect("could not write to temp file");
 
-        let agent_config = handle_agent_config(&Some(
-            tmp_config.into_temp_path().to_str().unwrap().to_string(),
-        ));
+        let agent_config = handle_agent_config(
+            &Some(tmp_config.into_temp_path().to_str().unwrap().to_string()),
+            DEFAULT_AGENT_CONFIG_FILE_PATH,
+        );
 
         assert_eq!(agent_config.name, "agent_1".to_string());
         assert_eq!(
@@ -259,15 +252,10 @@ mod tests {
 
     #[test]
     fn utest_handle_agent_config_default_path() {
-        let _guard = CONTEXT_SYNC.lock().unwrap();
-
-        if let Some(parent) = PathBuf::from(DEFAULT_AGENT_CONFIG_FILE_PATH).parent() {
-            fs::create_dir_all(parent).expect("Failed to create directories");
-        }
-        let mut file = File::create(DEFAULT_AGENT_CONFIG_FILE_PATH).expect("Failed to create file");
+        let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
         writeln!(file, "{}", VALID_AGENT_CONFIG_CONTENT).expect("Failed to write to file");
 
-        let agent_config = handle_agent_config(&None);
+        let agent_config = handle_agent_config(&None, file.path().to_str().unwrap());
 
         assert_eq!(agent_config.name, "agent_1".to_string());
         assert_eq!(
@@ -276,18 +264,11 @@ mod tests {
         );
         assert_eq!(agent_config.run_folder, "/tmp/ankaios/".to_string());
         assert!(agent_config.insecure);
-
-        assert!(fs::remove_file(DEFAULT_AGENT_CONFIG_FILE_PATH).is_ok());
     }
 
     #[test]
     fn utest_handle_agent_config_default() {
-        // The guard here is a quick workaround for the sync issues resulting from using real files
-        // on the filesystem instead of mocking the calls to try_exists(). More information on a
-        // proper fix is available here: https://github.com/eclipse-ankaios/ankaios/issues/480
-        let _guard = CONTEXT_SYNC.lock().unwrap();
-
-        let agent_config = handle_agent_config(&None);
+        let agent_config = handle_agent_config(&None, "/a/very/invalid/path/to/config/file");
 
         assert_eq!(agent_config, AgentConfig::default());
     }
