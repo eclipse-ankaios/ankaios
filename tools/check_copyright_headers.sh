@@ -11,6 +11,7 @@ FILE_EXT=(
 # Exclude paths from search
 EXCLUDE_PATHS=(
     "$SEARCH_DIR/target/*"
+    "$SEARCH_DIR/vendor/*"
 )
 
 function check_copyright_headers() {
