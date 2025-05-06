@@ -311,6 +311,14 @@ impl AnkaiosServer {
                             }
                         }
                     }
+                    common::commands::RequestContent::LogsRequest(logs_request) => {
+                        log::debug!("Got log request with ID: {}", request_id);
+                        self.to_agents
+                            .logs_request(request_id, logs_request.into())
+                            .await
+                            .unwrap_or_illegal_state();
+                    }
+                    common::commands::RequestContent::LogsCancelRequest => todo!(),
                 },
                 ToServer::UpdateWorkloadState(method_obj) => {
                     log::debug!(
@@ -335,6 +343,12 @@ impl AnkaiosServer {
                     log::debug!("Received Stop from communications server");
                     // TODO: handle the call
                     break;
+                }
+                ToServer::LogsResponse(request_id, logs_response) => {
+                    self.to_agents
+                        .logs_response(request_id, logs_response)
+                        .await
+                        .unwrap_or_illegal_state();
                 }
                 unknown_message => {
                     log::warn!(
