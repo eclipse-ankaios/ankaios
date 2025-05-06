@@ -179,13 +179,11 @@ pub mod test {
 
     use async_trait::async_trait;
     use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
-    use tokio::sync::{mpsc, Mutex};
+    use tokio::sync::Mutex;
 
     use crate::{
         runtime_connectors::{
-            log_channel, log_collector::LogCollector,
-            podman_kube::podman_kube_log_collector::PodmanLogCollector, ReusableWorkloadState,
-            RuntimeStateGetter, StateChecker,
+            log_collector::LogCollector, ReusableWorkloadState, RuntimeStateGetter, StateChecker,
         },
         workload_state::WorkloadStateSender,
     };
@@ -449,8 +447,8 @@ pub mod test {
 
         fn get_logs(
             &self,
-            workload_id: String,
-            options: &LogRequestOptions,
+            _workload_id: String,
+            _options: &LogRequestOptions,
         ) -> Result<Box<dyn LogCollector + Send>, RuntimeError> {
             todo!()
         }

@@ -690,6 +690,7 @@ mod tests {
     use crate::io_utils::mock_filesystem_async;
     use crate::runtime_connectors::RuntimeError;
     use crate::workload::retry_manager::MockRetryToken;
+    use crate::workload::workload_command_channel::WorkloadCommandSender;
     use crate::workload::WorkloadCommand;
     use crate::workload_files::{
         MockWorkloadFilesCreator, WorkloadFileCreationError, WorkloadFilesBasePath,
@@ -713,7 +714,7 @@ mod tests {
     use crate::workload_state::WorkloadStateSenderInterface;
     use crate::{
         runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
-        workload::{ControlLoopState, WorkloadCommandSender},
+        workload::ControlLoopState,
         workload_state::assert_execution_state_sequence,
     };
 

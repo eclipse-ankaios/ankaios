@@ -1,3 +1,17 @@
+// Copyright (c) 2025 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 use async_trait::async_trait;
 use bytes::BytesMut;
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -80,14 +94,19 @@ fn convert_to_string(vec: impl Into<Vec<u8>>) -> String {
 
 #[cfg(test)]
 pub mod test {
-    use std::collections::VecDeque;
+    use std::{collections::VecDeque, vec};
 
-    use tokio::io::{AsyncRead, AsyncReadExt};
+    use tokio::io::AsyncRead;
 
     use crate::runtime_connectors::{
-        generic_log_collector::GenericLogCollector,
-        log_collector::{self, LogCollector},
+        generic_log_collector::GenericLogCollector, log_collector::LogCollector,
     };
+
+    const LINE_1: &str = "first line";
+    const LINE_2: &str = "second line";
+    const LINE_3: &str = "third line";
+    const LINE_4: &str = "forth line";
+    const LINE_5: &str = "fifth line";
 
     #[derive(Debug)]
     struct MockRead {
@@ -96,8 +115,21 @@ pub mod test {
 
     #[derive(Debug)]
     enum MockReadDataEntry {
-        Data(String),
+        Data(Vec<u8>),
         Error(std::io::Error),
+    }
+
+    impl MockReadDataEntry {
+        fn data(data: &str) -> Self {
+            Self::Data(data.as_bytes().to_owned())
+        }
+
+        fn error() -> Self {
+            Self::Error(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "".to_string(),
+            ))
+        }
     }
 
     impl AsyncRead for MockRead {
@@ -109,7 +141,7 @@ pub mod test {
             let element = self.data.pop_front();
             match element {
                 Some(MockReadDataEntry::Data(data)) => {
-                    buf.put_slice(data.as_bytes());
+                    buf.put_slice(&data);
                     std::task::Poll::Ready(std::io::Result::Ok(()))
                 }
                 Some(MockReadDataEntry::Error(err)) => {
@@ -121,21 +153,94 @@ pub mod test {
     }
 
     #[tokio::test]
-    async fn utest_foobar() {
+    async fn utest_multiple_lines() {
         let read = MockRead {
             data: vec![
-                MockReadDataEntry::Data("first".into()),
-                MockReadDataEntry::Data(" ".into()),
-                MockReadDataEntry::Data("line\nsecond line\nlast ".into()),
-                MockReadDataEntry::Data("bytes\n".into()),
+                MockReadDataEntry::data(&format!("{LINE_1}\n{LINE_2}\n{LINE_3}\n")),
+                MockReadDataEntry::data(&format!("{LINE_4}\n{LINE_5}\n")),
             ]
             .into(),
         };
 
         let mut log_collector = GenericLogCollector::new(read);
-        while let Some(lines) = log_collector.next_lines().await {
-            println!("====================");
-            println!("{:?}", lines);
-        }
+        assert_eq!(
+            log_collector.next_lines().await,
+            Some(vec![LINE_1.into(), LINE_2.into(), LINE_3.into()])
+        );
+        assert_eq!(
+            log_collector.next_lines().await,
+            Some(vec![LINE_4.into(), LINE_5.into()])
+        );
+        assert_eq!(log_collector.next_lines().await, None);
+    }
+
+    #[tokio::test]
+    async fn utest_last_newline_missing() {
+        let read = MockRead {
+            data: vec![
+                MockReadDataEntry::data(&format!("{LINE_1}\n{LINE_2}\n{LINE_3}\n")),
+                MockReadDataEntry::data(&format!("{LINE_4}\n{LINE_5}")),
+            ]
+            .into(),
+        };
+
+        let mut log_collector = GenericLogCollector::new(read);
+        assert_eq!(
+            log_collector.next_lines().await,
+            Some(vec![LINE_1.into(), LINE_2.into(), LINE_3.into()])
+        );
+        assert_eq!(log_collector.next_lines().await, Some(vec![LINE_4.into()]));
+        assert_eq!(log_collector.next_lines().await, Some(vec![LINE_5.into()]));
+        assert_eq!(log_collector.next_lines().await, None);
+    }
+
+    #[tokio::test]
+    async fn utest_line_split_multiple_times() {
+        let read = MockRead {
+            data: vec![
+                MockReadDataEntry::data("first"),
+                MockReadDataEntry::data(" "),
+                MockReadDataEntry::data(&format!("line\n{LINE_2}\nthird ")),
+                MockReadDataEntry::data("line\n".into()),
+            ]
+            .into(),
+        };
+
+        let mut log_collector = GenericLogCollector::new(read);
+        assert_eq!(
+            log_collector.next_lines().await,
+            Some(vec![LINE_1.into(), LINE_2.into()])
+        );
+        assert_eq!(log_collector.next_lines().await, Some(vec![LINE_3.into()]));
+        assert_eq!(log_collector.next_lines().await, None);
+    }
+
+    #[tokio::test]
+    async fn utest_handle_non_utf8() {
+        let read = MockRead {
+            data: vec![MockReadDataEntry::Data(vec![
+                0x6c, 0x69, 0x6e, 0x65, 0x90, 0x0A,
+            ])]
+            .into(),
+        };
+
+        let mut log_collector = GenericLogCollector::new(read);
+        assert_eq!(log_collector.next_lines().await, Some(vec!["line�".into()]));
+        assert_eq!(log_collector.next_lines().await, None);
+    }
+
+    #[tokio::test]
+    async fn utest_read_fails() {
+        let read = MockRead {
+            data: vec![
+                MockReadDataEntry::data(&format!("{LINE_1}\nsecond")),
+                MockReadDataEntry::error(),
+            ]
+            .into(),
+        };
+
+        let mut log_collector = GenericLogCollector::new(read);
+        assert_eq!(log_collector.next_lines().await, Some(vec![LINE_1.into()]));
+        assert_eq!(log_collector.next_lines().await, None);
     }
 }
