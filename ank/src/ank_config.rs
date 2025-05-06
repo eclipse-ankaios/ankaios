@@ -24,25 +24,18 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 use toml::{from_str, Value};
 
-#[cfg(not(test))]
 use common::std_extensions::GracefulExitResult;
-#[cfg(not(test))]
 use once_cell::sync::Lazy;
-#[cfg(not(test))]
 use std::env;
 
 pub const CONFIG_VERSION: &str = "v1";
 pub const DEFAULT_CONFIG: &str = "default";
 pub const DEFAULT_RESPONSE_TIMEOUT: u64 = 3000;
 
-#[cfg(not(test))]
 pub static DEFAULT_ANK_CONFIG_FILE_PATH: Lazy<String> = Lazy::new(|| {
     let home_dir = env::var("HOME").unwrap_or_exit("HOME environment variable not set");
     format!("{}/.config/ankaios/ank.conf", home_dir)
 });
-
-#[cfg(test)]
-pub const DEFAULT_ANK_CONFIG_FILE_PATH: &str = "/tmp/ankaios/ank.conf";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ConversionErrors {
