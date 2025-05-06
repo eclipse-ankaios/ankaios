@@ -173,14 +173,12 @@ impl From<ank_base::LogsRequest> for LogsRequest {
     }
 }
 
-// TODO: add tests
 impl From<LogsCancelRequest> for ank_base::LogsCancelRequest {
     fn from(_logs_cancel_request: LogsCancelRequest) -> Self {
         ank_base::LogsCancelRequest {}
     }
 }
 
-// TODO: add tests
 impl From<ank_base::LogsCancelRequest> for LogsCancelRequest {
     fn from(_logs_cancel_request: ank_base::LogsCancelRequest) -> Self {
         LogsCancelRequest {}
@@ -269,13 +267,13 @@ mod tests {
         pub use api::ank_base::{
             request::RequestContent, CompleteState, CompleteStateRequest, ConfigMappings,
             Dependencies, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
-            WorkloadMap,
+            WorkloadMap, LogsCancelRequest,
         };
     }
 
     mod ankaios {
         pub use crate::{
-            commands::{CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
+            commands::{CompleteStateRequest, Request, RequestContent, UpdateStateRequest, LogsCancelRequest},
             objects::{
                 generate_test_agent_map, generate_test_workload_states_map_with_data, Base64Data,
                 CompleteState, Data, ExecutionState, File, FileContent, RestartPolicy, State,
@@ -610,5 +608,19 @@ mod tests {
         ankaios_request_complete_state.prefix_request_id("prefix@");
 
         assert_eq!("prefix@42", ankaios_request_complete_state.request_id);
+    }
+
+    #[test]
+    fn utest_ank_base_log_cancel_request() {
+        let ank_base_log_cancel_request = ank_base::LogsCancelRequest {};
+
+        assert_eq!(
+            ank_base_log_cancel_request.clone(),
+            ank_base::LogsCancelRequest::from(
+                ankaios::LogsCancelRequest::from(
+                    ank_base_log_cancel_request
+                )
+            )
+        );
     }
 }

@@ -1,7 +1,3 @@
-use std::{future::Future, pin::Pin};
-
-use api::ank_base;
-use futures_util::{stream::FuturesUnordered, StreamExt};
 // Copyright (c) 2023 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
@@ -227,7 +223,7 @@ impl AgentManager {
                     .unzip();
                 let (subscription, receivers) =
                     LogCollectorSubscription::start_collecting_logs(log_collectors);
-                let _receivers = names.into_iter().zip(receivers).collect::<Vec<_>>();
+                let receivers = names.into_iter().zip(receivers).collect::<Vec<_>>();
                 self.subscription_store
                     .add_subscription(request_id.clone(), subscription);
                 let to_server = self.to_server.clone();
@@ -268,12 +264,16 @@ impl AgentManager {
                     }
                 });
                 Some(())
-            },
+            }
             FromServer::LogsCancelRequest(request_id) => {
-                log::debug!("Agent '{}' received LogsCancelRequest with id {}", self.agent_name, request_id);
+                log::debug!(
+                    "Agent '{}' received LogsCancelRequest with id {}",
+                    self.agent_name,
+                    request_id
+                );
                 self.subscription_store.delete_subscription(&request_id);
                 Some(())
-            },
+            }
         }
     }
 
@@ -802,7 +802,12 @@ mod tests {
             workload_state_receiver,
         );
 
-        let handle = tokio::spawn(async move { agent_manager.start().await });
+        let handle = tokio::spawn(async move {
+            agent_manager.start().await;
+            assert!(agent_manager
+                .subscription_store
+                .contains_key(&REQUEST_ID.to_string()));
+        });
 
         to_manager
             .logs_request(REQUEST_ID.into(), logs_request)
@@ -830,6 +835,18 @@ mod tests {
                 .unwrap(),
             &vec!["rec2: line1".to_string(),]
         );
+
+        let log_responses = timeout(
+            Duration::from_millis(10),
+            get_log_responses(1, &mut to_server_receiver),
+        )
+        .await;
+        assert!(log_responses.is_err());
+
+        to_manager
+            .logs_cancel_request(REQUEST_ID.into())
+            .await
+            .unwrap();
         let log_responses = timeout(
             Duration::from_millis(10),
             get_log_responses(1, &mut to_server_receiver),
@@ -839,11 +856,10 @@ mod tests {
 
         assert!(get_spawn_mock_result().await.is_ok());
         to_manager.stop().await.unwrap();
-        assert!(
-            join!(tokio::time::timeout(Duration::from_millis(1000), handle))
-                .0
-                .is_ok()
-        );
+        tokio::time::timeout(Duration::from_millis(1000), handle)
+            .await
+            .unwrap()
+            .unwrap();
     }
 
     async fn get_log_responses(
