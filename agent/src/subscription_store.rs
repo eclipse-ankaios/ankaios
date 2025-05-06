@@ -30,6 +30,11 @@ impl SubscriptionStore {
     pub fn delete_subscription(&mut self, id: &SubscriptionId) {
         self.store.remove(id);
     }
+
+    #[cfg(test)]
+    pub fn contains_key(&self, id: &SubscriptionId) -> bool {
+        self.store.contains_key(id)
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
