@@ -1,0 +1,12 @@
+name: Download and extract vendored source
+description: Download and extract vendored source. Usually only called for release builds
+runs:
+  using: "composite"
+  steps:
+    - name: Get vendored source
+      uses: actions/download-artifact@v4.1.7
+      with:
+        name: vendored-sources
+    - name: Unpack vendored source in current folder (overwrite existing)
+      run: tar --strip-components=1 -xzf ankaios-vendored-source*.tar.gz
+      shell: bash

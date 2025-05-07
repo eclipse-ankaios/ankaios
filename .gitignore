@@ -4,6 +4,7 @@ temp
 req_in
 dist
 logs
+vendor
 
 #ignore plantuml out folder
 /out
