@@ -19,7 +19,9 @@ use crate::control_interface::{to_ankaios, ToAnkaios};
 #[cfg_attr(test, mockall_double::double)]
 use super::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
-use super::reopen_file::ReopenFile;
+use super::input_pipe::InputPipe;
+#[cfg_attr(test, mockall_double::double)]
+use super::output_pipe::OutputPipe;
 use api::{ank_base, control_api};
 use common::{
     check_version_compatibility,
@@ -40,8 +42,8 @@ fn decode_to_server(protobuf_data: io::Result<Vec<u8>>) -> io::Result<control_ap
 }
 
 pub struct ControlInterfaceTask {
-    output_stream: ReopenFile,
-    input_stream: ReopenFile,
+    output_stream: OutputPipe,
+    input_stream: InputPipe,
     input_pipe_receiver: FromServerReceiver,
     output_pipe_channel: ToServerSender,
     request_id_prefix: String,
@@ -51,8 +53,8 @@ pub struct ControlInterfaceTask {
 #[cfg_attr(test, mockall::automock)]
 impl ControlInterfaceTask {
     pub fn new(
-        output_stream: ReopenFile,
-        input_stream: ReopenFile,
+        output_stream: OutputPipe,
+        input_stream: InputPipe,
         input_pipe_receiver: FromServerReceiver,
         output_pipe_channel: ToServerSender,
         request_id_prefix: String,
@@ -228,8 +230,7 @@ mod tests {
     use super::ControlInterfaceTask;
 
     use crate::control_interface::{
-        authorizer::MockAuthorizer, control_interface_task::INITIAL_HELLO_MISSING_MSG,
-        reopen_file::MockReopenFile,
+        authorizer::MockAuthorizer, control_interface_task::INITIAL_HELLO_MISSING_MSG, input_pipe::MockInputPipe, output_pipe::MockOutputPipe
     };
 
     const REQUEST_ID: &str = "req_id";
@@ -283,13 +284,13 @@ mod tests {
         .encode_length_delimited_to_vec();
 
         // [utest->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
-        let mut output_stream_mock = MockReopenFile::default();
+        let mut output_stream_mock = MockOutputPipe::default();
         output_stream_mock
             .expect_write_all()
             .with(predicate::eq(test_command_binary))
             .return_once(|_| Ok(()));
 
-        let input_stream_mock = MockReopenFile::default();
+        let input_stream_mock = MockInputPipe::default();
         let (_, input_pipe_receiver) = mpsc::channel(1);
         let (output_pipe_sender, _) = mpsc::channel(1);
         let request_id_prefix = String::from("prefix@");
@@ -335,7 +336,7 @@ mod tests {
 
         let mut mockall_seq = Sequence::new();
 
-        let mut input_stream_mock = MockReopenFile::default();
+        let mut input_stream_mock = MockInputPipe::default();
 
         let workload_hello_binary = prepare_workload_hello_binary_message(common::ANKAIOS_VERSION);
         input_stream_mock
@@ -372,7 +373,7 @@ mod tests {
         }
         .encode_length_delimited_to_vec();
 
-        let mut output_stream_mock = MockReopenFile::default();
+        let mut output_stream_mock = MockOutputPipe::default();
         output_stream_mock
             .expect_write_all()
             .with(predicate::eq(test_input_command_binary.clone()))
@@ -428,7 +429,7 @@ mod tests {
 
         let mut mockall_seq = Sequence::new();
 
-        let mut input_stream_mock = MockReopenFile::default();
+        let mut input_stream_mock = MockInputPipe::default();
 
         let workload_hello_binary = prepare_workload_hello_binary_message(common::ANKAIOS_VERSION);
         input_stream_mock
@@ -449,7 +450,7 @@ mod tests {
             .in_sequence(&mut mockall_seq)
             .returning(move || Err(Error::new(std::io::ErrorKind::Other, "error")));
 
-        let output_stream_mock = MockReopenFile::default();
+        let output_stream_mock = MockOutputPipe::default();
 
         let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
@@ -487,7 +488,7 @@ mod tests {
         let test_output_request_binary = prepare_request_complete_state_binary_message("");
 
         let mut mockall_seq = Sequence::new();
-        let mut input_stream_mock = MockReopenFile::default();
+        let mut input_stream_mock = MockInputPipe::default();
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
@@ -505,7 +506,7 @@ mod tests {
         }
         .encode_length_delimited_to_vec();
 
-        let mut output_stream_mock = MockReopenFile::default();
+        let mut output_stream_mock = MockOutputPipe::default();
         output_stream_mock
             .expect_write_all()
             .with(predicate::eq(test_input_command_binary))
@@ -539,7 +540,7 @@ mod tests {
             .await;
 
         let mut mockall_seq = Sequence::new();
-        let mut input_stream_mock = MockReopenFile::default();
+        let mut input_stream_mock = MockInputPipe::default();
 
         let unsupported_version = "1999.1.0";
         let workload_hello_binary = prepare_workload_hello_binary_message(unsupported_version);
@@ -567,7 +568,7 @@ mod tests {
         }
         .encode_length_delimited_to_vec();
 
-        let mut output_stream_mock = MockReopenFile::default();
+        let mut output_stream_mock = MockOutputPipe::default();
         output_stream_mock
             .expect_write_all()
             .with(predicate::eq(test_input_command_binary))
