@@ -592,7 +592,6 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
 
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
-        println!("{:?}", workloads);
 
         assert!(
             matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])

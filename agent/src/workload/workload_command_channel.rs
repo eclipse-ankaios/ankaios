@@ -114,14 +114,25 @@ impl WorkloadCommandSender {
 
 #[cfg(test)]
 mod tests {
-    use crate::workload::retry_manager::MockRetryToken;
+    use crate::{
+        runtime_connectors::{log_collector::MockLogCollector, LogRequestOptions},
+        workload::retry_manager::MockRetryToken,
+    };
 
     use super::{ControlInterfacePath, WorkloadCommand, WorkloadCommandSender, WorkloadSpec};
     use common::objects::generate_test_workload_spec;
     use std::path::PathBuf;
-    const PIPES_LOCATION: &str = "/some/path";
+    use tokio::sync::mpsc::Receiver;
 
     use mockall::lazy_static;
+
+    const PIPES_LOCATION: &str = "/some/path";
+    const LOG_REQUEST_OPTIONS: LogRequestOptions = LogRequestOptions {
+        follow: true,
+        tail: Some(100),
+        since: None,
+        until: None,
+    };
 
     lazy_static! {
         pub static ref WORKLOAD_SPEC: WorkloadSpec = generate_test_workload_spec();
@@ -222,5 +233,63 @@ mod tests {
         workload_command_receiver.close();
 
         assert!(workload_command_sender.resume().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_start_collecting_logs_success() {
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+
+        let jh = listen_for_start_log_collector(
+            workload_command_receiver,
+            Some(MockLogCollector::new()),
+        );
+
+        let res = workload_command_sender
+            .start_collecting_logs(LOG_REQUEST_OPTIONS.clone())
+            .await;
+
+        assert!(res.is_ok());
+        assert!(jh.await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_start_collecting_logs_no_result() {
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+
+        let jh = listen_for_start_log_collector(workload_command_receiver, None);
+
+        let res = workload_command_sender
+            .start_collecting_logs(LOG_REQUEST_OPTIONS.clone())
+            .await;
+
+        assert!(res.is_err());
+        assert!(jh.await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_start_collecting_logs_receiver_gone() {
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
+
+        let res = workload_command_sender
+            .start_collecting_logs(LOG_REQUEST_OPTIONS.clone())
+            .await;
+
+        assert!(res.is_err());
+    }
+
+    fn listen_for_start_log_collector(
+        mut receiver: Receiver<WorkloadCommand>,
+        res: Option<MockLogCollector>,
+    ) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            let command = receiver.recv().await.unwrap();
+            let WorkloadCommand::StartLogCollector(options, result_sink) = command else {
+                panic!("Expected WorkloadCommand::StartLogCollector")
+            };
+            assert_eq!(options, LOG_REQUEST_OPTIONS);
+            if let Some(res) = res {
+                result_sink.send(Box::new(res)).unwrap();
+            };
+        })
     }
 }

@@ -358,7 +358,6 @@ mod tests {
         WorkloadStateSenderInterface,
     };
     use api::ank_base;
-    use async_trait::async_trait;
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::FromServerInterface,
@@ -370,7 +369,7 @@ mod tests {
     use mockall::predicate::{self, eq};
 
     use tokio::sync::mpsc;
-    use tokio::task::{JoinError, JoinHandle};
+    use tokio::task::JoinHandle;
     use tokio::time::timeout;
     use tokio::{join, sync::mpsc::channel};
 
@@ -854,7 +853,7 @@ mod tests {
         .await;
         assert!(log_responses.is_err());
 
-        assert!(get_spawn_mock_result().await.is_ok());
+        assert!(spawn_mock_task_is_finished());
         to_manager.stop().await.unwrap();
         tokio::time::timeout(Duration::from_millis(1000), handle)
             .await
@@ -891,23 +890,14 @@ mod tests {
     }
 
     type BoxedJoinHandle = Option<Box<dyn TypelessJoinHandle>>;
-    #[async_trait]
+
     trait TypelessJoinHandle: Send + Sync {
-        async fn get(&mut self) -> Result<(), JoinError>;
+        fn is_finished(&mut self) -> bool;
     }
 
-    #[async_trait]
     impl<T: Send> TypelessJoinHandle for JoinHandle<T> {
-        async fn get(&mut self) -> Result<(), JoinError> {
-            self.await?;
-            Ok(())
-        }
-    }
-
-    #[async_trait]
-    impl TypelessJoinHandle for () {
-        async fn get(&mut self) -> Result<(), JoinError> {
-            Ok(())
+        fn is_finished(&mut self) -> bool {
+            JoinHandle::is_finished(self)
         }
     }
 
@@ -925,10 +915,10 @@ mod tests {
         SPAWN_JOIN_HANDLE.lock().unwrap().take();
     }
 
-    pub async fn get_spawn_mock_result() -> Result<(), JoinError> {
+    pub fn spawn_mock_task_is_finished() -> bool {
         let jh = SPAWN_JOIN_HANDLE.lock().unwrap().take();
         match jh {
-            Some(mut jh) => jh.get().await,
+            Some(mut jh) => jh.is_finished(),
             None => panic!("The function spawn was not called."),
         }
     }
