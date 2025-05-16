@@ -82,7 +82,7 @@ mod tests {
         assert!(!*element_1_dropped.lock().unwrap());
         assert!(!*element_2_dropped.lock().unwrap());
 
-        subscription_store.delete_subscritption(&ID_2.into());
+        subscription_store.delete_subscription(&ID_2.into());
 
         assert!(!*element_1_dropped.lock().unwrap());
         assert!(*element_2_dropped.lock().unwrap());
