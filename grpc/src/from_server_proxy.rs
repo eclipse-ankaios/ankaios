@@ -402,9 +402,9 @@ mod tests {
     use async_trait::async_trait;
     use common::from_server_interface::FromServerInterface;
     use common::objects::{
-        generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
+        self, generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
     };
-    use common::test_utils::*;
+    use common::{commands, test_utils::*};
     use std::collections::{HashMap, LinkedList};
     use tokio::sync::mpsc::error::TryRecvError;
     use tokio::{
@@ -836,6 +836,75 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn utest_from_server_proxy_forward_from_ankaios_to_proto_logs_request() {
+        let agent_name_1: &str = "agent_X";
+        let agent_name_2: &str = "agent_Y";
+
+        let (to_manager, mut manager_receiver) =
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+        let (agent_1_tx, mut agent_1_rx) = tokio::sync::mpsc::channel(common::CHANNEL_CAPACITY);
+        let (agent_2_tx, mut agent_2_rx) = tokio::sync::mpsc::channel(common::CHANNEL_CAPACITY);
+
+        let agent_senders_map = AgentSendersMap::new();
+        agent_senders_map.insert(agent_name_1, agent_1_tx);
+        agent_senders_map.insert(agent_name_2, agent_2_tx);
+
+        let my_request_id = "my_request_id";
+
+        let complete_state_result = to_manager
+            .logs_request(
+                my_request_id.into(),
+                ank_base::LogsRequest {
+                    workload_names: vec![
+                        ank_base::WorkloadInstanceName {
+                            workload_name: "workload_1".into(),
+                            agent_name: agent_name_1.into(),
+                            id: "id_1".into(),
+                        },
+                        ank_base::WorkloadInstanceName {
+                            workload_name: "workload_2".into(),
+                            agent_name: agent_name_2.into(),
+                            id: "id_2".into(),
+                        },
+                    ],
+                    follow: Some(true),
+                    tail: Some(10),
+                    since: None,
+                    until: None,
+                },
+            )
+            .await;
+        assert!(complete_state_result.is_ok());
+        drop(to_manager);
+
+        forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver).await;
+        drop(agent_senders_map);
+
+        assert!(matches!(
+            agent_1_rx.recv().await.unwrap().unwrap().from_server_enum,
+            Some(FromServerEnum::LogsRequest(
+                    grpc_api::LogsRequest{
+                        request_id,
+                        logs_request: Some(ank_base::LogsRequest{ workload_names, follow, tail, since, until }) }))
+                if request_id == my_request_id
+                   && workload_names == vec![ank_base::WorkloadInstanceName{ workload_name: "workload_1".into(), agent_name: agent_name_1.into(), id: "id_1".into() }]
+                   && follow == Some(true) && tail == Some(10) && since.is_none() && until.is_none()
+        ));
+        assert!(agent_1_rx.recv().await.is_none());
+        assert!(matches!(
+            agent_2_rx.recv().await.unwrap().unwrap().from_server_enum,
+            Some(FromServerEnum::LogsRequest(
+                    grpc_api::LogsRequest{
+                        request_id,
+                        logs_request: Some(ank_base::LogsRequest{ workload_names, follow, tail, since, until }) }))
+                if request_id == my_request_id
+                   && workload_names == vec![ank_base::WorkloadInstanceName{ workload_name: "workload_2".into(), agent_name: agent_name_2.into(), id: "id_2".into() }]
+                   && follow == Some(true) && tail == Some(10) && since.is_none() && until.is_none()
+        ));
+        assert!(agent_2_rx.recv().await.is_none());
+    }
+
+    #[tokio::test]
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_response() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
@@ -904,5 +973,113 @@ mod tests {
             complete_state.desired_state == expected_test_complete_state.desired_state &&
             complete_state.workload_states == expected_test_complete_state.workload_states
         ));
+    }
+
+    #[tokio::test]
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_logs_request() {
+        let agent_name = "fake_agent";
+        let (to_agent, mut agent_receiver) =
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+
+        let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
+        startup_workloads.insert(
+            String::from(WORKLOAD_NAME),
+            generate_test_stored_workload_spec(agent_name.to_string(), "my_runtime".to_string())
+                .into(),
+        );
+
+        let my_request_id = "my_request_id".to_owned();
+
+        let logs_request_content = ank_base::LogsRequest {
+            workload_names: vec![ank_base::WorkloadInstanceName {
+                workload_name: WORKLOAD_NAME.into(),
+                agent_name: agent_name.into(),
+                id: "id".into(),
+            }],
+            follow: Some(true),
+            tail: Some(10),
+            since: None,
+            until: None,
+        };
+
+        let logs_request = grpc_api::LogsRequest {
+            request_id: my_request_id.clone(),
+            logs_request: Some(logs_request_content),
+        };
+
+        // simulate the reception of an update workload state grpc from server message
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCFromServerStreaming::new(LinkedList::from([
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::LogsRequest(logs_request)),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = tokio::spawn(async move {
+            forward_from_proto_to_ankaios(&mut mock_grpc_ex_request_streaming, &to_agent).await
+        })
+        .await;
+        assert!(forward_result.is_ok());
+
+        // pick received from server message
+        let result = agent_receiver.recv().await.unwrap();
+
+        assert!(matches!(
+            result,
+            common::from_server_interface::FromServer::LogsRequest(
+                request_id,
+                commands::LogsRequest {
+                    workload_names,
+                    follow,
+                    tail,
+                    since,
+                    until
+                }
+            ) if request_id == my_request_id && workload_names == vec![objects::WorkloadInstanceName::new(agent_name, WORKLOAD_NAME, "id")] && follow && tail == 10 &&since.is_none() && until.is_none()
+        ));
+    }
+
+    #[tokio::test]
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_empty_logs_request() {
+        let agent_name = "fake_agent";
+        let (to_agent, mut agent_receiver) =
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+
+        let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
+        startup_workloads.insert(
+            String::from(WORKLOAD_NAME),
+            generate_test_stored_workload_spec(agent_name.to_string(), "my_runtime".to_string())
+                .into(),
+        );
+
+        let my_request_id = "my_request_id".to_owned();
+
+        let logs_request = grpc_api::LogsRequest {
+            request_id: my_request_id.clone(),
+            logs_request: None,
+        };
+
+        // simulate the reception of an update workload state grpc from server message
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCFromServerStreaming::new(LinkedList::from([
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::LogsRequest(logs_request)),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = tokio::spawn(async move {
+            forward_from_proto_to_ankaios(&mut mock_grpc_ex_request_streaming, &to_agent).await
+        })
+        .await;
+        assert!(forward_result.is_ok());
+
+        // pick received from server message
+        let result = agent_receiver.recv().await;
+
+        assert!(result.is_none());
     }
 }

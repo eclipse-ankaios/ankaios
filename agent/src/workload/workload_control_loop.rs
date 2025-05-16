@@ -688,7 +688,8 @@ mockall::mock! {
 mod tests {
     use super::{ControlInterfacePath, WorkloadControlLoop};
     use crate::io_utils::mock_filesystem_async;
-    use crate::runtime_connectors::RuntimeError;
+    use crate::runtime_connectors::log_collector::MockLogCollector;
+    use crate::runtime_connectors::{LogRequestOptions, RuntimeError};
     use crate::workload::retry_manager::MockRetryToken;
     use crate::workload::workload_command_channel::WorkloadCommandSender;
     use crate::workload::WorkloadCommand;
@@ -699,6 +700,7 @@ mod tests {
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::time::Duration;
+    use tokio::sync::oneshot;
 
     use mockall::predicate;
 
@@ -773,20 +775,18 @@ mod tests {
             .build();
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also be deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+            RuntimeCall::CreateWorkload(
+                new_workload_spec.clone(),
+                Some(PIPES_LOCATION.into()),
+                HashMap::default(),
+                Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
+            ),
+            // Since we also send a delete command to exit the control loop properly, the new workload
+            // will also be deleted. This also tests if the new workload id was properly stored.
+            RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+        ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -855,7 +855,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-update-delete-only~1]
@@ -879,12 +879,10 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-                // The workload was already deleted with the previous runtime call delete.
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+            // The workload was already deleted with the previous runtime call delete.
+        ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -947,7 +945,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-update-delete-only~1]
@@ -984,19 +982,17 @@ mod tests {
             .build();
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
-                ),
-                // Delete the new updated workload to exit the infinite loop
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+            RuntimeCall::CreateWorkload(
+                new_workload_spec.clone(),
+                Some(PIPES_LOCATION.into()),
+                HashMap::default(),
+                Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
+            ),
+            // Delete the new updated workload to exit the infinite loop
+            RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+        ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -1070,7 +1066,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-update-broken-allowed~1]
@@ -1103,19 +1099,17 @@ mod tests {
             .config(&new_workload_spec.runtime_config)
             .build();
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also be deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::CreateWorkload(
+                new_workload_spec.clone(),
+                Some(PIPES_LOCATION.into()),
+                HashMap::default(),
+                Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
+            ),
+            // Since we also send a delete command to exit the control loop properly, the new workload
+            // will also be deleted. This also tests if the new workload id was properly stored.
+            RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+        ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -1181,7 +1175,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-update-delete-failed-allows-retry~1]
@@ -1211,17 +1205,15 @@ mod tests {
             .build();
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(
-                    OLD_WORKLOAD_ID.to_string(),
-                    Err(RuntimeError::Delete("some delete error".into())),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also be deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::DeleteWorkload(
+                OLD_WORKLOAD_ID.to_string(),
+                Err(RuntimeError::Delete("some delete error".into())),
+            ),
+            // Since we also send a delete command to exit the control loop properly, the new workload
+            // will also be deleted. This also tests if the new workload id was properly stored.
+            RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+        ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -1280,7 +1272,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_empty());
         assert!(workload_command_receiver2.is_closed());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-delete~3]
@@ -1298,12 +1290,10 @@ mod tests {
         mock_state_checker.panic_if_not_stopped();
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![RuntimeCall::DeleteWorkload(
-                OLD_WORKLOAD_ID.to_string(),
-                Ok(()),
-            )])
-            .await;
+        runtime_mock.expect(vec![RuntimeCall::DeleteWorkload(
+            OLD_WORKLOAD_ID.to_string(),
+            Ok(()),
+        )]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -1356,7 +1346,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-delete-broken-allowed~1]
@@ -1409,7 +1399,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]
@@ -1435,19 +1425,17 @@ mod tests {
         new_mock_state_checker.panic_if_not_stopped();
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also be deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::CreateWorkload(
+                workload_spec.clone(),
+                Some(PIPES_LOCATION.into()),
+                HashMap::default(),
+                Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
+            ),
+            // Since we also send a delete command to exit the control loop properly, the new workload
+            // will also be deleted. This also tests if the new workload id was properly stored.
+            RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+        ]);
 
         workload_command_sender.create().await.unwrap();
 
@@ -1493,7 +1481,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-resume~1]
@@ -1520,21 +1508,19 @@ mod tests {
         new_mock_state_checker.panic_if_not_stopped();
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::GetWorkloadId(
-                    workload_spec.instance_name.clone(),
-                    Ok(WORKLOAD_ID.to_string()),
-                ),
-                RuntimeCall::StartChecker(
-                    WORKLOAD_ID.to_string(),
-                    workload_spec.clone(),
-                    state_checker_workload_state_sender.clone(),
-                    Ok(new_mock_state_checker),
-                ),
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::GetWorkloadId(
+                workload_spec.instance_name.clone(),
+                Ok(WORKLOAD_ID.to_string()),
+            ),
+            RuntimeCall::StartChecker(
+                WORKLOAD_ID.to_string(),
+                workload_spec.clone(),
+                state_checker_workload_state_sender.clone(),
+                Ok(new_mock_state_checker),
+            ),
+            RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+        ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -1573,7 +1559,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-resume~1]
@@ -1594,20 +1580,18 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::GetWorkloadId(
-                    workload_spec.instance_name.clone(),
-                    Ok(WORKLOAD_ID.to_string()),
-                ),
-                RuntimeCall::StartChecker(
-                    WORKLOAD_ID.to_string(),
-                    workload_spec.clone(),
-                    state_checker_workload_state_sender.clone(),
-                    Ok(StubStateChecker::new()),
-                ),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::GetWorkloadId(
+                workload_spec.instance_name.clone(),
+                Ok(WORKLOAD_ID.to_string()),
+            ),
+            RuntimeCall::StartChecker(
+                WORKLOAD_ID.to_string(),
+                workload_spec.clone(),
+                state_checker_workload_state_sender.clone(),
+                Ok(StubStateChecker::new()),
+            ),
+        ]);
 
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
@@ -1637,7 +1621,7 @@ mod tests {
         drop(new_control_loop_state);
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-resume~1]
@@ -1656,14 +1640,12 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![RuntimeCall::GetWorkloadId(
-                workload_spec.instance_name.clone(),
-                Err(crate::runtime_connectors::RuntimeError::List(
-                    "some list workload error".to_string(),
-                )),
-            )])
-            .await;
+        runtime_mock.expect(vec![RuntimeCall::GetWorkloadId(
+            workload_spec.instance_name.clone(),
+            Err(crate::runtime_connectors::RuntimeError::List(
+                "some list workload error".to_string(),
+            )),
+        )]);
 
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
@@ -1685,7 +1667,7 @@ mod tests {
         drop(new_control_loop_state);
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-resume~1]
@@ -1706,22 +1688,20 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::GetWorkloadId(
-                    workload_spec.instance_name.clone(),
-                    Ok(WORKLOAD_ID.to_string()),
-                ),
-                RuntimeCall::StartChecker(
-                    WORKLOAD_ID.to_string(),
-                    workload_spec.clone(),
-                    state_checker_workload_state_sender.clone(),
-                    Err(crate::runtime_connectors::RuntimeError::Create(
-                        "some state checker error".to_string(),
-                    )),
-                ),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::GetWorkloadId(
+                workload_spec.instance_name.clone(),
+                Ok(WORKLOAD_ID.to_string()),
+            ),
+            RuntimeCall::StartChecker(
+                WORKLOAD_ID.to_string(),
+                workload_spec.clone(),
+                state_checker_workload_state_sender.clone(),
+                Err(crate::runtime_connectors::RuntimeError::Create(
+                    "some state checker error".to_string(),
+                )),
+            ),
+        ]);
 
         let mut control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
@@ -1748,7 +1728,7 @@ mod tests {
         drop(new_control_loop_state);
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~workload-control-loop-receives-workload-states~1]
@@ -1773,7 +1753,7 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![]).await;
+        runtime_mock.expect(vec![]);
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
 
@@ -1830,7 +1810,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~workload-control-loop-receives-workload-states~1]
@@ -1849,7 +1829,7 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![]).await;
+        runtime_mock.expect(vec![]);
 
         tokio::spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
@@ -1879,7 +1859,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
@@ -1910,18 +1890,16 @@ mod tests {
         new_mock_state_checker.panic_if_not_stopped();
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())), // delete operation of the restarted workload
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
-                ),
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID_2.to_string(), Ok(())),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())), // delete operation of the restarted workload
+            RuntimeCall::CreateWorkload(
+                workload_spec.clone(),
+                Some(PIPES_LOCATION.into()),
+                HashMap::default(),
+                Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
+            ),
+            RuntimeCall::DeleteWorkload(WORKLOAD_ID_2.to_string(), Ok(())),
+        ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -1986,7 +1964,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
@@ -2123,14 +2101,12 @@ mod tests {
         ]);
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![RuntimeCall::CreateWorkload(
-                workload_spec.clone(),
-                None,
-                expected_mount_point_mappings.clone(),
-                Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
-            )])
-            .await;
+        runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
+            workload_spec.clone(),
+            None,
+            expected_mount_point_mappings.clone(),
+            Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
+        )]);
 
         let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
         mock_workload_files_creator_context
@@ -2266,14 +2242,12 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![RuntimeCall::CreateWorkload(
-                workload_spec.clone(),
-                None,
-                HashMap::default(),
-                Err(RuntimeError::Unsupported("unsupported error".to_string())),
-            )])
-            .await;
+        runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
+            workload_spec.clone(),
+            None,
+            HashMap::default(),
+            Err(RuntimeError::Unsupported("unsupported error".to_string())),
+        )]);
 
         let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
         mock_workload_files_creator_context
@@ -2346,18 +2320,16 @@ mod tests {
         let instance_name = workload_spec.instance_name.clone();
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![RuntimeCall::CreateWorkload(
-                workload_spec.clone(),
-                Some(PIPES_LOCATION.into()),
-                HashMap::default(),
-                Err(crate::runtime_connectors::RuntimeError::Create(
-                    "some create error".to_string(),
-                )),
-                // We also send a delete command, but as no new workload was generated, there is also no
-                // new ID so no call to the runtime is expected to happen here.
-            )])
-            .await;
+        runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
+            workload_spec.clone(),
+            Some(PIPES_LOCATION.into()),
+            HashMap::default(),
+            Err(crate::runtime_connectors::RuntimeError::Create(
+                "some create error".to_string(),
+            )),
+            // We also send a delete command, but as no new workload was generated, there is also no
+            // new ID so no call to the runtime is expected to happen here.
+        )]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -2413,7 +2385,7 @@ mod tests {
         assert_eq!(received_instance_name.as_ref(), &instance_name);
         assert!(workload_command_receiver2.is_empty());
         assert!(workload_command_receiver2.is_closed());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     #[tokio::test]
@@ -2449,20 +2421,18 @@ mod tests {
 
         let create_runtime_error_msg = "some create error";
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-                RuntimeCall::CreateWorkload(
-                    new_workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Err(crate::runtime_connectors::RuntimeError::Create(
-                        create_runtime_error_msg.to_owned(),
-                    )),
-                ), // We also send a delete command, but as no new workload was generated, there is also no
-                   // new ID so no call to the runtime is expected to happen here.
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+            RuntimeCall::CreateWorkload(
+                new_workload_spec.clone(),
+                Some(PIPES_LOCATION.into()),
+                HashMap::default(),
+                Err(crate::runtime_connectors::RuntimeError::Create(
+                    create_runtime_error_msg.to_owned(),
+                )),
+            ), // We also send a delete command, but as no new workload was generated, there is also no
+               // new ID so no call to the runtime is expected to happen here.
+        ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -2523,7 +2493,7 @@ mod tests {
         assert_eq!(received_instance_name.as_ref(), &new_instance_name);
         assert!(workload_command_receiver2.is_empty());
         assert!(workload_command_receiver2.is_closed());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-retry~1]
@@ -2547,17 +2517,15 @@ mod tests {
         let instance_name = workload_spec.instance_name.clone();
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
-                ),
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::CreateWorkload(
+                workload_spec.clone(),
+                Some(PIPES_LOCATION.into()),
+                HashMap::default(),
+                Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
+            ),
+            RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+        ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -2604,7 +2572,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_empty());
         assert!(workload_command_receiver2.is_closed());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     #[tokio::test]
@@ -2627,12 +2595,10 @@ mod tests {
         let instance_name = workload_spec.instance_name.clone();
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                // We also send a delete command, but as no new workload was generated, there is also no
-                // new ID so no call to the runtime is expected to happen here.
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            // We also send a delete command, but as no new workload was generated, there is also no
+            // new ID so no call to the runtime is expected to happen here.
+        ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -2679,7 +2645,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_empty());
         assert!(workload_command_receiver2.is_closed());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
@@ -2705,19 +2671,17 @@ mod tests {
 
         let mut runtime_mock = MockRuntimeConnector::new();
         let create_runtime_error_msg = "some create error";
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    HashMap::default(),
-                    Err(crate::runtime_connectors::RuntimeError::Create(
-                        create_runtime_error_msg.to_owned(),
-                    )),
-                ), // We also send a delete command, but as no new workload was generated, there is also no
-                   // new ID so no call to the runtime is expected to happen here.
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::CreateWorkload(
+                workload_spec.clone(),
+                Some(PIPES_LOCATION.into()),
+                HashMap::default(),
+                Err(crate::runtime_connectors::RuntimeError::Create(
+                    create_runtime_error_msg.to_owned(),
+                )),
+            ), // We also send a delete command, but as no new workload was generated, there is also no
+               // new ID so no call to the runtime is expected to happen here.
+        ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
         mock_remove_dir.expect().returning(|_| Ok(()));
@@ -2770,6 +2734,266 @@ mod tests {
         assert_eq!(received_instance_name.as_ref(), &instance_name);
         assert!(workload_command_receiver2.is_empty());
         assert!(workload_command_receiver2.is_closed());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
+    }
+
+    #[tokio::test]
+    async fn utest_get_logs_successful() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, _) = WorkloadCommandSender::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock.expect(vec![RuntimeCall::StartLogCollector(
+            LogRequestOptions {
+                follow: true,
+                tail: None,
+                since: None,
+                until: None,
+            },
+            Ok(Box::new(MockLogCollector::new())),
+        )]);
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .workload_id(Some(WORKLOAD_ID.into()))
+            .run_folder(RUN_FOLDER.into())
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
+            .workload_state_sender(state_change_tx)
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        let jh = tokio::spawn(async move {
+            workload_command_sender
+                .start_collecting_logs(LogRequestOptions {
+                    follow: true,
+                    tail: None,
+                    since: None,
+                    until: None,
+                })
+                .await
+                .unwrap();
+        });
+
+        timeout(
+            Duration::from_millis(150),
+            WorkloadControlLoop::run(control_loop_state),
+        )
+        .await
+        .unwrap();
+
+        timeout(Duration::from_millis(100), jh)
+            .await
+            .unwrap()
+            .unwrap();
+        runtime_mock.assert_all_expectations();
+    }
+
+    #[tokio::test]
+    async fn utest_get_logs_fails() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, _) = WorkloadCommandSender::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock.expect(vec![RuntimeCall::StartLogCollector(
+            LogRequestOptions {
+                follow: true,
+                tail: None,
+                since: None,
+                until: None,
+            },
+            Err(RuntimeError::CollectLog("mock".into())),
+        )]);
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .workload_id(Some(WORKLOAD_ID.into()))
+            .run_folder(RUN_FOLDER.into())
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
+            .workload_state_sender(state_change_tx)
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        let jh = tokio::spawn(async move {
+            workload_command_sender
+                .start_collecting_logs(LogRequestOptions {
+                    follow: true,
+                    tail: None,
+                    since: None,
+                    until: None,
+                })
+                .await
+                .unwrap_err();
+        });
+
+        timeout(
+            Duration::from_millis(150),
+            WorkloadControlLoop::run(control_loop_state),
+        )
+        .await
+        .unwrap();
+
+        timeout(Duration::from_millis(100), jh)
+            .await
+            .unwrap()
+            .unwrap();
+        runtime_mock.assert_all_expectations();
+    }
+
+    #[tokio::test]
+    async fn utest_get_logs_no_workload_id_yet() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_command_sender2, _) = WorkloadCommandSender::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let runtime_mock = MockRuntimeConnector::new();
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .run_folder(RUN_FOLDER.into())
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
+            .workload_state_sender(state_change_tx)
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        let jh = tokio::spawn(async move {
+            workload_command_sender
+                .start_collecting_logs(LogRequestOptions {
+                    follow: true,
+                    tail: None,
+                    since: None,
+                    until: None,
+                })
+                .await
+                .unwrap_err();
+        });
+
+        timeout(
+            Duration::from_millis(150),
+            WorkloadControlLoop::run(control_loop_state),
+        )
+        .await
+        .unwrap();
+
+        timeout(Duration::from_millis(100), jh)
+            .await
+            .unwrap()
+            .unwrap();
+        runtime_mock.assert_all_expectations();
+    }
+
+    #[tokio::test]
+    async fn utest_get_logs_cant_send_result() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender2, _) = WorkloadCommandSender::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock.expect(vec![RuntimeCall::StartLogCollector(
+            LogRequestOptions {
+                follow: true,
+                tail: None,
+                since: None,
+                until: None,
+            },
+            Ok(Box::new(MockLogCollector::new())),
+        )]);
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .workload_id(Some(WORKLOAD_ID.into()))
+            .run_folder(RUN_FOLDER.into())
+            .control_interface_path(CONTROL_INTERFACE_PATH.clone())
+            .workload_state_sender(state_change_tx)
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender2)
+            .build()
+            .unwrap();
+
+        let (result_sink, _) = oneshot::channel();
+
+        let jh = tokio::spawn(async move {
+            workload_command_sender
+                .send(WorkloadCommand::StartLogCollector(
+                    LogRequestOptions {
+                        follow: true,
+                        tail: None,
+                        since: None,
+                        until: None,
+                    },
+                    result_sink,
+                ))
+                .await
+                .unwrap();
+        });
+
+        timeout(
+            Duration::from_millis(150),
+            WorkloadControlLoop::run(control_loop_state),
+        )
+        .await
+        .unwrap();
+
+        timeout(Duration::from_millis(100), jh)
+            .await
+            .unwrap()
+            .unwrap();
+        runtime_mock.assert_all_expectations();
     }
 }

@@ -251,21 +251,25 @@ mod tests {
     use crate::test_utils::generate_test_proto_workload_files;
     use std::collections::HashMap;
 
+    use super::{LogsRequest, RequestContent};
+
     mod ank_base {
         pub use api::ank_base::{
             request::RequestContent, CompleteState, CompleteStateRequest, ConfigMappings,
-            Dependencies, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
-            WorkloadMap,
+            Dependencies, LogsRequest, Request, RestartPolicy, State, Tag, Tags,
+            UpdateStateRequest, Workload, WorkloadInstanceName, WorkloadMap,
         };
     }
 
     mod ankaios {
         pub use crate::{
-            commands::{CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
+            commands::{
+                CompleteStateRequest, LogsRequest, Request, RequestContent, UpdateStateRequest,
+            },
             objects::{
                 generate_test_agent_map, generate_test_workload_states_map_with_data, Base64Data,
                 CompleteState, Data, ExecutionState, File, FileContent, RestartPolicy, State,
-                StoredWorkloadSpec, Tag,
+                StoredWorkloadSpec, Tag, WorkloadInstanceName,
             },
         };
     }
@@ -275,6 +279,9 @@ mod tests {
     const FIELD_2: &str = "field_2";
     const AGENT_NAME: &str = "agent_1";
     const WORKLOAD_NAME_1: &str = "workload_name_1";
+    const WORKLOAD_NAME_2: &str = "workload_name_2";
+    const INSTANCE_ID_1: &str = "instance_id_1";
+    const INSTANCE_ID_2: &str = "instance_id_2";
     const RUNTIME: &str = "my_favorite_runtime";
     const RUNTIME_CONFIG: &str = "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n";
     const HASH: &str = "hash_1";
@@ -314,6 +321,74 @@ mod tests {
                 state: complete_state!(ankaios),
                 update_mask: vec![FIELD_1.into(), FIELD_2.into()],
             }))
+        };
+    }
+
+    macro_rules! logs_request {
+        ($expression:ident) => {{
+            $expression::Request {
+                request_id: REQUEST_ID.into(),
+                request_content: $expression::RequestContent::LogsRequest(
+                    $expression::LogsRequest {
+                        workload_names: vec![
+                            workload_instance_name!($expression, 1),
+                            workload_instance_name!($expression, 2),
+                        ],
+                        follow: true.into(),
+                        tail: 10.into(),
+                        since: None,
+                        until: None,
+                    },
+                )
+                .into(),
+            }
+        }};
+    }
+
+    macro_rules! workload_instance_name {
+        (ank_base, $number:expr) => {
+            ank_base::WorkloadInstanceName {
+                agent_name: AGENT_NAME.into(),
+                workload_name: workload_name!($number).into(),
+                id: instance_id!($number).into(),
+            }
+        };
+        (ankaios, $number:expr) => {
+            ankaios::WorkloadInstanceName::new(
+                AGENT_NAME,
+                workload_name!($number),
+                instance_id!($number),
+            )
+        };
+    }
+
+    macro_rules! workload_name {
+        ($number:literal) => {
+            [WORKLOAD_NAME_1, WORKLOAD_NAME_2][$number - 1]
+        };
+    }
+
+    macro_rules! instance_id {
+        ($number:literal) => {
+            [INSTANCE_ID_1, INSTANCE_ID_2][$number - 1]
+        };
+    }
+
+    macro_rules! logs_cancel_request {
+        (ank_base) => {
+            ank_base::Request {
+                request_id: REQUEST_ID.into(),
+                request_content: ank_base::RequestContent::LogsCancelRequest(
+                    api::ank_base::LogsCancelRequest {},
+                )
+                .into(),
+            }
+        };
+        (ankaios) => {
+            ankaios::Request {
+                request_id: REQUEST_ID.into(),
+                request_content: ankaios::RequestContent::LogsCancelRequest,
+            }
         };
     }
 
@@ -567,6 +642,100 @@ mod tests {
             );
 
         assert!(ankaios::Request::try_from(proto_request_complete_state).is_err());
+    }
+
+    #[test]
+    fn utest_converts_from_proto_logs_request() {
+        let proto_logs_request = logs_request!(ank_base);
+        let ankaios_logs_request = logs_request!(ankaios);
+        assert_eq!(
+            ankaios::Request::try_from(proto_logs_request).unwrap(),
+            ankaios_logs_request
+        );
+    }
+
+    trait AsLogsRequest {
+        type LogsRequest;
+        fn as_logs_request(&mut self) -> &mut Self::LogsRequest;
+    }
+
+    impl AsLogsRequest for Option<ank_base::RequestContent> {
+        type LogsRequest = ank_base::LogsRequest;
+
+        fn as_logs_request(&mut self) -> &mut Self::LogsRequest {
+            if let Some(ank_base::RequestContent::LogsRequest(x)) = self {
+                x
+            } else {
+                panic!("Not an LogsRequest")
+            }
+        }
+    }
+
+    impl AsLogsRequest for ankaios::RequestContent {
+        type LogsRequest = ankaios::LogsRequest;
+
+        fn as_logs_request(&mut self) -> &mut ankaios::LogsRequest {
+            if let ankaios::RequestContent::LogsRequest(x) = self {
+                x
+            } else {
+                panic!("Not an LogsRequest")
+            }
+        }
+    }
+
+    #[test]
+    fn utest_converts_from_proto_logs_request_with_no_tail_option() {
+        let mut proto_logs_request = logs_request!(ank_base);
+        proto_logs_request.request_content.as_logs_request().tail = None;
+        let mut ankaios_logs_request = logs_request!(ankaios);
+        ankaios_logs_request.request_content.as_logs_request().tail = -1;
+
+        assert_eq!(
+            ankaios::Request::try_from(proto_logs_request).unwrap(),
+            ankaios_logs_request
+        );
+    }
+
+    #[test]
+    fn utest_converts_to_proto_logs_request() {
+        let proto_logs_request = logs_request!(ank_base);
+        let ankaios_logs_request = logs_request!(ankaios);
+        assert_eq!(
+            ank_base::Request::from(ankaios_logs_request),
+            proto_logs_request
+        );
+    }
+
+    #[test]
+    fn utest_converts_to_proto_logs_request_with_no_tail_optio() {
+        let mut proto_logs_request = logs_request!(ank_base);
+        proto_logs_request.request_content.as_logs_request().tail = None;
+        let mut ankaios_logs_request = logs_request!(ankaios);
+        ankaios_logs_request.request_content.as_logs_request().tail = -1;
+        assert_eq!(
+            ank_base::Request::from(ankaios_logs_request),
+            proto_logs_request
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_logs_cancel_request() {
+        let proto_logs_cancel_request = logs_cancel_request!(ank_base);
+        let ankaios_logs_cancel_request = logs_cancel_request!(ankaios);
+        assert_eq!(
+            ankaios::Request::try_from(proto_logs_cancel_request).unwrap(),
+            ankaios_logs_cancel_request
+        );
+    }
+
+    #[test]
+    fn utest_converts_to_proto_logs_cancel_request() {
+        let proto_logs_cancel_request = logs_cancel_request!(ank_base);
+        let ankaios_logs_cancel_request = logs_cancel_request!(ankaios);
+        assert_eq!(
+            ank_base::Request::from(ankaios_logs_cancel_request),
+            proto_logs_cancel_request
+        );
     }
 
     #[test]

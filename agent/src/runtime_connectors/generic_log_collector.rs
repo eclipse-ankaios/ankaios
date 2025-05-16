@@ -201,7 +201,7 @@ pub mod test {
                 MockReadDataEntry::data("first"),
                 MockReadDataEntry::data(" "),
                 MockReadDataEntry::data(&format!("line\n{LINE_2}\nthird ")),
-                MockReadDataEntry::data("line\n".into()),
+                MockReadDataEntry::data("line\n"),
             ]
             .into(),
         };
