@@ -26,9 +26,13 @@ impl SubscriptionStore {
         self.store.insert(id, Box::new(subscription));
     }
 
-    #[cfg(test)]
-    pub fn delete_subscritption(&mut self, id: &SubscriptionId) {
+    pub fn delete_subscription(&mut self, id: &SubscriptionId) {
         self.store.remove(id);
+    }
+
+    #[cfg(test)]
+    pub fn contains_key(&self, id: &SubscriptionId) -> bool {
+        self.store.contains_key(id)
     }
 }
 
@@ -78,7 +82,7 @@ mod tests {
         assert!(!*element_1_dropped.lock().unwrap());
         assert!(!*element_2_dropped.lock().unwrap());
 
-        subscription_store.delete_subscritption(&ID_2.into());
+        subscription_store.delete_subscription(&ID_2.into());
 
         assert!(!*element_1_dropped.lock().unwrap());
         assert!(*element_2_dropped.lock().unwrap());
