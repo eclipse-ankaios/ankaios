@@ -11,22 +11,41 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+use std::{future::Future, pin::Pin};
+
+use api::ank_base;
+use futures_util::{stream::FuturesUnordered, StreamExt};
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
 
 use common::{
     commands::AgentLoadStatus,
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{CpuUsage, FreeMemory, WorkloadState},
+    objects::{CpuUsage, FreeMemory, WorkloadInstanceName, WorkloadState},
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
+
+#[cfg(test)]
+use tests::spawn;
+#[cfg(not(test))]
+use tokio::spawn;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
-use crate::workload_state::WorkloadStateReceiver;
+use crate::{subscription_store::SubscriptionStore, workload_state::WorkloadStateReceiver};
+
+#[cfg(not(test))]
+use crate::runtime_connectors::log_channel::Receiver;
+#[cfg(test)]
+use tests::MockRuntimeConnectorReceiver as Receiver;
+
+#[cfg(not(test))]
+use crate::runtime_connectors::log_collector_subscription::LogCollectorSubscription;
+#[cfg(test)]
+use tests::MockLogCollectorSubscription as LogCollectorSubscription;
 
 const RESOURCE_MEASUREMENT_INTERVAL_TICK: std::time::Duration = tokio::time::Duration::from_secs(2);
 
@@ -66,6 +85,7 @@ pub struct AgentManager {
     workload_state_receiver: WorkloadStateReceiver,
     workload_state_store: WorkloadStateStore,
     res_monitor: ResourceMonitor,
+    subscription_store: SubscriptionStore,
 }
 
 impl AgentManager {
@@ -84,6 +104,7 @@ impl AgentManager {
             workload_state_receiver,
             workload_state_store: WorkloadStateStore::new(),
             res_monitor: ResourceMonitor::new(),
+            subscription_store: Default::default(),
         }
     }
 
@@ -138,9 +159,9 @@ impl AgentManager {
             }
             FromServer::UpdateWorkload(method_obj) => {
                 log::debug!("Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
-                    self.agent_name,
-                    method_obj.added_workloads,
-                    method_obj.deleted_workloads);
+                            self.agent_name,
+                            method_obj.added_workloads,
+                            method_obj.deleted_workloads);
 
                 // [impl->swdd~agent-handles-update-workload-requests~1]
                 self.runtime_manager
@@ -165,7 +186,7 @@ impl AgentManager {
                     // [impl->swdd~agent-manager-stores-all-workload-states~1]
                     for new_workload_state in new_workload_states {
                         log::debug!("The server reports workload state '{:?}' for the workload '{}' in the agent '{}'", new_workload_state.execution_state,
-                    new_workload_state.instance_name.workload_name(), new_workload_state.instance_name.agent_name());
+                            new_workload_state.instance_name.workload_name(), new_workload_state.instance_name.agent_name());
                         self.workload_state_store
                             .update_workload_state(new_workload_state);
                     }
@@ -193,6 +214,58 @@ impl AgentManager {
                 log::debug!("Agent '{}' received Stop from server", self.agent_name);
                 None
             }
+            FromServer::LogsRequest(request_id, logs_request) => {
+                let (names, log_collectors): (Vec<_>, _) = self
+                    .runtime_manager
+                    .get_logs(logs_request)
+                    .await
+                    .into_iter()
+                    .unzip();
+                let (subscription, receivers) =
+                    LogCollectorSubscription::start_collecting_logs(log_collectors);
+                let receivers = names.into_iter().zip(receivers).collect::<Vec<_>>();
+                self.subscription_store
+                    .add_subscription(request_id.clone(), subscription);
+                let to_server = self.to_server.clone();
+                spawn(async move {
+                    type ContinuableResult = (WorkloadInstanceName, Receiver, Option<Vec<String>>);
+                    let mut futures = FuturesUnordered::from_iter(receivers.into_iter().map(
+                        |mut x| -> Pin<Box<dyn Future<Output = ContinuableResult> + Send>> {
+                            Box::pin(async {
+                                let n = x.1.read_log_lines().await;
+                                (x.0, x.1, n)
+                            })
+                        },
+                    ));
+                    while let Some((workload, mut receiver, log_lines)) = futures.next().await {
+                        log::debug!("Got new log lines: {:?}", log_lines);
+                        if let Some(log_lines) = log_lines {
+                            to_server
+                                .logs_response(
+                                    request_id.clone(),
+                                    ank_base::LogsResponse {
+                                        log_entries: log_lines
+                                            .into_iter()
+                                            .map(|x| ank_base::LogEntry {
+                                                workload_name: Some(workload.clone().into()),
+                                                message: x,
+                                            })
+                                            .collect(),
+                                    },
+                                )
+                                .await
+                                .unwrap();
+                            let x = async move {
+                                let n = receiver.read_log_lines().await;
+                                (workload, receiver, n)
+                            };
+                            futures.push(Box::pin(x));
+                        }
+                    }
+                });
+                Some(())
+            }
+            FromServer::LogsCancelRequest(_logs_cancel_request) => todo!(),
         }
     }
 
@@ -264,10 +337,14 @@ impl AgentManager {
 
 #[cfg(test)]
 mod tests {
-    use core::panic;
+    use std::collections::HashMap;
+    use std::future::Future;
+    use std::sync::Mutex;
+    use std::time::Duration;
 
     use super::RuntimeManager;
     use crate::agent_manager::AgentManager;
+    use crate::runtime_connectors::log_collector::MockLogCollector;
     use crate::workload_state::{
         workload_state_store::{mock_parameter_storage_new_returns, MockWorkloadStateStore},
         WorkloadStateSenderInterface,
@@ -279,7 +356,13 @@ mod tests {
         objects::{generate_test_workload_spec_with_param, ExecutionState},
         to_server_interface::ToServer,
     };
-    use mockall::predicate::eq;
+    use lazy_static::lazy_static;
+    use mockall::mock;
+    use mockall::predicate::{self, eq};
+
+    use tokio::sync::mpsc;
+    use tokio::task::JoinHandle;
+    use tokio::time::timeout;
     use tokio::{join, sync::mpsc::channel};
 
     const BUFFER_SIZE: usize = 20;
@@ -606,5 +689,225 @@ mod tests {
 
         to_manager.stop().await.unwrap();
         assert!(join!(handle).0.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_agent_manager_request_logs() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        reset_spawn_mock();
+
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+
+        mock_parameter_storage_new_returns(mock_wl_state_store);
+
+        let mock_log_collector_1 = MockLogCollector::new();
+        let mock_log_collector_2 = MockLogCollector::new();
+
+        let mut mock_runtime_connector_receiver_1 = MockRuntimeConnectorReceiver::new();
+        let mut mock_runtime_connector_receiver_2 = MockRuntimeConnectorReceiver::new();
+
+        mock_runtime_connector_receiver_1
+            .expect_read_log_lines()
+            .once()
+            .return_once(|| Some(vec!["rec1: line1".into(), "rec1: line2".into()]));
+        mock_runtime_connector_receiver_2
+            .expect_read_log_lines()
+            .once()
+            .return_once(|| Some(vec!["rec2: line1".into()]));
+        mock_runtime_connector_receiver_2
+            .expect_read_log_lines()
+            .once()
+            .return_once(|| None);
+        mock_runtime_connector_receiver_1
+            .expect_read_log_lines()
+            .once()
+            .return_once(|| Some(vec!["rec1: line3".into()]));
+        mock_runtime_connector_receiver_1
+            .expect_read_log_lines()
+            .once()
+            .return_once(|| None);
+        let collecting_logs_context = MockLogCollectorSubscription::start_collecting_logs_context();
+        collecting_logs_context.expect().return_once(|_| {
+            (
+                MockLogCollectorSubscription::new(),
+                vec![
+                    mock_runtime_connector_receiver_1,
+                    mock_runtime_connector_receiver_2,
+                ],
+            )
+        });
+
+        let workload_instance_name_1 = ank_base::WorkloadInstanceName {
+            workload_name: WORKLOAD_1_NAME.into(),
+            agent_name: AGENT_NAME.into(),
+            id: "1234".into(),
+        };
+
+        let workload_instance_name_2 = ank_base::WorkloadInstanceName {
+            workload_name: WORKLOAD_2_NAME.into(),
+            agent_name: AGENT_NAME.into(),
+            id: "1234".into(),
+        };
+
+        let logs_request = ank_base::LogsRequest {
+            workload_names: vec![
+                workload_instance_name_1.clone(),
+                workload_instance_name_2.clone(),
+            ],
+            follow: None,
+            tail: None,
+            since: None,
+            until: None,
+        };
+
+        let mut mock_runtime_manager = RuntimeManager::default();
+        mock_runtime_manager
+            .expect_get_logs()
+            .with(predicate::eq(common::commands::LogsRequest::from(
+                logs_request.clone(),
+            )))
+            .return_once(|_| {
+                vec![
+                    (
+                        workload_instance_name_1.into(),
+                        Box::new(mock_log_collector_1),
+                    ),
+                    (
+                        workload_instance_name_2.into(),
+                        Box::new(mock_log_collector_2),
+                    ),
+                ]
+            });
+
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        let handle = tokio::spawn(async move { agent_manager.start().await });
+
+        to_manager
+            .logs_request(REQUEST_ID.into(), logs_request)
+            .await
+            .unwrap();
+
+        let log_responses = get_log_responses(3, &mut to_server_receiver).await.unwrap();
+
+        assert_eq!(log_responses.len(), 2);
+        assert!(log_responses.contains_key(&(REQUEST_ID.into(), WORKLOAD_1_NAME.into())));
+        assert_eq!(
+            log_responses
+                .get(&(REQUEST_ID.into(), WORKLOAD_1_NAME.into()))
+                .unwrap(),
+            &vec![
+                "rec1: line1".to_string(),
+                "rec1: line2".to_string(),
+                "rec1: line3".to_string(),
+            ]
+        );
+        assert!(log_responses.contains_key(&(REQUEST_ID.into(), WORKLOAD_2_NAME.into())));
+        assert_eq!(
+            log_responses
+                .get(&(REQUEST_ID.into(), WORKLOAD_2_NAME.into()))
+                .unwrap(),
+            &vec!["rec2: line1".to_string(),]
+        );
+        let log_responses = timeout(
+            Duration::from_millis(10),
+            get_log_responses(1, &mut to_server_receiver),
+        )
+        .await;
+        assert!(log_responses.is_err());
+
+        assert!(spawn_mock_task_is_finished());
+        to_manager.stop().await.unwrap();
+        assert!(
+            join!(tokio::time::timeout(Duration::from_millis(1000), handle))
+                .0
+                .is_ok()
+        );
+    }
+
+    async fn get_log_responses(
+        num: usize,
+        to_server: &mut mpsc::Receiver<ToServer>,
+    ) -> Option<HashMap<(String, String), Vec<String>>> {
+        let mut result: HashMap<(String, String), Vec<String>> = HashMap::new();
+        let mut responses = 0;
+        while responses != num {
+            let candidate = to_server.recv().await?;
+            if let ToServer::LogsResponse(request_id, logs_response) = candidate {
+                responses += 1;
+                for entry in logs_response.log_entries {
+                    result
+                        .entry((
+                            request_id.clone(),
+                            entry.workload_name.unwrap().workload_name,
+                        ))
+                        .or_default()
+                        .push(entry.message);
+                }
+            };
+        }
+        Some(result)
+    }
+
+    lazy_static! {
+        static ref SPAWN_JOIN_HANDLE: Mutex<BoxedJoinHandle> = Mutex::new(None);
+    }
+
+    type BoxedJoinHandle = Option<Box<dyn TypelessJoinHandle>>;
+
+    trait TypelessJoinHandle: Send + Sync {
+        fn is_finished(&mut self) -> bool;
+    }
+
+    impl<T: Send> TypelessJoinHandle for JoinHandle<T> {
+        fn is_finished(&mut self) -> bool {
+            JoinHandle::is_finished(self)
+        }
+    }
+
+    pub fn spawn<F>(future: F)
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let jh = tokio::spawn(future);
+        let x = Box::new(jh);
+        SPAWN_JOIN_HANDLE.lock().unwrap().replace(x);
+    }
+
+    pub fn reset_spawn_mock() {
+        SPAWN_JOIN_HANDLE.lock().unwrap().take();
+    }
+
+    pub fn spawn_mock_task_is_finished() -> bool {
+        let jh = SPAWN_JOIN_HANDLE.lock().unwrap().take();
+        match jh {
+            Some(mut jh) => jh.is_finished(),
+            None => panic!("The function spawn was not called."),
+        }
+    }
+
+    mock! {
+        pub LogCollectorSubscription {
+            pub fn start_collecting_logs(log_collectors: Vec<Box<dyn crate::runtime_connectors::log_collector::LogCollector>>) -> (Self, Vec<MockRuntimeConnectorReceiver>);
+        }
+    }
+
+    mock! {
+        pub RuntimeConnectorReceiver {
+            pub async fn read_log_lines(&mut self) -> Option<Vec<String>>;
+        }
     }
 }
