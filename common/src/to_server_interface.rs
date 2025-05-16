@@ -206,11 +206,13 @@ impl ToServerInterface for ToServerSender {
 
 #[cfg(test)]
 mod tests {
+    use api::ank_base::{self, response::ResponseContent, LogEntry, LogsResponse};
+
     use crate::{
         commands::{self, AgentLoadStatus, RequestContent},
         objects::{
             generate_test_workload_spec, generate_test_workload_state, CpuUsage, ExecutionState,
-            FreeMemory,
+            FreeMemory, WorkloadInstanceName,
         },
         test_utils::generate_test_complete_state,
         to_server_interface::{ToServer, ToServerInterface},
@@ -356,5 +358,76 @@ mod tests {
                 request_content
             })
         )
+    }
+
+    #[tokio::test]
+    async fn utest_to_server_send_logs_request() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let logs_request = commands::LogsRequest {
+            workload_names: vec![WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_NAME, "id")],
+            follow: true,
+            tail: 10,
+            since: None,
+            until: None,
+        };
+        let request_content = RequestContent::LogsRequest(logs_request.clone());
+        assert!(tx
+            .logs_request(REQUEST_ID.into(), logs_request)
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::Request(commands::Request {
+                request_id: REQUEST_ID.to_string(),
+                request_content
+            })
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_to_server_send_logs_cancel_request() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let request_content = RequestContent::LogsCancelRequest;
+        assert!(tx.logs_cancel_request(REQUEST_ID.into()).await.is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::Request(commands::Request {
+                request_id: REQUEST_ID.to_string(),
+                request_content
+            })
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_to_server_send_logs_response() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let logs_response = LogsResponse {
+            log_entries: vec![LogEntry {
+                workload_name: Some(ank_base::WorkloadInstanceName {
+                    agent_name: AGENT_NAME.into(),
+                    workload_name: WORKLOAD_NAME.into(),
+                    id: "id".into(),
+                }),
+                message: "message".into(),
+            }],
+        };
+
+        assert!(tx
+            .logs_response(REQUEST_ID.into(), logs_response.clone())
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::LogsResponse(REQUEST_ID.to_string(), logs_response)
+        );
     }
 }

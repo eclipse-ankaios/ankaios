@@ -71,8 +71,7 @@ mod tests {
     use tokio::{self};
 
     use crate::runtime_connectors::{
-        log_collector::{self, MockLogCollector},
-        log_collector_subscription::LogCollectorSubscription,
+        log_collector::MockLogCollector, log_collector_subscription::LogCollectorSubscription,
     };
 
     lazy_static! {
