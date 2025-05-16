@@ -37,7 +37,7 @@ impl InputPipe {
             file: OpenOptions::new()
                 .open_receiver(path)
                 .map(BufReader::new)
-                .ok(), //todo ok or log error
+                .ok(),
         }
     }
 
@@ -89,7 +89,6 @@ impl InputPipe {
             );
         };
 
-        // todo: this is not needed and can be integrated above?
         if let Some(file) = &mut self.file {
             Ok(file)
         } else {
@@ -116,232 +115,172 @@ mockall::mock! {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// #[cfg(test)]
-// mod tests {
-//     use std::{
-//         io::{ErrorKind, Write},
-//         path::Path,
-//         sync::Arc,
-//         time::Duration,
-//     };
+#[cfg(test)]
+mod tests {
+    use std::{io::ErrorKind, time::Duration};
 
-//     use nix::{sys::stat::Mode, unistd::mkfifo};
-//     use tokio::{io::AsyncReadExt, sync::Barrier};
+    use nix::{sys::stat::Mode, unistd::mkfifo};
+    use tokio::io::AsyncWriteExt;
 
-//     const TEST_TIMEOUT: u64 = 50;
+    const TEST_TIMEOUT: u64 = 50;
 
-//     // [utest->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
-//     #[tokio::test(flavor = "multi_thread")]
-//     async fn test_read_with_1byte_varint() {
-//         let tmpdir = tempfile::tempdir().unwrap();
-//         let fifo = tmpdir.path().join("fifo");
-//         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-//         let fifo2 = fifo.clone();
-//         let jh = tokio::spawn(async move {
-//             let mut f = super::ReopenFile::open(&fifo2);
-//             let data = f.read_protobuf_data().await.unwrap();
-//             assert_eq!(data, vec![17]);
-//         });
+    // [utest->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_read_with_1byte_varint() {
+        let tmpdir = tempfile::tempdir().unwrap();
+        let fifo = tmpdir.path().join("fifo");
+        mkfifo(&fifo, Mode::S_IRWXU).unwrap();
+        let mut f = super::InputPipe::open(&fifo);
 
-//         let mut f = std::fs::File::create(&fifo).unwrap();
-//         let v = vec![1, 17];
-//         f.write_all(&v).unwrap();
-//         f.flush().unwrap();
+        let jh = tokio::spawn(async move {
+            let data = f.read_protobuf_data().await.unwrap();
+            assert_eq!(data, vec![17]);
+        });
 
-//         jh.await.unwrap();
-//     }
+        let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+        let v = vec![1, 17];
+        f.write_all(&v).await.unwrap();
+        f.flush().await.unwrap();
 
-//     // [utest->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
-//     #[tokio::test(flavor = "multi_thread")]
-//     async fn test_read_with_2byte_varint() {
-//         let tmpdir = tempfile::tempdir().unwrap();
-//         let fifo = tmpdir.path().join("fifo");
-//         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-//         let fifo2 = fifo.clone();
-//         let jh = tokio::spawn(async move {
-//             let mut f = super::ReopenFile::open(&fifo2);
-//             let data = f.read_protobuf_data().await.unwrap();
-//             assert_eq!(data, vec![17; 128]);
-//         });
+        jh.await.unwrap();
+    }
 
-//         let mut f = std::fs::File::create(&fifo).unwrap();
-//         let mut data = vec![0b10000000, 1];
-//         data.append(&mut vec![17; 128]);
-//         f.write_all(&data).unwrap();
-//         f.flush().unwrap();
+    // [utest->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_read_with_2byte_varint() {
+        let tmpdir = tempfile::tempdir().unwrap();
+        let fifo = tmpdir.path().join("fifo");
+        mkfifo(&fifo, Mode::S_IRWXU).unwrap();
+        let mut f = super::InputPipe::open(&fifo);
 
-//         jh.await.unwrap();
-//     }
+        let jh = tokio::spawn(async move {
+            let data = f.read_protobuf_data().await.unwrap();
+            assert_eq!(data, vec![17; 128]);
+        });
 
-//     #[tokio::test(flavor = "multi_thread")]
-//     async fn test_read_with_too_less_varint() {
-//         let tmpdir = tempfile::tempdir().unwrap();
-//         let fifo = tmpdir.path().join("fifo");
-//         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-//         let fifo2 = fifo.clone();
+        let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+        let mut data = vec![0b10000000, 1];
+        data.append(&mut vec![17; 128]);
+        f.write_all(&data).await.unwrap();
+        f.flush().await.unwrap();
 
-//         let jh = tokio::spawn(async move {
-//             let mut f = super::ReopenFile::open(&fifo2);
-//             let data = f.read_protobuf_data().await.unwrap();
-//             assert_eq!(data, vec![17]);
-//         });
+        jh.await.unwrap();
+    }
 
-//         {
-//             let mut f = std::fs::File::create(&fifo).unwrap();
-//             let data = vec![0b10000000];
-//             f.write_all(&data).unwrap();
-//             f.flush().unwrap();
-//         }
-//         std::thread::sleep(Duration::from_millis(TEST_TIMEOUT));
-//         {
-//             let mut f = std::fs::File::create(&fifo).unwrap();
-//             let data = vec![1, 17];
-//             f.write_all(&data).unwrap();
-//             f.flush().unwrap();
-//         }
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_read_with_too_less_varint() {
+        let tmpdir = tempfile::tempdir().unwrap();
+        let fifo = tmpdir.path().join("fifo");
+        mkfifo(&fifo, Mode::S_IRWXU).unwrap();
+        let mut f = super::InputPipe::open(&fifo);
 
-//         jh.await.unwrap();
-//     }
+        let jh = tokio::spawn(async move {
+            let data = f.read_protobuf_data().await.unwrap();
+            assert_eq!(data, vec![17]);
+        });
 
-//     #[tokio::test(flavor = "multi_thread")]
-//     async fn test_read_with_too_less_data() {
-//         let tmpdir = tempfile::tempdir().unwrap();
-//         let fifo = tmpdir.path().join("fifo");
-//         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-//         let fifo2 = fifo.clone();
+        {
+            let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+            let data = vec![0b10000000];
+            f.write_all(&data).await.unwrap();
+            f.flush().await.unwrap();
+        }
+        std::thread::sleep(Duration::from_millis(TEST_TIMEOUT));
+        {
+            let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+            let data = vec![1, 17];
+            f.write_all(&data).await.unwrap();
+            f.flush().await.unwrap();
+        }
 
-//         let jh = tokio::spawn(async move {
-//             let mut f = super::ReopenFile::open(&fifo2);
-//             let data = f.read_protobuf_data().await.unwrap();
-//             assert_eq!(data, vec![17]);
-//         });
+        jh.await.unwrap();
+    }
 
-//         {
-//             let mut f = std::fs::File::create(&fifo).unwrap();
-//             let data = vec![2, 13];
-//             f.write_all(&data).unwrap();
-//             f.flush().unwrap();
-//         }
-//         std::thread::sleep(Duration::from_millis(TEST_TIMEOUT));
-//         {
-//             let mut f = std::fs::File::create(&fifo).unwrap();
-//             let data = vec![1, 17];
-//             f.write_all(&data).unwrap();
-//             f.flush().unwrap();
-//         }
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_read_with_too_less_data() {
+        let tmpdir = tempfile::tempdir().unwrap();
+        let fifo = tmpdir.path().join("fifo");
+        mkfifo(&fifo, Mode::S_IRWXU).unwrap();
+        let mut f = super::InputPipe::open(&fifo);
 
-//         jh.await.unwrap();
-//     }
+        let jh = tokio::spawn(async move {
+            let data = f.read_protobuf_data().await.unwrap();
+            assert_eq!(data, vec![17]);
+        });
 
-//     #[tokio::test(flavor = "multi_thread")]
-//     async fn test_read_with_incorrect_varint() {
-//         let tmpdir = tempfile::tempdir().unwrap();
-//         let fifo = tmpdir.path().join("fifo");
-//         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-//         let fifo2 = fifo.clone();
+        {
+            let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+            let data = vec![2, 13];
+            f.write_all(&data).await.unwrap();
+            f.flush().await.unwrap();
+        }
+        std::thread::sleep(Duration::from_millis(TEST_TIMEOUT));
+        {
+            let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+            let data = vec![1, 17];
+            f.write_all(&data).await.unwrap();
+            f.flush().await.unwrap();
+        }
 
-//         let jh = tokio::spawn(async move {
-//             let mut f = super::ReopenFile::open(&fifo2);
-//             let data = f.read_protobuf_data().await;
-//             assert!(data.is_err());
-//             assert_eq!(data.unwrap_err().kind(), ErrorKind::InvalidData);
-//         });
+        jh.await.unwrap();
+    }
 
-//         {
-//             let mut f = std::fs::File::create(&fifo).unwrap();
-//             let data = vec![0b10000000; super::ReopenFile::MAX_VARINT_SIZE];
-//             f.write_all(&data).unwrap();
-//             f.flush().unwrap();
-//         }
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_read_with_incorrect_varint() {
+        let tmpdir = tempfile::tempdir().unwrap();
+        let fifo = tmpdir.path().join("fifo");
+        mkfifo(&fifo, Mode::S_IRWXU).unwrap();
+        let mut f = super::InputPipe::open(&fifo);
 
-//         jh.await.unwrap();
-//     }
+        let jh = tokio::spawn(async move {
+            let data = f.read_protobuf_data().await;
+            assert!(data.is_err());
+            assert_eq!(data.unwrap_err().kind(), ErrorKind::InvalidData);
+        });
 
-//     #[tokio::test(flavor = "multi_thread")]
-//     async fn test_read_empty() {
-//         let tmpdir = tempfile::tempdir().unwrap();
-//         let fifo = tmpdir.path().join("fifo");
-//         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-//         let fifo2 = fifo.clone();
-//         let jh = tokio::spawn(async move {
-//             let mut f = super::ReopenFile::open(&fifo2);
-//             let data = f.read_protobuf_data().await.unwrap();
-//             assert_eq!(data, Vec::<u8>::new());
-//         });
+        {
+            let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+            let data = vec![0b10000000; super::InputPipe::MAX_VARINT_SIZE];
+            f.write_all(&data).await.unwrap();
+            f.flush().await.unwrap();
+        }
 
-//         let mut f = std::fs::File::create(&fifo).unwrap();
-//         let v = vec![0];
-//         f.write_all(&v).unwrap();
-//         f.flush().unwrap();
+        jh.await.unwrap();
+    }
 
-//         jh.await.unwrap();
-//     }
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_read_empty() {
+        let tmpdir = tempfile::tempdir().unwrap();
+        let fifo = tmpdir.path().join("fifo");
+        mkfifo(&fifo, Mode::S_IRWXU).unwrap();
+        let mut f = super::InputPipe::open(&fifo);
 
-//     #[tokio::test]
-//     async fn test_read_cannot_open() {
-//         let tmpdir = tempfile::tempdir().unwrap();
-//         let fifo = tmpdir.path().join("fifo");
-//         //This should fail as the file does not exist
-//         let mut f = super::ReopenFile::open(&fifo);
-//         assert!(f.read_protobuf_data().await.is_err());
-//     }
+        let jh = tokio::spawn(async move {
+            let data = f.read_protobuf_data().await.unwrap();
+            assert_eq!(data, Vec::<u8>::new());
+        });
 
-//     #[tokio::test]
-//     async fn test_read_cannot_read() {
-//         let tmpdir = tempfile::tempdir().unwrap();
-//         let mut f = super::ReopenFile::open(tmpdir.path());
-//         assert!(f.read_protobuf_data().await.is_err());
-//     }
+        let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+        let v = vec![0];
+        f.write_all(&v).await.unwrap();
+        f.flush().await.unwrap();
 
-//     #[tokio::test]
-//     async fn test_write_reopen() {
-//         let tmpdir = tempfile::tempdir().unwrap();
-//         let fifo = tmpdir.path().join("fifo");
-//         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-//         let fifo2 = fifo.clone();
+        jh.await.unwrap();
+    }
 
-//         let barrier1 = Arc::new(Barrier::new(2));
-//         let barrier2 = barrier1.clone();
+    #[tokio::test]
+    async fn test_read_cannot_open() {
+        let tmpdir = tempfile::tempdir().unwrap();
+        let fifo = tmpdir.path().join("fifo");
+        //This should fail as the file does not exist
+        let mut f = super::InputPipe::open(&fifo);
+        assert!(f.read_protobuf_data().await.is_err());
+    }
 
-//         let jh = tokio::spawn(async move {
-//             let mut f = super::ReopenFile::create(&fifo2);
-//             barrier1.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
-//             f.write_all(&[1, 2, 3]).await.unwrap();
-//             barrier1.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
-//             f.write_all(&[4, 5, 6, 7, 8]).await.unwrap();
-//         });
-//         {
-//             let mut f = super::File::open(&fifo).await.unwrap();
-//             barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
-//             let mut buf = [0; 64];
-//             let s = f.read(&mut buf).await.unwrap();
-//             assert_eq!(s, 3);
-//             assert_eq!(buf[0..3], vec![1, 2, 3]);
-//         }
-//         {
-//             let mut f = super::File::open(&fifo).await.unwrap();
-//             barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
-//             let mut buf = [0; 64];
-//             let s = f.read(&mut buf).await.unwrap();
-//             assert_eq!(s, 5);
-//             assert_eq!(buf[0..5], vec![4, 5, 6, 7, 8]);
-//         }
-
-//         jh.await.unwrap();
-//     }
-
-//     #[tokio::test]
-//     async fn test_write_empty() {
-//         let mut f = super::ReopenFile::open(Path::new(""));
-//         assert!(f.write_all(&[]).await.is_ok());
-//     }
-
-//     #[tokio::test]
-//     async fn test_write_cannot_open() {
-//         let tmpdir = tempfile::tempdir().unwrap();
-//         let fifo = tmpdir.path().join("fifo");
-//         //This should fail as the file does not exist
-//         let mut f = super::ReopenFile::open(&fifo);
-//         assert!(f.write_all(&[1, 2, 3]).await.is_err());
-//     }
-// }
+    #[tokio::test]
+    async fn test_read_cannot_read() {
+        let tmpdir = tempfile::tempdir().unwrap();
+        let mut f = super::InputPipe::open(tmpdir.path());
+        assert!(f.read_protobuf_data().await.is_err());
+    }
+}
