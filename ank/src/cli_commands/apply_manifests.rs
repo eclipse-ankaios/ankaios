@@ -624,7 +624,7 @@ mod tests {
     }
 
     //[utest->swdd~cli-apply-send-update-state~1]
-    // [utest->swdd~cli-watches-workloads~1]
+    // [utest->swdd~cli-watches-workloads-on-updates~1]
     #[tokio::test]
     async fn utest_apply_manifests_delete_mode_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -711,7 +711,7 @@ mod tests {
     }
 
     //[utest->swdd~cli-apply-send-update-state~1]
-    // [utest->swdd~cli-watches-workloads~1]
+    // [utest->swdd~cli-watches-workloads-on-updates~1]
     #[tokio::test]
     async fn utest_apply_manifests_workloads_updated_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
