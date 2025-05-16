@@ -33,6 +33,7 @@ impl SubscriptionStore {
     #[cfg(test)]
     pub fn contains_key(&self, id: &SubscriptionId) -> bool {
         self.store.contains_key(id)
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
