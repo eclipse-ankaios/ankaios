@@ -14,7 +14,7 @@ A detailed overview of the self-service please have a look into the [self-servic
 If a configuration needs to be changed the process is the following:
 
 1. Fork the [.eclipsefdn](https://github.com/eclipse-ankaios/.eclipsefdn) repository.
-2. Do the configuration changes (Use the [Eclipse playground](https://otterdog.eclipse.org/organizations/eclipse-ankaios/playground/) for trying out the available settings).
+2. Do the configuration changes (Use the [Eclipse playground](https://otterdog.eclipse.org/organizations/eclipse-ankaios/playground) for trying out the available settings).
 3. Open a PR pointing from your fork's branch to the [.eclipsefdn](https://github.com/eclipse-ankaios/.eclipsefdn) repository.
 4. Make sure that a review is requested from: Ankaios project committer, eclipsefdn-releng, eclipsefdn-security.
 5. After the changes were approved by the reviewers, a member of Eclipse Foundation IT staff will merge the PR and applies the new settings by using the [otterdog cli](https://otterdog.readthedocs.io/en/latest/).
