@@ -77,7 +77,6 @@ plugins:
       ignore_pages:
         - reference/_ankaios.proto.md
       raise_error_excludes:
-        503: ['https://otterdog.eclipse.org/organizations/eclipse-ankaios/playground/']
         404: ['https://crates.io/crates/symphony']
 
 extra:
