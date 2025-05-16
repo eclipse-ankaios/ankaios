@@ -22,6 +22,8 @@ use tokio::{
     net::unix::pipe::{OpenOptions, Sender},
 };
 
+const AGENT_RECONNECT_INTERVAL: u64 = 100;
+
 #[derive(Debug)]
 pub struct OutputPipe {
     path: PathBuf,
@@ -45,6 +47,8 @@ impl OutputPipe {
                 Ok(()) => return Ok(()),
                 Err(err) if err.kind() == ErrorKind::BrokenPipe => {
                     self.file = None;
+                    log::debug!("Broken pipe - the receiver is gone. Waiting for 'AGENT_RECONNECT_INTERVAL'ms before trying again.");
+                    tokio::time::sleep(std::time::Duration::from_millis(AGENT_RECONNECT_INTERVAL)).await;
                 }
                 Err(err) => return Err(err),
             }
