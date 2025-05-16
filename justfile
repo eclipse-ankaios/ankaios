@@ -12,7 +12,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-all: check-test-images check-licenses clippy test stest build-release
+vendor_dir := "vendor"
+config := ".cargo/config.toml"
+
+all: check-test-images check-licenses check-advisories check-copyright-headers clippy test stest build-release
 
 # Perform debug build
 build:
@@ -26,6 +29,10 @@ clean:
     cargo clean
     ./tools/dev_scripts/ankaios-clean
     rm -rf build
+    rm -rf {{vendor_dir}}
+    # Revert changes for vendored sources
+    git checkout -- {{config}}
+    rm -rf dist
 
 # Check licenses of dependencies
 check-licenses:
@@ -69,3 +76,29 @@ coverage:
 trace-requirements report="build/req/req_tracing_report.html":
     mkdir -p $(dirname "{{ report }}")
     oft trace $(find . -type d \( -name "src" -o -name "doc" -o -name "tests" \) -not -path './doc') -a swdd,impl,utest,itest,stest -o html -f "{{ report }}" || true
+
+_dist:
+    mkdir -p dist
+
+# Vendor all dependencies and create source archive
+vendor: _dist
+    #!/bin/sh -e
+    cargo vendor {{vendor_dir}}
+    if ! grep vendored-sources {{config}}; then
+      echo '\n[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "{{vendor_dir}}"' >> {{config}};
+    fi
+    if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+        # remove the leading 'v' from the tag
+        VERSION=$(expr substr "$GITHUB_REF_NAME" 2 100)
+        SOURCE_ARCHIVE=dist/ankaios-vendored-source-${VERSION}.tar.gz
+        SOURCE_ARCHIVE_BASE=ankaios-${VERSION}
+    else
+        SOURCE_ARCHIVE=dist/ankaios-vendored-source.tar.gz
+        SOURCE_ARCHIVE_BASE=ankaios
+    fi
+    # Create a source archive with the vendored dependencies, the source code and the modified
+    # .cargo/config.toml file using the folder structure ankaios[-<version>]/*
+    # Note: The order is important in the next line. --exclude only affects
+    #       items mentioned after it. So we can include .cargo/config.toml
+    #       while excluding the rest of the folder.
+    tar -czf ${SOURCE_ARCHIVE} --transform "s,^,${SOURCE_ARCHIVE_BASE}/," .cargo/config.toml {{vendor_dir}} --exclude=.cargo --exclude-vcs --exclude-vcs-ignores .

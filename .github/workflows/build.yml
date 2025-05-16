@@ -16,14 +16,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  vendor:
+    name: Vendor dependencies
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.3
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Vendor all dependencies locally
+        run: just vendor
+      - uses: actions/upload-artifact@v4.3.3
+        with:
+          name: vendored-sources
+          path: dist/ankaios-vendored-source*.tar.gz
+
   build_and_system_tests_linux_amd64:
     name: Build and run system tests Linux amd64
+    if: ${{ always() }}
+    needs: vendor
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.3
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
+      - name: Use vendored source for release builds
+        uses: ./.github/actions/use-vendored-source
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - name: Build debug
         run: cargo build
       - name: Prepare system tests
@@ -49,12 +69,17 @@ jobs:
 
   unit_tests_and_code_checks_linux_amd64:
     name: Run unit tests Linux amd64
+    if: ${{ always() }}
+    needs: vendor
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.3
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
+      - name: Use vendored source for release builds
+        uses: ./.github/actions/use-vendored-source
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - name: Run unit tests
         run: just utest
       - uses: actions/upload-artifact@v4.3.3
@@ -89,12 +114,17 @@ jobs:
 
   code_coverage_linux_amd64:
     name: Create code coverage report
+    if: ${{ always() }}
+    needs: vendor
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.3
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
+      - name: Use vendored source for release builds
+        uses: ./.github/actions/use-vendored-source
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - name: Create code coverage html report
         run: |
           rustup component add llvm-tools-preview
@@ -107,12 +137,17 @@ jobs:
 
   build_linux_amd64_debian_package:
     name: Build Linux amd64 debian package
+    if: ${{ always() }}
+    needs: vendor
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.3
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
+      - name: Use vendored source for release builds
+        uses: ./.github/actions/use-vendored-source
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - name: Build linux-amd64 release-mode
         run: |
           cargo build --release
@@ -138,12 +173,17 @@ jobs:
     # if arm64 variants will be released we can switch to an arm64 image and save the longer built time for cross platform build
     # and in addition, tests for arm64 can be enabled in this job, too
     name: Build Linux arm64 debian package
+    if: ${{ always() }}
+    needs: vendor
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.3
       options: --user root
     steps:
       - uses: actions/checkout@v4.1.1
+      - name: Use vendored source for release builds
+        uses: ./.github/actions/use-vendored-source
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
 
       - name: Build linux-arm64 release-mode
         run: |
@@ -165,12 +205,17 @@ jobs:
 
   requirements:
     name: Build requirements tracing
+    if: ${{ always() }}
+    needs: vendor
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.3
       options: --user root
     steps:
       - uses: actions/checkout@v4.1.1
+      - name: Use vendored source for release builds
+        uses: ./.github/actions/use-vendored-source
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
       - run: |
           just trace-requirements dist/req_tracing_report.html
       - uses: actions/upload-artifact@v4.3.3

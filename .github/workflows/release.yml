@@ -60,6 +60,11 @@ jobs:
         with:
           name: robot-tests-result
           path: dist/test-results/robot
+      - name: Download vendored source
+        uses: actions/download-artifact@v4.1.7
+        with:
+          name: vendored-sources
+          path: dist/
       - name: Package release artifacts
         run: tools/create_release.sh
       - name: Upload release artifacts
@@ -80,7 +85,8 @@ jobs:
           linux-amd64/ankaios-linux-amd64.tar.gz.sha512sum.txt \
           linux-arm64/ankaios-linux-arm64.tar.gz \
           linux-arm64/ankaios-linux-arm64.tar.gz.sha512sum.txt \
-          licenses.html
+          licenses.html \
+          ankaios-vendored-source*.tar.gz
       - name: Collect quality artifacts
         id: collect_quality_artifacts
         uses: eclipse-dash/quevee@770b5e569ebbd4ff3603ee2ed4e17a4791fc028f # no release yet
