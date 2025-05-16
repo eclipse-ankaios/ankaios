@@ -26,7 +26,7 @@ impl SubscriptionStore {
         self.store.insert(id, Box::new(subscription));
     }
 
-    pub fn delete_subscritption(&mut self, id: &SubscriptionId) {
+    pub fn delete_subscription(&mut self, id: &SubscriptionId) {
         self.store.remove(id);
     }
 
