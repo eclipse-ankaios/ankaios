@@ -251,8 +251,6 @@ mod tests {
     use crate::test_utils::generate_test_proto_workload_files;
     use std::collections::HashMap;
 
-    use super::{LogsRequest, RequestContent};
-
     mod ank_base {
         pub use api::ank_base::{
             request::RequestContent, CompleteState, CompleteStateRequest, ConfigMappings,

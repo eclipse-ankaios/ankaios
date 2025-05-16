@@ -206,7 +206,7 @@ impl ToServerInterface for ToServerSender {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, response::ResponseContent, LogEntry, LogsResponse};
+    use api::ank_base::{self, LogEntry, LogsResponse};
 
     use crate::{
         commands::{self, AgentLoadStatus, RequestContent},
