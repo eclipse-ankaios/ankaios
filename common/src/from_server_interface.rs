@@ -229,8 +229,6 @@ impl FromServerInterface for FromServerSender {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::AgentAttributes;
-
     use super::ank_base;
     use crate::{
         commands,
