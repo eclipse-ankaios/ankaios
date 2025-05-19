@@ -30,7 +30,7 @@ use server_config::{ServerConfig, DEFAULT_SERVER_CONFIG_FILE_PATH};
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 
-fn handle_sever_config(config_path: &Option<String>) -> ServerConfig {
+fn handle_sever_config(config_path: &Option<String>, default_path: &str) -> ServerConfig {
     match config_path {
         Some(config_path) => {
             let config_path = PathBuf::from(config_path);
@@ -41,7 +41,7 @@ fn handle_sever_config(config_path: &Option<String>) -> ServerConfig {
             ServerConfig::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
         }
         None => {
-            let default_path = PathBuf::from(DEFAULT_SERVER_CONFIG_FILE_PATH);
+            let default_path = PathBuf::from(default_path);
             if !default_path.try_exists().unwrap_or(false) {
                 log::debug!("No config file found at default path '{}'. Using cli arguments and environment variables only.", default_path.display());
                 ServerConfig::default()
@@ -64,7 +64,7 @@ async fn main() {
     let args = cli::parse();
 
     // [impl->swdd~server-loads-config-file~1]
-    let mut server_config = handle_sever_config(&args.config_path);
+    let mut server_config = handle_sever_config(&args.config_path, DEFAULT_SERVER_CONFIG_FILE_PATH);
 
     server_config.update_with_args(&args);
 
@@ -153,10 +153,8 @@ mod tests {
         handle_sever_config, server_config::DEFAULT_SERVER_CONFIG_FILE_PATH, ServerConfig,
     };
     use std::{
-        fs::{self, File},
         io::Write,
         net::SocketAddr,
-        path::PathBuf,
     };
     use tempfile::NamedTempFile;
 
@@ -167,19 +165,16 @@ mod tests {
     insecure = true
     #";
 
-    mockall::lazy_static! {
-        pub static ref CONTEXT_SYNC: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    }
-
     #[test]
     fn utest_handle_server_config_valid_config() {
         let mut tmp_config = NamedTempFile::new().expect("could not create temp file");
         write!(tmp_config, "{}", VALID_SERVER_CONFIG_CONTENT)
             .expect("could not write to temp file");
 
-        let server_config = handle_sever_config(&Some(
-            tmp_config.into_temp_path().to_str().unwrap().to_string(),
-        ));
+        let server_config = handle_sever_config(
+            &Some(tmp_config.into_temp_path().to_str().unwrap().to_string()),
+            DEFAULT_SERVER_CONFIG_FILE_PATH,
+        );
 
         assert_eq!(
             server_config.startup_manifest,
@@ -194,16 +189,10 @@ mod tests {
 
     #[test]
     fn utest_handle_server_config_default_path() {
-        let _guard = CONTEXT_SYNC.lock().unwrap();
-
-        if let Some(parent) = PathBuf::from(DEFAULT_SERVER_CONFIG_FILE_PATH).parent() {
-            fs::create_dir_all(parent).expect("Failed to create directories");
-        }
-        let mut file =
-            File::create(DEFAULT_SERVER_CONFIG_FILE_PATH).expect("Failed to create file");
+        let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
         writeln!(file, "{}", VALID_SERVER_CONFIG_CONTENT).expect("Failed to write to file");
 
-        let server_config = handle_sever_config(&None);
+        let server_config = handle_sever_config(&None, file.path().to_str().unwrap());
 
         assert_eq!(
             server_config.startup_manifest,
@@ -214,18 +203,11 @@ mod tests {
             "127.0.0.1:25551".parse::<SocketAddr>().unwrap()
         );
         assert_eq!(server_config.insecure, Some(true));
-
-        assert!(fs::remove_file(DEFAULT_SERVER_CONFIG_FILE_PATH).is_ok());
     }
 
     #[test]
     fn utest_handle_server_config_default() {
-        // The guard here is a quick workaround for the sync issues resulting from using real files
-        // on the filesystem instead of mocking the calls to try_exists(). More information on a
-        // proper fix is available here: https://github.com/eclipse-ankaios/ankaios/issues/480
-        let _guard = CONTEXT_SYNC.lock().unwrap();
-
-        let server_config = handle_sever_config(&None);
+        let server_config = handle_sever_config(&None, "/a/very/invalid/path/to/config/file");
 
         assert_eq!(server_config, ServerConfig::default());
     }

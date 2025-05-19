@@ -57,7 +57,7 @@ mod tests {
 
 #### Test Execution and Reports
 
-Unit test cases are executed manually by the developer during implementation phase and later automatically in [CI builds](https://woodpecker.conoa.ebcloud.eu/conoa/ankaios). Unit test and coverage reports are generated and stored automatically by the CI build system.
+Unit test cases are executed manually by the developer during implementation phase and later automatically in CI builds. Unit test and coverage reports are generated and stored automatically by the CI build system.
 If unit test case fails before code is merged to main branch (merge verification), the merge is not allowed until the issue is fixed. If unit test case fails after the code is merged to main branch, it is reported via email and fixed via internal Jira ticket reported by the developer.
 
 Regression testing is done by the [CI build system](https://github.com/eclipse-ankaios/ankaios/actions).

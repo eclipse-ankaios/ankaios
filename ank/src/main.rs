@@ -30,7 +30,7 @@ mod log;
 pub mod test_helper;
 
 // [impl->swdd~cli-loads-config-file~1]
-fn handle_ank_config(config_path: &Option<String>) -> AnkConfig {
+fn handle_ank_config(config_path: &Option<String>, default_path: &str) -> AnkConfig {
     match config_path {
         Some(config_path) => {
             let config_path = PathBuf::from(config_path);
@@ -41,8 +41,7 @@ fn handle_ank_config(config_path: &Option<String>) -> AnkConfig {
             AnkConfig::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
         }
         None => {
-            let default_path =
-                PathBuf::from(DEFAULT_ANK_CONFIG_FILE_PATH.as_ref() as &std::path::Path);
+            let default_path = PathBuf::from(default_path.as_ref() as &std::path::Path);
             if !default_path.try_exists().unwrap_or(false) {
                 output_debug!("No config file found at default path '{}'. Using cli arguments and environment variables only.", default_path.display());
                 AnkConfig::default()
@@ -63,7 +62,7 @@ async fn main() {
     let args = cli::parse();
 
     // [impl->swdd~cli-loads-config-file~1]
-    let mut ank_config = handle_ank_config(&args.config_path);
+    let mut ank_config = handle_ank_config(&args.config_path, &DEFAULT_ANK_CONFIG_FILE_PATH);
     ank_config.update_with_args(&args);
 
     let cli_name = "ank-cli";
@@ -261,11 +260,7 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use crate::{ank_config::DEFAULT_ANK_CONFIG_FILE_PATH, handle_ank_config, AnkConfig};
-    use std::{
-        fs::{self, File},
-        io::Write,
-        path::PathBuf,
-    };
+    use std::io::Write;
     use tempfile::NamedTempFile;
 
     const VALID_ANK_CONFIG_CONTENT: &str = r"#
@@ -274,50 +269,39 @@ mod tests {
     [default]
     #";
 
-    mockall::lazy_static! {
-        pub static ref CONTEXT_SYNC: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    }
-
     #[test]
     fn utest_handle_ank_config_valid_config() {
         let mut tmp_config_file = NamedTempFile::new().expect("could not create temp file");
         write!(tmp_config_file, "{}", VALID_ANK_CONFIG_CONTENT)
             .expect("could not write to temp file");
 
-        let ank_config = handle_ank_config(&Some(
-            tmp_config_file
-                .into_temp_path()
-                .to_str()
-                .unwrap()
-                .to_string(),
-        ));
+        let ank_config = handle_ank_config(
+            &Some(
+                tmp_config_file
+                    .into_temp_path()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            ),
+            &DEFAULT_ANK_CONFIG_FILE_PATH,
+        );
 
         assert_eq!(ank_config.response_timeout, 2500);
     }
 
     #[test]
     fn utest_handle_ank_config_default_path() {
-        let _guard = CONTEXT_SYNC.lock().unwrap();
-
-        if let Some(parent) = PathBuf::from(DEFAULT_ANK_CONFIG_FILE_PATH).parent() {
-            fs::create_dir_all(parent).expect("Failed to create directories");
-        }
-        let mut file = File::create(DEFAULT_ANK_CONFIG_FILE_PATH).expect("Failed to create file");
+        let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
         writeln!(file, "{}", VALID_ANK_CONFIG_CONTENT).expect("Failed to write to file");
 
-        let ank_config = handle_ank_config(&None);
+        let ank_config = handle_ank_config(&None, file.path().to_str().unwrap());
 
         assert_eq!(ank_config.response_timeout, 2500);
-        assert!(fs::remove_file(DEFAULT_ANK_CONFIG_FILE_PATH).is_ok());
     }
 
     #[test]
     fn utest_handle_ank_config_default() {
-        // The guard here is a quick workaround for the sync issues resulting from using real files
-        // on the filesystem instead of mocking the calls to try_exists(). More information on a
-        // proper fix is available here: https://github.com/eclipse-ankaios/ankaios/issues/480
-        let _guard = CONTEXT_SYNC.lock().unwrap();
-        let ank_config = handle_ank_config(&None);
+        let ank_config = handle_ank_config(&None, "/a/very/invalid/path/to/config/file");
 
         assert_eq!(ank_config, AnkConfig::default());
     }

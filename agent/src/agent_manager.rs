@@ -350,7 +350,6 @@ mod tests {
         WorkloadStateSenderInterface,
     };
     use api::ank_base;
-    use async_trait::async_trait;
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::FromServerInterface,
@@ -362,7 +361,7 @@ mod tests {
     use mockall::predicate::{self, eq};
 
     use tokio::sync::mpsc;
-    use tokio::task::{JoinError, JoinHandle};
+    use tokio::task::JoinHandle;
     use tokio::time::timeout;
     use tokio::{join, sync::mpsc::channel};
 

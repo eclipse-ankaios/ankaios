@@ -69,7 +69,7 @@ mod tests {
     use tokio::{self};
 
     use crate::runtime_connectors::{
-        log_collector::{self, MockLogCollector, NextLinesResult},
+        log_collector::{MockLogCollector, NextLinesResult},
         log_collector_subscription::LogCollectorSubscription,
     };
 

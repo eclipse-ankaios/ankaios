@@ -26,11 +26,7 @@ use toml::from_str;
 
 const CONFIG_VERSION: &str = "v1";
 
-#[cfg(not(test))]
 pub const DEFAULT_AGENT_CONFIG_FILE_PATH: &str = "/etc/ankaios/ank-agent.conf";
-
-#[cfg(test)]
-pub const DEFAULT_AGENT_CONFIG_FILE_PATH: &str = "/tmp/ankaios/ank-agent.conf";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ConversionErrors {

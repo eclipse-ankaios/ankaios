@@ -69,7 +69,11 @@ impl From<LogsRequest> for LogRequestOptions {
     fn from(value: LogsRequest) -> Self {
         Self {
             follow: value.follow,
-            tail: Some(value.tail),
+            tail: if value.tail < 0 {
+                None
+            } else {
+                Some(value.tail)
+            },
             since: value.since,
             until: value.until,
         }
@@ -174,12 +178,11 @@ pub mod test {
     use std::{
         collections::{HashMap, VecDeque},
         path::PathBuf,
-        sync::Arc,
+        sync::{Arc, Mutex},
     };
 
     use async_trait::async_trait;
     use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
-    use tokio::sync::Mutex;
 
     use crate::{
         runtime_connectors::{
@@ -257,6 +260,10 @@ pub mod test {
             Result<StubStateChecker, RuntimeError>,
         ),
         DeleteWorkload(String, Result<(), RuntimeError>),
+        StartLogCollector(
+            LogRequestOptions,
+            Result<Box<dyn LogCollector + Send>, RuntimeError>,
+        ),
     }
 
     #[derive(Debug)]
@@ -298,16 +305,16 @@ pub mod test {
             }
         }
 
-        pub async fn expect(&mut self, calls: Vec<CallType>) {
+        pub fn expect(&mut self, calls: Vec<CallType>) {
             self.call_checker
                 .lock()
-                .await
+                .unwrap()
                 .expected_calls
                 .append(&mut VecDeque::from(calls));
         }
 
-        async fn get_expected_call(&self) -> CallType {
-            let mut call_checker = self.call_checker.lock().await;
+        fn get_expected_call(&self) -> CallType {
+            let mut call_checker = self.call_checker.lock().unwrap();
             match call_checker.expected_calls.pop_front() {
                 Some(call) => call,
                 None => {
@@ -317,12 +324,12 @@ pub mod test {
             }
         }
 
-        pub async fn unexpected_call(&self) {
-            self.call_checker.lock().await.unexpected_call_count += 1;
+        pub fn unexpected_call(&self) {
+            self.call_checker.lock().unwrap().unexpected_call_count += 1;
         }
 
-        pub async fn assert_all_expectations(self) {
-            let call_checker = self.call_checker.lock().await;
+        pub fn assert_all_expectations(self) {
+            let call_checker = self.call_checker.lock().unwrap();
 
             assert!(
                 call_checker.expected_calls.is_empty(),
@@ -362,14 +369,14 @@ pub mod test {
             &self,
             agent_name: &AgentName,
         ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
-            match self.get_expected_call().await {
+            match self.get_expected_call() {
                 RuntimeCall::GetReusableWorkloads(expected_agent_name, result)
                     if expected_agent_name == *agent_name =>
                 {
                     return result;
                 }
                 expected_call => {
-                    self.unexpected_call().await;
+                    self.unexpected_call();
                     panic!("Unexpected get_reusable_running_workloads call. Expected: '{expected_call:?}'\n\nGot: {agent_name:?}");
                 }
             }
@@ -383,7 +390,7 @@ pub mod test {
             _update_state_tx: WorkloadStateSender,
             host_workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
         ) -> Result<(String, StubStateChecker), RuntimeError> {
-            match self.get_expected_call().await {
+            match self.get_expected_call() {
                 RuntimeCall::CreateWorkload(
                     expected_runtime_workload_config,
                     expected_control_interface_path,
@@ -397,7 +404,7 @@ pub mod test {
                     return result;
                 }
                 expected_call => {
-                    self.unexpected_call().await;
+                    self.unexpected_call();
                     panic!("Unexpected create_workload call. Expected: '{expected_call:?}'\n\nGot: {runtime_workload_config:?}, {control_interface_path:?}");
                 }
             }
@@ -407,14 +414,14 @@ pub mod test {
             &self,
             instance_name: &WorkloadInstanceName,
         ) -> Result<String, RuntimeError> {
-            match self.get_expected_call().await {
+            match self.get_expected_call() {
                 RuntimeCall::GetWorkloadId(expected_instance_name, result)
                     if expected_instance_name == *instance_name =>
                 {
                     return result;
                 }
                 expected_call => {
-                    self.unexpected_call().await;
+                    self.unexpected_call();
                     panic!("Unexpected get_workload_id call. Expected: '{expected_call:?}' \n\nGot: {instance_name:?}");
                 }
             }
@@ -426,7 +433,7 @@ pub mod test {
             runtime_workload_config: WorkloadSpec,
             update_state_tx: WorkloadStateSender,
         ) -> Result<StubStateChecker, RuntimeError> {
-            match self.get_expected_call().await {
+            match self.get_expected_call() {
                 RuntimeCall::StartChecker(
                     expected_workload_id,
                     expected_runtime_workload_config,
@@ -439,7 +446,7 @@ pub mod test {
                     return result;
                 }
                 expected_call => {
-                    self.unexpected_call().await;
+                    self.unexpected_call();
                     panic!("Unexpected start_checker call. Expected: '{expected_call:?}' \n\nGot: {workload_id:?}, {runtime_workload_config:?}, {update_state_tx:?}");
                 }
             }
@@ -447,21 +454,31 @@ pub mod test {
 
         fn get_logs(
             &self,
-            _workload_id: String,
-            _options: &LogRequestOptions,
+            workload_id: String,
+            options: &LogRequestOptions,
         ) -> Result<Box<dyn LogCollector + Send>, RuntimeError> {
-            todo!()
+            match self.get_expected_call() {
+                RuntimeCall::StartLogCollector(expected_options, result)
+                    if expected_options == *options =>
+                {
+                    result
+                }
+                expected_call => {
+                    self.unexpected_call();
+                    panic!("Unexpected get_logs call. Expected: '{expected_call:?}'\n\nGot: {workload_id:?}, {options:?}");
+                }
+            }
         }
 
         async fn delete_workload(&self, workload_id: &String) -> Result<(), RuntimeError> {
-            match self.get_expected_call().await {
+            match self.get_expected_call() {
                 RuntimeCall::DeleteWorkload(expected_workload_id, result)
                     if expected_workload_id == *workload_id =>
                 {
                     return result;
                 }
                 expected_call => {
-                    self.unexpected_call().await;
+                    self.unexpected_call();
                     panic!("Unexpected delete_workload call. Expected: '{expected_call:?}'\n\nGot: {workload_id:?}");
                 }
             }
