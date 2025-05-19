@@ -644,7 +644,7 @@ impl RuntimeManager {
             };
 
             match workload_instance
-                .start_log_collector(log_request_options.clone())
+                .start_collecting_logs(log_request_options.clone())
                 .await
             {
                 Ok(log_collector) => res.push((workload, log_collector)),

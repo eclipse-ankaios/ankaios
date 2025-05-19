@@ -12,33 +12,57 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::ops::DerefMut;
-
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
-use tokio::select;
+use tokio::{io::AsyncRead, select};
 
 use super::log_channel;
 
-#[cfg_attr(test, automock)]
-#[async_trait]
-pub trait LogCollector: std::fmt::Debug + Send {
-    async fn next_lines(&mut self) -> Option<Vec<String>>;
+#[derive(Clone)]
+pub enum NextLinesResult {
+    Stdout(Vec<String>),
+    Stderr(Vec<String>),
+    EoF,
 }
 
-pub async fn run(
-    mut log_collector: impl DerefMut<Target: LogCollector>,
-    mut sender: log_channel::Sender,
-) {
+#[cfg_attr(test, automock)]
+#[async_trait]
+pub trait LogCollector: std::fmt::Debug + Send + 'static {
+    async fn next_lines(&mut self) -> NextLinesResult;
+}
+
+pub trait StreamTrait: AsyncRead + std::fmt::Debug + Send + Unpin {}
+impl<T: AsyncRead + std::fmt::Debug + Send + Unpin> StreamTrait for T {}
+
+pub trait GetOutputStreams {
+    type OutputStream: StreamTrait;
+    type ErrStream: StreamTrait;
+    fn get_output_stream(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>);
+}
+
+pub async fn run(mut log_collector: Box<dyn LogCollector>, mut sender: log_channel::Sender) {
     loop {
         select! {
             lines = log_collector.next_lines() => {
-                let Some(lines) = lines else {break};
-                let res = sender.send_log_lines(lines).await;
-                if let Err(err) = res {
-                    log::debug!("Could not forward log lines: {:?}", err.0);
-                    break;
+                match lines{
+                    NextLinesResult::Stdout(lines) => {
+                        let res = sender.send_log_lines(lines).await;
+                        if let Err(err) = res {
+                            log::warn!("Could not forward stdout log lines: {:?}", err.0);
+                            break;
+                        }
+                    }
+                    NextLinesResult::Stderr(lines) => {
+                        let res = sender.send_log_lines(lines).await;
+                        if let Err(err) = res {
+                            log::warn!("Could not forward stderr log lines: {:?}", err.0);
+                            break;
+                        }
+                    }
+                    NextLinesResult::EoF => {
+                        break;
+                    }
                 }
             }
             _ = sender.wait_for_receiver_dropped() => {
@@ -65,7 +89,7 @@ mod tests {
 
     use crate::runtime_connectors::log_channel;
 
-    use super::LogCollector;
+    use super::{LogCollector, NextLinesResult};
 
     const LINES_1: [&str; 3] = ["line 1 1", "line 1 2", "line 1 3"];
     const LINES_2: [&str; 2] = ["line 2 1", "line 2 2"];
@@ -99,14 +123,21 @@ mod tests {
 
     #[async_trait]
     impl LogCollector for MockLogCollector {
-        async fn next_lines(&mut self) -> Option<Vec<String>> {
+        async fn next_lines(&mut self) -> NextLinesResult {
             self.semaphore.acquire().await.unwrap().forget();
             if self.limited {
-                self.mock_data.pop_front()
+                match self.mock_data.pop_front(){
+                    Some(res) => {
+                        NextLinesResult::Stdout(res)
+                    }
+                    None => {
+                        NextLinesResult::EoF
+                    }
+                }
             } else {
-                let res = self.mock_data.pop_front()?;
+                let res = self.mock_data.pop_front().unwrap();
                 self.mock_data.push_back(res.clone());
-                Some(res)
+                NextLinesResult::Stdout(res)
             }
         }
     }

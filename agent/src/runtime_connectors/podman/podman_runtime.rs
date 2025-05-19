@@ -27,6 +27,7 @@ use crate::{
         log_collector::LogCollector, podman_cli::PodmanStartConfig,
         runtime_connector::LogRequestOptions, ReusableWorkloadState, RuntimeConnector,
         RuntimeError, RuntimeStateGetter, StateChecker,
+        generic_log_collector::GenericLogCollector,
     },
     workload_state::WorkloadStateSender,
 };
@@ -280,7 +281,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         options: &LogRequestOptions,
     ) -> Result<Box<dyn LogCollector + Send>, RuntimeError> {
         let x = super::podman_log_collector::PodmanLogCollector::new(&workload_id, options);
-        let log_collector = super::super::generic_log_collector::GenericLogCollector::new(x);
+        let log_collector = GenericLogCollector::new(x);
         Ok(Box::new(log_collector))
     }
 
