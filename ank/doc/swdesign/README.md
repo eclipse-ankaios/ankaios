@@ -1081,6 +1081,24 @@ Needs:
 - utest
 - stest
 
+### `ank logs`
+
+#### CLI provides a function to output logs of a workload
+`swdd~cli-provides-workload-logs~1`
+
+Status: approved
+
+The Ankaios CLI shall provide a function to output the logs of a workload.
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
 ### Handling other message while waiting for response
 
 ![Store unexpected messages](plantuml/seq_store_missed_messages.svg)
