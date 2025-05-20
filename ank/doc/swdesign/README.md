@@ -1090,6 +1090,9 @@ Status: approved
 
 The Ankaios CLI shall provide a function to output the logs of multiple workloads.
 
+Comments:
+The user specifies the workloads by their workload names as required argument.
+
 Tags:
 - Cli
 - CliCommands
