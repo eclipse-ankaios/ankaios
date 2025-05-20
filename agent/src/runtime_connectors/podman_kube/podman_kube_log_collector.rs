@@ -12,10 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use async_trait::async_trait;
-use std::pin::Pin;
 use std::process::Stdio;
-use tokio::io::AsyncRead;
 use tokio::process::{Child, ChildStderr, ChildStdout, Command};
 
 use super::super::log_collector::GetOutputStreams;

@@ -12,7 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::pin::Pin;
 use std::process::Stdio;
 
 #[cfg(test)]
@@ -24,7 +23,7 @@ use tokio::process::{Child, Command};
 
 use crate::runtime_connectors::runtime_connector::LogRequestOptions;
 
-use super::super::log_collector::{StreamTrait, GetOutputStreams};
+use super::super::log_collector::{GetOutputStreams, StreamTrait};
 use super::PodmanWorkloadId;
 
 #[derive(Debug)]
@@ -110,17 +109,20 @@ impl GetOutputStreams for PodmanLogCollector {
         {
             if let Some(child) = &mut self.child {
                 return (
-                    child.stdout.take().map(|stdout| Box::new(stdout) as Box<dyn StreamTrait>),
-                    child.stderr.take().map(|stderr| Box::new(stderr) as Box<dyn StreamTrait>),
+                    child
+                        .stdout
+                        .take()
+                        .map(|stdout| Box::new(stdout) as Box<dyn StreamTrait>),
+                    child
+                        .stderr
+                        .take()
+                        .map(|stderr| Box::new(stderr) as Box<dyn StreamTrait>),
                 );
             }
             (None, None)
         }
         #[cfg(test)]
-        return (
-            self.stdout.take(),
-            self.stderr.take(),
-        );
+        return (self.stdout.take(), self.stderr.take());
     }
 }
 
@@ -152,7 +154,7 @@ mod tests {
 
     #[derive(Debug)]
     pub struct MockChild {
-        pub stdout: Option<Empty>,
+        pub _stdout: Option<Empty>,
         cmd: String,
         args: Vec<String>,
         stdout_option: Option<std::process::Stdio>,
@@ -203,7 +205,7 @@ mod tests {
         pub(crate) fn spawn(&mut self) -> Result<MockChild, String> {
             if *CAN_SPAWN.lock().unwrap() {
                 Ok(MockChild {
-                    stdout: None,
+                    _stdout: None,
                     cmd: self.cmd.clone(),
                     args: self.args.clone(),
                     stdout_option: self.stdout.take(),
@@ -234,7 +236,7 @@ mod tests {
         assert!(matches!(
             &log_collector.child,
             Some(MockChild {
-                stdout: _,
+                _stdout: _,
                 cmd,
                 args,
                 stdout_option: Some(_),
@@ -263,7 +265,7 @@ mod tests {
         assert!(matches!(
             &log_collector.child,
             Some(MockChild {
-                stdout: _,
+                _stdout: _,
                 cmd,
                 args,
                 stdout_option: Some(_),

@@ -179,12 +179,12 @@ pub mod test {
     const LINE_5: &str = "fifth line";
 
     #[derive(Debug)]
-    pub struct MockRead {
-        pub data: VecDeque<MockReadDataEntry>,
+    pub(crate) struct MockRead {
+        pub(crate) data: VecDeque<MockReadDataEntry>,
     }
 
     #[derive(Debug)]
-    enum MockReadDataEntry {
+    pub(crate) enum MockReadDataEntry {
         Data(Vec<u8>),
         Error(std::io::Error),
     }
