@@ -1104,7 +1104,7 @@ Needs:
 
 Status: approved
 
-When the user invokes the Ankaios CLI to output logs for a specific workloads, the Ankaios CLI shall:
+When the user invokes the Ankaios CLI to output logs for specific workloads, the Ankaios CLI shall:
 * request the logs from the Ankaios server by sending a `LogsRequest` with the options provided by the user
 * output the logs of the workload according to the provided options
 
