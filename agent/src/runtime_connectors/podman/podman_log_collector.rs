@@ -151,7 +151,7 @@ mod tests {
 
     #[derive(Debug)]
     pub struct MockChild {
-        pub stdout: Option<Empty>,
+        pub _stdout: Option<Empty>,
         cmd: String,
         args: Vec<String>,
         stdout_option: Option<std::process::Stdio>,
@@ -202,7 +202,7 @@ mod tests {
         pub(crate) fn spawn(&mut self) -> Result<MockChild, String> {
             if *CAN_SPAWN.lock().unwrap() {
                 Ok(MockChild {
-                    stdout: None,
+                    _stdout: None,
                     cmd: self.cmd.clone(),
                     args: self.args.clone(),
                     stdout_option: self.stdout.take(),
@@ -233,7 +233,7 @@ mod tests {
         assert!(matches!(
             &log_collector.child,
             Some(MockChild {
-                stdout: _,
+                _stdout: _,
                 cmd,
                 args,
                 stdout_option: Some(_),
@@ -265,7 +265,7 @@ mod tests {
         assert!(matches!(
             &log_collector.child,
             Some(MockChild {
-                stdout: _,
+                _stdout: _,
                 cmd,
                 args,
                 stdout_option: Some(_),
