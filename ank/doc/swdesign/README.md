@@ -1088,7 +1088,7 @@ Needs:
 
 Status: approved
 
-The Ankaios CLI shall provide a function to output the logs of a workload.
+The Ankaios CLI shall provide a function to output the logs of multiple workloads.
 
 Tags:
 - Cli
@@ -1104,7 +1104,7 @@ Needs:
 
 Status: approved
 
-When the user invokes the Ankaios CLI to output logs for a specific workload, the Ankaios CLI shall:
+When the user invokes the Ankaios CLI to output logs for a specific workloads, the Ankaios CLI shall:
 * request the logs from the Ankaios server by sending a `LogsRequest` with the options provided by the user
 * output the logs of the workload according to the provided options
 
@@ -1120,7 +1120,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios CLI outputs logs and the user terminates the program, the Ankaios CLI shall send a `LogsCancelRequest` to the Ankaios server to stop the log collection.
+When the Ankaios CLI outputs logs and the user terminates the program, the Ankaios CLI shall send a `LogsCancelRequest` to the Ankaios server to stop the log collection for the initial requested workloads.
 
 Tags:
 - CliCommands
