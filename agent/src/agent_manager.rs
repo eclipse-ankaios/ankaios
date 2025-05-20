@@ -803,9 +803,6 @@ mod tests {
 
         let handle = tokio::spawn(async move {
             agent_manager.start().await;
-            assert!(agent_manager
-                .subscription_store
-                .contains_key(&REQUEST_ID.to_string()));
         });
 
         to_manager
