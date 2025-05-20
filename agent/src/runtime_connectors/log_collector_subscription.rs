@@ -12,8 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::ops::DerefMut;
-
 #[cfg(test)]
 use tests::{spawn, JoinHandle};
 #[cfg(not(test))]
@@ -30,7 +28,7 @@ pub struct LogCollectorSubscription {
 
 impl LogCollectorSubscription {
     pub fn start_collecting_logs(
-        log_collectors: Vec<impl DerefMut<Target: LogCollector> + Send + 'static>,
+        log_collectors: Vec<Box<dyn LogCollector + 'static>>,
     ) -> (Self, Vec<log_channel::Receiver>) {
         let (join_handles, receivers) = log_collectors
             .into_iter()
@@ -71,7 +69,8 @@ mod tests {
     use tokio::{self};
 
     use crate::runtime_connectors::{
-        log_collector::MockLogCollector, log_collector_subscription::LogCollectorSubscription,
+        log_collector::{MockLogCollector, NextLinesResult},
+        log_collector_subscription::LogCollectorSubscription,
     };
 
     lazy_static! {
@@ -168,9 +167,12 @@ mod tests {
             log_collector
                 .expect_next_lines()
                 .once()
-                .return_once(move || Some(line_package));
+                .return_once(move || NextLinesResult::Stdout(line_package));
         }
-        log_collector.expect_next_lines().once().return_const(None);
+        log_collector
+            .expect_next_lines()
+            .once()
+            .return_const(NextLinesResult::EoF);
         log_collector
     }
 

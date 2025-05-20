@@ -12,8 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::pin::Pin;
 use std::process::Stdio;
+
 #[cfg(test)]
 use tests::MockChild as Child;
 #[cfg(test)]
@@ -21,20 +21,23 @@ use tests::MockCommand as Command;
 #[cfg(not(test))]
 use tokio::process::{Child, Command};
 
-use tokio::io::AsyncRead;
-
 use crate::runtime_connectors::runtime_connector::LogRequestOptions;
 
+use super::super::log_collector::{GetOutputStreams, StreamTrait};
 use super::PodmanWorkloadId;
 
 #[derive(Debug)]
 pub struct PodmanLogCollector {
     child: Option<Child>,
+    #[cfg(test)]
+    pub stdout: Option<Box<dyn StreamTrait>>,
+    #[cfg(test)]
+    pub stderr: Option<Box<dyn StreamTrait>>,
 }
 
 impl PodmanLogCollector {
     pub fn new(workload_id: &PodmanWorkloadId, options: &LogRequestOptions) -> Self {
-        let mut args = Vec::with_capacity(8);
+        let mut args = Vec::with_capacity(9);
         args.push("logs");
         if options.follow {
             args.push("-f")
@@ -57,7 +60,7 @@ impl PodmanLogCollector {
         let cmd = Command::new("podman")
             .args(args)
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::piped())
             .spawn();
         let cmd = match cmd {
             Ok(cmd) => Some(cmd),
@@ -66,28 +69,24 @@ impl PodmanLogCollector {
                 None
             }
         };
-        Self { child: cmd }
-    }
-}
-
-impl AsyncRead for PodmanLogCollector {
-    fn poll_read(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> std::task::Poll<std::io::Result<()>> {
-        match &mut self.child {
-            Some(child) => {
-                if let Some(stdout) = child.stdout.as_mut() {
-                    let x = Pin::new(stdout);
-                    x.poll_read(cx, buf)
-                } else {
-                    log::warn!("Could not access stdout of log collecting service.");
-                    std::task::Poll::Ready(std::io::Result::Ok(()))
-                }
-            }
-            None => std::task::Poll::Ready(std::io::Result::Ok(())),
+        #[cfg(not(test))]
+        return Self { child: cmd };
+        #[cfg(test)]
+        Self {
+            child: cmd,
+            stdout: None,
+            stderr: None,
         }
+    }
+
+    #[cfg(test)]
+    pub fn set_stdout(&mut self, stdout: Option<Box<dyn StreamTrait>>) {
+        self.stdout = stdout;
+    }
+
+    #[cfg(test)]
+    pub fn set_stderr(&mut self, stderr: Option<Box<dyn StreamTrait>>) {
+        self.stderr = stderr;
     }
 }
 
@@ -98,6 +97,32 @@ impl Drop for PodmanLogCollector {
                 log::warn!("Could not stop log collection: '{}'", err);
             }
         }
+    }
+}
+
+impl GetOutputStreams for PodmanLogCollector {
+    type OutputStream = Box<dyn StreamTrait>;
+    type ErrStream = Box<dyn StreamTrait>;
+
+    fn get_output_stream(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>) {
+        #[cfg(not(test))]
+        {
+            if let Some(child) = &mut self.child {
+                return (
+                    child
+                        .stdout
+                        .take()
+                        .map(|stdout| Box::new(stdout) as Box<dyn StreamTrait>),
+                    child
+                        .stderr
+                        .take()
+                        .map(|stderr| Box::new(stderr) as Box<dyn StreamTrait>),
+                );
+            }
+            (None, None)
+        }
+        #[cfg(test)]
+        return (self.stdout.take(), self.stderr.take());
     }
 }
 
@@ -129,7 +154,7 @@ mod tests {
 
     #[derive(Debug)]
     pub struct MockChild {
-        pub stdout: Option<Empty>,
+        pub _stdout: Option<Empty>,
         cmd: String,
         args: Vec<String>,
         stdout_option: Option<std::process::Stdio>,
@@ -180,7 +205,7 @@ mod tests {
         pub(crate) fn spawn(&mut self) -> Result<MockChild, String> {
             if *CAN_SPAWN.lock().unwrap() {
                 Ok(MockChild {
-                    stdout: None,
+                    _stdout: None,
                     cmd: self.cmd.clone(),
                     args: self.args.clone(),
                     stdout_option: self.stdout.take(),
@@ -211,7 +236,7 @@ mod tests {
         assert!(matches!(
             &log_collector.child,
             Some(MockChild {
-                stdout: _,
+                _stdout: _,
                 cmd,
                 args,
                 stdout_option: Some(_),
@@ -240,7 +265,7 @@ mod tests {
         assert!(matches!(
             &log_collector.child,
             Some(MockChild {
-                stdout: _,
+                _stdout: _,
                 cmd,
                 args,
                 stdout_option: Some(_),
