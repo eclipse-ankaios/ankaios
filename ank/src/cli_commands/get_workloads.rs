@@ -11,7 +11,10 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::{cli_error::CliError, output_debug, output_update};
+use crate::{cli_error::CliError, output_debug};
+
+#[cfg(not(test))]
+use crate::output_update;
 
 use super::cli_table::CliTable;
 use super::workload_table_row::WorkloadTableRow;
@@ -19,6 +22,13 @@ use super::{CliCommands, WorkloadInfos};
 use common::commands::UpdateWorkloadState;
 
 use std::collections::BTreeMap;
+#[cfg(test)]
+lazy_static! {
+    pub static ref TEST_TABLE_OUTPUT_DATA: Arc<Mutex<BTreeMap<String, WorkloadTableRow>>> =
+        Arc::new(Mutex::new(BTreeMap::new()));
+}
+
+
 
 impl CliCommands {
     // [impl->swdd~cli-provides-list-of-workloads~1]
@@ -141,12 +151,30 @@ impl CliCommands {
     }
 }
 
+#[cfg(test)]
+use {
+    mockall::lazy_static,
+    std::sync::{Arc, Mutex},
+};
+
+
+
 fn update_table(table_data: &BTreeMap<String, WorkloadTableRow>) {
-    let rows: Vec<&WorkloadTableRow> = table_data.values().collect();
-    let table = CliTable::new(&rows)
+    #[cfg(not(test))]
+    {
+        let rows: Vec<&WorkloadTableRow> = table_data.values().collect();
+        let table = CliTable::new(&rows)
         .table_with_wrapped_column_to_remaining_terminal_width(WorkloadTableRow::ADDITIONAL_INFO_POS)
         .unwrap_or_else(|_| CliTable::new(&rows).create_default_table());
-    output_update!("{}", table);
+        output_update!("{}", table);
+    }
+
+    #[cfg(test)]
+    {
+        let mut test_out = TEST_TABLE_OUTPUT_DATA.lock().unwrap();
+        *test_out = table_data.clone();
+
+    }
 }
 
 // [impl->swdd~cli-shall-filter-list-of-workloads~1]
@@ -186,17 +214,24 @@ fn check_workload_filters(
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use api::ank_base;
     use common::{
+        commands::UpdateWorkloadState,
         objects::{
             self, generate_test_workload_spec_with_param,
             generate_test_workload_states_map_with_data, ExecutionState,
         },
         test_utils,
     };
-    use mockall::predicate::eq;
-
-    use crate::cli_commands::{server_connection::MockServerConnection, CliCommands};
+    use mockall::{predicate::eq, Sequence};
+    use crate::cli_commands::{
+        get_workloads::TEST_TABLE_OUTPUT_DATA,
+        server_connection::{MockServerConnection, ServerConnectionError},
+        workload_table_row::WorkloadTableRow,
+        CliCommands,
+    };
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
@@ -451,4 +486,187 @@ mod tests {
 
         assert_eq!(cmd_text.unwrap(), expected_table_output);
     }
+
+
+    #[tokio::test]
+    async fn utest_watch_workloads_addition() {
+        // [utest->swdd~cli-get-workloads-with-watch~1]
+        let initial_wl = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "name1".to_string(),
+            "runtime".to_string(),
+        );
+        let new_wl = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "name2".to_string(),
+            "runtime".to_string(),
+        );
+        let initial_key = initial_wl.instance_name.to_string();
+
+        let initial_state = test_utils::generate_test_complete_state(vec![initial_wl.clone()]);
+        let updated_state =
+            test_utils::generate_test_complete_state(vec![initial_wl.clone(), new_wl.clone()]);
+
+        let new_workload = objects::WorkloadState {
+            instance_name: new_wl.clone().instance_name,
+            execution_state: ExecutionState::running(),
+        };
+        let update_event = UpdateWorkloadState {
+            workload_states: vec![new_workload],
+        };
+
+        let mut seq = Sequence::new();
+        let mut mock_server = MockServerConnection::default();
+
+        mock_server
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .times(1)
+            .in_sequence(&mut seq)
+            .return_once(move |_| Ok((ank_base::CompleteState::from(initial_state)).into()));
+
+        mock_server
+            .expect_read_next_update_workload_state()
+            .times(1)
+            .in_sequence(&mut seq)
+            .return_once(move || {
+                let table = TEST_TABLE_OUTPUT_DATA.lock().unwrap();
+                assert_eq!(table.len(), 1);
+                assert!(table.contains_key(&initial_key));
+                Ok(update_event)
+            });
+
+        mock_server
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .times(1)
+            .in_sequence(&mut seq)
+            .return_once(move |_| Ok((ank_base::CompleteState::from(updated_state)).into()));
+
+        mock_server
+            .expect_read_next_update_workload_state()
+            .times(1)
+            .in_sequence(&mut seq)
+            .return_once(|| Err(ServerConnectionError::ExecutionError("Stop".into())));
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server,
+        };
+
+        let result = cmd
+            .watch_workloads(Some("agent_A".to_string()), None, vec![])
+            .await;
+        assert!(result.is_err());
+
+        let table = TEST_TABLE_OUTPUT_DATA.lock().unwrap().clone();
+
+        let mut expected_table = BTreeMap::new();
+        expected_table.insert(
+            initial_wl.instance_name.to_string(),
+            WorkloadTableRow::new(
+                initial_wl.instance_name.workload_name(),
+                initial_wl.instance_name.agent_name(),
+                initial_wl.runtime.clone(),
+                ExecutionState::running().to_string(),
+                String::new(),
+            ),
+        );
+        expected_table.insert(
+            new_wl.instance_name.to_string(),
+            WorkloadTableRow::new(
+                new_wl.instance_name.workload_name(),
+                new_wl.instance_name.agent_name(),
+                new_wl.runtime.clone(),
+                ExecutionState::running().to_string(),
+                String::new(),
+            ),
+        );
+        assert_eq!(table, expected_table);
+    }
+
+    #[tokio::test]
+    async fn utest_watch_workloads_removal() {
+        // [utest->swdd~cli-get-workloads-with-watch~1]
+        let wl1 = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "name1".to_string(),
+            "runtime".to_string(),
+        );
+        let wl2 = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "name2".to_string(),
+            "runtime".to_string(),
+        );
+        let key_wl1 = wl1.instance_name.to_string();
+        let key_wl2 = wl2.instance_name.to_string();
+
+        let initial_state =
+            test_utils::generate_test_complete_state(vec![wl1.clone(), wl2.clone()]);
+
+        let removed_state = objects::WorkloadState {
+            instance_name: wl2.clone().instance_name,
+            execution_state: ExecutionState::removed(),
+        };
+        let update_event = UpdateWorkloadState {
+            workload_states: vec![removed_state],
+        };
+
+        let mut seq = Sequence::new();
+        let mut mock_server = MockServerConnection::default();
+
+        mock_server
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .times(1)
+            .in_sequence(&mut seq)
+            .return_once(move |_| Ok((ank_base::CompleteState::from(initial_state)).into()));
+
+        mock_server
+            .expect_read_next_update_workload_state()
+            .times(1)
+            .in_sequence(&mut seq)
+            .return_once(move || {
+                let table = TEST_TABLE_OUTPUT_DATA.lock().unwrap();
+                assert_eq!(table.len(), 2);
+                assert!(table.contains_key(&key_wl1));
+                assert!(table.contains_key(&key_wl2));
+                Ok(update_event)
+            });
+
+        mock_server
+            .expect_read_next_update_workload_state()
+            .times(1)
+            .in_sequence(&mut seq)
+            .return_once(|| Err(ServerConnectionError::ExecutionError("Stop".into())));
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server,
+        };
+
+        let result = cmd
+            .watch_workloads(Some("agent_A".to_string()), None, vec![])
+            .await;
+        assert!(result.is_err());
+
+        let table = TEST_TABLE_OUTPUT_DATA.lock().unwrap().clone();
+
+        let mut expected_table = BTreeMap::new();
+        expected_table.insert(
+            wl1.instance_name.to_string(),
+            WorkloadTableRow::new(
+                wl1.instance_name.workload_name(),
+                wl1.instance_name.agent_name(),
+                wl1.runtime.clone(),
+                ExecutionState::running().to_string(),
+                String::new(),
+            ),
+        );
+
+        assert_eq!(table, expected_table);
+    }
+
 }
