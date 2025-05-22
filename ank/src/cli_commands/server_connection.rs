@@ -11,14 +11,12 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-
 use std::collections::BTreeSet;
 use std::{mem::take, time::Duration};
-use tokio::signal;
 
 use crate::cli::LogsArgs;
 use crate::filtered_complete_state::FilteredCompleteState;
-use crate::{output_and_error, output_debug};
+use crate::{cli_signals, output_and_error, output_debug};
 use api::ank_base::{self, LogEntry};
 use common::commands::LogsRequest;
 use common::communications_client::CommunicationsClient;
@@ -247,11 +245,12 @@ impl ServerConnection {
 
         loop {
             tokio::select! {
-                _ = signal::ctrl_c() => {
-                    self.to_server.logs_cancel_request(request_id.clone()).await.map_err(|err| {
-                        ServerConnectionError::ExecutionError(format!("Failed to cancel log request: {err}"))
-                    })?;
-                    output_debug!("LogsCancelRequest sent");
+                _ = cli_signals::wait_for_signals() => {
+                    self.to_server
+                        .logs_cancel_request(request_id.clone()).await
+                        .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
+
+                    output_debug!("Sent LogsCancelRequest after receiving signal to stop.");
                     break Ok(());
                 }
                 server_message = self.from_server.recv() => {
