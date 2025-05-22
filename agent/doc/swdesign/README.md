@@ -676,6 +676,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### RuntimeManager stores Workload in the list of running workloads
 `swdd~agent-stores-running-workload~1`
