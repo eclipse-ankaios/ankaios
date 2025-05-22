@@ -12,7 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashSet;
+use std::collections::BTreeSet;
+use std::collections::HashMap;
 
 use common::objects::{WorkloadInstanceName, WorkloadState};
 
@@ -22,7 +23,7 @@ use crate::cli_error::CliError;
 use super::CliCommands;
 
 impl CliCommands {
-    pub async fn follow_logs(&mut self, args: LogsArgs) -> Result<(), CliError> {
+    pub async fn get_logs_blocking(&mut self, args: LogsArgs) -> Result<(), CliError> {
         let workload_instance_names = self
             .workload_names_to_instance_names(args.workload_name.clone())
             .await?;
@@ -37,25 +38,10 @@ impl CliCommands {
             })
     }
 
-    pub async fn fetch_logs(&mut self, args: LogsArgs) -> Result<(), CliError> {
-        let workload_instance_names = self
-            .workload_names_to_instance_names(args.workload_name.clone())
-            .await?;
-        self.server_connection
-            .get_logs(workload_instance_names, args)
-            .await
-            .map_err(|e| {
-                CliError::ExecutionError(format!(
-                    "Failed to get logs for workload instances: '{:?}'",
-                    e
-                ))
-            })
-    }
-
     async fn workload_names_to_instance_names(
         &mut self,
         workload_names: Vec<String>,
-    ) -> Result<Vec<WorkloadInstanceName>, CliError> {
+    ) -> Result<BTreeSet<WorkloadInstanceName>, CliError> {
         let filter_mask_workload_states = ["workloadStates".to_string()];
         let complete_state = self
             .server_connection
@@ -63,20 +49,22 @@ impl CliCommands {
             .await?;
 
         if let Some(wl_states) = complete_state.workload_states {
-            let available_instance_names: HashSet<WorkloadInstanceName> =
+            let available_instance_names: HashMap<String, WorkloadInstanceName> =
                 Vec::<WorkloadState>::from(wl_states)
                     .into_iter()
-                    .map(|wl_state| wl_state.instance_name)
+                    .map(|wl_state| {
+                        (
+                            wl_state.instance_name.workload_name().to_owned(),
+                            wl_state.instance_name,
+                        )
+                    })
                     .collect();
 
             Ok(workload_names
                 .into_iter()
-                .fold(vec![], |mut acc, workload_name| {
-                    if let Some(instance_name) = available_instance_names
-                        .iter()
-                        .find(|name| name.workload_name().eq(&workload_name))
-                    {
-                        acc.push(instance_name.clone());
+                .fold(BTreeSet::new(), |mut acc, workload_name| {
+                    if let Some(instance_name) = available_instance_names.get(&workload_name) {
+                        acc.insert(instance_name.clone());
                     }
                     acc
                 }))
