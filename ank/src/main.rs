@@ -18,6 +18,7 @@ use std::path::PathBuf;
 mod ank_config;
 mod cli;
 mod cli_commands;
+mod cli_signals;
 use ank_config::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
 use cli_commands::CliCommands;
 use common::std_extensions::GracefulExitResult;
