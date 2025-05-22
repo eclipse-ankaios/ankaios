@@ -14,11 +14,14 @@
 
 use std::{mem::take, time::Duration};
 
+use crate::cli::LogsArgs;
 use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
-use api::ank_base;
+use api::ank_base::{self, LogEntry};
+use common::commands::LogsRequest;
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
+use common::objects::WorkloadInstanceName;
 use common::to_server_interface::ToServer;
 use common::{
     commands::{CompleteStateRequest, UpdateWorkloadState},
@@ -219,6 +222,86 @@ impl ServerConnection {
     pub fn take_missed_from_server_messages(&mut self) -> Vec<FromServer> {
         take(&mut self.missed_from_server_messages)
     }
+
+    pub async fn stream_logs(
+        &mut self,
+        instance_names: Vec<WorkloadInstanceName>,
+        args: LogsArgs,
+    ) -> Result<(), ServerConnectionError> {
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let logs_request = LogsRequest {
+            workload_names: instance_names,
+            follow: args.follow,
+            tail: args.tail,
+            since: args.since,
+            until: args.until,
+        };
+
+        self.to_server
+            .logs_request(request_id.clone(), logs_request)
+            .await
+            .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
+
+        while let Some(server_message) = self.from_server.recv().await {
+            if let Some(logs_response) = Self::select_log_response(&request_id, server_message)? {
+                output_logs(logs_response.log_entries);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn get_logs(
+        &mut self,
+        instance_names: Vec<WorkloadInstanceName>,
+        args: LogsArgs,
+    ) -> Result<(), ServerConnectionError> {
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let logs_request = LogsRequest {
+            workload_names: instance_names,
+            follow: args.follow,
+            tail: args.tail,
+            since: args.since,
+            until: args.until,
+        };
+
+        self.to_server
+            .logs_request(request_id.clone(), logs_request)
+            .await
+            .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
+
+        while let Some(_server_message) = self.from_server.recv().await {
+            todo!(); // output until LogStop message
+        }
+
+        Ok(())
+    }
+
+    fn select_log_response(
+        request_id: &String,
+        server_message: FromServer,
+    ) -> Result<Option<ank_base::LogsResponse>, ServerConnectionError> {
+        match server_message {
+            FromServer::Response(ank_base::Response {
+                request_id: received_request_id,
+                response_content:
+                    Some(ank_base::response::ResponseContent::LogsResponse(logs_response)),
+            }) if &received_request_id == request_id => Ok(Some(logs_response)),
+            FromServer::Response(ank_base::Response {
+                request_id: received_request_id,
+                response_content: Some(ank_base::response::ResponseContent::Error(error)),
+            }) if &received_request_id == request_id => Err(ServerConnectionError::ExecutionError(
+                format!("Error streaming logs: '{}'", error.message),
+            )),
+            _ => Ok(None),
+        }
+    }
+}
+
+fn output_logs(log_entries: Vec<LogEntry>) {
+    log_entries.iter().for_each(|log_entry| {
+        println!("{}", log_entry.message);
+    });
 }
 
 #[derive(Debug)]

@@ -245,6 +245,17 @@ async fn main() {
                 output_and_error!("{}", err);
             }
         }
+        cli::Commands::Logs(logs_args) => {
+            if logs_args.follow {
+                cmd.follow_logs(logs_args).await.unwrap_or_else(|err| {
+                    output_and_error!("Failed to follow logs: '{}'", err);
+                });
+            } else {
+                cmd.fetch_logs(logs_args).await.unwrap_or_else(|err| {
+                    output_and_error!("Failed to get logs: '{}'", err);
+                });
+            }
+        }
     }
     cmd.shut_down().await;
 }
