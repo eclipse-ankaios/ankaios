@@ -158,23 +158,19 @@ use {
 };
 
 
-
+#[cfg(test)]
 fn update_table(table_data: &BTreeMap<String, WorkloadTableRow>) {
-    #[cfg(not(test))]
-    {
+        let mut test_out = TEST_TABLE_OUTPUT_DATA.lock().unwrap();
+        *test_out = table_data.clone();
+}
+
+#[cfg(not(test))]
+fn update_table(table_data: &BTreeMap<String, WorkloadTableRow>) {
         let rows: Vec<&WorkloadTableRow> = table_data.values().collect();
         let table = CliTable::new(&rows)
         .table_with_wrapped_column_to_remaining_terminal_width(WorkloadTableRow::ADDITIONAL_INFO_POS)
         .unwrap_or_else(|_| CliTable::new(&rows).create_default_table());
         output_update!("{}", table);
-    }
-
-    #[cfg(test)]
-    {
-        let mut test_out = TEST_TABLE_OUTPUT_DATA.lock().unwrap();
-        *test_out = table_data.clone();
-
-    }
 }
 
 // [impl->swdd~cli-shall-filter-list-of-workloads~1]
@@ -487,10 +483,9 @@ mod tests {
         assert_eq!(cmd_text.unwrap(), expected_table_output);
     }
 
-
+    // [utest->swdd~cli-get-workloads-with-watch~1]
     #[tokio::test]
     async fn utest_watch_workloads_addition() {
-        // [utest->swdd~cli-get-workloads-with-watch~1]
         let initial_wl = generate_test_workload_spec_with_param(
             "agent_A".to_string(),
             "name1".to_string(),
@@ -586,9 +581,9 @@ mod tests {
         assert_eq!(table, expected_table);
     }
 
+    // [utest->swdd~cli-get-workloads-with-watch~1]
     #[tokio::test]
     async fn utest_watch_workloads_removal() {
-        // [utest->swdd~cli-get-workloads-with-watch~1]
         let wl1 = generate_test_workload_spec_with_param(
             "agent_A".to_string(),
             "name1".to_string(),
@@ -668,5 +663,4 @@ mod tests {
 
         assert_eq!(table, expected_table);
     }
-
 }
