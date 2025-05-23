@@ -1889,10 +1889,11 @@ Reports and shared artifacts are placed into the <code>dist</code> folder direct
 <li>Choose the tag to be created on publish.</li>
 <li>As release name enter the same tag.</li>
 <li>Click on the button <code>Generate release notes</code> to generate the release notes automatically based on the filter settings for pull requests inside <code>.github/release.yml</code> configuration. In case of unwanted pull requests are listed, label the pull requests correctly, delete the description field and generate the release notes again (The correction of the labels and the regeneration of the release notes can also be done after the release build.).</li>
-<li>Make sure that the check box <code>Set as the latest release</code> is enabled. This setting is important otherwise the provided link for the installation script in <a href="../../usage/installation/">chapter installation</a> is still pointing to the previous release marked as latest.</li>
+<li>Uncheck the box <code>Set as the latest release</code> (will be enabled later).</li>
 <li>Click on <code>Publish release</code>.</li>
 <li>Go to GitHub Actions section and wait until the release workflow has finished.</li>
 <li>If the release build finished successfully, go to the release section again and validate that all required artifacts are uploaded to the new release.</li>
+<li>Edit the release and enable the check box <code>Set as the latest release</code>. This setting is important otherwise the provided link for the installation script in <a href="../../usage/installation/">chapter installation</a> is still pointing to the previous release marked as latest.</li>
 <li>If the release workflow fails, delete the release and the tag manually via the GitHub web frontend. Next, check the logs of the release workflow and fix the issues. Repeat the steps starting at step 1.</li>
 </ol>
 <div class="admonition note">
