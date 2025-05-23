@@ -87,7 +87,7 @@ mod tests {
 
     // [utest->swdd~cli-provides-run-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-run-workload~2]
-    // [utest->swdd~cli-watches-workloads~1]
+    // [utest->swdd~cli-watches-workloads-on-updates~1]
     #[tokio::test]
     async fn utest_run_workload_one_new_workload() {
         const TEST_WORKLOAD_NAME: &str = "name4";
