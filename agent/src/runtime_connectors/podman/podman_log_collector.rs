@@ -112,13 +112,10 @@ impl Drop for PodmanLogCollector {
 // [utest->swdd~functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-
     use std::sync::Mutex;
-
     use tokio::io::Empty;
 
     use crate::runtime_connectors::{podman::PodmanWorkloadId, LogRequestOptions};
-
     use super::PodmanLogCollector;
 
     const WORKLOAD_ID: &str = "workload_id";

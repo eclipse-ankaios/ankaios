@@ -14,7 +14,7 @@
 
 use crate::commands::{self, LogsCancelRequest, LogsRequest};
 use crate::objects::{DeletedWorkload, WorkloadSpec, WorkloadState};
-use api::ank_base::{self};
+use api::ank_base;
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;

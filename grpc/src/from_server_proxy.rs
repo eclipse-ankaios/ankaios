@@ -227,10 +227,6 @@ pub async fn forward_from_ankaios_to_proto(
     }
 }
 
-// async fn forward_to_all_agents(agent_senders: &AgentSendersMap) {
-//     for sender in agent_senders {}
-// }
-
 // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workload_states_to_agents(
     agent_senders: &AgentSendersMap,

@@ -94,12 +94,12 @@ mod tests {
             .await;
         clear_join_handles();
 
-        let log_collector_1 = creat_mock_log_collector(&[
+        let log_collector_1 = create_mock_log_collector(&[
             &[COLLECTOR_1_LINE_1, COLLECTOR_1_LINE_2],
             &[COLLECTOR_1_LINE_3],
         ]);
 
-        let log_collector_2 = creat_mock_log_collector(&[
+        let log_collector_2 = create_mock_log_collector(&[
             &[COLLECTOR_2_LINE_1],
             &[COLLECTOR_2_LINE_2, COLLECTOR_2_LINE_3, COLLECTOR_2_LINE_4],
         ]);
@@ -141,12 +141,12 @@ mod tests {
             .await;
         clear_join_handles();
 
-        let log_collector_1 = creat_mock_log_collector(&[
+        let log_collector_1 = create_mock_log_collector(&[
             &[COLLECTOR_1_LINE_1, COLLECTOR_1_LINE_2],
             &[COLLECTOR_1_LINE_3],
         ]);
 
-        let log_collector_2 = creat_mock_log_collector(&[
+        let log_collector_2 = create_mock_log_collector(&[
             &[COLLECTOR_2_LINE_1],
             &[COLLECTOR_2_LINE_2, COLLECTOR_2_LINE_3, COLLECTOR_2_LINE_4],
         ]);
@@ -161,7 +161,7 @@ mod tests {
         assert!(check_all_aborted());
     }
 
-    fn creat_mock_log_collector(lines: &[&[&str]]) -> MockLogCollector {
+    fn create_mock_log_collector(lines: &[&[&str]]) -> MockLogCollector {
         let mut log_collector = MockLogCollector::new();
         for &line_package in lines {
             let line_package = line_package.iter().map(|s| s.to_string()).collect();

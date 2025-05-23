@@ -55,7 +55,7 @@ impl Sender {
     }
 
     pub async fn wait_for_receiver_dropped(&mut self) {
-        // Errors can be ignores, as `wait_for` only return an error if the channel is closed, in which case the sender is also dropped
+        // Errors can be ignored, as `wait_for` only return an error if the channel is closed, in which case the sender is also dropped
         _ = self.receiver_dropped.wait_for(|x| *x).await;
     }
 }

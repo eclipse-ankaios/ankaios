@@ -651,7 +651,7 @@ mod tests {
         );
 
         assert_eq!(
-            WorkloadSpec::verify_fields_format(&spec_with_wrong_agent_name),
+            spec_with_wrong_agent_name.verify_fields_format(),
             Err(format!(
                 "Unsupported agent name. Received '{}', expected to have characters in {}",
                 spec_with_wrong_agent_name.instance_name.agent_name(),
