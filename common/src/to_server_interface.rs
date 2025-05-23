@@ -31,7 +31,7 @@ pub enum ToServer {
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Stop(commands::Stop),
     Goodbye(commands::Goodbye),
-    LogsResponse(String, ank_base::LogsResponse),
+    LogEntriesResponse(String, ank_base::LogEntriesResponse),
 }
 
 #[derive(Debug)]
@@ -82,7 +82,7 @@ pub trait ToServerInterface {
     async fn logs_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogsResponse,
+        logs_response: ank_base::LogEntriesResponse,
     ) -> Result<(), ToServerError>;
     async fn stop(&self) -> Result<(), ToServerError>;
 }
@@ -184,10 +184,10 @@ impl ToServerInterface for ToServerSender {
     async fn logs_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogsResponse,
+        logs_response: ank_base::LogEntriesResponse,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::LogsResponse(request_id, logs_response))
+            .send(ToServer::LogEntriesResponse(request_id, logs_response))
             .await?)
     }
 
@@ -206,7 +206,7 @@ impl ToServerInterface for ToServerSender {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, LogEntry, LogsResponse};
+    use api::ank_base::{self, LogEntry, LogEntriesResponse};
 
     use crate::{
         commands::{self, AgentLoadStatus, RequestContent},
@@ -409,7 +409,7 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        let logs_response = LogsResponse {
+        let logs_response = LogEntriesResponse {
             log_entries: vec![LogEntry {
                 workload_name: Some(ank_base::WorkloadInstanceName {
                     agent_name: AGENT_NAME.into(),
@@ -427,7 +427,7 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::LogsResponse(REQUEST_ID.to_string(), logs_response)
+            ToServer::LogEntriesResponse(REQUEST_ID.to_string(), logs_response)
         );
     }
 }

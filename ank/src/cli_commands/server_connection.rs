@@ -225,7 +225,7 @@ impl ServerConnection {
 
     pub async fn stream_logs(
         &mut self,
-        instance_names: BTreeSet<WorkloadInstanceName>,
+        mut instance_names: BTreeSet<WorkloadInstanceName>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
         let request_id = uuid::Uuid::new_v4().to_string();
@@ -250,7 +250,7 @@ impl ServerConnection {
                         .logs_cancel_request(request_id.clone()).await
                         .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
 
-                    output_debug!("Sent LogsCancelRequest after receiving signal to stop.");
+                    output_debug!("LogsCancelRequest sent after receiving signal to stop.");
                     break Ok(());
                 }
                 server_message = self.from_server.recv() => {
@@ -259,19 +259,36 @@ impl ServerConnection {
                             FromServer::Response(ank_base::Response {
                                 request_id: received_request_id,
                                 response_content:
-                                    Some(ank_base::response::ResponseContent::LogsResponse(logs_response)),
+                                    Some(ank_base::response::ResponseContent::LogEntriesResponse(logs_response)),
                             }) if received_request_id == request_id => {
                                 output_logs(logs_response.log_entries);
                             },
-                            // todo! handle stop message for each instance name sent from the server when log stream is closed (no follow mode)
+                            FromServer::Response(ank_base::Response {
+                                request_id: received_request_id,
+                                response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(logs_stop_response)),
+                            }) => if received_request_id == request_id {
+                                if let Some(instance_name) = logs_stop_response.workload_name {
+                                    output_debug!("Received stop message for workload instance: {:?}", instance_name);
+                                    instance_names.remove(&instance_name.into());
+                                }
+
+                                if instance_names.is_empty() {
+                                    output_debug!("Log streaming completed.");
+                                    break Ok(());
+                                }
+                            },
                             FromServer::Response(ank_base::Response {
                                 request_id: received_request_id,
                                 response_content: Some(ank_base::response::ResponseContent::Error(error)),
-                            }) if received_request_id == request_id => return Err(ServerConnectionError::ExecutionError(
+                            }) if received_request_id == request_id => break Err(ServerConnectionError::ExecutionError(
                                 format!("Error streaming logs: '{}'", error.message),
                             )),
                             _ => continue,
                         }
+                    } else {
+                        break Err(ServerConnectionError::ExecutionError(
+                                "Error streaming workload logs: channel preliminary closed.".to_string(),
+                            ));
                     }
                 }
             }
