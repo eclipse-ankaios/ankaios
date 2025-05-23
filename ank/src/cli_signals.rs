@@ -33,7 +33,7 @@ pub async fn wait_for_signals() {
             output_debug!("Received signal SIGQUIT");
         }
         _ = sighup_sig.recv() => {
-            output_debug!("Received signal SIGQUIT");
+            output_debug!("Received signal SIGHUP");
         }
     }
 }
