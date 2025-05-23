@@ -145,11 +145,12 @@ When creating a release a tag with the following naming convention must be provi
 2. Choose the tag to be created on publish.
 3. As release name enter the same tag.
 4. Click on the button `Generate release notes` to generate the release notes automatically based on the filter settings for pull requests inside `.github/release.yml` configuration. In case of unwanted pull requests are listed, label the pull requests correctly, delete the description field and generate the release notes again (The correction of the labels and the regeneration of the release notes can also be done after the release build.).
-5. Make sure that the check box `Set as the latest release` is enabled. This setting is important otherwise the provided link for the installation script in [chapter installation](../usage/installation.md) is still pointing to the previous release marked as latest.
+5. Uncheck the box `Set as the latest release` (will be enabled later).
 6. Click on `Publish release`.
 7. Go to GitHub Actions section and wait until the release workflow has finished.
 8. If the release build finished successfully, go to the release section again and validate that all required artifacts are uploaded to the new release.
-9. If the release workflow fails, delete the release and the tag manually via the GitHub web frontend. Next, check the logs of the release workflow and fix the issues. Repeat the steps starting at step 1.
+9. Edit the release and enable the check box `Set as the latest release`. This setting is important otherwise the provided link for the installation script in [chapter installation](../usage/installation.md) is still pointing to the previous release marked as latest.
+10. If the release workflow fails, delete the release and the tag manually via the GitHub web frontend. Next, check the logs of the release workflow and fix the issues. Repeat the steps starting at step 1.
 
 !!! Note
 
