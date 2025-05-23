@@ -129,6 +129,15 @@ impl TryFrom<from_server_interface::FromServer> for FromServer {
             from_server_interface::FromServer::Stop(_) => {
                 Err("Stop command not implemented in proto")
             }
+            from_server_interface::FromServer::LogsRequest(request_id, logs_request) => {
+                Ok(FromServer {
+                    from_server_enum: Some(from_server::FromServerEnum::LogsRequest(LogsRequest {
+                        request_id,
+                        logs_request: Some(logs_request.into()),
+                    })),
+                })
+            }
+            from_server_interface::FromServer::LogsCancelRequest(_logs_cancel_request) => todo!(),
         }
     }
 }
@@ -235,6 +244,18 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
             ToServerEnum::Request(protobuf) => {
                 to_server_interface::ToServer::Request(protobuf.try_into()?)
             }
+            ToServerEnum::LogsResponse(logs_reponse) => {
+                let Some(logs_response_object) = logs_reponse.logs_response else {
+                    return Err(format!(
+                        "LogResponse for '{}' does not container actual response.",
+                        logs_reponse.request_id
+                    ));
+                };
+                to_server_interface::ToServer::LogsResponse(
+                    logs_reponse.request_id,
+                    logs_response_object,
+                )
+            }
             ToServerEnum::Goodbye(_) => {
                 to_server_interface::ToServer::Goodbye(commands::Goodbye {})
             }
@@ -294,14 +315,15 @@ mod tests {
 
     use crate::{
         from_server::FromServerEnum, generate_test_proto_deleted_workload, to_server::ToServerEnum,
-        AddedWorkload, AgentHello, AgentLoadStatus, DeletedWorkload, FromServer, ToServer,
-        UpdateWorkload, UpdateWorkloadState,
+        AddedWorkload, AgentHello, AgentLoadStatus, DeletedWorkload, FromServer, LogsRequest,
+        LogsResponse, ToServer, UpdateWorkload, UpdateWorkloadState,
     };
 
     use api::ank_base::{self, Dependencies};
     use common::{
+        commands,
         objects::{
-            generate_test_rendered_workload_files, generate_test_workload_spec, ConfigHash,
+            self, generate_test_rendered_workload_files, generate_test_workload_spec, ConfigHash,
             CpuUsage, FreeMemory,
         },
         test_utils::{self, generate_test_deleted_workload},
@@ -472,6 +494,60 @@ mod tests {
         );
     }
 
+    #[test]
+    fn utest_convert_proto_to_server_log_response() {
+        let request_id = "42".to_string();
+
+        let proto_request = ToServer {
+            to_server_enum: Some(ToServerEnum::LogsResponse(LogsResponse {
+                request_id: request_id.clone(),
+                logs_response: Some(ank_base::LogsResponse {
+                    log_entries: vec![ank_base::LogEntry {
+                        workload_name: Some(ank_base::WorkloadInstanceName {
+                            workload_name: "workload_1".into(),
+                            agent_name: "agent_1".into(),
+                            id: "id_1".into(),
+                        }),
+                        message: "message_1".into(),
+                    }],
+                }),
+            })),
+        };
+
+        let ankaios_command = ankaios::ToServer::LogsResponse(
+            request_id,
+            ank_base::LogsResponse {
+                log_entries: vec![ank_base::LogEntry {
+                    workload_name: Some(ank_base::WorkloadInstanceName {
+                        workload_name: "workload_1".into(),
+                        agent_name: "agent_1".into(),
+                        id: "id_1".into(),
+                    }),
+                    message: "message_1".into(),
+                }],
+            },
+        );
+
+        assert_eq!(
+            ankaios::ToServer::try_from(proto_request),
+            Ok(ankaios_command)
+        );
+    }
+
+    #[test]
+    fn utest_convert_proto_to_server_log_response_fails_on_empyt() {
+        let request_id = "42".to_string();
+
+        let proto_request = ToServer {
+            to_server_enum: Some(ToServerEnum::LogsResponse(LogsResponse {
+                request_id: request_id.clone(),
+                logs_response: None,
+            })),
+        };
+
+        assert!(ankaios::ToServer::try_from(proto_request).is_err());
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     // FromServer tests
     ///////////////////////////////////////////////////////////////////////////
@@ -547,6 +623,31 @@ mod tests {
 
         let proto_msg = Ok(FromServer {
             from_server_enum: Some(FromServerEnum::Response(proto_response)),
+        });
+
+        assert_eq!(FromServer::try_from(ankaios_msg), proto_msg);
+    }
+
+    #[test]
+    fn utest_convert_from_server_to_proto_logs_request() {
+        let logs_request = commands::LogsRequest {
+            workload_names: vec![
+                objects::WorkloadInstanceName::new("agent_1", "workload_1", "id_1"),
+                objects::WorkloadInstanceName::new("agent_1", "workload_1", "id_1"),
+            ],
+            follow: true,
+            tail: 10,
+            since: None,
+            until: None,
+        };
+
+        let ankaios_msg = ankaios::FromServer::LogsRequest("req_id".into(), logs_request.clone());
+
+        let proto_msg = Ok(FromServer {
+            from_server_enum: Some(FromServerEnum::LogsRequest(LogsRequest {
+                request_id: "req_id".into(),
+                logs_request: Some(logs_request.into()),
+            })),
         });
 
         assert_eq!(FromServer::try_from(ankaios_msg), proto_msg);

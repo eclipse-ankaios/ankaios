@@ -39,6 +39,40 @@ pub struct DeletedWorkload {
     pub dependencies: HashMap<String, DeleteCondition>,
 }
 
+// [impl->swdd~common-workload-naming-convention~1]
+pub fn verify_workload_name_format(workload_name: &str) -> Result<(), String> {
+    let re_workloads = Regex::new(STR_RE_WORKLOAD).unwrap();
+    if !re_workloads.is_match(workload_name) {
+        return Err(format!(
+            "Unsupported workload name. Received '{}', expected to have characters in {}",
+            workload_name, STR_RE_WORKLOAD
+        ));
+    }
+
+    if workload_name.len() > MAX_CHARACTERS_WORKLOAD_NAME {
+        Err(format!(
+            "Workload name length {} exceeds the maximum limit of {} characters",
+            workload_name.len(),
+            MAX_CHARACTERS_WORKLOAD_NAME
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+// [impl->swdd~common-agent-naming-convention~1]
+fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
+    let re_agent = Regex::new(STR_RE_AGENT).unwrap();
+    if !re_agent.is_match(agent_name) {
+        Err(format!(
+            "Unsupported agent name. Received '{}', expected to have characters in {}",
+            agent_name, STR_RE_AGENT
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 // [impl->swdd~common-object-serialization~1]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(default, rename_all = "camelCase")]
@@ -68,45 +102,11 @@ impl WorkloadSpec {
     // [impl->swdd~common-workload-naming-convention~1]
     // [impl->swdd~common-agent-naming-convention~2]
     // [impl->swdd~common-access-rules-filter-mask-convention~1]
-    pub fn verify_fields_format(workload_spec: &WorkloadSpec) -> Result<(), String> {
-        Self::verify_workload_name_format(workload_spec.instance_name.workload_name())?;
-        Self::verify_agent_name_format(workload_spec.instance_name.agent_name())?;
-        workload_spec.control_interface_access.verify_format()?;
+    pub fn verify_fields_format(&self) -> Result<(), String> {
+        verify_workload_name_format(self.instance_name.workload_name())?;
+        verify_agent_name_format(self.instance_name.agent_name())?;
+        self.control_interface_access.verify_format()?;
         Ok(())
-    }
-
-    // [impl->swdd~common-workload-naming-convention~1]
-    fn verify_workload_name_format(workload_name: &str) -> Result<(), String> {
-        let re_workloads = Regex::new(STR_RE_WORKLOAD).unwrap();
-        if !re_workloads.is_match(workload_name) {
-            return Err(format!(
-                "Unsupported workload name. Received '{}', expected to have characters in {}",
-                workload_name, STR_RE_WORKLOAD
-            ));
-        }
-
-        if workload_name.len() > MAX_CHARACTERS_WORKLOAD_NAME {
-            Err(format!(
-                "Workload name length {} exceeds the maximum limit of {} characters",
-                workload_name.len(),
-                MAX_CHARACTERS_WORKLOAD_NAME
-            ))
-        } else {
-            Ok(())
-        }
-    }
-
-    // [impl->swdd~common-agent-naming-convention~2]
-    fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
-        let re_agent = Regex::new(STR_RE_AGENT).unwrap();
-        if !re_agent.is_match(agent_name) {
-            Err(format!(
-                "Unsupported agent name. Received '{}', expected to have characters in {}",
-                agent_name, STR_RE_AGENT
-            ))
-        } else {
-            Ok(())
-        }
     }
 }
 
@@ -590,9 +590,20 @@ mod tests {
     #[test]
     fn utest_workload_verify_fields_format_success() {
         let compatible_workload_spec = generate_test_workload_spec();
+        assert!(compatible_workload_spec.verify_fields_format().is_ok());
+    }
+
+    // [utest->swdd~common-workload-naming-convention~1]
+    #[test]
+    fn utest_verify_workload_name_format_empty_workload_name() {
+        let workload_name = "".to_string();
         assert_eq!(
-            WorkloadSpec::verify_fields_format(&compatible_workload_spec),
-            Ok(())
+            verify_workload_name_format(&workload_name),
+            Err(format!(
+                "Unsupported workload name. Received '{}', expected to have characters in {}",
+                workload_name,
+                super::STR_RE_WORKLOAD
+            ))
         );
     }
 
@@ -606,7 +617,7 @@ mod tests {
         );
 
         assert_eq!(
-            WorkloadSpec::verify_fields_format(&spec_with_wrong_workload_name),
+            spec_with_wrong_workload_name.verify_fields_format(),
             Err(format!(
                 "Unsupported workload name. Received '{}', expected to have characters in {}",
                 spec_with_wrong_workload_name.instance_name.workload_name(),
@@ -625,7 +636,7 @@ mod tests {
         );
 
         assert_eq!(
-            WorkloadSpec::verify_fields_format(&spec_with_wrong_agent_name),
+            spec_with_wrong_agent_name.verify_fields_format(),
             Err(format!(
                 "Unsupported agent name. Received '{}', expected to have characters in {}",
                 spec_with_wrong_agent_name.instance_name.agent_name(),
@@ -640,7 +651,7 @@ mod tests {
         );
 
         assert_eq!(
-            WorkloadSpec::verify_fields_format(&spec_with_wrong_agent_name),
+            spec_with_wrong_agent_name.verify_fields_format(),
             Err(format!(
                 "Unsupported agent name. Received '{}', expected to have characters in {}",
                 spec_with_wrong_agent_name.instance_name.agent_name(),
@@ -654,7 +665,7 @@ mod tests {
     fn utest_verify_workload_name_format_inordinately_long_workload_name() {
         let workload_name = "workload_name_is_too_long_for_ankaios_to_accept_it_and_I_don_t_know_what_else_to_write".to_string();
         assert_eq!(
-            WorkloadSpec::verify_workload_name_format(&workload_name),
+            verify_workload_name_format(&workload_name),
             Err(format!(
                 "Workload name length {} exceeds the maximum limit of {} characters",
                 workload_name.len(),

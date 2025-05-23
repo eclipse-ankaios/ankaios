@@ -332,8 +332,6 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         // read request forwarded by grpc communication server
         let result = timeout(Duration::from_secs(10), server_receiver.recv()).await;
 
-        println!("result: {:?}", result);
-
         assert!(matches!(
             result,
             Ok(Some(ToServer::Request(

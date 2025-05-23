@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands;
+use crate::commands::{self, LogsCancelRequest, LogsRequest};
 use crate::objects::{DeletedWorkload, WorkloadSpec, WorkloadState};
 use api::ank_base;
 use async_trait::async_trait;
@@ -40,6 +40,8 @@ pub enum FromServer {
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Response(ank_base::Response),
     Stop(commands::Stop),
+    LogsRequest(String, LogsRequest),
+    LogsCancelRequest(LogsCancelRequest),
 }
 
 // [impl->swdd~from-server-channel~1]
@@ -70,6 +72,16 @@ pub trait FromServerInterface {
         request_id: String,
         added_workloads: Vec<String>,
         deleted_workloads: Vec<String>,
+    ) -> Result<(), FromServerInterfaceError>;
+    async fn logs_request(
+        &self,
+        request_id: String,
+        logs_request: ank_base::LogsRequest,
+    ) -> Result<(), FromServerInterfaceError>;
+    async fn logs_response(
+        &self,
+        request_id: String,
+        logs_response: ank_base::LogsResponse,
     ) -> Result<(), FromServerInterfaceError>;
     async fn error(
         &self,
@@ -162,6 +174,30 @@ impl FromServerInterface for FromServerSender {
             .await?)
     }
 
+    async fn logs_request(
+        &self,
+        request_id: String,
+        logs_request: ank_base::LogsRequest,
+    ) -> Result<(), FromServerInterfaceError> {
+        self.send(FromServer::LogsRequest(request_id, logs_request.into()))
+            .await?;
+        Ok(())
+    }
+
+    async fn logs_response(
+        &self,
+        request_id: String,
+        logs_response: ank_base::LogsResponse,
+    ) -> Result<(), FromServerInterfaceError> {
+        self.send(FromServer::Response(ank_base::Response {
+            request_id,
+            response_content: ank_base::response::ResponseContent::LogsResponse(logs_response)
+                .into(),
+        }))
+        .await?;
+        Ok(())
+    }
+
     async fn error(
         &self,
         request_id: String,
@@ -197,14 +233,18 @@ mod tests {
     use crate::{
         commands,
         from_server_interface::{FromServer, FromServerInterface},
-        objects::{generate_test_workload_spec, generate_test_workload_state, ExecutionState},
+        objects::{
+            generate_test_workload_spec, generate_test_workload_state, ExecutionState,
+            WorkloadInstanceName,
+        },
         test_utils::{generate_test_complete_state, generate_test_deleted_workload},
     };
 
     use super::{FromServerReceiver, FromServerSender};
 
     const TEST_CHANNEL_CAPA: usize = 5;
-    const WORKLOAD_NAME: &str = "X";
+    const WORKLOAD_NAME_1: &str = "X";
+    const WORKLOAD_NAME_2: &str = "Y";
     const AGENT_NAME: &str = "agent_A";
     const REQUEST_ID: &str = "emkw489ejf89ml";
 
@@ -217,7 +257,7 @@ mod tests {
         let added_workloads = vec![generate_test_workload_spec()];
         let deleted_workloads = vec![generate_test_deleted_workload(
             AGENT_NAME.to_string(),
-            WORKLOAD_NAME.to_string(),
+            WORKLOAD_NAME_1.to_string(),
         )];
         assert!(tx
             .update_workload(added_workloads.clone(), deleted_workloads.clone())
@@ -239,7 +279,8 @@ mod tests {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        let workload_state = generate_test_workload_state(WORKLOAD_NAME, ExecutionState::running());
+        let workload_state =
+            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionState::running());
         assert!(tx
             .update_workload_state(vec![workload_state.clone()])
             .await
@@ -329,5 +370,162 @@ mod tests {
                 response_content: Some(ank_base::response::ResponseContent::Error(error)),
             })
         )
+    }
+
+    #[tokio::test]
+    async fn utest_logs_request_success() {
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        assert!(tx
+            .logs_request(
+                REQUEST_ID.to_string(),
+                ank_base::LogsRequest {
+                    workload_names: vec![
+                        ank_base::WorkloadInstanceName {
+                            workload_name: WORKLOAD_NAME_1.into(),
+                            agent_name: AGENT_NAME.into(),
+                            id: "1".into()
+                        },
+                        ank_base::WorkloadInstanceName {
+                            workload_name: WORKLOAD_NAME_2.into(),
+                            agent_name: AGENT_NAME.into(),
+                            id: "2".into()
+                        }
+                    ],
+                    follow: Some(true),
+                    tail: Some(10),
+                    since: None,
+                    until: None
+                }
+            )
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            FromServer::LogsRequest(
+                REQUEST_ID.into(),
+                commands::LogsRequest {
+                    workload_names: vec![
+                        WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_NAME_1, "1"),
+                        WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_NAME_2, "2")
+                    ],
+                    follow: true,
+                    tail: 10,
+                    since: None,
+                    until: None
+                }
+            )
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_logs_request_fail() {
+        let (tx, _): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        assert!(tx
+            .logs_request(
+                REQUEST_ID.to_string(),
+                ank_base::LogsRequest {
+                    workload_names: vec![ank_base::WorkloadInstanceName {
+                        workload_name: WORKLOAD_NAME_1.into(),
+                        agent_name: AGENT_NAME.into(),
+                        id: "1".into()
+                    }],
+                    follow: Some(true),
+                    tail: Some(10),
+                    since: None,
+                    until: None
+                }
+            )
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_logs_response_success() {
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        assert!(tx
+            .logs_response(
+                REQUEST_ID.into(),
+                ank_base::LogsResponse {
+                    log_entries: vec![
+                        ank_base::LogEntry {
+                            workload_name: Some(ank_base::WorkloadInstanceName {
+                                workload_name: WORKLOAD_NAME_1.into(),
+                                agent_name: AGENT_NAME.into(),
+                                id: "1".into()
+                            }),
+                            message: "message_1".into()
+                        },
+                        ank_base::LogEntry {
+                            workload_name: Some(ank_base::WorkloadInstanceName {
+                                workload_name: WORKLOAD_NAME_2.into(),
+                                agent_name: AGENT_NAME.into(),
+                                id: "2".into()
+                            }),
+                            message: "message_2".into()
+                        }
+                    ]
+                }
+            )
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            FromServer::Response(ank_base::Response {
+                request_id: REQUEST_ID.into(),
+                response_content: Some(ank_base::response::ResponseContent::LogsResponse(
+                    ank_base::LogsResponse {
+                        log_entries: vec![
+                            ank_base::LogEntry {
+                                workload_name: Some(ank_base::WorkloadInstanceName {
+                                    workload_name: WORKLOAD_NAME_1.into(),
+                                    agent_name: AGENT_NAME.into(),
+                                    id: "1".into()
+                                }),
+                                message: "message_1".into()
+                            },
+                            ank_base::LogEntry {
+                                workload_name: Some(ank_base::WorkloadInstanceName {
+                                    workload_name: WORKLOAD_NAME_2.into(),
+                                    agent_name: AGENT_NAME.into(),
+                                    id: "2".into()
+                                }),
+                                message: "message_2".into()
+                            }
+                        ]
+                    }
+                ))
+            })
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_logs_response_fail() {
+        let (tx, _): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        assert!(tx
+            .logs_response(
+                REQUEST_ID.into(),
+                ank_base::LogsResponse {
+                    log_entries: vec![ank_base::LogEntry {
+                        workload_name: Some(ank_base::WorkloadInstanceName {
+                            workload_name: WORKLOAD_NAME_1.into(),
+                            agent_name: AGENT_NAME.into(),
+                            id: "1".into()
+                        }),
+                        message: "message_1".into()
+                    }]
+                }
+            )
+            .await
+            .is_err());
     }
 }

@@ -68,7 +68,7 @@ pub use workload_spec::{STR_RE_AGENT, STR_RE_WORKLOAD};
 
 pub use workload_spec::{
     get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
-    DeletedWorkloadCollection, FulfilledBy, RestartPolicy, WorkloadCollection, WorkloadSpec,
+    DeletedWorkloadCollection, FulfilledBy, RestartPolicy, WorkloadCollection, WorkloadSpec, verify_workload_name_format,
 };
 
 mod tag;
