@@ -244,15 +244,15 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
             ToServerEnum::Request(protobuf) => {
                 to_server_interface::ToServer::Request(protobuf.try_into()?)
             }
-            ToServerEnum::LogsResponse(logs_reponse) => {
-                let Some(logs_response_object) = logs_reponse.logs_response else {
+            ToServerEnum::LogEntriesResponse(log_entries_response) => {
+                let Some(logs_response_object) = log_entries_response.log_entries_response else {
                     return Err(format!(
                         "LogResponse for '{}' does not container actual response.",
-                        logs_reponse.request_id
+                        log_entries_response.request_id
                     ));
                 };
-                to_server_interface::ToServer::LogsResponse(
-                    logs_reponse.request_id,
+                to_server_interface::ToServer::LogEntriesResponse(
+                    log_entries_response.request_id,
                     logs_response_object,
                 )
             }
@@ -315,8 +315,8 @@ mod tests {
 
     use crate::{
         from_server::FromServerEnum, generate_test_proto_deleted_workload, to_server::ToServerEnum,
-        AddedWorkload, AgentHello, AgentLoadStatus, DeletedWorkload, FromServer, LogsRequest,
-        LogsResponse, ToServer, UpdateWorkload, UpdateWorkloadState,
+        AddedWorkload, AgentHello, AgentLoadStatus, DeletedWorkload, FromServer,
+        LogEntriesResponse, LogsRequest, ToServer, UpdateWorkload, UpdateWorkloadState,
     };
 
     use api::ank_base::{self, Dependencies};
@@ -499,9 +499,9 @@ mod tests {
         let request_id = "42".to_string();
 
         let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::LogsResponse(LogsResponse {
+            to_server_enum: Some(ToServerEnum::LogEntriesResponse(LogEntriesResponse {
                 request_id: request_id.clone(),
-                logs_response: Some(ank_base::LogsResponse {
+                logs_response: Some(ank_base::LogEntriesResponse {
                     log_entries: vec![ank_base::LogEntry {
                         workload_name: Some(ank_base::WorkloadInstanceName {
                             workload_name: "workload_1".into(),
@@ -514,9 +514,9 @@ mod tests {
             })),
         };
 
-        let ankaios_command = ankaios::ToServer::LogsResponse(
+        let ankaios_command = ankaios::ToServer::LogEntriesResponse(
             request_id,
-            ank_base::LogsResponse {
+            ank_base::LogEntriesResponse {
                 log_entries: vec![ank_base::LogEntry {
                     workload_name: Some(ank_base::WorkloadInstanceName {
                         workload_name: "workload_1".into(),
@@ -539,7 +539,7 @@ mod tests {
         let request_id = "42".to_string();
 
         let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::LogsResponse(LogsResponse {
+            to_server_enum: Some(ToServerEnum::LogEntriesResponse(LogEntriesResponse {
                 request_id: request_id.clone(),
                 logs_response: None,
             })),

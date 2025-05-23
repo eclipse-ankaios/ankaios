@@ -243,7 +243,7 @@ impl AgentManager {
                             to_server
                                 .logs_response(
                                     request_id.clone(),
-                                    ank_base::LogsResponse {
+                                    ank_base::LogEntriesResponse {
                                         log_entries: log_lines
                                             .into_iter()
                                             .map(|x| ank_base::LogEntry {
@@ -260,6 +260,8 @@ impl AgentManager {
                                 (workload, receiver, n)
                             };
                             futures.push(Box::pin(x));
+                        } else {
+                            // todo!: send LogsStopEvent
                         }
                     }
                 });
@@ -845,7 +847,7 @@ mod tests {
         let mut responses = 0;
         while responses != num {
             let candidate = to_server.recv().await?;
-            if let ToServer::LogsResponse(request_id, logs_response) = candidate {
+            if let ToServer::LogEntriesResponse(request_id, logs_response) = candidate {
                 responses += 1;
                 for entry in logs_response.log_entries {
                     result

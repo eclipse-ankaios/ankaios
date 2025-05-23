@@ -1081,6 +1081,57 @@ Needs:
 - utest
 - stest
 
+### `ank logs`
+
+#### CLI provides a function to output logs of a workload
+`swdd~cli-provides-workload-logs~1`
+
+Status: approved
+
+The Ankaios CLI shall provide a function to output the logs of multiple workloads.
+
+Comments:
+The user specifies the workloads by their workload names as required argument.
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI gets logs from the Ankaios server
+`swdd~cli-gets-logs-from-the-server~1`
+
+Status: approved
+
+When the user invokes the Ankaios CLI to output logs for specific workloads, the Ankaios CLI shall:
+* request the logs from the Ankaios server by sending a `LogsRequest` with the options provided by the user
+* output the logs of the workload according to the provided options
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI sends logs cancel request upon termination
+`swdd~cli-sends-logs-cancel-request-upon-termination~1`
+
+Status: approved
+
+When the Ankaios CLI outputs logs and the user terminates the program, the Ankaios CLI shall send a `LogsCancelRequest` to the Ankaios server to stop the log collection for the initial requested workloads.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
 ### Handling other message while waiting for response
 
 ![Store unexpected messages](plantuml/seq_store_missed_messages.svg)
