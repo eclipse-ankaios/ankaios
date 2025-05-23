@@ -546,6 +546,16 @@ impl RuntimeManager {
                 workload_spec.runtime,
                 workload_name
             );
+
+            self.update_state_tx
+                .report_workload_execution_state(
+                    &workload_spec.instance_name,
+                    ExecutionState::starting_failed(format!(
+                        "Runtime '{}' not found.",
+                        workload_spec.runtime
+                    )),
+                )
+                .await;
         }
     }
 
@@ -844,18 +854,22 @@ mod tests {
 
         runtime_facade_mock.expect_create_workload().never(); // workload shall not be created due to unknown runtime
 
-        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (mut server_recv, mut runtime_manager, mut wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         runtime_manager
             .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
         assert!(runtime_manager.workloads.is_empty());
+
+        server_recv.close();
+        let _ = wl_state_receiver.recv().await;
     }
 
     // [utest->swdd~agent-existing-workloads-finds-list~1]
@@ -962,7 +976,8 @@ mod tests {
 
         let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
 
-        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default().build();
+        let (mut server_recv, mut runtime_manager, mut wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
 
         control_interface_info_new_context
             .expect()
@@ -986,6 +1001,9 @@ mod tests {
         runtime_manager
             .update_workload(workload_spec_has_access)
             .await;
+
+        server_recv.close();
+        let _ = wl_state_receiver.recv().await;
     }
 
     // [utest->swdd~agent-existing-workloads-resume-existing~2]
@@ -1504,7 +1522,8 @@ mod tests {
 
         let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
 
-        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default().build();
+        let (mut server_receiver, mut runtime_manager, mut wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
 
         control_interface_info_new_context
             .expect()
@@ -1528,6 +1547,9 @@ mod tests {
         runtime_manager
             .add_workload(ReusableWorkloadSpec::new(workload_spec_has_access, None))
             .await;
+
+        server_receiver.close();
+        let _ = wl_state_receiver.recv().await;
     }
 
     // [utest->swdd~agent-existing-workloads-replace-updated~4]
