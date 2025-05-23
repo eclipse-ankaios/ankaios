@@ -47,3 +47,39 @@ impl PartialEq<PathBuf> for ControlInterfacePath {
         self.0 == *other
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use crate::control_interface;
+
+    #[test]
+    fn utest_equality() {
+        let control_interface_path = control_interface::ControlInterfacePath::new(PathBuf::from(
+            "/tmp/control_interface/agent_Z/test_workload/id",
+        ));
+        let control_interface_path_eq = control_interface::ControlInterfacePath::new(
+            PathBuf::from("/tmp/control_interface/agent_Z/test_workload/id"),
+        );
+        let other_path_buf = PathBuf::from("/tmp/control_interface/agent_Z/other_workload/id");
+        let control_interface_path_ne =
+            control_interface::ControlInterfacePath::new(other_path_buf.clone());
+
+        assert_eq!(control_interface_path, control_interface_path_eq);
+        assert!(control_interface_path == control_interface_path_eq);
+        assert!(control_interface_path != other_path_buf);
+
+        assert_ne!(control_interface_path, control_interface_path_ne);
+        assert!(control_interface_path != control_interface_path_ne);
+        assert!(control_interface_path_ne == other_path_buf);
+    }
+}
