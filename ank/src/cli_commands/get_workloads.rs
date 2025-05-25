@@ -483,6 +483,31 @@ mod tests {
         assert_eq!(cmd_text.unwrap(), expected_table_output);
     }
 
+     // [utest->swdd~cli-get-workloads-with-watch~1]
+     #[tokio::test]
+     async fn utest_watch_workloads_initial_fetch_fails() {
+
+         let mut mock_server_connection = MockServerConnection::default();
+         mock_server_connection
+             .expect_get_complete_state()
+             .times(1)
+             .return_once(|_| {
+                 Err(ServerConnectionError::ExecutionError(
+                     "Simulated Error".to_string(),
+                 ))
+             });
+
+         let mut cmd = CliCommands {
+             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+             no_wait: false,
+             server_connection: mock_server_connection,
+         };
+
+         let result = cmd.watch_workloads(None,None,Vec::new(),).await;
+
+         assert!(result.is_err());
+     }
+
     // [utest->swdd~cli-get-workloads-with-watch~1]
     #[tokio::test]
     async fn utest_watch_workloads_addition() {
@@ -673,9 +698,95 @@ mod tests {
     );
 
 
- }
+    }
 
+    // [utest->swdd~cli-process-workload-updates~1]
+    #[tokio::test]
+    async fn utest_process_workload_updates_state_change() {
+        let wl1_spec = generate_test_workload_spec_with_param(
+            "agent_B".to_string(),
+            "workload_alpha".to_string(),
+            "runtime_1".to_string(),
+        );
+        let wl2_spec = generate_test_workload_spec_with_param(
+            "agent_B".to_string(),
+            "workload_beta".to_string(),
+            "runtime_2".to_string(),
+        );
 
+        let key_wl1 = wl1_spec.instance_name.to_string();
+        let key_wl2 = wl2_spec.instance_name.to_string();
+
+        let mut initial_table_data = BTreeMap::new();
+
+        let wl1_initial_row = WorkloadTableRow::new(
+            wl1_spec.instance_name.workload_name().to_string(),
+            wl1_spec.instance_name.agent_name().to_string(),
+            wl1_spec.runtime.clone(),
+            ExecutionState::running().to_string(),
+            "Initial state".to_string(),
+        );
+        initial_table_data.insert(key_wl1.clone(), wl1_initial_row.clone());
+
+        let wl2_initial_row = WorkloadTableRow::new(
+            wl2_spec.instance_name.workload_name().to_string(),
+            wl2_spec.instance_name.agent_name().to_string(),
+            wl2_spec.runtime.clone(),
+            ExecutionState::running().to_string(),
+            "Stable".to_string(),
+        );
+        initial_table_data.insert(key_wl2.clone(), wl2_initial_row);
+
+        let new_additional_info_for_wl1 = "Critical error occurred".to_string();
+        let wl1_updated_execution_state_obj = ExecutionState::failed(new_additional_info_for_wl1.clone()); // The actual ExecutionState object
+
+        let update_event = UpdateWorkloadState {
+            workload_states: vec![objects::WorkloadState {
+                instance_name: wl1_spec.instance_name.clone(),
+                execution_state: wl1_updated_execution_state_obj.clone(),
+            }],
+        };
+
+        let mock_server_connection = MockServerConnection::default();
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let agent_name_filter: Option<String> = Some("agent_B".to_string());
+        let state_filter: Option<String> = Some(wl1_updated_execution_state_obj.state.to_string());
+        let workload_name_filter: Vec<String> = Vec::new();
+
+        let result_table_data = cmd.process_workload_updates(
+            update_event,
+            &agent_name_filter,
+            &state_filter,
+            &workload_name_filter,
+            initial_table_data.clone(),
+        ).await;
+
+        assert!(result_table_data.is_ok(), "process_workload_updates failed: {:?}", result_table_data.err());
+        let final_table_data = result_table_data.unwrap();
+
+        let mut expected_table_data = BTreeMap::new();
+        expected_table_data.insert(
+            key_wl1.clone(),
+            WorkloadTableRow::new(
+                wl1_spec.instance_name.workload_name().to_string(),
+                wl1_spec.instance_name.agent_name().to_string(),
+                wl1_spec.runtime.clone(),
+                wl1_updated_execution_state_obj.state.to_string(),
+                new_additional_info_for_wl1,
+            ),
+        );
+
+        assert_eq!(
+            final_table_data,
+            expected_table_data,
+            "The final table data after state update did not match the expected table data."
+        );
+    }
 
 }
 
