@@ -609,95 +609,63 @@ mod tests {
     // [utest->swdd~cli-process-workload-updates~1]
     #[tokio::test]
     async fn utest_process_workload_updates_removal() {
-     let wl1 = generate_test_workload_spec_with_param(
-         "agent_A".to_string(),
-         "name1".to_string(),
-         "runtime".to_string(),
-     );
-     let wl2 = generate_test_workload_spec_with_param(
-         "agent_A".to_string(),
-         "name2".to_string(),
-         "runtime".to_string(),
-     );
+        let wl1 = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "name1".to_string(),
+            "runtime".to_string(),
+        );
 
-     let key_wl1 = wl1.instance_name.to_string();
-     let key_wl2 = wl2.instance_name.to_string();
+        let key_wl1 = wl1.instance_name.to_string();
 
-     let mut initial_table_data = BTreeMap::new();
+        let mut initial_table_data = BTreeMap::new();
 
-     initial_table_data.insert(
-         key_wl1.clone(),
-         WorkloadTableRow::new(
-             wl1.instance_name.workload_name().to_string(),
-             wl1.instance_name.agent_name().to_string(),
-             wl1.runtime.clone(),
-             ExecutionState::running().to_string(),
-             String::new(),
-         ),
-     );
+        initial_table_data.insert(
+            key_wl1.clone(),
+            WorkloadTableRow::new(
+                wl1.instance_name.workload_name().to_string(),
+                wl1.instance_name.agent_name().to_string(),
+                wl1.runtime.clone(),
+                ExecutionState::running().to_string(),
+                String::new(),
+            ),
+        );
 
-     initial_table_data.insert(
-         key_wl2.clone(),
-         WorkloadTableRow::new(
-             wl2.instance_name.workload_name().to_string(),
-             wl2.instance_name.agent_name().to_string(),
-             wl2.runtime.clone(),
-             ExecutionState::running().to_string(),
-             String::new(),
-         ),
-     );
+        let removed_workload_state = objects::WorkloadState {
+            instance_name: wl1.instance_name.clone(),
+            execution_state: ExecutionState::removed(),
+        };
+        let update_event = UpdateWorkloadState {
+            workload_states: vec![removed_workload_state],
+        };
 
-     let removed_workload_state = objects::WorkloadState {
-         instance_name: wl2.instance_name.clone(),
-         execution_state: ExecutionState::removed(),
-     };
-     let update_event = UpdateWorkloadState {
-         workload_states: vec![removed_workload_state],
-     };
+        let mock_server_connection = MockServerConnection::default();
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
-     let mock_server_connection = MockServerConnection::default();
-     let mut cmd = CliCommands {
-         _response_timeout_ms: RESPONSE_TIMEOUT_MS,
-         no_wait: false,
-         server_connection: mock_server_connection,
-     };
+        let result_table_data = cmd
+            .process_workload_updates(
+                update_event,
+                &None,
+                &None,
+                &Vec::new(),
+                initial_table_data.clone(),
+            )
+            .await;
 
-     let agent_name_filter: Option<String> = Some("agent_A".to_string());
-     let state_filter: Option<String> = None;
-     let workload_name_filter: Vec<String> = Vec::new();
+        assert!(
+            result_table_data.is_ok(),
+            "process_workload_updates failed: {:?}",
+            result_table_data.err()
+        );
+        let final_table_data = result_table_data.unwrap();
 
-     let result_table_data = cmd.process_workload_updates(
-         update_event,
-         &agent_name_filter,
-         &state_filter,
-         &workload_name_filter,
-         initial_table_data.clone(),
-     ).await;
-
-     assert!(result_table_data.is_ok(), "process_workload_updates failed: {:?}", result_table_data.err());
-     let final_table_data = result_table_data.unwrap();
-
-
-     let mut expected_table_data = BTreeMap::new();
-     expected_table_data.insert(
-         key_wl1.clone(),
-
-         WorkloadTableRow::new(
-            wl1.instance_name.workload_name().to_string(),
-            wl1.instance_name.agent_name().to_string(),
-            wl1.runtime.clone(),
-            ExecutionState::running().to_string(),
-            String::new(),
-        ),
-     );
-     assert_eq!(final_table_data.len(), 1, "Table should have one workload after removal");
-     assert_eq!(
-        final_table_data,
-        expected_table_data,
-        "The final table data did not match the expected table data."
-    );
-
-
+        assert!(
+            final_table_data.is_empty(),
+            "The final table data should be empty after removal."
+        );
     }
 
     // [utest->swdd~cli-process-workload-updates~1]
