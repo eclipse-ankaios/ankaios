@@ -54,6 +54,10 @@ impl Sender {
         self.log_line_sender.send(log_lines).await
     }
 
+    pub async fn send_stop(&self) -> Result<(), mpsc::error::SendError<Vec<String>>> {
+        self.log_line_sender.send(Default::default()).await
+    }
+
     pub async fn wait_for_receiver_dropped(&mut self) {
         // Errors can be ignored, as `wait_for` only return an error if the channel is closed, in which case the sender is also dropped
         _ = self.receiver_dropped.wait_for(|x| *x).await;

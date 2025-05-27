@@ -256,6 +256,18 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
                     logs_response_object,
                 )
             }
+            ToServerEnum::LogsStopResponse(logs_stop_response) => {
+                let Some(logs_stop_object) = logs_stop_response.logs_stop_response else {
+                    return Err(format!(
+                        "LogsStopResponse for '{}' does not contain actual response.",
+                        logs_stop_response.request_id
+                    ));
+                };
+                to_server_interface::ToServer::LogsStopResponse(
+                    logs_stop_response.request_id,
+                    logs_stop_object,
+                )
+            }
             ToServerEnum::Goodbye(_) => {
                 to_server_interface::ToServer::Goodbye(commands::Goodbye {})
             }

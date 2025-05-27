@@ -32,6 +32,7 @@ pub enum ToServer {
     Stop(commands::Stop),
     Goodbye(commands::Goodbye),
     LogEntriesResponse(String, ank_base::LogEntriesResponse),
+    LogsStopResponse(String, ank_base::LogsStopResponse),
 }
 
 #[derive(Debug)]
@@ -83,6 +84,11 @@ pub trait ToServerInterface {
         &self,
         request_id: String,
         logs_response: ank_base::LogEntriesResponse,
+    ) -> Result<(), ToServerError>;
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
     ) -> Result<(), ToServerError>;
     async fn stop(&self) -> Result<(), ToServerError>;
 }
@@ -191,6 +197,16 @@ impl ToServerInterface for ToServerSender {
             .await?)
     }
 
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
+    ) -> Result<(), ToServerError> {
+        Ok(self
+            .send(ToServer::LogsStopResponse(request_id, logs_stop_response))
+            .await?)
+    }
+
     async fn stop(&self) -> Result<(), ToServerError> {
         Ok(self.send(ToServer::Stop(commands::Stop {})).await?)
     }
@@ -206,7 +222,7 @@ impl ToServerInterface for ToServerSender {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, LogEntry, LogEntriesResponse};
+    use api::ank_base::{self, LogEntriesResponse, LogEntry};
 
     use crate::{
         commands::{self, AgentLoadStatus, RequestContent},

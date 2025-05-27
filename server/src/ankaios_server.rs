@@ -318,7 +318,9 @@ impl AnkaiosServer {
                             .await
                             .unwrap_or_illegal_state();
                     }
-                    common::commands::RequestContent::LogsCancelRequest => todo!(),
+                    common::commands::RequestContent::LogsCancelRequest => {
+                        log::debug!("Received LogsCancelRequest with ID: {}", request_id)
+                    }
                 },
                 ToServer::UpdateWorkloadState(method_obj) => {
                     log::debug!(
@@ -347,6 +349,13 @@ impl AnkaiosServer {
                 ToServer::LogEntriesResponse(request_id, logs_response) => {
                     self.to_agents
                         .logs_response(request_id, logs_response)
+                        .await
+                        .unwrap_or_illegal_state();
+                }
+                ToServer::LogsStopResponse(request_id, logs_stop_response) => {
+                    log::debug!("Received LogsStopResponse with ID: {}", request_id);
+                    self.to_agents
+                        .logs_stop_response(request_id, logs_stop_response)
                         .await
                         .unwrap_or_illegal_state();
                 }

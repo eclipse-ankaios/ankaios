@@ -51,12 +51,18 @@ message ToServer {
         AgentLoadStatus AgentLoadStatus = 5;
         CommanderHello commanderHello = 6; /// This is the first message sent by the ank CLI or a third-party command component connected directly to the Ankaios server.
         LogEntriesResponse logEntriesResponse = 7;
+        LogsStopResponse logsStopResponse = 8;
     }
 }
 
 message LogEntriesResponse {
     string requestId = 1;
     ank_base.LogEntriesResponse logEntriesResponse = 2;
+}
+
+message LogsStopResponse {
+    string requestId = 1;
+    ank_base.LogsStopResponse logsStopResponse = 2;
 }
 
 /**

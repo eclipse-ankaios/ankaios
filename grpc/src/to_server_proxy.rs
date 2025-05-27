@@ -17,7 +17,8 @@ use crate::grpc_middleware_error::GrpcMiddlewareError;
 
 use crate::grpc_api::{self, to_server::ToServerEnum};
 use api::ank_base::{
-    self, request::RequestContent, CompleteStateRequest, Request, UpdateStateRequest,
+    self, request::RequestContent, CompleteStateRequest, LogsStopResponse, Request,
+    UpdateStateRequest,
 };
 
 use common::request_id_prepending::prepend_request_id;
@@ -151,8 +152,32 @@ pub async fn forward_from_proto_to_ankaios(
                 }
             }
 
-            unknown_message => {
-                log::warn!("Wrong ToServer message: '{:?}'", unknown_message);
+            ToServerEnum::LogsStopResponse(logs_stop_response) => {
+                log::trace!("Received LogsStopResponse from '{}'", agent_name);
+
+                if let Some(logs_stop_response_object) = logs_stop_response.logs_stop_response {
+                    sink.logs_stop_response(
+                        logs_stop_response.request_id,
+                        logs_stop_response_object,
+                    )
+                    .await?;
+                } else {
+                    log::warn!(
+                        "Received a LogsStopResponse from '{}' without actual data",
+                        agent_name
+                    );
+                }
+            }
+
+            ToServerEnum::AgentHello(agent_hello) => {
+                log::warn!(
+                    "Received unexpected AgentHello from '{}'.",
+                    agent_hello.agent_name
+                );
+            }
+
+            ToServerEnum::CommanderHello(_) => {
+                log::warn!("Received unexpected CommanderHello.");
             }
         }
     }
@@ -231,6 +256,22 @@ pub async fn forward_from_ankaios_to_proto(
                                 },
                             ),
                         ),
+                    })
+                    .await?;
+            }
+
+            ToServer::LogsStopResponse(request_id, logs_stop_response) => {
+                log::trace!("Received LogsStopResponse for '{}'", request_id);
+                grpc_tx
+                    .send(grpc_api::ToServer {
+                        to_server_enum: Some(grpc_api::to_server::ToServerEnum::LogsStopResponse(
+                            grpc_api::LogsStopResponse {
+                                request_id,
+                                logs_stop_response: Some(LogsStopResponse {
+                                    workload_name: logs_stop_response.workload_name,
+                                }),
+                            },
+                        )),
                     })
                     .await?;
             }
