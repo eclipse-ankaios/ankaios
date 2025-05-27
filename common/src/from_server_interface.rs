@@ -83,6 +83,11 @@ pub trait FromServerInterface {
         request_id: String,
         logs_response: ank_base::LogEntriesResponse,
     ) -> Result<(), FromServerInterfaceError>;
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
+    ) -> Result<(), FromServerInterfaceError>;
     async fn error(
         &self,
         request_id: String,
@@ -193,6 +198,22 @@ impl FromServerInterface for FromServerSender {
             request_id,
             response_content: ank_base::response::ResponseContent::LogEntriesResponse(
                 logs_response,
+            )
+            .into(),
+        }))
+        .await?;
+        Ok(())
+    }
+
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
+    ) -> Result<(), FromServerInterfaceError> {
+        self.send(FromServer::Response(ank_base::Response {
+            request_id,
+            response_content: ank_base::response::ResponseContent::LogsStopResponse(
+                logs_stop_response,
             )
             .into(),
         }))

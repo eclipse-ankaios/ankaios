@@ -240,6 +240,23 @@ impl AgentManager {
                     while let Some((workload, mut receiver, log_lines)) = futures.next().await {
                         log::debug!("Got new log lines: {:?}", log_lines);
                         if let Some(log_lines) = log_lines {
+                            if log_lines.is_empty() {
+                                log::debug!(
+                                    "No log lines received for workload '{}', stopping logs request.",
+                                    workload
+                                );
+                                to_server
+                                    .logs_stop_response(
+                                        request_id.clone(),
+                                        ank_base::LogsStopResponse {
+                                            workload_name: Some(workload.into()),
+                                        },
+                                    )
+                                    .await
+                                    .unwrap();
+                                continue;
+                            }
+
                             to_server
                                 .logs_response(
                                     request_id.clone(),
@@ -261,7 +278,15 @@ impl AgentManager {
                             };
                             futures.push(Box::pin(x));
                         } else {
-                            // todo!: send LogsStopEvent
+                            to_server
+                                .logs_stop_response(
+                                    request_id.clone(),
+                                    ank_base::LogsStopResponse {
+                                        workload_name: Some(workload.into()),
+                                    },
+                                )
+                                .await
+                                .unwrap();
                         }
                     }
                 });

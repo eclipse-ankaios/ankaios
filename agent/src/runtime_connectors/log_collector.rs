@@ -34,12 +34,20 @@ pub async fn run(
     loop {
         select! {
             lines = log_collector.next_lines() => {
+
                 if let Some(lines) = lines {
                     let res = sender.send_log_lines(lines).await;
-                    if let Err(err) = res {
-                        log::debug!("Could not forward log lines: {:?}", err.0);
+
+                    if let Err(e) = res {
+                        log::error!("Failed to send log lines: {}", e);
                         break;
                     }
+                } else {
+                    let res = sender.send_stop().await;
+                    if let Err(e) = res {
+                        log::error!("Failed to send stop message: {}", e);
+                    }
+                    break;
                 }
 
             }
