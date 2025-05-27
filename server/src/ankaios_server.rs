@@ -1903,7 +1903,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let request_id = "req_id".to_string();
+        let request_id = REQUEST_ID.to_string();
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let server_task = tokio::spawn(async move { server.start(None).await });
 

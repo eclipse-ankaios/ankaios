@@ -927,6 +927,45 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn utest_from_server_proxy_forward_from_ankaios_to_proto_logs_cancel_request() {
+        let agent_name_1: &str = "agent_X";
+        let agent_name_2: &str = "agent_Y";
+
+        let (to_manager, mut manager_receiver) =
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+        let (agent_1_tx, mut agent_1_rx) = tokio::sync::mpsc::channel(common::CHANNEL_CAPACITY);
+        let (agent_2_tx, mut agent_2_rx) = tokio::sync::mpsc::channel(common::CHANNEL_CAPACITY);
+
+        let agent_senders_map = AgentSendersMap::new();
+        agent_senders_map.insert(agent_name_1, agent_1_tx);
+        agent_senders_map.insert(agent_name_2, agent_2_tx);
+
+        let my_request_id = "my_request_id";
+
+        let complete_state_result = to_manager.logs_cancel_request(my_request_id.into()).await;
+        assert!(complete_state_result.is_ok());
+        drop(to_manager);
+
+        forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver).await;
+        drop(agent_senders_map);
+
+        assert!(matches!(
+            agent_1_rx.recv().await.unwrap().unwrap().from_server_enum,
+            Some(FromServerEnum::LogsCancelRequest(
+                grpc_api::LogsCancelRequest{ request_id }
+            )) if request_id == my_request_id
+        ));
+        assert!(agent_1_rx.recv().await.is_none());
+        assert!(matches!(
+            agent_2_rx.recv().await.unwrap().unwrap().from_server_enum,
+            Some(FromServerEnum::LogsCancelRequest(
+                grpc_api::LogsCancelRequest{ request_id }
+            )) if request_id == my_request_id
+        ));
+        assert!(agent_2_rx.recv().await.is_none());
+    }
+
+    #[tokio::test]
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_response() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
@@ -1103,5 +1142,42 @@ mod tests {
         let result = agent_receiver.recv().await;
 
         assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_logs_cancel_request() {
+        let (to_agent, mut agent_receiver) =
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+
+        let my_request_id = "my_request_id".to_owned();
+
+        let logs_cancel_request = grpc_api::LogsCancelRequest {
+            request_id: my_request_id.clone(),
+        };
+
+        // simulate the reception of an update workload state grpc from server message
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCFromServerStreaming::new(LinkedList::from([
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::LogsCancelRequest(logs_cancel_request)),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = tokio::spawn(async move {
+            forward_from_proto_to_ankaios(&mut mock_grpc_ex_request_streaming, &to_agent).await
+        })
+        .await;
+        assert!(forward_result.is_ok());
+
+        // pick received from server message
+        let result = agent_receiver.recv().await.unwrap();
+
+        assert!(matches!(
+            result,
+            common::from_server_interface::FromServer::LogsCancelRequest(request_id)
+                if request_id == my_request_id
+        ));
     }
 }

@@ -137,13 +137,11 @@ impl TryFrom<from_server_interface::FromServer> for FromServer {
                     })),
                 })
             }
-            from_server_interface::FromServer::LogsCancelRequest(request_id) => {
-                Ok(FromServer {
-                    from_server_enum: Some(from_server::FromServerEnum::LogsCancelRequest(
-                        LogsCancelRequest { request_id },
-                    )),
-                })
-            },
+            from_server_interface::FromServer::LogsCancelRequest(request_id) => Ok(FromServer {
+                from_server_enum: Some(from_server::FromServerEnum::LogsCancelRequest(
+                    LogsCancelRequest { request_id },
+                )),
+            }),
         }
     }
 }
@@ -321,8 +319,8 @@ mod tests {
 
     use crate::{
         from_server::FromServerEnum, generate_test_proto_deleted_workload, to_server::ToServerEnum,
-        AddedWorkload, AgentHello, AgentLoadStatus, DeletedWorkload, FromServer, LogsRequest,
-        LogsResponse, ToServer, UpdateWorkload, UpdateWorkloadState, LogsCancelRequest
+        AddedWorkload, AgentHello, AgentLoadStatus, DeletedWorkload, FromServer, LogsCancelRequest,
+        LogsRequest, LogsResponse, ToServer, UpdateWorkload, UpdateWorkloadState,
     };
 
     use api::ank_base::{self, Dependencies};
@@ -658,7 +656,7 @@ mod tests {
 
         assert_eq!(FromServer::try_from(ankaios_msg), proto_msg);
     }
-    
+
     #[test]
     fn utest_convert_proto_to_server_logs_cancel_request() {
         let request_id = "req_id".to_owned();
@@ -666,9 +664,9 @@ mod tests {
         let ankaios_msg = ankaios::FromServer::LogsCancelRequest(request_id.clone());
 
         let proto_msg = Ok(FromServer {
-            from_server_enum: Some(FromServerEnum::LogsCancelRequest(
-                LogsCancelRequest { request_id },
-            )),
+            from_server_enum: Some(FromServerEnum::LogsCancelRequest(LogsCancelRequest {
+                request_id,
+            })),
         });
 
         assert_eq!(FromServer::try_from(ankaios_msg), proto_msg);

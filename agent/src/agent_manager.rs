@@ -347,7 +347,7 @@ impl AgentManager {
 mod tests {
     use std::collections::HashMap;
     use std::future::Future;
-    use std::sync::Mutex;
+    use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
     use super::RuntimeManager;
@@ -740,10 +740,23 @@ mod tests {
             .expect_read_log_lines()
             .once()
             .return_once(|| None);
+
+        let mut mock_log_collector_subscription = MockLogCollectorSubscription::new();
+        let mock_log_collector_subscription_dropped = Arc::new(Mutex::new(false));
+        let mock_log_collector_subscription_dropped_clone =
+            mock_log_collector_subscription_dropped.clone();
+        mock_log_collector_subscription
+            .expect_drop()
+            .returning(move || {
+                *mock_log_collector_subscription_dropped_clone
+                    .lock()
+                    .unwrap() = true;
+            });
+
         let collecting_logs_context = MockLogCollectorSubscription::start_collecting_logs_context();
         collecting_logs_context.expect().return_once(|_| {
             (
-                MockLogCollectorSubscription::new(),
+                mock_log_collector_subscription,
                 vec![
                     mock_runtime_connector_receiver_1,
                     mock_runtime_connector_receiver_2,
@@ -839,6 +852,7 @@ mod tests {
         .await;
         assert!(log_responses.is_err());
 
+        assert!(!*mock_log_collector_subscription_dropped.lock().unwrap());
         to_manager
             .logs_cancel_request(REQUEST_ID.into())
             .await
@@ -849,6 +863,7 @@ mod tests {
         )
         .await;
         assert!(log_responses.is_err());
+        assert!(*mock_log_collector_subscription_dropped.lock().unwrap());
 
         assert!(spawn_mock_task_is_finished());
         to_manager.stop().await.unwrap();
@@ -923,6 +938,10 @@ mod tests {
     mock! {
         pub LogCollectorSubscription {
             pub fn start_collecting_logs(log_collectors: Vec<Box<dyn crate::runtime_connectors::log_collector::LogCollector>>) -> (Self, Vec<MockRuntimeConnectorReceiver>);
+        }
+
+        impl Drop for LogCollectorSubscription {
+            fn drop(&mut self);
         }
     }
 
