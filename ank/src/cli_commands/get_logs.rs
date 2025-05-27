@@ -27,6 +27,7 @@ impl CliCommands {
         let workload_instance_names = self
             .workload_names_to_instance_names(args.workload_name.clone())
             .await?;
+
         self.server_connection
             .stream_logs(workload_instance_names, args)
             .await
@@ -60,14 +61,19 @@ impl CliCommands {
                     })
                     .collect();
 
-            Ok(workload_names
-                .into_iter()
-                .fold(BTreeSet::new(), |mut acc, workload_name| {
-                    if let Some(instance_name) = available_instance_names.get(&workload_name) {
-                        acc.insert(instance_name.clone());
-                    }
-                    acc
-                }))
+            let mut converted_instance_names = BTreeSet::new();
+            for wl_name in workload_names {
+                if let Some(instance_name) = available_instance_names.get(&wl_name) {
+                    converted_instance_names.insert(instance_name.clone());
+                } else {
+                    return Err(CliError::ExecutionError(format!(
+                        "Workload name '{}' does not exist.",
+                        wl_name
+                    )));
+                }
+            }
+
+            Ok(converted_instance_names)
         } else {
             Err(CliError::ExecutionError(
                 "No workload states available to convert workload names to instance names."
