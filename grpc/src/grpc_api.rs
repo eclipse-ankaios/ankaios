@@ -513,7 +513,7 @@ mod tests {
         let proto_request = ToServer {
             to_server_enum: Some(ToServerEnum::LogEntriesResponse(LogEntriesResponse {
                 request_id: request_id.clone(),
-                logs_response: Some(ank_base::LogEntriesResponse {
+                log_entries_response: Some(ank_base::LogEntriesResponse {
                     log_entries: vec![ank_base::LogEntry {
                         workload_name: Some(ank_base::WorkloadInstanceName {
                             workload_name: "workload_1".into(),
@@ -553,7 +553,7 @@ mod tests {
         let proto_request = ToServer {
             to_server_enum: Some(ToServerEnum::LogEntriesResponse(LogEntriesResponse {
                 request_id: request_id.clone(),
-                logs_response: None,
+                log_entries_response: None,
             })),
         };
 

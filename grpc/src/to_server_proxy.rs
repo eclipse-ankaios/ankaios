@@ -914,7 +914,7 @@ mod tests {
                     to_server_enum: Some(ToServerEnum::LogEntriesResponse(
                         crate::LogEntriesResponse {
                             request_id: "request_id".into(),
-                            logs_response: Some(LogEntriesResponse {
+                            log_entries_response: Some(LogEntriesResponse {
                                 log_entries: vec![
                                     LogEntry {
                                         workload_name: Some(WorkloadInstanceName {
@@ -977,7 +977,7 @@ mod tests {
                     to_server_enum: Some(ToServerEnum::LogEntriesResponse(
                         crate::LogEntriesResponse {
                             request_id: "request_id".into(),
-                            logs_response: None,
+                            log_entries_response: None,
                         },
                     )),
                 }),
@@ -1046,7 +1046,7 @@ mod tests {
             result.to_server_enum,
             Some(ToServerEnum::LogEntriesResponse(grpc_api::LogEntriesResponse {
                 request_id,
-                logs_response: Some(LogEntriesResponse { log_entries })
+                log_entries_response: Some(LogEntriesResponse { log_entries })
             })) if request_id == "request_id"
                     && matches!(log_entries.as_slice(),
                                 [ank_base::LogEntry{ workload_name: Some(ank_base:: WorkloadInstanceName{ workload_name: workload_name_1, agent_name: agent_name_1, id: id_1 }), message: message_1 },

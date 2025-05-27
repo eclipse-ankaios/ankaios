@@ -142,7 +142,10 @@ mod tests {
             timeout(TIMEOUT, receiver.read_log_lines()).await,
             Ok(Some(LINES_3.iter().map(|&x| x.into()).collect()))
         );
-        assert_eq!(timeout(TIMEOUT, receiver.read_log_lines()).await, Ok(None));
+        assert_eq!(
+            timeout(TIMEOUT, receiver.read_log_lines()).await,
+            Ok(Some(Vec::new()))
+        );
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
