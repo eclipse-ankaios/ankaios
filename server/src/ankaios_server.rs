@@ -359,11 +359,9 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
                 }
-                unknown_message => {
-                    log::warn!(
-                        "Received an unknown message from communications server: '{:?}'",
-                        unknown_message
-                    );
+
+                ToServer::Goodbye(_) => {
+                    log::warn!("Received unexpected 'Goodbye' from communications server");
                 }
             }
         }
