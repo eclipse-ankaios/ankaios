@@ -11,14 +11,17 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-
+use std::collections::BTreeSet;
 use std::{mem::take, time::Duration};
 
+use crate::cli::LogsArgs;
 use crate::filtered_complete_state::FilteredCompleteState;
-use crate::{output_and_error, output_debug};
-use api::ank_base;
+use crate::{cli_signals, output_and_error, output_debug};
+use api::ank_base::{self, LogEntry};
+use common::commands::LogsRequest;
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
+use common::objects::WorkloadInstanceName;
 use common::to_server_interface::ToServer;
 use common::{
     commands::{CompleteStateRequest, UpdateWorkloadState},
@@ -219,6 +222,80 @@ impl ServerConnection {
     pub fn take_missed_from_server_messages(&mut self) -> Vec<FromServer> {
         take(&mut self.missed_from_server_messages)
     }
+
+    pub async fn stream_logs(
+        &mut self,
+        mut instance_names: BTreeSet<WorkloadInstanceName>,
+        args: LogsArgs,
+    ) -> Result<(), ServerConnectionError> {
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let requested_instance_names = instance_names.clone().into_iter().collect();
+        let logs_request = LogsRequest {
+            workload_names: requested_instance_names,
+            follow: args.follow,
+            tail: args.tail,
+            since: args.since,
+            until: args.until,
+        };
+
+        self.to_server
+            .logs_request(request_id.clone(), logs_request)
+            .await
+            .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
+
+        loop {
+            tokio::select! {
+                _ = cli_signals::wait_for_signals() => {
+                    self.to_server
+                        .logs_cancel_request(request_id.clone()).await
+                        .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
+
+                    output_debug!("LogsCancelRequest sent after receiving signal to stop.");
+                    break Ok(());
+                }
+                server_message = self.from_server.recv() => {
+                    let server_message = server_message.ok_or(ServerConnectionError::ExecutionError("Error streaming workload logs: channel preliminary closed.".to_string()))?;
+
+                    match server_message {
+                        FromServer::Response(ank_base::Response {
+                            request_id: received_request_id,
+                            response_content:
+                                Some(ank_base::response::ResponseContent::LogEntriesResponse(logs_response)),
+                        }) if received_request_id == request_id => {
+                            output_logs(logs_response.log_entries);
+                        },
+                        FromServer::Response(ank_base::Response {
+                            request_id: received_request_id,
+                            response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(logs_stop_response)),
+                        }) => if received_request_id == request_id {
+                            if let Some(instance_name) = logs_stop_response.workload_name {
+                                output_debug!("Received stop message for workload instance: {:?}", instance_name);
+                                instance_names.remove(&instance_name.into());
+                            }
+
+                            if instance_names.is_empty() {
+                                output_debug!("Log streaming completed.");
+                                break Ok(());
+                            }
+                        },
+                        FromServer::Response(ank_base::Response {
+                            request_id: received_request_id,
+                            response_content: Some(ank_base::response::ResponseContent::Error(error)),
+                        }) if received_request_id == request_id => break Err(ServerConnectionError::ExecutionError(
+                            format!("Error streaming logs: '{}'", error.message),
+                        )),
+                        _ => continue,
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn output_logs(log_entries: Vec<LogEntry>) {
+    log_entries.iter().for_each(|log_entry| {
+        println!("{}", log_entry.message);
+    });
 }
 
 #[derive(Debug)]

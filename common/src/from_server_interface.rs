@@ -81,7 +81,12 @@ pub trait FromServerInterface {
     async fn logs_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogsResponse,
+        logs_response: ank_base::LogEntriesResponse,
+    ) -> Result<(), FromServerInterfaceError>;
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
     ) -> Result<(), FromServerInterfaceError>;
     async fn error(
         &self,
@@ -187,12 +192,30 @@ impl FromServerInterface for FromServerSender {
     async fn logs_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogsResponse,
+        logs_response: ank_base::LogEntriesResponse,
     ) -> Result<(), FromServerInterfaceError> {
         self.send(FromServer::Response(ank_base::Response {
             request_id,
-            response_content: ank_base::response::ResponseContent::LogsResponse(logs_response)
-                .into(),
+            response_content: ank_base::response::ResponseContent::LogEntriesResponse(
+                logs_response,
+            )
+            .into(),
+        }))
+        .await?;
+        Ok(())
+    }
+
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
+    ) -> Result<(), FromServerInterfaceError> {
+        self.send(FromServer::Response(ank_base::Response {
+            request_id,
+            response_content: ank_base::response::ResponseContent::LogsStopResponse(
+                logs_stop_response,
+            )
+            .into(),
         }))
         .await?;
         Ok(())
@@ -452,7 +475,7 @@ mod tests {
         assert!(tx
             .logs_response(
                 REQUEST_ID.into(),
-                ank_base::LogsResponse {
+                ank_base::LogEntriesResponse {
                     log_entries: vec![
                         ank_base::LogEntry {
                             workload_name: Some(ank_base::WorkloadInstanceName {
@@ -480,8 +503,8 @@ mod tests {
             rx.recv().await.unwrap(),
             FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.into(),
-                response_content: Some(ank_base::response::ResponseContent::LogsResponse(
-                    ank_base::LogsResponse {
+                response_content: Some(ank_base::response::ResponseContent::LogEntriesResponse(
+                    ank_base::LogEntriesResponse {
                         log_entries: vec![
                             ank_base::LogEntry {
                                 workload_name: Some(ank_base::WorkloadInstanceName {
@@ -514,7 +537,7 @@ mod tests {
         assert!(tx
             .logs_response(
                 REQUEST_ID.into(),
-                ank_base::LogsResponse {
+                ank_base::LogEntriesResponse {
                     log_entries: vec![ank_base::LogEntry {
                         workload_name: Some(ank_base::WorkloadInstanceName {
                             workload_name: WORKLOAD_NAME_1.into(),

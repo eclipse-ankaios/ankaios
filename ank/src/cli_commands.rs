@@ -34,6 +34,7 @@ mod delete_configs;
 mod delete_workloads;
 mod get_agents;
 mod get_configs;
+mod get_logs;
 mod get_state;
 mod get_workloads;
 mod run_workload;

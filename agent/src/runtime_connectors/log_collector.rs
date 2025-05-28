@@ -34,12 +34,20 @@ pub async fn run(
     loop {
         select! {
             lines = log_collector.next_lines() => {
-                let Some(lines) = lines else {break};
-                let res = sender.send_log_lines(lines).await;
-                if let Err(err) = res {
-                    log::debug!("Could not forward log lines: {:?}", err.0);
+
+                if let Some(lines) = lines {
+                    let res = sender.send_log_lines(lines).await;
+
+                    if let Err(e) = res {
+                        log::error!("Failed to send log lines: {}", e);
+                        break;
+                    }
+                } else {
+                    log::debug!("Log collector returned no more log lines, stopping.");
+                    drop(sender); // drop the non-cloneable log sender to indicate stop of log responses
                     break;
                 }
+
             }
             _ = sender.wait_for_receiver_dropped() => {
                 break;

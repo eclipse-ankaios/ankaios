@@ -243,7 +243,7 @@ impl AgentManager {
                             to_server
                                 .logs_response(
                                     request_id.clone(),
-                                    ank_base::LogsResponse {
+                                    ank_base::LogEntriesResponse {
                                         log_entries: log_lines
                                             .into_iter()
                                             .map(|x| ank_base::LogEntry {
@@ -254,12 +254,26 @@ impl AgentManager {
                                     },
                                 )
                                 .await
-                                .unwrap();
+                                .unwrap_or_illegal_state();
                             let x = async move {
                                 let n = receiver.read_log_lines().await;
                                 (workload, receiver, n)
                             };
                             futures.push(Box::pin(x));
+                        } else {
+                            log::debug!(
+                                "No more log lines received for workload '{}', stop sending logs.",
+                                workload
+                            );
+                            to_server
+                                .logs_stop_response(
+                                    request_id.clone(),
+                                    ank_base::LogsStopResponse {
+                                        workload_name: Some(workload.into()),
+                                    },
+                                )
+                                .await
+                                .unwrap_or_illegal_state();
                         }
                     }
                 });
@@ -845,7 +859,7 @@ mod tests {
         let mut responses = 0;
         while responses != num {
             let candidate = to_server.recv().await?;
-            if let ToServer::LogsResponse(request_id, logs_response) = candidate {
+            if let ToServer::LogEntriesResponse(request_id, logs_response) = candidate {
                 responses += 1;
                 for entry in logs_response.log_entries {
                     result
