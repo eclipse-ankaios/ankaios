@@ -254,41 +254,37 @@ impl ServerConnection {
                     break Ok(());
                 }
                 server_message = self.from_server.recv() => {
-                    if let Some(server_message) = server_message {
-                        match server_message {
-                            FromServer::Response(ank_base::Response {
-                                request_id: received_request_id,
-                                response_content:
-                                    Some(ank_base::response::ResponseContent::LogEntriesResponse(logs_response)),
-                            }) if received_request_id == request_id => {
-                                output_logs(logs_response.log_entries);
-                            },
-                            FromServer::Response(ank_base::Response {
-                                request_id: received_request_id,
-                                response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(logs_stop_response)),
-                            }) => if received_request_id == request_id {
-                                if let Some(instance_name) = logs_stop_response.workload_name {
-                                    output_debug!("Received stop message for workload instance: {:?}", instance_name);
-                                    instance_names.remove(&instance_name.into());
-                                }
+                    let server_message = server_message.ok_or(ServerConnectionError::ExecutionError("Error streaming workload logs: channel preliminary closed.".to_string()))?;
 
-                                if instance_names.is_empty() {
-                                    output_debug!("Log streaming completed.");
-                                    break Ok(());
-                                }
-                            },
-                            FromServer::Response(ank_base::Response {
-                                request_id: received_request_id,
-                                response_content: Some(ank_base::response::ResponseContent::Error(error)),
-                            }) if received_request_id == request_id => break Err(ServerConnectionError::ExecutionError(
-                                format!("Error streaming logs: '{}'", error.message),
-                            )),
-                            _ => continue,
-                        }
-                    } else {
-                        break Err(ServerConnectionError::ExecutionError(
-                                "Error streaming workload logs: channel preliminary closed.".to_string(),
-                            ));
+                    match server_message {
+                        FromServer::Response(ank_base::Response {
+                            request_id: received_request_id,
+                            response_content:
+                                Some(ank_base::response::ResponseContent::LogEntriesResponse(logs_response)),
+                        }) if received_request_id == request_id => {
+                            output_logs(logs_response.log_entries);
+                        },
+                        FromServer::Response(ank_base::Response {
+                            request_id: received_request_id,
+                            response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(logs_stop_response)),
+                        }) => if received_request_id == request_id {
+                            if let Some(instance_name) = logs_stop_response.workload_name {
+                                output_debug!("Received stop message for workload instance: {:?}", instance_name);
+                                instance_names.remove(&instance_name.into());
+                            }
+
+                            if instance_names.is_empty() {
+                                output_debug!("Log streaming completed.");
+                                break Ok(());
+                            }
+                        },
+                        FromServer::Response(ank_base::Response {
+                            request_id: received_request_id,
+                            response_content: Some(ank_base::response::ResponseContent::Error(error)),
+                        }) if received_request_id == request_id => break Err(ServerConnectionError::ExecutionError(
+                            format!("Error streaming logs: '{}'", error.message),
+                        )),
+                        _ => continue,
                     }
                 }
             }

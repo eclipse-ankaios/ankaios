@@ -240,23 +240,6 @@ impl AgentManager {
                     while let Some((workload, mut receiver, log_lines)) = futures.next().await {
                         log::debug!("Got new log lines: {:?}", log_lines);
                         if let Some(log_lines) = log_lines {
-                            if log_lines.is_empty() {
-                                log::debug!(
-                                    "No log lines received for workload '{}', stopping logs request.",
-                                    workload
-                                );
-                                to_server
-                                    .logs_stop_response(
-                                        request_id.clone(),
-                                        ank_base::LogsStopResponse {
-                                            workload_name: Some(workload.into()),
-                                        },
-                                    )
-                                    .await
-                                    .unwrap();
-                                continue;
-                            }
-
                             to_server
                                 .logs_response(
                                     request_id.clone(),
@@ -271,13 +254,17 @@ impl AgentManager {
                                     },
                                 )
                                 .await
-                                .unwrap();
+                                .unwrap_or_illegal_state();
                             let x = async move {
                                 let n = receiver.read_log_lines().await;
                                 (workload, receiver, n)
                             };
                             futures.push(Box::pin(x));
                         } else {
+                            log::debug!(
+                                "No more log lines received for workload '{}', stop sending logs.",
+                                workload
+                            );
                             to_server
                                 .logs_stop_response(
                                     request_id.clone(),
@@ -286,7 +273,7 @@ impl AgentManager {
                                     },
                                 )
                                 .await
-                                .unwrap();
+                                .unwrap_or_illegal_state();
                         }
                     }
                 });
