@@ -18,17 +18,36 @@ use super::{
 };
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Rule<P: PathPattern> {
+pub struct StateRule<P: PathPattern> {
     patterns: Vec<P>,
 }
 
-impl<P: PathPattern> Rule<P> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct LogRule {
+    workload_names: Vec<String>,
+}
+
+impl<P: PathPattern> StateRule<P> {
     pub fn create(patterns: Vec<P>) -> Self {
         Self { patterns }
     }
+
+    pub fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
+        self.patterns
+            .iter()
+            .find_map(|p| {
+                let (matches, reason) = p.matches(path);
+                if matches {
+                    Some((true, reason))
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| (false, String::new()))
+    }
 }
 
-impl<P: PathPattern> PathPatternMatcher for Rule<P> {
+impl<P: PathPattern> PathPatternMatcher for StateRule<P> {
     fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
         self.patterns
             .iter()
@@ -43,6 +62,22 @@ impl<P: PathPattern> PathPatternMatcher for Rule<P> {
     }
 }
 
+impl LogRule {
+    pub fn create(workload_names: Vec<String>) -> Self {
+        Self { workload_names }
+    }
+
+    pub fn matches(&self, workload_name: &str) -> bool {
+        self.workload_names.contains(&workload_name.to_string())
+    }
+}
+
+impl From<Vec<String>> for LogRule {
+    fn from(workload_names: Vec<String>) -> Self {
+        Self::create(workload_names)
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -53,9 +88,9 @@ impl<P: PathPattern> PathPatternMatcher for Rule<P> {
 
 #[cfg(test)]
 mod test {
-    use super::{super::path::Path, Rule};
+    use super::{super::path::Path, LogRule, StateRule};
     use crate::control_interface::authorizer::path_pattern::{
-        PathPattern, PathPatternMatchReason, PathPatternMatcher, PathPatternSection,
+        PathPatternSection, PathPattern, PathPatternMatchReason
     };
 
     struct MockPathPattern {
@@ -87,14 +122,14 @@ mod test {
     }
 
     #[test]
-    fn utest_empty_rule() {
-        let rule = Rule::<MockPathPattern>::create(Vec::new());
+    fn utest_empty_state_rule() {
+        let rule = StateRule::<MockPathPattern>::create(Vec::new());
         assert_eq!(rule.matches(&Path::from("some.path")), (false, "".into()));
     }
 
     #[test]
-    fn utest_matches_on_pattern_in_rule() {
-        let rule = Rule::create(vec![
+    fn utest_matches_on_pattern_in_state_rule() {
+        let rule = StateRule::create(vec![
             MockPathPattern::create("pattern.1", "reason1"),
             MockPathPattern::create("pattern.2", "reason2"),
             MockPathPattern::create("pattern.3", "reason3"),
@@ -107,7 +142,7 @@ mod test {
 
     #[test]
     fn utest_matches_none_pattern_in_rule() {
-        let rule = Rule::create(vec![
+        let rule = StateRule::create(vec![
             MockPathPattern::create("pattern.1", "reason1"),
             MockPathPattern::create("pattern.2", "reason2"),
             MockPathPattern::create("pattern.3", "reason3"),
@@ -116,5 +151,13 @@ mod test {
             rule.matches(&Path::from("no.matching.pattern")),
             (false, "".into())
         );
+    }
+
+    #[test]
+    fn utest_log_rule_matches() {
+        let rule = LogRule::from(vec!["workload1".into(), "workload2".into()]);
+        assert!(rule.matches("workload1"));
+        assert!(rule.matches("workload2"));
+        assert!(!rule.matches("workload3"));
     }
 }

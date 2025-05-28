@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use super::path::Path;
 use common::PATH_SEPARATOR;
@@ -43,25 +43,10 @@ fn match_rule_with_path(rule: &impl PathPattern, other: &Path) -> (bool, PathPat
     )
 }
 
-pub trait PathPattern {
-    fn sections(&self) -> &Vec<PathPatternSection>;
-
-    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
-}
-
-pub trait PathPatternMatcher {
-    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
-}
-
-impl<T: PathPatternMatcher + std::fmt::Debug> PathPatternMatcher for Vec<T> {
-    fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
-        for rule in self {
-            if let (true, reason) = rule.matches(path) {
-                return (true, reason);
-            }
-        }
-        (false, String::new())
-    }
+#[derive(Clone, Debug, PartialEq)]
+pub enum PathPatternSection {
+    Wildcard,
+    String(String),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -69,16 +54,18 @@ pub struct AllowPathPattern {
     sections: Vec<PathPatternSection>,
 }
 
-impl From<&str> for AllowPathPattern {
-    fn from(value: &str) -> Self {
-        Self {
-            sections: if value.is_empty() {
-                Vec::new()
-            } else {
-                value.split(PATH_SEPARATOR).map(Into::into).collect()
-            },
-        }
-    }
+#[derive(Clone, Debug, PartialEq)]
+pub struct DenyPathPattern {
+    sections: Vec<PathPatternSection>,
+}
+
+pub trait PathPattern {
+    fn sections(&self) -> &Vec<PathPatternSection>;
+    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
+}
+
+pub trait PathPatternMatcher {
+    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
 }
 
 // [impl->swdd~agent-authorizing-matching-allow-rules~1]
@@ -98,12 +85,7 @@ impl PathPattern for AllowPathPattern {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct DenyPathPattern {
-    sections: Vec<PathPatternSection>,
-}
-
-impl From<&str> for DenyPathPattern {
+impl From<&str> for AllowPathPattern {
     fn from(value: &str) -> Self {
         Self {
             sections: if value.is_empty() {
@@ -112,6 +94,12 @@ impl From<&str> for DenyPathPattern {
                 value.split(PATH_SEPARATOR).map(Into::into).collect()
             },
         }
+    }
+}
+
+impl From<Vec<PathPatternSection>> for AllowPathPattern {
+    fn from(value: Vec<PathPatternSection>) -> Self {
+        Self { sections: value }
     }
 }
 
@@ -126,10 +114,32 @@ impl PathPattern for DenyPathPattern {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum PathPatternSection {
-    Wildcard,
-    String(String),
+impl From<&str> for DenyPathPattern {
+    fn from(value: &str) -> Self {
+        Self {
+            sections: if value.is_empty() {
+                Vec::new()
+            } else {
+                value.split(PATH_SEPARATOR).map(Into::into).collect()
+            },
+        }
+    }
+}
+
+impl From<Vec<PathPatternSection>> for DenyPathPattern {
+    fn from(value: Vec<PathPatternSection>) -> Self {
+        Self { sections: value }
+    }
+}
+
+impl PathPatternSection {
+    // [impl->swdd~agent-authorizing-matching-rules-elements~1]
+    pub fn matches(&self, other: &String) -> bool {
+        match self {
+            PathPatternSection::Wildcard => true,
+            PathPatternSection::String(self_string) => self_string == other,
+        }
+    }
 }
 
 impl From<&str> for PathPatternSection {
@@ -151,13 +161,14 @@ impl Display for PathPatternSection {
     }
 }
 
-impl PathPatternSection {
-    // [impl->swdd~agent-authorizing-matching-rules-elements~1]
-    pub fn matches(&self, other: &String) -> bool {
-        match self {
-            PathPatternSection::Wildcard => true,
-            PathPatternSection::String(self_string) => self_string == other,
+impl<T: PathPatternMatcher + std::fmt::Debug> PathPatternMatcher for Vec<Arc<T>> {
+    fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
+        for rule in self {
+            if let (true, reason) = rule.matches(path) {
+                return (true, reason);
+            }
         }
+        (false, String::new())
     }
 }
 
@@ -171,39 +182,16 @@ impl PathPatternSection {
 
 #[cfg(test)]
 mod tests {
-    #[derive(Debug)]
-    struct MockPathPattern {
-        path_returning_true: Path,
-    }
-    use super::super::path::Path;
-
-    impl MockPathPattern {
-        fn create(path: &str) -> Self {
-            Self {
-                path_returning_true: path.into(),
-            }
-        }
-    }
-
-    impl PathPatternMatcher for MockPathPattern {
-        fn matches(&self, other: &Path) -> (bool, super::PathPatternMatchReason) {
-            (
-                other.sections == self.path_returning_true.sections,
-                String::new(),
-            )
-        }
-    }
-
-    use crate::control_interface::authorizer::{
-        AllowPathPattern, DenyPathPattern, PathPattern, PathPatternMatcher,
-    };
+    use super::{AllowPathPattern, DenyPathPattern, PathPattern, PathPatternSection};
 
     // [utest->swdd~agent-authorizing-matching-allow-rules~1]
     #[test]
     fn utest_allow_path_pattern_sections() {
         let p = AllowPathPattern::from("some.pre.fix");
+        let sections: Vec<PathPatternSection> = vec!["some".into(), "pre".into(), "fix".into()];
 
-        assert_eq!(&p.sections, p.sections());
+        assert_eq!(p.sections(), &sections);
+        assert_eq!(p, AllowPathPattern::from(sections));
     }
 
     // [utest->swdd~agent-authorizing-matching-allow-rules~1]
@@ -264,8 +252,10 @@ mod tests {
     #[test]
     fn utest_deny_path_pattern_sections() {
         let p = DenyPathPattern::from("some.pre.fix");
+        let sections: Vec<PathPatternSection> = vec!["some".into(), "pre".into(), "fix".into()];
 
-        assert_eq!(&p.sections, p.sections());
+        assert_eq!(p.sections(), &sections);
+        assert_eq!(p, DenyPathPattern::from(sections));
     }
 
     // [utest->swdd~agent-authorizing-matching-deny-rules~1]
@@ -327,31 +317,15 @@ mod tests {
     }
 
     #[test]
-    fn utest_empty_vec_path_pattern() {
-        let p = Vec::<MockPathPattern>::new();
+    fn utest_path_pattern_section() {
+        let section = PathPatternSection::from("some");
 
-        assert!(!p.matches(&"".into()).0);
-    }
+        assert!(section.matches(&"some".into()));
+        assert!(!section.matches(&"other".into()));
 
-    #[test]
-    fn utest_matches_one_in_vec_path_pattern() {
-        let p = vec![
-            MockPathPattern::create("some.path.1"),
-            MockPathPattern::create("known.path"),
-            MockPathPattern::create("some.path.2"),
-        ];
+        let wildcard_section = PathPatternSection::from("*");
 
-        assert!(p.matches(&"known.path".into()).0);
-    }
-
-    #[test]
-    fn utest_matches_none_in_vec_path_pattern() {
-        let p = vec![
-            MockPathPattern::create("some.path.1"),
-            MockPathPattern::create("some.path.2"),
-            MockPathPattern::create("some.path.3"),
-        ];
-
-        assert!(!p.matches(&"known.path".into()).0);
+        assert!(wildcard_section.matches(&"any".into()));
+        assert!(wildcard_section.matches(&"".into()));
     }
 }
