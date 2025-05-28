@@ -43,10 +43,8 @@ pub async fn run(
                         break;
                     }
                 } else {
-                    let res = sender.send_stop().await;
-                    if let Err(e) = res {
-                        log::error!("Failed to send stop message: {}", e);
-                    }
+                    log::debug!("Log collector returned no more log lines, stopping.");
+                    drop(sender); // drop the non-cloneable log sender to indicate stop of log responses
                     break;
                 }
 
@@ -142,10 +140,7 @@ mod tests {
             timeout(TIMEOUT, receiver.read_log_lines()).await,
             Ok(Some(LINES_3.iter().map(|&x| x.into()).collect()))
         );
-        assert_eq!(
-            timeout(TIMEOUT, receiver.read_log_lines()).await,
-            Ok(Some(Vec::new()))
-        );
+        assert_eq!(timeout(TIMEOUT, receiver.read_log_lines()).await, Ok(None));
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 

@@ -118,7 +118,7 @@ mod tests {
             receivers[0].read_log_lines().await,
             Some(vec![COLLECTOR_1_LINE_3.into()])
         );
-        assert_eq!(receivers[0].read_log_lines().await, Some(Vec::new()));
+        assert_eq!(receivers[0].read_log_lines().await, None);
         assert_eq!(
             receivers[1].read_log_lines().await,
             Some(vec![COLLECTOR_2_LINE_1.into()])
@@ -131,7 +131,7 @@ mod tests {
                 COLLECTOR_2_LINE_4.into()
             ])
         );
-        assert_eq!(receivers[1].read_log_lines().await, Some(Vec::new()));
+        assert_eq!(receivers[1].read_log_lines().await, None);
     }
 
     #[tokio::test]

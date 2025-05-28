@@ -41,8 +41,10 @@ impl Drop for Receiver {
     }
 }
 
+struct NoCloneableSender(mpsc::Sender<Vec<String>>); // Sender is dropped to indicate receiver stop of log responses
+
 pub struct Sender {
-    log_line_sender: mpsc::Sender<Vec<String>>,
+    log_line_sender: NoCloneableSender,
     receiver_dropped: watch::Receiver<bool>,
 }
 
@@ -51,11 +53,7 @@ impl Sender {
         &self,
         log_lines: Vec<String>,
     ) -> Result<(), mpsc::error::SendError<Vec<String>>> {
-        self.log_line_sender.send(log_lines).await
-    }
-
-    pub async fn send_stop(&self) -> Result<(), mpsc::error::SendError<Vec<String>>> {
-        self.log_line_sender.send(Default::default()).await
+        self.log_line_sender.0.send(log_lines).await
     }
 
     pub async fn wait_for_receiver_dropped(&mut self) {
@@ -69,7 +67,7 @@ pub fn channel() -> (Sender, Receiver) {
     let (receiver_dropped_sink, receiver_dropped) = watch::channel(false);
     (
         Sender {
-            log_line_sender,
+            log_line_sender: NoCloneableSender(log_line_sender),
             receiver_dropped,
         },
         Receiver {
