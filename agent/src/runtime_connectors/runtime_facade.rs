@@ -450,12 +450,10 @@ mod tests {
             None,
         );
 
-        runtime_mock
-            .expect(vec![RuntimeCall::GetReusableWorkloads(
-                AGENT_NAME.into(),
-                Ok(vec![workload_state]),
-            )])
-            .await;
+        runtime_mock.expect(vec![RuntimeCall::GetReusableWorkloads(
+            AGENT_NAME.into(),
+            Ok(vec![workload_state]),
+        )]);
 
         let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
             Box::new(runtime_mock.clone());
@@ -475,7 +473,7 @@ mod tests {
             vec![workload_instance_name]
         );
 
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-create-workload~2]
@@ -537,7 +535,7 @@ mod tests {
             .return_once(|_, _, _| mock_workload);
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![]).await;
+        runtime_mock.expect(vec![]);
 
         let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
             Box::new(runtime_mock.clone());
@@ -561,7 +559,7 @@ mod tests {
         tokio::task::yield_now().await;
 
         assert!(task_handle.await.is_ok());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-resume-workload~2]
@@ -639,7 +637,7 @@ mod tests {
 
         tokio::task::yield_now().await;
         assert!(task_handle.await.is_ok());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-control-interface-created-for-eligible-workloads~1]
@@ -691,7 +689,7 @@ mod tests {
 
         tokio::task::yield_now().await;
         assert!(task_handle.await.is_ok());
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-delete-old-workload~3]
@@ -706,15 +704,10 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::GetWorkloadId(
-                    workload_instance_name.clone(),
-                    Ok(WORKLOAD_ID.to_string()),
-                ),
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(WORKLOAD_ID.to_string())),
+            RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+        ]);
 
         let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
             Box::new(runtime_mock.clone());
@@ -742,7 +735,7 @@ mod tests {
         )
         .await;
 
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 
     // [utest->swdd~agent-delete-old-workload~3]
@@ -757,20 +750,15 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::GetWorkloadId(
-                    workload_instance_name.clone(),
-                    Ok(WORKLOAD_ID.to_string()),
-                ),
-                RuntimeCall::DeleteWorkload(
-                    WORKLOAD_ID.to_string(),
-                    Err(crate::runtime_connectors::RuntimeError::Delete(
-                        "delete failed".to_owned(),
-                    )),
-                ),
-            ])
-            .await;
+        runtime_mock.expect(vec![
+            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(WORKLOAD_ID.to_string())),
+            RuntimeCall::DeleteWorkload(
+                WORKLOAD_ID.to_string(),
+                Err(crate::runtime_connectors::RuntimeError::Delete(
+                    "delete failed".to_owned(),
+                )),
+            ),
+        ]);
 
         let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
             Box::new(runtime_mock.clone());
@@ -798,6 +786,6 @@ mod tests {
         )
         .await;
 
-        runtime_mock.assert_all_expectations().await;
+        runtime_mock.assert_all_expectations();
     }
 }
