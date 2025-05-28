@@ -23,6 +23,8 @@ use crate::cli_error::CliError;
 use super::CliCommands;
 
 impl CliCommands {
+    // [impl->swdd~cli-provides-workload-logs~1]
+    // [impl->swdd~cli-gets-logs-from-the-server~1]
     pub async fn get_logs_blocking(&mut self, args: LogsArgs) -> Result<(), CliError> {
         let workload_instance_names = self
             .workload_names_to_instance_names(args.workload_name.clone())

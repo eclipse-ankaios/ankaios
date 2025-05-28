@@ -223,6 +223,7 @@ impl ServerConnection {
         take(&mut self.missed_from_server_messages)
     }
 
+    // [impl->swdd~cli-gets-logs-from-the-server~1]
     pub async fn stream_logs(
         &mut self,
         mut instance_names: BTreeSet<WorkloadInstanceName>,
@@ -245,6 +246,7 @@ impl ServerConnection {
 
         loop {
             tokio::select! {
+                // [impl->swdd~cli-sends-logs-cancel-request-upon-termination~1]
                 _ = cli_signals::wait_for_signals() => {
                     self.to_server
                         .logs_cancel_request(request_id.clone()).await
@@ -256,6 +258,7 @@ impl ServerConnection {
                 server_message = self.from_server.recv() => {
                     let server_message = server_message.ok_or(ServerConnectionError::ExecutionError("Error streaming workload logs: channel preliminary closed.".to_string()))?;
 
+                    // [impl->swdd~handles-log-responses-from-server~1]
                     match server_message {
                         FromServer::Response(ank_base::Response {
                             request_id: received_request_id,
@@ -268,6 +271,7 @@ impl ServerConnection {
                             request_id: received_request_id,
                             response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(logs_stop_response)),
                         }) => if received_request_id == request_id {
+                            // [impl->swdd~stops-log-output-for-specific-workloads~1]
                             if let Some(instance_name) = logs_stop_response.workload_name {
                                 output_debug!("Received stop message for workload instance: {:?}", instance_name);
                                 instance_names.remove(&instance_name.into());

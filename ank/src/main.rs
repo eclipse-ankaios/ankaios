@@ -246,11 +246,12 @@ async fn main() {
                 output_and_error!("{}", err);
             }
         }
+        // [impl->swdd~cli-provides-workload-logs~1]
         cli::Commands::Logs(logs_args) => {
             cmd.get_logs_blocking(logs_args)
                 .await
                 .unwrap_or_else(|err| {
-                    output_and_error!("Failed to follow logs: '{}'", err);
+                    output_and_error!("Failed to output logs: '{}'", err);
                 });
         }
     }
