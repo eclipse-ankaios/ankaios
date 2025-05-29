@@ -12,16 +12,27 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use async_trait::async_trait;
-
-use crate::runtime_connectors::log_collector::LogCollector;
+use crate::runtime_connectors::runtime_connector::LogRequestOptions;
+use super::PodmanKubeWorkloadId;
+use super::super::log_collector::{GetOutputStreams, StreamTrait};
 
 #[derive(Debug)]
 pub struct PodmanLogCollector {}
 
-#[async_trait]
-impl LogCollector for PodmanLogCollector {
-    async fn next_lines(&mut self) -> Option<Vec<String>> {
-        None
+impl PodmanLogCollector {
+    pub fn new(
+        _workload_id: &PodmanKubeWorkloadId,
+        _options: &LogRequestOptions,
+    ) -> Self {
+        Self {}
+    }
+}
+
+impl GetOutputStreams for PodmanLogCollector {
+    type OutputStream = Box<dyn StreamTrait>;
+    type ErrStream = Box<dyn StreamTrait>;
+
+    fn get_output_streams(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>) {
+        (None, None)
     }
 }
