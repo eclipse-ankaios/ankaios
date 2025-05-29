@@ -102,7 +102,7 @@ impl GetOutputStreams for PodmanLogCollector {
     type OutputStream = Box<dyn StreamTrait>;
     type ErrStream = Box<dyn StreamTrait>;
 
-    fn get_output_stream(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>) {
+    fn get_output_streams(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>) {
         #[cfg(not(test))]
         {
             if let Some(child) = &mut self.child {
@@ -241,7 +241,7 @@ mod tests {
 
             }) if cmd == "podman" && *args == vec!["logs".to_string(), WORKLOAD_ID.to_string()]
         ));
-        let (child_stdout, child_stderr) = log_collector.get_output_stream();
+        let (child_stdout, child_stderr) = log_collector.get_output_streams();
         assert!(child_stdout.is_none());
         assert!(child_stderr.is_none());
     }
@@ -272,7 +272,7 @@ mod tests {
                 stderr_option: Some(_),
             }) if cmd == "podman" && *args == vec!["logs".to_string(), "-f".to_string(), "--since".to_string(), "since".to_string(), "--until".to_string(), "until".to_string(), "--tail".to_string(), "10".to_string(), WORKLOAD_ID.to_string(), ]
         ));
-        let (child_stdout, child_stderr) = log_collector.get_output_stream();
+        let (child_stdout, child_stderr) = log_collector.get_output_streams();
         assert!(child_stdout.is_none());
         assert!(child_stderr.is_none());
     }

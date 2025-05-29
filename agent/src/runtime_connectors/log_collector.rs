@@ -38,7 +38,7 @@ impl<T: AsyncRead + std::fmt::Debug + Send + Unpin> StreamTrait for T {}
 pub trait GetOutputStreams {
     type OutputStream: StreamTrait;
     type ErrStream: StreamTrait;
-    fn get_output_stream(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>);
+    fn get_output_streams(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>);
 }
 
 pub async fn run(mut log_collector: Box<dyn LogCollector>, mut sender: log_channel::Sender) {
@@ -98,14 +98,21 @@ mod tests {
     const TIMEOUT: Duration = Duration::from_millis(10);
 
     #[derive(Debug)]
+    enum NextLineType {
+        Stdout,
+        Stderr,
+    }
+
+    #[derive(Debug)]
     struct MockLogCollector {
         mock_data: VecDeque<Vec<String>>,
         limited: bool,
         semaphore: Arc<Semaphore>,
+        line_type: NextLineType,
     }
 
     impl MockLogCollector {
-        fn new<'a>(data: &'a [&'a [&'a str]], limited: bool) -> Self {
+        fn new<'a>(data: &'a [&'a [&'a str]], limited: bool, line_type: NextLineType) -> Self {
             Self {
                 mock_data: data
                     .iter()
@@ -113,6 +120,7 @@ mod tests {
                     .collect(),
                 semaphore: Arc::new(Semaphore::new(0)),
                 limited,
+                line_type,
             }
         }
 
@@ -126,25 +134,28 @@ mod tests {
         async fn next_lines(&mut self) -> NextLinesResult {
             self.semaphore.acquire().await.unwrap().forget();
             if self.limited {
-                match self.mock_data.pop_front(){
-                    Some(res) => {
-                        NextLinesResult::Stdout(res)
-                    }
-                    None => {
-                        NextLinesResult::EoF
-                    }
+                match self.mock_data.pop_front() {
+                    Some(res) => match self.line_type {
+                        NextLineType::Stdout => NextLinesResult::Stdout(res),
+                        NextLineType::Stderr => NextLinesResult::Stderr(res),
+                    },
+                    None => NextLinesResult::EoF,
                 }
             } else {
                 let res = self.mock_data.pop_front().unwrap();
                 self.mock_data.push_back(res.clone());
-                NextLinesResult::Stdout(res)
+                match self.line_type {
+                    NextLineType::Stdout => NextLinesResult::Stdout(res),
+                    NextLineType::Stderr => NextLinesResult::Stderr(res),
+                }
             }
         }
     }
 
     #[tokio::test]
     async fn utest_log_collector_read_all_lines() {
-        let log_collector = MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], true);
+        let log_collector =
+            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stdout);
         let sem = log_collector.semaphore();
         sem.add_permits(4);
 
@@ -169,7 +180,8 @@ mod tests {
 
     #[tokio::test]
     async fn utest_log_collector_cannot_send_message() {
-        let log_collector = MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false);
+        let log_collector =
+            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
         let sem = log_collector.semaphore();
         sem.add_permits(4);
 
@@ -190,7 +202,8 @@ mod tests {
 
     #[tokio::test]
     async fn utest_log_collector_informed_about_receiver_dropped() {
-        let log_collector = MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false);
+        let log_collector =
+            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
         let sem = log_collector.semaphore();
         sem.add_permits(2);
 
@@ -207,5 +220,53 @@ mod tests {
         );
         drop(receiver);
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn utest_log_collector_stderr_ok() {
+        let log_collector =
+            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stderr);
+        let sem = log_collector.semaphore();
+
+        sem.add_permits(4);
+        let (sender, mut receiver) = log_channel::channel();
+        let jh = tokio::spawn(super::run(Box::new(log_collector), sender));
+        assert_eq!(
+            timeout(TIMEOUT, receiver.read_log_lines()).await,
+            Ok(Some(LINES_1.iter().map(|&x| x.into()).collect()))
+        );
+        assert_eq!(
+            timeout(TIMEOUT, receiver.read_log_lines()).await,
+            Ok(Some(LINES_2.iter().map(|&x| x.into()).collect()))
+        );
+        assert_eq!(
+            timeout(TIMEOUT, receiver.read_log_lines()).await,
+            Ok(Some(LINES_3.iter().map(|&x| x.into()).collect()))
+        );
+        assert_eq!(timeout(TIMEOUT, receiver.read_log_lines()).await, Ok(None));
+        timeout(TIMEOUT, jh).await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn utest_log_collector_stderr_err() {
+        let log_collector =
+            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stderr);
+        let sem = log_collector.semaphore();
+        sem.add_permits(4);
+
+        let (sender, mut receiver) = log_channel::channel();
+        let jh = tokio::spawn(super::run(Box::new(log_collector), sender));
+
+        assert_eq!(
+            timeout(TIMEOUT, receiver.read_log_lines()).await,
+            Ok(Some(LINES_1.iter().map(|&x| x.into()).collect()))
+        );
+        assert_eq!(
+            timeout(TIMEOUT, receiver.read_log_lines()).await,
+            Ok(Some(LINES_2.iter().map(|&x| x.into()).collect()))
+        );
+        receiver.take_log_line_receiver();
+        timeout(TIMEOUT, jh).await.unwrap().unwrap();
+        assert_eq!(timeout(TIMEOUT, receiver.read_log_lines()).await, Ok(None));
     }
 }

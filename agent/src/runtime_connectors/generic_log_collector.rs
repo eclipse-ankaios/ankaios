@@ -41,7 +41,7 @@ where
 
 impl<T: GetOutputStreams> GenericLogCollector<T> {
     pub fn new(mut streams: T) -> Self {
-        let (stdout, stderr) = streams.get_output_stream();
+        let (stdout, stderr) = streams.get_output_streams();
         Self {
             stdout: stdout.map(GenericSingleLogCollector::new),
             stderr: stderr.map(GenericSingleLogCollector::new),
@@ -177,6 +177,8 @@ pub mod test {
     const LINE_3: &str = "third line";
     const LINE_4: &str = "forth line";
     const LINE_5: &str = "fifth line";
+    const STDOUT_LINE: &str = "line_from_stdout";
+    const STDERR_LINE: &str = "line_from_stderr";
 
     #[derive(Debug)]
     pub(crate) struct MockRead {
@@ -220,28 +222,6 @@ pub mod test {
                 None => std::task::Poll::Ready(std::io::Result::Ok(())),
             }
         }
-    }
-
-    fn create_generic_log_collector(
-        stdout: Option<Box<dyn StreamTrait>>,
-        stderr: Option<Box<dyn StreamTrait>>,
-    ) -> GenericLogCollector<PodmanLogCollector> {
-        let workload_id = PodmanWorkloadId {
-            id: "test".to_string(),
-        };
-        let mut podman_log_collector = PodmanLogCollector::new(
-            &workload_id,
-            &LogRequestOptions {
-                follow: true,
-                since: Some("test_since".to_string()),
-                until: Some("test_until".to_string()),
-                tail: Some(10),
-            },
-        );
-        podman_log_collector.set_stdout(stdout);
-        podman_log_collector.set_stderr(stderr);
-
-        GenericLogCollector::new(podman_log_collector)
     }
 
     #[tokio::test]
@@ -348,13 +328,13 @@ pub mod test {
     #[tokio::test]
     async fn utest_generic_log_collector_stdout() {
         let stdout = MockRead {
-            data: vec![MockReadDataEntry::data("line_from_stdout\n")].into(),
+            data: vec![MockReadDataEntry::data(&format!("{STDOUT_LINE}\n"))].into(),
         };
 
         let mut generic_log_collector = create_generic_log_collector(Some(Box::new(stdout)), None);
         assert!(matches!(
             generic_log_collector.next_lines().await,
-            NextLinesResult::Stdout(lines) if lines == vec!["line_from_stdout".to_string()]
+            NextLinesResult::Stdout(lines) if lines == vec![STDOUT_LINE.to_string()]
         ));
         assert!(matches!(
             generic_log_collector.next_lines().await,
@@ -365,13 +345,13 @@ pub mod test {
     #[tokio::test]
     async fn utest_generic_log_collector_stderr() {
         let stderr = MockRead {
-            data: vec![MockReadDataEntry::data("line_from_stderr\n")].into(),
+            data: vec![MockReadDataEntry::data(&format!("{STDERR_LINE}\n"))].into(),
         };
 
         let mut generic_log_collector = create_generic_log_collector(None, Some(Box::new(stderr)));
         assert!(matches!(
             generic_log_collector.next_lines().await,
-            NextLinesResult::Stderr(lines) if lines == vec!["line_from_stderr".to_string()]
+            NextLinesResult::Stderr(lines) if lines == vec![STDERR_LINE.to_string()]
         ));
         assert!(matches!(
             generic_log_collector.next_lines().await,
@@ -382,10 +362,10 @@ pub mod test {
     #[tokio::test]
     async fn utest_generic_log_collector_stdout_and_stderr() {
         let stdout = MockRead {
-            data: vec![MockReadDataEntry::data("line_from_stdout\n")].into(),
+            data: vec![MockReadDataEntry::data(&format!("{STDOUT_LINE}\n"))].into(),
         };
         let stderr = MockRead {
-            data: vec![MockReadDataEntry::data("line_from_stderr\n")].into(),
+            data: vec![MockReadDataEntry::data(&format!("{STDERR_LINE}\n"))].into(),
         };
 
         let mut generic_log_collector =
@@ -397,11 +377,11 @@ pub mod test {
             let line = generic_log_collector.next_lines().await;
             match line {
                 NextLinesResult::Stdout(lines) => {
-                    assert_eq!(lines, vec!["line_from_stdout".to_string()]);
+                    assert_eq!(lines, vec![STDOUT_LINE.to_string()]);
                     lines_from_stdout += 1;
                 }
                 NextLinesResult::Stderr(lines) => {
-                    assert_eq!(lines, vec!["line_from_stderr".to_string()]);
+                    assert_eq!(lines, vec![STDERR_LINE.to_string()]);
                     lines_from_stderr += 1;
                 }
                 NextLinesResult::EoF => {
@@ -418,5 +398,27 @@ pub mod test {
             generic_log_collector.next_lines().await,
             NextLinesResult::EoF
         ));
+    }
+
+    fn create_generic_log_collector(
+        stdout: Option<Box<dyn StreamTrait>>,
+        stderr: Option<Box<dyn StreamTrait>>,
+    ) -> GenericLogCollector<PodmanLogCollector> {
+        let workload_id = PodmanWorkloadId {
+            id: "test".to_string(),
+        };
+        let mut podman_log_collector = PodmanLogCollector::new(
+            &workload_id,
+            &LogRequestOptions {
+                follow: true,
+                since: Some("test_since".to_string()),
+                until: Some("test_until".to_string()),
+                tail: Some(10),
+            },
+        );
+        podman_log_collector.set_stdout(stdout);
+        podman_log_collector.set_stderr(stderr);
+
+        GenericLogCollector::new(podman_log_collector)
     }
 }

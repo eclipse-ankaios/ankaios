@@ -35,10 +35,7 @@ use crate::{
     workload_state::WorkloadStateSender,
 };
 
-use super::{
-    podman_kube_log_collector::PodmanLogCollector,
-    podman_kube_runtime_config::PodmanKubeRuntimeConfig,
-};
+use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
 
 pub const PODMAN_KUBE_RUNTIME_NAME: &str = "podman-kube";
 const CONFIG_VOLUME_SUFFIX: &str = ".config";
@@ -287,7 +284,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         workload_id: PodmanKubeWorkloadId,
         options: &LogRequestOptions,
     ) -> Result<Box<dyn LogCollector + Send>, RuntimeError> {
-        let x = PodmanLogCollector::new(&workload_id, options);
+        let x = super::podman_kube_log_collector::PodmanLogCollector::new(&workload_id, options);
         let log_collector = GenericLogCollector::new(x);
         Ok(Box::new(log_collector))
     }
