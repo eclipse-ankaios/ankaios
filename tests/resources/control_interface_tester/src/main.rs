@@ -21,6 +21,7 @@ use prost::Message;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::env::args;
+use std::path::PathBuf;
 use std::{
     fs::File,
     io,
@@ -60,18 +61,18 @@ enum CommandEnum {
     SendHello(Version),
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct Version {
     version: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct UpdateState {
     manifest_file: String,
     update_mask: Vec<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct GetState {
     field_mask: Vec<String>,
 }
@@ -183,14 +184,19 @@ fn write_result(output_path: String, result: Vec<TestResult>) {
 struct Connection {
     id_counter: i32,
     output: File,
-    input: File,
+    input: InputPipe,
+}
+
+enum InputPipe {
+    Path(PathBuf),
+    File(File),
 }
 
 impl Connection {
     pub fn new() -> Result<Self, String> {
         let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
-        let output_fifo = pipes_location.join("output");
 
+        let output_fifo = pipes_location.join("output");
         let output = File::create(&output_fifo).map_err(|err| {
             format!(
                 "Error: cannot create '{}': '{}'",
@@ -201,18 +207,11 @@ impl Connection {
 
         let input_fifo = pipes_location.join("input");
 
-        let input = File::open(&input_fifo).map_err(|err| {
-            format!(
-                "Error: cannot open '{}': '{}'",
-                input_fifo.to_str().unwrap(),
-                err
-            )
-        })?;
 
         Ok(Connection {
             id_counter: 0,
             output,
-            input,
+            input: InputPipe::Path(input_fifo),
         })
     }
 
@@ -382,7 +381,7 @@ impl Connection {
         let size = prost::encoding::decode_varint(&mut varint_data)? as usize;
 
         let mut buf = vec![0; size];
-        self.input.read_exact(&mut buf[..])?; // read exact bytes from file
+        self.read_exact(&mut buf[..])?; // read exact bytes from file
         Ok(buf.into_boxed_slice())
     }
 
@@ -390,7 +389,7 @@ impl Connection {
         let mut res = [0u8; MAX_VARINT_SIZE];
         let mut one_byte_buffer = [0u8; 1];
         for item in res.iter_mut() {
-            self.input.read_exact(&mut one_byte_buffer)?;
+            self.read_exact(&mut one_byte_buffer)?;
             *item = one_byte_buffer[0];
             // check if most significant bit is set to 0 if so it is the last byte to be readxxxxxxfff
             if *item & 0b10000000 == 0 {
@@ -398,6 +397,19 @@ impl Connection {
             }
         }
         Ok(res)
+    }
+
+    fn read_exact(&mut self, buf: &mut [u8]) -> Result<(), io::Error> {
+        if let InputPipe::Path(path) = &mut self.input {
+            let file = File::open(path)?;
+            self.input = InputPipe::File(file);
+        }
+
+        if let InputPipe::File(file) = &mut self.input {
+            file.read_exact(buf)
+        } else {
+            unreachable!()
+        }
     }
 
     pub fn get_next_id(&mut self) -> String {
