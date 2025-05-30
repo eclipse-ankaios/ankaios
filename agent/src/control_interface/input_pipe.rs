@@ -73,7 +73,8 @@ impl InputPipe {
         let mut res = [0u8; Self::MAX_VARINT_SIZE];
         for item in res.iter_mut() {
             *item = file.read_u8().await?;
-            if *item & 0b10000000 == 0 {
+            const VARINT_STOP_MASK: u8 = 0b10000000;
+            if *item & VARINT_STOP_MASK == 0 {
                 break;
             }
         }
@@ -130,19 +131,19 @@ mod tests {
         let tmpdir = tempfile::tempdir().unwrap();
         let fifo = tmpdir.path().join("fifo");
         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-        let mut f = super::InputPipe::open(&fifo);
+        let mut reading_side = super::InputPipe::open(&fifo);
 
-        let jh = tokio::spawn(async move {
-            let data = f.read_protobuf_data().await.unwrap();
+        let reading_task = tokio::spawn(async move {
+            let data = reading_side.read_protobuf_data().await.unwrap();
             assert_eq!(data, vec![17]);
         });
 
-        let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+        let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
         let v = vec![1, 17];
-        f.write_all(&v).await.unwrap();
-        f.flush().await.unwrap();
+        writing_side.write_all(&v).await.unwrap();
+        writing_side.flush().await.unwrap();
 
-        jh.await.unwrap();
+        reading_task.await.unwrap();
     }
 
     // [utest->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
@@ -151,20 +152,20 @@ mod tests {
         let tmpdir = tempfile::tempdir().unwrap();
         let fifo = tmpdir.path().join("fifo");
         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-        let mut f = super::InputPipe::open(&fifo);
+        let mut reading_side = super::InputPipe::open(&fifo);
 
-        let jh = tokio::spawn(async move {
-            let data = f.read_protobuf_data().await.unwrap();
+        let reading_task = tokio::spawn(async move {
+            let data = reading_side.read_protobuf_data().await.unwrap();
             assert_eq!(data, vec![17; 128]);
         });
 
-        let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+        let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
         let mut data = vec![0b10000000, 1];
         data.append(&mut vec![17; 128]);
-        f.write_all(&data).await.unwrap();
-        f.flush().await.unwrap();
+        writing_side.write_all(&data).await.unwrap();
+        writing_side.flush().await.unwrap();
 
-        jh.await.unwrap();
+        reading_task.await.unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -172,28 +173,28 @@ mod tests {
         let tmpdir = tempfile::tempdir().unwrap();
         let fifo = tmpdir.path().join("fifo");
         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-        let mut f = super::InputPipe::open(&fifo);
+        let mut reading_side = super::InputPipe::open(&fifo);
 
-        let jh = tokio::spawn(async move {
-            let data = f.read_protobuf_data().await.unwrap();
+        let reading_task = tokio::spawn(async move {
+            let data = reading_side.read_protobuf_data().await.unwrap();
             assert_eq!(data, vec![17]);
         });
 
         {
-            let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+            let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
             let data = vec![0b10000000];
-            f.write_all(&data).await.unwrap();
-            f.flush().await.unwrap();
+            writing_side.write_all(&data).await.unwrap();
+            writing_side.flush().await.unwrap();
         }
         std::thread::sleep(Duration::from_millis(TEST_TIMEOUT));
         {
-            let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+            let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
             let data = vec![1, 17];
-            f.write_all(&data).await.unwrap();
-            f.flush().await.unwrap();
+            writing_side.write_all(&data).await.unwrap();
+            writing_side.flush().await.unwrap();
         }
 
-        jh.await.unwrap();
+        reading_task.await.unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -201,28 +202,28 @@ mod tests {
         let tmpdir = tempfile::tempdir().unwrap();
         let fifo = tmpdir.path().join("fifo");
         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-        let mut f = super::InputPipe::open(&fifo);
+        let mut reading_side = super::InputPipe::open(&fifo);
 
-        let jh = tokio::spawn(async move {
-            let data = f.read_protobuf_data().await.unwrap();
+        let reading_task = tokio::spawn(async move {
+            let data = reading_side.read_protobuf_data().await.unwrap();
             assert_eq!(data, vec![17]);
         });
 
         {
-            let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+            let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
             let data = vec![2, 13];
-            f.write_all(&data).await.unwrap();
-            f.flush().await.unwrap();
+            writing_side.write_all(&data).await.unwrap();
+            writing_side.flush().await.unwrap();
         }
         std::thread::sleep(Duration::from_millis(TEST_TIMEOUT));
         {
-            let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+            let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
             let data = vec![1, 17];
-            f.write_all(&data).await.unwrap();
-            f.flush().await.unwrap();
+            writing_side.write_all(&data).await.unwrap();
+            writing_side.flush().await.unwrap();
         }
 
-        jh.await.unwrap();
+        reading_task.await.unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -230,22 +231,22 @@ mod tests {
         let tmpdir = tempfile::tempdir().unwrap();
         let fifo = tmpdir.path().join("fifo");
         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-        let mut f = super::InputPipe::open(&fifo);
+        let mut reading_side = super::InputPipe::open(&fifo);
 
-        let jh = tokio::spawn(async move {
-            let data = f.read_protobuf_data().await;
+        let reading_task = tokio::spawn(async move {
+            let data = reading_side.read_protobuf_data().await;
             assert!(data.is_err());
             assert_eq!(data.unwrap_err().kind(), ErrorKind::InvalidData);
         });
 
         {
-            let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+            let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
             let data = vec![0b10000000; super::InputPipe::MAX_VARINT_SIZE];
-            f.write_all(&data).await.unwrap();
-            f.flush().await.unwrap();
+            writing_side.write_all(&data).await.unwrap();
+            writing_side.flush().await.unwrap();
         }
 
-        jh.await.unwrap();
+        reading_task.await.unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -253,19 +254,19 @@ mod tests {
         let tmpdir = tempfile::tempdir().unwrap();
         let fifo = tmpdir.path().join("fifo");
         mkfifo(&fifo, Mode::S_IRWXU).unwrap();
-        let mut f = super::InputPipe::open(&fifo);
+        let mut reading_side = super::InputPipe::open(&fifo);
 
-        let jh = tokio::spawn(async move {
-            let data = f.read_protobuf_data().await.unwrap();
+        let reading_task = tokio::spawn(async move {
+            let data = reading_side.read_protobuf_data().await.unwrap();
             assert_eq!(data, Vec::<u8>::new());
         });
 
-        let mut f = super::OpenOptions::new().open_sender(&fifo).unwrap();
+        let mut writing_side = super::OpenOptions::new().open_sender(&fifo).unwrap();
         let v = vec![0];
-        f.write_all(&v).await.unwrap();
-        f.flush().await.unwrap();
+        writing_side.write_all(&v).await.unwrap();
+        writing_side.flush().await.unwrap();
 
-        jh.await.unwrap();
+        reading_task.await.unwrap();
     }
 
     #[tokio::test]
@@ -273,14 +274,14 @@ mod tests {
         let tmpdir = tempfile::tempdir().unwrap();
         let fifo = tmpdir.path().join("fifo");
         //This should fail as the file does not exist
-        let mut f = super::InputPipe::open(&fifo);
-        assert!(f.read_protobuf_data().await.is_err());
+        let mut reading_side = super::InputPipe::open(&fifo);
+        assert!(reading_side.read_protobuf_data().await.is_err());
     }
 
     #[tokio::test]
     async fn test_read_cannot_read() {
         let tmpdir = tempfile::tempdir().unwrap();
-        let mut f = super::InputPipe::open(tmpdir.path());
-        assert!(f.read_protobuf_data().await.is_err());
+        let mut reading_side = super::InputPipe::open(tmpdir.path());
+        assert!(reading_side.read_protobuf_data().await.is_err());
     }
 }

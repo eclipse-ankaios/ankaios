@@ -109,39 +109,37 @@ mod tests {
         let barrier1 = Arc::new(Barrier::new(2));
         let barrier2 = barrier1.clone();
 
-        let jh = tokio::spawn(async move {
-            let mut f = super::OutputPipe::open(&fifo2);
+        let writing_task = tokio::spawn(async move {
+            let mut writing_side = super::OutputPipe::open(&fifo2);
             barrier1.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
-            f.write_all(&[1, 2, 3]).await.unwrap();
+            writing_side.write_all(&[1, 2, 3]).await.unwrap();
             barrier1.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
-            f.write_all(&[4, 5, 6, 7, 8]).await.unwrap();
+            writing_side.write_all(&[4, 5, 6, 7, 8]).await.unwrap();
         });
         {
-            let mut f = super::OpenOptions::new().open_receiver(&fifo).unwrap();
-            // let mut f = File::open(&fifo).await.unwrap();
+            let mut reading_side = super::OpenOptions::new().open_receiver(&fifo).unwrap();
             barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
             let mut buf = [0; 64];
-            let s = f.read(&mut buf).await.unwrap();
-            assert_eq!(s, 3);
+            let read_count = reading_side.read(&mut buf).await.unwrap();
+            assert_eq!(read_count, 3);
             assert_eq!(buf[0..3], vec![1, 2, 3]);
         }
         {
-            let mut f = super::OpenOptions::new().open_receiver(&fifo).unwrap();
-            // let mut f = File::open(&fifo).await.unwrap();
+            let mut reading_side = super::OpenOptions::new().open_receiver(&fifo).unwrap();
             barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
             let mut buf = [0; 64];
-            let s = f.read(&mut buf).await.unwrap();
-            assert_eq!(s, 5);
+            let read_count = reading_side.read(&mut buf).await.unwrap();
+            assert_eq!(read_count, 5);
             assert_eq!(buf[0..5], vec![4, 5, 6, 7, 8]);
         }
 
-        jh.await.unwrap();
+        writing_task.await.unwrap();
     }
 
     #[tokio::test]
     async fn test_write_empty() {
-        let mut f = super::OutputPipe::open(Path::new(""));
-        assert!(f.write_all(&[]).await.is_ok());
+        let mut writing_side = super::OutputPipe::open(Path::new(""));
+        assert!(writing_side.write_all(&[]).await.is_ok());
     }
 
     #[tokio::test]
@@ -149,7 +147,7 @@ mod tests {
         let tmpdir = tempfile::tempdir().unwrap();
         let fifo = tmpdir.path().join("fifo");
         //This should fail as the file does not exist
-        let mut f = super::OutputPipe::open(&fifo);
-        assert!(f.write_all(&[1, 2, 3]).await.is_err());
+        let mut writing_side = super::OutputPipe::open(&fifo);
+        assert!(writing_side.write_all(&[1, 2, 3]).await.is_err());
     }
 }
