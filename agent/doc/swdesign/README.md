@@ -3198,15 +3198,15 @@ Needs:
 - impl
 - utest
 
-#### Agent ensures the Control Interface output pipes are read
-`swdd~agent-ensures-control-interface-output-pipe-read~1`
+#### Agent ensures the Control Interface input pipes are read
+`swdd~agent-ensures-control-interface-input-pipe-read~1`
 
 Status: approved
 
-The Ankaios Agent shall ensure, that Control Interface output pipes are opened and messages are read.
+The Ankaios Agent shall ensure, that Control Interface input pipes are opened and messages are read.
 
 Comment:
-If the Ankaios Agent does not open and read the Control Interface output pipes, a Workload could block, trying to write the output pipe.
+If the Ankaios Agent does not open and read the Control Interface input pipes, a Workload could block, trying to write the output pipe.
 
 Tags:
 - AgentManager

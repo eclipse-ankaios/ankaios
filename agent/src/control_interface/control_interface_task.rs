@@ -99,7 +99,7 @@ impl ControlInterfaceTask {
 
         loop {
             select! {
-                // [impl->swdd~agent-ensures-control-interface-output-pipe-read~1]
+                // [impl->swdd~agent-ensures-control-interface-input-pipe-read~1]
                 from_server = self.input_pipe_receiver.recv() => {
                     if let Some(FromServer::Response(response)) = from_server {
                         let _ = self.forward_from_server(response).await;
@@ -230,7 +230,8 @@ mod tests {
     use super::ControlInterfaceTask;
 
     use crate::control_interface::{
-        authorizer::MockAuthorizer, control_interface_task::INITIAL_HELLO_MISSING_MSG, input_pipe::MockInputPipe, output_pipe::MockOutputPipe
+        authorizer::MockAuthorizer, control_interface_task::INITIAL_HELLO_MISSING_MSG,
+        input_pipe::MockInputPipe, output_pipe::MockOutputPipe,
     };
 
     const REQUEST_ID: &str = "req_id";
@@ -311,7 +312,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-listens-for-requests-from-pipe~1]
-    // [utest->swdd~agent-ensures-control-interface-output-pipe-read~1]
+    // [utest->swdd~agent-ensures-control-interface-input-pipe-read~1]
     // [utest->swdd~agent-checks-request-for-authorization~1]
     // [utest->swdd~agent-responses-to-denied-request-from-control-interface~1]
     // [utest->swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1]
@@ -401,7 +402,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-listens-for-requests-from-pipe~1]
-    // [utest->swdd~agent-ensures-control-interface-output-pipe-read~1]
+    // [utest->swdd~agent-ensures-control-interface-input-pipe-read~1]
     // [utest->swdd~agent-checks-request-for-authorization~1]
     // [utest->swdd~agent-forward-request-from-control-interface-pipe-to-server~2]
     // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
