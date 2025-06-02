@@ -1169,6 +1169,9 @@ Status: approved
 
 When the Ankaios CLI listens to the Ankaios server for logs and the CLI receives a termination signal, the Ankaios CLI shall send a `LogsCancelRequest` to the Ankaios server to stop the log collection.
 
+Rationale:
+The CLI requires to cancel the log collection for all requested workloads from the Ankaios server when listening indefinitely to logs in the `follow` mode.
+
 Tags:
 - CliCommands
 
