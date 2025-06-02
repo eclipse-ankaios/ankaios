@@ -278,7 +278,7 @@ impl ServerConnection {
                             }
 
                             if instance_names.is_empty() {
-                                output_debug!("Log streaming completed.");
+                                output_debug!("Log collection for all workloads completed.");
                                 break Ok(());
                             }
                         },
