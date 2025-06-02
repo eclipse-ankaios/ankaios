@@ -21,7 +21,7 @@ Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
 
 *** Test Cases ***
-# [stest->swdd~agent-skips-unknown-runtime~1]
+# [stest->swdd~agent-skips-unknown-runtime~2]
 Test Ankaios shall not start a workload with an invalid runtime
     [Setup]    Run Keywords    Setup Ankaios
     # Preconditions

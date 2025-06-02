@@ -530,7 +530,7 @@ impl RuntimeManager {
         };
 
         // [impl->swdd~agent-uses-specified-runtime~1]
-        // [impl->swdd~agent-skips-unknown-runtime~1]
+        // [impl->swdd~agent-skips-unknown-runtime~2]
         if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
             // [impl->swdd~agent-executes-create-workload-operation~1]
             let workload = runtime.create_workload(
@@ -807,7 +807,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
     }
 
-    // [utest->swdd~agent-skips-unknown-runtime~1]
+    // [utest->swdd~agent-skips-unknown-runtime~2]
     #[tokio::test]
     async fn utest_handle_update_workload_no_workload_with_unknown_runtime() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

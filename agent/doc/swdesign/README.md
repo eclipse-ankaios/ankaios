@@ -664,11 +664,11 @@ Needs:
 - stest
 
 #### Agent skips unknown runtime
-`swdd~agent-skips-unknown-runtime~1`
+`swdd~agent-skips-unknown-runtime~2`
 
 Status: approved
 
-When the Ankaios Agent gets an add Workload command with the `UpdateWorkload` message and the runtime of the Workload is unknown, the RuntimeManager shall skip this Workload.
+When the Ankaios Agent gets an add Workload command with the `UpdateWorkload` message and the runtime of the Workload is unknown, the RuntimeManager shall skip this Workload and send a `Pending(StartingFailed)` workload state with additional information.
 
 Tags:
 - RuntimeManager
