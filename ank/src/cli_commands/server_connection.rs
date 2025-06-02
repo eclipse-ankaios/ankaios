@@ -274,10 +274,14 @@ impl ServerConnection {
                             response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(logs_stop_response)),
                         }) => if received_request_id == request_id {
                             // [impl->swdd~stops-log-output-for-specific-workloads~1]
-                            if let Some(instance_name) = logs_stop_response.workload_name {
-                                output_debug!("Received stop message for workload instance: {:?}", instance_name);
-                                instance_names.remove(&instance_name.into());
-                            }
+                            let instance_name = logs_stop_response.workload_name.ok_or(
+                                ServerConnectionError::ExecutionError(
+                                    "Received LogsStopResponse without workload name.".to_string(),
+                                ),
+                            )?;
+
+                            output_debug!("Received stop message for workload instance: {:?}", instance_name);
+                            instance_names.remove(&instance_name.into());
 
                             if instance_names.is_empty() {
                                 output_debug!("Log collection for all workloads completed.");

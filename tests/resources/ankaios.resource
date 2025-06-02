@@ -713,6 +713,21 @@ the mount point for the workload files of workload "${workload_name}" on agent "
 Ankaios server is available
     the command "%{ANK_BIN_DIR}${/}ank get workloads" finished with exit code "0" within "2" seconds
 
+the cli log collection shall receive "${total_log_lines}" log lines in total for all workloads
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
+    @{list_result}=    table to list    ${command_result.stdout}
+    ${joined_workload_names}=    Set Variable    ${EMPTY}
+    FOR    ${workload}    IN    @{list_result}
+        ${workload_name}=    Get From Dictionary    ${workload}    WORKLOAD NAME
+        ${joined_workload_names}=    Catenate    ${joined_workload_names}    ${workload_name}
+    END
+
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank logs ${joined_workload_names}
+
+    ${log_lines}=    Split String    ${command_result.stdout}    separator=\n
+    ${actual_log_lines}=    Get Length    ${log_lines}
+    Should Be Equal As Integers    ${actual_log_lines}    ${total_log_lines}    msg=Expected ${total_log_lines} log lines, but got ${actual_log_lines}
+
 # ALIASES
 
 the command "${cli_command}" finished with exit code "${exit_code}"
