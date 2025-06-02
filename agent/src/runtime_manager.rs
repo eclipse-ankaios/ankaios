@@ -669,7 +669,7 @@ mod tests {
         self, generate_test_control_interface_access,
         generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
-        AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
+        AddCondition, ExecutionStateEnum, WorkloadInstanceNameBuilder, WorkloadState,
     };
     use common::test_utils::{
         self, generate_test_complete_state, generate_test_deleted_workload,
@@ -869,7 +869,12 @@ mod tests {
         assert!(runtime_manager.workloads.is_empty());
 
         server_recv.close();
-        let _ = wl_state_receiver.recv().await;
+        let received_wl_state = wl_state_receiver.recv().await;
+
+        assert_eq!(
+            received_wl_state.unwrap().execution_state.state,
+            ExecutionStateEnum::Pending(objects::PendingSubstate::StartingFailed)
+        );
     }
 
     // [utest->swdd~agent-existing-workloads-finds-list~1]
@@ -976,7 +981,7 @@ mod tests {
 
         let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
 
-        let (mut server_recv, mut runtime_manager, mut wl_state_receiver) =
+        let (_server_recv, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
 
         control_interface_info_new_context
@@ -1001,9 +1006,6 @@ mod tests {
         runtime_manager
             .update_workload(workload_spec_has_access)
             .await;
-
-        server_recv.close();
-        let _ = wl_state_receiver.recv().await;
     }
 
     // [utest->swdd~agent-existing-workloads-resume-existing~2]
@@ -1522,7 +1524,7 @@ mod tests {
 
         let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
 
-        let (mut server_receiver, mut runtime_manager, mut wl_state_receiver) =
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
 
         control_interface_info_new_context
@@ -1547,9 +1549,6 @@ mod tests {
         runtime_manager
             .add_workload(ReusableWorkloadSpec::new(workload_spec_has_access, None))
             .await;
-
-        server_receiver.close();
-        let _ = wl_state_receiver.recv().await;
     }
 
     // [utest->swdd~agent-existing-workloads-replace-updated~4]
