@@ -103,7 +103,7 @@ desiredState:
 
 !!! Note
 
-    Although updating the runtime of a workload is not prohibited, in practice it is not possible. Thus, updating the state of a workload with a different runtime will yield in failure when starting the updated workload.
+    Although updating the runtime of a workload is not prohibited, in practice it is not possible. Thus, updating the state of a workload with a different runtime will yield in sending a `Pending(StartingFailed)` workload state with an unsupported runtime message and the workload shall not start.
 
 ## Object field mask
 
