@@ -256,7 +256,9 @@ impl ServerConnection {
                     break Ok(());
                 }
                 server_message = self.from_server.recv() => {
-                    let server_message = server_message.ok_or(ServerConnectionError::ExecutionError("Error streaming workload logs: channel preliminary closed.".to_string()))?;
+                    let server_message = server_message
+                        .ok_or(ServerConnectionError::ExecutionError(
+                            "Error streaming workload logs: channel preliminary closed.".to_string()))?;
 
                     // [impl->swdd~handles-log-responses-from-server~1]
                     match server_message {
