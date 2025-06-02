@@ -319,7 +319,11 @@ impl AnkaiosServer {
                             .unwrap_or_illegal_state();
                     }
                     common::commands::RequestContent::LogsCancelRequest => {
-                        log::debug!("Received LogsCancelRequest with ID: {}", request_id)
+                        log::debug!("Got log cancel request with ID: {}", request_id);
+                        self.to_agents
+                            .logs_cancel_request(request_id)
+                            .await
+                            .unwrap_or_illegal_state();
                     }
                 },
                 ToServer::UpdateWorkloadState(method_obj) => {
@@ -1896,5 +1900,29 @@ mod tests {
                 }]
             })))
         );
+    }
+
+    #[tokio::test]
+    async fn utest_server_log_cancel_request() {
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let request_id = REQUEST_ID.to_string();
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        // send new state to server
+        let result = to_server.logs_cancel_request(request_id.clone()).await;
+        assert!(result.is_ok());
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::LogsCancelRequest(request_id,),
+            from_server_command
+        );
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 }

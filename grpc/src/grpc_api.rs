@@ -137,7 +137,11 @@ impl TryFrom<from_server_interface::FromServer> for FromServer {
                     })),
                 })
             }
-            from_server_interface::FromServer::LogsCancelRequest(_logs_cancel_request) => todo!(),
+            from_server_interface::FromServer::LogsCancelRequest(request_id) => Ok(FromServer {
+                from_server_enum: Some(from_server::FromServerEnum::LogsCancelRequest(
+                    LogsCancelRequest { request_id },
+                )),
+            }),
         }
     }
 }
@@ -328,7 +332,8 @@ mod tests {
     use crate::{
         from_server::FromServerEnum, generate_test_proto_deleted_workload, to_server::ToServerEnum,
         AddedWorkload, AgentHello, AgentLoadStatus, DeletedWorkload, FromServer,
-        LogEntriesResponse, LogsRequest, ToServer, UpdateWorkload, UpdateWorkloadState,
+        LogEntriesResponse, LogsCancelRequest, LogsRequest, ToServer, UpdateWorkload,
+        UpdateWorkloadState,
     };
 
     use api::ank_base::{self, Dependencies};
@@ -659,6 +664,21 @@ mod tests {
             from_server_enum: Some(FromServerEnum::LogsRequest(LogsRequest {
                 request_id: "req_id".into(),
                 logs_request: Some(logs_request.into()),
+            })),
+        });
+
+        assert_eq!(FromServer::try_from(ankaios_msg), proto_msg);
+    }
+
+    #[test]
+    fn utest_convert_proto_to_server_logs_cancel_request() {
+        let request_id = "req_id".to_owned();
+
+        let ankaios_msg = ankaios::FromServer::LogsCancelRequest(request_id.clone());
+
+        let proto_msg = Ok(FromServer {
+            from_server_enum: Some(FromServerEnum::LogsCancelRequest(LogsCancelRequest {
+                request_id,
             })),
         });
 

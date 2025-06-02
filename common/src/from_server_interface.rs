@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::{self, LogsCancelRequest, LogsRequest};
+use crate::commands::{self, LogsRequest};
 use crate::objects::{DeletedWorkload, WorkloadSpec, WorkloadState};
 use api::ank_base;
 use async_trait::async_trait;
@@ -41,7 +41,7 @@ pub enum FromServer {
     Response(ank_base::Response),
     Stop(commands::Stop),
     LogsRequest(String, LogsRequest),
-    LogsCancelRequest(LogsCancelRequest),
+    LogsCancelRequest(String),
 }
 
 // [impl->swdd~from-server-channel~1]
@@ -88,6 +88,8 @@ pub trait FromServerInterface {
         request_id: String,
         logs_stop_response: ank_base::LogsStopResponse,
     ) -> Result<(), FromServerInterfaceError>;
+    async fn logs_cancel_request(&self, request_id: String)
+        -> Result<(), FromServerInterfaceError>;
     async fn error(
         &self,
         request_id: String,
@@ -218,6 +220,14 @@ impl FromServerInterface for FromServerSender {
             .into(),
         }))
         .await?;
+        Ok(())
+    }
+
+    async fn logs_cancel_request(
+        &self,
+        request_id: String,
+    ) -> Result<(), FromServerInterfaceError> {
+        self.send(FromServer::LogsCancelRequest(request_id)).await?;
         Ok(())
     }
 

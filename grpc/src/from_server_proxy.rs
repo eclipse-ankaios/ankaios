@@ -115,6 +115,9 @@ pub async fn forward_from_proto_to_ankaios(
                     };
                     agent_tx.logs_request(request_id, logs_request).await?;
                 }
+                FromServerEnum::LogsCancelRequest(grpc_api::LogsCancelRequest { request_id }) => {
+                    agent_tx.logs_cancel_request(request_id).await?;
+                }
             }
             Ok(()) as Result<(), GrpcMiddlewareError>
         }
@@ -214,9 +217,9 @@ pub async fn forward_from_ankaios_to_proto(
                 log::trace!("Received LogsRequest from server: {:?}", logs_request);
                 distribute_log_requests_to_agent(agent_senders, request_id, logs_request).await;
             }
-            FromServer::LogsCancelRequest(_logs_cancel_request) => {
+            FromServer::LogsCancelRequest(request_id) => {
                 log::trace!("Received LogsCancelRequest from server");
-                distribute_log_cancel_requests_to_agent(agent_senders).await;
+                distribute_log_cancel_requests_to_agent(agent_senders, request_id).await;
             }
             FromServer::Stop(_method_obj) => {
                 log::debug!("Received Stop from server.");
@@ -354,17 +357,40 @@ async fn distribute_log_requests_to_agent(
     }
 }
 
-async fn distribute_log_cancel_requests_to_agent(agent_senders: &AgentSendersMap) {
+async fn distribute_log_cancel_requests_to_agent(
+    agent_senders: &AgentSendersMap,
+    request_id: String,
+) {
     for agent in agent_senders.get_all_agent_names() {
-        let Some(_sender) = agent_senders.get(&agent) else {
+        if let Some(sender) = agent_senders.get(&agent) {
+            log::trace!(
+                "Sending logs cancel request with id '{}' to agent '{}'",
+                request_id.clone(),
+                agent
+            );
+            let res = sender
+                .send(Ok(grpc_api::FromServer {
+                    from_server_enum: Some(FromServerEnum::LogsCancelRequest(
+                        grpc_api::LogsCancelRequest {
+                            request_id: request_id.clone(),
+                        },
+                    )),
+                }))
+                .await;
+            if let Err(err) = res {
+                log::warn!(
+                    "Could not send logs cancel request to agent '{}': {:?}",
+                    agent,
+                    err
+                )
+            }
+        } else {
             log::debug!(
                 "Sender for agent '{}' gone while iterating all agents",
                 agent
             );
             continue;
         };
-        todo!()
-        //sender.send(Ok(grpc_api::FromServer{from_server_enum: Some(FromServerEnum::LogsRequest(()))}))
     }
 }
 
@@ -901,6 +927,45 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn utest_from_server_proxy_forward_from_ankaios_to_proto_logs_cancel_request() {
+        let agent_name_1: &str = "agent_X";
+        let agent_name_2: &str = "agent_Y";
+
+        let (to_manager, mut manager_receiver) =
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+        let (agent_1_tx, mut agent_1_rx) = tokio::sync::mpsc::channel(common::CHANNEL_CAPACITY);
+        let (agent_2_tx, mut agent_2_rx) = tokio::sync::mpsc::channel(common::CHANNEL_CAPACITY);
+
+        let agent_senders_map = AgentSendersMap::new();
+        agent_senders_map.insert(agent_name_1, agent_1_tx);
+        agent_senders_map.insert(agent_name_2, agent_2_tx);
+
+        let my_request_id = "my_request_id";
+
+        let complete_state_result = to_manager.logs_cancel_request(my_request_id.into()).await;
+        assert!(complete_state_result.is_ok());
+        drop(to_manager);
+
+        forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver).await;
+        drop(agent_senders_map);
+
+        assert!(matches!(
+            agent_1_rx.recv().await.unwrap().unwrap().from_server_enum,
+            Some(FromServerEnum::LogsCancelRequest(
+                grpc_api::LogsCancelRequest{ request_id }
+            )) if request_id == my_request_id
+        ));
+        assert!(agent_1_rx.recv().await.is_none());
+        assert!(matches!(
+            agent_2_rx.recv().await.unwrap().unwrap().from_server_enum,
+            Some(FromServerEnum::LogsCancelRequest(
+                grpc_api::LogsCancelRequest{ request_id }
+            )) if request_id == my_request_id
+        ));
+        assert!(agent_2_rx.recv().await.is_none());
+    }
+
+    #[tokio::test]
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_response() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
@@ -1077,5 +1142,42 @@ mod tests {
         let result = agent_receiver.recv().await;
 
         assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_logs_cancel_request() {
+        let (to_agent, mut agent_receiver) =
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+
+        let my_request_id = "my_request_id".to_owned();
+
+        let logs_cancel_request = grpc_api::LogsCancelRequest {
+            request_id: my_request_id.clone(),
+        };
+
+        // simulate the reception of an update workload state grpc from server message
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCFromServerStreaming::new(LinkedList::from([
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::LogsCancelRequest(logs_cancel_request)),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = tokio::spawn(async move {
+            forward_from_proto_to_ankaios(&mut mock_grpc_ex_request_streaming, &to_agent).await
+        })
+        .await;
+        assert!(forward_result.is_ok());
+
+        // pick received from server message
+        let result = agent_receiver.recv().await.unwrap();
+
+        assert!(matches!(
+            result,
+            common::from_server_interface::FromServer::LogsCancelRequest(request_id)
+                if request_id == my_request_id
+        ));
     }
 }
