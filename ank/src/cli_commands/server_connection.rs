@@ -11,14 +11,17 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-
+use std::collections::BTreeSet;
 use std::{mem::take, time::Duration};
 
+use crate::cli::LogsArgs;
 use crate::filtered_complete_state::FilteredCompleteState;
-use crate::{output_and_error, output_debug};
-use api::ank_base;
+use crate::{cli_signals, output_and_error, output_debug};
+use api::ank_base::{self, LogEntry};
+use common::commands::LogsRequest;
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
+use common::objects::WorkloadInstanceName;
 use common::to_server_interface::ToServer;
 use common::{
     commands::{CompleteStateRequest, UpdateWorkloadState},
@@ -219,9 +222,142 @@ impl ServerConnection {
     pub fn take_missed_from_server_messages(&mut self) -> Vec<FromServer> {
         take(&mut self.missed_from_server_messages)
     }
+
+    // [impl->swdd~cli-gets-logs-from-the-server~1]
+    pub async fn stream_logs(
+        &mut self,
+        mut instance_names: BTreeSet<WorkloadInstanceName>,
+        args: LogsArgs,
+    ) -> Result<(), ServerConnectionError> {
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let requested_instance_names = instance_names.clone().into_iter().collect();
+        let logs_request = LogsRequest {
+            workload_names: requested_instance_names,
+            follow: args.follow,
+            tail: args.tail,
+            since: args.since,
+            until: args.until,
+        };
+
+        self.to_server
+            .logs_request(request_id.clone(), logs_request)
+            .await
+            .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
+
+        loop {
+            tokio::select! {
+                // [impl->swdd~cli-sends-logs-cancel-request-upon-termination~1]
+                _ = cli_signals::wait_for_signals() => {
+                    self.to_server
+                        .logs_cancel_request(request_id.clone()).await
+                        .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
+
+                    output_debug!("LogsCancelRequest sent after receiving signal to stop.");
+                    break Ok(());
+                }
+                // [impl->swdd~handles-log-responses-from-server~1]
+                server_message = self.from_server.recv() => {
+                    let server_message = server_message
+                        .ok_or(
+                            ServerConnectionError::ExecutionError("Error streaming workload logs: channel preliminary closed.".to_string()
+                    ))?;
+
+                    match response_to_log_streaming_state(&request_id, server_message)? {
+                        LogStreamingState::Output(log_entries) => {
+                            output_logs(log_entries.log_entries);
+                        }
+                        LogStreamingState::Continue => continue,
+                        // [impl->swdd~stops-log-output-for-specific-workloads~1]
+                        LogStreamingState::StopForWorkload(instance_name) => {
+                            instance_names.remove(&instance_name);
+
+                            if instance_names.is_empty() {
+                                // log streaming is finished for all requested instances
+                                output_debug!("All requested workload instances have been processed. Stopping log streaming.");
+                                break Ok(());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
-#[derive(Debug)]
+// [impl->swdd~handles-log-responses-from-server~1]
+fn response_to_log_streaming_state(
+    request_id: &String,
+    server_message: FromServer,
+) -> Result<LogStreamingState, ServerConnectionError> {
+    match server_message {
+        FromServer::Response(ank_base::Response {
+            request_id: received_request_id,
+            response_content:
+                Some(ank_base::response::ResponseContent::LogEntriesResponse(logs_response)),
+        }) if &received_request_id == request_id => Ok(LogStreamingState::Output(logs_response)),
+        FromServer::Response(ank_base::Response {
+            request_id: received_request_id,
+            response_content:
+                Some(ank_base::response::ResponseContent::LogsStopResponse(logs_stop_response)),
+        }) if &received_request_id == request_id => {
+            let workload_instance_name =
+                logs_stop_response
+                    .workload_name
+                    .ok_or(ServerConnectionError::ExecutionError(
+                        "Received invalid LogsStopResponse without workload name".to_string(),
+                    ))?;
+
+            output_debug!(
+                "Received stop message for workload instance: {:?}",
+                workload_instance_name
+            );
+            Ok(LogStreamingState::StopForWorkload(
+                workload_instance_name.into(),
+            ))
+        }
+
+        FromServer::Response(ank_base::Response {
+            request_id: received_request_id,
+            response_content: Some(ank_base::response::ResponseContent::Error(error)),
+        }) if &received_request_id == request_id => Err(ServerConnectionError::ExecutionError(
+            format!("Error streaming logs: '{}'", error.message),
+        )),
+        _ => Ok(LogStreamingState::Continue),
+    }
+}
+
+#[cfg(not(test))]
+fn output_logs(log_entries: Vec<LogEntry>) {
+    log_entries.iter().for_each(|log_entry| {
+        println!("{}", log_entry.message);
+    });
+}
+
+#[cfg(test)]
+use {
+    mockall::lazy_static,
+    std::sync::{Arc, Mutex},
+};
+
+#[cfg(test)]
+lazy_static! {
+    pub static ref TEST_LOG_OUTPUT_DATA: Arc<Mutex<Vec<LogEntry>>> =
+        Arc::new(Mutex::new(Vec::new()));
+}
+
+#[cfg(test)]
+fn output_logs(log_entries: Vec<LogEntry>) {
+    let mut test_out = TEST_LOG_OUTPUT_DATA.lock().unwrap();
+    *test_out = log_entries.clone();
+}
+
+enum LogStreamingState {
+    StopForWorkload(WorkloadInstanceName),
+    Continue,
+    Output(api::ank_base::LogEntriesResponse),
+}
+
+#[derive(Debug, PartialEq)]
 pub enum ServerConnectionError {
     ExecutionError(String),
 }
@@ -235,7 +371,12 @@ pub enum ServerConnectionError {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{BTreeSet, HashMap};
+
+    use crate::{
+        cli::LogsArgs,
+        cli_commands::server_connection::{ServerConnectionError, TEST_LOG_OUTPUT_DATA},
+    };
 
     use super::ank_base::{self, UpdateStateSuccess};
     use common::{
@@ -990,5 +1131,197 @@ mod tests {
         assert!(result.is_err());
 
         checker.check_communication();
+    }
+
+    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~handles-log-responses-from-server~1]
+    // [utest->swdd~stops-log-output-for-specific-workloads~1]
+    #[tokio::test]
+    async fn utest_stream_logs_multiple_workloads_no_follow() {
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string(), WORKLOAD_NAME_2.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let instance_name_2 = instance_name(WORKLOAD_NAME_2);
+
+        let mut sim = CommunicationSimulator::default();
+        let instance_names = vec![instance_name_1.clone(), instance_name_2.clone()];
+        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+            instance_names.iter().cloned().collect();
+
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::LogsRequest(common::commands::LogsRequest {
+                workload_names: instance_names,
+                follow: log_args.follow,
+                tail: log_args.tail,
+                since: log_args.since.clone(),
+                until: log_args.until.clone(),
+            }),
+        );
+
+        let expected_log_data = vec![
+            ank_base::LogEntry {
+                workload_name: Some(instance_name_1.clone().into()),
+                message: format!("Log line of {}", WORKLOAD_NAME_1),
+            },
+            ank_base::LogEntry {
+                workload_name: Some(instance_name_2.clone().into()),
+                message: format!("Log line of {}", WORKLOAD_NAME_2),
+            },
+        ];
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogEntriesResponse(ank_base::LogEntriesResponse {
+                log_entries: expected_log_data.clone(),
+            }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsStopResponse(ank_base::LogsStopResponse {
+                workload_name: Some(instance_name_1.into()),
+            }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsStopResponse(ank_base::LogsStopResponse {
+                workload_name: Some(instance_name_2.into()),
+            }),
+        );
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .stream_logs(instance_names_set, log_args)
+            .await;
+
+        assert!(result.is_ok());
+
+        checker.check_communication();
+
+        let actual_log_data = TEST_LOG_OUTPUT_DATA.lock().unwrap();
+        assert_eq!(*actual_log_data, expected_log_data);
+    }
+
+    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~handles-log-responses-from-server~1]
+    #[tokio::test]
+    async fn utest_stream_logs_response_error() {
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        let mut sim = CommunicationSimulator::default();
+        let instance_names = vec![instance_name(WORKLOAD_NAME_1)];
+        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+            instance_names.iter().cloned().collect();
+
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::LogsRequest(common::commands::LogsRequest {
+                workload_names: instance_names,
+                follow: log_args.follow,
+                tail: log_args.tail,
+                since: log_args.since.clone(),
+                until: log_args.until.clone(),
+            }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::Error(ank_base::Error {
+                message: "log collection error.".to_string(),
+            }),
+        );
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .stream_logs(instance_names_set, log_args)
+            .await;
+
+        assert_eq!(
+            result,
+            Err(ServerConnectionError::ExecutionError(
+                "Error streaming logs: 'log collection error.'".to_string()
+            ))
+        );
+
+        checker.check_communication();
+
+        let actual_log_data = TEST_LOG_OUTPUT_DATA.lock().unwrap();
+        assert!(actual_log_data.is_empty());
+    }
+
+    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~handles-log-responses-from-server~1]
+    #[tokio::test]
+    async fn utest_stream_logs_ignore_unrelated_response() {
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let mut sim = CommunicationSimulator::default();
+        let instance_names = vec![instance_name_1.clone()];
+        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+            instance_names.iter().cloned().collect();
+
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::LogsRequest(common::commands::LogsRequest {
+                workload_names: instance_names,
+                follow: log_args.follow,
+                tail: log_args.tail,
+                since: log_args.since.clone(),
+                until: log_args.until.clone(),
+            }),
+        );
+
+        // Send unrelated response that should be ignored in the log streaming
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                added_workloads: vec![WORKLOAD_NAME_2.into()],
+                ..Default::default()
+            }),
+        );
+
+        // just to stop the streaming
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsStopResponse(ank_base::LogsStopResponse {
+                workload_name: Some(instance_name_1.into()),
+            }),
+        );
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .stream_logs(instance_names_set, log_args)
+            .await;
+
+        assert!(result.is_ok());
+
+        checker.check_communication();
+
+        let actual_log_data = TEST_LOG_OUTPUT_DATA.lock().unwrap();
+        assert!(actual_log_data.is_empty());
     }
 }

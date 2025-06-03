@@ -1081,6 +1081,127 @@ Needs:
 - utest
 - stest
 
+### `ank logs`
+
+#### CLI provides a function to output logs of a workload
+`swdd~cli-provides-workload-logs~1`
+
+Status: approved
+
+The Ankaios CLI shall provide a function to output the logs of multiple workloads.
+
+Comments:
+The user specifies the workloads by their workload names as required argument.
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI gets logs from the Ankaios server
+`swdd~cli-gets-logs-from-the-server~1`
+
+Status: approved
+
+When the user invokes the Ankaios CLI to output logs for specific workloads by providing their workload names, the Ankaios CLI shall:
+* request the current `WorkloadStates` from the Ankaios server
+* convert the provided workload names into their corresponding workload instance names based on the `WorkloadStates`
+* request the logs from the Ankaios server by sending a `LogsRequest` containing the instance names and additional log options provided by the user
+* listen to the Ankaios server for logs of the requested workloads
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI handles log responses from the Ankaios server
+`swdd~handles-log-responses-from-server~1`
+
+Status: approved
+
+When the CLI listens for workload logs to the Ankaios server and receives a response message from the server, the Ankaios CLI shall:
+* output the logs if the response is a `LogEntriesResponse` containing logs of a workload
+* stop log output for a workload instance name if the response is a `LogsStopResponse`
+* ignore the response if it is another response type
+* output the received error if the response is an error
+
+Comment:
+The CLI considers only response messages matching the request id from the initial logs request.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI stops log output specific for workloads
+`swdd~stops-log-output-for-specific-workloads~1`
+
+Status: approved
+
+When the Ankaios CLI stops the log output for a workload instance name, the CLI shall:
+* remove the instance name from the list of requested instance names for log output
+* stop listening to log responses from the Ankaios server if the list of instance names is empty
+
+Comment:
+An empty list of instance names indicates that there are no more workloads available to listen for logs.
+
+Rationale:
+A log collection for one workload might be finished, but not for others.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI sends logs cancel request upon termination
+`swdd~cli-sends-logs-cancel-request-upon-termination~1`
+
+Status: approved
+
+When the Ankaios CLI listens to the Ankaios server for logs and the CLI receives a termination signal, the Ankaios CLI shall send a `LogsCancelRequest` to the Ankaios server to stop the log collection.
+
+Rationale:
+The CLI requires to cancel the log collection for all requested workloads from the Ankaios server when listening indefinitely to logs in the `follow` mode.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI provides signal handling
+`swdd~cli-provides-signal-handling~1`
+
+Status: approved
+
+The Ankaios CLI shall provide a function to listen for the following `unix` signals:
+
+- SIGINT
+- SIGTERM
+- SIGHUP
+- SIGQUIT
+
+Rationale:
+The CLI executes post actions when a signal is received, such as notifying other Ankaios components.
+
+Tags:
+- Cli
+
+Needs:
+- impl
+- utest
+
 ### Handling other message while waiting for response
 
 ![Store unexpected messages](plantuml/seq_store_missed_messages.svg)

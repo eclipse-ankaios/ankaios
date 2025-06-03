@@ -1,0 +1,18 @@
+apiVersion: v0.1
+workloads:
+  count_to_five:
+    runtime: podman
+    restartPolicy: NEVER
+    agent: agent_A
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "echo -e '1\n2\n3\n4\n5'" ]
+  count_to_three:
+    runtime: podman
+    restartPolicy: NEVER
+    agent: agent_B
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "echo -e '1\n2\n3'" ]

@@ -350,17 +350,22 @@ impl AnkaiosServer {
                     // TODO: handle the call
                     break;
                 }
-                ToServer::LogsResponse(request_id, logs_response) => {
+                ToServer::LogEntriesResponse(request_id, logs_response) => {
                     self.to_agents
                         .logs_response(request_id, logs_response)
                         .await
                         .unwrap_or_illegal_state();
                 }
-                unknown_message => {
-                    log::warn!(
-                        "Received an unknown message from communications server: '{:?}'",
-                        unknown_message
-                    );
+                ToServer::LogsStopResponse(request_id, logs_stop_response) => {
+                    log::debug!("Received LogsStopResponse with ID: {}", request_id);
+                    self.to_agents
+                        .logs_stop_response(request_id, logs_stop_response)
+                        .await
+                        .unwrap_or_illegal_state();
+                }
+
+                ToServer::Goodbye(_) => {
+                    log::warn!("Received unexpected 'Goodbye' from communications server");
                 }
             }
         }
@@ -1558,7 +1563,7 @@ mod tests {
         assert!(to_server
             .logs_response(
                 REQUEST_ID.into(),
-                ank_base::LogsResponse {
+                ank_base::LogEntriesResponse {
                     log_entries: vec![ank_base::LogEntry {
                         workload_name: Some(ank_base::WorkloadInstanceName {
                             workload_name: WORKLOAD_NAME_1.into(),
@@ -1576,8 +1581,8 @@ mod tests {
             comm_middle_ware_receiver.recv().await.unwrap(),
             FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.into(),
-                response_content: Some(ank_base::response::ResponseContent::LogsResponse(
-                    ank_base::LogsResponse {
+                response_content: Some(ank_base::response::ResponseContent::LogEntriesResponse(
+                    ank_base::LogEntriesResponse {
                         log_entries: vec![ank_base::LogEntry {
                             workload_name: Some(ank_base::WorkloadInstanceName {
                                 workload_name: WORKLOAD_NAME_1.into(),
