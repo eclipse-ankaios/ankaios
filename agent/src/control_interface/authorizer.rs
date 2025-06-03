@@ -80,7 +80,6 @@ impl Authorizer {
                             path_string,
                             request.request_id
                         );
-                        println!("AAAAAAAAAA");
                         return false;
                     };
 
@@ -94,7 +93,6 @@ impl Authorizer {
                             request.request_id,
                             allow_reason
                         );
-                        println!("BBBBBBBBBB");
                         return true;
                     };
 
@@ -105,7 +103,6 @@ impl Authorizer {
                         allow_reason,
                         deny_reason
                     );
-                    println!("CCCCCCCCCC");
                     false
                 })
             }
@@ -164,7 +161,6 @@ impl Authorizer {
                     return false;
                 }
 
-                // [impl->swdd~agent-authorizing-matching-allow-rules~1]
                 let allow_reason = logs_request
                     .workload_names
                     .iter()
@@ -185,7 +181,6 @@ impl Authorizer {
                     return false;
                 }
 
-                // [impl->swdd~agent-authorizing-matching-deny-rules~1]
                 let deny_reason = logs_request
                     .workload_names
                     .iter()
@@ -305,13 +300,12 @@ impl From<&ControlInterfaceAccess> for Authorizer {
 #[cfg(test)]
 mod test {
     use common::{
-        commands::{CompleteStateRequest, Request, UpdateStateRequest},
-        objects::{self, AccessRightsRule, ControlInterfaceAccess},
+        commands::{CompleteStateRequest, LogsRequest, Request, UpdateStateRequest},
+        objects::{self, AccessRightsRule, ControlInterfaceAccess, WorkloadInstanceName},
     };
     use std::sync::Arc;
 
     use super::{
-        path::Path,
         path_pattern::{AllowPathPattern, DenyPathPattern},
         Authorizer, LogRule, StateRule,
     };
@@ -397,8 +391,246 @@ mod test {
         authorizer
     }
 
+    fn create_authorizer(rules: &[RuleType]) -> Authorizer {
+        populate_authorizer(Authorizer::default(), rules)
+    }
+
+    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
     #[test]
-    fn utest_from_control_interface_access() {
+    fn utest_request_without_filter_mask() {
+        let mut authorizer = Authorizer::default();
+        let complete_state_request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest { field_mask: vec![] },
+            ),
+        };
+        let update_state_request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    state: Default::default(),
+                    update_mask: vec![],
+                },
+            )),
+        };
+
+        assert!(!authorizer.authorize(&complete_state_request));
+        assert!(!authorizer.authorize(&update_state_request));
+
+        authorizer = populate_authorizer(
+            authorizer,
+            &[RuleType::StateAllowReadWrite(vec!["*".into()])],
+        );
+        assert!(authorizer.authorize(&complete_state_request));
+        assert!(authorizer.authorize(&update_state_request));
+
+        authorizer = populate_authorizer(
+            authorizer,
+            &[RuleType::StateDenyReadWrite(vec!["*".into()])],
+        );
+        assert!(!authorizer.authorize(&complete_state_request));
+        assert!(!authorizer.authorize(&update_state_request));
+    }
+
+    // [utest->swdd~agent-authorizing-request-operations~1]
+    // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
+    #[test]
+    fn utest_read_requests_operations() {
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest {
+                    field_mask: vec![MATCHING_PATH.into()],
+                },
+            ),
+        };
+
+        let authorizer = Authorizer::default();
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::StateAllowRead(vec![MATCHING_PATH.into()])]);
+        assert!(authorizer.authorize(&request));
+        let authorizer =
+            create_authorizer(&[RuleType::StateAllowReadWrite(vec![MATCHING_PATH.into()])]);
+        assert!(authorizer.authorize(&request));
+        let authorizer =
+            create_authorizer(&[RuleType::StateAllowWrite(vec![MATCHING_PATH.into()])]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::StateAllowRead(vec![MATCHING_PATH.into()]),
+            RuleType::StateDenyRead(vec![MATCHING_PATH.into()]),
+        ]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::StateAllowRead(vec![MATCHING_PATH.into()]),
+            RuleType::StateDenyReadWrite(vec![MATCHING_PATH.into()]),
+        ]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::StateAllowRead(vec![MATCHING_PATH.into()]),
+            RuleType::StateDenyWrite(vec![MATCHING_PATH.into()]),
+        ]);
+        assert!(authorizer.authorize(&request));
+    }
+
+    // [utest->swdd~agent-authorizing-request-operations~1]
+    // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
+    #[test]
+    fn utest_write_requests_operations() {
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    update_mask: vec![MATCHING_PATH.into()],
+                    state: Default::default(),
+                },
+            )),
+        };
+
+        let authorizer = Authorizer::default();
+        assert!(!authorizer.authorize(&request));
+        let authorizer =
+            create_authorizer(&[RuleType::StateAllowWrite(vec![MATCHING_PATH.into()])]);
+        assert!(authorizer.authorize(&request));
+        let authorizer =
+            create_authorizer(&[RuleType::StateAllowReadWrite(vec![MATCHING_PATH.into()])]);
+        assert!(authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::StateAllowRead(vec![MATCHING_PATH.into()])]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::StateAllowWrite(vec![MATCHING_PATH.into()]),
+            RuleType::StateDenyWrite(vec![MATCHING_PATH.into()]),
+        ]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::StateAllowWrite(vec![MATCHING_PATH.into()]),
+            RuleType::StateDenyReadWrite(vec![MATCHING_PATH.into()]),
+        ]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::StateAllowWrite(vec![MATCHING_PATH.into()]),
+            RuleType::StateDenyRead(vec![MATCHING_PATH.into()]),
+        ]);
+        assert!(authorizer.authorize(&request));
+    }
+
+    // [utest->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
+    #[test]
+    fn utest_matches_all_filter_entries() {
+        let authorizer =
+            create_authorizer(&[RuleType::StateAllowReadWrite(vec![MATCHING_PATH.into()])]);
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest {
+                    field_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
+                },
+            ),
+        };
+        assert!(authorizer.authorize(&request));
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    update_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
+                    state: Default::default(),
+                },
+            )),
+        };
+        assert!(authorizer.authorize(&request));
+    }
+
+    // [utest->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
+    #[test]
+    fn utest_matches_not_all_filter_entries() {
+        let authorizer =
+            create_authorizer(&[RuleType::StateAllowReadWrite(vec![MATCHING_PATH.into()])]);
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest {
+                    field_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
+                },
+            ),
+        };
+        assert!(!authorizer.authorize(&request));
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    update_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
+                    state: Default::default(),
+                },
+            )),
+        };
+        assert!(!authorizer.authorize(&request));
+    }
+
+    #[test]
+    fn utest_log_request_empty() {
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::LogsRequest(LogsRequest {
+                workload_names: vec![],
+                follow: false,
+                tail: -1,
+                since: None,
+                until: None,
+            }),
+        };
+
+        let authorizer = Authorizer::default();
+        assert!(!authorizer.authorize(&request));
+    }
+
+    #[test]
+    fn utest_log_requests_operations() {
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::LogsRequest(LogsRequest {
+                workload_names: vec![WorkloadInstanceName::new("", WORKLOAD_NAME, "")],
+                follow: false,
+                tail: -1,
+                since: None,
+                until: None,
+            }),
+        };
+
+        let authorizer = Authorizer::default();
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::LogAllow(vec![WORKLOAD_NAME.into()])]);
+        assert!(authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::LogDeny(vec![WORKLOAD_NAME.into()])]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::LogAllow(vec![WORKLOAD_NAME.into()]),
+            RuleType::LogDeny(vec![WORKLOAD_NAME.into()]),
+        ]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::LogAllow(vec![WORKLOAD_NAME.into()]),
+            RuleType::LogDeny(vec![NON_EXISTING_WORKLOAD_NAME.into()]),
+        ]);
+        assert!(authorizer.authorize(&request));
+    }
+
+    #[test]
+    fn utest_log_cancel_request() {
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::LogsCancelRequest,
+        };
+
+        let authorizer = Authorizer::default();
+        assert!(authorizer.authorize(&request));
+    }
+
+    #[test]
+    fn utest_authorizer_from_control_interface_access() {
         let control_interface_access = ControlInterfaceAccess {
             allow_rules: vec![
                 AccessRightsRule::StateRule(objects::StateRule {
@@ -488,311 +720,4 @@ mod test {
             &authorizer.state_deny_write[1]
         ));
     }
-
-    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
-    #[test]
-    fn utest_denies_empty_request() {
-        let authorizer = Authorizer::default();
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest { field_mask: vec![] },
-            ),
-        };
-        assert!(!authorizer.authorize(&request));
-
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    state: Default::default(),
-                    update_mask: vec![],
-                },
-            )),
-        };
-        assert!(!authorizer.authorize(&request));
-    }
-
-    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
-    #[test]
-    fn utest_allow_empty_request() {
-        let mut authorizer = Authorizer::default();
-        authorizer = populate_authorizer(
-            authorizer,
-            &[RuleType::StateAllowReadWrite(vec!["".into()])],
-        );
-
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest { field_mask: vec![] },
-            ),
-        };
-        assert!(authorizer.authorize(&request));
-
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    state: Default::default(),
-                    update_mask: vec![],
-                },
-            )),
-        };
-        assert!(authorizer.authorize(&request));
-    }
-    /*
-    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
-    #[test]
-    fn utest_request_without_filter_mask() {
-        let mut authorizer = Authorizer::default();
-        let complete_state_request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest { field_mask: vec![] },
-            ),
-        };
-        let update_state_request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    state: Default::default(),
-                    update_mask: vec![],
-                },
-            )),
-        };
-        let empty_string_allow_state_rule =
-            Arc::new(StateRule::<AllowPathPattern>::create(vec!["".into()]));
-        let empty_string_deny_state_rule =
-            Arc::new(StateRule::<DenyPathPattern>::create(vec!["".into()]));
-        let non_empty_string_deny_rule = Arc::new(StateRule::<DenyPathPattern>::create(vec![
-            "non.empty".into(),
-        ]));
-
-        assert!(!authorizer.authorize(&complete_state_request));
-        assert!(!authorizer.authorize(&update_state_request));
-
-        authorizer
-            .state_allow_read
-            .push(empty_string_allow_state_rule.clone());
-        authorizer
-            .state_allow_write
-            .push(empty_string_allow_state_rule.clone());
-        assert!(authorizer.authorize(&complete_state_request));
-        assert!(authorizer.authorize(&update_state_request));
-
-        authorizer
-            .state_deny_read
-            .push(empty_string_deny_state_rule.clone());
-        authorizer
-            .state_deny_write
-            .push(empty_string_deny_state_rule.clone());
-        assert!(authorizer.authorize(&complete_state_request));
-        assert!(authorizer.authorize(&update_state_request));
-
-        authorizer
-            .state_deny_read
-            .push(non_empty_string_deny_rule.clone());
-        authorizer
-            .state_deny_write
-            .push(non_empty_string_deny_rule.clone());
-        assert!(!authorizer.authorize(&complete_state_request));
-        assert!(!authorizer.authorize(&update_state_request));
-    }
-
-    // [utest->swdd~agent-authorizing-request-operations~1]
-    // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
-    #[test]
-    fn utest_read_requests_operations() {
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest {
-                    field_mask: vec![MATCHING_PATH.into()],
-                },
-            ),
-        };
-
-        let authorizer = create_authorizer(&[]);
-        assert!(!authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowRead]);
-        assert!(authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowReadWrite]);
-        assert!(authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowWrite]);
-        assert!(!authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowRead, RuleType::DenyRead]);
-        assert!(!authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowRead, RuleType::DenyReadWrite]);
-        assert!(!authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowRead, RuleType::DenyWrite]);
-        assert!(authorizer.authorize(&request));
-    }
-
-    // [utest->swdd~agent-authorizing-request-operations~1]
-    // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
-    #[test]
-    fn utest_write_requests_operations() {
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    update_mask: vec![MATCHING_PATH.into()],
-                    state: Default::default(),
-                },
-            )),
-        };
-
-        let authorizer = create_authorizer(&[]);
-        assert!(!authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowWrite]);
-        assert!(authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowReadWrite]);
-        assert!(authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowRead]);
-        assert!(!authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowWrite, RuleType::DenyWrite]);
-        assert!(!authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowWrite, RuleType::DenyReadWrite]);
-        assert!(!authorizer.authorize(&request));
-        let authorizer = create_authorizer(&[RuleType::AllowWrite, RuleType::DenyRead]);
-        assert!(authorizer.authorize(&request));
-    }
-
-    // [utest->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
-    #[test]
-    fn utest_matches_all_filter_entries() {
-        let authorizer = create_authorizer(&[RuleType::AllowReadWrite]);
-
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest {
-                    field_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
-                },
-            ),
-        };
-        assert!(authorizer.authorize(&request));
-
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    update_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
-                    state: Default::default(),
-                },
-            )),
-        };
-        assert!(authorizer.authorize(&request));
-    }
-
-    // [utest->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
-    #[test]
-    fn utest_matches_not_all_filter_entries() {
-        let authorizer = create_authorizer(&[RuleType::AllowReadWrite]);
-
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest {
-                    field_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
-                },
-            ),
-        };
-        assert!(!authorizer.authorize(&request));
-
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    update_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
-                    state: Default::default(),
-                },
-            )),
-        };
-        assert!(!authorizer.authorize(&request));
-    }
-
-    #[test]
-    fn utest_authorizer_from_control_interface_access() {
-        let access_rights = ControlInterfaceAccess {
-            allow_rules: vec![
-                AccessRightsRule::StateRule(StateRule {
-                    operation: common::objects::ReadWriteEnum::Nothing,
-                    filter_mask: vec!["allow.nothing".into()],
-                }),
-                AccessRightsRule::StateRule(StateRule {
-                    operation: common::objects::ReadWriteEnum::Read,
-                    filter_mask: vec!["allow.read".into()],
-                }),
-                AccessRightsRule::StateRule(StateRule {
-                    operation: common::objects::ReadWriteEnum::Write,
-                    filter_mask: vec!["allow.write".into()],
-                }),
-                AccessRightsRule::StateRule(StateRule {
-                    operation: common::objects::ReadWriteEnum::ReadWrite,
-                    filter_mask: vec!["allow.read.write".into()],
-                }),
-            ],
-            deny_rules: vec![
-                AccessRightsRule::StateRule(StateRule {
-                    operation: common::objects::ReadWriteEnum::Nothing,
-                    filter_mask: vec!["deny.nothing".into()],
-                }),
-                AccessRightsRule::StateRule(StateRule {
-                    operation: common::objects::ReadWriteEnum::Read,
-                    filter_mask: vec!["deny.read".into()],
-                }),
-                AccessRightsRule::StateRule(StateRule {
-                    operation: common::objects::ReadWriteEnum::Write,
-                    filter_mask: vec!["deny.write".into()],
-                }),
-                AccessRightsRule::StateRule(StateRule {
-                    operation: common::objects::ReadWriteEnum::ReadWrite,
-                    filter_mask: vec!["deny.read.write".into()],
-                }),
-            ],
-        };
-
-        let authorizer = Authorizer::from(&access_rights);
-
-        assert_eq!(
-            authorizer.allow_read_state_rule,
-            vec![MockRule {
-                patterns: Some(vec![AllowPathPattern::from("allow.read")]),
-            }]
-        );
-        assert_eq!(
-            authorizer.allow_write_state_rule,
-            vec![MockRule {
-                patterns: Some(vec![AllowPathPattern::from("allow.write")]),
-            }]
-        );
-        assert_eq!(
-            authorizer.allow_read_write_state_rule,
-            vec![MockRule {
-                patterns: Some(vec![AllowPathPattern::from("allow.read.write")]),
-            }]
-        );
-
-        assert_eq!(
-            authorizer.deny_read_state_rule,
-            vec![MockRule {
-                patterns: Some(vec![DenyPathPattern::from("deny.read")]),
-            }]
-        );
-        assert_eq!(
-            authorizer.deny_write_state_rule,
-            vec![MockRule {
-                patterns: Some(vec![DenyPathPattern::from("deny.write")]),
-            }]
-        );
-        assert_eq!(
-            authorizer.deny_read_write_state_rule,
-            vec![MockRule {
-                patterns: Some(vec![DenyPathPattern::from("deny.read.write")]),
-            }]
-        );
-    }
-    */
 }

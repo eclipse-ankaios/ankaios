@@ -31,20 +31,6 @@ impl<P: PathPattern> StateRule<P> {
     pub fn create(patterns: Vec<P>) -> Self {
         Self { patterns }
     }
-
-    pub fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
-        self.patterns
-            .iter()
-            .find_map(|p| {
-                let (matches, reason) = p.matches(path);
-                if matches {
-                    Some((true, reason))
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_else(|| (false, String::new()))
-    }
 }
 
 impl<P: PathPattern> PathPatternMatcher for StateRule<P> {
@@ -90,7 +76,7 @@ impl From<Vec<String>> for LogRule {
 mod test {
     use super::{super::path::Path, LogRule, StateRule};
     use crate::control_interface::authorizer::path_pattern::{
-        PathPatternSection, PathPattern, PathPatternMatchReason
+        PathPattern, PathPatternMatchReason, PathPatternMatcher, PathPatternSection,
     };
 
     struct MockPathPattern {
