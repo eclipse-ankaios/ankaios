@@ -11,6 +11,7 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+use crate::io_utils::FileSystemError;
 
 use std::{path::PathBuf, str::FromStr};
 
@@ -380,15 +381,27 @@ impl<
             );
 
             let workload_dir = instance_name.pipes_folder_name(&run_folder);
-            filesystem_async::remove_dir_all(&workload_dir)
-                .await
-                .unwrap_or_else(|err| {
-                    log::error!(
+            match filesystem_async::remove_dir_all(&workload_dir).await {
+                Ok(_) => {
+                    log::trace!(
+                        "Successfully deleted workload subfolder of workload '{}'",
+                        instance_name
+                    );
+                }
+                Err(FileSystemError::NotFoundDirectory(_)) => {
+                    log::debug!(
+                        "Workload subfolder for '{}' already missing, skipping deletion.",
+                        instance_name
+                    );
+                }
+                Err(err) => {
+                    log::warn!(
                         "Failed to delete workload subfolder after deletion of workload '{}': '{}'",
                         instance_name,
                         err
                     );
-                });
+                }
+            }
 
             update_state_tx
                 .report_workload_execution_state(&instance_name, ExecutionState::removed())
