@@ -62,6 +62,7 @@ impl Authorizer {
         match &request.request_content {
             common::commands::RequestContent::CompleteStateRequest(r) => {
                 let field_mask = if r.field_mask.is_empty() {
+                    // [impl->swdd~agent-authorizing-request-without-filter-mask~2]
                     &vec!["".into()]
                 } else {
                     &r.field_mask
@@ -110,6 +111,7 @@ impl Authorizer {
             }
             common::commands::RequestContent::UpdateStateRequest(r) => {
                 let update_mask: &Vec<_> = if r.update_mask.is_empty() {
+                    // [impl->swdd~agent-authorizing-request-without-filter-mask~2]
                     &vec!["".into()]
                 } else {
                     &r.update_mask
@@ -320,57 +322,74 @@ mod test {
     const WORKLOAD_NAME: &str = "workload_name";
     const NON_EXISTING_WORKLOAD_NAME: &str = "non_existing_workload_name";
 
+    type FieldMasks = Vec<String>;
     enum RuleType {
-        StateAllowWrite,
-        StateDenyWrite,
-        StateAllowRead,
-        StateDenyRead,
-        StateAllowReadWrite,
-        StateDenyReadWrite,
-        LogAllow,
-        LogDeny,
+        StateAllowWrite(FieldMasks),
+        StateDenyWrite(FieldMasks),
+        StateAllowRead(FieldMasks),
+        StateDenyRead(FieldMasks),
+        StateAllowReadWrite(FieldMasks),
+        StateDenyReadWrite(FieldMasks),
+        LogAllow(Vec<String>),
+        LogDeny(Vec<String>),
     }
 
-    fn create_authorizer(rules: &[RuleType]) -> Authorizer {
-        let mut authorizer = Authorizer::default();
-        let state_allow_rule = Arc::new(StateRule::<AllowPathPattern>::create(vec![
-            MATCHING_PATH.into(),
-            MATCHING_PATH_2.into(),
-        ]));
-        let state_deny_rule = Arc::new(StateRule::<DenyPathPattern>::create(vec![
-            MATCHING_PATH.into(),
-            MATCHING_PATH_2.into(),
-        ]));
-
+    fn populate_authorizer(mut authorizer: Authorizer, rules: &[RuleType]) -> Authorizer {
         for rule in rules {
             match rule {
-                RuleType::StateAllowWrite => {
-                    authorizer.state_allow_write.push(state_allow_rule.clone())
+                RuleType::StateAllowWrite(masks) => {
+                    let rule = Arc::new(StateRule::<AllowPathPattern>::create(
+                        masks.iter().map(|x| x.as_str().into()).collect(),
+                    ));
+                    authorizer.state_allow_write.push(rule.clone())
                 }
-                RuleType::StateDenyWrite => {
-                    authorizer.state_deny_write.push(state_deny_rule.clone())
+                RuleType::StateDenyWrite(masks) => {
+                    let rule = Arc::new(StateRule::<DenyPathPattern>::create(
+                        masks.iter().map(|x| x.as_str().into()).collect(),
+                    ));
+                    authorizer.state_deny_write.push(rule.clone())
                 }
-                RuleType::StateAllowRead => {
-                    authorizer.state_allow_read.push(state_allow_rule.clone())
+                RuleType::StateAllowRead(masks) => {
+                    let rule = Arc::new(StateRule::<AllowPathPattern>::create(
+                        masks.iter().map(|x| x.as_str().into()).collect(),
+                    ));
+                    authorizer.state_allow_read.push(rule.clone())
                 }
-                RuleType::StateDenyRead => authorizer.state_deny_read.push(state_deny_rule.clone()),
-                RuleType::StateAllowReadWrite => {
-                    authorizer.state_allow_read.push(state_allow_rule.clone());
-                    authorizer.state_allow_write.push(state_allow_rule.clone());
+                RuleType::StateDenyRead(masks) => {
+                    let rule = Arc::new(StateRule::<DenyPathPattern>::create(
+                        masks.iter().map(|x| x.as_str().into()).collect(),
+                    ));
+                    authorizer.state_deny_read.push(rule.clone())
                 }
-                RuleType::StateDenyReadWrite => {
-                    authorizer.state_deny_read.push(state_deny_rule.clone());
-                    authorizer.state_deny_write.push(state_deny_rule.clone());
+                RuleType::StateAllowReadWrite(masks) => {
+                    let rule = Arc::new(StateRule::<AllowPathPattern>::create(
+                        masks.iter().map(|x| x.as_str().into()).collect(),
+                    ));
+                    authorizer.state_allow_read.push(rule.clone());
+                    authorizer.state_allow_write.push(rule.clone());
                 }
-                RuleType::LogAllow => {
-                    authorizer
-                        .log_allow
-                        .push(LogRule::from(vec![WORKLOAD_NAME.into()]));
+                RuleType::StateDenyReadWrite(masks) => {
+                    let rule = Arc::new(StateRule::<DenyPathPattern>::create(
+                        masks.iter().map(|x| x.as_str().into()).collect(),
+                    ));
+                    authorizer.state_deny_read.push(rule.clone());
+                    authorizer.state_deny_write.push(rule.clone());
                 }
-                RuleType::LogDeny => {
-                    authorizer
-                        .log_deny
-                        .push(LogRule::from(vec![WORKLOAD_NAME.into()]));
+                RuleType::LogAllow(names) => {
+                    authorizer.log_allow.push(LogRule::from(
+                        names
+                            .iter()
+                            .map(|name| name.as_str().into())
+                            .collect::<Vec<_>>(),
+                    ));
+                }
+                RuleType::LogDeny(names) => {
+                    authorizer.log_deny.push(LogRule::from(
+                        names
+                            .iter()
+                            .map(|name| name.as_str().into())
+                            .collect::<Vec<_>>(),
+                    ));
                 }
             }
         }
@@ -470,7 +489,117 @@ mod test {
         ));
     }
 
+    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
+    #[test]
+    fn utest_denies_empty_request() {
+        let authorizer = Authorizer::default();
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest { field_mask: vec![] },
+            ),
+        };
+        assert!(!authorizer.authorize(&request));
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    state: Default::default(),
+                    update_mask: vec![],
+                },
+            )),
+        };
+        assert!(!authorizer.authorize(&request));
+    }
+
+    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
+    #[test]
+    fn utest_allow_empty_request() {
+        let mut authorizer = Authorizer::default();
+        authorizer = populate_authorizer(
+            authorizer,
+            &[RuleType::StateAllowReadWrite(vec!["".into()])],
+        );
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest { field_mask: vec![] },
+            ),
+        };
+        assert!(authorizer.authorize(&request));
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    state: Default::default(),
+                    update_mask: vec![],
+                },
+            )),
+        };
+        assert!(authorizer.authorize(&request));
+    }
     /*
+    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
+    #[test]
+    fn utest_request_without_filter_mask() {
+        let mut authorizer = Authorizer::default();
+        let complete_state_request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest { field_mask: vec![] },
+            ),
+        };
+        let update_state_request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    state: Default::default(),
+                    update_mask: vec![],
+                },
+            )),
+        };
+        let empty_string_allow_state_rule =
+            Arc::new(StateRule::<AllowPathPattern>::create(vec!["".into()]));
+        let empty_string_deny_state_rule =
+            Arc::new(StateRule::<DenyPathPattern>::create(vec!["".into()]));
+        let non_empty_string_deny_rule = Arc::new(StateRule::<DenyPathPattern>::create(vec![
+            "non.empty".into(),
+        ]));
+
+        assert!(!authorizer.authorize(&complete_state_request));
+        assert!(!authorizer.authorize(&update_state_request));
+
+        authorizer
+            .state_allow_read
+            .push(empty_string_allow_state_rule.clone());
+        authorizer
+            .state_allow_write
+            .push(empty_string_allow_state_rule.clone());
+        assert!(authorizer.authorize(&complete_state_request));
+        assert!(authorizer.authorize(&update_state_request));
+
+        authorizer
+            .state_deny_read
+            .push(empty_string_deny_state_rule.clone());
+        authorizer
+            .state_deny_write
+            .push(empty_string_deny_state_rule.clone());
+        assert!(authorizer.authorize(&complete_state_request));
+        assert!(authorizer.authorize(&update_state_request));
+
+        authorizer
+            .state_deny_read
+            .push(non_empty_string_deny_rule.clone());
+        authorizer
+            .state_deny_write
+            .push(non_empty_string_deny_rule.clone());
+        assert!(!authorizer.authorize(&complete_state_request));
+        assert!(!authorizer.authorize(&update_state_request));
+    }
+
     // [utest->swdd~agent-authorizing-request-operations~1]
     // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]

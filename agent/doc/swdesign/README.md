@@ -3256,6 +3256,23 @@ Needs:
 - impl
 - utest
 
+#### Request without filter mask
+`swdd~agent-authorizing-request-without-filter-mask~2`
+
+Status: approved
+
+The Authorizer allows an UpdateStateRequest with an empty update mask or a CompleteStateRequest with an empty field mask only if all of the following is true:
+
+* there is a corresponding (write/read) allow rule with a wildcard "*"
+* there is no corresponding (write/read) deny rule with a wildcard "*"
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
 #### Request allowed if all elements of filter mask are allowed
 `swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1`
 
