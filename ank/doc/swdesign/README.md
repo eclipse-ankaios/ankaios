@@ -1157,6 +1157,7 @@ Rationale:
 A log collection for one workload might be finished, but not for others.
 
 Tags:
+- CliCommands
 
 Needs:
 - impl

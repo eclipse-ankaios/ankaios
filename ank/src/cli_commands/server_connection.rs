@@ -255,50 +255,74 @@ impl ServerConnection {
                     output_debug!("LogsCancelRequest sent after receiving signal to stop.");
                     break Ok(());
                 }
+                // [impl->swdd~handles-log-responses-from-server~1]
                 server_message = self.from_server.recv() => {
                     let server_message = server_message
-                        .ok_or(ServerConnectionError::ExecutionError(
-                            "Error streaming workload logs: channel preliminary closed.".to_string()))?;
+                        .ok_or(
+                            ServerConnectionError::ExecutionError("Error streaming workload logs: channel preliminary closed.".to_string()
+                    ))?;
 
-                    // [impl->swdd~handles-log-responses-from-server~1]
-                    match server_message {
-                        FromServer::Response(ank_base::Response {
-                            request_id: received_request_id,
-                            response_content:
-                                Some(ank_base::response::ResponseContent::LogEntriesResponse(logs_response)),
-                        }) if received_request_id == request_id => {
-                            output_logs(logs_response.log_entries);
-                        },
-                        FromServer::Response(ank_base::Response {
-                            request_id: received_request_id,
-                            response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(logs_stop_response)),
-                        }) => if received_request_id == request_id {
-                            // [impl->swdd~stops-log-output-for-specific-workloads~1]
-                            let instance_name = logs_stop_response.workload_name.ok_or(
-                                ServerConnectionError::ExecutionError(
-                                    "Received LogsStopResponse without workload name.".to_string(),
-                                ),
-                            )?;
-
-                            output_debug!("Received stop message for workload instance: {:?}", instance_name);
-                            instance_names.remove(&instance_name.into());
+                    match response_to_log_streaming_state(&request_id, server_message)? {
+                        LogStreamingState::Output(log_entries) => {
+                            output_logs(log_entries.log_entries);
+                        }
+                        LogStreamingState::Continue => continue,
+                        // [impl->swdd~stops-log-output-for-specific-workloads~1]
+                        LogStreamingState::StopForWorkload(instance_name) => {
+                            instance_names.remove(&instance_name);
 
                             if instance_names.is_empty() {
-                                output_debug!("Log collection for all workloads completed.");
+                                // log streaming is finished for all requested instances
+                                output_debug!("All requested workload instances have been processed. Stopping log streaming.");
                                 break Ok(());
                             }
-                        },
-                        FromServer::Response(ank_base::Response {
-                            request_id: received_request_id,
-                            response_content: Some(ank_base::response::ResponseContent::Error(error)),
-                        }) if received_request_id == request_id => break Err(ServerConnectionError::ExecutionError(
-                            format!("Error streaming logs: '{}'", error.message),
-                        )),
-                        _ => continue,
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+// [impl->swdd~handles-log-responses-from-server~1]
+fn response_to_log_streaming_state(
+    request_id: &String,
+    server_message: FromServer,
+) -> Result<LogStreamingState, ServerConnectionError> {
+    match server_message {
+        FromServer::Response(ank_base::Response {
+            request_id: received_request_id,
+            response_content:
+                Some(ank_base::response::ResponseContent::LogEntriesResponse(logs_response)),
+        }) if &received_request_id == request_id => Ok(LogStreamingState::Output(logs_response)),
+        FromServer::Response(ank_base::Response {
+            request_id: received_request_id,
+            response_content:
+                Some(ank_base::response::ResponseContent::LogsStopResponse(logs_stop_response)),
+        }) if &received_request_id == request_id => {
+            let workload_instance_name =
+                logs_stop_response
+                    .workload_name
+                    .ok_or(ServerConnectionError::ExecutionError(
+                        "Received invalid LogsStopResponse without workload name".to_string(),
+                    ))?;
+
+            output_debug!(
+                "Received stop message for workload instance: {:?}",
+                workload_instance_name
+            );
+            Ok(LogStreamingState::StopForWorkload(
+                workload_instance_name.into(),
+            ))
+        }
+
+        FromServer::Response(ank_base::Response {
+            request_id: received_request_id,
+            response_content: Some(ank_base::response::ResponseContent::Error(error)),
+        }) if &received_request_id == request_id => Err(ServerConnectionError::ExecutionError(
+            format!("Error streaming logs: '{}'", error.message),
+        )),
+        _ => Ok(LogStreamingState::Continue),
     }
 }
 
@@ -325,6 +349,12 @@ lazy_static! {
 fn output_logs(log_entries: Vec<LogEntry>) {
     let mut test_out = TEST_LOG_OUTPUT_DATA.lock().unwrap();
     *test_out = log_entries.clone();
+}
+
+enum LogStreamingState {
+    StopForWorkload(WorkloadInstanceName),
+    Continue,
+    Output(api::ank_base::LogEntriesResponse),
 }
 
 #[derive(Debug, PartialEq)]
