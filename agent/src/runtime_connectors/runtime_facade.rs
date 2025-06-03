@@ -383,7 +383,7 @@ impl<
             let workload_dir = instance_name.pipes_folder_name(&run_folder);
             match filesystem_async::remove_dir_all(&workload_dir).await {
                 Ok(_) => {
-                    log::info!(
+                    log::trace!(
                         "Successfully deleted workload subfolder of workload '{}'",
                         instance_name
                     );
