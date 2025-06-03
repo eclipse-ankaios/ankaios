@@ -3257,15 +3257,14 @@ Needs:
 - utest
 
 #### Request without filter mask
-`swdd~agent-authorizing-request-without-filter-mask~1`
+`swdd~agent-authorizing-request-without-filter-mask~2`
 
 Status: approved
 
-When the Authorizer checks if a Workload is allowed to make a request,
-an UpdateStateRequest with an empty update mask or a CompleteStateRequest with an empty field mask is only allowed if all of the following is true:
+The Authorizer allows an UpdateStateRequest with an empty update mask or a CompleteStateRequest with an empty field mask only if all of the following is true:
 
-* there is at least one allow rule having an empty String in the filter mask
-* there is no deny rule with a non empty filter mask
+* there is a corresponding (write/read) allow rule with a wildcard "*"
+* there is no corresponding (write/read) deny rule with a wildcard "*"
 
 Tags:
 - Authorizer

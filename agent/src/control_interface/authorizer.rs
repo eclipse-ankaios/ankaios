@@ -62,7 +62,7 @@ impl Authorizer {
         match &request.request_content {
             common::commands::RequestContent::CompleteStateRequest(r) => {
                 let field_mask = if r.field_mask.is_empty() {
-                    // [impl->swdd~agent-authorizing-request-without-filter-mask~1]
+                    // [impl->swdd~agent-authorizing-request-without-filter-mask~2]
                     &vec!["".into()]
                 } else {
                     &r.field_mask
@@ -111,7 +111,7 @@ impl Authorizer {
             }
             common::commands::RequestContent::UpdateStateRequest(r) => {
                 let update_mask: &Vec<_> = if r.update_mask.is_empty() {
-                    // [impl->swdd~agent-authorizing-request-without-filter-mask~1]
+                    // [impl->swdd~agent-authorizing-request-without-filter-mask~2]
                     &vec!["".into()]
                 } else {
                     &r.update_mask
@@ -472,7 +472,7 @@ mod test {
         ));
     }
 
-    // [utest->swdd~agent-authorizing-request-without-filter-mask~1]
+    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
     #[test]
     fn utest_denies_empty_request() {
         let authorizer = create_authorizer(&[]);
@@ -496,7 +496,7 @@ mod test {
         assert!(!authorizer.authorize(&request));
     }
 
-    // [utest->swdd~agent-authorizing-request-without-filter-mask~1]
+    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
     #[test]
     fn utest_allow_empty_request() {
         let mut authorizer = Authorizer::default();
@@ -529,7 +529,7 @@ mod test {
         assert!(authorizer.authorize(&request));
     }
     /*
-    // [utest->swdd~agent-authorizing-request-without-filter-mask~1]
+    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
     #[test]
     fn utest_request_without_filter_mask() {
         let mut authorizer = Authorizer::default();
