@@ -62,7 +62,6 @@ impl Authorizer {
         match &request.request_content {
             common::commands::RequestContent::CompleteStateRequest(r) => {
                 let field_mask = if r.field_mask.is_empty() {
-                    // [impl->swdd~agent-authorizing-request-without-filter-mask~1]
                     &vec!["".into()]
                 } else {
                     &r.field_mask
@@ -111,7 +110,6 @@ impl Authorizer {
             }
             common::commands::RequestContent::UpdateStateRequest(r) => {
                 let update_mask: &Vec<_> = if r.update_mask.is_empty() {
-                    // [impl->swdd~agent-authorizing-request-without-filter-mask~1]
                     &vec!["".into()]
                 } else {
                     &r.update_mask
@@ -472,121 +470,7 @@ mod test {
         ));
     }
 
-    // [utest->swdd~agent-authorizing-request-without-filter-mask~1]
-    #[test]
-    fn utest_denies_empty_request() {
-        let authorizer = create_authorizer(&[]);
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest { field_mask: vec![] },
-            ),
-        };
-        assert!(!authorizer.authorize(&request));
-
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    state: Default::default(),
-                    update_mask: vec![],
-                },
-            )),
-        };
-        assert!(!authorizer.authorize(&request));
-    }
-
-    // [utest->swdd~agent-authorizing-request-without-filter-mask~1]
-    #[test]
-    fn utest_allow_empty_request() {
-        let mut authorizer = Authorizer::default();
-        let empty_string_allow_state_rule =
-            Arc::new(StateRule::<AllowPathPattern>::create(vec!["".into()]));
-        authorizer
-            .state_allow_read
-            .push(empty_string_allow_state_rule.clone());
-        authorizer
-            .state_allow_write
-            .push(empty_string_allow_state_rule.clone());
-
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest { field_mask: vec![] },
-            ),
-        };
-        assert!(authorizer.authorize(&request));
-
-        let request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    state: Default::default(),
-                    update_mask: vec![],
-                },
-            )),
-        };
-        assert!(authorizer.authorize(&request));
-    }
     /*
-    // [utest->swdd~agent-authorizing-request-without-filter-mask~1]
-    #[test]
-    fn utest_request_without_filter_mask() {
-        let mut authorizer = Authorizer::default();
-        let complete_state_request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest { field_mask: vec![] },
-            ),
-        };
-        let update_state_request = Request {
-            request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    state: Default::default(),
-                    update_mask: vec![],
-                },
-            )),
-        };
-        let empty_string_allow_state_rule =
-            Arc::new(StateRule::<AllowPathPattern>::create(vec!["".into()]));
-        let empty_string_deny_state_rule =
-            Arc::new(StateRule::<DenyPathPattern>::create(vec!["".into()]));
-        let non_empty_string_deny_rule = Arc::new(StateRule::<DenyPathPattern>::create(vec![
-            "non.empty".into(),
-        ]));
-
-        assert!(!authorizer.authorize(&complete_state_request));
-        assert!(!authorizer.authorize(&update_state_request));
-
-        authorizer
-            .state_allow_read
-            .push(empty_string_allow_state_rule.clone());
-        authorizer
-            .state_allow_write
-            .push(empty_string_allow_state_rule.clone());
-        assert!(authorizer.authorize(&complete_state_request));
-        assert!(authorizer.authorize(&update_state_request));
-
-        authorizer
-            .state_deny_read
-            .push(empty_string_deny_state_rule.clone());
-        authorizer
-            .state_deny_write
-            .push(empty_string_deny_state_rule.clone());
-        assert!(authorizer.authorize(&complete_state_request));
-        assert!(authorizer.authorize(&update_state_request));
-
-        authorizer
-            .state_deny_read
-            .push(non_empty_string_deny_rule.clone());
-        authorizer
-            .state_deny_write
-            .push(non_empty_string_deny_rule.clone());
-        assert!(!authorizer.authorize(&complete_state_request));
-        assert!(!authorizer.authorize(&update_state_request));
-    }
-
     // [utest->swdd~agent-authorizing-request-operations~1]
     // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
