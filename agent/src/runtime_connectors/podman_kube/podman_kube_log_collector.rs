@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2025 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -12,7 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-mod podman_log_collector;
-mod podman_runtime;
-mod podman_runtime_config;
-pub use podman_runtime::{PodmanRuntime, PodmanWorkloadId};
+use async_trait::async_trait;
+
+use crate::runtime_connectors::log_collector::LogCollector;
+
+#[derive(Debug)]
+pub struct PodmanLogCollector {}
+
+#[async_trait]
+impl LogCollector for PodmanLogCollector {
+    async fn next_lines(&mut self) -> Option<Vec<String>> {
+        None
+    }
+}

@@ -22,17 +22,21 @@ pub mod workload_control_loop;
 pub use control_loop_state::ControlLoopState;
 #[cfg_attr(test, mockall_double::double)]
 use retry_manager::RetryToken;
+use tokio::sync::oneshot;
 pub use workload_command_channel::WorkloadCommandSender;
 #[cfg(test)]
 pub use workload_control_loop::MockWorkloadControlLoop;
 
-use std::fmt::Display;
+use std::{error::Error, fmt::Display};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::ControlInterface;
-use crate::control_interface::ControlInterfacePath;
+use crate::{
+    control_interface::ControlInterfacePath,
+    runtime_connectors::{log_collector::LogCollector, LogRequestOptions},
+};
 
 use api::ank_base;
 
@@ -64,13 +68,28 @@ impl Display for WorkloadError {
 }
 
 #[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
 pub enum WorkloadCommand {
     Delete,
     Update(Option<Box<WorkloadSpec>>, Option<ControlInterfacePath>),
     Retry(Box<WorkloadInstanceName>, RetryToken),
     Create,
     Resume,
+    StartLogCollector(LogRequestOptions, oneshot::Sender<Box<dyn LogCollector>>),
+}
+
+#[cfg(test)]
+impl PartialEq for WorkloadCommand {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Delete, Self::Delete) => true,
+            (Self::Update(l0, l1), Self::Update(r0, r1)) => (l0, l1) == (r0, r1),
+            (Self::Retry(l0, l1), Self::Retry(r0, r1)) => (l0, l1) == (r0, r1),
+            (Self::Create, Self::Create) => true,
+            (Self::Resume, Self::Resume) => true,
+            (Self::StartLogCollector(_, _), Self::StartLogCollector(_, _)) => false,
+            _ => false,
+        }
+    }
 }
 
 pub struct Workload {
@@ -199,6 +218,15 @@ impl Workload {
             .await
             .map_err(|err| WorkloadError::CompleteState(err.to_string()))
     }
+
+    pub async fn start_collecting_logs(
+        &self,
+        log_request_options: LogRequestOptions,
+    ) -> Result<Box<dyn LogCollector>, Box<dyn Error>> {
+        self.channel
+            .start_collecting_logs(log_request_options)
+            .await
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -230,6 +258,7 @@ mod tests {
             authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
             ControlInterfacePath, MockControlInterface,
         },
+        runtime_connectors::{log_collector::MockLogCollector, LogRequestOptions},
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
@@ -238,6 +267,12 @@ mod tests {
     const WORKLOAD_1_NAME: &str = "workload1";
     const PIPES_LOCATION: &str = "/some/path";
     const REQUEST_ID: &str = "request_id";
+    const LOG_REQUEST_OPTIONS: LogRequestOptions = LogRequestOptions {
+        follow: true,
+        tail: Some(100),
+        since: None,
+        until: None,
+    };
 
     const TEST_WL_COMMAND_BUFFER_SIZE: usize = 5;
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 5;
@@ -302,7 +337,6 @@ mod tests {
             workload_command_sender.clone(),
             Some(MockControlInterface::default()),
         );
-
         assert!(test_workload_with_control_interface.is_control_interface_changed(&None));
     }
 
@@ -330,7 +364,6 @@ mod tests {
             .expect_has_same_configuration()
             .once()
             .return_const(false);
-
         let test_workload_with_control_interface = Workload::new(
             WORKLOAD_1_NAME.to_string(),
             workload_command_sender.clone(),
@@ -681,5 +714,34 @@ mod tests {
                 .await,
             Err(WorkloadError::CompleteState(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn utest_workload_obj_start_collecting_logs_success() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
+
+        let jh = tokio::spawn(async move {
+            let Some(WorkloadCommand::StartLogCollector(options, result_sink)) =
+                workload_command_receiver.recv().await
+            else {
+                panic!("Did not receive StartLogCollection command")
+            };
+            assert_eq!(options, LOG_REQUEST_OPTIONS);
+            result_sink.send(Box::new(MockLogCollector::new())).unwrap();
+        });
+
+        let test_workload =
+            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
+
+        test_workload
+            .start_collecting_logs(LOG_REQUEST_OPTIONS)
+            .await
+            .unwrap();
+
+        jh.await.unwrap();
     }
 }
