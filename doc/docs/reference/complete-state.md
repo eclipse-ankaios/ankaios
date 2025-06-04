@@ -101,6 +101,10 @@ desiredState:
     - have a maximal length of 63 characters<br>
     Also, agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
 
+!!! Note
+
+    Although updating the runtime of a workload is not prohibited, in practice it is not possible. Thus, updating the state of a workload with a different runtime will yield in sending a `Pending(StartingFailed)` workload state with an unsupported runtime message and the workload shall not start.
+
 ## Object field mask
 
 With the object field mask only specific parts of the Ankaios state could be retrieved or updated.

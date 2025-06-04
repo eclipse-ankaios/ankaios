@@ -530,7 +530,7 @@ impl RuntimeManager {
         };
 
         // [impl->swdd~agent-uses-specified-runtime~1]
-        // [impl->swdd~agent-skips-unknown-runtime~1]
+        // [impl->swdd~agent-skips-unknown-runtime~2]
         if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
             // [impl->swdd~agent-executes-create-workload-operation~1]
             let workload = runtime.create_workload(
@@ -546,6 +546,16 @@ impl RuntimeManager {
                 workload_spec.runtime,
                 workload_name
             );
+
+            self.update_state_tx
+                .report_workload_execution_state(
+                    &workload_spec.instance_name,
+                    ExecutionState::starting_failed(format!(
+                        "Runtime '{}' not found.",
+                        workload_spec.runtime
+                    )),
+                )
+                .await;
         }
     }
 
@@ -659,7 +669,7 @@ mod tests {
         self, generate_test_control_interface_access,
         generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
-        AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
+        AddCondition, ExecutionStateEnum, WorkloadInstanceNameBuilder, WorkloadState,
     };
     use common::test_utils::{
         self, generate_test_complete_state, generate_test_deleted_workload,
@@ -797,7 +807,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
     }
 
-    // [utest->swdd~agent-skips-unknown-runtime~1]
+    // [utest->swdd~agent-skips-unknown-runtime~2]
     #[tokio::test]
     async fn utest_handle_update_workload_no_workload_with_unknown_runtime() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -844,18 +854,27 @@ mod tests {
 
         runtime_facade_mock.expect_create_workload().never(); // workload shall not be created due to unknown runtime
 
-        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (mut server_recv, mut runtime_manager, mut wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         runtime_manager
             .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
         assert!(runtime_manager.workloads.is_empty());
+
+        server_recv.close();
+        let received_wl_state = wl_state_receiver.recv().await;
+
+        assert_eq!(
+            received_wl_state.unwrap().execution_state.state,
+            ExecutionStateEnum::Pending(objects::PendingSubstate::StartingFailed)
+        );
     }
 
     // [utest->swdd~agent-existing-workloads-finds-list~1]
@@ -962,7 +981,8 @@ mod tests {
 
         let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
 
-        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default().build();
+        let (_server_recv, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
 
         control_interface_info_new_context
             .expect()
@@ -1504,7 +1524,8 @@ mod tests {
 
         let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
 
-        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default().build();
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
 
         control_interface_info_new_context
             .expect()
