@@ -2997,7 +2997,19 @@ Needs:
 
 ### Forwarding the Control Interface
 
-The Ankaios Agent is responsible to forward Control Interface requests from a Workload to the Ankaios Server and to forward Control Interface responses from the Ankaios Server to the Workload.
+The Ankaios agent is responsible to forward Control Interface requests from a workload to the Ankaios server and to forward Control Interface responses from the Ankaios server to the workload.
+
+There are two basic workflows how a workload can communicate over the control interface - synchronous and asynchronous - and both are supported by the agent. The following two diagrams depict them.
+
+The Asynchronous communication is recommended and can be achieved with the following workflow:
+
+![Async Control Interface usage by workload](plantuml/seq_control_interface_workload_async.svg)
+
+The Synchronous communication could be required in case of an inability to use asynchronous workflows:
+
+![Sync Control Interface usage by workload](plantuml/seq_control_interface_workload_sync.svg)
+
+The following diagram shows in more details how the workload requests are handled inside Ankaios:
 
 ![Forward the Control Interface](plantuml/seq_control_interface.svg)
 

@@ -1,0 +1,48 @@
+@startuml seq_control_interface_workload_async
+!include ../../../../resources/doc/plantuml/clean.skin
+
+participant Workload as workload
+participant "Async Workload Task" as workload_task
+
+box "Ankaios Agent"
+    participant "Input Pipe" as input
+    participant "Output Pipe" as output
+
+    participant "ControlInterfaceTask" as ci_task
+    participant "Ankaios Agent" as agent
+
+end box
+
+
+activate workload
+
+...
+
+agent ->> ci_task**: start async reader task
+activate ci_task
+
+ci_task -> input: wait for input data
+
+group is reopened on next write upon failure
+agent -> output: open output pipe
+
+end
+
+workload ->> workload_task**: start async reader task
+
+workload_task -> output ++: wait for input data
+activate workload_task
+
+
+workload -> input++: hello
+
+input -> ci_task--: hello
+
+... check protocol compatibility and prepare response ...
+
+agent -> output++: hello
+output -> workload_task--: hello
+
+...
+
+@enduml
