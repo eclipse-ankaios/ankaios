@@ -223,7 +223,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_log_collector_stderr_ok() {
+    async fn utest_log_collector_stderr_read_all_lines() {
         let log_collector =
             MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stderr);
         let sem = log_collector.semaphore();
@@ -248,7 +248,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_log_collector_stderr_err() {
+    async fn utest_log_collector_stderr_cannot_send_message() {
         let log_collector =
             MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stderr);
         let sem = log_collector.semaphore();
