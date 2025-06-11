@@ -647,15 +647,30 @@ The controller workload has no access rights
     The controller workload sends initial hello with correct version
 
 The controller workload is allowed to ${operation} on ${filter_mask}
-    internal_allow_control_interface    ${operation}     ${filter_mask}
+    internal_state_allow_control_interface    ${operation}     ${filter_mask}
     The controller workload sends initial hello with correct version
 
 The controller workload is forbidden to ${operation} on ${filter_mask}
-    internal_deny_control_interface    ${operation}     ${filter_mask}
+    internal_state_deny_control_interface    ${operation}     ${filter_mask}
     The controller workload sends initial hello with correct version
 
 The controller workload does not send hello
-    internal_allow_control_interface    read    *
+    internal_state_allow_control_interface    read    *
+
+The controller workload can receive logs from ${workload_names}
+    internal_log_allow_control_interface    ${workload_names}
+
+The controller workload cannot receive logs from ${workload_names}
+    internal_log_deny_control_interface    ${workload_names}
+
+The controller workload requests the logs of ${workload_names}
+    internal_add_logs_request_command    ${workload_names}
+
+The controller workload gets the logs of ${workload_names}
+    internal_get_logs_command    ${workload_names}
+
+The controller workload cancels the logs request of ${workload_names}
+    internal_add_cancel_logs_request_command    ${workload_names}
 
 The controller workload sends initial hello with correct version
     internal_send_initial_hello    ${ANKAIOS_VERSION}

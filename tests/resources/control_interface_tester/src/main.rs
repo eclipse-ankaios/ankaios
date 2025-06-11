@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::response::ResponseContent;
-use api::ank_base::{State, UpdateStateRequest};
+use api::ank_base::{LogEntriesResponse, State, UpdateStateRequest};
 
 use api::control_api::{from_ankaios::FromAnkaiosEnum, FromAnkaios};
 
@@ -59,6 +59,9 @@ enum CommandEnum {
     UpdateState(UpdateState),
     GetState(GetState),
     SendHello(Version),
+    RequestLogs(RequestLogs),
+    GetLogs(GetLogs),
+    CancelLogs(CancelLogs),
 }
 
 #[derive(Deserialize, Debug)]
@@ -77,6 +80,22 @@ struct GetState {
     field_mask: Vec<String>,
 }
 
+#[derive(Deserialize)]
+struct RequestLogs {
+    workload_instance_names: Vec<String>,
+    request_id: String,
+}
+
+#[derive(Deserialize)]
+struct GetLogs {
+    request_id: String,
+}
+
+#[derive(Deserialize)]
+struct CancelLogs {
+    request_id: String,
+}
+
 #[derive(Serialize)]
 struct TestResult {
     result: TestResultEnum,
@@ -87,9 +106,11 @@ struct TestResult {
 enum TestResultEnum {
     UpdateStateResult(TagSerializedResult<UpdateStateResult>),
     GetStateResult(TagSerializedResult<Option<State>>),
+    LogEntriesResponse(TagSerializedResult<LogEntriesResponse>),
     NoApi,
     SendHelloResult(TagSerializedResult<()>),
     ConnectionClosed,
+    NoCheckNeeded,
 }
 
 #[derive(Serialize)]
@@ -207,7 +228,6 @@ impl Connection {
 
         let input_fifo = pipes_location.join("input");
 
-
         Ok(Connection {
             id_counter: 0,
             output,
@@ -225,6 +245,16 @@ impl Connection {
                     self.handle_get_state_command(get_state_command)?
                 }
                 CommandEnum::SendHello(Version { version }) => self.send_hello(version)?,
+                CommandEnum::RequestLogs(RequestLogs {
+                    workload_instance_names,
+                    request_id,
+                }) => self.handle_request_logs_command(workload_instance_names, request_id)?,
+                CommandEnum::GetLogs(GetLogs { request_id }) => {
+                    self.handle_get_logs_command(request_id)?
+                }
+                CommandEnum::CancelLogs(CancelLogs { request_id }) => {
+                    self.handle_cancel_logs_command(request_id)?
+                }
             },
         })
     }
@@ -361,6 +391,87 @@ impl Connection {
                 }
             }
         }
+    }
+
+    fn handle_request_logs_command(
+        &mut self,
+        workload_names: Vec<String>,
+        request_id: String,
+    ) -> Result<TestResultEnum, CommandError> {
+        let workload_instance_names: Vec<common::objects::WorkloadInstanceName> = workload_names
+            .into_iter()
+            .map(|name| {
+                common::objects::WorkloadInstanceName::try_from(name)
+                    .map_err(CommandError::GenericError)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let request = common::commands::Request {
+            request_id: request_id.clone(),
+            request_content: common::commands::RequestContent::LogsRequest(
+                common::commands::LogsRequest {
+                    workload_names: workload_instance_names,
+                    follow: false,
+                    tail: -1,
+                    since: None,
+                    until: None,
+                },
+            ),
+        };
+
+        let proto = api::control_api::ToAnkaios {
+            to_ankaios_enum: Some(api::control_api::to_ankaios::ToAnkaiosEnum::Request(
+                request.into(),
+            )),
+        };
+
+        self.output
+            .write_all(&proto.encode_length_delimited_to_vec())
+            .unwrap();
+
+        Ok(TestResultEnum::NoCheckNeeded)
+    }
+
+    fn handle_get_logs_command(
+        &mut self,
+        request_id: String,
+    ) -> Result<TestResultEnum, CommandError> {
+        let response = self.wait_for_response(request_id)?;
+
+        match response {
+            ResponseContent::LogEntriesResponse(logs_response) => Ok(
+                TestResultEnum::LogEntriesResponse(TagSerializedResult::Ok(logs_response)),
+            ),
+            ResponseContent::Error(error) => Ok(TestResultEnum::LogEntriesResponse(
+                TagSerializedResult::Err(error.message),
+            )),
+            response_content => Err(CommandError::GenericError(format!(
+                "Received wrong response type. Expected LogsResponse, received: '{:?}'",
+                response_content
+            ))),
+        }
+    }
+
+    fn handle_cancel_logs_command(
+        &mut self,
+        request_id: String,
+    ) -> Result<TestResultEnum, CommandError> {
+        let request = common::commands::Request {
+            request_id: request_id.clone(),
+            request_content: common::commands::RequestContent::LogsCancelRequest,
+        };
+
+        let proto = api::control_api::ToAnkaios {
+            to_ankaios_enum: Some(api::control_api::to_ankaios::ToAnkaiosEnum::Request(
+                request.into(),
+            )),
+        };
+
+        self.output
+            .write_all(&proto.encode_length_delimited_to_vec())
+            .unwrap();
+
+        Ok(TestResultEnum::NoCheckNeeded)
     }
 
     fn read_message(&mut self) -> Result<FromAnkaiosEnum, String> {
