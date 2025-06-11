@@ -71,6 +71,7 @@ dependencies = [
  "api",
  "async-trait",
  "base64 0.22.1",
+ "bytes",
  "clap",
  "common",
  "env_logger",
