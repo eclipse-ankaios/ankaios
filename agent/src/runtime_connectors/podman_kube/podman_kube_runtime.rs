@@ -28,16 +28,14 @@ use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        log_collector::LogCollector, podman_cli, runtime_connector::LogRequestOptions,
-        ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
+        generic_log_collector::GenericLogCollector, log_collector::LogCollector, podman_cli,
+        runtime_connector::LogRequestOptions, ReusableWorkloadState, RuntimeConnector,
+        RuntimeError, RuntimeStateGetter, StateChecker,
     },
     workload_state::WorkloadStateSender,
 };
 
-use super::{
-    podman_kube_log_collector::PodmanLogCollector,
-    podman_kube_runtime_config::PodmanKubeRuntimeConfig,
-};
+use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
 
 pub const PODMAN_KUBE_RUNTIME_NAME: &str = "podman-kube";
 const CONFIG_VOLUME_SUFFIX: &str = ".config";
@@ -283,10 +281,13 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
 
     fn get_logs(
         &self,
-        _workload_id: PodmanKubeWorkloadId,
-        _options: &LogRequestOptions,
+        workload_id: PodmanKubeWorkloadId,
+        options: &LogRequestOptions,
     ) -> Result<Box<dyn LogCollector + Send>, RuntimeError> {
-        Ok(Box::new(PodmanLogCollector {}))
+        let x =
+            super::podman_kube_log_collector::PodmanKubeLogCollector::new(&workload_id, options);
+        let log_collector = GenericLogCollector::new(x);
+        Ok(Box::new(log_collector))
     }
 
     async fn delete_workload(
