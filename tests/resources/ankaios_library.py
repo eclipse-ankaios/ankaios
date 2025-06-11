@@ -17,6 +17,7 @@ import time
 import yaml
 import json
 import re
+import uuid
 from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn
 from tempfile import TemporaryDirectory
@@ -68,7 +69,7 @@ def table_to_dict(input_list, key):
 
 def get_agent_dict(table_dict, agent_name):
     agent_dict = table_dict.get(agent_name)
-    assert agent_dict, f"Agent {agent_name} does not provide availabe resources information"
+    assert agent_dict, f"Agent {agent_name} does not provide available resources information"
     logger.trace(agent_dict)
     return agent_dict
 
@@ -89,6 +90,9 @@ def remove_hash_from_workload_name(wn_hash_an_string):
 
 def get_time_secs():
     return time.time()
+
+def generate_request_id():
+    return str(uuid.uuid4())
 
 def get_workload_names_from_podman():
     res = run_command('podman ps -a --format "{{.Names}}"')
@@ -252,30 +256,32 @@ def prepare_test_control_interface_workload():
     global next_manifest_number
     global control_interface_allow_rules
     global control_interface_deny_rules
+    global logs_requests
 
     control_interface_workload_config = []
     manifest_files_location = []
     next_manifest_number = 0
     control_interface_allow_rules = []
     control_interface_deny_rules = []
+    logs_requests = {}
 
-def internal_allow_control_interface(operation, filter_mask):
+def internal_state_allow_control_interface(operation, filter_mask):
     filter_mask = filter_mask.replace(" and ", ", ").split(", ")
     control_interface_allow_rules.append({
         "type": "StateRule",
-        "operation": internal_control_interface_convert_operation(operation),
+        "operation": internal_state_control_interface_convert_operation(operation),
         "filterMask": filter_mask
     })
 
-def internal_deny_control_interface(operation, filter_mask):
+def internal_state_deny_control_interface(operation, filter_mask):
     filter_mask = filter_mask.replace(" and ", ", ").split(", ")
     control_interface_deny_rules.append({
         "type": "StateRule",
-        "operation": internal_control_interface_convert_operation(operation),
+        "operation": internal_state_control_interface_convert_operation(operation),
         "filterMask": filter_mask
     })
 
-def internal_control_interface_convert_operation(operation):
+def internal_state_control_interface_convert_operation(operation):
     operation_lower = operation.lower()
     res = ""
     if "read" in operation_lower:
@@ -285,6 +291,20 @@ def internal_control_interface_convert_operation(operation):
 
     assert res != "", f"The operation(s) '{operation}' is/are unknown"
     return res
+
+def internal_log_allow_control_interface(workload_names):
+    workload_names = workload_names.replace(" and ", ", ").split(", ")
+    control_interface_allow_rules.append({
+        "type": "LogRule",
+        "workloadNames": workload_names
+    })
+
+def internal_log_deny_control_interface(workload_names):
+    workload_names = workload_names.replace(" and ", ", ").split(", ")
+    control_interface_deny_rules.append({
+        "type": "LogRule",
+        "workloadNames": workload_names
+    })
 
 def internal_add_update_state_command(manifest, update_mask):
     global control_interface_workload_config
@@ -328,6 +348,58 @@ def internal_add_get_state_command(field_mask):
         "command": {
             "type": "GetState",
             "field_mask": field_mask
+        }
+    })
+
+
+def internal_add_logs_request_command(workload_names: str):
+    global control_interface_workload_config
+    global logs_requests
+
+    workload_names = workload_names.replace(" and ", ", ")
+    request_id = generate_request_id()
+    logs_requests[workload_names] = request_id
+
+    workload_names = workload_names.split(", ")
+    workload_instance_names = []
+    for workload_name in workload_names:
+        instance_name = get_container_id_and_name_by_workload_name_from_podman(workload_name)[1]
+        workload_instance_names.append(instance_name)
+
+    control_interface_workload_config.append({
+        "command": {
+            "type": "RequestLogs",
+            "workload_instance_names": workload_instance_names,
+            "request_id": request_id
+        }
+    })
+
+
+def internal_get_logs_command(workload_names: str):
+    global control_interface_workload_config
+    global logs_requests
+
+    workload_names = workload_names.replace(" and ", ", ")
+    assert workload_names in logs_requests, f"Workload names {workload_names} are not in previous logs requests"
+    request_id = logs_requests.get(workload_names)
+    control_interface_workload_config.append({
+        "command": {
+            "type": "GetLogs",
+            "request_id": request_id
+        }
+    })
+
+
+def internal_add_cancel_logs_request_command(workload_names: str):
+    global control_interface_workload_config
+
+    workload_names = workload_names.replace(" and ", ", ")
+    assert workload_names in logs_requests, f"Workload names {workload_names} are not in previous logs requests"
+    request_id = logs_requests.get(workload_names)
+    control_interface_workload_config.append({
+        "command": {
+            "type": "CancelLogs",
+            "request_id": request_id
         }
     })
 
