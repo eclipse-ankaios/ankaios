@@ -409,7 +409,7 @@ mod tests {
         test_utils::{self, generate_test_proto_workload_files},
         to_server_interface::ToServer,
     };
-    use tokio::{signal, sync::mpsc::Receiver};
+    use tokio::sync::mpsc::Receiver;
 
     use super::ServerConnection;
 
