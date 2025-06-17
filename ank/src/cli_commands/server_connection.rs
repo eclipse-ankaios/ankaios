@@ -15,8 +15,11 @@ use std::collections::BTreeSet;
 use std::{mem::take, time::Duration};
 
 use crate::cli::LogsArgs;
+#[cfg_attr(test, mockall_double::double)]
+use crate::cli_signals::SignalHandler;
 use crate::filtered_complete_state::FilteredCompleteState;
-use crate::{cli_signals, output_and_error, output_debug};
+use crate::{output_and_error, output_debug};
+
 use api::ank_base::{self, LogEntry};
 use common::commands::LogsRequest;
 use common::communications_client::CommunicationsClient;
@@ -247,7 +250,7 @@ impl ServerConnection {
         loop {
             tokio::select! {
                 // [impl->swdd~cli-sends-logs-cancel-request-upon-termination~1]
-                _ = cli_signals::wait_for_signals() => {
+                _ = SignalHandler::wait_for_signals() => {
                     self.to_server
                         .logs_cancel_request(request_id.clone()).await
                         .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
@@ -334,21 +337,36 @@ fn output_logs(log_entries: Vec<LogEntry>) {
 }
 
 #[cfg(test)]
-use {
-    mockall::lazy_static,
-    std::sync::{Arc, Mutex},
-};
-
-#[cfg(test)]
-lazy_static! {
-    pub static ref TEST_LOG_OUTPUT_DATA: Arc<Mutex<Vec<LogEntry>>> =
-        Arc::new(Mutex::new(Vec::new()));
+fn output_logs(log_entries: Vec<LogEntry>) {
+    TEST_LOG_OUTPUT_DATA.replace(log_entries);
 }
 
 #[cfg(test)]
-fn output_logs(log_entries: Vec<LogEntry>) {
-    let mut test_out = TEST_LOG_OUTPUT_DATA.lock().unwrap();
-    *test_out = log_entries.clone();
+use {mockall::lazy_static, std::sync::Mutex};
+
+#[cfg(test)]
+pub struct SynchronizedTestLogData(Mutex<Vec<LogEntry>>);
+
+#[cfg(test)]
+impl SynchronizedTestLogData {
+    pub fn new() -> Self {
+        SynchronizedTestLogData(Mutex::new(Vec::new()))
+    }
+
+    pub fn replace(&self, new_log_entries: Vec<LogEntry>) {
+        let mut data = self.0.lock().unwrap();
+        *data = new_log_entries;
+    }
+
+    pub fn take(&self) -> Vec<LogEntry> {
+        let mut data = self.0.lock().unwrap();
+        std::mem::take(&mut *data)
+    }
+}
+
+#[cfg(test)]
+lazy_static! {
+    pub static ref TEST_LOG_OUTPUT_DATA: SynchronizedTestLogData = SynchronizedTestLogData::new();
 }
 
 enum LogStreamingState {
@@ -376,6 +394,8 @@ mod tests {
     use crate::{
         cli::LogsArgs,
         cli_commands::server_connection::{ServerConnectionError, TEST_LOG_OUTPUT_DATA},
+        cli_signals::MockSignalHandler,
+        test_helper::MOCKALL_CONTEXT_SYNC,
     };
 
     use super::ank_base::{self, UpdateStateSuccess};
@@ -389,7 +409,7 @@ mod tests {
         test_utils::{self, generate_test_proto_workload_files},
         to_server_interface::ToServer,
     };
-    use tokio::sync::mpsc::Receiver;
+    use tokio::{signal, sync::mpsc::Receiver};
 
     use super::ServerConnection;
 
@@ -1138,6 +1158,7 @@ mod tests {
     // [utest->swdd~stops-log-output-for-specific-workloads~1]
     #[tokio::test]
     async fn utest_stream_logs_multiple_workloads_no_follow() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
             workload_name: vec![WORKLOAD_NAME_1.to_string(), WORKLOAD_NAME_2.to_string()],
             follow: false,
@@ -1197,6 +1218,11 @@ mod tests {
             }),
         );
 
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::pending()));
+
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
@@ -1207,7 +1233,7 @@ mod tests {
 
         checker.check_communication();
 
-        let actual_log_data = TEST_LOG_OUTPUT_DATA.lock().unwrap();
+        let actual_log_data = TEST_LOG_OUTPUT_DATA.take();
         assert_eq!(*actual_log_data, expected_log_data);
     }
 
@@ -1215,6 +1241,7 @@ mod tests {
     // [utest->swdd~handles-log-responses-from-server~1]
     #[tokio::test]
     async fn utest_stream_logs_response_error() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
             workload_name: vec![WORKLOAD_NAME_1.to_string()],
             follow: false,
@@ -1246,6 +1273,11 @@ mod tests {
             }),
         );
 
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::pending()));
+
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
@@ -1261,7 +1293,7 @@ mod tests {
 
         checker.check_communication();
 
-        let actual_log_data = TEST_LOG_OUTPUT_DATA.lock().unwrap();
+        let actual_log_data = TEST_LOG_OUTPUT_DATA.take();
         assert!(actual_log_data.is_empty());
     }
 
@@ -1269,6 +1301,7 @@ mod tests {
     // [utest->swdd~handles-log-responses-from-server~1]
     #[tokio::test]
     async fn utest_stream_logs_ignore_unrelated_response() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
             workload_name: vec![WORKLOAD_NAME_1.to_string()],
             follow: false,
@@ -1311,6 +1344,11 @@ mod tests {
             }),
         );
 
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::pending()));
+
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
@@ -1321,7 +1359,57 @@ mod tests {
 
         checker.check_communication();
 
-        let actual_log_data = TEST_LOG_OUTPUT_DATA.lock().unwrap();
+        let actual_log_data = TEST_LOG_OUTPUT_DATA.take();
         assert!(actual_log_data.is_empty());
+    }
+
+    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~handles-log-responses-from-server~1]
+    #[tokio::test]
+    async fn utest_stream_logs_send_logs_cancel_request_upon_termination_signal() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let mut sim = CommunicationSimulator::default();
+        let instance_names = vec![instance_name_1.clone()];
+        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+            instance_names.iter().cloned().collect();
+
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::LogsRequest(common::commands::LogsRequest {
+                workload_names: instance_names,
+                follow: log_args.follow,
+                tail: log_args.tail,
+                since: log_args.since.clone(),
+                until: log_args.until.clone(),
+            }),
+        );
+
+        sim.expect_receive_request(REQUEST, RequestContent::LogsCancelRequest);
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::ready(())));
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .stream_logs(instance_names_set, log_args)
+            .await;
+
+        assert!(result.is_ok());
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await; // wait until server connection receives all messages
+
+        checker.check_communication();
     }
 }

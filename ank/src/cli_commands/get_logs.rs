@@ -33,12 +33,7 @@ impl CliCommands {
         self.server_connection
             .stream_logs(workload_instance_names, args)
             .await
-            .map_err(|e| {
-                CliError::ExecutionError(format!(
-                    "Failed to get logs for workload instances: '{:?}'",
-                    e
-                ))
-            })
+            .map_err(|e| CliError::ExecutionError(format!("Failed to get logs: '{:?}'", e)))
     }
 
     async fn workload_names_to_instance_names(
@@ -82,5 +77,255 @@ impl CliCommands {
                     .to_string(),
             ))
         }
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use crate::cli::LogsArgs;
+    use crate::cli_commands::{
+        server_connection::{MockServerConnection, ServerConnectionError},
+        CliCommands,
+    };
+    use crate::cli_error::CliError;
+    use api::ank_base;
+    use common::objects::WorkloadInstanceName;
+    use common::{objects::generate_test_workload_spec_with_param, test_utils};
+    use mockall::predicate;
+
+    const RESPONSE_TIMEOUT_MS: u64 = 3000;
+    const AGENT_A_NAME: &str = "agent_A";
+    const AGENT_B_NAME: &str = "agent_B";
+    const WORKLOAD_NAME_1: &str = "workload_1";
+    const WORKLOAD_NAME_2: &str = "workload_2";
+    const RUNTIME_NAME: &str = "runtime";
+
+    // [utest->swdd~cli-provides-workload-logs~1]
+    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    #[tokio::test]
+    async fn utest_get_locks_blocking_success() {
+        let log_workload = generate_test_workload_spec_with_param(
+            AGENT_A_NAME.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+        let cloned_log_workload = log_workload.clone();
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(predicate::eq(vec!["workloadStates".to_string()]))
+            .return_once(|_| {
+                Ok(
+                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
+                        cloned_log_workload,
+                        generate_test_workload_spec_with_param(
+                            AGENT_B_NAME.to_string(),
+                            WORKLOAD_NAME_2.to_string(),
+                            RUNTIME_NAME.to_string(),
+                        ),
+                    ]))
+                    .into(),
+                )
+            });
+
+        let instance_names: BTreeSet<WorkloadInstanceName> =
+            BTreeSet::from([log_workload.instance_name.clone()]);
+
+        let args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        mock_server_connection
+            .expect_stream_logs()
+            .with(
+                predicate::eq(instance_names),
+                predicate::function(|args: &LogsArgs| {
+                    args.workload_name == vec![WORKLOAD_NAME_1.to_string()]
+                        && !args.follow
+                        && args.tail == -1
+                        && args.since.is_none()
+                        && args.until.is_none()
+                }),
+            )
+            .once()
+            .return_once(|_, _| Ok(()));
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+        let result = cmd.get_logs_blocking(args).await;
+
+        assert!(result.is_ok(), "Got result {:?}", result);
+    }
+
+    // [utest->swdd~cli-provides-workload-logs~1]
+    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    #[tokio::test]
+    async fn utest_get_locks_blocking_fails_to_convert_workload_names() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .return_once(|_| {
+                Err(ServerConnectionError::ExecutionError(
+                    "Failed to get CompleteState".to_string(),
+                ))
+            });
+
+        let args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        mock_server_connection.expect_stream_logs().never();
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+        let result = cmd.get_logs_blocking(args).await;
+
+        assert_eq!(
+            result,
+            Err(CliError::ExecutionError(
+                "Failed to get CompleteState".to_string()
+            ))
+        );
+    }
+
+    // [utest->swdd~cli-provides-workload-logs~1]
+    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    #[tokio::test]
+    async fn utest_get_locks_blocking_fails_when_streaming_logs() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .return_once(|_| {
+                Ok(
+                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
+                        generate_test_workload_spec_with_param(
+                            AGENT_A_NAME.to_string(),
+                            WORKLOAD_NAME_1.to_string(),
+                            RUNTIME_NAME.to_string(),
+                        ),
+                    ]))
+                    .into(),
+                )
+            });
+
+        let args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        mock_server_connection
+            .expect_stream_logs()
+            .once()
+            .return_once(|_, _| {
+                Err(ServerConnectionError::ExecutionError(
+                    "streaming error".to_string(),
+                ))
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+        let result = cmd.get_logs_blocking(args).await;
+
+        assert_eq!(
+            result,
+            Err(CliError::ExecutionError(format!(
+                "Failed to get logs: '{:?}'",
+                ServerConnectionError::ExecutionError("streaming error".to_string())
+            )))
+        );
+    }
+
+    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    #[tokio::test]
+    async fn utest_workload_names_to_instance_names_workload_does_not_exist() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .return_once(|_| {
+                Ok(
+                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
+                        generate_test_workload_spec_with_param(
+                            AGENT_A_NAME.to_string(),
+                            WORKLOAD_NAME_1.to_string(),
+                            RUNTIME_NAME.to_string(),
+                        ),
+                    ]))
+                    .into(),
+                )
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        const NOT_EXISTING_WORKLOAD_NAME: &str = "non_existing_workload";
+        let workload_names = vec![NOT_EXISTING_WORKLOAD_NAME.to_string()];
+        let result = cmd.workload_names_to_instance_names(workload_names).await;
+
+        assert_eq!(
+            result,
+            Err(CliError::ExecutionError(format!(
+                "Workload name '{}' does not exist.",
+                NOT_EXISTING_WORKLOAD_NAME
+            )))
+        );
+    }
+
+    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    #[tokio::test]
+    async fn utest_workload_names_to_instance_names_no_workload_states_available() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .return_once(|_| Ok(ank_base::CompleteState::default().into()));
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let workload_names = vec![WORKLOAD_NAME_1.to_string()];
+        let result = cmd.workload_names_to_instance_names(workload_names).await;
+
+        assert_eq!(
+            result,
+            Err(CliError::ExecutionError(
+                "No workload states available to convert workload names to instance names."
+                    .to_string(),
+            ))
+        );
     }
 }
