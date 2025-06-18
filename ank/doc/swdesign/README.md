@@ -1090,7 +1090,7 @@ Status: approved
 
 The Ankaios CLI shall provide a function to output the logs of multiple workloads.
 
-Comments:
+Comment:
 The user specifies the workloads by their workload names as required argument.
 
 Tags:
@@ -1102,16 +1102,32 @@ Needs:
 - utest
 - stest
 
-#### CLI gets logs from the Ankaios server
-`swdd~cli-gets-logs-from-the-server~1`
+#### CLI streams logs from the server
+`swdd~cli-streams-logs-from-the-server~1`
 
 Status: approved
 
 When the user invokes the Ankaios CLI to output logs for specific workloads by providing their workload names, the Ankaios CLI shall:
-* request the current `WorkloadStates` from the Ankaios server
-* convert the provided workload names into their corresponding workload instance names based on the `WorkloadStates`
-* request the logs from the Ankaios server by sending a `LogsRequest` containing the instance names and additional log options provided by the user
-* listen to the Ankaios server for logs of the requested workloads
+* convert the provided workload names into workload instance names
+* request the logs from the Ankaios server by sending a `LogsRequest` containing the workload instance names and additional log options provided by the user
+* listen to the Ankaios Server for log responses until a logs stop message or a termination signal
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI uses WorkloadStates to convert workload names to workload instance names
+`swdd~cli-uses-workload-states-to-convert-workload-to-instance-names~1`
+
+Status: approved
+
+When the Ankaios CLI converts workload names to workload instance names for logs requests, the Ankaios CLI shall:
+* request the CompleteState with field mask `workloadStates` from the Ankaios Server
+* for each workload name, add the corresponding workload instance name of the `workloadStates` to a list
+* fail if there is no matching workload instance name for a workload name or if the `workloadStates` field is not available
 
 Tags:
 - CliCommands
@@ -1180,6 +1196,8 @@ Needs:
 - impl
 - utest
 
+### CLI signal handling
+
 #### CLI provides signal handling
 `swdd~cli-provides-signal-handling~1`
 
@@ -1200,7 +1218,6 @@ Tags:
 
 Needs:
 - impl
-- utest
 
 ### Handling other message while waiting for response
 
@@ -1256,7 +1273,7 @@ The CliTable shall provide a function to create a table output with the followin
 * no padding on the left and right side of the table
 * rows truncated to terminal width if row length is greater than terminal width
 
-Comments:
+Comment:
 Truncating includes the table header.
 
 Tags:

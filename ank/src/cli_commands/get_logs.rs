@@ -24,7 +24,7 @@ use super::CliCommands;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-workload-logs~1]
-    // [impl->swdd~cli-gets-logs-from-the-server~1]
+    // [impl->swdd~cli-streams-logs-from-the-server~1]
     pub async fn get_logs_blocking(&mut self, args: LogsArgs) -> Result<(), CliError> {
         let workload_instance_names = self
             .workload_names_to_instance_names(args.workload_name.clone())
@@ -36,6 +36,7 @@ impl CliCommands {
             .map_err(|e| CliError::ExecutionError(format!("Failed to get logs: '{:?}'", e)))
     }
 
+    // [impl->swdd~cli-uses-workload-states-to-convert-workload-to-instance-names~1]
     async fn workload_names_to_instance_names(
         &mut self,
         workload_names: Vec<String>,
@@ -111,7 +112,7 @@ mod tests {
     const RUNTIME_NAME: &str = "runtime";
 
     // [utest->swdd~cli-provides-workload-logs~1]
-    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
     #[tokio::test]
     async fn utest_get_locks_blocking_success() {
         let log_workload = generate_test_workload_spec_with_param(
@@ -175,7 +176,7 @@ mod tests {
     }
 
     // [utest->swdd~cli-provides-workload-logs~1]
-    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
     #[tokio::test]
     async fn utest_get_locks_blocking_fails_to_convert_workload_names() {
         let mut mock_server_connection = MockServerConnection::default();
@@ -213,7 +214,7 @@ mod tests {
     }
 
     // [utest->swdd~cli-provides-workload-logs~1]
-    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
     #[tokio::test]
     async fn utest_get_locks_blocking_fails_when_streaming_logs() {
         let mut mock_server_connection = MockServerConnection::default();
@@ -265,7 +266,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~cli-uses-workload-states-to-convert-workload-to-instance-names~1]
     #[tokio::test]
     async fn utest_workload_names_to_instance_names_workload_does_not_exist() {
         let mut mock_server_connection = MockServerConnection::default();
@@ -303,7 +304,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~cli-uses-workload-states-to-convert-workload-to-instance-names~1]
     #[tokio::test]
     async fn utest_workload_names_to_instance_names_no_workload_states_available() {
         let mut mock_server_connection = MockServerConnection::default();

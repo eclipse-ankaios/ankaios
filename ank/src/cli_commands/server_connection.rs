@@ -226,16 +226,33 @@ impl ServerConnection {
         take(&mut self.missed_from_server_messages)
     }
 
-    // [impl->swdd~cli-gets-logs-from-the-server~1]
+    // [impl->swdd~cli-streams-logs-from-the-server~1]
     pub async fn stream_logs(
         &mut self,
-        mut instance_names: BTreeSet<WorkloadInstanceName>,
+        instance_names: BTreeSet<WorkloadInstanceName>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
         let request_id = uuid::Uuid::new_v4().to_string();
-        let requested_instance_names = instance_names.clone().into_iter().collect();
+
+        self.send_logs_request_for_workloads(
+            &request_id,
+            instance_names.clone().into_iter().collect(),
+            args,
+        )
+        .await?;
+
+        self.listen_for_workload_logs(request_id, instance_names)
+            .await
+    }
+
+    async fn send_logs_request_for_workloads(
+        &mut self,
+        request_id: &str,
+        workload_instance_names: Vec<WorkloadInstanceName>,
+        args: LogsArgs,
+    ) -> Result<(), ServerConnectionError> {
         let logs_request = LogsRequest {
-            workload_names: requested_instance_names,
+            workload_names: workload_instance_names,
             follow: args.follow,
             tail: args.tail,
             since: args.since,
@@ -243,16 +260,22 @@ impl ServerConnection {
         };
 
         self.to_server
-            .logs_request(request_id.clone(), logs_request)
+            .logs_request(request_id.to_string(), logs_request)
             .await
-            .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
+            .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))
+    }
 
+    async fn listen_for_workload_logs(
+        &mut self,
+        request_id: String,
+        mut instance_names: BTreeSet<WorkloadInstanceName>,
+    ) -> Result<(), ServerConnectionError> {
         loop {
             tokio::select! {
                 // [impl->swdd~cli-sends-logs-cancel-request-upon-termination~1]
                 _ = SignalHandler::wait_for_signals() => {
                     self.to_server
-                        .logs_cancel_request(request_id.clone()).await
+                        .logs_cancel_request(request_id).await
                         .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
 
                     output_debug!("LogsCancelRequest sent after receiving signal to stop.");
@@ -1153,7 +1176,7 @@ mod tests {
         checker.check_communication();
     }
 
-    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
     // [utest->swdd~handles-log-responses-from-server~1]
     // [utest->swdd~stops-log-output-for-specific-workloads~1]
     #[tokio::test]
@@ -1237,7 +1260,7 @@ mod tests {
         assert_eq!(*actual_log_data, expected_log_data);
     }
 
-    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
     // [utest->swdd~handles-log-responses-from-server~1]
     #[tokio::test]
     async fn utest_stream_logs_response_error() {
@@ -1297,7 +1320,7 @@ mod tests {
         assert!(actual_log_data.is_empty());
     }
 
-    // [utest->swdd~cli-gets-logs-from-the-server~1]
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
     // [utest->swdd~handles-log-responses-from-server~1]
     #[tokio::test]
     async fn utest_stream_logs_ignore_unrelated_response() {
@@ -1363,8 +1386,8 @@ mod tests {
         assert!(actual_log_data.is_empty());
     }
 
-    // [utest->swdd~cli-gets-logs-from-the-server~1]
-    // [utest->swdd~handles-log-responses-from-server~1]
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
+    // [utest->swdd~cli-sends-logs-cancel-request-upon-termination~1]
     #[tokio::test]
     async fn utest_stream_logs_send_logs_cancel_request_upon_termination_signal() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
