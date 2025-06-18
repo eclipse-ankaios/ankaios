@@ -352,6 +352,17 @@ fn response_to_log_streaming_state(
     }
 }
 
+enum LogStreamingState {
+    StopForWorkload(WorkloadInstanceName),
+    Continue,
+    Output(api::ank_base::LogEntriesResponse),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ServerConnectionError {
+    ExecutionError(String),
+}
+
 #[cfg(not(test))]
 fn output_logs(log_entries: Vec<LogEntry>) {
     log_entries.iter().for_each(|log_entry| {
@@ -390,17 +401,6 @@ impl SynchronizedTestLogData {
 #[cfg(test)]
 lazy_static! {
     pub static ref TEST_LOG_OUTPUT_DATA: SynchronizedTestLogData = SynchronizedTestLogData::new();
-}
-
-enum LogStreamingState {
-    StopForWorkload(WorkloadInstanceName),
-    Continue,
-    Output(api::ank_base::LogEntriesResponse),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum ServerConnectionError {
-    ExecutionError(String),
 }
 
 //////////////////////////////////////////////////////////////////////////////
