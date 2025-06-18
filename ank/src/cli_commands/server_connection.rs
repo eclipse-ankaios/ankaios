@@ -1393,7 +1393,7 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
             workload_name: vec![WORKLOAD_NAME_1.to_string()],
-            follow: false,
+            follow: true,
             tail: -1,
             since: None,
             until: None,
