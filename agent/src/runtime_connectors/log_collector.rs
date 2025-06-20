@@ -12,40 +12,59 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::ops::DerefMut;
-
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
-use tokio::select;
+use tokio::{io::AsyncRead, select};
 
 use super::log_channel;
 
-#[cfg_attr(test, automock)]
-#[async_trait]
-pub trait LogCollector: std::fmt::Debug + Send {
-    async fn next_lines(&mut self) -> Option<Vec<String>>;
+#[derive(Clone)]
+pub enum NextLinesResult {
+    Stdout(Vec<String>),
+    Stderr(Vec<String>),
+    EoF,
 }
 
-pub async fn run(
-    mut log_collector: impl DerefMut<Target: LogCollector>,
-    mut sender: log_channel::Sender,
-) {
+#[cfg_attr(test, automock)]
+#[async_trait]
+pub trait LogCollector: std::fmt::Debug + Send + 'static {
+    async fn next_lines(&mut self) -> NextLinesResult;
+}
+
+pub trait StreamTrait: AsyncRead + std::fmt::Debug + Send + Unpin {}
+impl<T: AsyncRead + std::fmt::Debug + Send + Unpin> StreamTrait for T {}
+
+pub trait GetOutputStreams {
+    type OutputStream: StreamTrait;
+    type ErrStream: StreamTrait;
+    fn get_output_streams(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>);
+}
+
+pub async fn run(mut log_collector: Box<dyn LogCollector>, mut sender: log_channel::Sender) {
     loop {
         select! {
             lines = log_collector.next_lines() => {
-
-                if let Some(lines) = lines {
-                    let res = sender.send_log_lines(lines).await;
-
-                    if let Err(e) = res {
-                        log::error!("Failed to send log lines: {}", e);
+                match lines{
+                    NextLinesResult::Stdout(lines) => {
+                        let res = sender.send_log_lines(lines).await;
+                        if let Err(err) = res {
+                            log::warn!("Could not forward stdout log lines: {:?}", err.0);
+                            break;
+                        }
+                    }
+                    NextLinesResult::Stderr(lines) => {
+                        let res = sender.send_log_lines(lines).await;
+                        if let Err(err) = res {
+                            log::warn!("Could not forward stderr log lines: {:?}", err.0);
+                            break;
+                        }
+                    }
+                    NextLinesResult::EoF => {
+                        log::debug!("Log collector returned no more log lines, stopping.");
+                        drop(sender); // drop the non-cloneable log sender to indicate stop of log responses
                         break;
                     }
-                } else {
-                    log::debug!("Log collector returned no more log lines, stopping.");
-                    drop(sender); // drop the non-cloneable log sender to indicate stop of log responses
-                    break;
                 }
 
             }
@@ -73,7 +92,7 @@ mod tests {
 
     use crate::runtime_connectors::log_channel;
 
-    use super::LogCollector;
+    use super::{LogCollector, NextLinesResult};
 
     const LINES_1: [&str; 3] = ["line 1 1", "line 1 2", "line 1 3"];
     const LINES_2: [&str; 2] = ["line 2 1", "line 2 2"];
@@ -82,14 +101,21 @@ mod tests {
     const TIMEOUT: Duration = Duration::from_millis(10);
 
     #[derive(Debug)]
+    enum NextLineType {
+        Stdout,
+        Stderr,
+    }
+
+    #[derive(Debug)]
     struct MockLogCollector {
         mock_data: VecDeque<Vec<String>>,
         limited: bool,
         semaphore: Arc<Semaphore>,
+        line_type: NextLineType,
     }
 
     impl MockLogCollector {
-        fn new<'a>(data: &'a [&'a [&'a str]], limited: bool) -> Self {
+        fn new<'a>(data: &'a [&'a [&'a str]], limited: bool, line_type: NextLineType) -> Self {
             Self {
                 mock_data: data
                     .iter()
@@ -97,6 +123,7 @@ mod tests {
                     .collect(),
                 semaphore: Arc::new(Semaphore::new(0)),
                 limited,
+                line_type,
             }
         }
 
@@ -107,21 +134,31 @@ mod tests {
 
     #[async_trait]
     impl LogCollector for MockLogCollector {
-        async fn next_lines(&mut self) -> Option<Vec<String>> {
+        async fn next_lines(&mut self) -> NextLinesResult {
             self.semaphore.acquire().await.unwrap().forget();
             if self.limited {
-                self.mock_data.pop_front()
+                match self.mock_data.pop_front() {
+                    Some(res) => match self.line_type {
+                        NextLineType::Stdout => NextLinesResult::Stdout(res),
+                        NextLineType::Stderr => NextLinesResult::Stderr(res),
+                    },
+                    None => NextLinesResult::EoF,
+                }
             } else {
-                let res = self.mock_data.pop_front()?;
+                let res = self.mock_data.pop_front().unwrap();
                 self.mock_data.push_back(res.clone());
-                Some(res)
+                match self.line_type {
+                    NextLineType::Stdout => NextLinesResult::Stdout(res),
+                    NextLineType::Stderr => NextLinesResult::Stderr(res),
+                }
             }
         }
     }
 
     #[tokio::test]
     async fn utest_log_collector_read_all_lines() {
-        let log_collector = MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], true);
+        let log_collector =
+            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stdout);
         let sem = log_collector.semaphore();
         sem.add_permits(4);
 
@@ -146,7 +183,8 @@ mod tests {
 
     #[tokio::test]
     async fn utest_log_collector_cannot_send_message() {
-        let log_collector = MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false);
+        let log_collector =
+            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
         let sem = log_collector.semaphore();
         sem.add_permits(4);
 
@@ -167,7 +205,8 @@ mod tests {
 
     #[tokio::test]
     async fn utest_log_collector_informed_about_receiver_dropped() {
-        let log_collector = MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false);
+        let log_collector =
+            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
         let sem = log_collector.semaphore();
         sem.add_permits(2);
 
@@ -184,5 +223,53 @@ mod tests {
         );
         drop(receiver);
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn utest_log_collector_stderr_read_all_lines() {
+        let log_collector =
+            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stderr);
+        let sem = log_collector.semaphore();
+
+        sem.add_permits(4);
+        let (sender, mut receiver) = log_channel::channel();
+        let jh = tokio::spawn(super::run(Box::new(log_collector), sender));
+        assert_eq!(
+            timeout(TIMEOUT, receiver.read_log_lines()).await,
+            Ok(Some(LINES_1.iter().map(|&x| x.into()).collect()))
+        );
+        assert_eq!(
+            timeout(TIMEOUT, receiver.read_log_lines()).await,
+            Ok(Some(LINES_2.iter().map(|&x| x.into()).collect()))
+        );
+        assert_eq!(
+            timeout(TIMEOUT, receiver.read_log_lines()).await,
+            Ok(Some(LINES_3.iter().map(|&x| x.into()).collect()))
+        );
+        assert_eq!(timeout(TIMEOUT, receiver.read_log_lines()).await, Ok(None));
+        timeout(TIMEOUT, jh).await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn utest_log_collector_stderr_cannot_send_message() {
+        let log_collector =
+            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stderr);
+        let sem = log_collector.semaphore();
+        sem.add_permits(4);
+
+        let (sender, mut receiver) = log_channel::channel();
+        let jh = tokio::spawn(super::run(Box::new(log_collector), sender));
+
+        assert_eq!(
+            timeout(TIMEOUT, receiver.read_log_lines()).await,
+            Ok(Some(LINES_1.iter().map(|&x| x.into()).collect()))
+        );
+        assert_eq!(
+            timeout(TIMEOUT, receiver.read_log_lines()).await,
+            Ok(Some(LINES_2.iter().map(|&x| x.into()).collect()))
+        );
+        receiver.take_log_line_receiver();
+        timeout(TIMEOUT, jh).await.unwrap().unwrap();
+        assert_eq!(timeout(TIMEOUT, receiver.read_log_lines()).await, Ok(None));
     }
 }
