@@ -561,4 +561,60 @@ mod tests {
             .await
             .is_err());
     }
+
+    #[tokio::test]
+    async fn utest_logs_stop_response_success() {
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let workload_instance_name = ank_base::WorkloadInstanceName {
+            workload_name: WORKLOAD_NAME_1.into(),
+            agent_name: AGENT_NAME.into(),
+            id: "1".into(),
+        };
+
+        assert!(tx
+            .logs_stop_response(
+                REQUEST_ID.to_string(),
+                ank_base::LogsStopResponse {
+                    workload_name: Some(workload_instance_name.clone()),
+                }
+            )
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await,
+            Some(FromServer::Response(ank_base::Response {
+                request_id: REQUEST_ID.to_string(),
+                response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(
+                    ank_base::LogsStopResponse {
+                        workload_name: Some(workload_instance_name),
+                    }
+                )),
+            }))
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_logs_stop_response_fail() {
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        rx.close();
+
+        assert!(tx
+            .logs_stop_response(
+                REQUEST_ID.to_string(),
+                ank_base::LogsStopResponse {
+                    workload_name: Some(ank_base::WorkloadInstanceName {
+                        workload_name: WORKLOAD_NAME_1.into(),
+                        agent_name: AGENT_NAME.into(),
+                        id: "1".into(),
+                    }),
+                }
+            )
+            .await
+            .is_err());
+    }
 }
