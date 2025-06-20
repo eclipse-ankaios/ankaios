@@ -887,6 +887,103 @@ mod tests {
             .unwrap();
     }
 
+    #[tokio::test]
+    async fn utest_agent_manager_request_logs_stop_on_closed_channel() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        reset_spawn_mock();
+
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+
+        mock_parameter_storage_new_returns(mock_wl_state_store);
+
+        let mut mock_runtime_connector_receiver = MockRuntimeConnectorReceiver::new();
+        mock_runtime_connector_receiver
+            .expect_read_log_lines()
+            .once()
+            .return_once(|| None);
+
+        let mut mock_log_collector_subscription = MockLogCollectorSubscription::new();
+        mock_log_collector_subscription
+            .expect_drop()
+            .return_const(());
+
+        let collecting_logs_context = MockLogCollectorSubscription::start_collecting_logs_context();
+        collecting_logs_context.expect().return_once(|_| {
+            (
+                mock_log_collector_subscription,
+                vec![mock_runtime_connector_receiver],
+            )
+        });
+
+        let workload_instance_name_1 = ank_base::WorkloadInstanceName {
+            workload_name: WORKLOAD_1_NAME.into(),
+            agent_name: AGENT_NAME.into(),
+            id: "1234".into(),
+        };
+
+        let logs_request = ank_base::LogsRequest {
+            workload_names: vec![workload_instance_name_1.clone()],
+            follow: None,
+            tail: None,
+            since: None,
+            until: None,
+        };
+
+        let mock_log_collector_1 = MockLogCollector::new();
+        let mut mock_runtime_manager = RuntimeManager::default();
+        let cloned_workload_instance_name_1 = workload_instance_name_1.clone();
+        mock_runtime_manager.expect_get_logs().return_once(|_| {
+            vec![(
+                cloned_workload_instance_name_1.into(),
+                Box::new(mock_log_collector_1),
+            )]
+        });
+
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        let handle = tokio::spawn(async move {
+            agent_manager.start().await;
+        });
+
+        to_manager
+            .logs_request(REQUEST_ID.into(), logs_request)
+            .await
+            .unwrap();
+
+        let logs_stop_response =
+            tokio::time::timeout(Duration::from_millis(100), to_server_receiver.recv()).await;
+        assert_eq!(
+            logs_stop_response,
+            Ok(Some(ToServer::LogsStopResponse(
+                REQUEST_ID.into(),
+                ank_base::LogsStopResponse {
+                    workload_name: Some(workload_instance_name_1),
+                },
+            )))
+        );
+
+        assert!(spawn_mock_task_is_finished());
+        to_manager.stop().await.unwrap();
+        tokio::time::timeout(Duration::from_millis(1000), handle)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
     async fn get_log_responses(
         num: usize,
         to_server: &mut mpsc::Receiver<ToServer>,
