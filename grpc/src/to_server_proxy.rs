@@ -1109,7 +1109,7 @@ mod tests {
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
-    async fn utest_to_server_command_forward_from_ankaios_to_proto_empty_logs_stop_response() {
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_empty_logs_stop_response() {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
