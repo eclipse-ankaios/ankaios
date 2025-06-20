@@ -446,4 +446,29 @@ mod tests {
             ToServer::LogEntriesResponse(REQUEST_ID.to_string(), logs_response)
         );
     }
+
+    // [utest->swdd~to-server-channel~1]
+    #[tokio::test]
+    async fn utest_to_server_send_logs_stop_response() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let response_content = ank_base::LogsStopResponse {
+            workload_name: Some(ank_base::WorkloadInstanceName {
+                agent_name: AGENT_NAME.into(),
+                workload_name: WORKLOAD_NAME.into(),
+                id: "id".into(),
+            }),
+        };
+
+        assert!(tx
+            .logs_stop_response(REQUEST_ID.into(), response_content.clone())
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::LogsStopResponse(REQUEST_ID.to_string(), response_content)
+        )
+    }
 }
