@@ -554,7 +554,7 @@ Needs:
 - utest
 
 #### CLI initiates continuous workload monitoring
-`swdd~cli-get-workloads-with-watch-init~1`
+`swdd~cli-get-workloads-with-watch~1`
 
 When the CLI requests a list of workloads with the `watch` option enabled, the CLI shall continuously watch for workload changes by:
 
