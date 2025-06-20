@@ -1139,9 +1139,53 @@ mod tests {
         assert!(result.is_none());
     }
 
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_ankaios_to_proto_logs_stop_response() {
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+        let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
+
+        let agent_name = "fake_agent";
+        let request_id = "request_id".to_string();
+        let workload_instance_name = WorkloadInstanceName {
+            workload_name: "workload_1".into(),
+            agent_name: agent_name.into(),
+            id: "id_1".into(),
+        };
+
+        let forward_logs_result = server_tx
+            .logs_stop_response(
+                request_id.clone(),
+                LogsStopResponse {
+                    workload_name: Some(workload_instance_name.clone()),
+                },
+            )
+            .await;
+
+        assert!(forward_logs_result.is_ok());
+
+        tokio::spawn(async move {
+            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+        });
+
+        // The receiver in the agent receives the message and terminates the infinite waiting-loop.
+        drop(server_tx);
+
+        let result = grpc_rx.recv().await.unwrap();
+
+        assert_eq!(
+            result.to_server_enum,
+            Some(ToServerEnum::LogsStopResponse(grpc_api::LogsStopResponse {
+                request_id: request_id.clone(),
+                logs_stop_response: Some(LogsStopResponse {
+                    workload_name: Some(workload_instance_name)
+                })
+            }))
+        );
+    }
+
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
-    async fn utest_to_server_command_forward_from_ankaios_to_proto_ignore_unexpected_messages() {
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_ignore_unexpected_messages() {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
