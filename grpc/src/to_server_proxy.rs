@@ -318,7 +318,9 @@ mod tests {
     use tokio::sync::mpsc;
 
     use crate::grpc_api::{self, to_server::ToServerEnum};
-    use api::ank_base::{self, LogEntriesResponse, LogEntry, WorkloadInstanceName};
+    use api::ank_base::{
+        self, LogEntriesResponse, LogEntry, LogsStopResponse, WorkloadInstanceName,
+    };
 
     #[derive(Default, Clone)]
     struct MockGRPCToServerStreaming {
@@ -1054,5 +1056,126 @@ mod tests {
                                 if workload_name_1 == "workload_1" && agent_name_1 == "agent_X" && id_1 == "id_1" && message_1 == "message_1"
                                    && workload_name_2 == "workload_2" && agent_name_2 == "agent_X" && id_2 == "id_2" && message_2 == "message_2")
         ));
+    }
+
+    // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_logs_stop_response() {
+        let agent_name = "fake_agent";
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+
+        let request_id = "request_id".to_string();
+        let workload_instance_name = WorkloadInstanceName {
+            workload_name: "workload_1".into(),
+            agent_name: agent_name.into(),
+            id: "id_1".into(),
+        };
+
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCToServerStreaming::new(LinkedList::from([
+                Some(grpc_api::ToServer {
+                    to_server_enum: Some(ToServerEnum::LogsStopResponse(crate::LogsStopResponse {
+                        request_id: request_id.clone(),
+                        logs_stop_response: Some(LogsStopResponse {
+                            workload_name: Some(workload_instance_name.clone()),
+                        }),
+                    })),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = forward_from_proto_to_ankaios(
+            agent_name.into(),
+            &mut mock_grpc_ex_request_streaming,
+            server_tx,
+        )
+        .await;
+        assert!(forward_result.is_ok());
+
+        // pick received from server message
+        let result = server_rx.recv().await.unwrap();
+
+        assert!(matches!(
+            result,
+            common::to_server_interface::ToServer::LogsStopResponse(
+                received_request_id,
+                ank_base::LogsStopResponse {
+                    workload_name: received_workload_instance_name
+                }
+            ) if received_request_id == request_id && received_workload_instance_name == Some(workload_instance_name)
+        ));
+    }
+
+    // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_ankaios_to_proto_empty_logs_stop_response() {
+        let agent_name = "fake_agent";
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCToServerStreaming::new(LinkedList::from([
+                Some(grpc_api::ToServer {
+                    to_server_enum: Some(ToServerEnum::LogsStopResponse(crate::LogsStopResponse {
+                        request_id: "request_id".into(),
+                        logs_stop_response: None,
+                    })),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = forward_from_proto_to_ankaios(
+            agent_name.into(),
+            &mut mock_grpc_ex_request_streaming,
+            server_tx,
+        )
+        .await;
+        assert!(forward_result.is_ok());
+
+        // pick received from server message
+        let result = server_rx.recv().await;
+
+        assert!(result.is_none());
+    }
+
+    // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_ankaios_to_proto_ignore_unexpected_messages() {
+        let agent_name = "fake_agent";
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCToServerStreaming::new(LinkedList::from([
+                Some(grpc_api::ToServer {
+                    to_server_enum: Some(ToServerEnum::AgentHello(crate::AgentHello {
+                        agent_name: agent_name.into(),
+                        protocol_version: common::ANKAIOS_VERSION.into(),
+                    })),
+                }),
+                Some(grpc_api::ToServer {
+                    to_server_enum: Some(ToServerEnum::CommanderHello(crate::CommanderHello {
+                        protocol_version: common::ANKAIOS_VERSION.into(),
+                    })),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = forward_from_proto_to_ankaios(
+            agent_name.into(),
+            &mut mock_grpc_ex_request_streaming,
+            server_tx,
+        )
+        .await;
+        assert!(forward_result.is_ok());
+
+        // assert ignored AgentHello
+        let result = server_rx.recv().await;
+        assert!(result.is_none());
+
+        // assert ignored CommanderHello
+        let result = server_rx.recv().await;
+        assert!(result.is_none());
     }
 }
