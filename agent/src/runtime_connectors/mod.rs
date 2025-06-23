@@ -22,7 +22,7 @@ pub(crate) mod podman_kube;
 
 mod runtime_connector;
 pub use runtime_connector::{
-    OwnableRuntime, ReusableWorkloadState, RuntimeConnector, RuntimeError,
+    LogRequestOptions, OwnableRuntime, ReusableWorkloadState, RuntimeConnector, RuntimeError,
 };
 
 #[cfg(test)]
@@ -39,3 +39,8 @@ pub use state_checker::{RuntimeStateGetter, StateChecker};
 
 #[cfg(test)]
 pub use state_checker::MockRuntimeStateGetter;
+
+pub mod generic_log_collector;
+pub mod log_channel;
+pub mod log_collector;
+pub mod log_collector_subscription;
