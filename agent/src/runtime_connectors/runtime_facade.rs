@@ -20,8 +20,9 @@ use common::{
     objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
     std_extensions::IllegalStateResult,
 };
+
 #[cfg(test)]
-use mockall::automock;
+use mockall::{automock, mock};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::ControlInterface;
@@ -33,7 +34,10 @@ use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 use crate::io_utils::filesystem_async;
 
 use crate::{
-    runtime_connectors::{OwnableRuntime, ReusableWorkloadState, RuntimeError, StateChecker},
+    runtime_connectors::{
+        dummy_state_checker::DummyStateChecker, OwnableRuntime, ReusableWorkloadState,
+        RuntimeError, StateChecker,
+    },
     workload_operation::ReusableWorkloadSpec,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
@@ -409,6 +413,56 @@ impl<
         })
     }
 }
+
+#[cfg(test)]
+mockall::mock! {
+    pub GenericRuntimeFacade {
+        pub fn new(runtime: Box<dyn OwnableRuntime<String, DummyStateChecker>>,
+            run_folder: PathBuf) -> Self;
+    }
+
+    #[async_trait]
+    impl RuntimeFacade for GenericRuntimeFacade {
+        async fn get_reusable_workloads(
+            &self,
+            agent_name: &AgentName,
+        ) -> Result<Vec<ReusableWorkloadState>, RuntimeError>;
+
+        fn create_workload(
+            &self,
+            runtime_workload: ReusableWorkloadSpec,
+            control_interface_info: Option<ControlInterfaceInfo>,
+            update_state_tx: &WorkloadStateSender,
+        ) -> Workload;
+
+        fn resume_workload(
+            &self,
+            runtime_workload: WorkloadSpec,
+            control_interface: Option<ControlInterfaceInfo>,
+            update_state_tx: &WorkloadStateSender,
+        ) -> Workload;
+
+        fn delete_workload(
+            &self,
+            instance_name: WorkloadInstanceName,
+            update_state_tx: &WorkloadStateSender,
+        );
+    }
+
+    // impl Drop for Fifo {
+    //     fn drop(&mut self);
+    // }
+}
+
+// #[cfg(test)]
+// mock! {
+//     pub GenericRuntimeFacade {
+//         pub fn new(
+//             runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
+//             run_folder: PathBuf,
+//         ) -> Self;
+//     }
+// }
 
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
