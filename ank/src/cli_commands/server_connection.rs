@@ -11,16 +11,15 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use std::collections::BTreeSet;
-use std::{mem::take, time::Duration};
 
 use crate::cli::LogsArgs;
 #[cfg_attr(test, mockall_double::double)]
 use crate::cli_signals::SignalHandler;
 use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
+use std::{collections::BTreeSet, mem::take, time::Duration};
 
-use api::ank_base::{self, LogEntry};
+use api::ank_base;
 use common::commands::LogsRequest;
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
@@ -364,14 +363,14 @@ pub enum ServerConnectionError {
 }
 
 #[cfg(not(test))]
-fn output_logs(log_entries: Vec<LogEntry>) {
+fn output_logs(log_entries: Vec<ank_base::LogEntry>) {
     log_entries.iter().for_each(|log_entry| {
         println!("{}", log_entry.message);
     });
 }
 
 #[cfg(test)]
-fn output_logs(log_entries: Vec<LogEntry>) {
+fn output_logs(log_entries: Vec<ank_base::LogEntry>) {
     TEST_LOG_OUTPUT_DATA.replace(log_entries);
 }
 
@@ -379,7 +378,7 @@ fn output_logs(log_entries: Vec<LogEntry>) {
 use {mockall::lazy_static, std::sync::Mutex};
 
 #[cfg(test)]
-pub struct SynchronizedTestLogData(Mutex<Vec<LogEntry>>);
+pub struct SynchronizedTestLogData(Mutex<Vec<ank_base::LogEntry>>);
 
 #[cfg(test)]
 impl SynchronizedTestLogData {
@@ -387,12 +386,12 @@ impl SynchronizedTestLogData {
         SynchronizedTestLogData(Mutex::new(Vec::new()))
     }
 
-    pub fn replace(&self, new_log_entries: Vec<LogEntry>) {
+    pub fn replace(&self, new_log_entries: Vec<ank_base::LogEntry>) {
         let mut data = self.0.lock().unwrap();
         *data = new_log_entries;
     }
 
-    pub fn take(&self) -> Vec<LogEntry> {
+    pub fn take(&self) -> Vec<ank_base::LogEntry> {
         let mut data = self.0.lock().unwrap();
         std::mem::take(&mut *data)
     }
