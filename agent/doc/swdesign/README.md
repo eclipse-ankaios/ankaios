@@ -668,7 +668,9 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent gets an add Workload command with the `UpdateWorkload` message and the runtime of the Workload is unknown, the RuntimeManager shall skip this Workload and send a `Pending(StartingFailed)` workload state with additional information.
+When the Ankaios Agent gets an add Workload command with the `UpdateWorkload` message and the runtime of the Workload is unknown, the RuntimeManager shall:
+* skip this workload
+* send a `Pending(StartingFailed)` workload state with additional information.
 
 Tags:
 - RuntimeManager
