@@ -356,6 +356,7 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
                 }
+                // [impl->swdd~server-forwards-logs-stop-response-messages~1]
                 ToServer::LogsStopResponse(request_id, logs_stop_response) => {
                     log::debug!("Received LogsStopResponse with ID: {}", request_id);
                     self.to_agents
@@ -1926,6 +1927,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-forwards-logs-stop-response-messages~1]
     #[tokio::test]
     async fn utest_server_logs_stop_response() {
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
