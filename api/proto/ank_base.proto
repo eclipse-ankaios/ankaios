@@ -73,7 +73,7 @@ message LogsResponse {
 */
 message LogEntry {
     WorkloadInstanceName workloadName = 1; /// The name of the workloads for which logs are requested.
-    string message = 5; /// The log message.
+    string message = 2; /// The log message.
 }
 
 /**
