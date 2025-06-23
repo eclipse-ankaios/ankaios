@@ -196,7 +196,7 @@ impl<
             let instance_name = info.get_instance_name().clone();
             let authorizer = info.move_authorizer();
             match ControlInterface::new(
-                &control_interface_path,
+                control_interface_path.clone(),
                 &instance_name,
                 output_pipe_sender,
                 authorizer,
@@ -287,7 +287,7 @@ impl<
             let instance_name = info.get_instance_name().clone();
             let authorizer = info.move_authorizer();
             match ControlInterface::new(
-                &control_interface_path,
+                control_interface_path,
                 &instance_name,
                 output_pipe_sender,
                 authorizer,
