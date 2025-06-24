@@ -562,6 +562,7 @@ mod tests {
             .is_err());
     }
 
+    // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_logs_stop_response_success() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
@@ -596,6 +597,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_logs_stop_response_fail() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
