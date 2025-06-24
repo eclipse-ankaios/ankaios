@@ -362,10 +362,17 @@ pub enum ServerConnectionError {
     ExecutionError(String),
 }
 
+// [impl->swdd~cli-outputs-logs-in-specific-format~1]
 #[cfg(not(test))]
 fn output_logs(log_entries: Vec<ank_base::LogEntry>) {
     log_entries.iter().for_each(|log_entry| {
-        println!("{}", log_entry.message);
+        if let Some(workload_instance_name) = &log_entry.workload_name {
+            let workload_name = workload_instance_name.workload_name.as_str();
+            println!("{} {}", workload_name, log_entry.message);
+        } else {
+            crate::output_warn!("Received log entry without workload name.");
+            println!("{}", log_entry.message);
+        }
     });
 }
 

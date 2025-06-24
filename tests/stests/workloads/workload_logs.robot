@@ -22,6 +22,7 @@ Resource            ../../resources/variables.resource
 *** Test Cases ***
 
 # [stest->swdd~cli-provides-workload-logs~1]
+# [stest->swdd~cli-outputs-logs-in-specific-format~1]
 Test Ankaios outputs logs for multiple workloads with disabled follow mode
     [Documentation]    Output logs for multiple workloads with disabled follow mode over multiple agents.
     [Setup]    Run Keywords    Setup Ankaios
@@ -36,6 +37,6 @@ Test Ankaios outputs logs for multiple workloads with disabled follow mode
     # Asserts
     Then the workload "count_to_five" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     And the workload "count_to_three" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
-    And the cli log collection shall receive "8" log lines in total for all workloads
+    And the cli log collection shall output "8" log lines in total in the expected format for all workloads
     [Teardown]    Clean up Ankaios
 

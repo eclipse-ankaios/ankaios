@@ -713,7 +713,7 @@ the mount point for the workload files of workload "${workload_name}" on agent "
 Ankaios server is available
     the command "%{ANK_BIN_DIR}${/}ank get workloads" finished with exit code "0" within "2" seconds
 
-the cli log collection shall receive "${total_log_lines}" log lines in total for all workloads
+the cli log collection shall output "${total_log_lines}" log lines in total in the expected format for all workloads
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
     @{list_result}=    table to list    ${command_result.stdout}
     ${joined_workload_names}=    Set Variable    ${EMPTY}
@@ -725,10 +725,22 @@ the cli log collection shall receive "${total_log_lines}" log lines in total for
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank logs ${joined_workload_names}
 
     ${log_lines}=    Split String    ${command_result.stdout}    separator=\n
+    # Ankaios CLI outputs log lines with a trailing newline, so we need to remove the last line
+    ${last_log_line}=    Get From List    ${log_lines}    -1
+    IF    '${last_log_line}' == ''
+        Remove From List    ${log_lines}    -1
+    END
     ${len_log_lines}=    Get Length    ${log_lines}
-    # Ankaios CLI outputs log lines with a trailing newline, so we need to subtract 1 from the length
-    ${len_without_trailing_newline}=    Evaluate    ${len_log_lines} - 1
-    Should Be Equal As Integers    ${len_without_trailing_newline}    ${total_log_lines}    msg=Expected ${total_log_lines} log lines, but got ${len_without_trailing_newline}
+    Should Be Equal As Integers    ${len_log_lines}    ${total_log_lines}    msg=Expected ${total_log_lines} log lines, but got ${len_log_lines}
+
+    # check the format of each log line
+    ${dict_workload_names}=    Table To Dict    ${list_result}    WORKLOAD NAME
+    FOR    ${log_line}    IN    @{log_lines}
+        ${splitted_log_line}=    Split String    ${log_line}    separator=${SPACE}
+        Dictionary Should Contain Key    ${dict_workload_names}    ${splitted_log_line}[0]    msg=Log line does not start with the workload name: ${log_line}
+        ${len_splitted_log_line}=    Get Length    ${splitted_log_line}
+        Should Be True    ${len_splitted_log_line} >= 2    msg=Log line does not have the expected format: ${log_line}
+    END
 
 # ALIASES
 

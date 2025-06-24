@@ -1157,6 +1157,25 @@ Needs:
 - impl
 - utest
 
+#### CLI outputs logs in specific format
+`swdd~cli-outputs-logs-in-specific-format~1`
+
+Status: approved
+
+When the CLI outputs logs to the terminal, the Ankaios CLI shall output each log entry in the following format:
+
+`<workload_name>: <log_message>\n`
+
+Rationale:
+The output format enables automated processing of logs.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- stest
+
 #### CLI stops log output specific for workloads
 `swdd~stops-log-output-for-specific-workloads~1`
 
