@@ -366,13 +366,14 @@ pub enum ServerConnectionError {
 #[cfg(not(test))]
 fn output_logs(log_entries: Vec<ank_base::LogEntry>) {
     log_entries.iter().for_each(|log_entry| {
-        if let Some(workload_instance_name) = &log_entry.workload_name {
-            let workload_name = workload_instance_name.workload_name.as_str();
-            println!("{} {}", workload_name, log_entry.message);
-        } else {
-            crate::output_warn!("Received log entry without workload name.");
-            println!("{}", log_entry.message);
-        }
+        let workload_instance_name = log_entry.workload_name.as_ref().unwrap_or_else(|| {
+            crate::output_and_error!(
+                "Failed to output log: workload name is not available inside log entry."
+            )
+        });
+
+        let workload_name = workload_instance_name.workload_name.as_str();
+        println!("{} {}", workload_name, log_entry.message);
     });
 }
 
