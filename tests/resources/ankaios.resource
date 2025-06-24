@@ -725,8 +725,10 @@ the cli log collection shall receive "${total_log_lines}" log lines in total for
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank logs ${joined_workload_names}
 
     ${log_lines}=    Split String    ${command_result.stdout}    separator=\n
-    ${actual_log_lines}=    Get Length    ${log_lines}
-    Should Be Equal As Integers    ${actual_log_lines}    ${total_log_lines}    msg=Expected ${total_log_lines} log lines, but got ${actual_log_lines}
+    ${len_log_lines}=    Get Length    ${log_lines}
+    # Ankaios CLI outputs log lines with a trailing newline, so we need to subtract 1 from the length
+    ${len_without_trailing_newline}=    Evaluate    ${len_log_lines} - 1
+    Should Be Equal As Integers    ${len_without_trailing_newline}    ${total_log_lines}    msg=Expected ${total_log_lines} log lines, but got ${len_without_trailing_newline}
 
 # ALIASES
 

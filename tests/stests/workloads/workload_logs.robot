@@ -36,9 +36,6 @@ Test Ankaios outputs logs for multiple workloads with disabled follow mode
     # Asserts
     Then the workload "count_to_five" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     And the workload "count_to_three" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
-    # devcontainer starship cli outputs extra empty line
-    And the cli log collection shall receive "9" log lines in total for all workloads
+    And the cli log collection shall receive "8" log lines in total for all workloads
     [Teardown]    Clean up Ankaios
-
-
 
