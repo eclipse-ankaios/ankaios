@@ -15,3 +15,4 @@
 *** Variables ***
 ${CONFIGS_DIR}=    ${CURDIR}/configs
 ${CERTS_DIR}=    /tmp/.certs
+${AGENT_NAME}=    agent_A
