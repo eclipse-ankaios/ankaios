@@ -82,7 +82,8 @@ struct GetState {
 
 #[derive(Deserialize)]
 struct RequestLogs {
-    workload_instance_names: Vec<String>,
+    workload_names: Vec<String>,
+    agent_names: Vec<String>,
     request_id: String,
 }
 
@@ -246,9 +247,10 @@ impl Connection {
                 }
                 CommandEnum::SendHello(Version { version }) => self.send_hello(version)?,
                 CommandEnum::RequestLogs(RequestLogs {
-                    workload_instance_names,
+                    workload_names,
+                    agent_names,
                     request_id,
-                }) => self.handle_request_logs_command(workload_instance_names, request_id)?,
+                }) => self.handle_request_logs_command(workload_names, agent_names, request_id)?,
                 CommandEnum::GetLogs(GetLogs { request_id }) => {
                     self.handle_get_logs_command(request_id)?
                 }
@@ -321,18 +323,16 @@ impl Connection {
         }))
     }
 
-    pub fn handle_get_state_command(
+    pub fn get_complete_state(
         &mut self,
-        get_state_command: GetState,
-    ) -> Result<TestResultEnum, CommandError> {
+        field_mask: Vec<String>,
+    ) -> Result<ResponseContent, CommandError> {
         let request_id = self.get_next_id();
 
         let request = common::commands::Request {
             request_id: request_id.clone(),
             request_content: common::commands::RequestContent::CompleteStateRequest(
-                common::commands::CompleteStateRequest {
-                    field_mask: get_state_command.field_mask,
-                },
+                common::commands::CompleteStateRequest { field_mask },
             ),
         };
 
@@ -346,7 +346,14 @@ impl Connection {
             .write_all(&proto.encode_length_delimited_to_vec())
             .unwrap();
 
-        let response = self.wait_for_response(request_id)?;
+        self.wait_for_response(request_id)
+    }
+
+    pub fn handle_get_state_command(
+        &mut self,
+        get_state_command: GetState,
+    ) -> Result<TestResultEnum, CommandError> {
+        let response = self.get_complete_state(get_state_command.field_mask)?;
 
         Ok(TestResultEnum::GetStateResult(match response {
             ResponseContent::CompleteState(complete_state) => {
@@ -365,6 +372,7 @@ impl Connection {
     ) -> Result<ResponseContent, CommandError> {
         loop {
             let message = self.read_message().map_err(CommandError::GenericError)?;
+            logging::log(&format!("Received message: {:?}", message));
 
             match message {
                 FromAnkaiosEnum::Response(response) => {
@@ -396,22 +404,76 @@ impl Connection {
     fn handle_request_logs_command(
         &mut self,
         workload_names: Vec<String>,
+        agent_names: Vec<String>,
         request_id: String,
     ) -> Result<TestResultEnum, CommandError> {
-        let workload_instance_names: Vec<common::objects::WorkloadInstanceName> = workload_names
-            .into_iter()
-            .map(|name| {
-                common::objects::WorkloadInstanceName::try_from(name)
-                    .map_err(CommandError::GenericError)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        if workload_names.is_empty() || agent_names.is_empty() {
+            return Err(CommandError::GenericError(
+                "Workload names and agent names cannot be empty".into(),
+            ));
+        }
+        if workload_names.len() != agent_names.len() {
+            return Err(CommandError::GenericError(
+                "Workload names and agent names must have the same length".into(),
+            ));
+        }
+
+        // Get the workload states to extract the workload instance names
+        let workload_states_response = self.get_complete_state(vec!["workloadStates".into()])?;
+        let workload_states = match workload_states_response {
+            ResponseContent::CompleteState(complete_state) => complete_state.workload_states,
+            response_content => {
+                return Err(CommandError::GenericError(format!(
+                    "Received wrong response type. Expected CompleteState, received: '{:?}'",
+                    response_content
+                )));
+            }
+        }
+        .expect("Expected workload states to be present in the response");
+
+        let mut workload_instance_names = Vec::new();
+        for (workload_name, agent_name) in workload_names.iter().zip(agent_names.iter()) {
+            let workload_id = workload_states
+                .agent_state_map
+                .get(agent_name)
+                .ok_or_else(|| {
+                    CommandError::GenericError(format!(
+                        "Agent '{}' not found in workload states",
+                        agent_name
+                    ))
+                })?
+                .wl_name_state_map
+                .get(workload_name)
+                .ok_or_else(|| {
+                    CommandError::GenericError(format!(
+                        "Workload '{}' not found in agent '{}' workload states",
+                        workload_name, agent_name
+                    ))
+                })?
+                .id_state_map
+                .keys()
+                .next()
+                .cloned()
+                .ok_or_else(|| {
+                    CommandError::GenericError(format!(
+                        "No workload instance found for workload '{}' in agent '{}'",
+                        workload_name, agent_name
+                    ))
+                })?;
+
+            workload_instance_names.push(common::objects::WorkloadInstanceName::new(
+                workload_name.clone(),
+                agent_name.clone(),
+                workload_id.clone(),
+            ));
+        }
 
         let request = common::commands::Request {
             request_id: request_id.clone(),
             request_content: common::commands::RequestContent::LogsRequest(
                 common::commands::LogsRequest {
                     workload_names: workload_instance_names,
-                    follow: false,
+                    follow: true,
                     tail: -1,
                     since: None,
                     until: None,

@@ -90,7 +90,7 @@ Allow write rule for only tags allows write to tags
 
     Then the controller workload requests shall all succeed
 
-Allow write rule for only tags denies everythings execept write to tags
+Allow write rule for only tags denies everything except write to tags
     Given the controller workload is allowed to write on desiredState.workloads.*.tags
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
@@ -107,7 +107,7 @@ Allow read rule for only tags allows read from tags
 
     Then the controller workload requests shall all succeed
 
-Allow read rule for only tags denies everythings execept read from tags
+Allow read rule for only tags denies everything except read from tags
     Given the controller workload is allowed to read on desiredState.workloads.*.tags
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
@@ -118,7 +118,7 @@ Allow read rule for only tags denies everythings execept read from tags
     Then the controller workload requests shall all fail
 
 
-Allow read write rule for workloads except write to simple_existing allows all read and write on workloads execept write to simple_existing
+Allow read write rule for workloads except write to simple_existing allows all read and write on workloads except write to simple_existing
     Given the controller workload is allowed to read and write on desiredState.workloads
     And the controller workload is forbidden to to write on desiredState.workloads.simple_existing
 
@@ -134,5 +134,21 @@ Allow read write rule for workloads except write to simple_existing forbids writ
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags
     And the controller workload gets the state
+
+    Then the controller workload requests shall all fail
+
+Controller workload receives logs
+    Given The controller workload can receive logs from simple_existing
+    And The controller workload requests the logs of simple_existing
+
+    When The controller workload gets the logs of simple_existing
+
+    Then the controller workload requests shall all succeed
+
+Log requests are denied if no log rules
+    Given the controller workload is allowed to read on *
+    And the controller workload requests the logs of simple_existing
+
+    When The controller workload gets the logs of simple_existing
 
     Then the controller workload requests shall all fail
