@@ -15,7 +15,7 @@
 use api::ank_base;
 use common::commands::LogsRequest;
 use common::objects::WorkloadInstanceName;
-use common::std_extensions::UnreachableResult;
+use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerInterface, ToServerSender};
 use futures_util::{stream::FuturesUnordered, StreamExt};
 use std::{future::Future, pin::Pin};
@@ -91,7 +91,7 @@ impl WorkloadLogFacade {
                             },
                         )
                         .await
-                        .unwrap_or_unreachable();
+                        .unwrap_or_illegal_state();
 
                     let workload_log_info = async move {
                         let received_log_lines = receiver.read_log_lines().await;
