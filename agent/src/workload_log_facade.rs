@@ -332,4 +332,87 @@ mod tests {
 
         assert!(*mock_log_collector_subscription_dropped.lock().unwrap());
     }
+
+    #[tokio::test]
+    async fn utest_workload_log_facade_spawn_log_collection_unsubscribe_log_subscription() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
+
+        let mock_log_collector_1 = MockLogCollector::new();
+
+        let mut mock_runtime_connector_receiver_1 = MockRuntimeConnectorReceiver::new();
+
+        mock_runtime_connector_receiver_1
+            .expect_read_log_lines()
+            .once()
+            .return_once(|| None);
+
+        let mut mock_log_collector_subscription = MockLogCollectorSubscription::new();
+        mock_log_collector_subscription
+            .expect_drop()
+            .once()
+            .return_const(());
+
+        let collecting_logs_context = MockLogCollectorSubscription::start_collecting_logs_context();
+        collecting_logs_context.expect().return_once(|_| {
+            (
+                mock_log_collector_subscription,
+                vec![mock_runtime_connector_receiver_1],
+            )
+        });
+
+        let workload_instance_name_1 = ank_base::WorkloadInstanceName {
+            workload_name: WORKLOAD_1_NAME.into(),
+            agent_name: AGENT_NAME.into(),
+            id: "1234".into(),
+        };
+
+        let logs_request = ank_base::LogsRequest {
+            workload_names: vec![workload_instance_name_1.clone()],
+            follow: None,
+            tail: None,
+            since: None,
+            until: None,
+        };
+
+        let mut mock_runtime_manager = MockRuntimeManager::default();
+        mock_runtime_manager.expect_get_logs().return_once(|_| {
+            vec![(
+                workload_instance_name_1.into(),
+                Box::new(mock_log_collector_1),
+            )]
+        });
+
+        let synchronized_subscription_store = SynchronizedSubscriptionStore::default();
+        WorkloadLogFacade::spawn_log_collection(
+            REQUEST_ID.into(),
+            common::commands::LogsRequest::from(logs_request),
+            to_server,
+            synchronized_subscription_store.clone(),
+            &mock_runtime_manager,
+        )
+        .await;
+
+        let log_responses = timeout(
+            Duration::from_millis(10),
+            get_log_responses(1, &mut to_server_receiver),
+        )
+        .await;
+        assert!(log_responses.is_ok());
+        assert!(log_responses.unwrap().is_none());
+
+        let subscription_entry = synchronized_subscription_store
+            .lock()
+            .unwrap()
+            .delete_subscription(&REQUEST_ID.into());
+
+        assert!(
+            subscription_entry.is_none(),
+            "Expected subscription to be deleted, but it still existed.",
+        );
+    }
 }
