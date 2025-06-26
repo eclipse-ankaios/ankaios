@@ -1083,6 +1083,8 @@ Needs:
 
 ### `ank logs`
 
+![Get logs](plantuml/seq_get_logs.svg)
+
 #### CLI provides a function to output logs of a workload
 `swdd~cli-provides-workload-logs~1`
 
