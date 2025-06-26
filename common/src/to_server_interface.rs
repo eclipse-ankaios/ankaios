@@ -31,7 +31,8 @@ pub enum ToServer {
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Stop(commands::Stop),
     Goodbye(commands::Goodbye),
-    LogsResponse(String, ank_base::LogsResponse),
+    LogEntriesResponse(String, ank_base::LogEntriesResponse),
+    LogsStopResponse(String, ank_base::LogsStopResponse),
 }
 
 #[derive(Debug)]
@@ -82,7 +83,12 @@ pub trait ToServerInterface {
     async fn logs_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogsResponse,
+        logs_response: ank_base::LogEntriesResponse,
+    ) -> Result<(), ToServerError>;
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
     ) -> Result<(), ToServerError>;
     async fn stop(&self) -> Result<(), ToServerError>;
 }
@@ -184,10 +190,20 @@ impl ToServerInterface for ToServerSender {
     async fn logs_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogsResponse,
+        logs_response: ank_base::LogEntriesResponse,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::LogsResponse(request_id, logs_response))
+            .send(ToServer::LogEntriesResponse(request_id, logs_response))
+            .await?)
+    }
+
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
+    ) -> Result<(), ToServerError> {
+        Ok(self
+            .send(ToServer::LogsStopResponse(request_id, logs_stop_response))
             .await?)
     }
 
@@ -206,7 +222,7 @@ impl ToServerInterface for ToServerSender {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, LogEntry, LogsResponse};
+    use api::ank_base::{self, LogEntriesResponse, LogEntry};
 
     use crate::{
         commands::{self, AgentLoadStatus, RequestContent},
@@ -409,7 +425,7 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        let logs_response = LogsResponse {
+        let logs_response = LogEntriesResponse {
             log_entries: vec![LogEntry {
                 workload_name: Some(ank_base::WorkloadInstanceName {
                     agent_name: AGENT_NAME.into(),
@@ -427,7 +443,32 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::LogsResponse(REQUEST_ID.to_string(), logs_response)
+            ToServer::LogEntriesResponse(REQUEST_ID.to_string(), logs_response)
         );
+    }
+
+    // [utest->swdd~to-server-channel~1]
+    #[tokio::test]
+    async fn utest_to_server_send_logs_stop_response() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let response_content = ank_base::LogsStopResponse {
+            workload_name: Some(ank_base::WorkloadInstanceName {
+                agent_name: AGENT_NAME.into(),
+                workload_name: WORKLOAD_NAME.into(),
+                id: "id".into(),
+            }),
+        };
+
+        assert!(tx
+            .logs_stop_response(REQUEST_ID.into(), response_content.clone())
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::LogsStopResponse(REQUEST_ID.to_string(), response_content)
+        )
     }
 }

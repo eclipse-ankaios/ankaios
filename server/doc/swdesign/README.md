@@ -1099,6 +1099,23 @@ Needs:
 - impl
 - utest
 
+#### Server forwards LogsStopResponse messages
+`swdd~server-forwards-logs-stop-response-messages~1`
+
+Status: approved
+
+When the ToServer message LogsStopResponse is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall distribute the FromServer message LogsStopResponse to all connected agents.
+
+Rationale:
+Log subscribers must be informed when there are no more log messages for a workload.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+
 ## Data view
 
 ## Error management view

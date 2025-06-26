@@ -17,7 +17,8 @@ use crate::grpc_middleware_error::GrpcMiddlewareError;
 
 use crate::grpc_api::{self, to_server::ToServerEnum};
 use api::ank_base::{
-    self, request::RequestContent, CompleteStateRequest, Request, UpdateStateRequest,
+    self, request::RequestContent, CompleteStateRequest, LogsStopResponse, Request,
+    UpdateStateRequest,
 };
 
 use common::request_id_prepending::prepend_request_id;
@@ -138,21 +139,45 @@ pub async fn forward_from_proto_to_ankaios(
                 sink.agent_load_status(agent_load_status.into()).await?;
             }
 
-            ToServerEnum::LogsResponse(logs_response) => {
-                log::trace!("Received LogsResponse from '{}'", agent_name);
-                if let Some(logs_response_object) = logs_response.logs_response {
-                    sink.logs_response(logs_response.request_id, logs_response_object)
+            ToServerEnum::LogEntriesResponse(log_entries_response) => {
+                log::trace!("Received LogEntriesResponse from '{}'", agent_name);
+                if let Some(logs_response_object) = log_entries_response.log_entries_response {
+                    sink.logs_response(log_entries_response.request_id, logs_response_object)
                         .await?;
                 } else {
                     log::warn!(
-                        "Received a LogsResponse from '{}' without actual data",
+                        "Received a LogEntriesResponse from '{}' without actual data",
                         agent_name
                     );
                 }
             }
 
-            unknown_message => {
-                log::warn!("Wrong ToServer message: '{:?}'", unknown_message);
+            ToServerEnum::LogsStopResponse(logs_stop_response) => {
+                log::trace!("Received LogsStopResponse from '{}'", agent_name);
+
+                if let Some(logs_stop_response_object) = logs_stop_response.logs_stop_response {
+                    sink.logs_stop_response(
+                        logs_stop_response.request_id,
+                        logs_stop_response_object,
+                    )
+                    .await?;
+                } else {
+                    log::warn!(
+                        "Received a LogsStopResponse from '{}' without actual data",
+                        agent_name
+                    );
+                }
+            }
+
+            ToServerEnum::AgentHello(agent_hello) => {
+                log::warn!(
+                    "Received unexpected AgentHello from '{}'.",
+                    agent_hello.agent_name
+                );
+            }
+
+            ToServerEnum::CommanderHello(_) => {
+                log::warn!("Received unexpected CommanderHello.");
             }
         }
     }
@@ -219,14 +244,32 @@ pub async fn forward_from_ankaios_to_proto(
                 panic!("AgentGone internal messages is not intended to be sent over the network");
             }
 
-            ToServer::LogsResponse(request_id, logs_response) => {
-                log::trace!("Received LogsResponse for '{}'", request_id);
+            ToServer::LogEntriesResponse(request_id, log_entries_response) => {
+                log::trace!("Received LogEntriesResponse for '{}'", request_id);
                 grpc_tx
                     .send(grpc_api::ToServer {
-                        to_server_enum: Some(grpc_api::to_server::ToServerEnum::LogsResponse(
-                            grpc_api::LogsResponse {
+                        to_server_enum: Some(
+                            grpc_api::to_server::ToServerEnum::LogEntriesResponse(
+                                grpc_api::LogEntriesResponse {
+                                    request_id,
+                                    log_entries_response: Some(log_entries_response),
+                                },
+                            ),
+                        ),
+                    })
+                    .await?;
+            }
+
+            ToServer::LogsStopResponse(request_id, logs_stop_response) => {
+                log::trace!("Received LogsStopResponse for '{}'", request_id);
+                grpc_tx
+                    .send(grpc_api::ToServer {
+                        to_server_enum: Some(grpc_api::to_server::ToServerEnum::LogsStopResponse(
+                            grpc_api::LogsStopResponse {
                                 request_id,
-                                logs_response: Some(logs_response),
+                                logs_stop_response: Some(LogsStopResponse {
+                                    workload_name: logs_stop_response.workload_name,
+                                }),
                             },
                         )),
                     })
@@ -275,7 +318,9 @@ mod tests {
     use tokio::sync::mpsc;
 
     use crate::grpc_api::{self, to_server::ToServerEnum};
-    use api::ank_base::{self, LogEntry, LogsResponse, WorkloadInstanceName};
+    use api::ank_base::{
+        self, LogEntriesResponse, LogEntry, LogsStopResponse, WorkloadInstanceName,
+    };
 
     #[derive(Default, Clone)]
     struct MockGRPCToServerStreaming {
@@ -868,29 +913,31 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::LogsResponse(crate::LogsResponse {
-                        request_id: "request_id".into(),
-                        logs_response: Some(LogsResponse {
-                            log_entries: vec![
-                                LogEntry {
-                                    workload_name: Some(WorkloadInstanceName {
-                                        workload_name: "workload_1".into(),
-                                        agent_name: "agent_X".into(),
-                                        id: "id_1".into(),
-                                    }),
-                                    message: "message_1".into(),
-                                },
-                                LogEntry {
-                                    workload_name: Some(WorkloadInstanceName {
-                                        workload_name: "workload_2".into(),
-                                        agent_name: "agent_X".into(),
-                                        id: "id_2".into(),
-                                    }),
-                                    message: "message_2".into(),
-                                },
-                            ],
-                        }),
-                    })),
+                    to_server_enum: Some(ToServerEnum::LogEntriesResponse(
+                        crate::LogEntriesResponse {
+                            request_id: "request_id".into(),
+                            log_entries_response: Some(LogEntriesResponse {
+                                log_entries: vec![
+                                    LogEntry {
+                                        workload_name: Some(WorkloadInstanceName {
+                                            workload_name: "workload_1".into(),
+                                            agent_name: "agent_X".into(),
+                                            id: "id_1".into(),
+                                        }),
+                                        message: "message_1".into(),
+                                    },
+                                    LogEntry {
+                                        workload_name: Some(WorkloadInstanceName {
+                                            workload_name: "workload_2".into(),
+                                            agent_name: "agent_X".into(),
+                                            id: "id_2".into(),
+                                        }),
+                                        message: "message_2".into(),
+                                    },
+                                ],
+                            }),
+                        },
+                    )),
                 }),
                 None,
             ]));
@@ -909,9 +956,9 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::to_server_interface::ToServer::LogsResponse(
+            common::to_server_interface::ToServer::LogEntriesResponse(
                 request_id,
-                ank_base::LogsResponse { log_entries }
+                ank_base::LogEntriesResponse { log_entries }
             ) if request_id == "request_id"
                  && matches!(log_entries.as_slice(),
                             [ank_base::LogEntry{ workload_name: Some(ank_base::WorkloadInstanceName{ workload_name: workload_name_1, agent_name: agent_name_1, id: id_1 }), message: message_1 },
@@ -929,10 +976,12 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::LogsResponse(crate::LogsResponse {
-                        request_id: "request_id".into(),
-                        logs_response: None,
-                    })),
+                    to_server_enum: Some(ToServerEnum::LogEntriesResponse(
+                        crate::LogEntriesResponse {
+                            request_id: "request_id".into(),
+                            log_entries_response: None,
+                        },
+                    )),
                 }),
                 None,
             ]));
@@ -961,7 +1010,7 @@ mod tests {
         let forward_logs_result = server_tx
             .logs_response(
                 "request_id".to_owned(),
-                LogsResponse {
+                LogEntriesResponse {
                     log_entries: vec![
                         LogEntry {
                             workload_name: Some(WorkloadInstanceName {
@@ -997,9 +1046,9 @@ mod tests {
 
         assert!(matches!(
             result.to_server_enum,
-            Some(ToServerEnum::LogsResponse(grpc_api::LogsResponse {
+            Some(ToServerEnum::LogEntriesResponse(grpc_api::LogEntriesResponse {
                 request_id,
-                logs_response: Some(LogsResponse { log_entries })
+                log_entries_response: Some(LogEntriesResponse { log_entries })
             })) if request_id == "request_id"
                     && matches!(log_entries.as_slice(),
                                 [ank_base::LogEntry{ workload_name: Some(ank_base:: WorkloadInstanceName{ workload_name: workload_name_1, agent_name: agent_name_1, id: id_1 }), message: message_1 },
@@ -1007,5 +1056,171 @@ mod tests {
                                 if workload_name_1 == "workload_1" && agent_name_1 == "agent_X" && id_1 == "id_1" && message_1 == "message_1"
                                    && workload_name_2 == "workload_2" && agent_name_2 == "agent_X" && id_2 == "id_2" && message_2 == "message_2")
         ));
+    }
+
+    // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_logs_stop_response() {
+        let agent_name = "fake_agent";
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+
+        let request_id = "request_id".to_string();
+        let workload_instance_name = WorkloadInstanceName {
+            workload_name: "workload_1".into(),
+            agent_name: agent_name.into(),
+            id: "id_1".into(),
+        };
+
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCToServerStreaming::new(LinkedList::from([
+                Some(grpc_api::ToServer {
+                    to_server_enum: Some(ToServerEnum::LogsStopResponse(crate::LogsStopResponse {
+                        request_id: request_id.clone(),
+                        logs_stop_response: Some(LogsStopResponse {
+                            workload_name: Some(workload_instance_name.clone()),
+                        }),
+                    })),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = forward_from_proto_to_ankaios(
+            agent_name.into(),
+            &mut mock_grpc_ex_request_streaming,
+            server_tx,
+        )
+        .await;
+        assert!(forward_result.is_ok());
+
+        // pick received from server message
+        let result = server_rx.recv().await.unwrap();
+
+        assert!(matches!(
+            result,
+            common::to_server_interface::ToServer::LogsStopResponse(
+                received_request_id,
+                ank_base::LogsStopResponse {
+                    workload_name: received_workload_instance_name
+                }
+            ) if received_request_id == request_id && received_workload_instance_name == Some(workload_instance_name)
+        ));
+    }
+
+    // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_empty_logs_stop_response() {
+        let agent_name = "fake_agent";
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCToServerStreaming::new(LinkedList::from([
+                Some(grpc_api::ToServer {
+                    to_server_enum: Some(ToServerEnum::LogsStopResponse(crate::LogsStopResponse {
+                        request_id: "request_id".into(),
+                        logs_stop_response: None,
+                    })),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = forward_from_proto_to_ankaios(
+            agent_name.into(),
+            &mut mock_grpc_ex_request_streaming,
+            server_tx,
+        )
+        .await;
+        assert!(forward_result.is_ok());
+
+        // pick received from server message
+        let result = server_rx.recv().await;
+
+        assert!(result.is_none());
+    }
+
+    // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_ankaios_to_proto_logs_stop_response() {
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+        let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
+
+        let agent_name = "fake_agent";
+        let request_id = "request_id".to_string();
+        let workload_instance_name = WorkloadInstanceName {
+            workload_name: "workload_1".into(),
+            agent_name: agent_name.into(),
+            id: "id_1".into(),
+        };
+
+        let forward_logs_result = server_tx
+            .logs_stop_response(
+                request_id.clone(),
+                LogsStopResponse {
+                    workload_name: Some(workload_instance_name.clone()),
+                },
+            )
+            .await;
+
+        assert!(forward_logs_result.is_ok());
+
+        tokio::spawn(async move {
+            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+        });
+
+        // The receiver in the agent receives the message and terminates the infinite waiting-loop.
+        drop(server_tx);
+
+        let result = grpc_rx.recv().await.unwrap();
+
+        assert_eq!(
+            result.to_server_enum,
+            Some(ToServerEnum::LogsStopResponse(grpc_api::LogsStopResponse {
+                request_id: request_id.clone(),
+                logs_stop_response: Some(LogsStopResponse {
+                    workload_name: Some(workload_instance_name)
+                })
+            }))
+        );
+    }
+
+    // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
+    #[tokio::test]
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_ignore_unexpected_messages() {
+        let agent_name = "fake_agent";
+        let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+
+        let mut mock_grpc_ex_request_streaming =
+            MockGRPCToServerStreaming::new(LinkedList::from([
+                Some(grpc_api::ToServer {
+                    to_server_enum: Some(ToServerEnum::AgentHello(crate::AgentHello {
+                        agent_name: agent_name.into(),
+                        protocol_version: common::ANKAIOS_VERSION.into(),
+                    })),
+                }),
+                Some(grpc_api::ToServer {
+                    to_server_enum: Some(ToServerEnum::CommanderHello(crate::CommanderHello {
+                        protocol_version: common::ANKAIOS_VERSION.into(),
+                    })),
+                }),
+                None,
+            ]));
+
+        // forwards from proto to ankaios
+        let forward_result = forward_from_proto_to_ankaios(
+            agent_name.into(),
+            &mut mock_grpc_ex_request_streaming,
+            server_tx,
+        )
+        .await;
+        assert!(forward_result.is_ok());
+
+        // assert ignored AgentHello
+        let result = server_rx.recv().await;
+        assert!(result.is_none());
+
+        // assert ignored CommanderHello
+        let result = server_rx.recv().await;
+        assert!(result.is_none());
     }
 }

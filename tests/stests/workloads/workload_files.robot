@@ -44,7 +44,6 @@ Test Ankaios updates a workload upon update of its workload file content
     [Documentation]    Re-create the new workload file on the host file system and
     ...                mount it in the new updated version of the workload.
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    run_only
 
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
@@ -64,7 +63,6 @@ Test Ankaios updates a workload upon adding additional workload files
     [Documentation]    Re-create all the workload files including the new one on the host file system,
     ...                mount it in the new updated version of the workload and execute it.
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    run_only
 
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first

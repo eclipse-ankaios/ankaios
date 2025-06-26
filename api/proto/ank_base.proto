@@ -40,7 +40,8 @@ message Response {
         Error error = 3;
         CompleteState completeState = 4;
         UpdateStateSuccess UpdateStateSuccess = 5;
-        LogsResponse logsResponse = 6; /// A message containing workload logs.
+        LogEntriesResponse logEntriesResponse = 6; /// A message containing workload logs.
+        LogsStopResponse logsStopResponse = 7; /// A message containing the workload instance name indicating the stop of the log streaming.
     }
 }
 
@@ -64,8 +65,12 @@ message LogsCancelRequest {
 /**
 * A message containing the requested logs.
 */
-message LogsResponse {
+message LogEntriesResponse {
     repeated LogEntry logEntries = 1; /// The logs of the requested workloads.
+}
+
+message LogsStopResponse {
+    WorkloadInstanceName workloadName = 1; /// The name of the workload for which the log streaming was stopped.
 }
 
 /**

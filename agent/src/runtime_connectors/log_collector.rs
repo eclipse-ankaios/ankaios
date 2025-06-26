@@ -61,9 +61,12 @@ pub async fn run(mut log_collector: Box<dyn LogCollector>, mut sender: log_chann
                         }
                     }
                     NextLinesResult::EoF => {
+                        log::debug!("Log collector returned no more log lines, stopping.");
+                        drop(sender); // drop the non-cloneable log sender to indicate stop of log responses
                         break;
                     }
                 }
+
             }
             _ = sender.wait_for_receiver_dropped() => {
                 break;
