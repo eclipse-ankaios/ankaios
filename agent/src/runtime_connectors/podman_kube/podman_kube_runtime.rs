@@ -28,8 +28,9 @@ use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        podman_cli, ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter,
-        StateChecker,
+        generic_log_collector::GenericLogCollector, log_collector::LogCollector, podman_cli,
+        runtime_connector::LogRequestOptions, ReusableWorkloadState, RuntimeConnector,
+        RuntimeError, RuntimeStateGetter, StateChecker,
     },
     workload_state::WorkloadStateSender,
 };
@@ -276,6 +277,17 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             update_state_tx,
             PodmanKubeRuntime {},
         ))
+    }
+
+    fn get_logs(
+        &self,
+        workload_id: PodmanKubeWorkloadId,
+        options: &LogRequestOptions,
+    ) -> Result<Box<dyn LogCollector + Send>, RuntimeError> {
+        let x =
+            super::podman_kube_log_collector::PodmanKubeLogCollector::new(&workload_id, options);
+        let log_collector = GenericLogCollector::new(x);
+        Ok(Box::new(log_collector))
     }
 
     async fn delete_workload(
@@ -581,7 +593,6 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
 
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
-        println!("{:?}", workloads);
 
         assert!(
             matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
