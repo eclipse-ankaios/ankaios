@@ -29,6 +29,8 @@ use rules::{LogRule, StateRule};
 #[cfg(test)]
 use mockall::mock;
 
+use crate::control_interface::authorizer::path_pattern::PathPattern;
+
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Authorizer {
     state_allow_write: Vec<Arc<StateRule<AllowPathPattern>>>,
@@ -167,13 +169,13 @@ impl Authorizer {
                     .find(|instance_name| {
                         self.log_allow
                             .iter()
-                            .any(|allow_rule| allow_rule.matches(instance_name.workload_name()))
+                            .all(|allow_rule| allow_rule.matches(instance_name.workload_name()))
                     })
                     .map(|instance_name| {
                         format!("allowed by rule for workload '{}'", instance_name)
                     });
 
-                if allow_reason.is_none() {
+                if allow_reason.is_none() || self.log_allow.is_empty() {
                     log::info!(
                         "Deny log request '{}' as no rule matches any workload name",
                         request.request_id
@@ -217,74 +219,62 @@ impl Authorizer {
 
 impl From<&ControlInterfaceAccess> for Authorizer {
     fn from(value: &ControlInterfaceAccess) -> Self {
-        let mut state_allow_write = vec![];
-        let mut state_allow_read = vec![];
-        let mut state_deny_write = vec![];
-        let mut state_deny_read = vec![];
-        let mut log_allow = vec![];
-        let mut log_deny = vec![];
-
-        // Parse allow rules
-        for access_rule in &value.allow_rules {
-            match access_rule {
-                AccessRightsRule::StateRule(state_rule) => {
-                    let rule = Arc::new(StateRule::create(
-                        state_rule
-                            .filter_mask
-                            .iter()
-                            .map(|x| (**x).into())
-                            .collect(),
-                    ));
-                    match state_rule.operation {
-                        ReadWriteEnum::Read => state_allow_read.push(rule),
-                        ReadWriteEnum::Write => state_allow_write.push(rule),
-                        ReadWriteEnum::ReadWrite => {
-                            state_allow_read.push(rule.clone());
-                            state_allow_write.push(rule);
-                        }
-                        ReadWriteEnum::Nothing => {}
-                    }
-                }
-                AccessRightsRule::LogRule(log_rule) => {
-                    log_allow.push(log_rule.workload_names.clone().into());
-                }
-            }
+        struct ReadWriteFiltered<T: PathPattern> {
+            state_read: Vec<Arc<StateRule<T>>>,
+            state_write: Vec<Arc<StateRule<T>>>,
+            log: Vec<LogRule>,
         }
 
-        // Parse deny rules
-        for access_rule in &value.deny_rules {
-            match access_rule {
-                AccessRightsRule::StateRule(state_rule) => {
-                    let rule = Arc::new(StateRule::create(
-                        state_rule
-                            .filter_mask
-                            .iter()
-                            .map(|x| (**x).into())
-                            .collect(),
-                    ));
-                    match state_rule.operation {
-                        ReadWriteEnum::Read => state_deny_read.push(rule),
-                        ReadWriteEnum::Write => state_deny_write.push(rule),
-                        ReadWriteEnum::ReadWrite => {
-                            state_deny_read.push(rule.clone());
-                            state_deny_write.push(rule);
+        fn split_rules<T>(rule_list: &[AccessRightsRule]) -> ReadWriteFiltered<T>
+        where
+            T: PathPattern,
+            T: for<'a> From<&'a str>,
+        {
+            let mut res = ReadWriteFiltered {
+                state_read: vec![],
+                state_write: vec![],
+                log: vec![],
+            };
+
+            for access_rule in rule_list {
+                match access_rule {
+                    AccessRightsRule::StateRule(state_rule) => {
+                        let rule = Arc::new(StateRule::<T>::create(
+                            state_rule
+                                .filter_mask
+                                .iter()
+                                .map(|x| (**x).into())
+                                .collect(),
+                        ));
+                        match state_rule.operation {
+                            ReadWriteEnum::Read => res.state_read.push(rule),
+                            ReadWriteEnum::Write => res.state_write.push(rule),
+                            ReadWriteEnum::ReadWrite => {
+                                res.state_read.push(rule.clone());
+                                res.state_write.push(rule);
+                            }
+                            ReadWriteEnum::Nothing => {}
                         }
-                        ReadWriteEnum::Nothing => {}
+                    }
+                    AccessRightsRule::LogRule(log_rule) => {
+                        res.log.push(log_rule.workload_names.clone().into());
                     }
                 }
-                AccessRightsRule::LogRule(log_rule) => {
-                    log_deny.push(log_rule.workload_names.clone().into());
-                }
             }
+
+            res
         }
+
+        let allow_rules = split_rules::<AllowPathPattern>(&value.allow_rules);
+        let deny_rules = split_rules::<DenyPathPattern>(&value.deny_rules);
 
         Self {
-            state_allow_write,
-            state_allow_read,
-            state_deny_write,
-            state_deny_read,
-            log_allow,
-            log_deny,
+            state_allow_write: allow_rules.state_write,
+            state_allow_read: allow_rules.state_read,
+            state_deny_write: deny_rules.state_write,
+            state_deny_read: deny_rules.state_read,
+            log_allow: allow_rules.log,
+            log_deny: deny_rules.log,
         }
     }
 }
@@ -335,32 +325,32 @@ mod test {
                     let rule = Arc::new(StateRule::<AllowPathPattern>::create(
                         masks.iter().map(|x| x.as_str().into()).collect(),
                     ));
-                    authorizer.state_allow_write.push(rule.clone())
+                    authorizer.state_allow_write.push(rule)
                 }
                 RuleType::StateDenyWrite(masks) => {
                     let rule = Arc::new(StateRule::<DenyPathPattern>::create(
                         masks.iter().map(|x| x.as_str().into()).collect(),
                     ));
-                    authorizer.state_deny_write.push(rule.clone())
+                    authorizer.state_deny_write.push(rule)
                 }
                 RuleType::StateAllowRead(masks) => {
                     let rule = Arc::new(StateRule::<AllowPathPattern>::create(
                         masks.iter().map(|x| x.as_str().into()).collect(),
                     ));
-                    authorizer.state_allow_read.push(rule.clone())
+                    authorizer.state_allow_read.push(rule)
                 }
                 RuleType::StateDenyRead(masks) => {
                     let rule = Arc::new(StateRule::<DenyPathPattern>::create(
                         masks.iter().map(|x| x.as_str().into()).collect(),
                     ));
-                    authorizer.state_deny_read.push(rule.clone())
+                    authorizer.state_deny_read.push(rule)
                 }
                 RuleType::StateAllowReadWrite(masks) => {
                     let rule = Arc::new(StateRule::<AllowPathPattern>::create(
                         masks.iter().map(|x| x.as_str().into()).collect(),
                     ));
                     authorizer.state_allow_read.push(rule.clone());
-                    authorizer.state_allow_write.push(rule.clone());
+                    authorizer.state_allow_write.push(rule);
                 }
                 RuleType::StateDenyReadWrite(masks) => {
                     let rule = Arc::new(StateRule::<DenyPathPattern>::create(
@@ -626,6 +616,15 @@ mod test {
         };
 
         let authorizer = Authorizer::default();
+        assert!(authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::LogAllow(vec![WORKLOAD_NAME.into()])]);
+        assert!(authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::LogDeny(vec![WORKLOAD_NAME.into()])]);
+        assert!(authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[
+            RuleType::LogAllow(vec![WORKLOAD_NAME.into()]),
+            RuleType::LogDeny(vec![WORKLOAD_NAME.into()]),
+        ]);
         assert!(authorizer.authorize(&request));
     }
 

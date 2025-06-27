@@ -97,12 +97,6 @@ impl From<&str> for AllowPathPattern {
     }
 }
 
-impl From<Vec<PathPatternSection>> for AllowPathPattern {
-    fn from(value: Vec<PathPatternSection>) -> Self {
-        Self { sections: value }
-    }
-}
-
 // [impl->swdd~agent-authorizing-matching-deny-rules~1]
 impl PathPattern for DenyPathPattern {
     fn sections(&self) -> &Vec<PathPatternSection> {
@@ -123,12 +117,6 @@ impl From<&str> for DenyPathPattern {
                 value.split(PATH_SEPARATOR).map(Into::into).collect()
             },
         }
-    }
-}
-
-impl From<Vec<PathPatternSection>> for DenyPathPattern {
-    fn from(value: Vec<PathPatternSection>) -> Self {
-        Self { sections: value }
     }
 }
 
@@ -183,6 +171,18 @@ impl<T: PathPatternMatcher + std::fmt::Debug> PathPatternMatcher for Vec<Arc<T>>
 #[cfg(test)]
 mod tests {
     use super::{AllowPathPattern, DenyPathPattern, PathPattern, PathPatternSection};
+
+    impl From<Vec<PathPatternSection>> for AllowPathPattern {
+        fn from(value: Vec<PathPatternSection>) -> Self {
+            Self { sections: value }
+        }
+    }
+
+    impl From<Vec<PathPatternSection>> for DenyPathPattern {
+        fn from(value: Vec<PathPatternSection>) -> Self {
+            Self { sections: value }
+        }
+    }
 
     // [utest->swdd~agent-authorizing-matching-allow-rules~1]
     #[test]
