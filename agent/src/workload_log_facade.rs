@@ -40,6 +40,10 @@ use mockall::automock;
 
 pub struct WorkloadLogFacade;
 
+type ContinuableResult = (WorkloadInstanceName, Receiver, Option<Vec<String>>);
+type UnorderedLogReceiverFutures =
+    FuturesUnordered<Pin<Box<dyn Future<Output = ContinuableResult> + Send>>>;
+
 #[cfg_attr(test, automock)]
 impl WorkloadLogFacade {
     pub async fn spawn_log_collection(
@@ -59,58 +63,79 @@ impl WorkloadLogFacade {
         let receivers = names.into_iter().zip(receivers).collect::<Vec<_>>();
         let cloned_request_id = request_id.clone();
         let subscription_store = synchronized_subscription_store.clone();
+
         let log_collection_join_handle = tokio::spawn(async move {
             let _subscription = subscription;
-            type ContinuableResult = (WorkloadInstanceName, Receiver, Option<Vec<String>>);
-            let mut futures = FuturesUnordered::from_iter(receivers.into_iter().map(
-                |workload_log_info| -> Pin<Box<dyn Future<Output = ContinuableResult> + Send>> {
-                    let workload_instance_name = workload_log_info.0;
-                    let mut log_receiver = workload_log_info.1;
+            let futures = Self::convert_log_receivers_to_futures(receivers);
 
-                    Box::pin(async {
-                        let received_log_lines = log_receiver.read_log_lines().await;
-                        (workload_instance_name, log_receiver, received_log_lines)
-                    })
-                },
-            ));
-            while let Some((workload_instance_name, mut receiver, log_lines)) = futures.next().await
-            {
-                log::debug!("Got new log lines: {:?}", log_lines);
-                if let Some(log_lines) = log_lines {
-                    to_server
-                        .logs_response(
-                            cloned_request_id.clone(),
-                            ank_base::LogsResponse {
-                                log_entries: log_lines
-                                    .into_iter()
-                                    .map(|log_message| ank_base::LogEntry {
-                                        workload_name: Some(workload_instance_name.clone().into()),
-                                        message: log_message,
-                                    })
-                                    .collect(),
-                            },
-                        )
-                        .await
-                        .unwrap_or_illegal_state();
-
-                    let workload_log_info = async move {
-                        let received_log_lines = receiver.read_log_lines().await;
-                        (workload_instance_name, receiver, received_log_lines)
-                    };
-                    futures.push(Box::pin(workload_log_info));
-                }
-            }
+            Self::consume_futures_and_forward_logs_until_stop(
+                futures,
+                cloned_request_id.clone(),
+                &to_server,
+            )
+            .await;
 
             subscription_store
                 .lock()
                 .unwrap()
                 .delete_subscription(&cloned_request_id);
+            log::debug!("Log collection for request '{}' finished. Subscription has been deleted successfully. ", cloned_request_id);
         });
 
         synchronized_subscription_store
             .lock()
             .unwrap()
             .add_subscription(request_id, log_collection_join_handle);
+    }
+
+    fn convert_log_receivers_to_futures(
+        receivers: Vec<(WorkloadInstanceName, Receiver)>,
+    ) -> UnorderedLogReceiverFutures {
+        FuturesUnordered::from_iter(receivers.into_iter().map(
+            |workload_log_info| -> Pin<Box<dyn Future<Output = ContinuableResult> + Send>> {
+                let workload_instance_name = workload_log_info.0;
+                let mut log_receiver = workload_log_info.1;
+
+                Box::pin(async {
+                    let received_log_lines = log_receiver.read_log_lines().await;
+                    (workload_instance_name, log_receiver, received_log_lines)
+                })
+            },
+        ))
+    }
+
+    async fn consume_futures_and_forward_logs_until_stop(
+        mut log_futures: UnorderedLogReceiverFutures,
+        request_id: String,
+        to_server: &ToServerSender,
+    ) {
+        while let Some((workload_instance_name, mut receiver, log_lines)) = log_futures.next().await
+        {
+            log::debug!("Got new log lines: {:?}", log_lines);
+            if let Some(log_lines) = log_lines {
+                to_server
+                    .logs_response(
+                        request_id.clone(),
+                        ank_base::LogsResponse {
+                            log_entries: log_lines
+                                .into_iter()
+                                .map(|log_message| ank_base::LogEntry {
+                                    workload_name: Some(workload_instance_name.clone().into()),
+                                    message: log_message,
+                                })
+                                .collect(),
+                        },
+                    )
+                    .await
+                    .unwrap_or_illegal_state();
+
+                let workload_log_info = async move {
+                    let received_log_lines = receiver.read_log_lines().await;
+                    (workload_instance_name, receiver, received_log_lines)
+                };
+                log_futures.push(Box::pin(workload_log_info));
+            }
+        }
     }
 }
 
