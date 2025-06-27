@@ -83,6 +83,7 @@ impl InputPipe {
 
     fn ensure_file(&mut self) -> io::Result<&mut BufReader<Receiver>> {
         if self.file.is_none() {
+            log::debug!("Attempting to reopen the input pipe at {:?}", self.path);
             self.file = Some(
                 OpenOptions::new()
                     .open_receiver(&self.path)
