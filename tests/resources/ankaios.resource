@@ -699,6 +699,13 @@ The controller workload requests shall all succeed
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
 
+The controller workload last request shall fail
+    ${ankaios_config_folder}=    create_control_interface_config_for_test
+    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios agent is started with name "${AGENT_NAME}"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
+    internal_check_last_control_interface_request_failed    ${ankaios_config_folder.name}
+
 The controller workload requests shall all fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
