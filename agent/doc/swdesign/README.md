@@ -149,7 +149,7 @@ The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implem
 
 ### WorkloadLogFacade
 
-The `WorkloadLogFacade` encapsulates all steps to setup a log collection campaign, when the agent receives request from the server to collect logs for workloads.
+The `WorkloadLogFacade` encapsulates all steps to initialize a log collection campaign, when the agent receives a request from the server to collect logs for workloads.
 
 ### External Libraries
 
