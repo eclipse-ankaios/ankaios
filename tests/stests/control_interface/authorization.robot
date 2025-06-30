@@ -151,4 +151,4 @@ Log requests are denied if no log rules
 
     When The controller workload gets the logs of simple_existing
 
-    Then the controller workload requests shall all fail
+    Then The controller workload last request shall fail

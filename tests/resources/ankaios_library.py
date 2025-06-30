@@ -41,7 +41,7 @@ CONTROL_INTERFACE_TESTER_TAG: str = "manual-build-4"
 MANIFEST_TEMPLATE: str = "control_interface_workload.yaml.template"
 STARTUP_MANIFEST: str = "startup_config.yaml"
 DEFAULT_AGENT_NAME: str = "agent_A"
-FORCE_TRACE: bool = True
+FORCE_TRACE: bool = False
 
 
 if FORCE_TRACE:
@@ -621,10 +621,17 @@ def internal_check_all_control_interface_requests_succeeded(tmp_folder):
             f"Expected request {test_number + 1} to succeed, but it failed"
 
 @err_logging_decorator
+def internal_check_last_control_interface_request_failed(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    logger.trace(output)
+    last_test_result = output[-1]
+    test_result = last_test_result["result"]["value"]["type"] == "Err"
+    assert test_result, "Expected the last request to fail, but it succeeded"
+
+@err_logging_decorator
 def internal_check_all_control_interface_requests_failed(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
-    print("requests shall fail")
-    print(output)
+    logger.trace(output)
     for test_number,test_result in enumerate(output):
         if test_result["result"]["type"] != "SendHelloResult":
             test_result = test_result["result"]["value"]["type"] != "Ok"
