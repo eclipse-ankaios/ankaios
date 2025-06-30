@@ -17,7 +17,7 @@ mod cycle_check;
 mod delete_graph;
 mod server_state;
 
-use api::ank_base;
+use api::ank_base::{self};
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::objects::{
@@ -47,6 +47,8 @@ pub fn create_from_server_channel(capacity: usize) -> FromServerChannel {
     channel::<FromServer>(capacity)
 }
 
+type AgentLogRequestIdMap = std::collections::HashMap<String, std::collections::HashSet<String>>;
+
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
     receiver: ToServerReceiver,
@@ -54,6 +56,7 @@ pub struct AnkaiosServer {
     to_agents: FromServerSender,
     server_state: ServerState,
     workload_states_map: WorkloadStatesMap,
+    agent_log_request_id_map: AgentLogRequestIdMap,
 }
 
 impl AnkaiosServer {
@@ -63,6 +66,7 @@ impl AnkaiosServer {
             to_agents,
             server_state: ServerState::default(),
             workload_states_map: WorkloadStatesMap::default(),
+            agent_log_request_id_map: AgentLogRequestIdMap::default(),
         }
     }
 
@@ -178,6 +182,18 @@ impl AnkaiosServer {
                         )
                         .await
                         .unwrap_or_illegal_state();
+
+                    let request_ids_for_agent_gone = self
+                        .agent_log_request_id_map
+                        .remove(&agent_name)
+                        .unwrap_or_default();
+
+                    for request_id in request_ids_for_agent_gone {
+                        self.to_agents
+                            .logs_cancel_request(request_id)
+                            .await
+                            .unwrap_or_illegal_state();
+                    }
                 }
                 // [impl->swdd~server-provides-update-desired-state-interface~1]
                 ToServer::Request(Request {
@@ -313,6 +329,16 @@ impl AnkaiosServer {
                     }
                     common::commands::RequestContent::LogsRequest(logs_request) => {
                         log::debug!("Got log request with ID: {}", request_id);
+
+                        for instance_name in &logs_request.workload_names {
+                            let agent_name = instance_name.agent_name().to_string();
+
+                            self.agent_log_request_id_map
+                                .entry(agent_name)
+                                .or_default()
+                                .insert(request_id.clone());
+                        }
+
                         self.to_agents
                             .logs_request(request_id, logs_request.into())
                             .await
@@ -320,6 +346,13 @@ impl AnkaiosServer {
                     }
                     common::commands::RequestContent::LogsCancelRequest => {
                         log::debug!("Got log cancel request with ID: {}", request_id);
+
+                        self.agent_log_request_id_map
+                            .retain(|_agent_name, request_ids| {
+                                request_ids.remove(&request_id);
+                                !request_ids.is_empty()
+                            });
+
                         self.to_agents
                             .logs_cancel_request(request_id)
                             .await
