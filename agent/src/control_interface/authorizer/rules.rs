@@ -12,10 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use common::std_extensions::UnreachableOption;
 use super::{
     path::Path,
     path_pattern::{PathPattern, PathPatternMatchReason, PathPatternMatcher},
 };
+
+pub(crate) const WILDCARD_SYMBOL: &str = "*";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct StateRule<P: PathPattern> {
@@ -24,7 +27,7 @@ pub struct StateRule<P: PathPattern> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LogRule {
-    workload_names: Vec<String>,
+    patterns: Vec<String>,
 }
 
 impl<P: PathPattern> StateRule<P> {
@@ -49,12 +52,54 @@ impl<P: PathPattern> PathPatternMatcher for StateRule<P> {
 }
 
 impl LogRule {
-    pub fn create(workload_names: Vec<String>) -> Self {
-        Self { workload_names }
+    pub fn create(patterns: Vec<String>) -> Self {
+        Self {
+            patterns: LogRule::validate_patterns(patterns),
+        }
     }
 
     pub fn matches(&self, workload_name: &str) -> bool {
-        self.workload_names.contains(&workload_name.to_string())
+        for pattern in &self.patterns {
+            if pattern == workload_name || pattern == WILDCARD_SYMBOL {
+                return true;
+            } else if pattern.contains(WILDCARD_SYMBOL) {
+                let wildcard_pos = pattern.find(WILDCARD_SYMBOL).unwrap_or_unreachable();
+                let prefix_matches =
+                    wildcard_pos == 0 || workload_name.starts_with(&pattern[..wildcard_pos]);
+                let suffix_matches = wildcard_pos + WILDCARD_SYMBOL.len() == pattern.len()
+                    || workload_name.ends_with(&pattern[wildcard_pos + WILDCARD_SYMBOL.len()..]);
+                return prefix_matches && suffix_matches;
+            }
+        }
+        false
+    }
+
+    fn validate_patterns(patterns: Vec<String>) -> Vec<String> {
+        let mut valid_patterns: Vec<String> = Vec::new();
+        for pattern in patterns {
+            if pattern.is_empty() {
+                log::warn!("Invalid LogRule pattern: empty string");
+                continue;
+            }
+            if pattern == WILDCARD_SYMBOL {
+                // If the pattern is just a wildcard, we can ignore the others
+                return vec![WILDCARD_SYMBOL.to_string()];
+            }
+            // if pattern contains more than one wildcard, it's invalid
+            if let Some(first_wildcard_pos) = pattern.find(WILDCARD_SYMBOL) {
+                if let Some(_second_wildcard_pos) =
+                    pattern[first_wildcard_pos + WILDCARD_SYMBOL.len()..].find(WILDCARD_SYMBOL)
+                {
+                    log::warn!(
+                        "Invalid LogRule pattern: multiple wildcards in '{}'",
+                        pattern
+                    );
+                    continue;
+                }
+            }
+            valid_patterns.push(pattern.clone());
+        }
+        valid_patterns
     }
 }
 
@@ -74,7 +119,7 @@ impl From<Vec<String>> for LogRule {
 
 #[cfg(test)]
 mod test {
-    use super::{super::path::Path, LogRule, StateRule};
+    use super::{super::path::Path, LogRule, StateRule, WILDCARD_SYMBOL};
     use crate::control_interface::authorizer::path_pattern::{
         PathPattern, PathPatternMatchReason, PathPatternMatcher, PathPatternSection,
     };
@@ -140,10 +185,48 @@ mod test {
     }
 
     #[test]
-    fn utest_log_rule_matches() {
+    fn utest_log_rule_invalid_patterns() {
+        let rule = LogRule::create(vec!["".into(), "valid_pattern".into()]);
+        assert_eq!(rule.patterns, vec!["valid_pattern".to_owned()]);
+
+        let rule = LogRule::create(vec![WILDCARD_SYMBOL.to_owned(), "another_valid".into()]);
+        assert_eq!(rule.patterns, vec![WILDCARD_SYMBOL.to_owned()]);
+
+        let rule = LogRule::create(vec![format!(
+            "too_many{}wildcard{}symbols",
+            WILDCARD_SYMBOL, WILDCARD_SYMBOL
+        )]);
+        assert!(rule.patterns.is_empty());
+    }
+
+    #[test]
+    fn utest_log_rule_matches_no_wildcard() {
         let rule = LogRule::from(vec!["workload1".into(), "workload2".into()]);
         assert!(rule.matches("workload1"));
         assert!(rule.matches("workload2"));
         assert!(!rule.matches("workload3"));
+    }
+
+    #[test]
+    fn utest_log_rule_matches_wildcard() {
+        let rule = LogRule::from(vec![WILDCARD_SYMBOL.into()]);
+        assert!(rule.matches("any_workload"));
+        assert!(rule.matches("name_matches"));
+
+        let rule = LogRule::from(vec![format!("{}ef", WILDCARD_SYMBOL)]);
+        assert!(rule.matches("abcdef"));
+        assert!(rule.matches("ef"));
+        assert!(!rule.matches("abcde"));
+
+        let rule = LogRule::from(vec![format!("ab{}", WILDCARD_SYMBOL)]);
+        assert!(rule.matches("abcdef"));
+        assert!(rule.matches("ab"));
+        assert!(!rule.matches("bcdef"));
+
+        let rule = LogRule::from(vec![format!("ab{}ef", WILDCARD_SYMBOL)]);
+        assert!(rule.matches("abcdef"));
+        assert!(rule.matches("abef"));
+        assert!(!rule.matches("abc"));
+        assert!(!rule.matches("def"));
     }
 }
