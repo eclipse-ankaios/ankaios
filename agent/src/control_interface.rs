@@ -19,10 +19,12 @@ mod control_interface_task;
 mod fifo;
 mod from_server_channels;
 mod input_output;
-mod reopen_file;
+mod input_pipe;
+mod output_pipe;
 mod to_ankaios;
 
 pub use control_interface_path::ControlInterfacePath;
+
 pub use to_ankaios::ToAnkaios;
 
 #[cfg(test)]
@@ -43,7 +45,9 @@ use from_server_channels::FromServerChannels;
 #[cfg_attr(test, mockall_double::double)]
 use input_output::InputOutput;
 #[cfg_attr(test, mockall_double::double)]
-use reopen_file::ReopenFile;
+use input_pipe::InputPipe;
+#[cfg_attr(test, mockall_double::double)]
+use output_pipe::OutputPipe;
 use std::{fmt, fmt::Display, sync::Arc};
 
 use tokio::task::JoinHandle;
@@ -74,16 +78,16 @@ pub struct ControlInterface {
 #[cfg_attr(test, automock)]
 impl ControlInterface {
     pub fn new(
-        control_interface_path: &ControlInterfacePath,
+        base_path: ControlInterfacePath,
         execution_instance_name: &WorkloadInstanceName,
         output_pipe_channel: ToServerSender,
         authorizer: Authorizer,
     ) -> Result<Self, ControlInterfaceError> {
         // [impl->swdd~agent-control-interface-pipes-path-naming~2]
-        match InputOutput::new(control_interface_path.to_path_buf()) {
+        match InputOutput::new(base_path.to_path_buf()) {
             Ok(pipes) => {
-                let input_stream = ReopenFile::open(pipes.get_output().get_path());
-                let output_stream = ReopenFile::create(pipes.get_input().get_path());
+                let input_stream = InputPipe::open(pipes.get_output().get_path());
+                let output_stream = OutputPipe::open(pipes.get_input().get_path());
                 let request_id_prefix = [execution_instance_name.workload_name(), ""].join("@");
                 let input_pipe_channels = FromServerChannels::new(1024);
 
@@ -114,11 +118,10 @@ impl ControlInterface {
         &self.authorizer
     }
 
-    #[allow(dead_code)]
-    // Used in the tests below for now
     pub fn get_api_location(&self) -> ControlInterfacePath {
         ControlInterfacePath::new(self.pipes.get_location())
     }
+
     pub fn get_input_pipe_sender(&self) -> FromServerSender {
         self.input_pipe_sender.clone()
     }
@@ -155,8 +158,8 @@ mod tests {
         authorizer::MockAuthorizer,
         control_interface_task::generate_test_control_interface_task_mock,
         from_server_channels::MockFromServerChannels,
-        input_output::generate_test_input_output_mock, reopen_file::MockReopenFile,
-        ControlInterfacePath,
+        input_output::generate_test_input_output_mock, input_pipe::MockInputPipe,
+        output_pipe::MockOutputPipe, ControlInterfacePath,
     };
     use common::objects::WorkloadInstanceName;
 
@@ -168,14 +171,14 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let reopen_file_mock_open = MockReopenFile::open_context();
-        reopen_file_mock_open
+        let input_pipe_mock_open = MockInputPipe::open_context();
+        input_pipe_mock_open
             .expect()
-            .returning(|_| MockReopenFile::default());
-        let reopen_file_mock_create = MockReopenFile::create_context();
-        reopen_file_mock_create
+            .returning(|_| MockInputPipe::default());
+        let output_pipe_mock_open = MockOutputPipe::open_context();
+        output_pipe_mock_open
             .expect()
-            .returning(|_| MockReopenFile::default());
+            .returning(|_| MockOutputPipe::default());
 
         let _input_output_mock = generate_test_input_output_mock();
 
@@ -192,7 +195,7 @@ mod tests {
 
         const PIPES_FOLDER: &str = "api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910/control_interface";
         let control_interface = ControlInterface::new(
-            &ControlInterfacePath::new(PIPES_FOLDER.into()),
+            ControlInterfacePath::new(PIPES_FOLDER.into()),
             &WorkloadInstanceName::builder()
                 .workload_name("workload_name_1")
                 .config(&String::from(CONFIG))
@@ -218,14 +221,14 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let reopen_file_mock_open = MockReopenFile::open_context();
-        reopen_file_mock_open
-            .expect()
-            .returning(|_| MockReopenFile::default());
-        let reopen_file_mock_create = MockReopenFile::create_context();
-        reopen_file_mock_create
-            .expect()
-            .returning(|_| MockReopenFile::default());
+            let input_pipe_mock_open = MockInputPipe::open_context();
+            input_pipe_mock_open
+                .expect()
+                .returning(|_| MockInputPipe::default());
+            let output_pipe_mock_open = MockOutputPipe::open_context();
+            output_pipe_mock_open
+                .expect()
+                .returning(|_| MockOutputPipe::default());
 
         let _input_output_mock = generate_test_input_output_mock();
 
@@ -242,7 +245,7 @@ mod tests {
         let _control_interface_task_mock = generate_test_control_interface_task_mock();
 
         let control_interface = ControlInterface::new(
-            &ControlInterfacePath::new("api_pipes_location".into()),
+            ControlInterfacePath::new("api_pipes_location".into()),
             &WorkloadInstanceName::builder()
                 .agent_name("workload_name_1")
                 .config(&String::from(CONFIG))
