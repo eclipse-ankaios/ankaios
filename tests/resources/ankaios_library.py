@@ -244,7 +244,7 @@ def json_to_dict(raw):
 
 def find_control_interface_test_tag():
     global control_interface_tester_tag
-    control_interface_tester_tag = "manual-build-4"
+    control_interface_tester_tag = "manual-build-5"
 
 def prepare_test_control_interface_workload():
     global control_interface_workload_config
@@ -353,6 +353,8 @@ def create_control_interface_config_for_test():
 
 def internal_check_all_control_interface_requests_succeeded(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    print("requests shall succeed")
+    print(output)
     for test_number,test_result in enumerate(output):
         test_result = test_result["result"]["value"]["type"] == "Ok"
         assert test_result, \
@@ -360,6 +362,8 @@ def internal_check_all_control_interface_requests_succeeded(tmp_folder):
 
 def internal_check_all_control_interface_requests_failed(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    print("requests shall fail")
+    print(output)
     for test_number,test_result in enumerate(output):
         if test_result["result"]["type"] != "SendHelloResult":
             test_result = test_result["result"]["value"]["type"] != "Ok"
