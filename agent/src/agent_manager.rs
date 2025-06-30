@@ -199,6 +199,7 @@ impl AgentManager {
                 log::debug!("Agent '{}' received Stop from server", self.agent_name);
                 None
             }
+            // [impl->swdd~agent-handles-logs-requests-from-server~1]
             FromServer::LogsRequest(request_id, logs_request) => {
                 WorkloadLogFacade::spawn_log_collection(
                     request_id,
@@ -641,6 +642,7 @@ mod tests {
         assert!(join!(handle).0.is_ok());
     }
 
+    // [utest->swdd~agent-handles-logs-requests-from-server~1]
     #[tokio::test]
     async fn utest_agent_manager_request_logs() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

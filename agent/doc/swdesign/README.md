@@ -147,6 +147,10 @@ The PodmanKubeRuntime connector implements the runtime connector trait for 'podm
 
 The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implements the state checker trait) that can be used by a runtime connector to make polling requests for workload state as predefined intervals.
 
+### WorkloadLogFacade
+
+The `WorkloadLogFacade` encapsulates all steps to setup a log collection campaign, when the agent receives request from the server to collect logs for workloads.
+
 ### External Libraries
 
 #### Communication Middleware
@@ -1826,7 +1830,7 @@ Needs:
 - utest
 - stest
 
-### WorkloadControlLoop reset backoff on update
+#### WorkloadControlLoop reset backoff on update
 `swdd~agent-workload-control-loop-reset-backoff-on-update`
 
 Status: approved
@@ -3373,6 +3377,79 @@ the Authorizer shall consider them matching if one of the following is true:
 
 Tags:
 - Authorizer
+
+Needs:
+- impl
+- utest
+
+### Handling LogsRequests
+
+#### Agent handles LogsRequests from the server
+`swdd~agent-handles-logs-requests-from-server~1`
+
+Status: approved
+
+When the AgentManager receives a `LogsRequest` message from the Ankaios server, the AgentManager shall request the WorkloadLogFacade to start the log collection campaign for the provided workload names including additional log options part of the received message.
+
+Rationale:
+The process of collecting logs for workloads must be decoupled from the main loop of the agent that handles incoming messages from the server.
+
+Tags:
+- AgentManager
+- WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade starts log collection campaign for workloads
+`swdd~workload-log-facade-starts-log-collection-campaign~1`
+
+Status: approved
+
+When the WorkloadLogFacade is triggered by the AgentManager to start the log collection campaign for the provided workloads, the WorkloadLogFacade shall:
+* request the RuntimeManager to start collecting logs for the workload names
+* initialize the log collector subscriptions with their log receivers for the provided workload names
+* spawn the reading and forwarding of the logs for the provided workloads
+* add a log subscription entry to the subscription store
+
+Rationale:
+Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection campaign is finished.
+
+Tags:
+- WorkloadLogFacade
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade forwards logs to the server
+`swdd~workload-log-facade-forwards-logs-to-server~1`
+
+Status: approved
+
+When the WorkloadLogFacade reads the logs from the log receivers, the WorkloadLogFacade shall send `LogsResponse` messages containing the log entries of the workloads to the Ankaios server.
+
+Tags:
+- WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade automatically unsubscribes log subscriptions
+`swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1`
+
+Status: approved
+
+When the WorkloadLogFacade has no more logs to forward for a log subscription, the WorkloadLogFacade shall delete the log subscription entry of the log collection campaign from the subscription store.
+
+Rationale:
+The subscriber does not have to actively cancel the log collection campaign if no more logs are available from workloads, which simplifies the API usage.
+
+Tags:
+- WorkloadLogFacade
 
 Needs:
 - impl

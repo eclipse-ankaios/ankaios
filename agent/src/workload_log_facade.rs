@@ -46,6 +46,7 @@ type UnorderedLogReceiverFutures =
 
 #[cfg_attr(test, automock)]
 impl WorkloadLogFacade {
+    // [impl->swdd~workload-log-facade-starts-log-collection-campaign~1]
     pub async fn spawn_log_collection(
         request_id: String,
         logs_request: LogsRequest,
@@ -68,6 +69,7 @@ impl WorkloadLogFacade {
             let _subscription = subscription;
             let futures = Self::convert_log_receivers_to_futures(receivers);
 
+            // [impl->swdd~workload-log-facade-forwards-logs-to-server~1]
             Self::consume_futures_and_forward_logs_until_stop(
                 futures,
                 cloned_request_id.clone(),
@@ -75,6 +77,7 @@ impl WorkloadLogFacade {
             )
             .await;
 
+            // [impl->swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
             subscription_store
                 .lock()
                 .unwrap()
@@ -104,6 +107,7 @@ impl WorkloadLogFacade {
         ))
     }
 
+    // [impl->swdd~workload-log-facade-forwards-logs-to-server~1]
     async fn consume_futures_and_forward_logs_until_stop(
         mut log_futures: UnorderedLogReceiverFutures,
         request_id: String,
@@ -207,6 +211,8 @@ mod tests {
         }
     }
 
+    // [utest->swdd~workload-log-facade-starts-log-collection-campaign~1]
+    // [utest->swdd~workload-log-facade-forwards-logs-to-server~1]
     #[tokio::test]
     async fn utest_workload_log_facade_spawn_log_collection() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -358,6 +364,7 @@ mod tests {
         assert!(*mock_log_collector_subscription_dropped.lock().unwrap());
     }
 
+    // [utest->swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
     #[tokio::test]
     async fn utest_workload_log_facade_spawn_log_collection_unsubscribe_log_subscription() {
         let _ = env_logger::builder().is_test(true).try_init();
