@@ -24,6 +24,7 @@ use common::objects::{
     CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap,
 };
 
+use common::request_id_prepending::detach_prefix_from_request_id;
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
@@ -48,6 +49,7 @@ pub fn create_from_server_channel(capacity: usize) -> FromServerChannel {
 }
 
 type AgentLogRequestIdMap = std::collections::HashMap<String, std::collections::HashSet<String>>;
+const CLI_PREFIX: &str = "cli-conn";
 
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
@@ -189,6 +191,11 @@ impl AnkaiosServer {
                         .unwrap_or_default();
 
                     for request_id in request_ids_for_agent_gone {
+                        log::debug!(
+                            "Cancelling log request with ID '{}' for disconnected agent '{}'",
+                            request_id,
+                            agent_name
+                        );
                         self.to_agents
                             .logs_cancel_request(request_id)
                             .await
@@ -330,8 +337,17 @@ impl AnkaiosServer {
                     common::commands::RequestContent::LogsRequest(logs_request) => {
                         log::debug!("Got log request with ID: {}", request_id);
 
-                        for instance_name in &logs_request.workload_names {
-                            let agent_name = instance_name.agent_name().to_string();
+                        let (agent_or_cli_name, _) = detach_prefix_from_request_id(&request_id);
+
+                        if agent_or_cli_name.eq(CLI_PREFIX) {
+                            log::debug!("Received log request from CLI, not an agent.");
+                        } else {
+                            log::debug!(
+                                "Received log request from agent '{}', request ID: {}",
+                                agent_or_cli_name,
+                                request_id
+                            );
+                            let agent_name = agent_or_cli_name;
 
                             self.agent_log_request_id_map
                                 .entry(agent_name)
