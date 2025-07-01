@@ -1,0 +1,44 @@
+@startuml seq_logging_workflow
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Collector Workload"
+    participant "Workload" as collector_workload
+end box
+
+box "Agent A"
+    participant "Agent" as agent_a
+end box
+
+box "Server"
+    participant "Server" as server
+end box
+
+box "Agent B"
+    participant "Agent" as agent_b
+    participant "Subscription Store" as agent_b_subscription_store
+end box
+
+box "Logging Workload"
+    participant "Workload" as logging_workload
+end box
+
+collector_workload -> agent_a: ank_base.LogsRequest
+agent_a -> server: ank_base.LogsRequest
+server -> agent_b: ank_base.LogsRequest
+activate agent_b_subscription_store
+agent_b -> logging_workload: podman logs
+
+...
+
+logging_workload -> agent_b: podman logs
+agent_b -> server: ank_base.LogsResponse
+server -> agent_a: ank_base.LogsResponse
+agent_a -> collector_workload: ank_base.LogsResponse
+
+...
+
+collector_workload -> agent_a: ank_base.LogsCancelRequest
+agent_a -> server: ank_base.LogsCancelRequest
+server -> agent_b: ank_base.LogsCancelRequest
+deactivate agent_b_subscription_store
+@enduml
