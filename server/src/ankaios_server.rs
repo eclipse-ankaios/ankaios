@@ -185,12 +185,12 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
 
-                    let request_ids_for_agent_gone = self
+                    let request_ids_from_disconnected_agent = self
                         .agent_log_request_id_map
                         .remove(&agent_name)
                         .unwrap_or_default();
 
-                    for request_id in request_ids_for_agent_gone {
+                    for request_id in request_ids_from_disconnected_agent {
                         log::debug!(
                             "Cancelling log request with ID '{}' for disconnected agent '{}'",
                             request_id,
@@ -339,7 +339,7 @@ impl AnkaiosServer {
 
                         let (agent_or_cli_name, _) = detach_prefix_from_request_id(&request_id);
 
-                        if agent_or_cli_name.eq(CLI_PREFIX) {
+                        if agent_or_cli_name.starts_with(CLI_PREFIX) {
                             log::debug!("Received log request from CLI, not an agent.");
                         } else {
                             log::debug!(
