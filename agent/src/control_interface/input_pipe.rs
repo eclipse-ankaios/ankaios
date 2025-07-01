@@ -103,8 +103,7 @@ impl InputPipe {
 mockall::mock! {
     pub InputPipe {
         pub fn open(path: &Path) -> Self;
-        pub fn create(path: &Path) -> Self;
-        pub async fn read_protobuf_data(&mut self) -> io::Result<Vec<u8>>;
+        pub fn read_protobuf_data(&mut self) -> impl std::future::Future<Output=io::Result<Vec<u8>> > + Send;
         async fn try_read_protobuf_data(file: &mut BufReader<Receiver>) -> Result<Vec<u8>, Error>;
     }
 }
