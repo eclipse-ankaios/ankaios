@@ -347,11 +347,12 @@ impl AnkaiosServer {
                     common::commands::RequestContent::LogsCancelRequest => {
                         log::debug!("Got log cancel request with ID: {}", request_id);
 
-                        self.agent_log_request_id_map
-                            .retain(|_agent_name, request_ids| {
-                                request_ids.remove(&request_id);
-                                !request_ids.is_empty()
-                            });
+                        self.agent_log_request_id_map.retain(
+                            |_agent_name, request_ids_per_agent| {
+                                request_ids_per_agent.remove(&request_id);
+                                !request_ids_per_agent.is_empty()
+                            },
+                        );
 
                         self.to_agents
                             .logs_cancel_request(request_id)
