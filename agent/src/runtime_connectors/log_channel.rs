@@ -41,7 +41,7 @@ impl Drop for Receiver {
     }
 }
 
-struct NoCloneableSender(mpsc::Sender<Vec<String>>); // Sender is dropped to indicate receiver stop of log responses
+struct NoCloneableSender(mpsc::Sender<Vec<String>>); // Sender should not be cloned as the drop is used to indicate to the receiver the stop of log responses.
 
 pub struct Sender {
     log_line_sender: NoCloneableSender,
