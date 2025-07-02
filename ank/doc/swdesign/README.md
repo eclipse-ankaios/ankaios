@@ -1132,6 +1132,9 @@ When the Ankaios CLI samples workload names to workload instance names for logs 
 * for each workload name, add the corresponding workload instance name of the `workloadStates` to a list
 * fail if there is no matching workload instance name for a workload name or if the `workloadStates` field is not available
 
+Comment:
+If multiple workload instance names exist for one workload because of an updated workload, the sampling results in multiple instance names.
+
 Tags:
 - CliCommands
 

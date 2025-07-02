@@ -12,8 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::BTreeSet;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use common::objects::{WorkloadInstanceName, WorkloadState};
 
@@ -48,21 +47,25 @@ impl CliCommands {
             .await?;
 
         if let Some(wl_states) = complete_state.workload_states {
-            let available_instance_names: HashMap<String, WorkloadInstanceName> =
-                Vec::<WorkloadState>::from(wl_states)
-                    .into_iter()
-                    .map(|wl_state| {
-                        (
-                            wl_state.instance_name.workload_name().to_owned(),
-                            wl_state.instance_name,
-                        )
-                    })
-                    .collect();
+            let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceName>> =
+                Vec::<WorkloadState>::from(wl_states).into_iter().fold(
+                    HashMap::new(),
+                    |mut acc, wl_state| {
+                        let instance_name = wl_state.instance_name.clone();
+                        let workload_name = instance_name.workload_name();
+                        acc.entry(workload_name.to_owned())
+                            .or_default()
+                            .insert(instance_name);
+                        acc
+                    },
+                );
 
             let mut converted_instance_names = BTreeSet::new();
             for wl_name in workload_names {
-                if let Some(instance_name) = available_instance_names.get(&wl_name) {
-                    converted_instance_names.insert(instance_name.clone());
+                if let Some(instance_names) = available_instance_names.get(&wl_name) {
+                    for workload_instance_name in instance_names {
+                        converted_instance_names.insert(workload_instance_name.clone());
+                    }
                 } else {
                     return Err(CliError::ExecutionError(format!(
                         "Workload name '{}' does not exist.",
@@ -328,5 +331,53 @@ mod tests {
                     .to_string(),
             ))
         );
+    }
+
+    // [utest->swdd~cli-uses-workload-states-to-sample-workload-to-instance-names~1]
+    #[tokio::test]
+    async fn utest_workload_names_to_instance_names_multiple_instance_names_for_one_workload() {
+        let mut mock_server_connection = MockServerConnection::default();
+        let workload_1_agent_a = generate_test_workload_spec_with_param(
+            AGENT_A_NAME.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let workload_1_agent_b = generate_test_workload_spec_with_param(
+            AGENT_B_NAME.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let instance_name_wl_1_agent_a = workload_1_agent_a.instance_name.clone();
+        let instance_name_wl_1_agent_b = workload_1_agent_b.instance_name.clone();
+
+        mock_server_connection
+            .expect_get_complete_state()
+            .return_once(|_| {
+                Ok(
+                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
+                        workload_1_agent_a,
+                        workload_1_agent_b,
+                    ]))
+                    .into(),
+                )
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let workload_names = vec![WORKLOAD_NAME_1.to_string()];
+        let result = cmd.workload_names_to_instance_names(workload_names).await;
+
+        assert!(result.is_ok(), "Got result {:?}", result);
+        let instance_names = result.unwrap();
+        let expected_instance_names: BTreeSet<WorkloadInstanceName> =
+            BTreeSet::from([instance_name_wl_1_agent_a, instance_name_wl_1_agent_b]);
+
+        assert_eq!(instance_names, expected_instance_names);
     }
 }
