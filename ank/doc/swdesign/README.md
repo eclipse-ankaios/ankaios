@@ -1123,7 +1123,7 @@ Needs:
 - stest
 
 #### CLI uses WorkloadStates to sample workload names to workload instance names
-`swdd~cli-uses-workload-states-to-convert-workload-to-instance-names~1`
+`swdd~cli-uses-workload-states-to-sample-workload-to-instance-names~1`
 
 Status: approved
 

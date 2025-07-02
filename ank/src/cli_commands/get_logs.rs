@@ -36,7 +36,7 @@ impl CliCommands {
             .map_err(|e| CliError::ExecutionError(format!("Failed to get logs: '{:?}'", e)))
     }
 
-    // [impl->swdd~cli-uses-workload-states-to-convert-workload-to-instance-names~1]
+    // [impl->swdd~cli-uses-workload-states-to-sample-workload-to-instance-names~1]
     async fn workload_names_to_instance_names(
         &mut self,
         workload_names: Vec<String>,
@@ -266,7 +266,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-uses-workload-states-to-convert-workload-to-instance-names~1]
+    // [utest->swdd~cli-uses-workload-states-to-sample-workload-to-instance-names~1]
     #[tokio::test]
     async fn utest_workload_names_to_instance_names_workload_does_not_exist() {
         let mut mock_server_connection = MockServerConnection::default();
@@ -304,7 +304,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-uses-workload-states-to-convert-workload-to-instance-names~1]
+    // [utest->swdd~cli-uses-workload-states-to-sample-workload-to-instance-names~1]
     #[tokio::test]
     async fn utest_workload_names_to_instance_names_no_workload_states_available() {
         let mut mock_server_connection = MockServerConnection::default();
