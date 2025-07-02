@@ -20,7 +20,7 @@ use crate::output_debug;
 pub struct SignalHandler;
 
 impl SignalHandler {
-    // [impl->swdd~cli-provides-signal-handling~1]
+    // [impl->swdd~cli-provides-termination-signal-handling~1]
     #[allow(dead_code)]
     pub async fn wait_for_signals() {
         let mut sigint_sig = signal(SignalKind::interrupt()).unwrap_or_unreachable();

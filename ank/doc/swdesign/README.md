@@ -1218,14 +1218,14 @@ Needs:
 - impl
 - utest
 
-### CLI signal handling
+### CLI termination signal handling
 
-#### CLI provides signal handling
-`swdd~cli-provides-signal-handling~1`
+#### CLI provides termination signal handling
+`swdd~cli-provides-termination-signal-handling~1`
 
 Status: approved
 
-The Ankaios CLI shall provide a function to listen for the following `unix` signals:
+The Ankaios CLI shall provide a function to listen to the following `unix` signals to handle them as termination signals:
 
 - SIGINT
 - SIGTERM
