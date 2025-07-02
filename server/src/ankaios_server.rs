@@ -1562,7 +1562,7 @@ mod tests {
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         assert!(to_server
-            .logs_response(
+            .log_entries_response(
                 REQUEST_ID.into(),
                 ank_base::LogEntriesResponse {
                     log_entries: vec![ank_base::LogEntry {

@@ -80,7 +80,7 @@ pub trait ToServerInterface {
         logs_request: LogsRequest,
     ) -> Result<(), ToServerError>;
     async fn logs_cancel_request(&self, request_id: String) -> Result<(), ToServerError>;
-    async fn logs_response(
+    async fn log_entries_response(
         &self,
         request_id: String,
         logs_response: ank_base::LogEntriesResponse,
@@ -187,7 +187,7 @@ impl ToServerInterface for ToServerSender {
             .await?)
     }
 
-    async fn logs_response(
+    async fn log_entries_response(
         &self,
         request_id: String,
         logs_response: ank_base::LogEntriesResponse,
@@ -437,7 +437,7 @@ mod tests {
         };
 
         assert!(tx
-            .logs_response(REQUEST_ID.into(), logs_response.clone())
+            .log_entries_response(REQUEST_ID.into(), logs_response.clone())
             .await
             .is_ok());
 

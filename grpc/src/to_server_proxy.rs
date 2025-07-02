@@ -142,8 +142,11 @@ pub async fn forward_from_proto_to_ankaios(
             ToServerEnum::LogEntriesResponse(log_entries_response) => {
                 log::trace!("Received LogEntriesResponse from '{}'", agent_name);
                 if let Some(logs_response_object) = log_entries_response.log_entries_response {
-                    sink.logs_response(log_entries_response.request_id, logs_response_object)
-                        .await?;
+                    sink.log_entries_response(
+                        log_entries_response.request_id,
+                        logs_response_object,
+                    )
+                    .await?;
                 } else {
                     log::warn!(
                         "Received a LogEntriesResponse from '{}' without actual data",
@@ -1015,7 +1018,7 @@ mod tests {
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
         let forward_logs_result = server_tx
-            .logs_response(
+            .log_entries_response(
                 REQUEST_ID.to_owned(),
                 LogEntriesResponse {
                     log_entries: vec![

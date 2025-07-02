@@ -241,7 +241,7 @@ impl AgentManager {
                         log::debug!("Got new log lines: {:?}", log_lines);
                         if let Some(log_lines) = log_lines {
                             to_server
-                                .logs_response(
+                                .log_entries_response(
                                     request_id.clone(),
                                     ank_base::LogEntriesResponse {
                                         log_entries: log_lines
