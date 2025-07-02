@@ -1120,6 +1120,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### CLI uses WorkloadStates to convert workload names to workload instance names
 `swdd~cli-uses-workload-states-to-convert-workload-to-instance-names~1`

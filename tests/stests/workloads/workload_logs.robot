@@ -22,6 +22,7 @@ Resource            ../../resources/variables.resource
 *** Test Cases ***
 
 # [stest->swdd~cli-provides-workload-logs~1]
+# [stest->swdd~cli-streams-logs-from-the-server~1]
 # [stest->swdd~cli-outputs-logs-in-specific-format~1]
 Test Ankaios outputs logs for multiple workloads with disabled follow mode
     [Documentation]    Output logs for multiple workloads with disabled follow mode over multiple agents.
