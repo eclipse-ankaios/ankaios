@@ -110,6 +110,7 @@ message CommanderHello {
 * A message to the Ankaios server to signalize a client (agent or cli) is shutting down.
 */
 message Goodbye {
+    string connection_name = 1; /// The name of the connection that is shutting down, e.g., agent name or cli session id.
 }
 
 /**

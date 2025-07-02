@@ -84,6 +84,7 @@ pub trait ToServerInterface {
         request_id: String,
         logs_response: ank_base::LogsResponse,
     ) -> Result<(), ToServerError>;
+    async fn goodbye(&self, connection_name: String) -> Result<(), ToServerError>;
     async fn stop(&self) -> Result<(), ToServerError>;
 }
 
@@ -188,6 +189,12 @@ impl ToServerInterface for ToServerSender {
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::LogsResponse(request_id, logs_response))
+            .await?)
+    }
+
+    async fn goodbye(&self, connection_name: String) -> Result<(), ToServerError> {
+        Ok(self
+            .send(ToServer::Goodbye(commands::Goodbye { connection_name }))
             .await?)
     }
 

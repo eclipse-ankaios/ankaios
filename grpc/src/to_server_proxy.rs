@@ -127,6 +127,7 @@ pub async fn forward_from_proto_to_ankaios(
                     "Received Goodbye from '{}'. Stopping the control loop.",
                     agent_name
                 );
+                sink.goodbye(agent_name).await?;
                 break;
             }
 
@@ -161,6 +162,7 @@ pub async fn forward_from_proto_to_ankaios(
 
 // [impl->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
 pub async fn forward_from_ankaios_to_proto(
+    connection_name: String,
     grpc_tx: Sender<grpc_api::ToServer>,
     server_rx: &mut ToServerReceiver,
 ) -> Result<(), GrpcMiddlewareError> {
@@ -242,7 +244,7 @@ pub async fn forward_from_ankaios_to_proto(
     grpc_tx
         .send(grpc_api::ToServer {
             to_server_enum: Some(grpc_api::to_server::ToServerEnum::Goodbye(
-                crate::grpc_api::Goodbye {},
+                crate::grpc_api::Goodbye { connection_name },
             )),
         })
         .await?;

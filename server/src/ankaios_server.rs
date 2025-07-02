@@ -395,22 +395,20 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
                 }
-                ToServer::Stop(_method_obj) => {
-                    log::debug!("Received Stop from communications server");
-                    // TODO: handle the call
-                    break;
-                }
                 ToServer::LogsResponse(request_id, logs_response) => {
                     self.to_agents
                         .logs_response(request_id, logs_response)
                         .await
                         .unwrap_or_illegal_state();
                 }
-                unknown_message => {
-                    log::warn!(
-                        "Received an unknown message from communications server: '{:?}'",
-                        unknown_message
-                    );
+
+                ToServer::Goodbye(goodbye) => {
+                    log::warn!("Received 'Goodbye' from '{}'", goodbye.connection_name);
+                }
+                ToServer::Stop(_method_obj) => {
+                    log::debug!("Received Stop from communications server");
+                    // TODO: handle the call
+                    break;
                 }
             }
         }
