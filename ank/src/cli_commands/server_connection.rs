@@ -287,7 +287,7 @@ impl ServerConnection {
                             ServerConnectionError::ExecutionError("Error streaming workload logs: channel preliminary closed.".to_string()
                     ))?;
 
-                    match response_to_log_streaming_state(&request_id, server_message)? {
+                    match handle_server_log_response(&request_id, server_message)? {
                         LogStreamingState::Output(log_entries) => {
                             output_logs(log_entries.log_entries);
                         }
@@ -310,7 +310,7 @@ impl ServerConnection {
 }
 
 // [impl->swdd~handles-log-responses-from-server~1]
-fn response_to_log_streaming_state(
+fn handle_server_log_response(
     request_id: &String,
     server_message: FromServer,
 ) -> Result<LogStreamingState, ServerConnectionError> {
@@ -349,7 +349,10 @@ fn response_to_log_streaming_state(
         )),
         // ignore all other messages sent by the server while streaming logs
         unexpected_response => {
-            output_debug!("Received an unexpected response from the server: {:?}", unexpected_response);
+            output_debug!(
+                "Received an unexpected response from the server: {:?}",
+                unexpected_response
+            );
             Ok(LogStreamingState::Continue)
         }
     }
