@@ -1104,7 +1104,7 @@ Needs:
 
 Status: approved
 
-When the ToServer message LogsStopResponse is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall distribute the FromServer message LogsStopResponse to all connected agents.
+When the ToServer message LogsStopResponse is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall distribute the FromServer message LogsStopResponse to the agent communication channel provided by the communication middleware.
 
 Rationale:
 Log subscribers must be informed when there are no more log messages for a workload.
