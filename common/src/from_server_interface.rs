@@ -78,10 +78,15 @@ pub trait FromServerInterface {
         request_id: String,
         logs_request: ank_base::LogsRequest,
     ) -> Result<(), FromServerInterfaceError>;
-    async fn logs_response(
+    async fn log_entries_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogsResponse,
+        logs_response: ank_base::LogEntriesResponse,
+    ) -> Result<(), FromServerInterfaceError>;
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
     ) -> Result<(), FromServerInterfaceError>;
     async fn logs_cancel_request(&self, request_id: String)
         -> Result<(), FromServerInterfaceError>;
@@ -186,15 +191,33 @@ impl FromServerInterface for FromServerSender {
         Ok(())
     }
 
-    async fn logs_response(
+    async fn log_entries_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogsResponse,
+        logs_response: ank_base::LogEntriesResponse,
     ) -> Result<(), FromServerInterfaceError> {
         self.send(FromServer::Response(ank_base::Response {
             request_id,
-            response_content: ank_base::response::ResponseContent::LogsResponse(logs_response)
-                .into(),
+            response_content: ank_base::response::ResponseContent::LogEntriesResponse(
+                logs_response,
+            )
+            .into(),
+        }))
+        .await?;
+        Ok(())
+    }
+
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
+    ) -> Result<(), FromServerInterfaceError> {
+        self.send(FromServer::Response(ank_base::Response {
+            request_id,
+            response_content: ank_base::response::ResponseContent::LogsStopResponse(
+                logs_stop_response,
+            )
+            .into(),
         }))
         .await?;
         Ok(())
@@ -460,9 +483,9 @@ mod tests {
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
         assert!(tx
-            .logs_response(
+            .log_entries_response(
                 REQUEST_ID.into(),
-                ank_base::LogsResponse {
+                ank_base::LogEntriesResponse {
                     log_entries: vec![
                         ank_base::LogEntry {
                             workload_name: Some(ank_base::WorkloadInstanceName {
@@ -490,8 +513,8 @@ mod tests {
             rx.recv().await.unwrap(),
             FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.into(),
-                response_content: Some(ank_base::response::ResponseContent::LogsResponse(
-                    ank_base::LogsResponse {
+                response_content: Some(ank_base::response::ResponseContent::LogEntriesResponse(
+                    ank_base::LogEntriesResponse {
                         log_entries: vec![
                             ank_base::LogEntry {
                                 workload_name: Some(ank_base::WorkloadInstanceName {
@@ -522,9 +545,9 @@ mod tests {
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
         assert!(tx
-            .logs_response(
+            .log_entries_response(
                 REQUEST_ID.into(),
-                ank_base::LogsResponse {
+                ank_base::LogEntriesResponse {
                     log_entries: vec![ank_base::LogEntry {
                         workload_name: Some(ank_base::WorkloadInstanceName {
                             workload_name: WORKLOAD_NAME_1.into(),
@@ -533,6 +556,64 @@ mod tests {
                         }),
                         message: "message_1".into()
                     }]
+                }
+            )
+            .await
+            .is_err());
+    }
+
+    // [utest->swdd~from-server-channel~1]
+    #[tokio::test]
+    async fn utest_logs_stop_response_success() {
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let workload_instance_name = ank_base::WorkloadInstanceName {
+            workload_name: WORKLOAD_NAME_1.into(),
+            agent_name: AGENT_NAME.into(),
+            id: "1".into(),
+        };
+
+        assert!(tx
+            .logs_stop_response(
+                REQUEST_ID.to_string(),
+                ank_base::LogsStopResponse {
+                    workload_name: Some(workload_instance_name.clone()),
+                }
+            )
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await,
+            Some(FromServer::Response(ank_base::Response {
+                request_id: REQUEST_ID.to_string(),
+                response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(
+                    ank_base::LogsStopResponse {
+                        workload_name: Some(workload_instance_name),
+                    }
+                )),
+            }))
+        );
+    }
+
+    // [utest->swdd~from-server-channel~1]
+    #[tokio::test]
+    async fn utest_logs_stop_response_fail() {
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        rx.close();
+
+        assert!(tx
+            .logs_stop_response(
+                REQUEST_ID.to_string(),
+                ank_base::LogsStopResponse {
+                    workload_name: Some(ank_base::WorkloadInstanceName {
+                        workload_name: WORKLOAD_NAME_1.into(),
+                        agent_name: AGENT_NAME.into(),
+                        id: "1".into(),
+                    }),
                 }
             )
             .await

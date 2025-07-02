@@ -350,17 +350,23 @@ impl AnkaiosServer {
                     // TODO: handle the call
                     break;
                 }
-                ToServer::LogsResponse(request_id, logs_response) => {
+                ToServer::LogEntriesResponse(request_id, logs_response) => {
                     self.to_agents
-                        .logs_response(request_id, logs_response)
+                        .log_entries_response(request_id, logs_response)
                         .await
                         .unwrap_or_illegal_state();
                 }
-                unknown_message => {
-                    log::warn!(
-                        "Received an unknown message from communications server: '{:?}'",
-                        unknown_message
-                    );
+                // [impl->swdd~server-forwards-logs-stop-response-messages~1]
+                ToServer::LogsStopResponse(request_id, logs_stop_response) => {
+                    log::debug!("Received LogsStopResponse with ID: {}", request_id);
+                    self.to_agents
+                        .logs_stop_response(request_id, logs_stop_response)
+                        .await
+                        .unwrap_or_illegal_state();
+                }
+
+                ToServer::Goodbye(_) => {
+                    log::warn!("Received unexpected 'Goodbye' from communications server");
                 }
             }
         }
@@ -1556,9 +1562,9 @@ mod tests {
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         assert!(to_server
-            .logs_response(
+            .log_entries_response(
                 REQUEST_ID.into(),
-                ank_base::LogsResponse {
+                ank_base::LogEntriesResponse {
                     log_entries: vec![ank_base::LogEntry {
                         workload_name: Some(ank_base::WorkloadInstanceName {
                             workload_name: WORKLOAD_NAME_1.into(),
@@ -1576,8 +1582,8 @@ mod tests {
             comm_middle_ware_receiver.recv().await.unwrap(),
             FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.into(),
-                response_content: Some(ank_base::response::ResponseContent::LogsResponse(
-                    ank_base::LogsResponse {
+                response_content: Some(ank_base::response::ResponseContent::LogEntriesResponse(
+                    ank_base::LogEntriesResponse {
                         log_entries: vec![ank_base::LogEntry {
                             workload_name: Some(ank_base::WorkloadInstanceName {
                                 workload_name: WORKLOAD_NAME_1.into(),
@@ -1914,6 +1920,51 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::LogsCancelRequest(request_id,),
+            from_server_command
+        );
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-forwards-logs-stop-response-messages~1]
+    #[tokio::test]
+    async fn utest_server_logs_stop_response() {
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let request_id = REQUEST_ID.to_string();
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        let workload_instance_name = ank_base::WorkloadInstanceName {
+            workload_name: WORKLOAD_NAME_1.to_string(),
+            agent_name: AGENT_A.to_string(),
+            id: INSTANCE_ID.to_string(),
+        };
+
+        // send new state to server
+        let result = to_server
+            .logs_stop_response(
+                request_id.clone(),
+                ank_base::LogsStopResponse {
+                    workload_name: Some(workload_instance_name.clone()),
+                },
+            )
+            .await;
+        assert!(result.is_ok());
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::Response(ank_base::Response {
+                request_id: request_id.clone(),
+                response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(
+                    ank_base::LogsStopResponse {
+                        workload_name: Some(workload_instance_name),
+                    }
+                ))
+            }),
             from_server_command
         );
 
