@@ -251,7 +251,7 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
             ToServerEnum::LogEntriesResponse(log_entries_response) => {
                 let Some(logs_response_object) = log_entries_response.log_entries_response else {
                     return Err(format!(
-                        "LogResponse for '{}' does not container actual response.",
+                        "LogResponse for '{}' does not contain an actual response.",
                         log_entries_response.request_id
                     ));
                 };
