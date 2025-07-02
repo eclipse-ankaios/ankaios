@@ -1122,12 +1122,12 @@ Needs:
 - utest
 - stest
 
-#### CLI uses WorkloadStates to convert workload names to workload instance names
+#### CLI uses WorkloadStates to sample workload names to workload instance names
 `swdd~cli-uses-workload-states-to-convert-workload-to-instance-names~1`
 
 Status: approved
 
-When the Ankaios CLI converts workload names to workload instance names for logs requests, the Ankaios CLI shall:
+When the Ankaios CLI samples workload names to workload instance names for logs requests, the Ankaios CLI shall:
 * request the CompleteState with field mask `workloadStates` from the Ankaios Server
 * for each workload name, add the corresponding workload instance name of the `workloadStates` to a list
 * fail if there is no matching workload instance name for a workload name or if the `workloadStates` field is not available
