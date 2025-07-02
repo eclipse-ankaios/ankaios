@@ -1090,7 +1090,6 @@ mod tests {
                 None,
             ]));
 
-        // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
             AGENT_A_NAME.to_string(),
             &mut mock_grpc_ex_request_streaming,
