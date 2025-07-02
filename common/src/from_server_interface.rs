@@ -78,7 +78,7 @@ pub trait FromServerInterface {
         request_id: String,
         logs_request: ank_base::LogsRequest,
     ) -> Result<(), FromServerInterfaceError>;
-    async fn logs_response(
+    async fn log_entries_response(
         &self,
         request_id: String,
         logs_response: ank_base::LogEntriesResponse,
@@ -191,7 +191,7 @@ impl FromServerInterface for FromServerSender {
         Ok(())
     }
 
-    async fn logs_response(
+    async fn log_entries_response(
         &self,
         request_id: String,
         logs_response: ank_base::LogEntriesResponse,
@@ -483,7 +483,7 @@ mod tests {
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
         assert!(tx
-            .logs_response(
+            .log_entries_response(
                 REQUEST_ID.into(),
                 ank_base::LogEntriesResponse {
                     log_entries: vec![
@@ -545,7 +545,7 @@ mod tests {
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
         assert!(tx
-            .logs_response(
+            .log_entries_response(
                 REQUEST_ID.into(),
                 ank_base::LogEntriesResponse {
                     log_entries: vec![ank_base::LogEntry {

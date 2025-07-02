@@ -352,7 +352,7 @@ impl AnkaiosServer {
                 }
                 ToServer::LogEntriesResponse(request_id, logs_response) => {
                     self.to_agents
-                        .logs_response(request_id, logs_response)
+                        .log_entries_response(request_id, logs_response)
                         .await
                         .unwrap_or_illegal_state();
                 }
