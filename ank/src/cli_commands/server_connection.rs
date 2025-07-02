@@ -347,7 +347,11 @@ fn response_to_log_streaming_state(
         }) if &received_request_id == request_id => Err(ServerConnectionError::ExecutionError(
             format!("Error streaming logs: '{}'", error.message),
         )),
-        _ => Ok(LogStreamingState::Continue),
+        // ignore all other messages sent by the server while streaming logs
+        unexpected_response => {
+            output_debug!("Received an unexpected response from the server: {:?}", unexpected_response);
+            Ok(LogStreamingState::Continue)
+        }
     }
 }
 
