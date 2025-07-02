@@ -352,16 +352,16 @@ pub struct LogsArgs {
     #[arg(required = true, add = ArgValueCompleter::new(workload_completer))]
     pub workload_name: Vec<String>,
     /// Follow log output. The default is false
-    #[arg(long = "follow", default_value_t = false)]
+    #[arg(short = 'f', long = "follow", default_value_t = false)]
     pub follow: bool,
     /// Output the specified number of LINES at the end of the logs. Defaults to -1, which prints all lines
-    #[arg(long = "tail", default_value_t = -1)]
+    #[arg(short = 't', long = "tail", default_value_t = -1)]
     pub tail: i32,
     /// Show logs after a specific TIMESTAMP
-    #[arg(long = "since")]
+    #[arg(short = 's', long = "since")]
     pub since: Option<String>,
     /// Show logs before a specific TIMESTAMP
-    #[arg(long = "until")]
+    #[arg(short = 'u', long = "until")]
     pub until: Option<String>,
 }
 
