@@ -48,8 +48,14 @@ pub fn create_from_server_channel(capacity: usize) -> FromServerChannel {
     channel::<FromServer>(capacity)
 }
 
-type AgentLogRequestIdMap = std::collections::HashMap<String, std::collections::HashSet<String>>;
+use std::collections::{HashMap, HashSet};
+
+type AgentName = String;
+type LogSubscriberRequestId = String;
+type AgentLogRequestIdMap = HashMap<AgentName, HashSet<LogSubscriberRequestId>>;
 const CLI_PREFIX: &str = "cli-conn";
+type CliConnectionName = String;
+type CliConnectionLogRequestIdMap = HashMap<CliConnectionName, LogSubscriberRequestId>;
 
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
@@ -59,6 +65,7 @@ pub struct AnkaiosServer {
     server_state: ServerState,
     workload_states_map: WorkloadStatesMap,
     agent_log_request_id_map: AgentLogRequestIdMap,
+    cli_log_request_id_map: CliConnectionLogRequestIdMap,
 }
 
 impl AnkaiosServer {
@@ -69,6 +76,7 @@ impl AnkaiosServer {
             server_state: ServerState::default(),
             workload_states_map: WorkloadStatesMap::default(),
             agent_log_request_id_map: AgentLogRequestIdMap::default(),
+            cli_log_request_id_map: CliConnectionLogRequestIdMap::default(),
         }
     }
 
@@ -341,6 +349,9 @@ impl AnkaiosServer {
 
                         if agent_or_cli_name.starts_with(CLI_PREFIX) {
                             log::debug!("Received log request from CLI, not an agent.");
+                            let cli_connection_name = agent_or_cli_name;
+                            self.cli_log_request_id_map
+                                .insert(cli_connection_name, request_id.clone());
                         } else {
                             log::debug!(
                                 "Received log request from agent '{}', request ID: {}",
@@ -368,6 +379,10 @@ impl AnkaiosServer {
                                 request_ids_per_agent.remove(&request_id);
                                 !request_ids_per_agent.is_empty()
                             },
+                        );
+
+                        self.cli_log_request_id_map.retain(
+                            |_cli_connection_name, cli_request_id| cli_request_id != &request_id,
                         );
 
                         self.to_agents
@@ -404,6 +419,28 @@ impl AnkaiosServer {
 
                 ToServer::Goodbye(goodbye) => {
                     log::warn!("Received 'Goodbye' from '{}'", goodbye.connection_name);
+                    if goodbye.connection_name.starts_with(CLI_PREFIX) {
+                        log::debug!(
+                            "Removing log request ID for CLI connection '{}'",
+                            goodbye.connection_name
+                        );
+
+                        if let Some(cli_log_request_id) =
+                            self.cli_log_request_id_map.remove(&goodbye.connection_name)
+                        {
+                            self.to_agents
+                                .logs_cancel_request(cli_log_request_id)
+                                .await
+                                .unwrap_or_illegal_state();
+                        } else {
+                            log::warn!(
+                                "No existing request ID found for CLI connection '{}'",
+                                goodbye.connection_name
+                            );
+                        }
+                    } else {
+                        log::debug!("Got goodbye for agent '{}'", goodbye.connection_name);
+                    }
                 }
                 ToServer::Stop(_method_obj) => {
                     log::debug!("Received Stop from communications server");
