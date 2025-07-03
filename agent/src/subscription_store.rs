@@ -13,10 +13,9 @@
 // SPDX-License-Identifier: Apache-2.
 
 use std::{any::Any, collections::HashMap};
-
 type SubscriptionId = String;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SubscriptionStore {
     store: HashMap<SubscriptionId, Box<dyn Any + Send>>,
 }
@@ -28,6 +27,11 @@ impl SubscriptionStore {
 
     pub fn delete_subscription(&mut self, id: &SubscriptionId) {
         self.store.remove(id);
+    }
+
+    #[cfg(test)]
+    pub fn is_empty(&self) -> bool {
+        self.store.is_empty()
     }
 }
 
