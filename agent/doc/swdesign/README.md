@@ -3438,8 +3438,8 @@ Needs:
 - impl
 - utest
 
-#### WorkloadLogFacade sends LogStopResponse messages
-`swdd~workload-log-facade-sends-log-stop-response~1`
+#### WorkloadLogFacade sends LogsStopResponse messages
+`swdd~workload-log-facade-sends-logs-stop-response~1`
 
 Status: approved
 
