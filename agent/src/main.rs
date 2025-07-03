@@ -35,6 +35,7 @@ mod runtime_manager;
 mod subscription_store;
 mod workload;
 mod workload_files;
+mod workload_log_facade;
 mod workload_scheduler;
 mod workload_state;
 

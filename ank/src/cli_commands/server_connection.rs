@@ -12,13 +12,18 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{mem::take, time::Duration};
-
+use crate::cli::LogsArgs;
+#[cfg_attr(test, mockall_double::double)]
+use crate::cli_signals::SignalHandler;
 use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
+use std::{collections::BTreeSet, mem::take, time::Duration};
+
 use api::ank_base;
+use common::commands::LogsRequest;
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
+use common::objects::WorkloadInstanceName;
 use common::to_server_interface::ToServer;
 use common::{
     commands::{CompleteStateRequest, UpdateWorkloadState},
@@ -219,11 +224,197 @@ impl ServerConnection {
     pub fn take_missed_from_server_messages(&mut self) -> Vec<FromServer> {
         take(&mut self.missed_from_server_messages)
     }
+
+    // [impl->swdd~cli-streams-logs-from-the-server~1]
+    pub async fn stream_logs(
+        &mut self,
+        instance_names: BTreeSet<WorkloadInstanceName>,
+        args: LogsArgs,
+    ) -> Result<(), ServerConnectionError> {
+        let request_id = uuid::Uuid::new_v4().to_string();
+
+        self.send_logs_request_for_workloads(
+            &request_id,
+            instance_names.clone().into_iter().collect(),
+            args,
+        )
+        .await?;
+
+        self.listen_for_workload_logs(request_id, instance_names)
+            .await
+    }
+
+    async fn send_logs_request_for_workloads(
+        &mut self,
+        request_id: &str,
+        workload_instance_names: Vec<WorkloadInstanceName>,
+        args: LogsArgs,
+    ) -> Result<(), ServerConnectionError> {
+        let logs_request = LogsRequest {
+            workload_names: workload_instance_names,
+            follow: args.follow,
+            tail: args.tail,
+            since: args.since,
+            until: args.until,
+        };
+
+        self.to_server
+            .logs_request(request_id.to_string(), logs_request)
+            .await
+            .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))
+    }
+
+    async fn listen_for_workload_logs(
+        &mut self,
+        request_id: String,
+        mut instance_names: BTreeSet<WorkloadInstanceName>,
+    ) -> Result<(), ServerConnectionError> {
+        loop {
+            tokio::select! {
+                // [impl->swdd~cli-sends-logs-cancel-request-upon-termination~1]
+                _ = SignalHandler::wait_for_signals() => {
+                    self.to_server
+                        .logs_cancel_request(request_id).await
+                        .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
+
+                    output_debug!("LogsCancelRequest sent after receiving signal to stop.");
+                    break Ok(());
+                }
+                // [impl->swdd~handles-log-responses-from-server~1]
+                server_message = self.from_server.recv() => {
+                    let server_message = server_message
+                        .ok_or(
+                            ServerConnectionError::ExecutionError("Error streaming workload logs: channel preliminary closed.".to_string()
+                    ))?;
+
+                    match handle_server_log_response(&request_id, server_message)? {
+                        LogStreamingState::Output(log_entries) => {
+                            output_logs(log_entries.log_entries);
+                        }
+                        LogStreamingState::Continue => continue,
+                        // [impl->swdd~stops-log-output-for-specific-workloads~1]
+                        LogStreamingState::StopForWorkload(instance_name) => {
+                            instance_names.remove(&instance_name);
+
+                            if instance_names.is_empty() {
+                                // log streaming is finished for all requested instances
+                                output_debug!("All requested workload instances have been processed. Stopping log streaming.");
+                                break Ok(());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
-#[derive(Debug)]
+// [impl->swdd~handles-log-responses-from-server~1]
+fn handle_server_log_response(
+    request_id: &String,
+    server_message: FromServer,
+) -> Result<LogStreamingState, ServerConnectionError> {
+    match server_message {
+        FromServer::Response(ank_base::Response {
+            request_id: received_request_id,
+            response_content:
+                Some(ank_base::response::ResponseContent::LogEntriesResponse(logs_response)),
+        }) if &received_request_id == request_id => Ok(LogStreamingState::Output(logs_response)),
+        FromServer::Response(ank_base::Response {
+            request_id: received_request_id,
+            response_content:
+                Some(ank_base::response::ResponseContent::LogsStopResponse(logs_stop_response)),
+        }) if &received_request_id == request_id => {
+            let workload_instance_name =
+                logs_stop_response
+                    .workload_name
+                    .ok_or(ServerConnectionError::ExecutionError(
+                        "Received invalid LogsStopResponse without workload name".to_string(),
+                    ))?;
+
+            output_debug!(
+                "Received stop message for workload instance: {:?}",
+                workload_instance_name
+            );
+            Ok(LogStreamingState::StopForWorkload(
+                workload_instance_name.into(),
+            ))
+        }
+
+        FromServer::Response(ank_base::Response {
+            request_id: received_request_id,
+            response_content: Some(ank_base::response::ResponseContent::Error(error)),
+        }) if &received_request_id == request_id => Err(ServerConnectionError::ExecutionError(
+            format!("Error streaming logs: '{}'", error.message),
+        )),
+        // ignore all other messages sent by the server while streaming logs
+        unexpected_response => {
+            output_debug!(
+                "Received an unexpected response from the server: {:?}",
+                unexpected_response
+            );
+            Ok(LogStreamingState::Continue)
+        }
+    }
+}
+
+enum LogStreamingState {
+    StopForWorkload(WorkloadInstanceName),
+    Continue,
+    Output(api::ank_base::LogEntriesResponse),
+}
+
+#[derive(Debug, PartialEq)]
 pub enum ServerConnectionError {
     ExecutionError(String),
+}
+
+// [impl->swdd~cli-outputs-logs-in-specific-format~1]
+#[cfg(not(test))]
+fn output_logs(log_entries: Vec<ank_base::LogEntry>) {
+    log_entries.iter().for_each(|log_entry| {
+        let workload_instance_name = log_entry.workload_name.as_ref().unwrap_or_else(|| {
+            crate::output_and_error!(
+                "Failed to output log: workload name is not available inside log entry."
+            )
+        });
+
+        let workload_name = workload_instance_name.workload_name.as_str();
+        println!("{} {}", workload_name, log_entry.message);
+    });
+}
+
+#[cfg(test)]
+fn output_logs(log_entries: Vec<ank_base::LogEntry>) {
+    TEST_LOG_OUTPUT_DATA.replace(log_entries);
+}
+
+#[cfg(test)]
+use {mockall::lazy_static, std::sync::Mutex};
+
+#[cfg(test)]
+pub struct SynchronizedTestLogData(Mutex<Vec<ank_base::LogEntry>>);
+
+#[cfg(test)]
+impl SynchronizedTestLogData {
+    pub fn new() -> Self {
+        SynchronizedTestLogData(Mutex::new(Vec::new()))
+    }
+
+    pub fn replace(&self, new_log_entries: Vec<ank_base::LogEntry>) {
+        let mut data = self.0.lock().unwrap();
+        *data = new_log_entries;
+    }
+
+    pub fn take(&self) -> Vec<ank_base::LogEntry> {
+        let mut data = self.0.lock().unwrap();
+        std::mem::take(&mut *data)
+    }
+}
+
+#[cfg(test)]
+lazy_static! {
+    pub static ref TEST_LOG_OUTPUT_DATA: SynchronizedTestLogData = SynchronizedTestLogData::new();
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -235,7 +426,14 @@ pub enum ServerConnectionError {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{BTreeSet, HashMap};
+
+    use crate::{
+        cli::LogsArgs,
+        cli_commands::server_connection::{ServerConnectionError, TEST_LOG_OUTPUT_DATA},
+        cli_signals::MockSignalHandler,
+        test_helper::MOCKALL_CONTEXT_SYNC,
+    };
 
     use super::ank_base::{self, UpdateStateSuccess};
     use common::{
@@ -988,6 +1186,266 @@ mod tests {
 
         let result = server_connection.read_next_update_workload_state().await;
         assert!(result.is_err());
+
+        checker.check_communication();
+    }
+
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
+    // [utest->swdd~handles-log-responses-from-server~1]
+    // [utest->swdd~stops-log-output-for-specific-workloads~1]
+    #[tokio::test]
+    async fn utest_stream_logs_multiple_workloads_no_follow() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string(), WORKLOAD_NAME_2.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let instance_name_2 = instance_name(WORKLOAD_NAME_2);
+
+        let mut sim = CommunicationSimulator::default();
+        let instance_names = vec![instance_name_1.clone(), instance_name_2.clone()];
+        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+            instance_names.iter().cloned().collect();
+
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::LogsRequest(common::commands::LogsRequest {
+                workload_names: instance_names,
+                follow: log_args.follow,
+                tail: log_args.tail,
+                since: log_args.since.clone(),
+                until: log_args.until.clone(),
+            }),
+        );
+
+        let expected_log_data = vec![
+            ank_base::LogEntry {
+                workload_name: Some(instance_name_1.clone().into()),
+                message: format!("Log line of {}", WORKLOAD_NAME_1),
+            },
+            ank_base::LogEntry {
+                workload_name: Some(instance_name_2.clone().into()),
+                message: format!("Log line of {}", WORKLOAD_NAME_2),
+            },
+        ];
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogEntriesResponse(ank_base::LogEntriesResponse {
+                log_entries: expected_log_data.clone(),
+            }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsStopResponse(ank_base::LogsStopResponse {
+                workload_name: Some(instance_name_1.into()),
+            }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsStopResponse(ank_base::LogsStopResponse {
+                workload_name: Some(instance_name_2.into()),
+            }),
+        );
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::pending()));
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .stream_logs(instance_names_set, log_args)
+            .await;
+
+        assert!(result.is_ok());
+
+        checker.check_communication();
+
+        let actual_log_data = TEST_LOG_OUTPUT_DATA.take();
+        assert_eq!(*actual_log_data, expected_log_data);
+    }
+
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
+    // [utest->swdd~handles-log-responses-from-server~1]
+    #[tokio::test]
+    async fn utest_stream_logs_response_error() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        let mut sim = CommunicationSimulator::default();
+        let instance_names = vec![instance_name(WORKLOAD_NAME_1)];
+        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+            instance_names.iter().cloned().collect();
+
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::LogsRequest(common::commands::LogsRequest {
+                workload_names: instance_names,
+                follow: log_args.follow,
+                tail: log_args.tail,
+                since: log_args.since.clone(),
+                until: log_args.until.clone(),
+            }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::Error(ank_base::Error {
+                message: "log collection error.".to_string(),
+            }),
+        );
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::pending()));
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .stream_logs(instance_names_set, log_args)
+            .await;
+
+        assert_eq!(
+            result,
+            Err(ServerConnectionError::ExecutionError(
+                "Error streaming logs: 'log collection error.'".to_string()
+            ))
+        );
+
+        checker.check_communication();
+
+        let actual_log_data = TEST_LOG_OUTPUT_DATA.take();
+        assert!(actual_log_data.is_empty());
+    }
+
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
+    // [utest->swdd~handles-log-responses-from-server~1]
+    #[tokio::test]
+    async fn utest_stream_logs_ignore_unrelated_response() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let mut sim = CommunicationSimulator::default();
+        let instance_names = vec![instance_name_1.clone()];
+        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+            instance_names.iter().cloned().collect();
+
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::LogsRequest(common::commands::LogsRequest {
+                workload_names: instance_names,
+                follow: log_args.follow,
+                tail: log_args.tail,
+                since: log_args.since.clone(),
+                until: log_args.until.clone(),
+            }),
+        );
+
+        // Send unrelated response that should be ignored in the log streaming
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                added_workloads: vec![WORKLOAD_NAME_2.into()],
+                ..Default::default()
+            }),
+        );
+
+        // just to stop the streaming
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsStopResponse(ank_base::LogsStopResponse {
+                workload_name: Some(instance_name_1.into()),
+            }),
+        );
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::pending()));
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .stream_logs(instance_names_set, log_args)
+            .await;
+
+        assert!(result.is_ok());
+
+        checker.check_communication();
+
+        let actual_log_data = TEST_LOG_OUTPUT_DATA.take();
+        assert!(actual_log_data.is_empty());
+    }
+
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
+    // [utest->swdd~cli-sends-logs-cancel-request-upon-termination~1]
+    #[tokio::test]
+    async fn utest_stream_logs_send_logs_cancel_request_upon_termination_signal() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: true,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let mut sim = CommunicationSimulator::default();
+        let instance_names = vec![instance_name_1.clone()];
+        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+            instance_names.iter().cloned().collect();
+
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::LogsRequest(common::commands::LogsRequest {
+                workload_names: instance_names,
+                follow: log_args.follow,
+                tail: log_args.tail,
+                since: log_args.since.clone(),
+                until: log_args.until.clone(),
+            }),
+        );
+
+        sim.expect_receive_request(REQUEST, RequestContent::LogsCancelRequest);
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::ready(())));
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .stream_logs(instance_names_set, log_args)
+            .await;
+
+        assert!(result.is_ok());
+
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await; // wait until server connection receives all messages
 
         checker.check_communication();
     }

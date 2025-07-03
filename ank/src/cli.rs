@@ -195,6 +195,8 @@ pub enum Commands {
     Run(RunArgs),
     #[command(arg_required_else_help = true)]
     Apply(ApplyArgs),
+    #[command(arg_required_else_help = true)]
+    Logs(LogsArgs),
 }
 
 /// Retrieve information about the current Ankaios system
@@ -341,6 +343,26 @@ pub struct ApplyArgs {
     /// Delete mode activated
     #[arg(short)]
     pub delete_mode: bool,
+}
+
+/// Fetch the logs of workloads
+#[derive(clap::Args, Debug)]
+pub struct LogsArgs {
+    /// Name of the workload(s) to fetch logs from
+    #[arg(required = true, add = ArgValueCompleter::new(workload_completer))]
+    pub workload_name: Vec<String>,
+    /// Follow log output. The default is false
+    #[arg(short = 'f', long = "follow", default_value_t = false)]
+    pub follow: bool,
+    /// Output the specified number of LINES at the end of the logs. Defaults to -1, which prints all lines
+    #[arg(short = 't', long = "tail", default_value_t = -1)]
+    pub tail: i32,
+    /// Show logs after a specific TIMESTAMP
+    #[arg(short = 's', long = "since")]
+    pub since: Option<String>,
+    /// Show logs before a specific TIMESTAMP
+    #[arg(short = 'u', long = "until")]
+    pub until: Option<String>,
 }
 
 fn parse_key_val<K, V>(s: &str) -> Result<(K, V), Box<dyn Error + Send + Sync + 'static>>

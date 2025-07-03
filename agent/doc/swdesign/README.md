@@ -147,6 +147,10 @@ The PodmanKubeRuntime connector implements the runtime connector trait for 'podm
 
 The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implements the state checker trait) that can be used by a runtime connector to make polling requests for workload state as predefined intervals.
 
+### WorkloadLogFacade
+
+The `WorkloadLogFacade` encapsulates all steps to initialize a log collection campaign, when the agent receives a request from the server to collect logs for workloads.
+
 ### External Libraries
 
 #### Communication Middleware
@@ -1826,7 +1830,7 @@ Needs:
 - utest
 - stest
 
-### WorkloadControlLoop reset backoff on update
+#### WorkloadControlLoop reset backoff on update
 `swdd~agent-workload-control-loop-reset-backoff-on-update`
 
 Status: approved
@@ -2997,7 +3001,19 @@ Needs:
 
 ### Forwarding the Control Interface
 
-The Ankaios Agent is responsible to forward Control Interface requests from a Workload to the Ankaios Server and to forward Control Interface responses from the Ankaios Server to the Workload.
+The Ankaios agent is responsible to forward Control Interface requests from a workload to the Ankaios server and to forward Control Interface responses from the Ankaios server to the workload.
+
+There are two basic workflows how a workload can communicate over the control interface - synchronous and asynchronous - and both are supported by the agent. The following two diagrams depict them.
+
+The Asynchronous communication is recommended and can be achieved with the following workflow:
+
+![Async Control Interface usage by workload](plantuml/seq_control_interface_workload_async.svg)
+
+The Synchronous communication could be required in case of an inability to use asynchronous workflows:
+
+![Sync Control Interface usage by workload](plantuml/seq_control_interface_workload_sync.svg)
+
+The following diagram shows in more details how the workload requests are handled inside Ankaios:
 
 ![Forward the Control Interface](plantuml/seq_control_interface.svg)
 
@@ -3198,15 +3214,15 @@ Needs:
 - impl
 - utest
 
-#### Agent ensures the Control Interface output pipes are read
-`swdd~agent-ensures-control-interface-output-pipe-read~1`
+#### Agent ensures the Control Interface input pipes are read
+`swdd~agent-ensures-control-interface-input-pipe-read~1`
 
 Status: approved
 
-The Ankaios Agent shall ensure, that Control Interface output pipes are opened and messages are read.
+The Ankaios Agent shall ensure, that Control Interface input pipes are opened and messages are read.
 
 Comment:
-If the Ankaios Agent does not open and read the Control Interface output pipes, a Workload could block, trying to write the output pipe.
+If the Ankaios Agent does not open and read the Control Interface input pipes, a Workload could block, trying to write the output pipe.
 
 Tags:
 - AgentManager
@@ -3373,6 +3389,96 @@ the Authorizer shall consider them matching if one of the following is true:
 
 Tags:
 - Authorizer
+
+Needs:
+- impl
+- utest
+
+### Handling LogsRequests
+
+#### Agent handles LogsRequests from the server
+`swdd~agent-handles-logs-requests-from-server~1`
+
+Status: approved
+
+When the AgentManager receives a `LogsRequest` message from the Ankaios server, the AgentManager shall delegate the start of the log collection campaign to the WorkloadLogFacade.
+
+Rationale:
+The process of collecting logs for workloads must be decoupled from the main loop of the agent that handles incoming messages from the server.
+
+Tags:
+- AgentManager
+- WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade starts log collection campaign for workloads
+`swdd~workload-log-facade-starts-log-collection-campaign~1`
+
+Status: approved
+
+When the WorkloadLogFacade is triggered by the AgentManager to start the log collection campaign for the provided workloads, the WorkloadLogFacade shall:
+* request the RuntimeManager to start collecting logs for the workload names
+* initialize the log collector subscriptions with their log receivers for the provided workload names
+* spawn the reading and forwarding of the logs for the provided workloads
+* add a log subscription entry to the subscription store
+
+Rationale:
+Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection campaign is finished.
+
+Tags:
+- WorkloadLogFacade
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade forwards logs to the server
+`swdd~workload-log-facade-forwards-logs-to-server~1`
+
+Status: approved
+
+When the WorkloadLogFacade reads the logs from the log receivers, the WorkloadLogFacade shall send `LogEntriesResponse` messages containing the log entries of the workloads to the Ankaios server.
+
+Tags:
+- WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade sends LogsStopResponse messages
+`swdd~workload-log-facade-sends-logs-stop-response~1`
+
+Status: approved
+
+When the WorkloadLogFacade detects that there are no more logs available for a workload, the WorkloadLogFacade shall send a `LogsStopResponse` message to the server communication channel provided by the communication middleware.
+
+Rationale:
+Client applications that receive logs are notified when no more logs are available for a workload instance.
+
+Tags:
+- WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade automatically unsubscribes log subscriptions
+`swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1`
+
+Status: approved
+
+When the WorkloadLogFacade has no more logs to forward for a log subscription, the WorkloadLogFacade shall delete the log subscription entry of the log collection campaign from the subscription store.
+
+Rationale:
+The subscriber does not have to actively cancel the log collection campaign if no more logs are available from workloads, which simplifies the API usage.
+
+Tags:
+- WorkloadLogFacade
 
 Needs:
 - impl
