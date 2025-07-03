@@ -25,7 +25,7 @@ use tokio::{
 };
 
 const AGENT_RECONNECT_INTERVAL_MS: u64 = 100;
-const OUTPUT_PIPE_WRITE_TIMEOUT_MS: u64 = 100;
+const OUTPUT_PIPE_WRITE_TIMEOUT_MS: u64 = 500;
 const CONTROL_INTERFACE_MAX_RETRIES: u8 = 5;
 
 #[derive(Debug)]
@@ -57,6 +57,7 @@ impl OutputPipe {
         }
     }
 
+    // [impl->swdd~agent-handles-control-interface-output-pipe-closed~1]
     fn receiver_gone(err: &io::Error) -> bool {
         // occurs when trying to write to a pipe that has no reader
         err.kind() == ErrorKind::BrokenPipe
@@ -70,6 +71,7 @@ impl OutputPipe {
         }
         let mut retries = 0;
         loop {
+            // [impl->swdd~agent-handles-control-interface-full-output-pipe-buffer~1]
             let write_result = tokio::time::timeout(
                 std::time::Duration::from_millis(OUTPUT_PIPE_WRITE_TIMEOUT_MS),
                 self.try_write_all(buf),
@@ -83,6 +85,7 @@ impl OutputPipe {
                     log::trace!("Writing done successfully");
                     return Ok(());
                 }
+                // [impl->swdd~agent-handles-control-interface-output-pipe-closed~1]
                 Err(err) if Self::receiver_gone(&err) => {
                     if retries < CONTROL_INTERFACE_MAX_RETRIES {
                         self.file = None;
@@ -147,6 +150,7 @@ mod tests {
     use nix::{sys::stat::Mode, unistd::mkfifo};
     use tokio::{io::AsyncReadExt, sync::Barrier};
 
+    // [utest->swdd~agent-handles-control-interface-output-pipe-closed~1]
     #[test]
     fn test_receiver_gone() {
         let err = std::io::Error::from_raw_os_error(nix::libc::ENXIO);
@@ -222,6 +226,7 @@ mod tests {
         assert!(writing_side.write_all(&[1, 2, 3]).await.is_err());
     }
 
+    // [utest->swdd~agent-handles-control-interface-output-pipe-closed~1]
     #[tokio::test]
     async fn test_write_when_receiver_gone() {
         let tmpdir = tempfile::tempdir().unwrap();
@@ -261,6 +266,7 @@ mod tests {
 
     // The test test_write_when_receiver_gone_reconnect is explicitly omitted here as the effort is unreasonable
 
+    // [utest->swdd~agent-handles-control-interface-full-output-pipe-buffer~1]
     #[tokio::test]
     async fn test_write_when_receiver_opens_but_does_not_read() {
         let tmpdir = tempfile::tempdir().unwrap();

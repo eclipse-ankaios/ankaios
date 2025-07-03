@@ -109,6 +109,7 @@ impl ControlInterfaceTask {
                 from_server = self.input_pipe_receiver.recv() => {
                     if let Some(FromServer::Response(response)) = from_server {
                         if let Err(DeliveryError::NoReader(response)) = self.forward_from_server(response).await {
+                            // [impl->swdd~agent-handles-control-interface-workload-gone~1]
                             log::info!("Could not forward the response with Id: '{}'. Stopping log collection.", response.request_id);
                             match response.response_content {
                                 Some(ank_base::response::ResponseContent::LogEntriesResponse(_))=> {
@@ -345,6 +346,7 @@ mod tests {
             .is_ok());
     }
 
+    // [utest->swdd~agent-handles-control-interface-workload-gone~1]
     #[tokio::test]
     async fn utest_control_interface_task_forward_from_server_receiver_gone() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -405,6 +407,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-handles-control-interface-workload-gone~1]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn utest_control_interface_task_run_delivery_of_logs_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -443,9 +446,7 @@ mod tests {
             .once()
             .in_sequence(&mut mockall_seq)
             .return_once(|| {
-                // let barrier = barrier_clone.clone();
                 Box::pin(async{
-                    // barrier.wait().await;
                     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                     Err(Error::new(std::io::ErrorKind::Other, "error"))
                 })
