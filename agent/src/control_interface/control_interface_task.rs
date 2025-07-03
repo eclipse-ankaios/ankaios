@@ -111,7 +111,7 @@ impl ControlInterfaceTask {
                         if let Err(DeliveryError::NoReader(response)) = self.forward_from_server(response).await {
                             log::info!("Could not forward the response with Id: '{}'. Stopping log collection.", response.request_id);
                             match response.response_content {
-                                Some(ank_base::response::ResponseContent::LogsResponse(_))=> {
+                                Some(ank_base::response::ResponseContent::LogEntriesResponse(_))=> {
                                     let _ =self.output_pipe_channel.logs_cancel_request(commands::Request::prefix_id(&self.request_id_prefix, &response.request_id)).await;
                                 }
                                 unexpected => {
@@ -353,7 +353,7 @@ mod tests {
 
         let response = ank_base::Response {
             request_id: REQUEST_ID.into(),
-            response_content: Some(ank_base::response::ResponseContent::LogsResponse(
+            response_content: Some(ank_base::response::ResponseContent::LogEntriesResponse(
                 Default::default(),
             )),
         };
@@ -413,7 +413,7 @@ mod tests {
 
         let response = ank_base::Response {
             request_id: REQUEST_ID.into(),
-            response_content: Some(ank_base::response::ResponseContent::LogsResponse(
+            response_content: Some(ank_base::response::ResponseContent::LogEntriesResponse(
                 Default::default(),
             )),
         };
@@ -481,7 +481,7 @@ mod tests {
 
         // send a response to the _input_pipe_sender
         let _ = input_pipe_sender
-            .logs_response(REQUEST_ID.into(), ank_base::LogsResponse::default())
+            .log_entries_response(REQUEST_ID.into(), ank_base::LogEntriesResponse::default())
             .await;
 
         tokio::spawn(async { control_interface_task.run().await });
