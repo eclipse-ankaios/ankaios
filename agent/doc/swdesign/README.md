@@ -3429,7 +3429,24 @@ Needs:
 
 Status: approved
 
-When the WorkloadLogFacade reads the logs from the log receivers, the WorkloadLogFacade shall send `LogsResponse` messages containing the log entries of the workloads to the Ankaios server.
+When the WorkloadLogFacade reads the logs from the log receivers, the WorkloadLogFacade shall send `LogEntriesResponse` messages containing the log entries of the workloads to the Ankaios server.
+
+Tags:
+- WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade sends LogStopResponse messages
+`swdd~workload-log-facade-sends-log-stop-response~1`
+
+Status: approved
+
+When the WorkloadLogFacade detects that there are no more logs available for a workload, the WorkloadLogFacade shall send a `LogsStopResponse` message to the server communication channel provided by the communication middleware.
+
+Rationale:
+The subscriber does not have to actively cancel the log collection campaign if no more logs are available from workloads, which simplifies the API usage.
 
 Tags:
 - WorkloadLogFacade

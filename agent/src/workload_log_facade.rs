@@ -139,6 +139,7 @@ impl WorkloadLogFacade {
                 };
                 log_futures.push(Box::pin(workload_log_info));
             } else {
+                // [impl->swdd~workload-log-facade-sends-log-stop-response~1]
                 log::debug!(
                     "No more log lines available for workload '{}', sending logs stop response.",
                     workload_instance_name
@@ -379,6 +380,7 @@ mod tests {
     }
 
     // [utest->swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
+    // [utest->swdd~workload-log-facade-sends-log-stop-response~1]
     #[tokio::test]
     async fn utest_workload_log_facade_unsubscribe_subscription_and_send_logs_stop_response_on_no_more_logs(
     ) {
