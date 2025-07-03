@@ -25,8 +25,13 @@ impl SubscriptionStore {
         self.store.insert(id, Box::new(subscription));
     }
 
-    pub fn delete_subscription(&mut self, id: &SubscriptionId) -> Option<Box<dyn Any + Send>> {
-        self.store.remove(id)
+    pub fn delete_subscription(&mut self, id: &SubscriptionId) {
+        self.store.remove(id);
+    }
+
+    #[cfg(test)]
+    pub fn is_empty(&self) -> bool {
+        self.store.is_empty()
     }
 }
 

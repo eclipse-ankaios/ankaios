@@ -437,14 +437,9 @@ mod tests {
         assert!(log_responses.is_ok());
         assert!(log_responses.unwrap().is_none());
 
-        let subscription_entry = synchronized_subscription_store
-            .lock()
-            .unwrap()
-            .delete_subscription(&REQUEST_ID.into());
-
         assert!(
-            subscription_entry.is_none(),
-            "Expected subscription to be deleted, but it still existed.",
+            synchronized_subscription_store.lock().unwrap().is_empty(),
+            "Expected empty subscription store, but it contains subscriptions.",
         );
     }
 }
