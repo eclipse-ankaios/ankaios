@@ -118,9 +118,9 @@ impl WorkloadLogFacade {
             log::debug!("Got new log lines: {:?}", log_lines);
             if let Some(log_lines) = log_lines {
                 to_server
-                    .logs_response(
+                    .log_entries_response(
                         request_id.clone(),
-                        ank_base::LogsResponse {
+                        ank_base::LogEntriesResponse {
                             log_entries: log_lines
                                 .into_iter()
                                 .map(|log_message| ank_base::LogEntry {
@@ -138,6 +138,20 @@ impl WorkloadLogFacade {
                     (workload_instance_name, receiver, received_log_lines)
                 };
                 log_futures.push(Box::pin(workload_log_info));
+            } else {
+                log::debug!(
+                    "No more log lines available for workload '{}', sending logs stop response.",
+                    workload_instance_name
+                );
+                to_server
+                    .logs_stop_response(
+                        request_id.clone(),
+                        ank_base::LogsStopResponse {
+                            workload_name: Some(workload_instance_name.into()),
+                        },
+                    )
+                    .await
+                    .unwrap_or_illegal_state();
             }
         }
     }
@@ -179,7 +193,7 @@ mod tests {
         let mut responses = 0;
         while responses != num {
             let candidate = to_server.recv().await?;
-            if let ToServer::LogsResponse(request_id, logs_response) = candidate {
+            if let ToServer::LogEntriesResponse(request_id, logs_response) = candidate {
                 responses += 1;
                 for entry in logs_response.log_entries {
                     result
@@ -366,7 +380,8 @@ mod tests {
 
     // [utest->swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
     #[tokio::test]
-    async fn utest_workload_log_facade_spawn_log_collection_unsubscribe_log_subscription() {
+    async fn utest_workload_log_facade_unsubscribe_subscription_and_send_logs_stop_response_on_no_more_logs(
+    ) {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -412,9 +427,10 @@ mod tests {
         };
 
         let mut mock_runtime_manager = MockRuntimeManager::default();
+        let cloned_workload_instance_name_1 = workload_instance_name_1.clone();
         mock_runtime_manager.expect_get_logs().return_once(|_| {
             vec![(
-                workload_instance_name_1.into(),
+                cloned_workload_instance_name_1.into(),
                 Box::new(mock_log_collector_1),
             )]
         });
@@ -429,13 +445,17 @@ mod tests {
         )
         .await;
 
-        let log_responses = timeout(
-            Duration::from_millis(10),
-            get_log_responses(1, &mut to_server_receiver),
-        )
-        .await;
-        assert!(log_responses.is_ok());
-        assert!(log_responses.unwrap().is_none());
+        let logs_stop_response =
+            tokio::time::timeout(Duration::from_millis(100), to_server_receiver.recv()).await;
+        assert_eq!(
+            logs_stop_response,
+            Ok(Some(ToServer::LogsStopResponse(
+                REQUEST_ID.into(),
+                ank_base::LogsStopResponse {
+                    workload_name: Some(workload_instance_name_1),
+                },
+            )))
+        );
 
         assert!(
             synchronized_subscription_store.lock().unwrap().is_empty(),

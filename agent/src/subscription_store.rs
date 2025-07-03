@@ -15,7 +15,7 @@
 use std::{any::Any, collections::HashMap};
 type SubscriptionId = String;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SubscriptionStore {
     store: HashMap<SubscriptionId, Box<dyn Any + Send>>,
 }
