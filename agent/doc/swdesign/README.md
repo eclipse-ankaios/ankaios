@@ -3446,7 +3446,7 @@ Status: approved
 When the WorkloadLogFacade detects that there are no more logs available for a workload, the WorkloadLogFacade shall send a `LogsStopResponse` message to the server communication channel provided by the communication middleware.
 
 Rationale:
-The subscriber does not have to actively cancel the log collection campaign if no more logs are available from workloads, which simplifies the API usage.
+Client applications that receive logs are notified when no more logs are available for a workload instance.
 
 Tags:
 - WorkloadLogFacade
