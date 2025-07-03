@@ -24,7 +24,8 @@ use tokio::{
     time::sleep,
 };
 
-const AGENT_RECONNECT_INTERVAL: u64 = 100;
+const AGENT_RECONNECT_INTERVAL_MS: u64 = 100;
+const OUTPUT_PIPE_WRITE_TIMEOUT_MS: u64 = 100;
 const CONTROL_INTERFACE_MAX_RETRIES: u8 = 5;
 
 #[derive(Debug)]
@@ -70,7 +71,7 @@ impl OutputPipe {
         let mut retries = 0;
         loop {
             let write_result = tokio::time::timeout(
-                std::time::Duration::from_millis(100),
+                std::time::Duration::from_millis(OUTPUT_PIPE_WRITE_TIMEOUT_MS),
                 self.try_write_all(buf),
             )
             .await
@@ -86,7 +87,7 @@ impl OutputPipe {
                     if retries < CONTROL_INTERFACE_MAX_RETRIES {
                         self.file = None;
                         log::debug!("Broken pipe - the receiver is gone. Waiting for 'AGENT_RECONNECT_INTERVAL'ms before trying again.");
-                        sleep(Duration::from_millis(AGENT_RECONNECT_INTERVAL)).await;
+                        sleep(Duration::from_millis(AGENT_RECONNECT_INTERVAL_MS)).await;
                     } else {
                         log::warn!("Failed to write to output pipe after multiple attempts");
                         return Err(OutputPipeError::ReceiverGone(err));
