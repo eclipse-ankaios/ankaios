@@ -3236,7 +3236,7 @@ Status: approved
 When the Control Interface detects that the output pipe buffer is full by waiting for more then 500ms for a write, the Control Interface handles the write attempt as failed due to a "gone" receiver/workload.
 
 Comment:
-Writes to a named pipe are executed immediately unless the pipe buffer is full. Taking into account that the default size of the buffer is 64kB and the workload has 500ms to grab data from the pipe, a healthy workload should not encounter communication problems.
+Writes to a named pipe are executed immediately unless the pipe buffer is full. Taking into account that the default size of the buffer is 64KiB and the workload has 500ms to grab data from the pipe, a healthy workload should not encounter communication problems.
 Ankaios cannot wait indefinitely on the reads as this would block the internal workflows rendering the complete system unresponsive.
 
 Tags:
