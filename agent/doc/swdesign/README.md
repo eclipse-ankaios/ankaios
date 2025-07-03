@@ -3389,7 +3389,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives a `LogsRequest` message from the Ankaios server, the AgentManager shall request the WorkloadLogFacade to start the log collection campaign for the provided workload names including additional log options part of the received message.
+When the AgentManager receives a `LogsRequest` message from the Ankaios server, the AgentManager shall delegate the start of the log collection campaign to the WorkloadLogFacade.
 
 Rationale:
 The process of collecting logs for workloads must be decoupled from the main loop of the agent that handles incoming messages from the server.
