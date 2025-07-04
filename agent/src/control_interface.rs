@@ -122,8 +122,8 @@ impl ControlInterface {
         ControlInterfacePath::new(self.pipes.get_location())
     }
 
-    pub fn get_input_pipe_sender(&self) -> FromServerSender {
-        self.input_pipe_sender.clone()
+    pub fn get_input_pipe_sender(&self) -> &FromServerSender {
+        &self.input_pipe_sender
     }
 
     pub fn abort_control_interface_task(&self) {
@@ -221,14 +221,14 @@ mod tests {
             .get_lock_async()
             .await;
 
-            let input_pipe_mock_open = MockInputPipe::open_context();
-            input_pipe_mock_open
-                .expect()
-                .returning(|_| MockInputPipe::default());
-            let output_pipe_mock_open = MockOutputPipe::open_context();
-            output_pipe_mock_open
-                .expect()
-                .returning(|_| MockOutputPipe::default());
+        let input_pipe_mock_open = MockInputPipe::open_context();
+        input_pipe_mock_open
+            .expect()
+            .returning(|_| MockInputPipe::default());
+        let output_pipe_mock_open = MockOutputPipe::open_context();
+        output_pipe_mock_open
+            .expect()
+            .returning(|_| MockOutputPipe::default());
 
         let _input_output_mock = generate_test_input_output_mock();
 
