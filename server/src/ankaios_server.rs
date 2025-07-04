@@ -485,7 +485,7 @@ impl AnkaiosServer {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     use super::AnkaiosServer;
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
@@ -507,7 +507,6 @@ mod tests {
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
     use mockall::predicate;
-    use std::collections::HashSet;
 
     const AGENT_A: &str = "agent_A";
     const AGENT_B: &str = "agent_B";
@@ -517,6 +516,7 @@ mod tests {
     const RUNTIME_NAME: &str = "runtime";
     const REQUEST_ID: &str = "request_1";
     const REQUEST_ID_A: &str = "agent_A@request_1";
+    const REQUEST_ID_B: &str = "agent_B@request_2";
     const INSTANCE_ID: &str = "instance_id";
     const MESSAGE: &str = "message";
 
@@ -1440,6 +1440,62 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    #[tokio::test]
+    async fn utest_server_sends_logs_cancel_requests_on_disconnected_agent() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_agent_log_campaign_entry()
+            .once()
+            .return_const(Some(HashSet::from([
+                REQUEST_ID_A.to_owned(),
+                REQUEST_ID_B.to_owned(),
+            ])));
+
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state.expect_cleanup_state().never();
+
+        mock_server_state
+            .expect_remove_agent()
+            .once()
+            .with(predicate::eq(AGENT_A))
+            .return_const(());
+
+        server.server_state = mock_server_state;
+
+        let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
+        assert!(agent_gone_result.is_ok());
+
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        let expected_logs_cancel_requests = vec![
+            FromServer::LogsCancelRequest(REQUEST_ID_A.to_string()),
+            FromServer::LogsCancelRequest(REQUEST_ID_B.to_string()),
+        ];
+        let mut actual_logs_cancel_requests = Vec::new();
+        let _update_workload_state = comm_middle_ware_receiver.recv().await.unwrap();
+        let logs_cancel_request_a = comm_middle_ware_receiver.recv().await.unwrap();
+        actual_logs_cancel_requests.push(logs_cancel_request_a);
+        let logs_cancel_request_b = comm_middle_ware_receiver.recv().await.unwrap();
+        actual_logs_cancel_requests.push(logs_cancel_request_b);
+
+        for request in actual_logs_cancel_requests {
+            assert!(
+                expected_logs_cancel_requests.contains(&request),
+                "Actual request: '{:?}' not found in expected requests.",
+                request
+            );
+        }
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
     // [utest->swdd~server-sets-state-of-new-workloads-to-pending~1]
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-starts-without-startup-config~1]
@@ -2043,6 +2099,37 @@ mod tests {
                     }
                 ))
             }),
+            from_server_command
+        );
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_server_sends_logs_cancel_request_on_cli_disconnect() {
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let cli_connection_name = "cli-conn-1234".to_string();
+        let cli_request_id = format!("{cli_connection_name}@cli-request-id-1");
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_cli_log_campaign_entry()
+            .with(mockall::predicate::eq(cli_connection_name.clone()))
+            .once()
+            .return_const(Some(cli_request_id.clone()));
+
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        let result = to_server.goodbye(cli_connection_name).await;
+        assert!(result.is_ok());
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::LogsCancelRequest(cli_request_id),
             from_server_command
         );
 
