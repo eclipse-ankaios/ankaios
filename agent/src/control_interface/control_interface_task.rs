@@ -50,8 +50,8 @@ fn decode_to_server(protobuf_data: io::Result<Vec<u8>>) -> io::Result<control_ap
 pub struct ControlInterfaceTask {
     output_stream: OutputPipe,
     input_stream: InputPipe,
-    input_pipe_receiver: FromServerReceiver, // TODO: check the names here, they are weird
-    output_pipe_channel: ToServerSender,
+    from_server_receiver: FromServerReceiver,
+    to_server_sender: ToServerSender,
     request_id_prefix: String,
     authorizer: Arc<Authorizer>,
 }
@@ -61,16 +61,16 @@ impl ControlInterfaceTask {
     pub fn new(
         output_stream: OutputPipe,
         input_stream: InputPipe,
-        input_pipe_receiver: FromServerReceiver,
-        output_pipe_channel: ToServerSender,
+        from_server_receiver: FromServerReceiver,
+        to_server_sender: ToServerSender,
         request_id_prefix: String,
         authorizer: Arc<Authorizer>,
     ) -> Self {
         Self {
             output_stream,
             input_stream,
-            input_pipe_receiver,
-            output_pipe_channel,
+            from_server_receiver,
+            to_server_sender,
             request_id_prefix,
             authorizer,
         }
@@ -106,14 +106,14 @@ impl ControlInterfaceTask {
         loop {
             select! {
                 // [impl->swdd~agent-ensures-control-interface-input-pipe-read~1]
-                from_server = self.input_pipe_receiver.recv() => {
+                from_server = self.from_server_receiver.recv() => {
                     if let Some(FromServer::Response(response)) = from_server {
                         if let Err(DeliveryError::NoReader(response)) = self.forward_from_server(response).await {
                             // [impl->swdd~agent-handles-control-interface-workload-gone~1]
                             log::info!("Could not forward the response with Id: '{}'. Stopping log collection.", response.request_id);
                             match response.response_content {
                                 Some(ank_base::response::ResponseContent::LogEntriesResponse(_))=> {
-                                    let _ =self.output_pipe_channel.logs_cancel_request(commands::Request::prefix_id(&self.request_id_prefix, &response.request_id)).await;
+                                    let _ =self.to_server_sender.logs_cancel_request(commands::Request::prefix_id(&self.request_id_prefix, &response.request_id)).await;
                                 }
                                 unexpected => {
                                     log::warn!("Unexpected response content: '{:?}'", unexpected);
@@ -135,7 +135,7 @@ impl ControlInterfaceTask {
                                     // [impl->swdd~agent-forward-request-from-control-interface-pipe-to-server~2]
                                     log::debug!("Allowing request '{:?}' from authorizer '{:?}'", request, self.authorizer);
                                     request.prefix_request_id(&self.request_id_prefix);
-                                    let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
+                                    let _ = self.to_server_sender.send(ToServer::Request(request)).await;
                                 } else {
                                     log::info!("Denying request '{:?}' from authorizer '{:?}'", request, self.authorizer);
                                     // [impl->swdd~agent-responses-to-denied-request-from-control-interface~1]
@@ -327,14 +327,14 @@ mod tests {
             .return_once(|_| Ok(()));
 
         let input_stream_mock = MockInputPipe::default();
-        let (_, input_pipe_receiver) = mpsc::channel(1);
+        let (_, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, _) = mpsc::channel(1);
         let request_id_prefix = String::from("prefix@");
 
         let mut control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix,
             Arc::new(MockAuthorizer::default()),
@@ -380,14 +380,14 @@ mod tests {
             });
 
         let input_stream_mock = MockInputPipe::default();
-        let (_, input_pipe_receiver) = mpsc::channel(1);
+        let (_, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, _) = mpsc::channel(1);
         let request_id_prefix = String::from("prefix@");
 
         let mut control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix.clone(),
             Arc::new(MockAuthorizer::default()),
@@ -465,7 +465,7 @@ mod tests {
                 )))
             });
 
-        let (input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (input_pipe_sender, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
         let request_id_prefix = "prefix@";
 
@@ -474,7 +474,7 @@ mod tests {
         let control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix.to_owned(),
             Arc::new(authorizer),
@@ -570,7 +570,7 @@ mod tests {
             .once()
             .returning(|_| Ok(()));
 
-        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (_input_pipe_sender, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
         let request_id_prefix = String::from("prefix@");
 
@@ -580,7 +580,7 @@ mod tests {
         let control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix,
             Arc::new(authorizer),
@@ -644,7 +644,7 @@ mod tests {
 
         let output_stream_mock = MockOutputPipe::default();
 
-        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (_input_pipe_sender, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
         let request_id_prefix = "prefix@";
 
@@ -654,7 +654,7 @@ mod tests {
         let control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix.to_owned(),
             Arc::new(authorizer),
@@ -705,7 +705,7 @@ mod tests {
             .once()
             .returning(|_| Ok(()));
 
-        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (_input_pipe_sender, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
         let request_id_prefix = "prefix@";
 
@@ -714,7 +714,7 @@ mod tests {
         let control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix.to_owned(),
             Arc::new(authorizer),
@@ -767,7 +767,7 @@ mod tests {
             .once()
             .returning(|_| Ok(()));
 
-        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (_input_pipe_sender, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
         let request_id_prefix = "prefix@";
 
@@ -776,7 +776,7 @@ mod tests {
         let control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix.to_owned(),
             Arc::new(authorizer),
