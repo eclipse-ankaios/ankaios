@@ -272,8 +272,10 @@ impl TryFrom<ToServer> for to_server_interface::ToServer {
                     logs_stop_object,
                 )
             }
-            ToServerEnum::Goodbye(_) => {
-                to_server_interface::ToServer::Goodbye(commands::Goodbye {})
+            ToServerEnum::Goodbye(goodbye) => {
+                to_server_interface::ToServer::Goodbye(commands::Goodbye {
+                    connection_name: goodbye.connection_name,
+                })
             }
         })
     }

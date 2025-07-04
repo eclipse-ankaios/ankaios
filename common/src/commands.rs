@@ -245,7 +245,9 @@ pub struct UpdateWorkload {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct Goodbye {}
+pub struct Goodbye {
+    pub connection_name: String,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Stop {}

@@ -128,6 +128,7 @@ pub async fn forward_from_proto_to_ankaios(
                     "Received Goodbye from '{}'. Stopping the control loop.",
                     agent_name
                 );
+                sink.goodbye(agent_name).await?;
                 break;
             }
 
@@ -189,6 +190,7 @@ pub async fn forward_from_proto_to_ankaios(
 
 // [impl->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
 pub async fn forward_from_ankaios_to_proto(
+    connection_name: String,
     grpc_tx: Sender<grpc_api::ToServer>,
     server_rx: &mut ToServerReceiver,
 ) -> Result<(), GrpcMiddlewareError> {
@@ -288,7 +290,7 @@ pub async fn forward_from_ankaios_to_proto(
     grpc_tx
         .send(grpc_api::ToServer {
             to_server_enum: Some(grpc_api::to_server::ToServerEnum::Goodbye(
-                crate::grpc_api::Goodbye {},
+                crate::grpc_api::Goodbye { connection_name },
             )),
         })
         .await?;
@@ -355,6 +357,7 @@ mod tests {
     const WORKLOAD_ID_2: &str = "id_2";
     const LOG_MESSAGE_1: &str = "message_1";
     const LOG_MESSAGE_2: &str = "message_2";
+    const CLI_CONNECTION_NAME: &str = "cli-conn";
 
     // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
     #[tokio::test]
@@ -363,7 +366,7 @@ mod tests {
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
         let agent_load_status = common::commands::AgentLoadStatus {
-            agent_name: AGENT_A_NAME.to_string(),
+            agent_name: AGENT_A_NAME.to_owned(),
             cpu_usage: CpuUsage { cpu_usage: 42 },
             free_memory: FreeMemory { free_memory: 42 },
         };
@@ -372,7 +375,9 @@ mod tests {
         assert!(agent_resource_result.is_ok());
 
         tokio::spawn(async move {
-            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+            let _ =
+                forward_from_ankaios_to_proto(AGENT_A_NAME.to_string(), grpc_tx, &mut server_rx)
+                    .await;
         });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
@@ -452,7 +457,12 @@ mod tests {
         assert!(update_state_result.is_ok());
 
         tokio::spawn(async move {
-            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+            let _ = forward_from_ankaios_to_proto(
+                CLI_CONNECTION_NAME.to_owned(),
+                grpc_tx,
+                &mut server_rx,
+            )
+            .await;
         });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
@@ -486,7 +496,9 @@ mod tests {
         assert!(update_workload_state_result.is_ok());
 
         tokio::spawn(async move {
-            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+            let _ =
+                forward_from_ankaios_to_proto(AGENT_A_NAME.to_string(), grpc_tx, &mut server_rx)
+                    .await;
         });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
@@ -781,7 +793,12 @@ mod tests {
         assert!(request_complete_state_result.is_ok());
 
         tokio::spawn(async move {
-            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+            let _ = forward_from_ankaios_to_proto(
+                CLI_CONNECTION_NAME.to_owned(),
+                grpc_tx,
+                &mut server_rx,
+            )
+            .await;
         });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
@@ -1046,7 +1063,12 @@ mod tests {
         assert!(forward_logs_result.is_ok());
 
         tokio::spawn(async move {
-            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+            let _ = forward_from_ankaios_to_proto(
+                CLI_CONNECTION_NAME.to_owned(),
+                grpc_tx,
+                &mut server_rx,
+            )
+            .await;
         });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
@@ -1171,7 +1193,8 @@ mod tests {
         assert!(forward_logs_result.is_ok());
 
         tokio::spawn(async move {
-            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+            let _ = forward_from_ankaios_to_proto(AGENT_A_NAME.to_owned(), grpc_tx, &mut server_rx)
+                .await;
         });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.

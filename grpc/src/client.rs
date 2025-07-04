@@ -210,7 +210,7 @@ impl GRPCCommunicationsClient {
 
         // [impl->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
         let forward_to_server_from_ank_task =
-            to_server_proxy::forward_from_ankaios_to_proto(grpc_tx, server_rx);
+            to_server_proxy::forward_from_ankaios_to_proto(self.name.clone(), grpc_tx, server_rx);
 
         select! {
             _ = forward_exec_from_proto_task => {log::debug!("Forward from server message from proto to Ankaios task completed");}
