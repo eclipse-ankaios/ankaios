@@ -47,6 +47,12 @@ struct AgentRequestId {
     request_uuid: String,
 }
 
+fn to_string_ids(
+    request_ids: Option<HashSet<AgentRequestId>>,
+) -> Option<HashSet<LogSubscriberRequestId>> {
+    request_ids.map(|ids| ids.into_iter().map(|id| id.to_string()).collect())
+}
+
 impl Display for AgentRequestId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -142,12 +148,7 @@ impl LogCampaignStore {
             });
         }
 
-        requests.map(|requests| {
-            requests
-                .into_iter()
-                .map(|agent_request_id| agent_request_id.to_string())
-                .collect()
-        })
+        to_string_ids(requests)
     }
 
     pub fn remove_cli_log_campaign_entry(
@@ -205,18 +206,23 @@ impl LogCampaignStore {
         }
     }
 
-    pub fn remove_collector_compaign_entry(&mut self, workload_name: WorkloadName) {
+    pub fn remove_collector_campaign_entry(
+        &mut self,
+        workload_name: &WorkloadName,
+    ) -> Option<HashSet<LogSubscriberRequestId>> {
         log::debug!(
             "Removing collector campaign for workload '{}'",
             workload_name
         );
 
-        let removed_request_ids = self.workload_name_request_id_store.remove(&workload_name);
-        if let Some(removed_request_ids) = removed_request_ids {
+        let removed_request_ids = self.workload_name_request_id_store.remove(workload_name);
+        if let Some(removed_request_ids) = &removed_request_ids {
             removed_request_ids.iter().for_each(|agent_request_id| {
                 self.remove_request_from_agent_log_campaign_store(agent_request_id);
             });
         }
+
+        to_string_ids(removed_request_ids)
     }
 }
 
@@ -433,7 +439,12 @@ mod tests {
     #[test]
     fn utest_remove_collector_campaign_entry() {
         let mut log_campaign_store = prepare_log_campaign_store();
-        log_campaign_store.remove_collector_compaign_entry(WORKLOAD_1_NAME.to_owned());
+        let removed_ids =
+            log_campaign_store.remove_collector_campaign_entry(&WORKLOAD_1_NAME.to_owned());
+        assert_eq!(
+            removed_ids,
+            Some(HashSet::from([REQUEST_ID_AGENT_A.to_owned()]))
+        );
 
         assert_eq!(log_campaign_store.workload_name_request_id_store.len(), 1);
         assert_eq!(
