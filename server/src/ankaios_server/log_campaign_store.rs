@@ -12,9 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::{HashMap, HashSet};
-
 use common::request_id_prepending::detach_prefix_from_request_id;
+use std::collections::{HashMap, HashSet};
 
 type AgentName = String;
 pub type LogSubscriberRequestId = String;
@@ -75,14 +74,25 @@ impl LogCampaignStore {
     }
 
     pub fn remove_logs_request_id(&mut self, request_id: &LogSubscriberRequestId) {
-        self.agent_log_request_ids_store
-            .retain(|_agent_name, request_ids| {
-                request_ids.remove(request_id);
-                !request_ids.is_empty()
-            });
-
-        self.cli_log_request_id_store
-            .retain(|_cli_connection_name, cli_request_id| cli_request_id != request_id);
+        if request_id.starts_with(CLI_PREFIX) {
+            self.cli_log_request_id_store
+                .retain(|_cli_connection_name, cli_request_id| {
+                    if cli_request_id == request_id {
+                        log::debug!("Removing CLI log campaign with request id '{}' from log campaign store.", request_id);
+                        false
+                    } else {
+                        true
+                    }
+                });
+        } else {
+            self.agent_log_request_ids_store
+                .retain(|_agent_name, request_ids| {
+                    if request_ids.remove(request_id) {
+                        log::debug!("Removed workload log campaign with request id '{}' from log campaign store.", request_id);
+                    }
+                    !request_ids.is_empty()
+                });
+        }
     }
 }
 
