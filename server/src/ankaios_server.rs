@@ -387,7 +387,7 @@ impl AnkaiosServer {
                         .unwrap_or_illegal_state();
                 }
                 ToServer::Goodbye(goodbye) => {
-                    log::warn!("Received 'Goodbye' from '{}'", goodbye.connection_name);
+                    log::debug!("Received 'Goodbye' from '{}'", goodbye.connection_name);
                     if let Some(cli_logs_request_id) = self
                         .log_campaign_store
                         .remove_cli_log_campaign_entry(&goodbye.connection_name)

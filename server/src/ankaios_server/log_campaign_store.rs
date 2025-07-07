@@ -37,7 +37,7 @@ impl LogCampaignStore {
         if agent_or_cli_name.starts_with(CLI_PREFIX) {
             let cli_connection_name = agent_or_cli_name;
             log::debug!(
-                "Log campaign from CLI '{}', request id: '{}'",
+                "Insert log campaign from CLI '{}', request id: '{}'",
                 cli_connection_name,
                 request_id
             );
@@ -47,7 +47,7 @@ impl LogCampaignStore {
             let agent_name = agent_or_cli_name;
 
             log::debug!(
-                "Log campaign from agent '{}', request id: {}",
+                "Insert log campaign from workload of agent '{}', request id: '{}'",
                 agent_name,
                 request_id
             );
