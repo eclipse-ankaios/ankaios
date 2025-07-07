@@ -18,10 +18,11 @@ mod delete_graph;
 mod server_state;
 
 use api::ank_base;
-use common::commands::{Request, UpdateWorkload};
+use common::commands::{LogsRequest, Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::objects::{
-    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap,
+    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadInstanceName, WorkloadState,
+    WorkloadStatesMap,
 };
 
 use common::std_extensions::IllegalStateResult;
@@ -312,11 +313,50 @@ impl AnkaiosServer {
                         }
                     }
                     common::commands::RequestContent::LogsRequest(logs_request) => {
-                        log::debug!("Got log request with ID: {}", request_id);
+                        log::debug!(
+                            "Got log request. Id: {}, Workload Instance Names: {}",
+                            request_id,
+                            logs_request
+                                .workload_names
+                                .iter()
+                                .map(|name| name.to_string())
+                                .collect::<Vec<String>>()
+                                .join(", ")
+                        );
+
+                        let valid_workload_names: Vec<WorkloadInstanceName> = logs_request
+                            .workload_names
+                            .iter()
+                            .filter_map(|name| {
+                                self.server_state
+                                    .get_workload_spec_by_instance_name(name)
+                                    .map(|_| name.clone())
+                            })
+                            .collect();
+
+                        if valid_workload_names.is_empty() {
+                            log::warn!(
+                                "No valid workload names provided in logs request: {:?}",
+                                logs_request.workload_names
+                            );
+                            self.to_agents
+                                .error(request_id, "No valid workload names provided".into())
+                                .await
+                                .unwrap_or_illegal_state();
+                            continue;
+                        }
+
+                        let valid_logs_request = LogsRequest {
+                            workload_names: valid_workload_names,
+                            ..logs_request
+                        };
+
                         self.to_agents
-                            .logs_request(request_id, logs_request.into())
+                            .logs_request(request_id, valid_logs_request.into())
                             .await
                             .unwrap_or_illegal_state();
+
+                        // TODO send Accepted response
                     }
                     common::commands::RequestContent::LogsCancelRequest => {
                         log::debug!("Got log cancel request with ID: {}", request_id);
@@ -444,7 +484,7 @@ mod tests {
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
         generate_test_workload_states_map_with_data, CompleteState, CpuUsage, DeletedWorkload,
         ExecutionState, ExecutionStateEnum, FreeMemory, PendingSubstate, State,
-        WorkloadInstanceName, WorkloadState,
+        WorkloadInstanceName, WorkloadSpec, WorkloadState,
     };
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -1112,6 +1152,25 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME_NAME.to_string(),
+        );
+        mock_server_state
+            .expect_get_workload_spec_by_instance_name()
+            .with(mockall::predicate::function(
+                |instance_name: &WorkloadInstanceName| {
+                    instance_name
+                        == &WorkloadInstanceName::new(AGENT_A, WORKLOAD_NAME_1, INSTANCE_ID)
+                },
+            ))
+            .once()
+            .return_const(Some(workload_spec));
+
+        server.server_state = mock_server_state;
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
@@ -1197,8 +1256,8 @@ mod tests {
         mock_server_state
             .expect_get_complete_state_by_field_mask()
             .with(
-                mockall::predicate::function(|request_compl_state| {
-                    request_compl_state == &CompleteStateRequest { field_mask: vec![] }
+                mockall::predicate::function(|request_complete_state| {
+                    request_complete_state == &CompleteStateRequest { field_mask: vec![] }
                 }),
                 mockall::predicate::always(),
             )
@@ -1249,8 +1308,8 @@ mod tests {
         mock_server_state
             .expect_get_complete_state_by_field_mask()
             .with(
-                mockall::predicate::function(|request_compl_state| {
-                    request_compl_state == &CompleteStateRequest { field_mask: vec![] }
+                mockall::predicate::function(|request_complete_state| {
+                    request_complete_state == &CompleteStateRequest { field_mask: vec![] }
                 }),
                 mockall::predicate::always(),
             )
