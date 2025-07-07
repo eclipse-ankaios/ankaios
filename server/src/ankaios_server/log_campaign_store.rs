@@ -74,24 +74,18 @@ impl LogCampaignStore {
     }
 
     pub fn remove_logs_request_id(&mut self, request_id: &LogSubscriberRequestId) {
+        let (agent_or_cli_name, _) = detach_prefix_from_request_id(request_id);
+
         if request_id.starts_with(CLI_PREFIX) {
-            self.cli_log_request_id_store
-                .retain(|_cli_connection_name, cli_request_id| {
-                    if cli_request_id == request_id {
-                        log::debug!("Removing CLI log campaign with request id '{}' from log campaign store.", request_id);
-                        false
-                    } else {
-                        true
-                    }
-                });
-        } else {
-            self.agent_log_request_ids_store
-                .retain(|_agent_name, request_ids| {
-                    if request_ids.remove(request_id) {
-                        log::debug!("Removed workload log campaign with request id '{}' from log campaign store.", request_id);
-                    }
-                    !request_ids.is_empty()
-                });
+            log::debug!("Removing CLI log campaign with request id '{}' from log campaign store.", request_id);
+            self.cli_log_request_id_store.remove(&agent_or_cli_name);
+        } else if let Some(entry) = self.agent_log_request_ids_store.get_mut(&agent_or_cli_name) {
+            log::debug!("Removed workload log campaign with request id '{}' from log campaign store.", request_id);
+            if entry.len() <= 1 {
+                self.agent_log_request_ids_store.remove(&agent_or_cli_name);
+            } else {
+                entry.remove(request_id);
+            }
         }
     }
 }
@@ -108,9 +102,11 @@ mod tests {
     use super::{HashMap, HashSet, LogCampaignStore};
 
     const AGENT_A: &str = "agent_A";
-    const REQUEST_ID_AGENT_A: &str = "agent_A@request_id";
+    const WORKLOAD_1_NAME: &str = "workload_1";
+    const REQUEST_ID_AGENT_A: &str = "agent_A@workload_1@request_id";
     const AGENT_B: &str = "agent_B";
-    const REQUEST_ID_AGENT_B: &str = "agent_B@request_id";
+    const WORKLOAD_2_NAME: &str = "workload_2";
+    const REQUEST_ID_AGENT_B: &str = "agent_B@workload_1@request_id";
     const CLI_CONNECTION_1: &str = "cli-conn-1";
     const CLI_REQUEST_ID_1: &str = "cli-conn-1@cli_request_id_1";
     const CLI_CONNECTION_2: &str = "cli-conn-2";
