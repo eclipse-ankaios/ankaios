@@ -672,6 +672,12 @@ When the Ankaios Agent gets an add Workload command with the `UpdateWorkload` me
 * skip this workload
 * send a `Pending(StartingFailed)` workload state with additional information.
 
+Comment:
+The `UnsupportedRuntime` implementation returns appropriate errors for unsupported operations while allowing the workload object lifecycle to be managed normally. When the workload attempts to be created through the `UnsupportedRuntime`, it will receive a `RuntimeError::Unsupported` error, which causes the workload to report a `Pending(StartingFailed)` state.
+
+Rationale:
+This approach provides better error handling and user feedback compared to completely skipping unknown runtime workloads. It allows the workload to be tracked and managed while clearly indicating why it cannot be started.
+
 Tags:
 - RuntimeManager
 
@@ -3294,9 +3300,7 @@ Needs:
 
 Status: approved
 
-When the Authorizer checks if a Workload is allowed to make a request
-and all entries of the update/field mask are allowed,
-the Authorizer shall allow the request.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow rule, the Authorizer shall allow the request.
 
 Tags:
 - Authorizer

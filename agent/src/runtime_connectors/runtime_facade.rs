@@ -417,7 +417,7 @@ impl<
 #[cfg(test)]
 mockall::mock! {
     pub GenericRuntimeFacade {
-        pub fn new(runtime: Box<dyn OwnableRuntime<String, DummyStateChecker>>,
+        pub fn new(runtime: Box<dyn OwnableRuntime<String, DummyStateChecker<String>>>,
             run_folder: PathBuf) -> Self;
     }
 

@@ -21,10 +21,18 @@ use crate::workload_state::WorkloadStateSender;
 
 use super::{RuntimeStateGetter, StateChecker};
 
-pub struct DummyStateChecker();
+// [impl->swdd~agent-skips-unknown-runtime~2]
+pub struct DummyStateChecker<WorkloadId>(std::marker::PhantomData<WorkloadId>);
 
+impl<WorkloadId> DummyStateChecker<WorkloadId> {
+    pub fn new() -> Self {
+        Self(std::marker::PhantomData)
+    }
+}
+
+// [impl->swdd~agent-skips-unknown-runtime~2]
 #[async_trait]
-impl<WorkloadId> StateChecker<WorkloadId> for DummyStateChecker
+impl<WorkloadId> StateChecker<WorkloadId> for DummyStateChecker<WorkloadId>
 where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
@@ -34,7 +42,42 @@ where
         _manager_interface: WorkloadStateSender,
         _state_getter: impl RuntimeStateGetter<WorkloadId>,
     ) -> Self {
-        Self()
+        Self(std::marker::PhantomData)
     }
     async fn stop_checker(self) {}
+}
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::runtime_connectors::MockRuntimeStateGetter;
+    use common::objects::generate_test_workload_spec_with_param;
+
+    // [utest->swdd~agent-skips-unknown-runtime~2]
+    #[tokio::test]
+    async fn utest_dummy_state_checker() {
+        let workload_spec = generate_test_workload_spec_with_param(
+            "agent_name".to_string(),
+            "workload_name".to_string(),
+            "runtime_name".to_string(),
+        );
+        let workload_id = "test_id".to_string();
+        let (state_sender, _) = tokio::sync::mpsc::channel(10);
+        let state_getter = MockRuntimeStateGetter::default();
+
+        let checker = DummyStateChecker::start_checker(
+            &workload_spec,
+            workload_id,
+            state_sender,
+            state_getter,
+        );
+
+        checker.stop_checker().await;
+    }
 }
