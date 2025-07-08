@@ -189,6 +189,7 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
 
+                    // [impl->swdd~server-cancels-log-campaign-for-disconnected-agents~1]
                     let request_ids_of_disconnected_agent = self
                         .log_campaign_store
                         .remove_agent_log_campaign_entry(&agent_name)
@@ -288,6 +289,7 @@ impl AnkaiosServer {
                                     .map(|x| x.instance_name.to_string())
                                     .collect();
 
+                                // [impl->swdd~server-cancels-log-campaign-for-deleted-workloads~1]
                                 self.cancel_log_requests_of_deleted_workloads(&deleted_workloads)
                                     .await;
 
@@ -335,6 +337,7 @@ impl AnkaiosServer {
                             }
                         }
                     }
+                    // [impl->swdd~server-handles-logs-request-message~1]
                     common::commands::RequestContent::LogsRequest(logs_request) => {
                         log::debug!("Got log request with ID: {}", request_id);
 
@@ -345,6 +348,7 @@ impl AnkaiosServer {
 
                         self.log_campaign_store.insert_log_campaign(request_id);
                     }
+                    // [impl->swdd~server-handles-logs-cancel-request-message~1]
                     common::commands::RequestContent::LogsCancelRequest => {
                         log::debug!("Got log cancel request with ID: {}", request_id);
 
@@ -391,6 +395,8 @@ impl AnkaiosServer {
                 }
                 ToServer::Goodbye(goodbye) => {
                     log::debug!("Received 'Goodbye' from '{}'", goodbye.connection_name);
+
+                    // [impl->swdd~server-cancels-log-campaign-for-disconnected-cli~1]
                     if let Some(cli_logs_request_id) = self
                         .log_campaign_store
                         .remove_cli_log_campaign_entry(&goodbye.connection_name)
@@ -459,6 +465,7 @@ impl AnkaiosServer {
                 .is_some_and(|current_execution_state| current_execution_state.is_pending_initial())
     }
 
+    // [impl->swdd~server-cancels-log-campaign-for-disconnected-agents~1]
     async fn cancel_log_requests_of_disconnected_agent_workloads(
         &mut self,
         agent_name: &str,
@@ -477,6 +484,7 @@ impl AnkaiosServer {
         }
     }
 
+    // [impl->swdd~server-cancels-log-campaign-for-deleted-workloads~1]
     async fn cancel_log_requests_of_deleted_workloads(
         &mut self,
         deleted_workloads: &Vec<DeletedWorkload>,
@@ -1189,6 +1197,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-handles-logs-request-message~1]
     #[tokio::test]
     async fn utest_server_forward_logs_request_to_agents() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1466,6 +1475,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-cancels-log-campaign-for-disconnected-agents~1]
     #[tokio::test]
     async fn utest_server_sends_logs_cancel_requests_on_disconnected_agent() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1979,7 +1989,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
-    // TODO
+    // [utest->swdd~server-cancels-log-campaign-for-deleted-workloads~1]
     #[tokio::test]
     async fn utest_server_cancels_log_collection_of_deleted_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2157,6 +2167,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-handles-logs-cancel-request-message~1]
     #[tokio::test]
     async fn utest_server_log_cancel_request() {
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
@@ -2232,6 +2243,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-cancels-log-campaign-for-disconnected-cli~1]
     #[tokio::test]
     async fn utest_server_sends_logs_cancel_request_on_cli_disconnect() {
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
