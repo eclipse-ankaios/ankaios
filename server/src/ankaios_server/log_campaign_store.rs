@@ -160,35 +160,6 @@ impl LogCampaignStore {
             .map(|requests| requests.to_string())
     }
 
-    fn remove_request_from_agent_log_campaign_store(&mut self, agent_request_id: &AgentRequestId) {
-        if let Some(requests) = self
-            .agent_log_request_ids_store
-            .get_mut(&agent_request_id.agent_name)
-        {
-            requests.remove(agent_request_id);
-            if requests.is_empty() {
-                self.agent_log_request_ids_store
-                    .remove(&agent_request_id.agent_name);
-            }
-        }
-    }
-
-    fn remove_request_from_workload_log_campaign_store(
-        &mut self,
-        agent_request_id: &AgentRequestId,
-    ) {
-        if let Some(wl_map_entry) = self
-            .workload_name_request_id_store
-            .get_mut(&agent_request_id.workload_name)
-        {
-            wl_map_entry.remove(agent_request_id);
-            if wl_map_entry.is_empty() {
-                self.workload_name_request_id_store
-                    .remove(&agent_request_id.workload_name);
-            }
-        }
-    }
-
     pub fn remove_logs_request_id(&mut self, request_id: &LogSubscriberRequestId) {
         let request_id: RequestId = request_id.into();
         log::debug!("Remove log campaign '{}'", request_id);
@@ -223,6 +194,35 @@ impl LogCampaignStore {
         }
 
         to_string_ids(removed_request_ids)
+    }
+
+    fn remove_request_from_agent_log_campaign_store(&mut self, agent_request_id: &AgentRequestId) {
+        if let Some(requests) = self
+            .agent_log_request_ids_store
+            .get_mut(&agent_request_id.agent_name)
+        {
+            requests.remove(agent_request_id);
+            if requests.is_empty() {
+                self.agent_log_request_ids_store
+                    .remove(&agent_request_id.agent_name);
+            }
+        }
+    }
+
+    fn remove_request_from_workload_log_campaign_store(
+        &mut self,
+        agent_request_id: &AgentRequestId,
+    ) {
+        if let Some(wl_map_entry) = self
+            .workload_name_request_id_store
+            .get_mut(&agent_request_id.workload_name)
+        {
+            wl_map_entry.remove(agent_request_id);
+            if wl_map_entry.is_empty() {
+                self.workload_name_request_id_store
+                    .remove(&agent_request_id.workload_name);
+            }
+        }
     }
 }
 
