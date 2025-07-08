@@ -111,6 +111,7 @@ pub struct LogCampaignStore {
 }
 
 #[cfg_attr(test, mockall::automock)]
+// [impl->swdd~log-campaign-store-stores-log-subscriptions-metadata~1]
 impl LogCampaignStore {
     pub fn insert_log_campaign(&mut self, request_id: LogSubscriberRequestId) {
         let request_id: RequestId = request_id.into();
@@ -233,6 +234,8 @@ impl LogCampaignStore {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
+// [utest->swdd~log-campaign-store-stores-log-subscriptions-metadata~1]
 #[cfg(test)]
 mod tests {
     use super::{HashMap, HashSet, LogCampaignStore};

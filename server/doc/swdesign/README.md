@@ -82,6 +82,10 @@ before applying it or when a view on the state is requested.
 
 The ConfigRenderer is responsible for rendering the templated configuration of workloads with their corresponding configuration items provided inside the CompleteState.
 
+### LogCampaignStore
+
+The LogCampaignStore stores metadata about log campaign subscriptions for workloads and the CLI, enabling the Ankaios server to cancel log campaign subscriptions automatically in certain situations.
+
 ## Behavioral view
 
 ### Startup sequence
@@ -1111,6 +1115,32 @@ Log subscribers must be informed when there are no more log messages for a workl
 
 Tags:
 - AnkaiosServer
+
+Needs:
+- impl
+- utest
+
+### Handle workload log campaigns
+
+#### Log campaign store stores log subscriptions metadata
+`swdd~log-campaign-store-stores-log-subscriptions-metadata~1`
+
+Status: approved
+
+The LogCampaignStore stores metadata about log campaign subscriptions from different log campaign subscribers with the following functionalities:
+* inserting a new log campaign subscription for a logs request received from the Ankaios CLI or a workload
+* removing a log campaign entry for a workload by the agent name managing that workload
+* removing a log campaign entry received from the Ankaios CLI by its connection name
+* removing a log campaign entry for a workload collecting logs by its workload name
+* removing a request id for:
+    * a log campaign initiated from the Ankaios CLI
+    * a log campaign initiated by a workload
+
+Comment:
+The relationship between request id and workload name, agent name and CLI connection name are stored in separated data structures.
+
+Tags:
+- LogCampaignStore
 
 Needs:
 - impl
