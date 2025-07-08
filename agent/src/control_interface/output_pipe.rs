@@ -192,22 +192,22 @@ mod tests {
             barrier1.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
             writing_side.write_all(&[4, 5, 6, 7, 8]).await.unwrap();
         });
-        {
-            let mut reading_side = super::OpenOptions::new().open_receiver(&fifo).unwrap();
-            barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
-            let mut buf = [0; 64];
-            let read_count = reading_side.read(&mut buf).await.unwrap();
-            assert_eq!(read_count, 3);
-            assert_eq!(buf[0..3], vec![1, 2, 3]);
-        }
-        {
-            let mut reading_side = super::OpenOptions::new().open_receiver(&fifo).unwrap();
-            barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
-            let mut buf = [0; 64];
-            let read_count = reading_side.read(&mut buf).await.unwrap();
-            assert_eq!(read_count, 5);
-            assert_eq!(buf[0..5], vec![4, 5, 6, 7, 8]);
-        }
+
+        let mut reading_side = super::OpenOptions::new().open_receiver(&fifo).unwrap();
+        barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
+        let mut buf = [0; 64];
+        let read_count = reading_side.read(&mut buf).await.unwrap();
+        assert_eq!(read_count, 3);
+        assert_eq!(buf[0..3], vec![1, 2, 3]);
+        drop(reading_side); // close the reading side to simulate that the receiver is gone
+
+        let mut reading_side = super::OpenOptions::new().open_receiver(&fifo).unwrap();
+        barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
+        let mut buf = [0; 64];
+        let read_count = reading_side.read(&mut buf).await.unwrap();
+        assert_eq!(read_count, 5);
+        assert_eq!(buf[0..5], vec![4, 5, 6, 7, 8]);
+        drop(reading_side); // close the reading side to simulate that the receiver is gone
 
         writing_task.await.unwrap();
     }
@@ -250,14 +250,13 @@ mod tests {
             ));
         });
 
-        {
-            let mut reading_side = super::OpenOptions::new().open_receiver(&fifo).unwrap();
-            barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
-            let mut buf = [0; 64];
-            let read_count = reading_side.read(&mut buf).await.unwrap();
-            assert_eq!(read_count, 3);
-            assert_eq!(buf[0..3], vec![1, 2, 3]);
-        }
+        let mut reading_side = super::OpenOptions::new().open_receiver(&fifo).unwrap();
+        barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
+        let mut buf = [0; 64];
+        let read_count = reading_side.read(&mut buf).await.unwrap();
+        assert_eq!(read_count, 3);
+        assert_eq!(buf[0..3], vec![1, 2, 3]);
+        drop(reading_side); // close the reading side to simulate that the receiver is gone
 
         // Don't open another reader to simulate a problem in the workload
         barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
