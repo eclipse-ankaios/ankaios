@@ -1132,9 +1132,7 @@ The LogCampaignStore stores metadata about log campaign subscriptions from diffe
 * removing a log campaign entry for a workload by the agent name managing that workload
 * removing a log campaign entry received from the Ankaios CLI by its connection name
 * removing a log campaign entry for a workload collecting logs by its workload name
-* removing a request id for:
-    * a log campaign initiated from the Ankaios CLI
-    * a log campaign initiated by a workload
+* removing a request id for a log campaign initiated from the Ankaios CLI or initiated by a workload
 
 Comment:
 The relationship between request id and workload name, agent name and CLI connection name are stored in separated data structures.
