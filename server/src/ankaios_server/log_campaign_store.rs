@@ -235,7 +235,7 @@ impl LogCampaignStore {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~log-campaign-store-stores-log-subscriptions-metadata~1]
+// [utest->swdd~log-campaign-store-stores-log-subscriptions-metadata~1]f
 #[cfg(test)]
 mod tests {
     use super::{HashMap, HashSet, LogCampaignStore};
