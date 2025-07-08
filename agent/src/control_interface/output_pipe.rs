@@ -57,18 +57,11 @@ impl OutputPipe {
         }
     }
 
-    // [impl->swdd~agent-handles-control-interface-output-pipe-closed~1]
-    fn receiver_gone(err: &io::Error) -> bool {
-        // occurs when trying to write to a pipe that has no reader
-        err.kind() == ErrorKind::BrokenPipe
-        // occurs when trying to open the pipe for writing, but it is not open for reading
-        || err.raw_os_error() == Some(nix::libc::ENXIO)
-    }
-
     pub async fn write_all(&mut self, buf: &[u8]) -> Result<(), OutputPipeError> {
         if buf.is_empty() {
             return Ok(());
         }
+
         let mut retries = 0;
         loop {
             // [impl->swdd~agent-handles-control-interface-full-output-pipe-buffer~1]
@@ -123,6 +116,14 @@ impl OutputPipe {
         } else {
             unreachable!()
         }
+    }
+
+    // [impl->swdd~agent-handles-control-interface-output-pipe-closed~1]
+    fn receiver_gone(err: &io::Error) -> bool {
+        // occurs when trying to write to a pipe that has no reader
+        err.kind() == ErrorKind::BrokenPipe
+        // occurs when trying to open the pipe for writing, but it is not open for reading
+        || err.raw_os_error() == Some(nix::libc::ENXIO)
     }
 }
 

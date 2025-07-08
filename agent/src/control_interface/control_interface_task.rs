@@ -108,7 +108,8 @@ impl ControlInterfaceTask {
                 // [impl->swdd~agent-ensures-control-interface-input-pipe-read~1]
                 from_server = self.from_server_receiver.recv() => {
                     if let Some(FromServer::Response(response)) = from_server {
-                        if let Err(DeliveryError::NoReader(response)) = self.forward_from_server(response).await {
+                        let forward_result = self.forward_from_server(response).await;
+                        if let Err(DeliveryError::NoReader(response)) = forward_result {
                             // [impl->swdd~agent-handles-control-interface-workload-gone~1]
                             log::info!("Could not forward the response with Id: '{}'. Stopping log collection.", response.request_id);
                             match response.response_content {
