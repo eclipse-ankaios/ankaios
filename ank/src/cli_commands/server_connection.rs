@@ -43,27 +43,6 @@ use std::io::Write;
 const BUFFER_SIZE: usize = 20;
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 
-// #[cfg(not(test))]
-// macro_rules! print_log {
-//     ($($arg:tt)*) => {{
-//         let stdout = std::io::stdout();       // Returns a handle to stdout
-//         let mut stdout = stdout.lock();  // Lock it for safe writes
-//         writeln!(stdout, $($arg)*).unwrap_or_illegal_state();
-//     }};
-// }
-
-// #[cfg(test)]
-// macro_rules! print_log {
-//     ($($arg:tt)*) => {{
-//         use std::io::Cursor;
-//         let buffer = Vec::new();
-//         let mut cursor = Cursor::new(buffer);
-//         writeln!(cursor, $($arg)*).unwrap_or_illegal_state();
-//         let result = cursor.into_inner();
-//         TEST_LOG_OUTPUT_DATA.push(String::from_utf8(result).unwrap());
-//     }};
-// }
-
 pub struct ServerConnection {
     to_server: ToServerSender,
     from_server: FromServerReceiver,
