@@ -6,7 +6,7 @@ If you have some missing resources, please feel free to open a [pull request](ht
 
 ## Extensions for Ankaios
 
-* The [Python SDK](https://github.com/eclipse-ankaios/ank-sdk-python) provides easy access from the container (workload) to manage an Ankaios cluster.
+* The [Rust SDK](https://github.com/eclipse-ankaios/ank-sdk-rust) and [Python SDK](https://github.com/eclipse-ankaios/ank-sdk-python) provide easy access from the container (workload) to manage an Ankaios cluster.
 * The [Ankaios dashboard](https://github.com/eclipse-ankaios-dashboard/ankaios-dashboard) provides an interactive web-based UI for Ankaios.
 * [meta-ankaios](https://github.com/mrogonna/meta-ankaios) provides a Yocto metalayer for Ankaios.
 * The [Eclipse Symphony Target Provider Rust binding](https://crates.io/crates/symphony) includes a provider to use Symphony with Ankaios.
