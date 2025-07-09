@@ -1111,6 +1111,7 @@ Status: approved
 
 When the user invokes the Ankaios CLI to output logs for specific workloads by providing their workload names, the Ankaios CLI shall:
 * convert the provided workload names into workload instance names
+* select the log format function depending on the number of workloads from which logs are to be output and on the `names` cli argument provided
 * request the logs from the Ankaios server by sending a `LogsRequest` containing the workload instance names and additional log options provided by the user
 * listen to the Ankaios Server for log responses until a logs stop message or a termination signal
 
