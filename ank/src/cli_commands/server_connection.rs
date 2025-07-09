@@ -1366,7 +1366,7 @@ mod tests {
 
     // [utest->swdd~cli-outputs-logs-in-specific-format~2]
     #[test]
-    fn utest_output_log_line_with_workload_name_as_prefix_upon_provided_force_name_argument() {
+    fn utest_output_log_line_with_prefixed_workload_name_upon_provided_force_names_argument() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let log_args = LogsArgs {
