@@ -1165,7 +1165,7 @@ Needs:
 - utest
 
 #### CLI outputs logs in specific format
-`swdd~cli-outputs-logs-in-specific-format~2`
+`swdd~cli-outputs-logs-in-specific-format~1`
 
 Status: approved
 

@@ -367,7 +367,7 @@ fn handle_server_log_response(
     }
 }
 
-// [impl->swdd~cli-outputs-logs-in-specific-format~2]
+// [impl->swdd~cli-outputs-logs-in-specific-format~1]
 fn select_log_format_function(
     instance_names: &BTreeSet<WorkloadInstanceName>,
     force_output_names: bool,
@@ -397,7 +397,7 @@ pub enum ServerConnectionError {
     ExecutionError(String),
 }
 
-// [impl->swdd~cli-outputs-logs-in-specific-format~2]
+// [impl->swdd~cli-outputs-logs-in-specific-format~1]
 fn output_logs_with_workload_names(log_entries: Vec<ank_base::LogEntry>) {
     log_entries.iter().for_each(|log_entry| {
         let workload_instance_name = log_entry.workload_name.as_ref().unwrap_or_else(|| {
@@ -412,7 +412,7 @@ fn output_logs_with_workload_names(log_entries: Vec<ank_base::LogEntry>) {
     });
 }
 
-// [impl->swdd~cli-outputs-logs-in-specific-format~2]
+// [impl->swdd~cli-outputs-logs-in-specific-format~1]
 fn output_logs_without_workload_names(log_entries: Vec<ank_base::LogEntry>) {
     log_entries.iter().for_each(|log_entry| {
         print_log(&format!("{}\n", log_entry.message));
@@ -1242,7 +1242,7 @@ mod tests {
     // [utest->swdd~cli-streams-logs-from-the-server~1]
     // [utest->swdd~handles-log-responses-from-server~1]
     // [utest->swdd~stops-log-output-for-specific-workloads~1]
-    // [utest->swdd~cli-outputs-logs-in-specific-format~2]
+    // [utest->swdd~cli-outputs-logs-in-specific-format~1]
     #[tokio::test]
     async fn utest_stream_logs_multiple_workloads_no_follow() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1334,7 +1334,7 @@ mod tests {
         assert_eq!(actual_log_data, expected_log_data);
     }
 
-    // [utest->swdd~cli-outputs-logs-in-specific-format~2]
+    // [utest->swdd~cli-outputs-logs-in-specific-format~1]
     #[test]
     fn utest_output_log_line_without_workload_name_upon_single_workload() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -1364,7 +1364,7 @@ mod tests {
         assert_eq!(actual_log_data, vec![format!("{}\n", log_message)]);
     }
 
-    // [utest->swdd~cli-outputs-logs-in-specific-format~2]
+    // [utest->swdd~cli-outputs-logs-in-specific-format~1]
     #[test]
     fn utest_output_log_line_with_prefixed_workload_name_upon_provided_force_names_argument() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
