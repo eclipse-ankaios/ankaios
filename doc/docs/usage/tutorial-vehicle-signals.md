@@ -86,7 +86,7 @@ workloads:
         - "--net=host"
 ```
 
-The source code for that image is available in the [Anakios repo](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_vehicle_signals).
+The source code for that image is available in the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_vehicle_signals).
 
 Start the workload with:
 
@@ -228,16 +228,11 @@ Optionally, you can re-run the previous `ank -k get agents` command again, to ve
 ## Reading workload logs
 
 The speed-consumer workload subscribes to the vehicle speed signal and prints it to stdout.
-Use the web UI of the speed-provider to send a few vehicle speed values and watch the log messages of the speed-consumer.
-As the logs are specific for a runtime, we use Podman to read the logs:
+Use the web UI of the speed-provider to send a few vehicle speed values and watch the log messages of the speed-consumer with:
 
 ```shell
-podman logs -f $(podman ps -a | grep speed-consumer | awk '{print $1}')
+ank logs speed-consumer
 ```
-
-!!! info
-
-    If you want to see the logs of the databroker or speed-provider you need to use `sudo podman` instead of `podman` (two occurences) as those workloads run on podman as root on agent_A.
 
 Now, we want to change the existing Ankaios manifest of the speed-provider to use auto mode which sends a new speed limit value every second.
 
@@ -280,23 +275,9 @@ ank -k get state
 ```
 
 If we want to start the three workloads on startup of the Ankaios server and agents we need to create a startup manifest file.
-In the default installation this file is `/etc/ankaios/state.yaml` as we can see in the systemd until file of the Ankaios server:
+In the default server config (see `/etc/ankaios/ank-server.conf`), a startup manifest is read from `/etc/ankaios/state.yaml`.
 
-```shell
-$ systemctl cat ank-server
-# /etc/systemd/system/ank-server.service
-[Unit]
-Description=Ankaios server
-
-[Service]
-Environment="RUST_LOG=info"
-ExecStart=/usr/local/bin/ank-server --insecure --startup-config /etc/ankaios/state.yaml
-
-[Install]
-WantedBy=default.target
-```
-
-Now we create a startup manifest file containing all three workloads:
+Now we create such a startup manifest file containing all three workloads:
 
 ```yaml title="/etc/ankaios/state.yaml" hl_lines="13 14 24 25"
 apiVersion: v0.1
