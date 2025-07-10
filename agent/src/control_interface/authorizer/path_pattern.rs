@@ -15,37 +15,14 @@
 use std::{fmt::Display, sync::Arc};
 
 use super::path::Path;
-use common::PATH_SEPARATOR;
 use super::rules::WILDCARD_SYMBOL;
+use common::PATH_SEPARATOR;
 
 pub type PathPatternMatchReason = String;
 
-fn match_rule_with_path(rule: &impl PathPattern, other: &Path) -> (bool, PathPatternMatchReason) {
-    // [impl->swdd~agent-authorizing-rules-without-segments-never-match~1]
-    if rule.sections().is_empty() {
-        return (false, "Empty filter masks in rules never match.".into());
-    }
-
-    for (a, b) in rule.sections().iter().zip(other.sections.iter()) {
-        if !a.matches(b) {
-            return (false, String::new());
-        }
-    }
-
-    (
-        true,
-        rule.sections()
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join("."),
-    )
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum PathPatternSection {
-    Wildcard,
-    String(String),
+pub trait PathPattern {
+    fn sections(&self) -> &Vec<PathPatternSection>;
+    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -53,18 +30,16 @@ pub struct AllowPathPattern {
     sections: Vec<PathPatternSection>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct DenyPathPattern {
-    sections: Vec<PathPatternSection>,
-}
-
-pub trait PathPattern {
-    fn sections(&self) -> &Vec<PathPatternSection>;
-    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
-}
-
-pub trait PathPatternMatcher {
-    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
+impl From<&str> for AllowPathPattern {
+    fn from(value: &str) -> Self {
+        Self {
+            sections: if value.is_empty() {
+                Vec::new()
+            } else {
+                value.split(PATH_SEPARATOR).map(Into::into).collect()
+            },
+        }
+    }
 }
 
 // [impl->swdd~agent-authorizing-matching-allow-rules~1]
@@ -84,7 +59,12 @@ impl PathPattern for AllowPathPattern {
     }
 }
 
-impl From<&str> for AllowPathPattern {
+#[derive(Clone, Debug, PartialEq)]
+pub struct DenyPathPattern {
+    sections: Vec<PathPatternSection>,
+}
+
+impl From<&str> for DenyPathPattern {
     fn from(value: &str) -> Self {
         Self {
             sections: if value.is_empty() {
@@ -107,16 +87,25 @@ impl PathPattern for DenyPathPattern {
     }
 }
 
-impl From<&str> for DenyPathPattern {
-    fn from(value: &str) -> Self {
-        Self {
-            sections: if value.is_empty() {
-                Vec::new()
-            } else {
-                value.split(PATH_SEPARATOR).map(Into::into).collect()
-            },
+pub trait PathPatternMatcher {
+    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
+}
+
+impl<T: PathPatternMatcher + std::fmt::Debug> PathPatternMatcher for Vec<Arc<T>> {
+    fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
+        for rule in self {
+            if let (true, reason) = rule.matches(path) {
+                return (true, reason);
+            }
         }
+        (false, String::new())
     }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum PathPatternSection {
+    Wildcard,
+    String(String),
 }
 
 impl PathPatternSection {
@@ -148,15 +137,26 @@ impl Display for PathPatternSection {
     }
 }
 
-impl<T: PathPatternMatcher + std::fmt::Debug> PathPatternMatcher for Vec<Arc<T>> {
-    fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
-        for rule in self {
-            if let (true, reason) = rule.matches(path) {
-                return (true, reason);
-            }
-        }
-        (false, String::new())
+fn match_rule_with_path(rule: &impl PathPattern, other: &Path) -> (bool, PathPatternMatchReason) {
+    // [impl->swdd~agent-authorizing-rules-without-segments-never-match~1]
+    if rule.sections().is_empty() {
+        return (false, "Empty filter masks in rules never match.".into());
     }
+
+    for (a, b) in rule.sections().iter().zip(other.sections.iter()) {
+        if !a.matches(b) {
+            return (false, String::new());
+        }
+    }
+
+    (
+        true,
+        rule.sections()
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join("."),
+    )
 }
 
 //////////////////////////////////////////////////////////////////////////////

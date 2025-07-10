@@ -163,22 +163,19 @@ impl Authorizer {
                     return false;
                 }
 
-                let allow_reason = logs_request
-                    .workload_names
-                    .iter()
-                    .find(|instance_name| {
-                        self.log_allow
+                let not_allowed_workload =
+                    logs_request.workload_names.iter().find(|instance_name| {
+                        !self
+                            .log_allow
                             .iter()
-                            .all(|allow_rule| allow_rule.matches(instance_name.workload_name()))
-                    })
-                    .map(|instance_name| {
-                        format!("allowed by rule for workload '{}'", instance_name)
+                            .any(|allow_rule| allow_rule.matches(instance_name.workload_name()))
                     });
 
-                if allow_reason.is_none() || self.log_allow.is_empty() {
+                if let Some(instance_name) = not_allowed_workload {
                     log::info!(
-                        "Deny log request '{}' as no rule matches any workload name",
-                        request.request_id
+                        "Deny log request '{}' as workload '{}' is not present in the allow rules",
+                        request.request_id,
+                        instance_name.workload_name()
                     );
                     return false;
                 }
@@ -196,18 +193,13 @@ impl Authorizer {
                     });
 
                 if deny_reason.is_none() {
-                    log::debug!(
-                        "Allow log request '{}' as '{}' is allowed",
-                        request.request_id,
-                        allow_reason.unwrap_or_unreachable()
-                    );
+                    log::debug!("Log request '{}' is allowed", request.request_id);
                     return true;
                 }
 
                 log::info!(
-                    "Deny log request '{}' as '{}' is allowed, but also denied by '{}'",
+                    "Deny log request '{}' it is allowed, but also denied by '{}'",
                     request.request_id,
-                    allow_reason.unwrap_or_unreachable(),
                     deny_reason.unwrap_or_unreachable()
                 );
                 false
@@ -578,7 +570,7 @@ mod test {
     }
 
     #[test]
-    fn utest_log_requests_operations() {
+    fn utest_log_requests_general_cases() {
         let request = Request {
             request_id: "".into(),
             request_content: common::commands::RequestContent::LogsRequest(LogsRequest {
@@ -592,20 +584,57 @@ mod test {
 
         let authorizer = Authorizer::default();
         assert!(!authorizer.authorize(&request));
+
         let authorizer = create_authorizer(&[RuleType::LogAllow(vec![WORKLOAD_NAME.into()])]);
         assert!(authorizer.authorize(&request));
+
         let authorizer = create_authorizer(&[RuleType::LogDeny(vec![WORKLOAD_NAME.into()])]);
         assert!(!authorizer.authorize(&request));
+
         let authorizer = create_authorizer(&[
             RuleType::LogAllow(vec![WORKLOAD_NAME.into()]),
             RuleType::LogDeny(vec![WORKLOAD_NAME.into()]),
         ]);
         assert!(!authorizer.authorize(&request));
+
         let authorizer = create_authorizer(&[
             RuleType::LogAllow(vec![WORKLOAD_NAME.into()]),
             RuleType::LogDeny(vec![NON_EXISTING_WORKLOAD_NAME.into()]),
         ]);
         assert!(authorizer.authorize(&request));
+    }
+
+    #[test]
+    fn utest_log_requests_complex_cases() {
+        fn request(workloads: &[&str]) -> Request {
+            Request {
+                request_id: "".into(),
+                request_content: common::commands::RequestContent::LogsRequest(LogsRequest {
+                    workload_names: workloads
+                        .iter()
+                        .map(|name| WorkloadInstanceName::new("", *name, ""))
+                        .collect(),
+                    follow: false,
+                    tail: -1,
+                    since: None,
+                    until: None,
+                }),
+            }
+        }
+
+        let authorizer = create_authorizer(&[
+            RuleType::LogAllow(vec!["w1".into(), "w2".into(), "w3".into()]),
+            RuleType::LogDeny(vec!["w3".into(), "w4".into(), "w5".into()]),
+        ]);
+
+        assert!(authorizer.authorize(&request(&["w1"])));
+        assert!(authorizer.authorize(&request(&["w1", "w2"])));
+
+        assert!(!authorizer.authorize(&request(&["w3"])));
+        assert!(!authorizer.authorize(&request(&["w6"])));
+        assert!(!authorizer.authorize(&request(&["w1", "w3"])));
+        assert!(!authorizer.authorize(&request(&["w1", "w6"])));
+        assert!(!authorizer.authorize(&request(&["w3", "w6"])));
     }
 
     #[test]
