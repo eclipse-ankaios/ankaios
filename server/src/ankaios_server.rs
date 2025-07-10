@@ -575,7 +575,7 @@ mod tests {
     const RUNTIME_NAME: &str = "runtime";
     const REQUEST_ID: &str = "request_1";
     const REQUEST_ID_A: &str = "agent_A@request_1";
-    const REQUEST_ID_B: &str = "agent_B@request_2";
+    const REQUEST_ID_A2: &str = "agent_A@request_2";
     const INSTANCE_ID: &str = "instance_id";
     const MESSAGE: &str = "message";
 
@@ -1517,11 +1517,12 @@ mod tests {
         server
             .log_campaign_store
             .expect_remove_agent_log_campaign_entry()
+            .with(predicate::eq(AGENT_A.to_owned()))
             .once()
             .return_const(RemovedLogRequests {
                 collector_requests: HashSet::from([
                     REQUEST_ID_A.to_owned(),
-                    REQUEST_ID_B.to_owned(),
+                    REQUEST_ID_A2.to_owned(),
                 ]),
                 ..Default::default()
             });
@@ -1544,7 +1545,7 @@ mod tests {
 
         let expected_logs_cancel_requests = vec![
             FromServer::LogsCancelRequest(REQUEST_ID_A.to_string()),
-            FromServer::LogsCancelRequest(REQUEST_ID_B.to_string()),
+            FromServer::LogsCancelRequest(REQUEST_ID_A2.to_string()),
         ];
         let mut actual_logs_cancel_requests = Vec::new();
         let _update_workload_state = comm_middle_ware_receiver.recv().await.unwrap();
