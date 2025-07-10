@@ -113,7 +113,7 @@ message UpdateStateRequest {
 * A message from the server containing the ids of the workloads that have been started and stopped in response to a previously sent UpdateStateRequest.
 */
 message UpdateStateSuccess {
-    repeated string addedWorkloads = 1; /// Workload istance names of workloads which will be started
+    repeated string addedWorkloads = 1; /// Workload instance names of workloads which will be started
     repeated string deletedWorkloads = 2; /// Workload instance names of workloads which will be stopped
 }
 
@@ -210,7 +210,7 @@ enum Running {
 enum Stopping {
     STOPPING = 0; /// The workload is being stopped.
     STOPPING_WAITING_TO_STOP = 1; /// The deletion of the workload will be triggered once neither 'pending' nor 'running' workload depending on it exists.
-    STOPPING_REQUESTED_AT_RUNTIME = 2; /// This is an Ankaios generated state returned when the stopping was explicitly trigged by the user and the request was sent to the runtime.
+    STOPPING_REQUESTED_AT_RUNTIME = 2; /// This is an Ankaios generated state returned when the stopping was explicitly triggered by the user and the request was sent to the runtime.
     STOPPING_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
 
@@ -284,7 +284,7 @@ message State {
 }
 
 /**
-* This is a workaround for proto not supporing optional maps
+* This is a workaround for proto not supporting optional maps
 * Workload names shall not be shorter than 1 symbol longer then 63 symbols and can contain only regular characters, digits, the "-" and "_" symbols.
 */
 message WorkloadMap {
@@ -307,14 +307,14 @@ message Workload {
 }
 
 /**
-* This is a workaround for proto not supporing optional repeated values
+* This is a workaround for proto not supporting optional repeated values
 */
 message Tags {
     repeated Tag tags = 1;
 }
 
 /**
-* This is a workaround for proto not supporing optional maps
+* This is a workaround for proto not supporting optional maps
 */
 message Dependencies {
     map<string, AddCondition> dependencies = 1;
@@ -366,7 +366,7 @@ message AccessRightsRule {
 **/
 message StateRule {
   ReadWriteEnum operation = 1; // Defines which actions are allowed
-  repeated string filterMasks = 2; // Pathes definind what can be accessed. Segements of path can be a wildcare "*".
+  repeated string filterMasks = 2; // Paths defining what can be accessed. Segments of path can be a wildcard "*".
 }
 
 /**
@@ -387,7 +387,7 @@ enum ReadWriteEnum {
 }
 
 /**
-* This is a workaround for proto not supporing optional maps
+* This is a workaround for proto not supporting optional maps
 */
 message ConfigMappings {
     map<string, string> configs = 1;

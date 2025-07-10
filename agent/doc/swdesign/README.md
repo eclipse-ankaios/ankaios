@@ -3219,10 +3219,10 @@ Needs:
 
 Status: approved
 
-The Ankaios Agent shall ensure, that Control Interface input pipes are opened and messages are read.
+The Ankaios agent shall ensure, that Control Interface input pipes are opened and messages are read.
 
 Comment:
-If the Ankaios Agent does not open and read the Control Interface input pipes, a Workload could block, trying to write the output pipe.
+If the Ankaios agent does not open and read the Control Interface input pipes, a Workload could block, trying to write the output pipe.
 
 Tags:
 - AgentManager
@@ -3232,20 +3232,55 @@ Needs:
 - impl
 - utest
 
-#### Agent handles Control Interface input pipe not being read
-`swdd~agent-handles-control-interface-input-pipe-not-read~1`
+#### Agent handles Control Interface full output pipe buffer
+`swdd~agent-handles-control-interface-full-output-pipe-buffer~1`
 
 Status: approved
 
-If a Workload does not read data send to it on the Control Interface input pipe, the Ankaios Agent shall handle this situation gracefully.
-Hence the Ankaios Agent:
+When the Control Interface detects that the output pipe buffer is full by waiting for more then 500ms for a write, the Control Interface handles the write attempt as failed due to a "gone" receiver/workload.
 
-- does not block
-- does not use a infinite amount of memory to store message which could not be sent
-- overwhelm the Workload with messages once the Workload starts reading the Control Interface input pipe
+Comment:
+Writes to a named pipe are executed immediately unless the pipe buffer is full. Taking into account that the default size of the buffer is 64KiB and the workload has 500ms to grab data from the pipe, a healthy workload should not encounter communication problems.
+Ankaios cannot wait indefinitely on the reads as this would block the internal workflows rendering the complete system unresponsive.
 
 Tags:
-- AgentManager
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
+#### Agent handles Control Interface output pipe closed
+`swdd~agent-handles-control-interface-output-pipe-closed~1`
+
+Status: approved
+
+When the Control Interface detects a closed reading end of the output pipe while writing, the Control Interface retries the writes for 5 times in a 100ms interval before handling the write attempt as failed due to a gone receiver.
+
+Comment:
+This handling allows an internal error handling of the workload to recover from the problem.
+On the other hand Ankaios cannot wait indefinitely on the workload as this would block the internal workflows rendering the complete system unresponsive.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
+#### Agent handles Control Interface workload gone
+`swdd~agent-handles-control-interface-workload-gone~1`
+
+Status: approved
+
+When the Control Interface detects during a write attempt that a workload is "gone" and the write attempt was from a streaming type, i.e. log collection,
+the Control Interface cancels automatically the streaming session.
+
+Comment:
+The Control Interface instance itself is left intact so the workload is given the chance to recover.
+Nevertheless, streaming sessions could produce a lot of data so it is better to close them if connection issues occur.
+
+Tags:
 - ControlInterface
 
 Needs:
