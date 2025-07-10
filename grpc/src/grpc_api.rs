@@ -201,23 +201,16 @@ pub fn generate_test_failed_update_workload_state(
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{
-        from_server::FromServerEnum, generate_test_proto_deleted_workload, AddedWorkload,
-        DeletedWorkload, FromServer, LogsCancelRequest, LogsRequest, UpdateWorkload,
-        UpdateWorkloadState,
-    };
+    use crate::{generate_test_proto_deleted_workload, AddedWorkload, DeletedWorkload};
 
     use api::ank_base::{self};
     use common::{
-        commands,
-        objects::{
-            self, generate_test_rendered_workload_files, generate_test_workload_spec, ConfigHash,
-        },
+        objects::{generate_test_rendered_workload_files, generate_test_workload_spec, ConfigHash},
         test_utils::generate_test_deleted_workload,
     };
 
     mod ankaios {
-        pub use common::{commands::*, from_server_interface::FromServer, objects::*};
+        pub use common::{commands::*, objects::*};
     }
 
     ///////////////////////////////////////////////////////////////////////////
