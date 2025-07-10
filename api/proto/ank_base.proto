@@ -40,8 +40,9 @@ message Response {
         Error error = 3;
         CompleteState completeState = 4;
         UpdateStateSuccess UpdateStateSuccess = 5;
-        LogEntriesResponse logEntriesResponse = 6; /// A message containing workload logs.
-        LogsStopResponse logsStopResponse = 7; /// A message containing the workload instance name indicating the stop of the log streaming.
+        LogsRequestAccepted logsRequestAccepted = 6; /// A message containing the workload names for which the logs were successfully requested.
+        LogEntriesResponse logEntriesResponse = 7; /// A message containing workload logs.
+        LogsStopResponse logsStopResponse = 8; /// A message containing the workload instance name indicating the stop of the log streaming.
     }
 }
 
@@ -60,6 +61,13 @@ message LogsRequest {
 * A message stopping the streaming of logs requested via a request with the follow flag.
 */
 message LogsCancelRequest {
+}
+
+/**
+* A message indicating that the logs were successfully requested and for which workloads.
+*/
+message LogsRequestAccepted {
+    repeated WorkloadInstanceName workloadNames = 1; /// The names of the workloads for which the logs were successfully requested.
 }
 
 /**

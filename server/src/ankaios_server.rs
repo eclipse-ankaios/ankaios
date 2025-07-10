@@ -352,11 +352,14 @@ impl AnkaiosServer {
                         };
 
                         self.to_agents
-                            .logs_request(request_id, valid_logs_request.into())
+                            .logs_request(request_id.clone(), valid_logs_request.clone().into())
                             .await
                             .unwrap_or_illegal_state();
 
-                        // TODO send Accepted response
+                        self.to_agents
+                            .logs_request_accepted(request_id, valid_logs_request.into())
+                            .await
+                            .unwrap_or_illegal_state();
                     }
                     common::commands::RequestContent::LogsCancelRequest => {
                         log::debug!("Got log cancel request with ID: {}", request_id);
