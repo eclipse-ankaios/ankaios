@@ -224,6 +224,11 @@ impl AgentManager {
                     .delete_subscription(&request_id);
                 Some(())
             }
+            FromServer::ServerGone => {
+                log::warn!("Agent '{}' received ServerGone.", self.agent_name);
+                self.subscription_store.lock().unwrap().clear_all();
+                Some(())
+            }
         }
     }
 

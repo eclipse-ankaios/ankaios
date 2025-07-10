@@ -29,6 +29,10 @@ impl SubscriptionStore {
         self.store.remove(id);
     }
 
+    pub fn clear_all(&mut self) {
+        self.store.clear();
+    }
+
     #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.store.is_empty()

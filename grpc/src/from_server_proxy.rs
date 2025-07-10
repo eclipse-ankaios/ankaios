@@ -221,6 +221,11 @@ pub async fn forward_from_ankaios_to_proto(
                 log::trace!("Received LogsCancelRequest from server");
                 distribute_log_cancel_requests_to_agent(agent_senders, request_id).await;
             }
+            FromServer::ServerGone => {
+                log::warn!(
+                    "Received ServerGone. ServerGone is not expected to be sent over the network."
+                )
+            }
             FromServer::Stop(_method_obj) => {
                 log::debug!("Received Stop from server.");
                 // TODO: handle the call
