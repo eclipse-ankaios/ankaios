@@ -18,6 +18,7 @@ use std::path::PathBuf;
 mod ank_config;
 mod cli;
 mod cli_commands;
+mod cli_signals;
 use ank_config::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
 use cli_commands::CliCommands;
 use common::std_extensions::GracefulExitResult;
@@ -254,6 +255,14 @@ async fn main() {
             if let Err(err) = cmd.apply_manifests(apply_args).await {
                 output_and_error!("{}", err);
             }
+        }
+        // [impl->swdd~cli-provides-workload-logs~1]
+        cli::Commands::Logs(logs_args) => {
+            cmd.get_logs_blocking(logs_args)
+                .await
+                .unwrap_or_else(|err| {
+                    output_and_error!("Failed to output logs: '{}'", err);
+                });
         }
     }
     cmd.shut_down().await;
