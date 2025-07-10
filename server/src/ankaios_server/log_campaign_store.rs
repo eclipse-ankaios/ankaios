@@ -14,9 +14,10 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    fmt,
-    fmt::Display,
+    fmt::{self, Display},
 };
+
+use common::objects::WorkloadInstanceName;
 
 type AgentName = String;
 pub type LogSubscriberRequestId = String;
@@ -47,10 +48,8 @@ struct AgentRequestId {
     request_uuid: String,
 }
 
-fn to_string_ids(
-    request_ids: Option<HashSet<AgentRequestId>>,
-) -> Option<HashSet<LogSubscriberRequestId>> {
-    request_ids.map(|ids| ids.into_iter().map(|id| id.to_string()).collect())
+fn to_string_ids(request_ids: HashSet<AgentRequestId>) -> HashSet<LogSubscriberRequestId> {
+    request_ids.into_iter().map(|id| id.to_string()).collect()
 }
 
 impl Display for AgentRequestId {
@@ -103,18 +102,30 @@ where
     }
 }
 
+#[derive(Default, Debug, Clone)]
+pub struct RemovedLogRequests {
+    pub collector_requests: HashSet<LogSubscriberRequestId>,
+    pub disconnected_log_providers: Vec<(LogSubscriberRequestId, Vec<WorkloadInstanceName>)>,
+}
+
 #[derive(Default)]
 pub struct LogCampaignStore {
     agent_log_request_ids_store: AgentLogRequestIdMap,
     workload_name_request_id_store: WorkloadNameRequestIdMap,
+    log_providers_store:
+        HashMap<AgentName, HashMap<LogSubscriberRequestId, Vec<WorkloadInstanceName>>>,
     cli_log_request_id_store: CliConnectionLogRequestIdMap,
 }
 
 #[cfg_attr(test, mockall::automock)]
 // [impl->swdd~log-campaign-store-stores-log-subscriptions-metadata~1]
 impl LogCampaignStore {
-    pub fn insert_log_campaign(&mut self, request_id: LogSubscriberRequestId) {
-        let request_id: RequestId = request_id.into();
+    pub fn insert_log_campaign(
+        &mut self,
+        input_request_id: &LogSubscriberRequestId,
+        log_providers: &Vec<WorkloadInstanceName>,
+    ) {
+        let request_id: RequestId = input_request_id.into();
         log::debug!("Insert log campaign '{}'", request_id);
 
         match request_id {
@@ -131,39 +142,75 @@ impl LogCampaignStore {
                 self.agent_log_request_ids_store
                     .entry(agent_request_id.agent_name.clone())
                     .or_default()
-                    .insert(agent_request_id);
+                    .insert(agent_request_id.clone());
             }
+        }
+
+        for workload_instance_name in log_providers {
+            self.log_providers_store
+                .entry(workload_instance_name.agent_name().to_string())
+                .or_default()
+                .entry(input_request_id.clone())
+                .or_default()
+                .push(workload_instance_name.clone());
         }
     }
 
     pub fn remove_agent_log_campaign_entry(
         &mut self,
         agent_name: &AgentName,
-    ) -> Option<HashSet<LogSubscriberRequestId>> {
+    ) -> RemovedLogRequests {
         let requests = self.agent_log_request_ids_store.remove(agent_name);
 
         if let Some(requests) = &requests {
             requests.iter().for_each(|agent_request_id| {
                 self.workload_name_request_id_store
                     .remove(&agent_request_id.workload_name);
+
+                self.remove_request_from_log_providers_store(&agent_request_id.to_string());
             });
         }
 
-        to_string_ids(requests)
+        let disconnected_log_providers = self
+            .log_providers_store
+            .remove(agent_name)
+            .map(|provider_map| {
+                provider_map
+                    .into_iter()
+                    .map(|(agent_request_id, workload_instances)| {
+                        (agent_request_id.to_string(), workload_instances)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        RemovedLogRequests {
+            collector_requests: to_string_ids(requests.unwrap_or_default()),
+            disconnected_log_providers,
+        }
     }
 
     pub fn remove_cli_log_campaign_entry(
         &mut self,
         cli_connection_name: &CliConnectionName,
     ) -> Option<LogSubscriberRequestId> {
-        self.cli_log_request_id_store
+        let removed_request_id = self
+            .cli_log_request_id_store
             .remove(cli_connection_name)
-            .map(|requests| requests.to_string())
+            .map(|requests| requests.to_string());
+
+        if let Some(removed_request_id) = &removed_request_id {
+            self.remove_request_from_log_providers_store(removed_request_id);
+        }
+
+        removed_request_id
     }
 
-    pub fn remove_logs_request_id(&mut self, request_id: &LogSubscriberRequestId) {
-        let request_id: RequestId = request_id.into();
+    pub fn remove_logs_request_id(&mut self, input_request_id: &LogSubscriberRequestId) {
+        let request_id: RequestId = input_request_id.into();
         log::debug!("Remove log campaign '{}'", request_id);
+
+        self.remove_request_from_log_providers_store(input_request_id);
 
         match request_id {
             RequestId::CliRequestId(cli_request_id) => {
@@ -181,7 +228,7 @@ impl LogCampaignStore {
     pub fn remove_collector_campaign_entry(
         &mut self,
         workload_name: &WorkloadName,
-    ) -> Option<HashSet<LogSubscriberRequestId>> {
+    ) -> HashSet<LogSubscriberRequestId> {
         log::debug!(
             "Removing collector campaign for workload '{}'",
             workload_name
@@ -191,10 +238,11 @@ impl LogCampaignStore {
         if let Some(removed_request_ids) = &removed_request_ids {
             removed_request_ids.iter().for_each(|agent_request_id| {
                 self.remove_request_from_agent_log_campaign_store(agent_request_id);
+                self.remove_request_from_log_providers_store(&agent_request_id.to_string());
             });
         }
 
-        to_string_ids(removed_request_ids)
+        to_string_ids(removed_request_ids.unwrap_or_default())
     }
 
     fn remove_request_from_agent_log_campaign_store(&mut self, agent_request_id: &AgentRequestId) {
@@ -225,6 +273,19 @@ impl LogCampaignStore {
             }
         }
     }
+
+    fn remove_request_from_log_providers_store(
+        &mut self,
+        agent_request_id: &LogSubscriberRequestId,
+    ) {
+        self.log_providers_store
+            .retain(|_agent_name, provider_map| {
+                provider_map.retain(|agent_request_id_key, _log_providers| {
+                    agent_request_id_key != agent_request_id
+                });
+                !provider_map.is_empty()
+            });
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -238,6 +299,8 @@ impl LogCampaignStore {
 // [utest->swdd~log-campaign-store-stores-log-subscriptions-metadata~1]
 #[cfg(test)]
 mod tests {
+    use common::objects::WorkloadInstanceName;
+
     use super::{HashMap, HashSet, LogCampaignStore};
 
     const AGENT_A: &str = "agent_A";
@@ -250,6 +313,11 @@ mod tests {
     const CLI_REQUEST_ID_1: &str = "cli-conn-1@cli_request_id_1";
     const CLI_CON_2: &str = "cli-conn-2";
     const CLI_REQUEST_ID_2: &str = "cli-conn-2@cli_request_id_2";
+
+    mockall::lazy_static! {
+        static ref WORKLOAD_3_INSTANCE_NAME: WorkloadInstanceName = WorkloadInstanceName::try_from("log_provider.some_uuid.agent_B").unwrap();
+
+    }
 
     fn prepare_log_campaign_store() -> LogCampaignStore {
         LogCampaignStore {
@@ -277,6 +345,27 @@ mod tests {
                     HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]),
                 ),
             ]),
+            log_providers_store: HashMap::from([(
+                AGENT_B.to_owned(),
+                HashMap::from([
+                    (
+                        REQUEST_ID_AGENT_A.to_owned(),
+                        vec![WORKLOAD_3_INSTANCE_NAME.clone()],
+                    ),
+                    (
+                        REQUEST_ID_AGENT_B.to_owned(),
+                        vec![WORKLOAD_3_INSTANCE_NAME.clone()],
+                    ),
+                    (
+                        CLI_REQUEST_ID_1.to_owned(),
+                        vec![WORKLOAD_3_INSTANCE_NAME.clone()],
+                    ),
+                    (
+                        CLI_REQUEST_ID_2.to_owned(),
+                        vec![WORKLOAD_3_INSTANCE_NAME.clone()],
+                    ),
+                ]),
+            )]),
         }
     }
 
@@ -302,18 +391,46 @@ mod tests {
     fn utest_cli_log_connection_store_insert_log_campaign() {
         let mut log_campaign_store = LogCampaignStore::default();
 
-        log_campaign_store.insert_log_campaign(CLI_REQUEST_ID_1.to_owned());
+        log_campaign_store.insert_log_campaign(
+            &CLI_REQUEST_ID_1.to_owned(),
+            &vec![WORKLOAD_3_INSTANCE_NAME.clone()],
+        );
         assert_eq!(log_campaign_store.cli_log_request_id_store.len(), 1);
         assert_eq!(
             log_campaign_store.cli_log_request_id_store.get(CLI_CON_1),
             Some(&to_cli_request_id(CLI_REQUEST_ID_1))
         );
+        assert_eq!(log_campaign_store.log_providers_store.len(), 1);
+        assert_eq!(
+            log_campaign_store.log_providers_store.get(AGENT_B),
+            Some(&HashMap::from([(
+                CLI_REQUEST_ID_1.to_owned(),
+                vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+            )]))
+        );
 
-        log_campaign_store.insert_log_campaign(CLI_REQUEST_ID_2.to_owned());
+        log_campaign_store.insert_log_campaign(
+            &CLI_REQUEST_ID_2.to_owned(),
+            &vec![WORKLOAD_3_INSTANCE_NAME.clone()],
+        );
         assert_eq!(log_campaign_store.cli_log_request_id_store.len(), 2);
         assert_eq!(
             log_campaign_store.cli_log_request_id_store.get(CLI_CON_2),
             Some(&to_cli_request_id(CLI_REQUEST_ID_2))
+        );
+        assert_eq!(log_campaign_store.log_providers_store.len(), 1);
+        assert_eq!(
+            log_campaign_store.log_providers_store.get(AGENT_B),
+            Some(&HashMap::from([
+                (
+                    CLI_REQUEST_ID_1.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    CLI_REQUEST_ID_2.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                )
+            ]))
         );
 
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 0);
@@ -324,7 +441,10 @@ mod tests {
     fn utest_agent_log_connection_store_insert_log_campaign() {
         let mut log_campaign_store = LogCampaignStore::default();
 
-        log_campaign_store.insert_log_campaign(REQUEST_ID_AGENT_A.to_owned());
+        log_campaign_store.insert_log_campaign(
+            &REQUEST_ID_AGENT_A.to_owned(),
+            &vec![WORKLOAD_3_INSTANCE_NAME.clone()],
+        );
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 1);
         assert_eq!(
             log_campaign_store.agent_log_request_ids_store.get(AGENT_A),
@@ -336,8 +456,18 @@ mod tests {
                 .get(WORKLOAD_1_NAME),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_A)]))
         );
+        assert_eq!(
+            log_campaign_store.log_providers_store.get(AGENT_B),
+            Some(&HashMap::from([(
+                REQUEST_ID_AGENT_A.to_owned(),
+                vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+            )]))
+        );
 
-        log_campaign_store.insert_log_campaign(REQUEST_ID_AGENT_B.to_owned());
+        log_campaign_store.insert_log_campaign(
+            &REQUEST_ID_AGENT_B.to_owned(),
+            &vec![WORKLOAD_3_INSTANCE_NAME.clone()],
+        );
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 2);
         assert_eq!(
             log_campaign_store.agent_log_request_ids_store.get(AGENT_B),
@@ -349,21 +479,37 @@ mod tests {
                 .get(WORKLOAD_2_NAME),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
         );
+        assert_eq!(
+            log_campaign_store.log_providers_store.get(AGENT_B),
+            Some(&HashMap::from([
+                (
+                    REQUEST_ID_AGENT_A.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    REQUEST_ID_AGENT_B.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                )
+            ]))
+        );
 
+        assert_eq!(log_campaign_store.log_providers_store.len(), 1);
         assert_eq!(log_campaign_store.cli_log_request_id_store.len(), 0);
     }
 
     #[test]
-    fn utest_agent_log_connection_store_remove_all_logs_request_ids_for_agent() {
+    fn utest_agent_log_connection_store_remove_all_logs_request_ids_for_agent_collecting() {
         let mut log_campaign_store = prepare_log_campaign_store();
 
         let removed_requests =
             log_campaign_store.remove_agent_log_campaign_entry(&AGENT_A.to_owned());
 
         assert_eq!(
-            removed_requests,
-            Some(HashSet::from([REQUEST_ID_AGENT_A.to_owned()]))
+            removed_requests.collector_requests,
+            HashSet::from([REQUEST_ID_AGENT_A.to_owned()])
         );
+
+        assert_eq!(removed_requests.disconnected_log_providers.len(), 0);
 
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 1);
         assert_eq!(
@@ -378,6 +524,59 @@ mod tests {
                 .get(WORKLOAD_2_NAME),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
         );
+
+        assert_eq!(
+            log_campaign_store.log_providers_store.get(AGENT_B).unwrap(),
+            &HashMap::from([
+                (
+                    REQUEST_ID_AGENT_B.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    CLI_REQUEST_ID_1.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    CLI_REQUEST_ID_2.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+            ])
+        );
+
+        assert_eq!(log_campaign_store.cli_log_request_id_store.len(), 2);
+    }
+
+    #[test]
+    fn utest_agent_log_connection_store_remove_all_logs_request_ids_for_agent_providing_logs() {
+        let mut log_campaign_store = prepare_log_campaign_store();
+
+        let removed_requests =
+            log_campaign_store.remove_agent_log_campaign_entry(&AGENT_B.to_owned());
+
+        assert_eq!(
+            removed_requests.collector_requests,
+            HashSet::from([REQUEST_ID_AGENT_B.to_owned()])
+        );
+
+        // We expect only 3 here as agent_B is disconnected and there is no sense to send a logs stops response there
+        assert_eq!(removed_requests.disconnected_log_providers.len(), 3);
+
+        assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 1);
+        assert_eq!(
+            log_campaign_store.agent_log_request_ids_store.get(AGENT_A),
+            Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_A)]))
+        );
+
+        assert_eq!(log_campaign_store.workload_name_request_id_store.len(), 1);
+        assert_eq!(
+            log_campaign_store
+                .workload_name_request_id_store
+                .get(WORKLOAD_1_NAME),
+            Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_A)]))
+        );
+
+        assert!(!log_campaign_store
+            .log_providers_store.contains_key(AGENT_B));
 
         assert_eq!(log_campaign_store.cli_log_request_id_store.len(), 2);
     }
@@ -402,6 +601,24 @@ mod tests {
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
         );
 
+        assert_eq!(
+            log_campaign_store.log_providers_store.get(AGENT_B).unwrap(),
+            &HashMap::from([
+                (
+                    REQUEST_ID_AGENT_B.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    CLI_REQUEST_ID_1.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    CLI_REQUEST_ID_2.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+            ])
+        );
+
         assert_eq!(log_campaign_store.cli_log_request_id_store.len(), 2);
     }
 
@@ -420,6 +637,24 @@ mod tests {
             Some(&to_cli_request_id(CLI_REQUEST_ID_2))
         );
 
+        assert_eq!(
+            log_campaign_store.log_providers_store.get(AGENT_B).unwrap(),
+            &HashMap::from([
+                (
+                    REQUEST_ID_AGENT_A.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    REQUEST_ID_AGENT_B.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    CLI_REQUEST_ID_2.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+            ])
+        );
+
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 2);
         assert_eq!(log_campaign_store.workload_name_request_id_store.len(), 2);
     }
@@ -434,6 +669,23 @@ mod tests {
             log_campaign_store.cli_log_request_id_store.get(CLI_CON_2),
             Some(to_cli_request_id(CLI_REQUEST_ID_2)).as_ref()
         );
+        assert_eq!(
+            log_campaign_store.log_providers_store.get(AGENT_B).unwrap(),
+            &HashMap::from([
+                (
+                    REQUEST_ID_AGENT_A.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    REQUEST_ID_AGENT_B.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    CLI_REQUEST_ID_2.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+            ])
+        );
 
         assert_eq!(log_campaign_store.agent_log_request_ids_store.len(), 2);
         assert_eq!(log_campaign_store.workload_name_request_id_store.len(), 2);
@@ -444,10 +696,7 @@ mod tests {
         let mut log_campaign_store = prepare_log_campaign_store();
         let removed_ids =
             log_campaign_store.remove_collector_campaign_entry(&WORKLOAD_1_NAME.to_owned());
-        assert_eq!(
-            removed_ids,
-            Some(HashSet::from([REQUEST_ID_AGENT_A.to_owned()]))
-        );
+        assert_eq!(removed_ids, HashSet::from([REQUEST_ID_AGENT_A.to_owned()]));
 
         assert_eq!(log_campaign_store.workload_name_request_id_store.len(), 1);
         assert_eq!(
@@ -461,6 +710,24 @@ mod tests {
         assert_eq!(
             log_campaign_store.agent_log_request_ids_store.get(AGENT_B),
             Some(&HashSet::from([to_agent_request_id(REQUEST_ID_AGENT_B)]))
+        );
+
+        assert_eq!(
+            log_campaign_store.log_providers_store.get(AGENT_B).unwrap(),
+            &HashMap::from([
+                (
+                    REQUEST_ID_AGENT_B.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    CLI_REQUEST_ID_1.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+                (
+                    CLI_REQUEST_ID_2.to_owned(),
+                    vec![WORKLOAD_3_INSTANCE_NAME.clone()]
+                ),
+            ])
         );
 
         assert_eq!(log_campaign_store.cli_log_request_id_store.len(), 2);

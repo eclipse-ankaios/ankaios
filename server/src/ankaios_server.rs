@@ -22,7 +22,8 @@ use api::ank_base::{self};
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::objects::{
-    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap,
+    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadInstanceName, WorkloadState,
+    WorkloadStatesMap,
 };
 
 use common::std_extensions::IllegalStateResult;
@@ -189,15 +190,19 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
 
-                    // [impl->swdd~server-cancels-log-campaign-for-disconnected-agents~1]
-                    let request_ids_of_disconnected_agent = self
+                    let removed_log_requests = self
                         .log_campaign_store
-                        .remove_agent_log_campaign_entry(&agent_name)
-                        .unwrap_or_default();
+                        .remove_agent_log_campaign_entry(&agent_name);
 
+                    // [impl->swdd~server-cancels-log-campaign-for-disconnected-agents~1]
                     self.cancel_log_requests_of_disconnected_agent_workloads(
                         &agent_name,
-                        request_ids_of_disconnected_agent,
+                        removed_log_requests.collector_requests,
+                    )
+                    .await;
+
+                    self.send_log_stop_response_for_disconnected_agent(
+                        removed_log_requests.disconnected_log_providers,
                     )
                     .await;
                 }
@@ -341,12 +346,13 @@ impl AnkaiosServer {
                     common::commands::RequestContent::LogsRequest(logs_request) => {
                         log::debug!("Got log request with ID: {}", request_id);
 
+                        self.log_campaign_store
+                            .insert_log_campaign(&request_id, &logs_request.workload_names);
+
                         self.to_agents
                             .logs_request(request_id.clone(), logs_request.into())
                             .await
                             .unwrap_or_illegal_state();
-
-                        self.log_campaign_store.insert_log_campaign(request_id);
                     }
                     // [impl->swdd~server-handles-logs-cancel-request-message~1]
                     common::commands::RequestContent::LogsCancelRequest => {
@@ -490,20 +496,38 @@ impl AnkaiosServer {
         deleted_workloads: &Vec<DeletedWorkload>,
     ) {
         for deleted_workload in deleted_workloads {
-            if let Some(request_ids) = self.log_campaign_store.remove_collector_campaign_entry(
+            let request_ids = self.log_campaign_store.remove_collector_campaign_entry(
                 &deleted_workload.instance_name.workload_name().to_owned(),
-            ) {
-                for request_id in request_ids {
-                    log::debug!(
-                        "Sending logs cancel request for deleted workload '{}' with request id: {}",
-                        deleted_workload.instance_name.workload_name(),
-                        request_id
-                    );
-                    self.to_agents
-                        .logs_cancel_request(request_id)
-                        .await
-                        .unwrap_or_illegal_state();
-                }
+            );
+            for request_id in request_ids {
+                log::debug!(
+                    "Sending logs cancel request for deleted workload '{}' with request id: {}",
+                    deleted_workload.instance_name.workload_name(),
+                    request_id
+                );
+                self.to_agents
+                    .logs_cancel_request(request_id)
+                    .await
+                    .unwrap_or_illegal_state();
+            }
+        }
+    }
+
+    async fn send_log_stop_response_for_disconnected_agent(
+        &mut self,
+        stopped_log_gatherings: Vec<(String, Vec<WorkloadInstanceName>)>,
+    ) {
+        for (request_id, stopped_log_providers) in stopped_log_gatherings {
+            for workload_instance_name in stopped_log_providers {
+                self.to_agents
+                    .logs_stop_response(
+                        request_id.to_owned(),
+                        ank_base::LogsStopResponse {
+                            workload_name: Some(workload_instance_name.into()),
+                        },
+                    )
+                    .await
+                    .unwrap_or_illegal_state();
             }
         }
     }
@@ -522,6 +546,7 @@ mod tests {
     use std::collections::{HashMap, HashSet};
 
     use super::AnkaiosServer;
+    use crate::ankaios_server::log_campaign_store::RemovedLogRequests;
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
@@ -1207,21 +1232,26 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
+        let log_providing_workloads = vec![WorkloadInstanceName::new(
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            INSTANCE_ID,
+        )];
+
         server
             .log_campaign_store
             .expect_insert_log_campaign()
-            .with(predicate::eq(REQUEST_ID_A.to_owned()))
+            .with(
+                predicate::eq(REQUEST_ID_A.to_owned()),
+                predicate::eq(log_providing_workloads.clone()),
+            )
             .once()
             .return_const(());
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         let logs_request = LogsRequest {
-            workload_names: vec![WorkloadInstanceName::new(
-                AGENT_A,
-                WORKLOAD_NAME_1,
-                INSTANCE_ID,
-            )],
+            workload_names: log_providing_workloads,
             follow: true,
             tail: 10,
             since: None,
@@ -1409,7 +1439,7 @@ mod tests {
             .log_campaign_store
             .expect_remove_agent_log_campaign_entry()
             .once()
-            .return_const(Some(HashSet::new()));
+            .return_const(RemovedLogRequests::default());
 
         let mut mock_server_state = MockServerState::new();
         mock_server_state
@@ -1488,10 +1518,13 @@ mod tests {
             .log_campaign_store
             .expect_remove_agent_log_campaign_entry()
             .once()
-            .return_const(Some(HashSet::from([
-                REQUEST_ID_A.to_owned(),
-                REQUEST_ID_B.to_owned(),
-            ])));
+            .return_const(RemovedLogRequests {
+                collector_requests: HashSet::from([
+                    REQUEST_ID_A.to_owned(),
+                    REQUEST_ID_B.to_owned(),
+                ]),
+                ..Default::default()
+            });
 
         let mut mock_server_state = MockServerState::new();
         mock_server_state.expect_cleanup_state().never();
@@ -1616,7 +1649,7 @@ mod tests {
         server
             .log_campaign_store
             .expect_remove_collector_campaign_entry()
-            .return_const(None);
+            .return_const(HashSet::new());
 
         let agent_hello1_result = to_server.agent_hello(AGENT_A.to_owned()).await;
         assert!(agent_hello1_result.is_ok());
@@ -1945,7 +1978,7 @@ mod tests {
         server
             .log_campaign_store
             .expect_remove_collector_campaign_entry()
-            .return_const(None);
+            .return_const(HashSet::new());
 
         let update_state_result = to_server
             .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
@@ -2041,7 +2074,7 @@ mod tests {
                     .workload_name()
                     .to_owned(),
             ))
-            .return_const(Some(HashSet::from([logs_request_id.to_owned()])));
+            .return_const(HashSet::from([logs_request_id.to_owned()]));
 
         let update_state_result = to_server
             .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
