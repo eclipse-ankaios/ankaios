@@ -13,9 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use common::commands;
-use common::from_server_interface;
 use common::objects;
-use common::to_server_interface;
 use std::collections::HashMap;
 
 // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
@@ -26,14 +24,6 @@ impl AgentHello {
         AgentHello {
             agent_name: agent_name.into(),
             protocol_version: common::ANKAIOS_VERSION.into(),
-        }
-    }
-}
-
-impl From<AgentHello> for commands::AgentHello {
-    fn from(item: AgentHello) -> Self {
-        commands::AgentHello {
-            agent_name: item.agent_name,
         }
     }
 }
@@ -78,70 +68,6 @@ impl From<UpdateWorkloadState> for commands::UpdateWorkloadState {
     fn from(item: UpdateWorkloadState) -> Self {
         commands::UpdateWorkloadState {
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
-        }
-    }
-}
-
-impl TryFrom<from_server_interface::FromServer> for FromServer {
-    type Error = &'static str;
-
-    fn try_from(item: from_server_interface::FromServer) -> Result<Self, Self::Error> {
-        match item {
-            from_server_interface::FromServer::ServerHello(ankaios) => Ok(FromServer {
-                from_server_enum: Some(from_server::FromServerEnum::ServerHello(ServerHello {
-                    added_workloads: ankaios
-                        .added_workloads
-                        .into_iter()
-                        .map(|x| x.into())
-                        .collect(),
-                })),
-            }),
-            from_server_interface::FromServer::UpdateWorkload(ankaios) => Ok(FromServer {
-                from_server_enum: Some(from_server::FromServerEnum::UpdateWorkload(
-                    UpdateWorkload {
-                        added_workloads: ankaios
-                            .added_workloads
-                            .into_iter()
-                            .map(|x| x.into())
-                            .collect(),
-                        deleted_workloads: ankaios
-                            .deleted_workloads
-                            .into_iter()
-                            .map(|x| x.into())
-                            .collect(),
-                    },
-                )),
-            }),
-            from_server_interface::FromServer::UpdateWorkloadState(ankaios) => Ok(FromServer {
-                from_server_enum: Some(from_server::FromServerEnum::UpdateWorkloadState(
-                    UpdateWorkloadState {
-                        workload_states: ankaios
-                            .workload_states
-                            .iter()
-                            .map(|x| x.to_owned().into())
-                            .collect(),
-                    },
-                )),
-            }),
-            from_server_interface::FromServer::Response(response) => Ok(FromServer {
-                from_server_enum: Some(from_server::FromServerEnum::Response(response)),
-            }),
-            from_server_interface::FromServer::Stop(_) => {
-                Err("Stop command not implemented in proto")
-            }
-            from_server_interface::FromServer::LogsRequest(request_id, logs_request) => {
-                Ok(FromServer {
-                    from_server_enum: Some(from_server::FromServerEnum::LogsRequest(LogsRequest {
-                        request_id,
-                        logs_request: Some(logs_request.into()),
-                    })),
-                })
-            }
-            from_server_interface::FromServer::LogsCancelRequest(request_id) => Ok(FromServer {
-                from_server_enum: Some(from_server::FromServerEnum::LogsCancelRequest(
-                    LogsCancelRequest { request_id },
-                )),
-            }),
         }
     }
 }
@@ -225,62 +151,6 @@ impl From<objects::WorkloadSpec> for AddedWorkload {
     }
 }
 
-impl TryFrom<ToServer> for to_server_interface::ToServer {
-    type Error = String;
-
-    fn try_from(item: ToServer) -> Result<Self, Self::Error> {
-        use to_server::ToServerEnum;
-        let to_server = item.to_server_enum.ok_or("ToServer is None.".to_string())?;
-
-        Ok(match to_server {
-            ToServerEnum::CommanderHello(_) => {
-                return Err("The 'CommanderHello' message cannot be forwarded to Ankaios.".into());
-            }
-            ToServerEnum::AgentHello(protobuf) => {
-                to_server_interface::ToServer::AgentHello(protobuf.into())
-            }
-            ToServerEnum::AgentLoadStatus(protobuf) => {
-                to_server_interface::ToServer::AgentLoadStatus(protobuf.into())
-            }
-            ToServerEnum::UpdateWorkloadState(protobuf) => {
-                to_server_interface::ToServer::UpdateWorkloadState(protobuf.into())
-            }
-            ToServerEnum::Request(protobuf) => {
-                to_server_interface::ToServer::Request(protobuf.try_into()?)
-            }
-            ToServerEnum::LogEntriesResponse(log_entries_response) => {
-                let Some(logs_response_object) = log_entries_response.log_entries_response else {
-                    return Err(format!(
-                        "LogResponse for '{}' does not contain an actual response.",
-                        log_entries_response.request_id
-                    ));
-                };
-                to_server_interface::ToServer::LogEntriesResponse(
-                    log_entries_response.request_id,
-                    logs_response_object,
-                )
-            }
-            ToServerEnum::LogsStopResponse(logs_stop_response) => {
-                let Some(logs_stop_object) = logs_stop_response.logs_stop_response else {
-                    return Err(format!(
-                        "LogsStopResponse for '{}' does not contain actual response.",
-                        logs_stop_response.request_id
-                    ));
-                };
-                to_server_interface::ToServer::LogsStopResponse(
-                    logs_stop_response.request_id,
-                    logs_stop_object,
-                )
-            }
-            ToServerEnum::Goodbye(goodbye) => {
-                to_server_interface::ToServer::Goodbye(commands::Goodbye {
-                    connection_name: goodbye.connection_name,
-                })
-            }
-        })
-    }
-}
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -332,360 +202,24 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{
-        from_server::FromServerEnum, generate_test_proto_deleted_workload, to_server::ToServerEnum,
-        AddedWorkload, AgentHello, AgentLoadStatus, DeletedWorkload, FromServer,
-        LogEntriesResponse, LogsCancelRequest, LogsRequest, ToServer, UpdateWorkload,
+        from_server::FromServerEnum, generate_test_proto_deleted_workload, AddedWorkload,
+        DeletedWorkload, FromServer, LogsCancelRequest, LogsRequest, UpdateWorkload,
         UpdateWorkloadState,
     };
 
-    use api::ank_base::{self, Dependencies};
+    use api::ank_base::{self};
     use common::{
         commands,
         objects::{
             self, generate_test_rendered_workload_files, generate_test_workload_spec, ConfigHash,
-            CpuUsage, FreeMemory,
         },
-        test_utils::{self, generate_test_deleted_workload},
+        test_utils::generate_test_deleted_workload,
     };
 
     mod ankaios {
-        pub use common::{
-            commands::*, from_server_interface::FromServer, objects::*,
-            to_server_interface::ToServer,
-        };
+        pub use common::{commands::*, from_server_interface::FromServer, objects::*};
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    // ToServer tests
-    ///////////////////////////////////////////////////////////////////////////
-    #[test]
-    fn utest_convert_proto_to_server_agent_hello() {
-        let agent_name = "agent_A".to_string();
-
-        let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::AgentHello(AgentHello::new(&agent_name))),
-        };
-
-        let ankaios_command = ankaios::ToServer::AgentHello(ankaios::AgentHello { agent_name });
-
-        assert_eq!(
-            ankaios::ToServer::try_from(proto_request),
-            Ok(ankaios_command)
-        );
-    }
-
-    #[test]
-    fn utest_convert_proto_to_server_agent_resource() {
-        let agent_load_status = common::commands::AgentLoadStatus {
-            agent_name: "agent_A".to_string(),
-            cpu_usage: CpuUsage { cpu_usage: 42 },
-            free_memory: FreeMemory { free_memory: 42 },
-        };
-
-        let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::AgentLoadStatus(AgentLoadStatus {
-                agent_name: agent_load_status.agent_name.clone(),
-                cpu_usage: Some(agent_load_status.cpu_usage.clone().into()),
-                free_memory: Some(agent_load_status.free_memory.clone().into()),
-            })),
-        };
-
-        let ankaios_command = ankaios::ToServer::AgentLoadStatus(ankaios::AgentLoadStatus {
-            agent_name: agent_load_status.agent_name,
-            cpu_usage: agent_load_status.cpu_usage,
-            free_memory: agent_load_status.free_memory,
-        });
-
-        assert_eq!(
-            ankaios::ToServer::try_from(proto_request),
-            Ok(ankaios_command)
-        );
-    }
-
-    #[test]
-    fn utest_convert_proto_to_server_update_workload_state() {
-        let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![],
-            })),
-        };
-
-        let ankaios_command =
-            ankaios::ToServer::UpdateWorkloadState(ankaios::UpdateWorkloadState {
-                workload_states: vec![],
-            });
-
-        assert_eq!(
-            ankaios::ToServer::try_from(proto_request),
-            Ok(ankaios_command)
-        );
-    }
-
-    #[test]
-    fn utest_convert_proto_to_server_update_state() {
-        let ankaios_request = ankaios::Request {
-            request_id: "request_id".to_owned(),
-            request_content: ankaios::RequestContent::UpdateStateRequest(Box::new(
-                ankaios::UpdateStateRequest {
-                    update_mask: vec!["test_update_mask_field".to_owned()],
-                    state: ankaios::CompleteState {
-                        desired_state: ankaios::State {
-                            workloads: HashMap::from([(
-                                "test_workload".to_owned(),
-                                ankaios::StoredWorkloadSpec {
-                                    agent: "test_agent".to_string(),
-                                    ..Default::default()
-                                },
-                            )]),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                },
-            )),
-        };
-
-        let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::Request(ankaios_request.clone().into())),
-        };
-
-        let ankaios_command = ankaios::ToServer::Request(ankaios_request);
-
-        assert_eq!(
-            ankaios::ToServer::try_from(proto_request),
-            Ok(ankaios_command)
-        );
-    }
-
-    #[test]
-    fn utest_convert_proto_to_server_update_state_fails() {
-        let workloads = ank_base::Workload {
-            agent: Some("test_agent".to_owned()),
-            dependencies: Some(Dependencies {
-                dependencies: vec![("other_workload".into(), -1)].into_iter().collect(),
-            }),
-            ..Default::default()
-        };
-        let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
-                request_id: "requeset_id".to_owned(),
-                request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(
-                    Box::new(ank_base::UpdateStateRequest {
-                        update_mask: vec!["test_update_mask_field".to_owned()],
-                        new_state: Some(test_utils::generate_test_proto_complete_state(&[(
-                            "test_workload",
-                            workloads,
-                        )])),
-                    }),
-                )),
-            })),
-        };
-
-        assert!(ankaios::ToServer::try_from(proto_request).is_err(),);
-    }
-
-    #[test]
-    fn utest_convert_proto_to_server_request_complete_state() {
-        let request_id = "42".to_string();
-        let field_mask = vec!["1".to_string()];
-
-        let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
-                request_id: request_id.clone(),
-                request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
-                    ank_base::CompleteStateRequest {
-                        field_mask: field_mask.clone(),
-                    },
-                )),
-            })),
-        };
-
-        let ankaios_command = ankaios::ToServer::Request(ankaios::Request {
-            request_id,
-            request_content: ankaios::RequestContent::CompleteStateRequest(
-                ankaios::CompleteStateRequest { field_mask },
-            ),
-        });
-
-        assert_eq!(
-            ankaios::ToServer::try_from(proto_request),
-            Ok(ankaios_command)
-        );
-    }
-
-    #[test]
-    fn utest_convert_proto_to_server_log_response() {
-        let request_id = "42".to_string();
-
-        let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::LogEntriesResponse(LogEntriesResponse {
-                request_id: request_id.clone(),
-                log_entries_response: Some(ank_base::LogEntriesResponse {
-                    log_entries: vec![ank_base::LogEntry {
-                        workload_name: Some(ank_base::WorkloadInstanceName {
-                            workload_name: "workload_1".into(),
-                            agent_name: "agent_1".into(),
-                            id: "id_1".into(),
-                        }),
-                        message: "message_1".into(),
-                    }],
-                }),
-            })),
-        };
-
-        let ankaios_command = ankaios::ToServer::LogEntriesResponse(
-            request_id,
-            ank_base::LogEntriesResponse {
-                log_entries: vec![ank_base::LogEntry {
-                    workload_name: Some(ank_base::WorkloadInstanceName {
-                        workload_name: "workload_1".into(),
-                        agent_name: "agent_1".into(),
-                        id: "id_1".into(),
-                    }),
-                    message: "message_1".into(),
-                }],
-            },
-        );
-
-        assert_eq!(
-            ankaios::ToServer::try_from(proto_request),
-            Ok(ankaios_command)
-        );
-    }
-
-    #[test]
-    fn utest_convert_proto_to_server_log_response_fails_on_empyt() {
-        let request_id = "42".to_string();
-
-        let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::LogEntriesResponse(LogEntriesResponse {
-                request_id: request_id.clone(),
-                log_entries_response: None,
-            })),
-        };
-
-        assert!(ankaios::ToServer::try_from(proto_request).is_err());
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    // FromServer tests
-    ///////////////////////////////////////////////////////////////////////////
-    #[test]
-    fn utest_convert_from_server_to_proto_update_workload() {
-        let instance_name = ankaios::WorkloadInstanceName::builder()
-            .workload_name("test_workload")
-            .build();
-        let test_ex_com = ankaios::FromServer::UpdateWorkload(ankaios::UpdateWorkload {
-            added_workloads: vec![ankaios::WorkloadSpec {
-                instance_name,
-                runtime: "tes_runtime".to_owned(),
-                ..Default::default()
-            }],
-            deleted_workloads: vec![generate_test_deleted_workload(
-                "agent".to_string(),
-                "workload X".to_string(),
-            )],
-        });
-        let expected_ex_com = Ok(FromServer {
-            from_server_enum: Some(FromServerEnum::UpdateWorkload(UpdateWorkload {
-                added_workloads: vec![AddedWorkload {
-                    instance_name: Some(ank_base::WorkloadInstanceName {
-                        workload_name: "test_workload".to_owned(),
-                        ..Default::default()
-                    }),
-                    runtime: "tes_runtime".to_owned(),
-                    ..Default::default()
-                }],
-                deleted_workloads: vec![generate_test_proto_deleted_workload()],
-            })),
-        });
-
-        assert_eq!(FromServer::try_from(test_ex_com), expected_ex_com);
-    }
-
-    #[test]
-    fn utest_convert_from_server_to_proto_update_workload_state() {
-        let workload_state = ankaios::generate_test_workload_state_with_agent(
-            "test_workload",
-            "test_agent",
-            ankaios::ExecutionState::running(),
-        );
-
-        let test_ex_com = ankaios::FromServer::UpdateWorkloadState(ankaios::UpdateWorkloadState {
-            workload_states: vec![workload_state.clone()],
-        });
-        let expected_ex_com = Ok(FromServer {
-            from_server_enum: Some(FromServerEnum::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![workload_state.into()],
-            })),
-        });
-
-        assert_eq!(FromServer::try_from(test_ex_com), expected_ex_com);
-    }
-
-    #[test]
-    fn utest_convert_from_server_to_proto_complete_state() {
-        let proto_response = ank_base::Response {
-            request_id: "req_id".to_owned(),
-            response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                ank_base::CompleteState {
-                    desired_state: Some(api::ank_base::State {
-                        api_version: "v0.1".into(),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                },
-            )),
-        };
-
-        let ankaios_msg = ankaios::FromServer::Response(proto_response.clone());
-
-        let proto_msg = Ok(FromServer {
-            from_server_enum: Some(FromServerEnum::Response(proto_response)),
-        });
-
-        assert_eq!(FromServer::try_from(ankaios_msg), proto_msg);
-    }
-
-    #[test]
-    fn utest_convert_from_server_to_proto_logs_request() {
-        let logs_request = commands::LogsRequest {
-            workload_names: vec![
-                objects::WorkloadInstanceName::new("agent_1", "workload_1", "id_1"),
-                objects::WorkloadInstanceName::new("agent_1", "workload_1", "id_1"),
-            ],
-            follow: true,
-            tail: 10,
-            since: None,
-            until: None,
-        };
-
-        let ankaios_msg = ankaios::FromServer::LogsRequest("req_id".into(), logs_request.clone());
-
-        let proto_msg = Ok(FromServer {
-            from_server_enum: Some(FromServerEnum::LogsRequest(LogsRequest {
-                request_id: "req_id".into(),
-                logs_request: Some(logs_request.into()),
-            })),
-        });
-
-        assert_eq!(FromServer::try_from(ankaios_msg), proto_msg);
-    }
-
-    #[test]
-    fn utest_convert_proto_to_server_logs_cancel_request() {
-        let request_id = "req_id".to_owned();
-
-        let ankaios_msg = ankaios::FromServer::LogsCancelRequest(request_id.clone());
-
-        let proto_msg = Ok(FromServer {
-            from_server_enum: Some(FromServerEnum::LogsCancelRequest(LogsCancelRequest {
-                request_id,
-            })),
-        });
-
-        assert_eq!(FromServer::try_from(ankaios_msg), proto_msg);
-    }
     ///////////////////////////////////////////////////////////////////////////
     // WorkloadSpec tests
     ///////////////////////////////////////////////////////////////////////////
