@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use crate::control_interface::{to_ankaios, ToAnkaios};
+use crate::control_interface::{output_pipe::OutputPipeError, to_ankaios, ToAnkaios};
 
 #[cfg_attr(test, mockall_double::double)]
 use super::authorizer::Authorizer;
@@ -24,9 +24,9 @@ use super::input_pipe::InputPipe;
 use super::output_pipe::OutputPipe;
 use api::{ank_base, control_api};
 use common::{
-    check_version_compatibility,
+    check_version_compatibility, commands,
     from_server_interface::{FromServer, FromServerReceiver},
-    to_server_interface::{ToServer, ToServerSender},
+    to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 
 use prost::Message;
@@ -34,6 +34,12 @@ use tokio::{io, select, task::JoinHandle};
 
 const INITIAL_HELLO_MISSING_MSG: &str = "Initial Hello missing!";
 const PROTOBUF_DECODE_ERROR_MSG: &str = "Could not decode protobuf data";
+
+#[derive(Debug)]
+enum DeliveryError {
+    Io,
+    NoReader(Box<ank_base::Response>),
+}
 
 fn decode_to_server(protobuf_data: io::Result<Vec<u8>>) -> io::Result<control_api::ToAnkaios> {
     Ok(control_api::ToAnkaios::decode(&mut Box::new(
@@ -44,8 +50,8 @@ fn decode_to_server(protobuf_data: io::Result<Vec<u8>>) -> io::Result<control_ap
 pub struct ControlInterfaceTask {
     output_stream: OutputPipe,
     input_stream: InputPipe,
-    input_pipe_receiver: FromServerReceiver,
-    output_pipe_channel: ToServerSender,
+    from_server_receiver: FromServerReceiver,
+    to_server_sender: ToServerSender,
     request_id_prefix: String,
     authorizer: Arc<Authorizer>,
 }
@@ -55,16 +61,16 @@ impl ControlInterfaceTask {
     pub fn new(
         output_stream: OutputPipe,
         input_stream: InputPipe,
-        input_pipe_receiver: FromServerReceiver,
-        output_pipe_channel: ToServerSender,
+        from_server_receiver: FromServerReceiver,
+        to_server_sender: ToServerSender,
         request_id_prefix: String,
         authorizer: Arc<Authorizer>,
     ) -> Self {
         Self {
             output_stream,
             input_stream,
-            input_pipe_receiver,
-            output_pipe_channel,
+            from_server_receiver,
+            to_server_sender,
             request_id_prefix,
             authorizer,
         }
@@ -100,9 +106,21 @@ impl ControlInterfaceTask {
         loop {
             select! {
                 // [impl->swdd~agent-ensures-control-interface-input-pipe-read~1]
-                from_server = self.input_pipe_receiver.recv() => {
+                from_server = self.from_server_receiver.recv() => {
                     if let Some(FromServer::Response(response)) = from_server {
-                        let _ = self.forward_from_server(response).await;
+                        let forward_result = self.forward_from_server(response).await;
+                        if let Err(DeliveryError::NoReader(response)) = forward_result {
+                            // [impl->swdd~agent-handles-control-interface-workload-gone~1]
+                            log::info!("Could not forward the response with Id: '{}'. Stopping log collection.", response.request_id);
+                            match response.response_content {
+                                Some(ank_base::response::ResponseContent::LogEntriesResponse(_))=> {
+                                    let _ =self.to_server_sender.logs_cancel_request(commands::Request::prefix_id(&self.request_id_prefix, &response.request_id)).await;
+                                }
+                                unexpected => {
+                                    log::warn!("Unexpected response content: '{:?}'", unexpected);
+                                },
+                            }
+                        }
                     } else {
                         log::warn!("The server is sending unrequested messages to a workload: '{:?}'", from_server);
                     }
@@ -118,7 +136,7 @@ impl ControlInterfaceTask {
                                     // [impl->swdd~agent-forward-request-from-control-interface-pipe-to-server~2]
                                     log::debug!("Allowing request '{:?}' from authorizer '{:?}'", request, self.authorizer);
                                     request.prefix_request_id(&self.request_id_prefix);
-                                    let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
+                                    let _ = self.to_server_sender.send(ToServer::Request(request)).await;
                                 } else {
                                     log::info!("Denying request '{:?}' from authorizer '{:?}'", request, self.authorizer);
                                     // [impl->swdd~agent-responses-to-denied-request-from-control-interface~1]
@@ -176,7 +194,10 @@ impl ControlInterfaceTask {
         Ok(())
     }
 
-    async fn forward_from_server(&mut self, response: ank_base::Response) -> io::Result<()> {
+    async fn forward_from_server(
+        &mut self,
+        response: ank_base::Response,
+    ) -> Result<(), DeliveryError> {
         use control_api::from_ankaios::FromAnkaiosEnum;
         let message = control_api::FromAnkaios {
             from_ankaios_enum: Some(FromAnkaiosEnum::Response(Box::new(response))),
@@ -184,7 +205,19 @@ impl ControlInterfaceTask {
 
         // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
         let binary = message.encode_length_delimited_to_vec();
-        self.output_stream.write_all(&binary).await?;
+        self.output_stream.write_all(&binary).await.map_err(|err| {
+            if let OutputPipeError::ReceiverGone(err) = err {
+                log::info!("Detected a problem in the connected workload. The response will not be delivered. Error: '{}'", err);
+                if let Some(FromAnkaiosEnum::Response(response)) = message.from_ankaios_enum {
+                    DeliveryError::NoReader(response)
+                } else {
+                    unreachable!() // This should never happen, as we only send responses here.
+                }
+            } else {
+                log::warn!("Forwarding failed with error: '{:?}'", err);
+                DeliveryError::Io
+            }
+        })?;
 
         Ok(())
     }
@@ -218,20 +251,23 @@ pub fn generate_test_control_interface_task_mock() -> __mock_MockControlInterfac
 mod tests {
     use std::{io::Error, sync::Arc};
 
-    use common::{commands, to_server_interface::ToServer};
+    use common::{
+        commands, from_server_interface::FromServerInterface, to_server_interface::ToServer,
+    };
     use mockall::{predicate, Sequence};
+    use semver::Version;
     use tokio::sync::mpsc;
 
     use api::{ank_base, control_api};
     use prost::Message;
 
-    use semver::Version;
-
     use super::ControlInterfaceTask;
 
     use crate::control_interface::{
-        authorizer::MockAuthorizer, control_interface_task::INITIAL_HELLO_MISSING_MSG,
-        input_pipe::MockInputPipe, output_pipe::MockOutputPipe,
+        authorizer::MockAuthorizer,
+        control_interface_task::INITIAL_HELLO_MISSING_MSG,
+        input_pipe::MockInputPipe,
+        output_pipe::{MockOutputPipe, OutputPipeError},
     };
 
     const REQUEST_ID: &str = "req_id";
@@ -292,14 +328,14 @@ mod tests {
             .return_once(|_| Ok(()));
 
         let input_stream_mock = MockInputPipe::default();
-        let (_, input_pipe_receiver) = mpsc::channel(1);
+        let (_, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, _) = mpsc::channel(1);
         let request_id_prefix = String::from("prefix@");
 
         let mut control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix,
             Arc::new(MockAuthorizer::default()),
@@ -309,6 +345,158 @@ mod tests {
             .forward_from_server(response)
             .await
             .is_ok());
+    }
+
+    // [utest->swdd~agent-handles-control-interface-workload-gone~1]
+    #[tokio::test]
+    async fn utest_control_interface_task_forward_from_server_receiver_gone() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let response = ank_base::Response {
+            request_id: REQUEST_ID.into(),
+            response_content: Some(ank_base::response::ResponseContent::LogEntriesResponse(
+                Default::default(),
+            )),
+        };
+
+        let test_command_binary = control_api::FromAnkaios {
+            from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
+                Box::new(response.clone()),
+            )),
+        }
+        .encode_length_delimited_to_vec();
+
+        // [utest->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
+        let mut output_stream_mock = MockOutputPipe::default();
+        output_stream_mock
+            .expect_write_all()
+            .with(predicate::eq(test_command_binary))
+            .return_once(|_| {
+                Err(OutputPipeError::ReceiverGone(Error::new(
+                    std::io::ErrorKind::BrokenPipe,
+                    "error",
+                )))
+            });
+
+        let input_stream_mock = MockInputPipe::default();
+        let (_, from_server_receiver) = mpsc::channel(1);
+        let (output_pipe_sender, _) = mpsc::channel(1);
+        let request_id_prefix = String::from("prefix@");
+
+        let mut control_interface_task = ControlInterfaceTask::new(
+            output_stream_mock,
+            input_stream_mock,
+            from_server_receiver,
+            output_pipe_sender,
+            request_id_prefix.clone(),
+            Arc::new(MockAuthorizer::default()),
+        );
+
+        let result = control_interface_task
+            .forward_from_server(response.clone())
+            .await;
+        assert!(
+            matches!(
+                &result,
+                Err(super::DeliveryError::NoReader(received_response))
+                if received_response.as_ref() == &response,
+            ),
+            "Result was: '{:?}'",
+            result
+        );
+    }
+
+    // [utest->swdd~agent-handles-control-interface-workload-gone~1]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn utest_control_interface_task_run_delivery_of_logs_fails() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let response = ank_base::Response {
+            request_id: REQUEST_ID.into(),
+            response_content: Some(ank_base::response::ResponseContent::LogEntriesResponse(
+                Default::default(),
+            )),
+        };
+
+        let test_command_binary = control_api::FromAnkaios {
+            from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
+                Box::new(response.clone()),
+            )),
+        }
+        .encode_length_delimited_to_vec();
+
+        let mut input_stream_mock = MockInputPipe::default();
+
+        let mut mockall_seq = Sequence::new();
+
+        let workload_hello_binary = prepare_workload_hello_binary_message(common::ANKAIOS_VERSION);
+        input_stream_mock
+            .expect_read_protobuf_data()
+            .once()
+            .in_sequence(&mut mockall_seq)
+            .return_once(move || Box::pin(async {
+                Ok(workload_hello_binary)
+            }));
+
+        input_stream_mock
+            .expect_read_protobuf_data()
+            .once()
+            .in_sequence(&mut mockall_seq)
+            .return_once(|| {
+                Box::pin(async{
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    Err(Error::new(std::io::ErrorKind::Other, "error"))
+                })
+            });
+
+        let mut output_stream_mock = MockOutputPipe::default();
+
+        output_stream_mock
+            .expect_write_all()
+            .with(predicate::eq(test_command_binary))
+            .once()
+            .returning(|_| {
+                Err(OutputPipeError::ReceiverGone(Error::new(
+                    std::io::ErrorKind::BrokenPipe,
+                    "error",
+                )))
+            });
+
+        let (input_pipe_sender, from_server_receiver) = mpsc::channel(1);
+        let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
+        let request_id_prefix = "prefix@";
+
+        let authorizer = MockAuthorizer::default();
+
+        let control_interface_task = ControlInterfaceTask::new(
+            output_stream_mock,
+            input_stream_mock,
+            from_server_receiver,
+            output_pipe_sender,
+            request_id_prefix.to_owned(),
+            Arc::new(authorizer),
+        );
+
+        // send a response to the _input_pipe_sender
+        let _ = input_pipe_sender
+            .log_entries_response(REQUEST_ID.into(), ank_base::LogEntriesResponse::default())
+            .await;
+
+        tokio::spawn(async { control_interface_task.run().await });
+
+        let mut expected_log_cancel_request = commands::Request {
+            request_id: response.request_id,
+            request_content: commands::RequestContent::LogsCancelRequest,
+        };
+        expected_log_cancel_request.prefix_request_id(request_id_prefix);
+        assert_eq!(
+            output_pipe_receiver.recv().await,
+            Some(ToServer::Request(expected_log_cancel_request))
+        );
     }
 
     // [utest->swdd~agent-listens-for-requests-from-pipe~1]
@@ -344,19 +532,21 @@ mod tests {
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .return_once(move || Ok(workload_hello_binary));
+            .return_once(move || Box::pin(async { Ok(workload_hello_binary) }));
 
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .return_once(move || Ok(test_output_request_binary));
+            .return_once(move || Box::pin(async { Ok(test_output_request_binary) }));
 
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .returning(move || Err(Error::new(std::io::ErrorKind::Other, "error")));
+            .returning(move || {
+                Box::pin(async { Err(Error::new(std::io::ErrorKind::Other, "error")) })
+            });
 
         let error = ank_base::Response {
             request_id: REQUEST_ID.into(),
@@ -381,7 +571,7 @@ mod tests {
             .once()
             .returning(|_| Ok(()));
 
-        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (_input_pipe_sender, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
         let request_id_prefix = String::from("prefix@");
 
@@ -391,7 +581,7 @@ mod tests {
         let control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix,
             Arc::new(authorizer),
@@ -437,23 +627,25 @@ mod tests {
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .return_once(move || Ok(workload_hello_binary));
+            .return_once(move || Box::pin(async { Ok(workload_hello_binary) }));
 
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .return_once(move || Ok(test_output_request_binary));
+            .return_once(move || Box::pin(async { Ok(test_output_request_binary) }));
 
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .returning(move || Err(Error::new(std::io::ErrorKind::Other, "error")));
+            .returning(move || {
+                Box::pin(async { Err(Error::new(std::io::ErrorKind::Other, "error")) })
+            });
 
         let output_stream_mock = MockOutputPipe::default();
 
-        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (_input_pipe_sender, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
         let request_id_prefix = "prefix@";
 
@@ -463,7 +655,7 @@ mod tests {
         let control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix.to_owned(),
             Arc::new(authorizer),
@@ -494,7 +686,7 @@ mod tests {
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .return_once(move || Ok(test_output_request_binary));
+            .return_once(move || Box::pin(async { Ok(test_output_request_binary) }));
 
         let test_input_command_binary = control_api::FromAnkaios {
             from_ankaios_enum: Some(
@@ -514,7 +706,7 @@ mod tests {
             .once()
             .returning(|_| Ok(()));
 
-        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (_input_pipe_sender, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
         let request_id_prefix = "prefix@";
 
@@ -523,7 +715,7 @@ mod tests {
         let control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix.to_owned(),
             Arc::new(authorizer),
@@ -549,7 +741,7 @@ mod tests {
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .return_once(move || Ok(workload_hello_binary));
+            .return_once(move || Box::pin(async { Ok(workload_hello_binary) }));
 
         let ank_version = Version::parse(common::ANKAIOS_VERSION).unwrap();
         let supported_version = if ank_version.major > 0 {
@@ -576,7 +768,7 @@ mod tests {
             .once()
             .returning(|_| Ok(()));
 
-        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (_input_pipe_sender, from_server_receiver) = mpsc::channel(1);
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
         let request_id_prefix = "prefix@";
 
@@ -585,7 +777,7 @@ mod tests {
         let control_interface_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
-            input_pipe_receiver,
+            from_server_receiver,
             output_pipe_sender,
             request_id_prefix.to_owned(),
             Arc::new(authorizer),

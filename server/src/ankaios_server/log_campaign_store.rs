@@ -27,8 +27,6 @@ type CliConnectionLogRequestIdMap = HashMap<CliConnectionName, HashSet<CliReques
 type WorkloadName = String;
 type WorkloadNameRequestIdMap = HashMap<WorkloadName, HashSet<AgentRequestId>>;
 
-const CLI_PREFIX: &str = "cli-conn";
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct CliRequestId {
     cli_name: CliConnectionName,
@@ -84,22 +82,39 @@ impl Display for RequestId {
     }
 }
 
+const CLI_PREFIX: &str = "cli-conn";
+const CLI_REQUEST_PARTS_LEN: usize = 2;
+const CLI_REQUEST_NAME_INDEX: usize = 0;
+const CLI_REQUEST_ID_INDEX: usize = 1;
+
+const AGENT_REQUEST_PARTS_LEN: usize = 3;
+const AGENT_REQUEST_NAME_INDEX: usize = 0;
+const AGENT_REQUEST_WORKLOAD_NAME_INDEX: usize = 1;
+const AGENT_REQUEST_ID_INDEX: usize = 2;
+
 impl<S> From<S> for RequestId
 where
     S: AsRef<str>,
 {
     fn from(request_id: S) -> Self {
-        let parts: Vec<&str> = request_id.as_ref().split('@').collect();
-        if parts[0].starts_with(CLI_PREFIX) {
+        if request_id.as_ref().starts_with(CLI_PREFIX) {
+            let parts: Vec<&str> = request_id
+                .as_ref()
+                .splitn(CLI_REQUEST_PARTS_LEN, '@')
+                .collect();
             RequestId::CliRequestId(CliRequestId {
-                cli_name: parts[0].to_string(),
-                request_uuid: parts[1].to_string(),
+                cli_name: parts[CLI_REQUEST_NAME_INDEX].to_string(),
+                request_uuid: parts[CLI_REQUEST_ID_INDEX].to_string(),
             })
         } else {
+            let parts: Vec<&str> = request_id
+                .as_ref()
+                .splitn(AGENT_REQUEST_PARTS_LEN, '@')
+                .collect();
             RequestId::AgentRequestId(AgentRequestId {
-                agent_name: parts[0].to_string(),
-                workload_name: parts[1].to_string(),
-                request_uuid: parts[2].to_string(),
+                agent_name: parts[AGENT_REQUEST_NAME_INDEX].to_string(),
+                workload_name: parts[AGENT_REQUEST_WORKLOAD_NAME_INDEX].to_string(),
+                request_uuid: parts[AGENT_REQUEST_ID_INDEX].to_string(),
             })
         }
     }
@@ -408,6 +423,29 @@ mod tests {
             super::RequestId::CliRequestId(cli_request_id) => cli_request_id,
             _ => panic!("Expected a CliRequestId"),
         }
+    }
+
+    #[test]
+    fn utest_request_id_from_string() {
+        let cli_request_id = super::RequestId::from(CLI_REQUEST_ID_1);
+        assert!(
+            matches!(cli_request_id, super::RequestId::CliRequestId(super::CliRequestId { cli_name, request_uuid })
+            if cli_name == CLI_CON_1 && request_uuid == "cli_request_id_1")
+        );
+
+        let agent_request_id = super::RequestId::from(REQUEST_ID_AGENT_A);
+        assert!(
+            matches!(agent_request_id, super::RequestId::AgentRequestId(super::AgentRequestId { agent_name, workload_name, request_uuid })
+            if agent_name == AGENT_A && workload_name == WORKLOAD_1_NAME && request_uuid == "request_id")
+        );
+
+        let extra_part = "@extra@parts.with_strange#format";
+        let agent_request_id =
+            super::RequestId::from(format!("{}{}", REQUEST_ID_AGENT_A, extra_part));
+        assert!(
+            matches!(agent_request_id, super::RequestId::AgentRequestId(super::AgentRequestId { agent_name, workload_name, request_uuid })
+            if agent_name == AGENT_A && workload_name == WORKLOAD_1_NAME && request_uuid == format!("request_id{}", extra_part))
+        );
     }
 
     #[test]
