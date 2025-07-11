@@ -56,8 +56,11 @@ impl From<Request> for ank_base::Request {
 }
 
 impl Request {
+    pub fn prefix_id(prefix: &str, request_id: &String) -> String {
+        format!("{}{}", prefix, request_id)
+    }
     pub fn prefix_request_id(&mut self, prefix: &str) {
-        self.request_id = format!("{}{}", prefix, self.request_id);
+        self.request_id = Self::prefix_id(prefix, &self.request_id);
     }
 }
 
@@ -762,6 +765,15 @@ mod tests {
             ankaios::Request::try_from(proto_request).unwrap_err(),
             "Request has no content"
         );
+    }
+
+    #[test]
+    fn utest_prefix_id() {
+        let request_id = "42".to_string();
+        let prefix = "prefix@";
+        let prefixed_request_id = ankaios::Request::prefix_id(prefix, &request_id);
+
+        assert_eq!("prefix@42", prefixed_request_id);
     }
 
     #[test]
