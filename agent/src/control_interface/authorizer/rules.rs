@@ -12,11 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::std_extensions::UnreachableOption;
 use super::{
     path::Path,
     path_pattern::{PathPattern, PathPatternMatchReason, PathPatternMatcher},
 };
+use common::std_extensions::UnreachableOption;
 
 pub(crate) const WILDCARD_SYMBOL: &str = "*";
 
@@ -64,11 +64,9 @@ impl LogRule {
                 return true;
             } else if pattern.contains(WILDCARD_SYMBOL) {
                 let wildcard_pos = pattern.find(WILDCARD_SYMBOL).unwrap_or_unreachable();
-                let prefix_matches =
-                    wildcard_pos == 0 || workload_name.starts_with(&pattern[..wildcard_pos]);
-                let suffix_matches = wildcard_pos + WILDCARD_SYMBOL.len() == pattern.len()
-                    || workload_name.ends_with(&pattern[wildcard_pos + WILDCARD_SYMBOL.len()..]);
-                return prefix_matches && suffix_matches;
+                let prefix = &pattern[..wildcard_pos];
+                let suffix = &pattern[wildcard_pos + WILDCARD_SYMBOL.len()..];
+                return workload_name.starts_with(prefix) && workload_name.ends_with(suffix);
             }
         }
         false
