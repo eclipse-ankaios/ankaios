@@ -24,7 +24,7 @@ use crate::{from_server_proxy, CommanderHello};
 
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
-use common::from_server_interface::{FromServerInterface, FromServerSender};
+use common::from_server_interface::FromServerSender;
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::ToServerReceiver;
@@ -216,7 +216,7 @@ impl GRPCCommunicationsClient {
             result = forward_exec_from_proto_task => {
                 log::debug!("Forward from server message from proto to Ankaios task completed");
                 if let Err(GrpcMiddlewareError::ConnectionInterrupted(_)) = result {
-                    agent_tx.error("internal-grpc-conn".to_string(), "connection interrupted".to_string()).await?;
+                    agent_tx.send(common::from_server_interface::FromServer::ServerGone).await.unwrap_or_illegal_state();
                 }
             }
             _ = forward_to_server_from_ank_task => {log::debug!("Forward from server message from Ankaios to proto task completed");}
