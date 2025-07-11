@@ -487,7 +487,7 @@ mod tests {
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
         generate_test_workload_states_map_with_data, CompleteState, CpuUsage, DeletedWorkload,
         ExecutionState, ExecutionStateEnum, FreeMemory, PendingSubstate, State,
-        WorkloadInstanceName, WorkloadSpec, WorkloadState,
+        WorkloadInstanceName, WorkloadState,
     };
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -1213,6 +1213,86 @@ mod tests {
                 }
             ),
             logs_request_message
+        );
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            from_server_command,
+            FromServer::Response(ank_base::Response {
+                request_id: REQUEST_ID.to_string(),
+                response_content: Some(ank_base::response::ResponseContent::LogsRequestAccepted(
+                    ank_base::LogsRequestAccepted {
+                        workload_names: vec![ank_base::WorkloadInstanceName {
+                            workload_name: WORKLOAD_NAME_1.to_string(),
+                            agent_name: AGENT_A.to_string(),
+                            id: INSTANCE_ID.to_string()
+                        }],
+                    }
+                )),
+            })
+        );
+
+        assert!(comm_middle_ware_receiver.recv().await.is_none());
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_server_forward_logs_request_invalid_workload_names() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+
+        mock_server_state
+            .expect_get_workload_spec_by_instance_name()
+            .with(mockall::predicate::function(
+                |instance_name: &WorkloadInstanceName| {
+                    instance_name
+                        == &WorkloadInstanceName::new(AGENT_A, WORKLOAD_NAME_1, INSTANCE_ID)
+                },
+            ))
+            .once()
+            .return_const(None);
+
+        server.server_state = mock_server_state;
+
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        let logs_request = LogsRequest {
+            workload_names: vec![WorkloadInstanceName::new(
+                AGENT_A,
+                WORKLOAD_NAME_1,
+                INSTANCE_ID,
+            )],
+            follow: true,
+            tail: 10,
+            since: None,
+            until: None,
+        };
+
+        // send logs request to server
+        let logs_request_result = to_server
+            .logs_request(REQUEST_ID.to_string(), logs_request)
+            .await;
+        assert!(logs_request_result.is_ok());
+        drop(to_server);
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            from_server_command,
+            FromServer::Response(ank_base::Response {
+                request_id: REQUEST_ID.to_string(),
+                response_content: Some(ank_base::response::ResponseContent::Error(
+                    ank_base::Error {
+                        message: "No valid workload names provided".to_string(),
+                    }
+                )),
+            })
         );
 
         assert!(comm_middle_ware_receiver.recv().await.is_none());
