@@ -1184,17 +1184,19 @@ Needs:
 - impl
 - utest
 
-#### Server cancels log campaigns for disconnected agent
-`swdd~server-cancels-log-campaign-for-disconnected-agents~1`
+#### Server handles log campaigns for disconnected agent
+`swdd~server-handles-log-campaign-for-disconnected-agent~1`
 
 Status: approved
 
 When the Ankaios server receives a `AgentGone` message from the channel provided by the communication middleware, the Ankaios server shall:
-* trigger the LogCampaignStore to remove the log campaign of all log collector workloads managed by the disconnected agent by providing the agent name
+* trigger the LogCampaignStore to remove the log campaign managed by the disconnected agent by providing the agent name
 * send a `LogsCancelRequest` message for each log collector workload managed by the disconnected agent to the agent channel provided by the communication middleware
+* send a `LogsStopResponse` message for each providing logs workload managed by the disconnected agent to the agent channel provided by the communication middleware
 
 Rationale:
 The server needs to inform all agents to stop collecting logs for workloads if the agent managing log collector workloads is disconnected.
+Additionally log collector on other agents must be informed to not expect any more logs on from workloads on the disconnected agent.
 
 Tags:
 - AnkaiosServer
