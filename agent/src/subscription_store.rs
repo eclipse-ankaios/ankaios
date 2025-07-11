@@ -29,7 +29,7 @@ impl SubscriptionStore {
         self.store.remove(id);
     }
 
-    pub fn clear_all(&mut self) {
+    pub fn delete_all_subscriptions(&mut self) {
         self.store.clear();
     }
 
