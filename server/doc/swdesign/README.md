@@ -82,6 +82,10 @@ before applying it or when a view on the state is requested.
 
 The ConfigRenderer is responsible for rendering the templated configuration of workloads with their corresponding configuration items provided inside the CompleteState.
 
+### LogCampaignStore
+
+The LogCampaignStore stores metadata about log campaign subscriptions for workloads and the CLI, enabling the Ankaios server to cancel log campaign subscriptions automatically in certain situations.
+
 ## Behavioral view
 
 ### Startup sequence
@@ -1111,6 +1115,130 @@ Log subscribers must be informed when there are no more log messages for a workl
 
 Tags:
 - AnkaiosServer
+
+Needs:
+- impl
+- utest
+
+### Handle workload log campaigns
+
+#### Log campaign store stores log subscriptions metadata
+`swdd~log-campaign-store-stores-log-subscriptions-metadata~1`
+
+Status: approved
+
+The LogCampaignStore stores metadata about log campaign subscriptions from different log campaign subscribers with the following functionalities:
+* inserting a new log campaign subscription for a logs request received from the Ankaios CLI or a workload
+* removing a log campaign entry for a workload by the agent name managing that workload
+* removing a log campaign entry received from the Ankaios CLI by its connection name
+* removing a log campaign entry for a workload collecting logs by its workload name
+* removing a request id for a log campaign initiated from the Ankaios CLI or initiated by a workload
+
+Comment:
+The relationship between request id and workload name, agent name and CLI connection name are stored in separated data structures.
+
+Tags:
+- LogCampaignStore
+
+Needs:
+- impl
+- utest
+
+#### Server handles incoming logs request message
+`swdd~server-handles-logs-request-message~1`
+
+Status: approved
+
+When the Ankaios server receives a `LogsRequest` message from the channel provided by the communication middleware, the Ankaios server shall:
+* forward the `LogsRequest` message to the agent channel provided by the communication middleware
+* trigger the LogCampaignStore to store the log campaign metadata by providing the request id
+
+Rationale:
+The agent collecting the logs from the requested workloads must be informed to start the log collection. The LogCampaignStore enables the server to automatically cancel log campaigns in certain situations by providing the relevant metadata.
+
+Tags:
+- AnkaiosServer
+- LogCampaignStore
+
+Needs:
+- impl
+- utest
+
+#### Server handles incoming logs cancel request message
+`swdd~server-handles-logs-cancel-request-message~1`
+
+Status: approved
+
+When the Ankaios server receives a `LogsCancelRequest` message from the channel provided by the communication middleware, the Ankaios server shall:
+* trigger the LogCampaignStore to remove the log campaign by providing the request id
+* forward the `LogsCancelRequest` message to the agent channel provided by the communication middleware
+
+Rationale:
+This ensures consistency in the LogCampaignStore, when the server receives an active log cancellation request.
+
+Tags:
+- AnkaiosServer
+- LogCampaignStore
+
+Needs:
+- impl
+- utest
+
+#### Server cancels log campaigns for disconnected agent
+`swdd~server-cancels-log-campaign-for-disconnected-agents~1`
+
+Status: approved
+
+When the Ankaios server receives a `AgentGone` message from the channel provided by the communication middleware, the Ankaios server shall:
+* trigger the LogCampaignStore to remove the log campaign of all log collector workloads managed by the disconnected agent by providing the agent name
+* send a `LogsCancelRequest` message for each log collector workload managed by the disconnected agent to the agent channel provided by the communication middleware
+
+Rationale:
+The server needs to inform all agents to stop collecting logs for workloads if the agent managing log collector workloads is disconnected.
+
+Tags:
+- AnkaiosServer
+- LogCampaignStore
+
+Needs:
+- impl
+- utest
+
+#### Server cancels log campaigns for deleted workloads
+`swdd~server-cancels-log-campaign-for-deleted-workloads~1`
+
+Status: approved
+
+When the Ankaios server receives a `UpdateStateRequest` message from the channel provided by the communication middleware and detects deleted workloads, the Ankaios server shall cancel the log campaign for each deleted workload collecting logs by:
+* triggering the LogCampaignStore to delete the log campaign entry by providing the workload name
+* sending a `LogsCancelRequest` with the request id of the log collector workload to the agent channel provided by the communication middleware
+
+Rationale:
+The agents collecting logs from workloads must be informed by the server to stop the log collection when the workload requesting the logs will be deleted.
+
+Tags:
+- AnkaiosServer
+- LogCampaignStore
+
+Needs:
+- impl
+- utest
+
+#### Server cancels log campaigns for disconnected CLI
+`swdd~server-cancels-log-campaign-for-disconnected-cli~1`
+
+Status: approved
+
+When the Ankaios server receives a `Goodbye` message from the channel provided by the communication middleware, the Ankaios server shall:
+* trigger the LogCampaignStore to delete the log campaign entry for the cli by providing cli connection name
+* send a `LogsCancelRequest` with the removed cli request id to the agent channel provided by the communication middleware
+
+Rationale:
+The agents collecting logs from workloads must be informed by the server to stop the log collection when the Ankaios CLI that requested the logs disconnects.
+
+Tags:
+- AnkaiosServer
+- LogCampaignStore
 
 Needs:
 - impl

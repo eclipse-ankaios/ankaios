@@ -128,6 +128,7 @@ pub async fn forward_from_proto_to_ankaios(
                     "Received Goodbye from '{}'. Stopping the control loop.",
                     agent_name
                 );
+                sink.goodbye(agent_name).await?;
                 break;
             }
 

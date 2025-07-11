@@ -86,7 +86,7 @@ mod control_interface_access;
 #[cfg(any(feature = "test_utils", test))]
 pub use control_interface_access::generate_test_control_interface_access;
 pub use control_interface_access::{
-    AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum, StateRule,
+    AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum, StateRule, LogRule,
 };
 
 mod config;

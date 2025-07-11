@@ -15,6 +15,7 @@
 mod config_renderer;
 mod cycle_check;
 mod delete_graph;
+mod log_campaign_store;
 mod server_state;
 
 use api::ank_base;
@@ -48,6 +49,13 @@ pub fn create_from_server_channel(capacity: usize) -> FromServerChannel {
     channel::<FromServer>(capacity)
 }
 
+#[cfg_attr(test, mockall_double::double)]
+use log_campaign_store::LogCampaignStore;
+
+use log_campaign_store::LogSubscriberRequestId;
+
+use std::collections::HashSet;
+
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
     receiver: ToServerReceiver,
@@ -55,6 +63,7 @@ pub struct AnkaiosServer {
     to_agents: FromServerSender,
     server_state: ServerState,
     workload_states_map: WorkloadStatesMap,
+    log_campaign_store: LogCampaignStore,
 }
 
 impl AnkaiosServer {
@@ -64,6 +73,7 @@ impl AnkaiosServer {
             to_agents,
             server_state: ServerState::default(),
             workload_states_map: WorkloadStatesMap::default(),
+            log_campaign_store: LogCampaignStore::default(),
         }
     }
 
@@ -179,6 +189,18 @@ impl AnkaiosServer {
                         )
                         .await
                         .unwrap_or_illegal_state();
+
+                    // [impl->swdd~server-cancels-log-campaign-for-disconnected-agents~1]
+                    let request_ids_of_disconnected_agent = self
+                        .log_campaign_store
+                        .remove_agent_log_campaign_entry(&agent_name)
+                        .unwrap_or_default();
+
+                    self.cancel_log_requests_of_disconnected_agent_workloads(
+                        &agent_name,
+                        request_ids_of_disconnected_agent,
+                    )
+                    .await;
                 }
                 // [impl->swdd~server-provides-update-desired-state-interface~1]
                 ToServer::Request(Request {
@@ -268,6 +290,10 @@ impl AnkaiosServer {
                                     .map(|x| x.instance_name.to_string())
                                     .collect();
 
+                                // [impl->swdd~server-cancels-log-campaign-for-deleted-workloads~1]
+                                self.cancel_log_requests_of_deleted_workloads(&deleted_workloads)
+                                    .await;
+
                                 // [impl->swdd~server-handles-not-started-deleted-workloads~1]
                                 let retained_deleted_workloads = self
                                     .handle_not_started_deleted_workloads(deleted_workloads)
@@ -312,6 +338,7 @@ impl AnkaiosServer {
                             }
                         }
                     }
+                    // [impl->swdd~server-handles-logs-request-message~1]
                     common::commands::RequestContent::LogsRequest(logs_request) => {
                         log::debug!(
                             "Got log request. Id: {}, Workload Instance Names: {}",
@@ -357,12 +384,18 @@ impl AnkaiosServer {
                             .unwrap_or_illegal_state();
 
                         self.to_agents
-                            .logs_request_accepted(request_id, valid_logs_request.into())
+                            .logs_request_accepted(request_id.clone(), valid_logs_request.into())
                             .await
                             .unwrap_or_illegal_state();
+
+                        self.log_campaign_store.insert_log_campaign(request_id);
                     }
+                    // [impl->swdd~server-handles-logs-cancel-request-message~1]
                     common::commands::RequestContent::LogsCancelRequest => {
                         log::debug!("Got log cancel request with ID: {}", request_id);
+
+                        self.log_campaign_store.remove_logs_request_id(&request_id);
+
                         self.to_agents
                             .logs_cancel_request(request_id)
                             .await
@@ -388,11 +421,6 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
                 }
-                ToServer::Stop(_method_obj) => {
-                    log::debug!("Received Stop from communications server");
-                    // TODO: handle the call
-                    break;
-                }
                 ToServer::LogEntriesResponse(request_id, logs_response) => {
                     self.to_agents
                         .log_entries_response(request_id, logs_response)
@@ -407,9 +435,29 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
                 }
+                ToServer::Goodbye(goodbye) => {
+                    log::debug!("Received 'Goodbye' from '{}'", goodbye.connection_name);
 
-                ToServer::Goodbye(_) => {
-                    log::warn!("Received unexpected 'Goodbye' from communications server");
+                    // [impl->swdd~server-cancels-log-campaign-for-disconnected-cli~1]
+                    if let Some(cli_logs_request_id) = self
+                        .log_campaign_store
+                        .remove_cli_log_campaign_entry(&goodbye.connection_name)
+                    {
+                        log::debug!(
+                            "Sending logs cancel request for disconnected CLI '{}' for request ID: '{}'",
+                            goodbye.connection_name,
+                            cli_logs_request_id
+                        );
+                        self.to_agents
+                            .logs_cancel_request(cli_logs_request_id)
+                            .await
+                            .unwrap_or_illegal_state();
+                    }
+                }
+                ToServer::Stop(_method_obj) => {
+                    log::debug!("Received Stop from communications server");
+                    // TODO: handle the call
+                    break;
                 }
             }
         }
@@ -458,6 +506,49 @@ impl AnkaiosServer {
                 .get_workload_state_for_workload(&deleted_workload.instance_name)
                 .is_some_and(|current_execution_state| current_execution_state.is_pending_initial())
     }
+
+    // [impl->swdd~server-cancels-log-campaign-for-disconnected-agents~1]
+    async fn cancel_log_requests_of_disconnected_agent_workloads(
+        &mut self,
+        agent_name: &str,
+        request_ids_of_disconnected_agent: HashSet<LogSubscriberRequestId>,
+    ) {
+        for request_id in request_ids_of_disconnected_agent {
+            log::debug!(
+                "Sending logs cancel request for disconnected agent '{}' with request id: {}",
+                agent_name,
+                request_id
+            );
+            self.to_agents
+                .logs_cancel_request(request_id)
+                .await
+                .unwrap_or_illegal_state();
+        }
+    }
+
+    // [impl->swdd~server-cancels-log-campaign-for-deleted-workloads~1]
+    async fn cancel_log_requests_of_deleted_workloads(
+        &mut self,
+        deleted_workloads: &Vec<DeletedWorkload>,
+    ) {
+        for deleted_workload in deleted_workloads {
+            if let Some(request_ids) = self.log_campaign_store.remove_collector_campaign_entry(
+                &deleted_workload.instance_name.workload_name().to_owned(),
+            ) {
+                for request_id in request_ids {
+                    log::debug!(
+                        "Sending logs cancel request for deleted workload '{}' with request id: {}",
+                        deleted_workload.instance_name.workload_name(),
+                        request_id
+                    );
+                    self.to_agents
+                        .logs_cancel_request(request_id)
+                        .await
+                        .unwrap_or_illegal_state();
+                }
+            }
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -470,7 +561,7 @@ impl AnkaiosServer {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     use super::AnkaiosServer;
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
@@ -501,6 +592,7 @@ mod tests {
     const RUNTIME_NAME: &str = "runtime";
     const REQUEST_ID: &str = "request_1";
     const REQUEST_ID_A: &str = "agent_A@request_1";
+    const REQUEST_ID_B: &str = "agent_B@request_2";
     const INSTANCE_ID: &str = "instance_id";
     const MESSAGE: &str = "message";
 
@@ -1147,6 +1239,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-handles-logs-request-message~1]
     #[tokio::test]
     async fn utest_server_forward_logs_request_to_agents() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1175,6 +1268,13 @@ mod tests {
 
         server.server_state = mock_server_state;
 
+        server
+            .log_campaign_store
+            .expect_insert_log_campaign()
+            .with(predicate::eq(REQUEST_ID_A.to_owned()))
+            .once()
+            .return_const(());
+
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         let logs_request = LogsRequest {
@@ -1191,7 +1291,7 @@ mod tests {
 
         // send logs request to server
         let logs_request_result = to_server
-            .logs_request(REQUEST_ID.to_string(), logs_request)
+            .logs_request(REQUEST_ID_A.to_string(), logs_request)
             .await;
         assert!(logs_request_result.is_ok());
         drop(to_server);
@@ -1199,7 +1299,7 @@ mod tests {
         let logs_request_message = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::LogsRequest(
-                REQUEST_ID.into(),
+                REQUEST_ID_A.into(),
                 LogsRequest {
                     workload_names: vec![WorkloadInstanceName::new(
                         AGENT_A,
@@ -1219,7 +1319,7 @@ mod tests {
         assert_eq!(
             from_server_command,
             FromServer::Response(ank_base::Response {
-                request_id: REQUEST_ID.to_string(),
+                request_id: REQUEST_ID_A.to_string(),
                 response_content: Some(ank_base::response::ResponseContent::LogsRequestAccepted(
                     ank_base::LogsRequestAccepted {
                         workload_names: vec![ank_base::WorkloadInstanceName {
@@ -1446,6 +1546,12 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_agent_log_campaign_entry()
+            .once()
+            .return_const(Some(HashSet::new()));
+
         let mut mock_server_state = MockServerState::new();
         mock_server_state
             .expect_cleanup_state()
@@ -1507,6 +1613,63 @@ mod tests {
             }),
             from_server_command
         );
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-cancels-log-campaign-for-disconnected-agents~1]
+    #[tokio::test]
+    async fn utest_server_sends_logs_cancel_requests_on_disconnected_agent() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_agent_log_campaign_entry()
+            .once()
+            .return_const(Some(HashSet::from([
+                REQUEST_ID_A.to_owned(),
+                REQUEST_ID_B.to_owned(),
+            ])));
+
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state.expect_cleanup_state().never();
+
+        mock_server_state
+            .expect_remove_agent()
+            .once()
+            .with(predicate::eq(AGENT_A))
+            .return_const(());
+
+        server.server_state = mock_server_state;
+
+        let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
+        assert!(agent_gone_result.is_ok());
+
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        let expected_logs_cancel_requests = vec![
+            FromServer::LogsCancelRequest(REQUEST_ID_A.to_string()),
+            FromServer::LogsCancelRequest(REQUEST_ID_B.to_string()),
+        ];
+        let mut actual_logs_cancel_requests = Vec::new();
+        let _update_workload_state = comm_middle_ware_receiver.recv().await.unwrap();
+        let logs_cancel_request_a = comm_middle_ware_receiver.recv().await.unwrap();
+        actual_logs_cancel_requests.push(logs_cancel_request_a);
+        let logs_cancel_request_b = comm_middle_ware_receiver.recv().await.unwrap();
+        actual_logs_cancel_requests.push(logs_cancel_request_b);
+
+        for request in actual_logs_cancel_requests {
+            assert!(
+                expected_logs_cancel_requests.contains(&request),
+                "Actual request: '{:?}' not found in expected requests.",
+                request
+            );
+        }
+
+        server_task.abort();
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
@@ -1590,6 +1753,11 @@ mod tests {
             .in_sequence(&mut seq)
             .return_const(Ok(Some((added_workloads, deleted_workloads))));
         server.server_state = mock_server_state;
+
+        server
+            .log_campaign_store
+            .expect_remove_collector_campaign_entry()
+            .return_const(None);
 
         let agent_hello1_result = to_server.agent_hello(AGENT_A.to_owned()).await;
         assert!(agent_hello1_result.is_ok());
@@ -1915,6 +2083,11 @@ mod tests {
             .return_const(Ok(Some((vec![], deleted_workloads.clone()))));
         server.server_state = mock_server_state;
 
+        server
+            .log_campaign_store
+            .expect_remove_collector_campaign_entry()
+            .return_const(None);
+
         let update_state_result = to_server
             .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
             .await;
@@ -1939,6 +2112,96 @@ mod tests {
         );
 
         // the server sends only a deleted workload for the workload with a non-empty agent name
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![],
+                deleted_workloads: vec![deleted_workload_with_agent.clone()],
+            }),
+            from_server_command
+        );
+
+        // ignore UpdateStateSuccessful response
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(_)
+        ));
+
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-cancels-log-campaign-for-deleted-workloads~1]
+    #[tokio::test]
+    async fn utest_server_cancels_log_collection_of_deleted_workload() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let log_collecting_workload = generate_test_workload_spec_with_param(
+            AGENT_B.to_owned(),
+            WORKLOAD_NAME_2.to_owned(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let update_state = CompleteState::default();
+        let update_mask = vec!["desiredState.workloads".to_string()];
+
+        let deleted_workload_with_agent = DeletedWorkload {
+            instance_name: log_collecting_workload.instance_name.clone(),
+            ..Default::default()
+        };
+
+        let deleted_workloads = vec![deleted_workload_with_agent.clone()];
+
+        let mut server: AnkaiosServer = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_contains_connected_agent()
+            .once()
+            .return_const(false);
+        mock_server_state
+            .expect_update()
+            .once()
+            .return_const(Ok(Some((vec![], deleted_workloads.clone()))));
+        server.server_state = mock_server_state;
+
+        let logs_request_id = format!(
+            "{}@{}@{}",
+            log_collecting_workload.instance_name.agent_name(),
+            log_collecting_workload.instance_name.workload_name(),
+            "uuid2"
+        );
+        server
+            .log_campaign_store
+            .expect_remove_collector_campaign_entry()
+            .once()
+            .with(predicate::eq(
+                log_collecting_workload
+                    .instance_name
+                    .workload_name()
+                    .to_owned(),
+            ))
+            .return_const(Some(HashSet::from([logs_request_id.to_owned()])));
+
+        let update_state_result = to_server
+            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
+            .await;
+        assert!(update_state_result.is_ok());
+
+        let server_handle = server.start(None);
+
+        // The receiver in the server receives the messages and terminates the infinite waiting-loop
+        drop(to_server);
+        tokio::join!(server_handle).0.unwrap();
+
+        // the server sends the LogsCancelRequest for workload 2
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::LogsCancelRequest(logs_request_id),
+            from_server_command
+        );
+
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkload(UpdateWorkload {
@@ -2045,6 +2308,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-handles-logs-cancel-request-message~1]
     #[tokio::test]
     async fn utest_server_log_cancel_request() {
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
@@ -2053,6 +2317,12 @@ mod tests {
 
         let request_id = REQUEST_ID.to_string();
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_logs_request_id()
+            .once()
+            .return_const(());
+
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
@@ -2107,6 +2377,38 @@ mod tests {
                     }
                 ))
             }),
+            from_server_command
+        );
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-cancels-log-campaign-for-disconnected-cli~1]
+    #[tokio::test]
+    async fn utest_server_sends_logs_cancel_request_on_cli_disconnect() {
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let cli_connection_name = "cli-conn-1234".to_string();
+        let cli_request_id = format!("{cli_connection_name}@cli-request-id-1");
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_cli_log_campaign_entry()
+            .with(mockall::predicate::eq(cli_connection_name.clone()))
+            .once()
+            .return_const(Some(cli_request_id.clone()));
+
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        let result = to_server.goodbye(cli_connection_name).await;
+        assert!(result.is_ok());
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::LogsCancelRequest(cli_request_id),
             from_server_command
         );
 
