@@ -355,7 +355,12 @@ impl AnkaiosServer {
                         self.log_campaign_store.remove_logs_request_id(&request_id);
 
                         self.to_agents
-                            .logs_cancel_request(request_id)
+                            .logs_cancel_request(request_id.clone())
+                            .await
+                            .unwrap_or_illegal_state();
+
+                        self.to_agents
+                            .logs_cancel_request_accepted(request_id)
                             .await
                             .unwrap_or_illegal_state();
                     }
@@ -2190,7 +2195,18 @@ mod tests {
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            FromServer::LogsCancelRequest(request_id,),
+            FromServer::LogsCancelRequest(request_id.clone(),),
+            from_server_command
+        );
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::Response(ank_base::Response {
+                request_id,
+                response_content: Some(ank_base::response::ResponseContent::LogsCancelAccepted(
+                    ank_base::LogsCancelAccepted {}
+                )),
+            }),
             from_server_command
         );
 
