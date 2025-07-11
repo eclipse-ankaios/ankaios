@@ -17,7 +17,7 @@ use crate::cli::LogsArgs;
 use crate::cli_signals::SignalHandler;
 use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
-use std::{collections::BTreeSet, io::Write, mem::take, time::Duration};
+use std::{collections::BTreeSet, mem::take, time::Duration};
 
 use api::ank_base;
 use common::{
@@ -27,10 +27,12 @@ use common::{
     from_server_interface::{FromServer, FromServerReceiver},
     objects::CompleteState,
     objects::WorkloadInstanceName,
-    std_extensions::IllegalStateResult,
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 use grpc::{client::GRPCCommunicationsClient, security::TLSConfig};
+
+#[cfg(not(test))]
+use {common::std_extensions::IllegalStateResult, std::io::Write};
 
 #[cfg(test)]
 use mockall::automock;
@@ -423,12 +425,7 @@ fn print_log(log_line: &str) {
 
 #[cfg(test)]
 fn print_log(log_line: &str) {
-    use std::io::Cursor;
-    let buffer = Vec::new();
-    let mut cursor = Cursor::new(buffer);
-    cursor.write(log_line.as_bytes()).unwrap_or_illegal_state();
-    let result = cursor.into_inner();
-    TEST_LOG_OUTPUT_DATA.push(String::from_utf8(result).unwrap());
+    TEST_LOG_OUTPUT_DATA.push(log_line.into());
 }
 
 #[cfg(test)]
