@@ -215,6 +215,7 @@ impl GRPCCommunicationsClient {
         select! {
             result = forward_exec_from_proto_task => {
                 log::debug!("Forward from server message from proto to Ankaios task completed");
+                // [impl->swdd~grpc-client-connection-sends-server-gone-to-agent~1]
                 if let Err(GrpcMiddlewareError::ConnectionInterrupted(_)) = result {
                     log::trace!("Connection to server interrupted: send ServerGone to agent.");
                     agent_tx.send(common::from_server_interface::FromServer::ServerGone).await.unwrap_or_illegal_state();

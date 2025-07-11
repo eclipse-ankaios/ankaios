@@ -3518,6 +3518,28 @@ Needs:
 - impl
 - utest
 
+### Handling connection interruption to server
+
+#### Agent deletes all log subscription entries upon ServerGone message
+`swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1`
+
+Status: approved
+
+When the AgentManager receives a `ServerGone` message, the AgentManager shall delete all existing entires from its log subscription store.
+
+Comment:
+The Agent remains operational.
+
+Rationale:
+This prevents the Ankaios agent from collecting logs continuously from workloads that cannot be forwarded to the Ankaios server due to a connection interruption.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
 ## Data view
 
 ## Error management view

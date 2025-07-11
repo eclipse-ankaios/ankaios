@@ -223,7 +223,7 @@ pub async fn forward_from_ankaios_to_proto(
             }
             FromServer::ServerGone => {
                 log::warn!(
-                    "Received ServerGone. ServerGone is not expected to be sent over the network."
+                    "Received ServerGone message is ignored. ServerGone is not expected to be sent over the network."
                 )
             }
             FromServer::Stop(_method_obj) => {

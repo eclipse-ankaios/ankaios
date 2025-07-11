@@ -226,6 +226,8 @@ impl AgentManager {
             }
             FromServer::ServerGone => {
                 log::debug!("Agent '{}' received ServerGone.", self.agent_name);
+
+                // [impl->swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1]
                 self.subscription_store
                     .lock()
                     .unwrap()
@@ -728,6 +730,7 @@ mod tests {
         assert!(join!(handle).0.is_ok());
     }
 
+    // [utest->swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1]
     #[tokio::test]
     async fn utest_agent_manager_server_gone_delete_all_subscription_store_entries() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
