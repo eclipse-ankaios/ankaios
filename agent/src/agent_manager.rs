@@ -225,7 +225,7 @@ impl AgentManager {
                 Some(())
             }
             FromServer::ServerGone => {
-                log::warn!("Agent '{}' received ServerGone.", self.agent_name);
+                log::debug!("Agent '{}' received ServerGone.", self.agent_name);
                 self.subscription_store
                     .lock()
                     .unwrap()
@@ -313,7 +313,7 @@ mod tests {
     use api::ank_base;
     use common::{
         commands::UpdateWorkloadState,
-        from_server_interface::FromServerInterface,
+        from_server_interface::{FromServer, FromServerInterface},
         objects::{generate_test_workload_spec_with_param, ExecutionState},
         to_server_interface::ToServer,
     };
@@ -726,5 +726,42 @@ mod tests {
 
         to_manager.stop().await.unwrap();
         assert!(join!(handle).0.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_agent_manager_server_gone_delete_all_subscription_store_entries() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store);
+
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, _server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+
+        let mock_runtime_manager = RuntimeManager::default();
+
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        agent_manager
+            .subscription_store
+            .lock()
+            .unwrap()
+            .add_subscription(REQUEST_ID.to_string(), ());
+
+        assert!(to_manager.send(FromServer::ServerGone).await.is_ok());
+        to_manager.stop().await.unwrap();
+
+        agent_manager.start().await;
+
+        assert!(agent_manager.subscription_store.lock().unwrap().is_empty());
     }
 }

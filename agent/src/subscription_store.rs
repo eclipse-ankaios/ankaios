@@ -111,6 +111,19 @@ mod tests {
         assert!(*element_2_dropped.lock().unwrap());
     }
 
+    #[test]
+    fn utest_delete_all_subscriptions() {
+        let element_1 = MockSubscription::default();
+        let element_2 = MockSubscription::default();
+
+        let mut subscription_store = SubscriptionStore::default();
+        subscription_store.add_subscription(ID_1.into(), element_1);
+        subscription_store.add_subscription(ID_2.into(), element_2);
+
+        subscription_store.delete_all_subscriptions();
+        assert!(subscription_store.is_empty());
+    }
+
     struct MockSubscription {
         was_dropped: Arc<Mutex<bool>>,
     }
