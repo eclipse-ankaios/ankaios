@@ -190,12 +190,12 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
 
+                    // [impl->swdd~server-cancels-log-campaign-for-disconnected-agents~1]
                     let removed_log_requests = self
                         .log_campaign_store
                         .remove_agent_log_campaign_entry(&agent_name);
 
-                    // [impl->swdd~server-cancels-log-campaign-for-disconnected-agents~1]
-                    self.cancel_log_requests_of_disconnected_agent_workloads(
+                    self.cancel_log_requests_of_disconnected_collector(
                         &agent_name,
                         removed_log_requests.collector_requests,
                     )
@@ -403,20 +403,15 @@ impl AnkaiosServer {
                     log::debug!("Received 'Goodbye' from '{}'", goodbye.connection_name);
 
                     // [impl->swdd~server-cancels-log-campaign-for-disconnected-cli~1]
-                    if let Some(cli_logs_request_id) = self
+                    let removed_cli_log_requests = self
                         .log_campaign_store
-                        .remove_cli_log_campaign_entry(&goodbye.connection_name)
-                    {
-                        log::debug!(
-                            "Sending logs cancel request for disconnected CLI '{}' for request ID: '{}'",
-                            goodbye.connection_name,
-                            cli_logs_request_id
-                        );
-                        self.to_agents
-                            .logs_cancel_request(cli_logs_request_id)
-                            .await
-                            .unwrap_or_illegal_state();
-                    }
+                        .remove_cli_log_campaign_entry(&goodbye.connection_name);
+
+                    self.cancel_log_requests_of_disconnected_collector(
+                        &goodbye.connection_name,
+                        removed_cli_log_requests,
+                    )
+                    .await;
                 }
                 ToServer::Stop(_method_obj) => {
                     log::debug!("Received Stop from communications server");
@@ -472,15 +467,16 @@ impl AnkaiosServer {
     }
 
     // [impl->swdd~server-cancels-log-campaign-for-disconnected-agents~1]
-    async fn cancel_log_requests_of_disconnected_agent_workloads(
+    // [impl->swdd~server-cancels-log-campaign-for-disconnected-cli~1]
+    async fn cancel_log_requests_of_disconnected_collector(
         &mut self,
-        agent_name: &str,
-        request_ids_of_disconnected_agent: HashSet<LogSubscriberRequestId>,
+        connection_name: &str,
+        request_ids_to_cancel: HashSet<LogSubscriberRequestId>,
     ) {
-        for request_id in request_ids_of_disconnected_agent {
+        for request_id in request_ids_to_cancel {
             log::debug!(
-                "Sending logs cancel request for disconnected agent '{}' with request id: {}",
-                agent_name,
+                "Sending logs cancel request for disconnected connection '{}' with request id: {}",
+                connection_name,
                 request_id
             );
             self.to_agents
@@ -2292,7 +2288,7 @@ mod tests {
             .expect_remove_cli_log_campaign_entry()
             .with(mockall::predicate::eq(cli_connection_name.clone()))
             .once()
-            .return_const(Some(cli_request_id.clone()));
+            .return_const(HashSet::from([cli_request_id.clone()]));
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
