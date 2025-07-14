@@ -20,6 +20,10 @@ use common::{
     objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
     std_extensions::IllegalStateResult,
 };
+
+#[cfg(test)]
+use crate::runtime_connectors::dummy_state_checker::DummyStateChecker;
+
 #[cfg(test)]
 use mockall::automock;
 
@@ -407,6 +411,42 @@ impl<
                 .report_workload_execution_state(&instance_name, ExecutionState::removed())
                 .await;
         })
+    }
+}
+
+#[cfg(test)]
+mockall::mock! {
+    pub GenericRuntimeFacade {
+        pub fn new(runtime: Box<dyn OwnableRuntime<String, DummyStateChecker<String>>>,
+            run_folder: PathBuf) -> Self;
+    }
+
+    #[async_trait]
+    impl RuntimeFacade for GenericRuntimeFacade {
+        async fn get_reusable_workloads(
+            &self,
+            agent_name: &AgentName,
+        ) -> Result<Vec<ReusableWorkloadState>, RuntimeError>;
+
+        fn create_workload(
+            &self,
+            runtime_workload: ReusableWorkloadSpec,
+            control_interface_info: Option<ControlInterfaceInfo>,
+            update_state_tx: &WorkloadStateSender,
+        ) -> Workload;
+
+        fn resume_workload(
+            &self,
+            runtime_workload: WorkloadSpec,
+            control_interface: Option<ControlInterfaceInfo>,
+            update_state_tx: &WorkloadStateSender,
+        ) -> Workload;
+
+        fn delete_workload(
+            &self,
+            instance_name: WorkloadInstanceName,
+            update_state_tx: &WorkloadStateSender,
+        );
     }
 }
 

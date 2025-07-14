@@ -1,0 +1,9 @@
+apiVersion: v0.1
+workloads:
+  simple:
+    runtime: invalid_runtime
+    restartPolicy: NEVER
+    agent: agent_A
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]
