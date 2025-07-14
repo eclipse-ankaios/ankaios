@@ -20,19 +20,20 @@ use crate::{output_and_error, output_debug};
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
 use api::ank_base;
-use common::commands::LogsRequest;
-use common::communications_client::CommunicationsClient;
-use common::communications_error::CommunicationMiddlewareError;
-use common::objects::WorkloadInstanceName;
-use common::to_server_interface::ToServer;
 use common::{
-    commands::{CompleteStateRequest, UpdateWorkloadState},
+    commands::{CompleteStateRequest, LogsRequest, UpdateWorkloadState},
+    communications_client::CommunicationsClient,
+    communications_error::CommunicationMiddlewareError,
     from_server_interface::{FromServer, FromServerReceiver},
     objects::CompleteState,
-    to_server_interface::{ToServerInterface, ToServerSender},
+    objects::WorkloadInstanceName,
+    to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
-use grpc::client::GRPCCommunicationsClient;
-use grpc::security::TLSConfig;
+use grpc::{client::GRPCCommunicationsClient, security::TLSConfig};
+
+#[cfg(not(test))]
+use {common::std_extensions::IllegalStateResult, std::io::Write};
+
 #[cfg(test)]
 use mockall::automock;
 
@@ -233,6 +234,8 @@ impl ServerConnection {
     ) -> Result<(), ServerConnectionError> {
         let request_id = uuid::Uuid::new_v4().to_string();
 
+        let output_workload_names = args.output_names;
+
         self.send_logs_request_for_workloads(
             &request_id,
             instance_names.clone().into_iter().collect(),
@@ -240,7 +243,9 @@ impl ServerConnection {
         )
         .await?;
 
-        self.listen_for_workload_logs(request_id, instance_names)
+        let output_logs_fn = select_log_format_function(&instance_names, output_workload_names);
+
+        self.listen_for_workload_logs(request_id, instance_names, output_logs_fn)
             .await
     }
 
@@ -268,6 +273,7 @@ impl ServerConnection {
         &mut self,
         request_id: String,
         mut instance_names: BTreeSet<WorkloadInstanceName>,
+        output_log_format_function: fn(Vec<ank_base::LogEntry>),
     ) -> Result<(), ServerConnectionError> {
         loop {
             tokio::select! {
@@ -289,7 +295,7 @@ impl ServerConnection {
 
                     match handle_server_log_response(&request_id, server_message)? {
                         LogStreamingState::Output(log_entries) => {
-                            output_logs(log_entries.log_entries);
+                            output_log_format_function(log_entries.log_entries);
                         }
                         LogStreamingState::Continue => continue,
                         // [impl->swdd~stops-log-output-for-specific-workloads~1]
@@ -358,6 +364,25 @@ fn handle_server_log_response(
     }
 }
 
+// [impl->swdd~cli-outputs-logs-in-specific-format~1]
+fn select_log_format_function(
+    instance_names: &BTreeSet<WorkloadInstanceName>,
+    force_output_names: bool,
+) -> fn(Vec<ank_base::LogEntry>) {
+    if is_output_with_workload_names(instance_names, force_output_names) {
+        output_logs_with_workload_names
+    } else {
+        output_logs_without_workload_names
+    }
+}
+
+fn is_output_with_workload_names(
+    instance_names: &BTreeSet<WorkloadInstanceName>,
+    force_output_names: bool,
+) -> bool {
+    instance_names.len() > 1 || force_output_names
+}
+
 enum LogStreamingState {
     StopForWorkload(WorkloadInstanceName),
     Continue,
@@ -370,8 +395,7 @@ pub enum ServerConnectionError {
 }
 
 // [impl->swdd~cli-outputs-logs-in-specific-format~1]
-#[cfg(not(test))]
-fn output_logs(log_entries: Vec<ank_base::LogEntry>) {
+fn output_logs_with_workload_names(log_entries: Vec<ank_base::LogEntry>) {
     log_entries.iter().for_each(|log_entry| {
         let workload_instance_name = log_entry.workload_name.as_ref().unwrap_or_else(|| {
             crate::output_and_error!(
@@ -380,20 +404,35 @@ fn output_logs(log_entries: Vec<ank_base::LogEntry>) {
         });
 
         let workload_name = workload_instance_name.workload_name.as_str();
-        println!("{} {}", workload_name, log_entry.message);
+        let formatted_log = format!("{} {}\n", workload_name, log_entry.message);
+        print_log(&formatted_log);
     });
 }
 
+// [impl->swdd~cli-outputs-logs-in-specific-format~1]
+fn output_logs_without_workload_names(log_entries: Vec<ank_base::LogEntry>) {
+    log_entries.iter().for_each(|log_entry| {
+        print_log(&format!("{}\n", log_entry.message));
+    });
+}
+
+#[cfg(not(test))]
+fn print_log(log_line: &str) {
+    let stdout = std::io::stdout();
+    let mut stdout = stdout.lock();
+    stdout.write(log_line.as_bytes()).unwrap_or_illegal_state();
+}
+
 #[cfg(test)]
-fn output_logs(log_entries: Vec<ank_base::LogEntry>) {
-    TEST_LOG_OUTPUT_DATA.replace(log_entries);
+fn print_log(log_line: &str) {
+    TEST_LOG_OUTPUT_DATA.push(log_line.into());
 }
 
 #[cfg(test)]
 use {mockall::lazy_static, std::sync::Mutex};
 
 #[cfg(test)]
-pub struct SynchronizedTestLogData(Mutex<Vec<ank_base::LogEntry>>);
+pub struct SynchronizedTestLogData(Mutex<Vec<String>>);
 
 #[cfg(test)]
 impl SynchronizedTestLogData {
@@ -401,12 +440,12 @@ impl SynchronizedTestLogData {
         SynchronizedTestLogData(Mutex::new(Vec::new()))
     }
 
-    pub fn replace(&self, new_log_entries: Vec<ank_base::LogEntry>) {
+    pub fn push(&self, log_entry: String) {
         let mut data = self.0.lock().unwrap();
-        *data = new_log_entries;
+        data.push(log_entry);
     }
 
-    pub fn take(&self) -> Vec<ank_base::LogEntry> {
+    pub fn take(&self) -> Vec<String> {
         let mut data = self.0.lock().unwrap();
         std::mem::take(&mut *data)
     }
@@ -430,7 +469,9 @@ mod tests {
 
     use crate::{
         cli::LogsArgs,
-        cli_commands::server_connection::{ServerConnectionError, TEST_LOG_OUTPUT_DATA},
+        cli_commands::server_connection::{
+            select_log_format_function, ServerConnectionError, TEST_LOG_OUTPUT_DATA,
+        },
         cli_signals::MockSignalHandler,
         test_helper::MOCKALL_CONTEXT_SYNC,
     };
@@ -1193,6 +1234,7 @@ mod tests {
     // [utest->swdd~cli-streams-logs-from-the-server~1]
     // [utest->swdd~handles-log-responses-from-server~1]
     // [utest->swdd~stops-log-output-for-specific-workloads~1]
+    // [utest->swdd~cli-outputs-logs-in-specific-format~1]
     #[tokio::test]
     async fn utest_stream_logs_multiple_workloads_no_follow() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1202,6 +1244,7 @@ mod tests {
             tail: -1,
             since: None,
             until: None,
+            output_names: false,
         };
 
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
@@ -1223,21 +1266,21 @@ mod tests {
             }),
         );
 
-        let expected_log_data = vec![
+        let log_entries = vec![
             ank_base::LogEntry {
                 workload_name: Some(instance_name_1.clone().into()),
-                message: format!("Log line of {}", WORKLOAD_NAME_1),
+                message: "some log line".to_string(),
             },
             ank_base::LogEntry {
                 workload_name: Some(instance_name_2.clone().into()),
-                message: format!("Log line of {}", WORKLOAD_NAME_2),
+                message: "another log line".to_string(),
             },
         ];
 
         sim.will_send_response(
             REQUEST,
             ank_base::response::ResponseContent::LogEntriesResponse(ank_base::LogEntriesResponse {
-                log_entries: expected_log_data.clone(),
+                log_entries: log_entries.clone(),
             }),
         );
 
@@ -1270,8 +1313,84 @@ mod tests {
 
         checker.check_communication();
 
+        let actual_log_data: BTreeSet<String> = TEST_LOG_OUTPUT_DATA.take().into_iter().collect();
+
+        let expected_log_data: BTreeSet<String> = log_entries
+            .into_iter()
+            .map(|log_entry| {
+                let workload_name = log_entry.workload_name.unwrap_or_default().workload_name;
+                format!("{} {}\n", workload_name, log_entry.message)
+            })
+            .collect();
+
+        assert_eq!(actual_log_data, expected_log_data);
+    }
+
+    // [utest->swdd~cli-outputs-logs-in-specific-format~1]
+    #[test]
+    fn utest_output_log_line_without_workload_name_upon_single_workload() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+            output_names: false,
+        };
+
+        let instance_names = BTreeSet::from([instance_name_1.clone()]);
+
+        let output_log_fn = select_log_format_function(&instance_names, log_args.output_names);
+
+        let log_message = "some log line";
+        let log_entry = ank_base::LogEntry {
+            workload_name: Some(instance_name_1.clone().into()),
+            message: log_message.to_string(),
+        };
+
+        output_log_fn(vec![log_entry]);
+
         let actual_log_data = TEST_LOG_OUTPUT_DATA.take();
-        assert_eq!(*actual_log_data, expected_log_data);
+        assert_eq!(actual_log_data, vec![format!("{}\n", log_message)]);
+    }
+
+    // [utest->swdd~cli-outputs-logs-in-specific-format~1]
+    #[test]
+    fn utest_output_log_line_with_prefixed_workload_name_upon_provided_force_names_argument() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+            output_names: true,
+        };
+
+        let instance_names = BTreeSet::from([instance_name_1.clone()]);
+
+        let output_log_fn = select_log_format_function(&instance_names, log_args.output_names);
+
+        let log_message = "some log line";
+        let log_entry = ank_base::LogEntry {
+            workload_name: Some(instance_name_1.clone().into()),
+            message: log_message.to_string(),
+        };
+
+        output_log_fn(vec![log_entry]);
+
+        let actual_log_data = TEST_LOG_OUTPUT_DATA.take();
+        assert_eq!(
+            actual_log_data,
+            vec![format!(
+                "{} {}\n",
+                instance_name_1.workload_name(),
+                log_message
+            )]
+        );
     }
 
     // [utest->swdd~cli-streams-logs-from-the-server~1]
@@ -1285,6 +1404,7 @@ mod tests {
             tail: -1,
             since: None,
             until: None,
+            output_names: false,
         };
 
         let mut sim = CommunicationSimulator::default();
@@ -1345,6 +1465,7 @@ mod tests {
             tail: -1,
             since: None,
             until: None,
+            output_names: false,
         };
 
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
@@ -1411,6 +1532,7 @@ mod tests {
             tail: -1,
             since: None,
             until: None,
+            output_names: false,
         };
 
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);

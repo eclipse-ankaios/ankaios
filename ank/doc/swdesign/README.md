@@ -1111,6 +1111,7 @@ Status: approved
 
 When the user invokes the Ankaios CLI to output logs for specific workloads by providing their workload names, the Ankaios CLI shall:
 * convert the provided workload names into workload instance names
+* select the log format function depending on the provided log cli arguments
 * request the logs from the Ankaios server by sending a `LogsRequest` containing the workload instance names and additional log options provided by the user
 * listen to the Ankaios Server for log responses until a logs stop message or a termination signal
 
@@ -1170,17 +1171,21 @@ Status: approved
 
 When the CLI outputs logs to the terminal, the Ankaios CLI shall output each log entry in the following format:
 
-`<workload_name>: <log_message>\n`
+* `<log_message>\n` if the user requests the CLI to output logs for one workload
+* `<workload_name> <log_message>\n` if the user requests the CLI to output logs for more than one workload or if the cli argument `names` is provided
+
+Comment:
+The cli argument `names` forces the CLI to always output the workload name, regardless of how many workloads the logs are requested for. The logs are output to `stdout`.
 
 Rationale:
-The output format enables automated processing of logs.
+Outputting the workload names in front of the log message enables automated processing of logs.
 
 Tags:
 - CliCommands
 
 Needs:
 - impl
-- stest
+- utest
 
 #### CLI stops log output specific for workloads
 `swdd~stops-log-output-for-specific-workloads~1`
