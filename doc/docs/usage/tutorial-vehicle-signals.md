@@ -256,7 +256,11 @@ We apply the changes with:
 ank -k apply speed-provider.yaml
 ```
 
-and recognize that we get a new speed value every 1 second.
+and recognize that we get a new speed value every 1 second:
+
+```shell
+ank logs --follow speed-consumer
+```
 
 ## Ankaios state
 
