@@ -3525,7 +3525,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives a `ServerGone` message, the AgentManager shall delete all existing entires from its log subscription store.
+When the AgentManager receives a `ServerGone` message, the AgentManager shall delete all existing entries from its log subscription store.
 
 Comment:
 The Agent remains operational.
