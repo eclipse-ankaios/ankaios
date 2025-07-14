@@ -95,6 +95,10 @@ pub trait FromServerInterface {
     ) -> Result<(), FromServerInterfaceError>;
     async fn logs_cancel_request(&self, request_id: String)
         -> Result<(), FromServerInterfaceError>;
+    async fn logs_cancel_request_accepted(
+        &self,
+        request_id: String,
+    ) -> Result<(), FromServerInterfaceError>;
     async fn error(
         &self,
         request_id: String,
@@ -251,6 +255,21 @@ impl FromServerInterface for FromServerSender {
         request_id: String,
     ) -> Result<(), FromServerInterfaceError> {
         self.send(FromServer::LogsCancelRequest(request_id)).await?;
+        Ok(())
+    }
+
+    async fn logs_cancel_request_accepted(
+        &self,
+        request_id: String,
+    ) -> Result<(), FromServerInterfaceError> {
+        self.send(FromServer::Response(ank_base::Response {
+            request_id,
+            response_content: ank_base::response::ResponseContent::LogsCancelAccepted(
+                ank_base::LogsCancelAccepted {},
+            )
+            .into(),
+        }))
+        .await?;
         Ok(())
     }
 

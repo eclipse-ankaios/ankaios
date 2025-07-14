@@ -43,6 +43,7 @@ message Response {
         LogsRequestAccepted logsRequestAccepted = 6; /// A message containing the workload names for which the logs were successfully requested.
         LogEntriesResponse logEntriesResponse = 7; /// A message containing workload logs.
         LogsStopResponse logsStopResponse = 8; /// A message containing the workload instance name indicating the stop of the log streaming.
+        LogsCancelAccepted logsCancelAccepted = 9; /// A message indicating that the request for canceling the log collection was accepted. Please note that the actual stopping of the log collection campaign could take longer.
     }
 }
 
@@ -79,6 +80,13 @@ message LogEntriesResponse {
 
 message LogsStopResponse {
     WorkloadInstanceName workloadName = 1; /// The name of the workload for which the log streaming was stopped.
+}
+
+/**
+* A message indicating that the request for canceling the log collection was accepted.
+* Please note that the actual stopping of the log collection campaign could take longer so other log response messages could be delivered also after receiving this message.
+*/
+message LogsCancelAccepted {
 }
 
 /**
