@@ -320,6 +320,8 @@ mod tests {
         to_server_interface::ToServer,
     };
 
+    use crate::subscription_store::generate_test_subscription_entry;
+
     use mockall::predicate::{self, eq};
     use tokio::{
         join,
@@ -758,7 +760,7 @@ mod tests {
             .subscription_store
             .lock()
             .unwrap()
-            .add_subscription(REQUEST_ID.to_string(), ());
+            .add_subscription(REQUEST_ID.to_string(), generate_test_subscription_entry());
 
         assert!(to_manager.send(FromServer::ServerGone).await.is_ok());
         to_manager.stop().await.unwrap();

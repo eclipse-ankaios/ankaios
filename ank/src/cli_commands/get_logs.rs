@@ -151,6 +151,7 @@ mod tests {
             tail: -1,
             since: None,
             until: None,
+            output_names: false,
         };
 
         mock_server_connection
@@ -197,6 +198,7 @@ mod tests {
             tail: -1,
             since: None,
             until: None,
+            output_names: false,
         };
 
         mock_server_connection.expect_stream_logs().never();
@@ -242,6 +244,7 @@ mod tests {
             tail: -1,
             since: None,
             until: None,
+            output_names: false,
         };
 
         mock_server_connection

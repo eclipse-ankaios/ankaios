@@ -10,19 +10,43 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 //
-// SPDX-License-Identifier: Apache-2.
+// SPDX-License-Identifier: Apache-2.0
 
-use std::{any::Any, collections::HashMap};
+use std::collections::HashMap;
+#[cfg(not(test))]
+use tokio::task::JoinHandle;
+
+#[cfg(test)]
+use tests::MockJoinHandle as JoinHandle;
+
+#[derive(Debug)]
+pub struct SubscriptionEntry {
+    join_handle: JoinHandle<()>,
+}
+
+impl SubscriptionEntry {
+    pub fn new(join_handle: JoinHandle<()>) -> Self {
+        Self { join_handle }
+    }
+}
+
+impl Drop for SubscriptionEntry {
+    fn drop(&mut self) {
+        log::trace!("Dropping join handle of subscription entry from the log subscription store.");
+        self.join_handle.abort();
+    }
+}
+
 type SubscriptionId = String;
 
 #[derive(Default, Debug)]
 pub struct SubscriptionStore {
-    store: HashMap<SubscriptionId, Box<dyn Any + Send>>,
+    store: HashMap<SubscriptionId, SubscriptionEntry>,
 }
 
 impl SubscriptionStore {
-    pub fn add_subscription(&mut self, id: SubscriptionId, subscription: impl Any + Send) {
-        self.store.insert(id, Box::new(subscription));
+    pub fn add_subscription(&mut self, id: SubscriptionId, subscription: SubscriptionEntry) {
+        self.store.insert(id, subscription);
     }
 
     pub fn delete_subscription(&mut self, id: &SubscriptionId) {
@@ -48,97 +72,85 @@ impl SubscriptionStore {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
+pub fn generate_test_subscription_entry() -> SubscriptionEntry {
+    let mut mock_join_handle = MockJoinHandle::new();
+    mock_join_handle.expect_abort().once().return_const(());
+    SubscriptionEntry::new(mock_join_handle)
+}
+
+#[cfg(test)]
+pub use tests::{MockJoinHandle, MockSubscriptionEntry};
+
+#[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use super::{SubscriptionEntry, SubscriptionStore};
+    use mockall::mock;
 
-    use super::SubscriptionStore;
-
-    const ID_1: &str = "id 1";
-    const ID_2: &str = "id 2";
-
-    #[test]
-    fn utest_none_dropped() {
-        let element_1 = MockSubscription::default();
-        let element_1_dropped = element_1.was_dropped.clone();
-        let element_2 = MockSubscription::default();
-        let element_2_dropped = element_2.was_dropped.clone();
-
-        let mut subscription_store = SubscriptionStore::default();
-        subscription_store.add_subscription(ID_1.into(), element_1);
-        subscription_store.add_subscription(ID_2.into(), element_2);
-
-        assert!(!*element_1_dropped.lock().unwrap());
-        assert!(!*element_2_dropped.lock().unwrap());
-    }
-
-    #[test]
-    fn utest_remove_drops_old_element() {
-        let element_1 = MockSubscription::default();
-        let element_1_dropped = element_1.was_dropped.clone();
-        let element_2 = MockSubscription::default();
-        let element_2_dropped = element_2.was_dropped.clone();
-
-        let mut subscription_store = SubscriptionStore::default();
-        subscription_store.add_subscription(ID_1.into(), element_1);
-        subscription_store.add_subscription(ID_2.into(), element_2);
-
-        assert!(!*element_1_dropped.lock().unwrap());
-        assert!(!*element_2_dropped.lock().unwrap());
-
-        subscription_store.delete_subscription(&ID_2.into());
-
-        assert!(!*element_1_dropped.lock().unwrap());
-        assert!(*element_2_dropped.lock().unwrap());
-    }
+    const ID_1: &str = "id_1";
+    const ID_2: &str = "id_2";
 
     #[test]
     fn utest_overwrite_drops_old_element() {
-        let element_1 = MockSubscription::default();
-        let element_1_dropped = element_1.was_dropped.clone();
-        let element_2 = MockSubscription::default();
-        let element_2_dropped = element_2.was_dropped.clone();
+        let mut mock_join_handle_1 = MockJoinHandle::new();
+        mock_join_handle_1.expect_abort().once().return_const(());
+
+        let mut mock_join_handle_2 = MockJoinHandle::new();
+        mock_join_handle_2.expect_abort().once().return_const(());
+
+        let subscription_entry_1 = SubscriptionEntry::new(mock_join_handle_1);
+        let subscription_entry_2 = SubscriptionEntry::new(mock_join_handle_2);
 
         let mut subscription_store = SubscriptionStore::default();
-        subscription_store.add_subscription(ID_1.into(), element_1);
-        subscription_store.add_subscription(ID_2.into(), element_2);
+        subscription_store.add_subscription(ID_1.into(), subscription_entry_1);
+        subscription_store.add_subscription(ID_2.into(), subscription_entry_2);
 
-        assert!(!*element_1_dropped.lock().unwrap());
-        assert!(!*element_2_dropped.lock().unwrap());
+        let mut new_mock_join_handle_2 = MockJoinHandle::new();
+        new_mock_join_handle_2
+            .expect_abort()
+            .once()
+            .return_const(());
 
-        subscription_store.add_subscription(ID_2.into(), MockSubscription::default());
+        let new_subscription_2 = SubscriptionEntry::new(new_mock_join_handle_2);
 
-        assert!(!*element_1_dropped.lock().unwrap());
-        assert!(*element_2_dropped.lock().unwrap());
+        // overwrite the existing subscription entry
+        subscription_store.add_subscription(ID_2.into(), new_subscription_2);
+
+        assert!(subscription_store.store.contains_key(ID_1));
+        assert!(subscription_store.store.contains_key(ID_2));
     }
 
     #[test]
     fn utest_delete_all_subscriptions() {
-        let element_1 = MockSubscription::default();
-        let element_2 = MockSubscription::default();
+        let mut mock_join_handle_1 = MockJoinHandle::new();
+        mock_join_handle_1.expect_abort().once().return_const(());
+
+        let mut mock_join_handle_2 = MockJoinHandle::new();
+        mock_join_handle_2.expect_abort().once().return_const(());
+
+        let subscription_entry_1 = SubscriptionEntry::new(mock_join_handle_1);
+        let subscription_entry_2 = SubscriptionEntry::new(mock_join_handle_2);
 
         let mut subscription_store = SubscriptionStore::default();
-        subscription_store.add_subscription(ID_1.into(), element_1);
-        subscription_store.add_subscription(ID_2.into(), element_2);
+        subscription_store.add_subscription(ID_1.into(), subscription_entry_1);
+        subscription_store.add_subscription(ID_2.into(), subscription_entry_2);
 
         subscription_store.delete_all_subscriptions();
         assert!(subscription_store.is_empty());
     }
 
-    struct MockSubscription {
-        was_dropped: Arc<Mutex<bool>>,
-    }
-
-    impl Default for MockSubscription {
-        fn default() -> Self {
-            Self {
-                was_dropped: Arc::new(Mutex::new(false)),
-            }
+    mock! {
+        #[derive(Debug)]
+        pub JoinHandle<T> {
+            pub fn abort(&self);
         }
     }
 
-    impl Drop for MockSubscription {
-        fn drop(&mut self) {
-            *self.was_dropped.lock().unwrap() = true;
+    mock! {
+        pub SubscriptionEntry {
+            /* In the non-mock version, passing the JoinHandle and returning a SubscriptionEntry is done for the following reasons:
+                1. To avoid the need to implement complex tokio::spawn test helpers for tests in the module that constructs the SubscriptionEntry.
+                2. Testing that the abort of the JoinHandle is called when the SubscriptionEntry is deallocated using a standard mock. */
+            pub fn new(join_handle: tokio::task::JoinHandle<()>) -> crate::subscription_store::SubscriptionEntry;
         }
     }
 }

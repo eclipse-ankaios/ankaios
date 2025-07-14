@@ -357,6 +357,9 @@ pub struct LogsArgs {
     /// Output the specified number of LINES at the end of the logs. Defaults to -1, which prints all lines
     #[arg(short = 't', long = "tail", default_value_t = -1)]
     pub tail: i32,
+    /// Output the workload name in front of the log line
+    #[arg(short = 'n', long = "names", default_value_t = false)]
+    pub output_names: bool,
     /// Show logs after a specific TIMESTAMP
     #[arg(short = 's', long = "since")]
     pub since: Option<String>,
