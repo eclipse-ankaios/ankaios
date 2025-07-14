@@ -19,11 +19,10 @@ mod log_campaign_store;
 mod server_state;
 
 use api::ank_base;
-use common::commands::{LogsRequest, Request, UpdateWorkload};
+use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::objects::{
-    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadInstanceName, WorkloadState,
-    WorkloadStatesMap,
+    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap,
 };
 
 use common::std_extensions::IllegalStateResult;
@@ -339,52 +338,31 @@ impl AnkaiosServer {
                         }
                     }
                     // [impl->swdd~server-handles-logs-request-message~1]
-                    common::commands::RequestContent::LogsRequest(logs_request) => {
+                    common::commands::RequestContent::LogsRequest(mut logs_request) => {
                         log::debug!(
-                            "Got log request. Id: {}, Workload Instance Names: {}",
+                            "Got log request. Id: '{}', Workload Instance Names: '{:?}'",
                             request_id,
-                            logs_request
-                                .workload_names
-                                .iter()
-                                .map(|name| name.to_string())
-                                .collect::<Vec<String>>()
-                                .join(", ")
+                            logs_request.workload_names
                         );
 
-                        let valid_workload_names: Vec<WorkloadInstanceName> = logs_request
-                            .workload_names
-                            .iter()
-                            .filter_map(|name| {
-                                self.server_state
-                                    .get_workload_spec_by_instance_name(name)
-                                    .map(|_| name.clone())
-                            })
-                            .collect();
+                        // keep only workload instance names that are currently in the desired state
+                        logs_request.workload_names.retain(|name| {
+                            self.server_state.desired_state_contains_instance_name(name)
+                        });
 
-                        if valid_workload_names.is_empty() {
-                            log::warn!(
-                                "No valid workload names provided in logs request: {:?}",
+                        if !logs_request.workload_names.is_empty() {
+                            log::debug!(
+                                "Requesting logs from agents for the instance names: {:?}",
                                 logs_request.workload_names
                             );
                             self.to_agents
-                                .error(request_id, "No valid workload names provided".into())
+                                .logs_request(request_id.clone(), logs_request.clone().into())
                                 .await
                                 .unwrap_or_illegal_state();
-                            continue;
                         }
 
-                        let valid_logs_request = LogsRequest {
-                            workload_names: valid_workload_names,
-                            ..logs_request
-                        };
-
                         self.to_agents
-                            .logs_request(request_id.clone(), valid_logs_request.clone().into())
-                            .await
-                            .unwrap_or_illegal_state();
-
-                        self.to_agents
-                            .logs_request_accepted(request_id.clone(), valid_logs_request.into())
+                            .logs_request_accepted(request_id.clone(), logs_request.into())
                             .await
                             .unwrap_or_illegal_state();
 
@@ -1255,13 +1233,8 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
 
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
         mock_server_state
-            .expect_get_workload_spec_by_instance_name()
+            .expect_desired_state_contains_instance_name()
             .with(mockall::predicate::function(
                 |instance_name: &WorkloadInstanceName| {
                     instance_name
@@ -1269,7 +1242,7 @@ mod tests {
                 },
             ))
             .once()
-            .return_const(Some(workload_spec));
+            .return_const(true);
 
         server.server_state = mock_server_state;
 
@@ -1354,7 +1327,7 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
 
         mock_server_state
-            .expect_get_workload_spec_by_instance_name()
+            .expect_desired_state_contains_instance_name()
             .with(mockall::predicate::function(
                 |instance_name: &WorkloadInstanceName| {
                     instance_name
@@ -1362,9 +1335,16 @@ mod tests {
                 },
             ))
             .once()
-            .return_const(None);
+            .return_const(false);
 
         server.server_state = mock_server_state;
+
+        server
+            .log_campaign_store
+            .expect_insert_log_campaign()
+            .with(predicate::eq(REQUEST_ID.to_owned()))
+            .once()
+            .return_const(());
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
@@ -1392,9 +1372,9 @@ mod tests {
             from_server_command,
             FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.to_string(),
-                response_content: Some(ank_base::response::ResponseContent::Error(
-                    ank_base::Error {
-                        message: "No valid workload names provided".to_string(),
+                response_content: Some(ank_base::response::ResponseContent::LogsRequestAccepted(
+                    ank_base::LogsRequestAccepted {
+                        workload_names: vec![],
                     }
                 )),
             })

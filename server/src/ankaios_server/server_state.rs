@@ -181,18 +181,14 @@ impl ServerState {
             .collect()
     }
 
-    pub fn get_workload_spec_by_instance_name(
+    pub fn desired_state_contains_instance_name(
         &self,
         instance_name: &WorkloadInstanceName,
-    ) -> Option<WorkloadSpec> {
+    ) -> bool {
         self.rendered_workloads
             .get(instance_name.workload_name())
-            .and_then(|workload_spec| {
-                if workload_spec.instance_name == *instance_name {
-                    Some(workload_spec.clone())
-                } else {
-                    None
-                }
+            .is_some_and(|workload_spec| {
+                workload_spec.instance_name == *instance_name
             })
     }
 
@@ -629,7 +625,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_get_workload_spec_by_instance_name() {
+    fn utest_desired_state_contains_instance_name() {
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
@@ -654,11 +650,9 @@ mod tests {
         };
 
         let instance_name = workload_spec.instance_name.clone();
-        let ret = server_state.get_workload_spec_by_instance_name(&instance_name);
-        assert_eq!(ret, Some(workload_spec));
+        assert!(server_state.desired_state_contains_instance_name(&instance_name));
 
-        let ret = server_state.get_workload_spec_by_instance_name(&other_workload_instance_name);
-        assert_eq!(ret, None);
+        assert!(!server_state.desired_state_contains_instance_name(&other_workload_instance_name));
     }
 
     // [utest->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
