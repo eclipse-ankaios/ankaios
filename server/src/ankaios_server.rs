@@ -1550,8 +1550,8 @@ mod tests {
         let _update_workload_state = comm_middle_ware_receiver.recv().await.unwrap();
         let logs_cancel_request_a = comm_middle_ware_receiver.recv().await.unwrap();
         actual_logs_cancel_requests.push(logs_cancel_request_a);
-        let logs_cancel_request_b = comm_middle_ware_receiver.recv().await.unwrap();
-        actual_logs_cancel_requests.push(logs_cancel_request_b);
+        let logs_cancel_request_a2 = comm_middle_ware_receiver.recv().await.unwrap();
+        actual_logs_cancel_requests.push(logs_cancel_request_a2);
 
         for request in actual_logs_cancel_requests {
             assert!(
@@ -1606,7 +1606,7 @@ mod tests {
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let expected_logs_cancel_requests = vec![
+        let expected_logs_stop_responses = vec![
             FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID_A.to_string(),
                 response_content: Some(ank_base::response::ResponseContent::LogsStopResponse(
@@ -1624,16 +1624,16 @@ mod tests {
                 )),
             }),
         ];
-        let mut actual_logs_cancel_requests = Vec::new();
+        let mut actual_logs_stop_response = Vec::new();
         let _update_workload_state = comm_middle_ware_receiver.recv().await.unwrap();
-        let logs_cancel_request_a = comm_middle_ware_receiver.recv().await.unwrap();
-        actual_logs_cancel_requests.push(logs_cancel_request_a);
-        let logs_cancel_request_b = comm_middle_ware_receiver.recv().await.unwrap();
-        actual_logs_cancel_requests.push(logs_cancel_request_b);
+        let logs_stop_response_wl1 = comm_middle_ware_receiver.recv().await.unwrap();
+        actual_logs_stop_response.push(logs_stop_response_wl1);
+        let logs_stop_response_wl2 = comm_middle_ware_receiver.recv().await.unwrap();
+        actual_logs_stop_response.push(logs_stop_response_wl2);
 
-        for request in actual_logs_cancel_requests {
+        for request in actual_logs_stop_response {
             assert!(
-                expected_logs_cancel_requests.contains(&request),
+                expected_logs_stop_responses.contains(&request),
                 "Actual request: '{:?}' not found in expected requests.",
                 request
             );
