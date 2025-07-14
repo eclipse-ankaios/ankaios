@@ -67,7 +67,7 @@ message LogsCancelRequest {
 * A message indicating that the logs were successfully requested and for which workloads.
 */
 message LogsRequestAccepted {
-    repeated WorkloadInstanceName workloadNames = 1; /// The names of the workloads for which the logs were successfully requested.
+    repeated WorkloadInstanceName workloadNames = 1; /// The instance names of the workloads for which the logs request was successfully accepted.
 }
 
 /**
