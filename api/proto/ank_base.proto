@@ -40,9 +40,10 @@ message Response {
         Error error = 3;
         CompleteState completeState = 4;
         UpdateStateSuccess UpdateStateSuccess = 5;
-        LogEntriesResponse logEntriesResponse = 6; /// A message containing workload logs.
-        LogsStopResponse logsStopResponse = 7; /// A message containing the workload instance name indicating the stop of the log streaming.
-        LogsCancelAccepted logsCancelAccepted = 8; /// A message indicating that the request for canceling the log collection was accepted. Please note that the actual stopping of the log collection campaign could take longer.
+        LogsRequestAccepted logsRequestAccepted = 6; /// A message containing the workload names for which the logs were successfully requested.
+        LogEntriesResponse logEntriesResponse = 7; /// A message containing workload logs.
+        LogsStopResponse logsStopResponse = 8; /// A message containing the workload instance name indicating the stop of the log streaming.
+        LogsCancelAccepted logsCancelAccepted = 9; /// A message indicating that the request for canceling the log collection was accepted. Please note that the actual stopping of the log collection campaign could take longer.
     }
 }
 
@@ -61,6 +62,13 @@ message LogsRequest {
 * A message stopping the streaming of logs requested via a request with the follow flag.
 */
 message LogsCancelRequest {
+}
+
+/**
+* A message indicating that the logs were successfully requested and for which workloads.
+*/
+message LogsRequestAccepted {
+    repeated WorkloadInstanceName workloadNames = 1; /// The instance names of the workloads for which the logs request was successfully accepted.
 }
 
 /**

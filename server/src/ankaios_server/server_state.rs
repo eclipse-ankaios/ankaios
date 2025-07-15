@@ -23,7 +23,8 @@ use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
 use common::objects::{
-    AgentAttributes, CpuUsage, FreeMemory, State, WorkloadState, WorkloadStatesMap,
+    AgentAttributes, CpuUsage, FreeMemory, State, WorkloadInstanceName, WorkloadState,
+    WorkloadStatesMap,
 };
 use common::std_extensions::IllegalStateResult;
 use common::{
@@ -178,6 +179,17 @@ impl ServerState {
             .filter(|(_, workload)| workload.instance_name.agent_name().eq(agent_name))
             .map(|(_, workload)| workload.clone())
             .collect()
+    }
+
+    pub fn desired_state_contains_instance_name(
+        &self,
+        instance_name: &WorkloadInstanceName,
+    ) -> bool {
+        self.rendered_workloads
+            .get(instance_name.workload_name())
+            .is_some_and(|workload_spec| {
+                workload_spec.instance_name == *instance_name
+            })
     }
 
     pub fn update(
@@ -610,6 +622,37 @@ mod tests {
 
         let workloads = server_state.get_workloads_for_agent("unknown_agent");
         assert_eq!(workloads.len(), 0);
+    }
+
+    #[test]
+    fn utest_desired_state_contains_instance_name() {
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let other_workload_instance_name = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_2.to_string(),
+            RUNTIME.to_string(),
+        )
+        .instance_name;
+
+        let complete_state = generate_test_complete_state(vec![workload_spec.clone()]);
+
+        let server_state = ServerState {
+            rendered_workloads: generate_rendered_workloads_from_state(
+                &complete_state.desired_state,
+            ),
+            state: complete_state,
+            ..Default::default()
+        };
+
+        let instance_name = workload_spec.instance_name.clone();
+        assert!(server_state.desired_state_contains_instance_name(&instance_name));
+
+        assert!(!server_state.desired_state_contains_instance_name(&other_workload_instance_name));
     }
 
     // [utest->swdd~server-state-rejects-state-with-cyclic-dependencies~1]

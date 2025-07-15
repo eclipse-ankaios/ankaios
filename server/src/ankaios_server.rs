@@ -18,7 +18,7 @@ mod delete_graph;
 mod log_campaign_store;
 mod server_state;
 
-use api::ank_base::{self};
+use api::ank_base;
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::objects::{
@@ -343,14 +343,34 @@ impl AnkaiosServer {
                         }
                     }
                     // [impl->swdd~server-handles-logs-request-message~1]
-                    common::commands::RequestContent::LogsRequest(logs_request) => {
-                        log::debug!("Got log request with ID: {}", request_id);
+                    common::commands::RequestContent::LogsRequest(mut logs_request) => {
+                        log::debug!(
+                            "Got log request. Id: '{}', Workload Instance Names: '{:?}'",
+                            request_id,
+                            logs_request.workload_names
+                        );
 
-                        self.log_campaign_store
-                            .insert_log_campaign(&request_id, &logs_request.workload_names);
+                        // keep only workload instance names that are currently in the desired state
+                        logs_request.workload_names.retain(|name| {
+                            self.server_state.desired_state_contains_instance_name(name)
+                        });
+
+                        if !logs_request.workload_names.is_empty() {
+                            log::debug!(
+                                "Requesting logs from agents for the instance names: {:?}",
+                                logs_request.workload_names
+                            );
+                            self.to_agents
+                                .logs_request(request_id.clone(), logs_request.clone().into())
+                                .await
+                                .unwrap_or_illegal_state();
+
+                            self.log_campaign_store
+                                .insert_log_campaign(&request_id, &logs_request.workload_names);
+                        }
 
                         self.to_agents
-                            .logs_request(request_id.clone(), logs_request.into())
+                            .logs_request_accepted(request_id.clone(), logs_request.into())
                             .await
                             .unwrap_or_illegal_state();
                     }
@@ -1235,6 +1255,20 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+
+        mock_server_state
+            .expect_desired_state_contains_instance_name()
+            .with(mockall::predicate::function(
+                |instance_name: &WorkloadInstanceName| {
+                    instance_name
+                        == &WorkloadInstanceName::new(AGENT_A, WORKLOAD_NAME_1, INSTANCE_ID)
+                },
+            ))
+            .once()
+            .return_const(true);
+
+        server.server_state = mock_server_state;
 
         let log_providing_workloads = vec![WorkloadInstanceName::new(
             AGENT_A,
@@ -1288,10 +1322,92 @@ mod tests {
             logs_request_message
         );
 
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            from_server_command,
+            FromServer::Response(ank_base::Response {
+                request_id: REQUEST_ID_A.to_string(),
+                response_content: Some(ank_base::response::ResponseContent::LogsRequestAccepted(
+                    ank_base::LogsRequestAccepted {
+                        workload_names: vec![ank_base::WorkloadInstanceName {
+                            workload_name: WORKLOAD_NAME_1.to_string(),
+                            agent_name: AGENT_A.to_string(),
+                            id: INSTANCE_ID.to_string()
+                        }],
+                    }
+                )),
+            })
+        );
+
         assert!(comm_middle_ware_receiver.recv().await.is_none());
 
         server_task.abort();
         assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_server_forward_logs_request_invalid_workload_names() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+
+        mock_server_state
+            .expect_desired_state_contains_instance_name()
+            .with(mockall::predicate::eq(WorkloadInstanceName::new(
+                AGENT_A,
+                WORKLOAD_NAME_1,
+                INSTANCE_ID,
+            )))
+            .once()
+            .return_const(false);
+
+        server.server_state = mock_server_state;
+
+        server
+            .log_campaign_store
+            .expect_insert_log_campaign()
+            .never();
+
+        let logs_request = LogsRequest {
+            workload_names: vec![WorkloadInstanceName::new(
+                AGENT_A,
+                WORKLOAD_NAME_1,
+                INSTANCE_ID,
+            )],
+            follow: true,
+            tail: 10,
+            since: None,
+            until: None,
+        };
+
+        // send logs request to server
+        let logs_request_result = to_server
+            .logs_request(REQUEST_ID.to_string(), logs_request)
+            .await;
+        assert!(logs_request_result.is_ok());
+
+        assert!(to_server.stop().await.is_ok());
+        let server_result = server.start(None).await;
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            from_server_command,
+            FromServer::Response(ank_base::Response {
+                request_id: REQUEST_ID.to_string(),
+                response_content: Some(ank_base::response::ResponseContent::LogsRequestAccepted(
+                    ank_base::LogsRequestAccepted {
+                        workload_names: vec![],
+                    }
+                )),
+            })
+        );
+
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+        assert!(server_result.is_ok());
     }
 
     // [utest->swdd~server-uses-async-channels~1]
@@ -1332,8 +1448,8 @@ mod tests {
         mock_server_state
             .expect_get_complete_state_by_field_mask()
             .with(
-                mockall::predicate::function(|request_compl_state| {
-                    request_compl_state == &CompleteStateRequest { field_mask: vec![] }
+                mockall::predicate::function(|request_complete_state| {
+                    request_complete_state == &CompleteStateRequest { field_mask: vec![] }
                 }),
                 mockall::predicate::always(),
             )
@@ -1384,8 +1500,8 @@ mod tests {
         mock_server_state
             .expect_get_complete_state_by_field_mask()
             .with(
-                mockall::predicate::function(|request_compl_state| {
-                    request_compl_state == &CompleteStateRequest { field_mask: vec![] }
+                mockall::predicate::function(|request_complete_state| {
+                    request_complete_state == &CompleteStateRequest { field_mask: vec![] }
                 }),
                 mockall::predicate::always(),
             )
