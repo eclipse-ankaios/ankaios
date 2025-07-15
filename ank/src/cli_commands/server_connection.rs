@@ -19,7 +19,7 @@ use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
-use api::ank_base;
+use api::ank_base::{self, LogsRequestAccepted};
 use common::{
     commands::{CompleteStateRequest, LogsRequest, UpdateWorkloadState},
     communications_client::CommunicationsClient,
@@ -243,6 +243,13 @@ impl ServerConnection {
         )
         .await?;
 
+        let logs_request_accepted_response = self.get_logs_accepted_response().await?;
+
+        self.compare_requested_with_accepted_workloads(
+            &instance_names,
+            logs_request_accepted_response.workload_names,
+        )?;
+
         let output_logs_fn = select_log_format_function(&instance_names, output_workload_names);
 
         self.listen_for_workload_logs(request_id, instance_names, output_logs_fn)
@@ -267,6 +274,55 @@ impl ServerConnection {
             .logs_request(request_id.to_string(), logs_request)
             .await
             .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))
+    }
+
+    async fn get_logs_accepted_response(
+        &mut self,
+    ) -> Result<LogsRequestAccepted, ServerConnectionError> {
+        match tokio::time::timeout(WAIT_TIME_MS, self.from_server.recv()).await {
+            Ok(Some(FromServer::Response(ank_base::Response {
+                request_id,
+                response_content:
+                    Some(ank_base::response::ResponseContent::LogsRequestAccepted(
+                        logs_request_accepted_response,
+                    )),
+            }))) => {
+                output_debug!(
+                    "LogsRequest accepted of request id '{}' for the following workload instance names: {:?}",
+                    request_id,
+                    logs_request_accepted_response.workload_names
+                );
+                Ok(logs_request_accepted_response)
+            }
+            Ok(Some(message)) => Err(ServerConnectionError::ExecutionError(format!(
+                "Received unexpected message: {message:?}"
+            ))),
+            Ok(None) => Err(ServerConnectionError::ExecutionError(
+                "Connection to server interrupted while waiting for LogsRequestAccepted response."
+                    .to_string(),
+            )),
+            Err(_) => Err(ServerConnectionError::ExecutionError(format!(
+                "Failed to get LogsRequestAccepted response in time (timeout={WAIT_TIME_MS:?})."
+            ))),
+        }
+    }
+
+    fn compare_requested_with_accepted_workloads(
+        &self,
+        requested_workloads: &BTreeSet<WorkloadInstanceName>,
+        accepted_workloads: Vec<ank_base::WorkloadInstanceName>,
+    ) -> Result<(), ServerConnectionError> {
+        for instance_name in requested_workloads {
+            let instance_name = instance_name.to_owned().into();
+            if !accepted_workloads.contains(&instance_name) {
+                return Err(ServerConnectionError::ExecutionError(format!(
+                    "Workload '{}' is not accepted by the server to receive logs from.",
+                    instance_name.workload_name,
+                )));
+            }
+        }
+
+        Ok(())
     }
 
     async fn listen_for_workload_logs(
@@ -1266,6 +1322,18 @@ mod tests {
             }),
         );
 
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsRequestAccepted(
+                ank_base::LogsRequestAccepted {
+                    workload_names: vec![
+                        instance_name_1.clone().into(),
+                        instance_name_2.clone().into(),
+                    ],
+                },
+            ),
+        );
+
         let log_entries = vec![
             ank_base::LogEntry {
                 workload_name: Some(instance_name_1.clone().into()),
@@ -1408,7 +1476,8 @@ mod tests {
         };
 
         let mut sim = CommunicationSimulator::default();
-        let instance_names = vec![instance_name(WORKLOAD_NAME_1)];
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let instance_names = vec![instance_name_1.clone()];
         let instance_names_set: BTreeSet<WorkloadInstanceName> =
             instance_names.iter().cloned().collect();
 
@@ -1421,6 +1490,15 @@ mod tests {
                 since: log_args.since.clone(),
                 until: log_args.until.clone(),
             }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsRequestAccepted(
+                ank_base::LogsRequestAccepted {
+                    workload_names: vec![instance_name_1.clone().into()],
+                },
+            ),
         );
 
         sim.will_send_response(
@@ -1483,6 +1561,15 @@ mod tests {
                 since: log_args.since.clone(),
                 until: log_args.until.clone(),
             }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsRequestAccepted(
+                ank_base::LogsRequestAccepted {
+                    workload_names: vec![instance_name_1.clone().into()],
+                },
+            ),
         );
 
         // Send unrelated response that should be ignored in the log streaming
@@ -1550,6 +1637,15 @@ mod tests {
                 since: log_args.since.clone(),
                 until: log_args.until.clone(),
             }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsRequestAccepted(
+                ank_base::LogsRequestAccepted {
+                    workload_names: vec![instance_name_1.clone().into()],
+                },
+            ),
         );
 
         sim.expect_receive_request(REQUEST, RequestContent::LogsCancelRequest);
