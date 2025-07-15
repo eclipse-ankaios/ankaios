@@ -38,6 +38,12 @@ use crate::runtime_manager::RuntimeManager;
 #[cfg(test)]
 use mockall::automock;
 
+#[cfg(not(test))]
+use crate::subscription_store::SubscriptionEntry;
+
+#[cfg(test)]
+use crate::subscription_store::MockSubscriptionEntry as SubscriptionEntry;
+
 pub struct WorkloadLogFacade;
 
 type ContinuableResult = (WorkloadInstanceName, Receiver, Option<Vec<String>>);
@@ -88,7 +94,10 @@ impl WorkloadLogFacade {
         synchronized_subscription_store
             .lock()
             .unwrap()
-            .add_subscription(request_id, log_collection_join_handle);
+            .add_subscription(
+                request_id,
+                SubscriptionEntry::new(log_collection_join_handle),
+            );
     }
 
     fn convert_log_receivers_to_futures(
@@ -171,6 +180,7 @@ mod tests {
     use super::SynchronizedSubscriptionStore;
     use crate::runtime_connectors::log_collector::MockLogCollector;
     use crate::runtime_manager::MockRuntimeManager;
+    use crate::subscription_store::{MockJoinHandle, MockSubscriptionEntry, SubscriptionEntry};
     use crate::workload_log_facade::WorkloadLogFacade;
     use api::ank_base;
     use common::to_server_interface::ToServer;
@@ -286,6 +296,13 @@ mod tests {
                 ],
             )
         });
+
+        let mut mock_join_handle = MockJoinHandle::new();
+        mock_join_handle.expect_abort().once().return_const(());
+        let mock_subscription_entry = MockSubscriptionEntry::new_context();
+        mock_subscription_entry
+            .expect()
+            .return_once(move |_| SubscriptionEntry::new(mock_join_handle));
 
         let workload_instance_name_1 = ank_base::WorkloadInstanceName {
             workload_name: WORKLOAD_1_NAME.into(),
@@ -436,6 +453,13 @@ mod tests {
                 Box::new(mock_log_collector_1),
             )]
         });
+
+        let mut mock_join_handle = MockJoinHandle::new();
+        mock_join_handle.expect_abort().once().return_const(());
+        let mock_subscription_entry = MockSubscriptionEntry::new_context();
+        mock_subscription_entry
+            .expect()
+            .return_once(move |_| SubscriptionEntry::new(mock_join_handle));
 
         let synchronized_subscription_store = SynchronizedSubscriptionStore::default();
         WorkloadLogFacade::spawn_log_collection(

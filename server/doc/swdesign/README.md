@@ -84,7 +84,8 @@ The ConfigRenderer is responsible for rendering the templated configuration of w
 
 ### LogCampaignStore
 
-The LogCampaignStore stores metadata about log campaign subscriptions for workloads and the CLI, enabling the Ankaios server to cancel log campaign subscriptions automatically in certain situations.
+The LogCampaignStore stores metadata about log collections triggered by workloads or the CLI and enables the Ankaios server to cancel log campaign subscriptions or send logs stop responses automatically in certain situations.
+In the following a workload requesting logs is sometimes also called log collector and workloads providing logs are also called log providers. All information on a collector and the providers is stored in one log campaign giving the name of the component.
 
 ## Behavioral view
 
@@ -1135,7 +1136,8 @@ The LogCampaignStore stores metadata about log campaign subscriptions from diffe
 * removing a request id for a log campaign initiated from the Ankaios CLI or initiated by a workload
 
 Comment:
-The relationship between request id and workload name, agent name and CLI connection name are stored in separated data structures.
+The LogCampaignStore holds information on a complete log campaign including but not limited to the mappings between collector workloads and agents (when applicable) and log providers and agents.
+For performance reasons these relationships are stored in separate data structures.
 
 Tags:
 - LogCampaignStore
@@ -1184,17 +1186,19 @@ Needs:
 - impl
 - utest
 
-#### Server cancels log campaigns for disconnected agent
-`swdd~server-cancels-log-campaign-for-disconnected-agents~1`
+#### Server handles log campaigns for disconnected agent
+`swdd~server-handles-log-campaign-for-disconnected-agent~1`
 
 Status: approved
 
 When the Ankaios server receives a `AgentGone` message from the channel provided by the communication middleware, the Ankaios server shall:
-* trigger the LogCampaignStore to remove the log campaign of all log collector workloads managed by the disconnected agent by providing the agent name
+* trigger the LogCampaignStore to remove the log campaigns managed by the disconnected agent by providing the agent name
 * send a `LogsCancelRequest` message for each log collector workload managed by the disconnected agent to the agent channel provided by the communication middleware
+* send a `LogsStopResponse` message for each providing logs workload managed by the disconnected agent to the agent channel provided by the communication middleware
 
 Rationale:
 The server needs to inform all agents to stop collecting logs for workloads if the agent managing log collector workloads is disconnected.
+Additionally log collector on other agents must be informed to not expect any more logs on from workloads on the disconnected agent.
 
 Tags:
 - AnkaiosServer
