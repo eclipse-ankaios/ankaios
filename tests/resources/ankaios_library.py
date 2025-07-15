@@ -37,7 +37,6 @@ LIST_PATTERN: re.Pattern = re.compile("^[\"|\']*\\[.*\\][\"|\']*$")
 CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START: str = "^"
 EXPLICIT_DOT_IN_REGEX: str = "\\\\."
 EXECUTABLE: str = '/bin/bash'
-CONTROL_INTERFACE_TESTER_TAG: str = "manual-build-4"
 MANIFEST_TEMPLATE: str = "control_interface_workload.yaml.template"
 STARTUP_MANIFEST: str = "startup_config.yaml"
 DEFAULT_AGENT_NAME: str = "agent_A"
@@ -314,7 +313,7 @@ def replace_config(data: Union[dict, list], filter_path: str, new_value: Union[s
 
 def find_control_interface_test_tag():
     global control_interface_tester_tag
-    control_interface_tester_tag = CONTROL_INTERFACE_TESTER_TAG
+    control_interface_tester_tag = subprocess.check_output('./tools/control_interface_workload_hash.sh').decode().strip()
 
 
 def prepare_test_control_interface_workload():
