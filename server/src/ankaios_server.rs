@@ -366,11 +366,8 @@ impl AnkaiosServer {
                                 .unwrap_or_illegal_state();
 
                             self.log_campaign_store
-                                .insert_log_campaign(request_id.clone());
+                                .insert_log_campaign(&request_id, &logs_request.workload_names);
                         }
-
-                        self.log_campaign_store
-                            .insert_log_campaign(&request_id, &logs_request.workload_names);
 
                         self.to_agents
                             .logs_request_accepted(request_id.clone(), logs_request.into())
