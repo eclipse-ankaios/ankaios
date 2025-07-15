@@ -224,6 +224,16 @@ impl AgentManager {
                     .delete_subscription(&request_id);
                 Some(())
             }
+            FromServer::ServerGone => {
+                log::info!("Agent '{}' received ServerGone.", self.agent_name);
+
+                // [impl->swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1]
+                self.subscription_store
+                    .lock()
+                    .unwrap()
+                    .delete_all_subscriptions();
+                Some(())
+            }
         }
     }
 
@@ -305,10 +315,12 @@ mod tests {
     use api::ank_base;
     use common::{
         commands::UpdateWorkloadState,
-        from_server_interface::FromServerInterface,
+        from_server_interface::{FromServer, FromServerInterface},
         objects::{generate_test_workload_spec_with_param, ExecutionState},
         to_server_interface::ToServer,
     };
+
+    use crate::subscription_store::generate_test_subscription_entry;
 
     use mockall::predicate::{self, eq};
     use tokio::{
@@ -718,5 +730,43 @@ mod tests {
 
         to_manager.stop().await.unwrap();
         assert!(join!(handle).0.is_ok());
+    }
+
+    // [utest->swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1]
+    #[tokio::test]
+    async fn utest_agent_manager_server_gone_delete_all_subscription_store_entries() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store);
+
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, _server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+
+        let mock_runtime_manager = RuntimeManager::default();
+
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        agent_manager
+            .subscription_store
+            .lock()
+            .unwrap()
+            .add_subscription(REQUEST_ID.to_string(), generate_test_subscription_entry());
+
+        assert!(to_manager.send(FromServer::ServerGone).await.is_ok());
+        to_manager.stop().await.unwrap();
+
+        agent_manager.start().await;
+
+        assert!(agent_manager.subscription_store.lock().unwrap().is_empty());
     }
 }

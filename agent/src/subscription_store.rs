@@ -53,6 +53,11 @@ impl SubscriptionStore {
         self.store.remove(id);
     }
 
+    pub fn delete_all_subscriptions(&mut self) {
+        log::debug!("Deleting all subscriptions from the log subscription store.");
+        self.store.clear();
+    }
+
     #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.store.is_empty()
@@ -66,6 +71,14 @@ impl SubscriptionStore {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+pub fn generate_test_subscription_entry() -> SubscriptionEntry {
+    let mut mock_join_handle = MockJoinHandle::new();
+    mock_join_handle.expect_abort().once().return_const(());
+    SubscriptionEntry::new(mock_join_handle)
+}
+
 #[cfg(test)]
 pub use tests::{MockJoinHandle, MockSubscriptionEntry};
 
@@ -105,6 +118,25 @@ mod tests {
 
         assert!(subscription_store.store.contains_key(ID_1));
         assert!(subscription_store.store.contains_key(ID_2));
+    }
+
+    #[test]
+    fn utest_delete_all_subscriptions() {
+        let mut mock_join_handle_1 = MockJoinHandle::new();
+        mock_join_handle_1.expect_abort().once().return_const(());
+
+        let mut mock_join_handle_2 = MockJoinHandle::new();
+        mock_join_handle_2.expect_abort().once().return_const(());
+
+        let subscription_entry_1 = SubscriptionEntry::new(mock_join_handle_1);
+        let subscription_entry_2 = SubscriptionEntry::new(mock_join_handle_2);
+
+        let mut subscription_store = SubscriptionStore::default();
+        subscription_store.add_subscription(ID_1.into(), subscription_entry_1);
+        subscription_store.add_subscription(ID_2.into(), subscription_entry_2);
+
+        subscription_store.delete_all_subscriptions();
+        assert!(subscription_store.is_empty());
     }
 
     mock! {

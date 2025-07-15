@@ -42,6 +42,7 @@ pub enum FromServer {
     Stop(commands::Stop),
     LogsRequest(String, LogsRequest),
     LogsCancelRequest(String),
+    ServerGone,
 }
 
 // [impl->swdd~from-server-channel~1]
