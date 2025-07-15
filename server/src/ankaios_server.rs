@@ -360,7 +360,8 @@ impl AnkaiosServer {
                                 .await
                                 .unwrap_or_illegal_state();
 
-                            self.log_campaign_store.insert_log_campaign(request_id.clone());
+                            self.log_campaign_store
+                                .insert_log_campaign(request_id.clone());
                         }
 
                         self.to_agents
@@ -1328,12 +1329,11 @@ mod tests {
 
         mock_server_state
             .expect_desired_state_contains_instance_name()
-            .with(mockall::predicate::function(
-                |instance_name: &WorkloadInstanceName| {
-                    instance_name
-                        == &WorkloadInstanceName::new(AGENT_A, WORKLOAD_NAME_1, INSTANCE_ID)
-                },
-            ))
+            .with(mockall::predicate::eq(WorkloadInstanceName::new(
+                AGENT_A,
+                WORKLOAD_NAME_1,
+                INSTANCE_ID,
+            )))
             .once()
             .return_const(false);
 
@@ -1342,11 +1342,7 @@ mod tests {
         server
             .log_campaign_store
             .expect_insert_log_campaign()
-            .with(predicate::eq(REQUEST_ID.to_owned()))
-            .once()
-            .return_const(());
-
-        let server_task = tokio::spawn(async move { server.start(None).await });
+            .never();
 
         let logs_request = LogsRequest {
             workload_names: vec![WorkloadInstanceName::new(
@@ -1365,7 +1361,9 @@ mod tests {
             .logs_request(REQUEST_ID.to_string(), logs_request)
             .await;
         assert!(logs_request_result.is_ok());
-        drop(to_server);
+
+        assert!(to_server.stop().await.is_ok());
+        let server_result = server.start(None).await;
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
@@ -1380,10 +1378,8 @@ mod tests {
             })
         );
 
-        assert!(comm_middle_ware_receiver.recv().await.is_none());
-
-        server_task.abort();
         assert!(comm_middle_ware_receiver.try_recv().is_err());
+        assert!(server_result.is_ok());
     }
 
     // [utest->swdd~server-uses-async-channels~1]
