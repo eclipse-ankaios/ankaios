@@ -354,7 +354,6 @@ impl AnkaiosServer {
                         logs_request.workload_names.retain(|name| {
                             self.server_state.desired_state_contains_instance_name(name)
                         });
-
                         if !logs_request.workload_names.is_empty() {
                             log::debug!(
                                 "Requesting logs from agents for the instance names: {:?}",
@@ -410,6 +409,7 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
                 }
+                // [impl->swdd~server-forwards-logs-entries-response-messages~1]
                 ToServer::LogEntriesResponse(request_id, logs_response) => {
                     self.to_agents
                         .log_entries_response(request_id, logs_response)
@@ -1345,6 +1345,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-handles-logs-request-message~1]
     #[tokio::test]
     async fn utest_server_forward_logs_request_invalid_workload_names() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1949,6 +1950,7 @@ mod tests {
         }
     }
 
+    // [utest->swdd~server-forwards-logs-entries-response-messages~1]
     #[tokio::test]
     async fn utest_logs_response() {
         let _ = env_logger::builder().is_test(true).try_init();
