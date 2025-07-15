@@ -225,7 +225,7 @@ impl AgentManager {
                 Some(())
             }
             FromServer::ServerGone => {
-                log::debug!("Agent '{}' received ServerGone.", self.agent_name);
+                log::info!("Agent '{}' received ServerGone.", self.agent_name);
 
                 // [impl->swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1]
                 self.subscription_store
