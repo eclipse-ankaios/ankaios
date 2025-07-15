@@ -54,6 +54,7 @@ impl SubscriptionStore {
     }
 
     pub fn delete_all_subscriptions(&mut self) {
+        log::debug!("Deleting all subscriptions from the log subscription store.");
         self.store.clear();
     }
 
