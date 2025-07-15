@@ -240,9 +240,11 @@ impl Connection {
         Ok(TestResult {
             result: match command.command {
                 CommandEnum::UpdateState(update_state_command) => {
+                    logging::log("Executing command: UpdateState");
                     self.handle_update_state_command(update_state_command)?
                 }
                 CommandEnum::GetState(get_state_command) => {
+                    logging::log("Executing command: GetState");
                     self.handle_get_state_command(get_state_command)?
                 }
                 CommandEnum::SendHello(Version { version }) => self.send_hello(version)?,
@@ -252,9 +254,13 @@ impl Connection {
                     request_id,
                 }) => self.handle_request_logs_command(workload_names, agent_names, request_id)?,
                 CommandEnum::GetLogs(GetLogs { request_id }) => {
+                    logging::log("Executing command: GetLogs");
+
                     self.handle_get_logs_command(request_id)?
                 }
                 CommandEnum::CancelLogs(CancelLogs { request_id }) => {
+                    logging::log("Executing command: CancelLogs");
+
                     self.handle_cancel_logs_command(request_id)?
                 }
             },
@@ -262,6 +268,8 @@ impl Connection {
     }
 
     fn send_hello(&mut self, protocol_version: String) -> Result<TestResultEnum, CommandError> {
+        logging::log("Executing command: SendHello");
+
         let proto = api::control_api::ToAnkaios {
             to_ankaios_enum: Some(api::control_api::to_ankaios::ToAnkaiosEnum::Hello(
                 api::control_api::Hello { protocol_version },
@@ -407,6 +415,8 @@ impl Connection {
         agent_names: Vec<String>,
         request_id: String,
     ) -> Result<TestResultEnum, CommandError> {
+        logging::log("Executing command: RequestLogs");
+
         if workload_names.is_empty() || agent_names.is_empty() {
             return Err(CommandError::GenericError(
                 "Workload names and agent names cannot be empty".into(),
