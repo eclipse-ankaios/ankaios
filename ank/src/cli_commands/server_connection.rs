@@ -281,9 +281,24 @@ impl ServerConnection {
         &mut self,
         request_id: String,
     ) -> Result<LogsRequestAccepted, ServerConnectionError> {
-        let poll_logs_request_accepted_response = async {
-            loop {
-                match self.from_server.recv().await {
+        tokio::time::timeout(
+            WAIT_TIME_MS,
+            self.poll_logs_request_accepted_response(request_id),
+        )
+        .await
+        .unwrap_or_else(|_| {
+            Err(ServerConnectionError::ExecutionError(format!(
+                "Failed to get LogsRequestAccepted response in time (timeout={WAIT_TIME_MS:?})."
+            )))
+        })
+    }
+
+    async fn poll_logs_request_accepted_response(
+        &mut self,
+        request_id: String,
+    ) -> Result<LogsRequestAccepted, ServerConnectionError> {
+        loop {
+            match self.from_server.recv().await {
                     Some(FromServer::Response(ank_base::Response {
                         request_id: incoming_request_id,
                         response_content:
@@ -319,16 +334,7 @@ impl ServerConnection {
                             .to_string(),
                     )),
                 }
-            }
-        };
-
-        tokio::time::timeout(WAIT_TIME_MS, poll_logs_request_accepted_response)
-            .await
-            .unwrap_or_else(|_| {
-                Err(ServerConnectionError::ExecutionError(format!(
-                "Failed to get LogsRequestAccepted response in time (timeout={WAIT_TIME_MS:?})."
-            )))
-            })
+        }
     }
 
     fn compare_requested_with_accepted_workloads(
