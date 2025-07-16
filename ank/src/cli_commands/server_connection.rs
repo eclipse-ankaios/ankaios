@@ -243,7 +243,8 @@ impl ServerConnection {
         )
         .await?;
 
-        let logs_request_accepted_response = self.get_logs_accepted_response().await?;
+        let logs_request_accepted_response =
+            self.get_logs_accepted_response(request_id.clone()).await?;
 
         self.compare_requested_with_accepted_workloads(
             &instance_names,
@@ -278,33 +279,57 @@ impl ServerConnection {
 
     async fn get_logs_accepted_response(
         &mut self,
+        request_id: String,
     ) -> Result<LogsRequestAccepted, ServerConnectionError> {
-        match tokio::time::timeout(WAIT_TIME_MS, self.from_server.recv()).await {
-            Ok(Some(FromServer::Response(ank_base::Response {
-                request_id,
-                response_content:
-                    Some(ank_base::response::ResponseContent::LogsRequestAccepted(
-                        logs_request_accepted_response,
+        let poll_logs_request_accepted_response = async {
+            loop {
+                match self.from_server.recv().await {
+                    Some(FromServer::Response(ank_base::Response {
+                        request_id: incoming_request_id,
+                        response_content:
+                            Some(ank_base::response::ResponseContent::LogsRequestAccepted(
+                                logs_request_accepted_response,
+                            )),
+                        })) if request_id == incoming_request_id => {
+                            output_debug!(
+                                "LogsRequest accepted of request id '{}' for the following workload instance names: {:?}",
+                                request_id,
+                                logs_request_accepted_response.workload_names
+                            );
+                            break Ok(logs_request_accepted_response);
+                    }
+                    Some(FromServer::Response(ank_base::Response {
+                        request_id: incoming_request_id,
+                        response_content:
+                            Some(ank_base::response::ResponseContent::Error(error)),
+                    })) if request_id == incoming_request_id => {
+                        output_debug!("Server replied with error for LogsRequest: '{:?}'", error);
+                        break Err(ServerConnectionError::ExecutionError(format!(
+                            "Server replied with error: '{}'",
+                            error.message
+                        )));
+                    }
+                    Some(unexpected_message) => {
+                        output_debug!("Ignore received unexpected message while waiting for LogsRequestAccepted response: {unexpected_message:?}");
+                        /* The unexpected message is not added to the queue of missed messages buffer
+                        because the intend of the CLI process is to receive logs.
+                        There is no need to wait for additional messages like UpdateWorkloadState messages. */
+                    },
+                    None => break Err(ServerConnectionError::ExecutionError(
+                        "Connection to server interrupted while waiting for LogsRequestAccepted response."
+                            .to_string(),
                     )),
-            }))) => {
-                output_debug!(
-                    "LogsRequest accepted of request id '{}' for the following workload instance names: {:?}",
-                    request_id,
-                    logs_request_accepted_response.workload_names
-                );
-                Ok(logs_request_accepted_response)
+                }
             }
-            Ok(Some(message)) => Err(ServerConnectionError::ExecutionError(format!(
-                "Received unexpected message: {message:?}"
-            ))),
-            Ok(None) => Err(ServerConnectionError::ExecutionError(
-                "Connection to server interrupted while waiting for LogsRequestAccepted response."
-                    .to_string(),
-            )),
-            Err(_) => Err(ServerConnectionError::ExecutionError(format!(
+        };
+
+        tokio::time::timeout(WAIT_TIME_MS, poll_logs_request_accepted_response)
+            .await
+            .unwrap_or_else(|_| {
+                Err(ServerConnectionError::ExecutionError(format!(
                 "Failed to get LogsRequestAccepted response in time (timeout={WAIT_TIME_MS:?})."
-            ))),
-        }
+            )))
+            })
     }
 
     fn compare_requested_with_accepted_workloads(
@@ -1534,7 +1559,7 @@ mod tests {
             REQUEST,
             ank_base::response::ResponseContent::LogsRequestAccepted(
                 ank_base::LogsRequestAccepted {
-                    workload_names: vec![instance_name_1.clone().into()],
+                    workload_names: vec![instance_name_1.into()],
                 },
             ),
         );
@@ -1681,7 +1706,7 @@ mod tests {
             REQUEST,
             ank_base::response::ResponseContent::LogsRequestAccepted(
                 ank_base::LogsRequestAccepted {
-                    workload_names: vec![instance_name_1.clone().into()],
+                    workload_names: vec![instance_name_1.into()],
                 },
             ),
         );
@@ -1708,7 +1733,7 @@ mod tests {
 
     // [utest->swdd~cli-streams-logs-from-the-server~1]
     #[tokio::test]
-    async fn utest_stream_logs_unexpected_message_instead_of_logs_request_accepted() {
+    async fn utest_stream_logs_ignore_unexpected_message_instead_of_logs_request_accepted() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
             workload_name: vec![WORKLOAD_NAME_1.to_string()],
@@ -1736,11 +1761,20 @@ mod tests {
             }),
         );
 
-        let unexpected_message = ank_base::response::ResponseContent::Error(ank_base::Error {
-            message: "Connection interrupted".to_string(),
+        let unexpected_message =
+            ank_base::response::ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                added_workloads: vec![WORKLOAD_NAME_1.into()],
+                deleted_workloads: vec![],
+            });
+
+        sim.will_send_response(REQUEST, unexpected_message);
+
+        // error to stop the loop after the ignored message
+        let error_response = ank_base::response::ResponseContent::Error(ank_base::Error {
+            message: "connection interruption".to_string(),
         });
 
-        sim.will_send_response(REQUEST, unexpected_message.clone());
+        sim.will_send_response(REQUEST, error_response);
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
         signal_handler_context.expect().never();
@@ -1751,10 +1785,7 @@ mod tests {
             .stream_logs(instance_names_set, log_args)
             .await;
 
-        assert!(matches!(
-            result,
-            Err(ServerConnectionError::ExecutionError(msg)) if msg.starts_with("Received unexpected message:")
-        ));
+        assert!(result.is_err());
 
         checker.check_communication();
     }
@@ -1768,7 +1799,9 @@ mod tests {
 
         server_connection.from_server.close();
 
-        let result = server_connection.get_logs_accepted_response().await;
+        let result = server_connection
+            .get_logs_accepted_response(REQUEST.to_owned())
+            .await;
 
         assert_eq!(
             result,
