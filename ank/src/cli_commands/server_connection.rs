@@ -311,9 +311,9 @@ impl ServerConnection {
                     }
                     Some(unexpected_message) => {
                         output_debug!("Ignore received unexpected message while waiting for LogsRequestAccepted response: {unexpected_message:?}");
-                        /* The unexpected message is not added to the queue of missed messages buffer
-                        because the intend of the CLI process is to receive logs.
-                        There is no need to wait for additional messages like UpdateWorkloadState messages. */
+                        /* The unexpected message is not added to the queue of missed messages,
+                        because the current intend is to receive logs. There is no need to wait for
+                        additional messages like UpdateWorkloadState messages. */
                     },
                     None => break Err(ServerConnectionError::ExecutionError(
                         "Connection to server interrupted while waiting for LogsRequestAccepted response."
