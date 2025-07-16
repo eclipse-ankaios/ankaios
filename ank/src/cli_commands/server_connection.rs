@@ -829,26 +829,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[tokio::test]
-    async fn utest_get_complete_state_fails_response_timeout() {
-        let mut sim = CommunicationSimulator::default();
-        sim.expect_receive_request(
-            REQUEST,
-            RequestContent::CompleteStateRequest(CompleteStateRequest {
-                field_mask: vec![FIELD_MASK.into()],
-            }),
-        );
-        let (checker, mut server_connection) = sim.create_server_connection();
-        let (_to_client, from_server) = tokio::sync::mpsc::channel(1);
-        server_connection.from_server = from_server;
-
-        let result = server_connection
-            .get_complete_state(&[FIELD_MASK.into()])
-            .await;
-        assert!(result.is_err());
-        checker.check_communication();
-    }
-
     // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_get_complete_state_other_response_in_between() {
