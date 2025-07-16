@@ -1708,7 +1708,7 @@ mod tests {
 
     // [utest->swdd~cli-streams-logs-from-the-server~1]
     #[tokio::test]
-    async fn utest_stream_logs_response_error_instead_of_logs_request_accepted() {
+    async fn utest_stream_logs_unexpected_message_instead_of_logs_request_accepted() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
             workload_name: vec![WORKLOAD_NAME_1.to_string()],
@@ -1736,12 +1736,11 @@ mod tests {
             }),
         );
 
-        sim.will_send_response(
-            REQUEST,
-            ank_base::response::ResponseContent::Error(ank_base::Error {
-                message: "Connection interrupted".to_string(),
-            }),
-        );
+        let unexpected_message = ank_base::response::ResponseContent::Error(ank_base::Error {
+            message: "Connection interrupted".to_string(),
+        });
+
+        sim.will_send_response(REQUEST, unexpected_message.clone());
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
         signal_handler_context.expect().never();
@@ -1752,7 +1751,16 @@ mod tests {
             .stream_logs(instance_names_set, log_args)
             .await;
 
-        assert!(result.is_err());
+        assert_eq!(
+            result,
+            Err(ServerConnectionError::ExecutionError(format!(
+                "Received unexpected message: {:?}",
+                FromServer::Response(ank_base::Response {
+                    request_id: REQUEST.into(),
+                    response_content: Some(unexpected_message)
+                })
+            )))
+        );
 
         checker.check_communication();
     }
@@ -1768,7 +1776,13 @@ mod tests {
 
         let result = server_connection.get_logs_accepted_response().await;
 
-        assert!(result.is_err());
+        assert_eq!(
+            result,
+            Err(ServerConnectionError::ExecutionError(
+                "Connection to server interrupted while waiting for LogsRequestAccepted response."
+                    .to_string()
+            ))
+        );
     }
 
     // [utest->swdd~cli-streams-logs-from-the-server~1]
@@ -1776,7 +1790,7 @@ mod tests {
     async fn utest_stream_logs_invalid_workload_names_in_logs_request_accepted() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         let log_args = LogsArgs {
-            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            workload_name: vec![WORKLOAD_NAME_1.to_string(), WORKLOAD_NAME_2.to_string()],
             follow: false,
             tail: -1,
             since: None,
@@ -1820,7 +1834,13 @@ mod tests {
             .stream_logs(instance_names_set, log_args)
             .await;
 
-        assert!(result.is_err());
+        assert_eq!(
+            result,
+            Err(ServerConnectionError::ExecutionError(format!(
+                "Workload '{}' is not accepted by the server to receive logs from.",
+                WORKLOAD_NAME_1
+            )))
+        );
 
         checker.check_communication();
     }
