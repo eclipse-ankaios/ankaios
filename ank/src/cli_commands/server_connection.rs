@@ -303,7 +303,6 @@ impl ServerConnection {
                         response_content:
                             Some(ank_base::response::ResponseContent::Error(error)),
                     })) if request_id == incoming_request_id => {
-                        output_debug!("Server replied with error for LogsRequest: '{:?}'", error);
                         break Err(ServerConnectionError::ExecutionError(format!(
                             "Server replied with error: '{}'",
                             error.message
