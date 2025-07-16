@@ -144,9 +144,9 @@ impl AgentManager {
             }
             FromServer::UpdateWorkload(method_obj) => {
                 log::debug!("Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
-                            self.agent_name,
-                            method_obj.added_workloads,
-                            method_obj.deleted_workloads);
+                    self.agent_name,
+                    method_obj.added_workloads,
+                    method_obj.deleted_workloads);
 
                 // [impl->swdd~agent-handles-update-workload-requests~1]
                 self.runtime_manager
@@ -212,6 +212,7 @@ impl AgentManager {
 
                 Some(())
             }
+            // [impl->swdd~agent-handles-logs-cancel-requests-from-server~1]
             FromServer::LogsCancelRequest(request_id) => {
                 log::debug!(
                     "Agent '{}' received LogsCancelRequest with id {}",
@@ -730,6 +731,46 @@ mod tests {
 
         to_manager.stop().await.unwrap();
         assert!(join!(handle).0.is_ok());
+    }
+
+    // [utest->swdd~agent-handles-logs-cancel-requests-from-server~1]
+    #[tokio::test]
+    async fn utest_agent_manager_logs_cancel_request() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store);
+
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, _server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+
+        let mock_runtime_manager = RuntimeManager::default();
+
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        let subscription_store = agent_manager.subscription_store.clone();
+        subscription_store
+            .lock()
+            .unwrap()
+            .add_subscription(REQUEST_ID.to_string(), generate_test_subscription_entry());
+
+        assert!(to_manager
+            .logs_cancel_request(REQUEST_ID.to_string())
+            .await
+            .is_ok());
+
+        to_manager.stop().await.unwrap();
+        agent_manager.start().await;
+        assert!(subscription_store.lock().unwrap().is_empty());
     }
 
     // [utest->swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1]
