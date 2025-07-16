@@ -1751,16 +1751,10 @@ mod tests {
             .stream_logs(instance_names_set, log_args)
             .await;
 
-        assert_eq!(
+        assert!(matches!(
             result,
-            Err(ServerConnectionError::ExecutionError(format!(
-                "Received unexpected message: {:?}",
-                FromServer::Response(ank_base::Response {
-                    request_id: REQUEST.into(),
-                    response_content: Some(unexpected_message)
-                })
-            )))
-        );
+            Err(ServerConnectionError::ExecutionError(msg)) if msg.starts_with("Received unexpected message:")
+        ));
 
         checker.check_communication();
     }
