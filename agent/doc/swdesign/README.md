@@ -149,7 +149,7 @@ The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implem
 
 ### WorkloadLogFacade
 
-The `WorkloadLogFacade` encapsulates all steps to initialize a log collection campaign, when the agent receives a request from the server to collect logs for workloads.
+The `WorkloadLogFacade` encapsulates all steps to initialize the local log collection on the Ankaios agent.
 
 ### External Libraries
 
@@ -3457,7 +3457,7 @@ When the WorkloadLogFacade is triggered by the AgentManager to start the log col
 * request the RuntimeManager to start collecting logs for the workload names
 * initialize the log collector subscriptions with their log receivers for the provided workload names
 * spawn the reading and forwarding of the logs for the provided workloads
-* add a log subscription entry to the subscription store
+* add a log subscription entry to the SubscriptionStore
 
 Rationale:
 Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection campaign is finished.
@@ -3506,12 +3506,30 @@ Needs:
 
 Status: approved
 
-When the WorkloadLogFacade has no more logs to forward for a log subscription, the WorkloadLogFacade shall delete the log subscription entry of the log collection campaign from the subscription store.
+When the WorkloadLogFacade has no more logs to forward for a log subscription, the WorkloadLogFacade shall delete the log subscription entry of the log collection campaign from the SubscriptionStore.
 
 Rationale:
 The subscriber does not have to actively cancel the log collection campaign if no more logs are available from workloads, which simplifies the API usage.
 
 Tags:
+- WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### Agent handles LogsCancelRequest from the server
+`swdd~agent-handles-logs-cancel-requests-from-server~1`
+
+Status: approved
+
+When the AgentManager receives a `LogsCancelRequest` message from the Ankaios server, the AgentManager shall delegate log subscription from the SubscriptionStore.
+
+Comment:
+When a subscription is deleted from the SubscriptionStore, the subscription automatically stops the collection of logs for workload on the current agent.
+
+Tags:
+- AgentManager
 - WorkloadLogFacade
 
 Needs:
@@ -3525,7 +3543,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives a `ServerGone` message, the AgentManager shall delete all existing entries from its log subscription store.
+When the AgentManager receives a `ServerGone` message, the AgentManager shall delete all existing entries from its log SubscriptionStore.
 
 Comment:
 The Agent remains operational.
