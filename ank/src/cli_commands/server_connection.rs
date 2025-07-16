@@ -279,14 +279,22 @@ impl ServerConnection {
     async fn get_logs_accepted_response(
         &mut self,
     ) -> Result<LogsRequestAccepted, ServerConnectionError> {
-        match tokio::time::timeout(WAIT_TIME_MS, self.from_server.recv()).await {
-            Ok(Some(FromServer::Response(ank_base::Response {
+        let response = tokio::time::timeout(WAIT_TIME_MS, self.from_server.recv())
+            .await
+            .map_err(|_| {
+                ServerConnectionError::ExecutionError(format!(
+                "Failed to get LogsRequestAccepted response in time (timeout={WAIT_TIME_MS:?})."
+            ))
+            })?;
+
+        match response {
+            Some(FromServer::Response(ank_base::Response {
                 request_id,
                 response_content:
                     Some(ank_base::response::ResponseContent::LogsRequestAccepted(
                         logs_request_accepted_response,
                     )),
-            }))) => {
+            })) => {
                 output_debug!(
                     "LogsRequest accepted of request id '{}' for the following workload instance names: {:?}",
                     request_id,
@@ -294,16 +302,13 @@ impl ServerConnection {
                 );
                 Ok(logs_request_accepted_response)
             }
-            Ok(Some(message)) => Err(ServerConnectionError::ExecutionError(format!(
+            Some(message) => Err(ServerConnectionError::ExecutionError(format!(
                 "Received unexpected message: {message:?}"
             ))),
-            Ok(None) => Err(ServerConnectionError::ExecutionError(
+            None => Err(ServerConnectionError::ExecutionError(
                 "Connection to server interrupted while waiting for LogsRequestAccepted response."
                     .to_string(),
             )),
-            Err(_) => Err(ServerConnectionError::ExecutionError(format!(
-                "Failed to get LogsRequestAccepted response in time (timeout={WAIT_TIME_MS:?})."
-            ))),
         }
     }
 
