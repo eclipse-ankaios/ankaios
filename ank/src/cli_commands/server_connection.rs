@@ -299,41 +299,41 @@ impl ServerConnection {
     ) -> Result<LogsRequestAccepted, ServerConnectionError> {
         loop {
             match self.from_server.recv().await {
-                    Some(FromServer::Response(ank_base::Response {
-                        request_id: incoming_request_id,
-                        response_content:
-                            Some(ank_base::response::ResponseContent::LogsRequestAccepted(
-                                logs_request_accepted_response,
-                            )),
-                        })) if request_id == incoming_request_id => {
-                            output_debug!(
-                                "LogsRequest accepted of request id '{}' for the following workload instance names: {:?}",
-                                request_id,
-                                logs_request_accepted_response.workload_names
-                            );
-                            break Ok(logs_request_accepted_response);
-                    }
-                    Some(FromServer::Response(ank_base::Response {
-                        request_id: incoming_request_id,
-                        response_content:
-                            Some(ank_base::response::ResponseContent::Error(error)),
+                Some(FromServer::Response(ank_base::Response {
+                    request_id: incoming_request_id,
+                    response_content:
+                        Some(ank_base::response::ResponseContent::LogsRequestAccepted(
+                            logs_request_accepted_response,
+                        )),
                     })) if request_id == incoming_request_id => {
-                        break Err(ServerConnectionError::ExecutionError(format!(
-                            "Server replied with error: '{}'",
-                            error.message
-                        )));
-                    }
-                    Some(unexpected_message) => {
-                        output_debug!("Ignore received unexpected message while waiting for LogsRequestAccepted response: {unexpected_message:?}");
-                        /* The unexpected message is not added to the queue of missed messages,
-                        because the current intend is to receive logs. There is no need to wait for
-                        additional messages like UpdateWorkloadState messages. */
-                    },
-                    None => break Err(ServerConnectionError::ExecutionError(
-                        "Connection to server interrupted while waiting for LogsRequestAccepted response."
-                            .to_string(),
-                    )),
+                        output_debug!(
+                            "LogsRequest accepted of request id '{}' for the following workload instance names: {:?}",
+                            request_id,
+                            logs_request_accepted_response.workload_names
+                        );
+                        break Ok(logs_request_accepted_response);
                 }
+                Some(FromServer::Response(ank_base::Response {
+                    request_id: incoming_request_id,
+                    response_content:
+                        Some(ank_base::response::ResponseContent::Error(error)),
+                })) if request_id == incoming_request_id => {
+                    break Err(ServerConnectionError::ExecutionError(format!(
+                        "Server replied with error: '{}'",
+                        error.message
+                    )));
+                }
+                Some(unexpected_message) => {
+                    output_debug!("Ignore received unexpected message while waiting for LogsRequestAccepted response: {unexpected_message:?}");
+                    /* The unexpected message is not added to the queue of missed messages,
+                    because the current intend is to receive logs. There is no need to wait for
+                    additional messages like UpdateWorkloadState messages. */
+                },
+                None => break Err(ServerConnectionError::ExecutionError(
+                    "Connection to server interrupted while waiting for LogsRequestAccepted response."
+                        .to_string(),
+                )),
+            }
         }
     }
 
