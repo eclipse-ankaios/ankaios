@@ -80,14 +80,6 @@ impl Authorizer {
                 &self.state_deny_write,
             ),
             common::commands::RequestContent::LogsRequest(logs_request) => {
-                if logs_request.workload_names.is_empty() {
-                    log::info!(
-                        "Deny logs request '{}' as no workload names are provided",
-                        request.request_id
-                    );
-                    return false;
-                }
-
                 let not_allowed_workload =
                     logs_request.workload_names.iter().find(|instance_name| {
                         !self
@@ -105,7 +97,7 @@ impl Authorizer {
                     return false;
                 }
 
-                let deny_reason = logs_request
+                if let Some(deny_reason) = logs_request
                     .workload_names
                     .iter()
                     .find(|instance_name| {
@@ -113,21 +105,18 @@ impl Authorizer {
                             .iter()
                             .any(|deny_rule| deny_rule.matches(instance_name.workload_name()))
                     })
-                    .map(|instance_name| {
-                        format!("denied by rule for workload '{}'", instance_name)
-                    });
-
-                if deny_reason.is_none() {
-                    log::debug!("Log request '{}' is allowed", request.request_id);
-                    return true;
+                    .map(|instance_name| format!("denied by rule for workload '{}'", instance_name))
+                {
+                    log::info!(
+                        "Deny log request '{}' it is allowed, but also denied by '{}'",
+                        request.request_id,
+                        deny_reason
+                    );
+                    return false;
                 }
 
-                log::info!(
-                    "Deny log request '{}' it is allowed, but also denied by '{}'",
-                    request.request_id,
-                    deny_reason.unwrap_or_unreachable()
-                );
-                false
+                log::debug!("Log request '{}' is allowed", request.request_id);
+                true
             }
             common::commands::RequestContent::LogsCancelRequest => true,
         }
@@ -139,14 +128,14 @@ impl Authorizer {
         allow_rules: &Vec<Arc<StateRule<AllowPathPattern>>>,
         deny_rules: &Vec<Arc<StateRule<DenyPathPattern>>>,
     ) -> bool {
-        let field_mask = if state_request_mask.is_empty() {
+        let request_mask = if state_request_mask.is_empty() {
             // [impl->swdd~agent-authorizing-request-without-filter-mask~3]
             &vec!["".into()]
         } else {
             state_request_mask
         };
         // [impl->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
-        field_mask.iter().all(|path_string| {
+        request_mask.iter().all(|path_string| {
             let path = path_string.as_str().into();
 
             // [impl->swdd~agent-authorizing-matching-allow-rules~1]
@@ -530,7 +519,7 @@ mod test {
     }
 
     #[test]
-    fn utest_log_request_empty() {
+    fn utest_log_request_empty_is_allowed() {
         let request = Request {
             request_id: "".into(),
             request_content: common::commands::RequestContent::LogsRequest(LogsRequest {
@@ -543,7 +532,7 @@ mod test {
         };
 
         let authorizer = Authorizer::default();
-        assert!(!authorizer.authorize(&request));
+        assert!(authorizer.authorize(&request));
     }
 
     #[test]
