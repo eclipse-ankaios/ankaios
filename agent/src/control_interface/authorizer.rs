@@ -33,6 +33,11 @@ use crate::control_interface::authorizer::path_pattern::PathPattern;
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Authorizer {
+    // Please note that the Arc references are not accessed from multiple threads.
+    //
+    // The Arc references are here to avoid cloning the rules. Rc does not work, as the whole object must be + Send
+    // since the control interface task is spawned. The clones could have been avoided also with a common HashSet of
+    // all StateRules and references in the read and write vectors.
     state_allow_write: Vec<Arc<StateRule<AllowPathPattern>>>,
     state_allow_read: Vec<Arc<StateRule<AllowPathPattern>>>,
     state_deny_write: Vec<Arc<StateRule<DenyPathPattern>>>,
@@ -58,102 +63,22 @@ mock! {
 }
 
 impl Authorizer {
-    // [impl->swdd~agent-authorizing-request-operations~1]
+    // [impl->swdd~agent-authorizing-request-operations~2]
     // [impl->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     pub fn authorize(&self, request: &Request) -> bool {
         match &request.request_content {
-            common::commands::RequestContent::CompleteStateRequest(r) => {
-                let field_mask = if r.field_mask.is_empty() {
-                    // [impl->swdd~agent-authorizing-request-without-filter-mask~2]
-                    &vec!["".into()]
-                } else {
-                    &r.field_mask
-                };
-                // [impl->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
-                field_mask.iter().all(|path_string| {
-                    let path = path_string.as_str().into();
-
-                    // [impl->swdd~agent-authorizing-matching-allow-rules~1]
-                    let allow_reason = if let (true, reason) = self.state_allow_read.matches(&path) {
-                        reason
-                    } else {
-                        log::info!(
-                            "Denying field mask '{}' of request '{}' as no rule matches",
-                            path_string,
-                            request.request_id
-                        );
-                        return false;
-                    };
-
-                    // [impl->swdd~agent-authorizing-matching-deny-rules~1]
-                    let deny_reason = if let (true, reason) = self.state_deny_read.matches(&path) {
-                            reason
-                    } else {
-                        log::debug!(
-                            "Allow field mask '{}' of request '{}' as '{}' is allowed",
-                            path_string,
-                            request.request_id,
-                            allow_reason
-                        );
-                        return true;
-                    };
-
-                    log::info!(
-                        "Deny field mask '{}' of request '{}', also allowed by '{}', as denied by '{}'",
-                        path_string,
-                        request.request_id,
-                        allow_reason,
-                        deny_reason
-                    );
-                    false
-                })
-            }
-            common::commands::RequestContent::UpdateStateRequest(r) => {
-                let update_mask: &Vec<_> = if r.update_mask.is_empty() {
-                    // [impl->swdd~agent-authorizing-request-without-filter-mask~2]
-                    &vec!["".into()]
-                } else {
-                    &r.update_mask
-                };
-                // [impl->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
-                update_mask.iter().all(|path_string| {
-                    let path = path_string.as_str().into();
-
-                    // [impl->swdd~agent-authorizing-matching-allow-rules~1]
-                    let allow_reason = if let (true, reason) = self.state_allow_write.matches(&path) {
-                        reason
-                    } else {
-                        log::info!(
-                            "Deny update mask '{}' of request '{}' as no rule matches",
-                            path_string,
-                            request.request_id
-                        );
-                        return false;
-                    };
-
-                    // [impl->swdd~agent-authorizing-matching-deny-rules~1]
-                    let deny_reason = if let (true, reason) = self.state_deny_write.matches(&path) {
-                        reason
-                    } else {
-                        log::debug!(
-                            "Allow update mask '{}' of request '{}' as '{}' is allowed",
-                            path_string,
-                            request.request_id,
-                            allow_reason
-                        );
-                        return true;
-                    };
-
-                    log::info!(
-                        "Deny update mask '{}' of request '{}', also allowed by '{}', as denied by '{}'",
-                        path_string,
-                        request.request_id,
-                        allow_reason,
-                        deny_reason
-                    );
-                    false
-                })
-            }
+            common::commands::RequestContent::CompleteStateRequest(r) => Self::check_state_rules(
+                &request.request_id,
+                &r.field_mask,
+                &self.state_allow_read,
+                &self.state_deny_read,
+            ),
+            common::commands::RequestContent::UpdateStateRequest(r) => Self::check_state_rules(
+                &request.request_id,
+                &r.update_mask,
+                &self.state_allow_write,
+                &self.state_deny_write,
+            ),
             common::commands::RequestContent::LogsRequest(logs_request) => {
                 if logs_request.workload_names.is_empty() {
                     log::info!(
@@ -206,6 +131,58 @@ impl Authorizer {
             }
             common::commands::RequestContent::LogsCancelRequest => true,
         }
+    }
+
+    fn check_state_rules(
+        request_id: &String,
+        state_request_mask: &Vec<String>,
+        allow_rules: &Vec<Arc<StateRule<AllowPathPattern>>>,
+        deny_rules: &Vec<Arc<StateRule<DenyPathPattern>>>,
+    ) -> bool {
+        let field_mask = if state_request_mask.is_empty() {
+            // [impl->swdd~agent-authorizing-request-without-filter-mask~3]
+            &vec!["".into()]
+        } else {
+            state_request_mask
+        };
+        // [impl->swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1]
+        field_mask.iter().all(|path_string| {
+            let path = path_string.as_str().into();
+
+            // [impl->swdd~agent-authorizing-matching-allow-rules~1]
+            let allow_reason = if let (true, reason) = allow_rules.matches(&path) {
+                reason
+            } else {
+                log::info!(
+                    "Denying mask '{}' of request '{}' as no rule matches",
+                    path_string,
+                    request_id
+                );
+                return false;
+            };
+
+            // [impl->swdd~agent-authorizing-matching-deny-rules~1]
+            let deny_reason = if let (true, reason) = deny_rules.matches(&path) {
+                reason
+            } else {
+                log::debug!(
+                    "Allow mask '{}' of request '{}' as '{}' is allowed",
+                    path_string,
+                    request_id,
+                    allow_reason
+                );
+                return true;
+            };
+
+            log::info!(
+                "Deny mask '{}' of request '{}', also allowed by '{}', as denied by '{}'",
+                path_string,
+                request_id,
+                allow_reason,
+                deny_reason
+            );
+            false
+        })
     }
 }
 
@@ -377,7 +354,7 @@ mod test {
         populate_authorizer(Authorizer::default(), rules)
     }
 
-    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
+    // [utest->swdd~agent-authorizing-request-without-filter-mask~3]
     #[test]
     fn utest_request_without_filter_mask() {
         let mut authorizer = Authorizer::default();
@@ -415,7 +392,7 @@ mod test {
         assert!(!authorizer.authorize(&update_state_request));
     }
 
-    // [utest->swdd~agent-authorizing-request-operations~1]
+    // [utest->swdd~agent-authorizing-request-operations~2]
     // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
     fn utest_read_requests_operations() {
@@ -455,7 +432,7 @@ mod test {
         assert!(authorizer.authorize(&request));
     }
 
-    // [utest->swdd~agent-authorizing-request-operations~1]
+    // [utest->swdd~agent-authorizing-request-operations~2]
     // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
     fn utest_write_requests_operations() {
