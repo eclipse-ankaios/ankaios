@@ -3329,9 +3329,9 @@ Needs:
 Status: approved
 
 When the Authorizer checks if a workload is allowed to make a `LogsRequest`,
-the Authorizer handle check the request by:
-* denying the request if a requested workload name is found that has no allow LogRule authorizing it
-* denying the request if a requested workload name is found that has a deny LogRule forbidding it
+the Authorizer shall:
+* deny the request if a requested workload name is found that has no allow LogRule authorizing it
+* deny the request if a requested workload name is found that has a deny LogRule forbidding it
 * allow the request otherwise
 
 Comment:
