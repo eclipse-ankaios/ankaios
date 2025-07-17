@@ -119,6 +119,7 @@ impl Authorizer {
                 log::debug!("Log request '{}' is allowed", request.request_id);
                 true
             }
+            // [impl->swdd~agent-authorizing-logs-cancel-always-allowed~1]
             common::commands::RequestContent::LogsCancelRequest => true,
         }
     }
@@ -607,6 +608,7 @@ mod test {
         assert!(!authorizer.authorize(&request(&["w3", "w6"])));
     }
 
+    // [utest->swdd~agent-authorizing-logs-cancel-always-allowed~1]
     #[test]
     fn utest_log_cancel_request() {
         let request = Request {

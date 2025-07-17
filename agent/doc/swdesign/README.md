@@ -3323,12 +3323,52 @@ Needs:
 - impl
 - utest
 
+#### LogsRequest allowed if collection of logs for all requested workloads is allowed
+`swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1`
+
+Status: approved
+
+When the Authorizer checks if a workload is allowed to make a `LogsRequest`,
+the Authorizer handle check the request by:
+* denying the request if a requested workload name is found that has no allow LogRule authorizing it
+* denying the request if a requested workload name is found that has a deny LogRule forbidding it
+* allow the request otherwise
+
+Comment:
+Note that a LogsRequest with no specified workloads would be allowed as it is not denied by the above conditions.
+Requesting logs for no workload indeed does not make sense, but should not be explicitly denied as it has no effect at the end.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### LogsCancelRequest always allowed
+`swdd~agent-authorizing-logs-cancel-always-allowed~1`
+
+Status: approved
+
+When the Authorizer checks if a workload is allowed to make a `LogsCancelRequest`,
+the Authorizer shall always allow the request.
+
+Rationale:
+`LogsCancelRequest` carry no specific information and can only stop an already allowed log collection.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
 #### Request without filter mask
 `swdd~agent-authorizing-request-without-filter-mask~3`
 
 Status: approved
 
-The Authorizer allows an UpdateStateRequest with an empty update mask or a CompleteStateRequest with an empty field mask only if all of the following is true:
+The Authorizer allows an `UpdateStateRequest` with an empty update mask or a `CompleteStateRequest` with an empty field mask only if all of the following is true:
 
 * there is a corresponding allow StateRule providing full access
 * there is no corresponding deny StateRule forbidding any access
@@ -3356,34 +3396,12 @@ Needs:
 - impl
 - utest
 
-#### Log request allowed if collection of logs for all requested workloads is allowed
-`swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1`
-
-Status: approved
-
-When the Authorizer checks if a workload is allowed to make a LogsRequest,
-the Authorizer handle check the request by:
-* denying the request if a requested workload name is found that has no allow LogRule authorizing it
-* denying the request if a requested workload name is found that has a deny LogRule forbidding it
-* allow the request otherwise
-
-Comment:
-Note that a LogsRequest with no specified workloads would be allowed as it is not denied by the above conditions.
-Requesting logs for no workload indeed does not make sense, but should not be explicitly denied as it has no effect at the end.
-
-Tags:
-- Authorizer
-
-Needs:
-- impl
-- utest
-
 #### Conditions for element of filter mask being allowed
 `swdd~agent-authorizing-condition-element-filter-mask-allowed~1`
 
 Status: approved
 
-When the Authorizer checks an individual entry of the update/field mask of an request,
+When the Authorizer checks an individual entry of the update/field mask of a state request,
 the Authorizer shall allow this element if all of the following is true:
 
 * there is at least one allow rule with a filter mask entry matching the update/field mask entry
