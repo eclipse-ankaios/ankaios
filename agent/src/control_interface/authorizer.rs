@@ -79,6 +79,7 @@ impl Authorizer {
                 &self.state_allow_write,
                 &self.state_deny_write,
             ),
+            // [impl->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
             common::commands::RequestContent::LogsRequest(logs_request) => {
                 let not_allowed_workload =
                     logs_request.workload_names.iter().find(|instance_name| {
@@ -518,6 +519,7 @@ mod test {
         assert!(!authorizer.authorize(&request));
     }
 
+    // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_request_empty_is_allowed() {
         let request = Request {
@@ -535,6 +537,7 @@ mod test {
         assert!(authorizer.authorize(&request));
     }
 
+    // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_requests_general_cases() {
         let request = Request {
@@ -570,6 +573,7 @@ mod test {
         assert!(authorizer.authorize(&request));
     }
 
+    // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_requests_complex_cases() {
         fn request(workloads: &[&str]) -> Request {
