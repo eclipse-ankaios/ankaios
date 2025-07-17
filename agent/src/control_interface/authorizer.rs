@@ -20,8 +20,7 @@ use std::{sync::Arc, vec};
 
 use common::{
     commands::Request,
-    objects::{AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum},
-    std_extensions::UnreachableOption,
+    objects::{AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum}
 };
 use path_pattern::{AllowPathPattern, DenyPathPattern, PathPatternMatcher};
 use rules::{LogRule, StateRule};
