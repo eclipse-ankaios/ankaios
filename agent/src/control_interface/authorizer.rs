@@ -20,7 +20,7 @@ use std::{sync::Arc, vec};
 
 use common::{
     commands::Request,
-    objects::{AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum}
+    objects::{AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum},
 };
 use path_pattern::{AllowPathPattern, DenyPathPattern, PathPatternMatcher};
 use rules::{LogRule, StateRule};
@@ -176,6 +176,7 @@ impl Authorizer {
     }
 }
 
+// [impl->swdd~agent-authorizing-request-operations~2]
 impl From<&ControlInterfaceAccess> for Authorizer {
     fn from(value: &ControlInterfaceAccess) -> Self {
         struct ReadWriteFiltered<T: PathPattern> {
@@ -628,6 +629,7 @@ mod test {
         assert!(authorizer.authorize(&request));
     }
 
+    // [utest->swdd~agent-authorizing-request-operations~2]
     #[test]
     fn utest_authorizer_from_control_interface_access() {
         let control_interface_access = ControlInterfaceAccess {
