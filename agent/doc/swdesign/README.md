@@ -3289,16 +3289,32 @@ Needs:
 
 ### Authorizing access to the Control Interface
 
+#### Supported authorization rules
+`swdd~agent-authorizing-supported-rules~1`
+
+Status: approved
+
+The Control Interface Authorizer supports the following type of authorization rules:
+* StateRule - allowing or denying "read"s and/or "write"s to specified parts of the Complete State
+* LogRule - allowing the requests of logs of specified workloads
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
 #### Request operations
-`swdd~agent-authorizing-request-operations~1`
+`swdd~agent-authorizing-request-operations~2`
 
 Status: approved
 
 When the Authorizer checks if a Workload is allowed to make a request,
 the Authorizer shall use:
 
-* "read" and "write_read" rules for a CompleteStateRequest.
-* "write" and "write_read" rules for a UpdateStateRequest.
+* StateRules for CompleteStateRequests and UpdateStateRequests
+* LogRules for LogRequests
 
 Tags:
 - Authorizer
@@ -3308,14 +3324,14 @@ Needs:
 - utest
 
 #### Request without filter mask
-`swdd~agent-authorizing-request-without-filter-mask~2`
+`swdd~agent-authorizing-request-without-filter-mask~3`
 
 Status: approved
 
 The Authorizer allows an UpdateStateRequest with an empty update mask or a CompleteStateRequest with an empty field mask only if all of the following is true:
 
-* there is a corresponding (write/read) allow rule with a wildcard "*"
-* there is no corresponding (write/read) deny rule with a wildcard "*"
+* there is a corresponding allow StateRule providing full access
+* there is no corresponding deny StateRule forbidding any access
 
 Tags:
 - Authorizer
@@ -3324,7 +3340,7 @@ Needs:
 - impl
 - utest
 
-#### Request allowed if all elements of filter mask are allowed
+#### State Request allowed if all elements of filter mask are allowed
 `swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1`
 
 Status: approved

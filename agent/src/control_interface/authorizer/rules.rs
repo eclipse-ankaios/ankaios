@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+// [impl->swdd~agent-authorizing-supported-rules~1]
+
 use super::{
     path::Path,
     path_pattern::{PathPattern, PathPatternMatchReason, PathPatternMatcher},
@@ -115,6 +117,7 @@ impl From<Vec<String>> for LogRule {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
+// [utest->swdd~agent-authorizing-supported-rules~1]
 #[cfg(test)]
 mod test {
     use super::{super::path::Path, LogRule, StateRule, WILDCARD_SYMBOL};
