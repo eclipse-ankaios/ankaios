@@ -1,14 +1,14 @@
-# Startup configuration
+# Startup manifest
 
-Depending on the use-case, the Ankaios cluster can be started with an optional predefined list of [workloads](./glossary.md#workload) - the startup configuration.
-Currently the startup configuration is provided as a file which is in YAML file format and can be passed to the Ankaios server through a command line argument.
-If Ankaios is started without or with an empty startup configuration, workloads can still be added to the cluster dynamically during runtime.
+Depending on the use-case, the Ankaios cluster can be started with an optional predefined list of [workloads](./glossary.md#workload) - the startup manifest.
+The startup manifest can be provided as a YAML file. The file path can be passed to the Ankaios server through a command line argument or via the [server configuration file](./config-files.md).
+If Ankaios is started without or with an empty startup manifest, workloads can still be added to the cluster dynamically during runtime.
 
 **Note:** To be able to run a workload an Ankaios agent must be started on the same or on a different [node](./glossary.md#node).
 
-## Configuration structure
+## Manifest structure
 
-The startup configuration is composed of a list of workload specifications within the `workloads` object.
+The startup manifest is composed of a list of workload specifications within the `workloads` object.
 A workload specification must contain the following information:
 
 * `workload name`_(via field key)_, specify the workload name to identify the workload in the Ankaios system.
