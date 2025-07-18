@@ -1,7 +1,7 @@
 # Startup manifest
 
 Depending on the use-case, the Ankaios cluster can be started with an optional predefined list of [workloads](./glossary.md#workload) - the startup manifest.
-The startup manifest can be provided as a file which is in YAML file format. The file path can be passed to the Ankaios server through a command line argument or via the [server configuration file](./config-files.md).
+The startup manifest can be provided as a YAML file. The file path can be passed to the Ankaios server through a command line argument or via the [server configuration file](./config-files.md).
 If Ankaios is started without or with an empty startup manifest, workloads can still be added to the cluster dynamically during runtime.
 
 **Note:** To be able to run a workload an Ankaios agent must be started on the same or on a different [node](./glossary.md#node).
