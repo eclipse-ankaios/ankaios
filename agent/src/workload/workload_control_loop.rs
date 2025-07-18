@@ -14,7 +14,7 @@
 
 use crate::control_interface::ControlInterfacePath;
 use crate::io_utils::FileSystemError;
-use crate::runtime_connectors::log_collector::LogCollector;
+use crate::runtime_connectors::log_picker::LogPicker;
 use crate::runtime_connectors::{LogRequestOptions, RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
@@ -143,13 +143,13 @@ impl WorkloadControlLoop {
 
                             control_loop_state = Self::resume_workload_on_runtime(control_loop_state).await;
                         }
-                        Some(WorkloadCommand::StartLogCollector(log_request_options, result_sink)) =>  {
+                        Some(WorkloadCommand::StartLogPicker(log_request_options, result_sink)) =>  {
                             match Self::start_logger(&control_loop_state, &log_request_options) {
                                 Ok(logger) => {if let Err(error) = result_sink.send(logger){
-                                    log::warn!("Could not return log collector: '{:?}'", error);
+                                    log::warn!("Could not return log picker: '{:?}'", error);
                                 }},
                                 Err(error) => {
-                                    log::warn!("Could not start log collector: '{:?}'", error);
+                                    log::warn!("Could not start log picker: '{:?}'", error);
                                 }
                             }
                         }
@@ -647,7 +647,7 @@ impl WorkloadControlLoop {
     fn start_logger<WorkloadId, StChecker>(
         control_loop_state: &ControlLoopState<WorkloadId, StChecker>,
         log_request_options: &LogRequestOptions,
-    ) -> Result<Box<dyn LogCollector + Send>, RuntimeError>
+    ) -> Result<Box<dyn LogPicker + Send>, RuntimeError>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
@@ -688,7 +688,7 @@ mockall::mock! {
 mod tests {
     use super::{ControlInterfacePath, WorkloadControlLoop};
     use crate::io_utils::mock_filesystem_async;
-    use crate::runtime_connectors::log_collector::MockLogCollector;
+    use crate::runtime_connectors::log_picker::MockLogPicker;
     use crate::runtime_connectors::{LogRequestOptions, RuntimeError};
     use crate::workload::retry_manager::MockRetryToken;
     use crate::workload::workload_command_channel::WorkloadCommandSender;
@@ -2755,14 +2755,14 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![RuntimeCall::StartLogCollector(
+        runtime_mock.expect(vec![RuntimeCall::StartLogPicker(
             LogRequestOptions {
                 follow: true,
                 tail: None,
                 since: None,
                 until: None,
             },
-            Ok(Box::new(MockLogCollector::new())),
+            Ok(Box::new(MockLogPicker::new())),
         )]);
 
         let control_loop_state = ControlLoopState::builder()
@@ -2821,7 +2821,7 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![RuntimeCall::StartLogCollector(
+        runtime_mock.expect(vec![RuntimeCall::StartLogPicker(
             LogRequestOptions {
                 follow: true,
                 tail: None,
@@ -2944,14 +2944,14 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![RuntimeCall::StartLogCollector(
+        runtime_mock.expect(vec![RuntimeCall::StartLogPicker(
             LogRequestOptions {
                 follow: true,
                 tail: None,
                 since: None,
                 until: None,
             },
-            Ok(Box::new(MockLogCollector::new())),
+            Ok(Box::new(MockLogPicker::new())),
         )]);
 
         let control_loop_state = ControlLoopState::builder()
@@ -2970,7 +2970,7 @@ mod tests {
 
         let jh = tokio::spawn(async move {
             workload_command_sender
-                .send(WorkloadCommand::StartLogCollector(
+                .send(WorkloadCommand::StartLogPicker(
                     LogRequestOptions {
                         follow: true,
                         tail: None,

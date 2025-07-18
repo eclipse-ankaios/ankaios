@@ -24,10 +24,9 @@ use common::{
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        log_collector::LogCollector, podman_cli::PodmanStartConfig,
+        generic_log_picker::GenericLogPicker, log_picker::LogPicker, podman_cli::PodmanStartConfig,
         runtime_connector::LogRequestOptions, ReusableWorkloadState, RuntimeConnector,
         RuntimeError, RuntimeStateGetter, StateChecker,
-        generic_log_collector::GenericLogCollector,
     },
     workload_state::WorkloadStateSender,
 };
@@ -279,10 +278,10 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         &self,
         workload_id: PodmanWorkloadId,
         options: &LogRequestOptions,
-    ) -> Result<Box<dyn LogCollector + Send>, RuntimeError> {
-        let x = super::podman_log_collector::PodmanLogCollector::new(&workload_id, options);
-        let log_collector = GenericLogCollector::new(x);
-        Ok(Box::new(log_collector))
+    ) -> Result<Box<dyn LogPicker + Send>, RuntimeError> {
+        let x = super::podman_log_picker::PodmanLogPicker::new(&workload_id, options);
+        let log_picker = GenericLogPicker::new(x);
+        Ok(Box::new(log_picker))
     }
 
     // [impl->swdd~podman-delete-workload-stops-and-removes-workload~1]

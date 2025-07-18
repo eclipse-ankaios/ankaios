@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) mod podman_log_picker;
-mod podman_runtime;
-mod podman_runtime_config;
-pub use podman_runtime::{PodmanRuntime, PodmanWorkloadId};
+pub mod generic_log_picker;
+pub mod log_channel;
+pub mod log_picker;
+pub mod log_picking_runner;
