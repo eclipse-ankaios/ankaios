@@ -136,7 +136,7 @@ pub struct LogCampaignStore {
 }
 
 #[cfg_attr(test, mockall::automock)]
-// [impl->swdd~log-campaign-store-stores-log-subscriptions-metadata~1]
+// [impl->swdd~log-campaign-store-holds-log-campaign-metadata~1]
 impl LogCampaignStore {
     pub fn insert_log_campaign(
         &mut self,
@@ -327,7 +327,7 @@ impl LogCampaignStore {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~log-campaign-store-stores-log-subscriptions-metadata~1]
+// [utest->swdd~log-campaign-store-holds-log-campaign-metadata~1]
 #[cfg(test)]
 mod tests {
     use common::objects::WorkloadInstanceName;

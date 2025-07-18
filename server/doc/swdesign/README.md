@@ -84,7 +84,7 @@ The ConfigRenderer is responsible for rendering the templated configuration of w
 
 ### LogCampaignStore
 
-The LogCampaignStore stores metadata about log collections triggered by workloads or the CLI and enables the Ankaios server to cancel log campaign subscriptions or send logs stop responses automatically in certain situations.
+The LogCampaignStore holds metadata about log collections triggered by workloads or the CLI and enables the Ankaios server to cancel log campaigns or send logs stop responses automatically in certain situations.
 In the following a workload requesting logs is sometimes also called log collector and workloads providing logs are also called log providers. All information on a collector and the providers is stored in one log campaign giving the name of the component.
 
 ## Behavioral view
@@ -1140,13 +1140,13 @@ Needs:
 
 ### Handle workload log campaigns
 
-#### Log campaign store stores log subscriptions metadata
-`swdd~log-campaign-store-stores-log-subscriptions-metadata~1`
+#### LogCampaignStore holds log campaign metadata
+`swdd~log-campaign-store-holds-log-campaign-metadata~1`
 
 Status: approved
 
-The LogCampaignStore stores metadata about log campaign subscriptions from different log campaign subscribers with the following functionalities:
-* inserting a new log campaign subscription for a logs request received from the Ankaios CLI or a workload
+The LogCampaignStore holds metadata about log campaigns from different log collectors with the following functionalities:
+* inserting a new log campaign for a logs request received from the Ankaios CLI or a workload
 * removing a log campaign entry for a workload by the agent name managing that workload
 * removing a log campaign entry received from the Ankaios CLI by its connection name
 * removing a log campaign entry for a workload collecting logs by its workload name
