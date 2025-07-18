@@ -181,15 +181,14 @@ impl ServerState {
             .collect()
     }
 
+    // [impl->swdd~server-handles-logs-request-message~1]
     pub fn desired_state_contains_instance_name(
         &self,
         instance_name: &WorkloadInstanceName,
     ) -> bool {
         self.rendered_workloads
             .get(instance_name.workload_name())
-            .is_some_and(|workload_spec| {
-                workload_spec.instance_name == *instance_name
-            })
+            .is_some_and(|workload_spec| workload_spec.instance_name == *instance_name)
     }
 
     pub fn update(
@@ -624,6 +623,7 @@ mod tests {
         assert_eq!(workloads.len(), 0);
     }
 
+    // [utest->swdd~server-handles-logs-request-message~1]
     #[test]
     fn utest_desired_state_contains_instance_name() {
         let workload_spec = generate_test_workload_spec_with_param(

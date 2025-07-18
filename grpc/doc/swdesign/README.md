@@ -667,7 +667,7 @@ Needs:
 
 Status: approved
 
-When the gRPC client connection detects a connection interruption of an Ankaios agent to the Ankaios server, the gRPC client connection shall send a `ServerGone` message to the Ankaios agent.
+When the gRPC client detects a connection interruption of an Ankaios agent to the Ankaios server, the gRPC client connection shall send a `ServerGone` message to the Ankaios agent.
 
 Comment:
 The `ServerGone` message is forwarded via internal communication channels to the agent and thus not sent over the network.
