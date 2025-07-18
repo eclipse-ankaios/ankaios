@@ -23,7 +23,7 @@ use common::{
 
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
-use super::log_collector::LogCollector;
+use super::log_picker::LogPicker;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -141,7 +141,7 @@ where
         &self,
         workload_id: WorkloadId,
         options: &LogRequestOptions,
-    ) -> Result<Box<dyn LogCollector + Send>, RuntimeError>;
+    ) -> Result<Box<dyn LogPicker + Send>, RuntimeError>;
 
     async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;
 }
@@ -186,7 +186,7 @@ pub mod test {
 
     use crate::{
         runtime_connectors::{
-            log_collector::LogCollector, ReusableWorkloadState, RuntimeStateGetter, StateChecker,
+            log_picker::LogPicker, ReusableWorkloadState, RuntimeStateGetter, StateChecker,
         },
         workload_state::WorkloadStateSender,
     };
@@ -262,7 +262,7 @@ pub mod test {
         DeleteWorkload(String, Result<(), RuntimeError>),
         StartLogCollector(
             LogRequestOptions,
-            Result<Box<dyn LogCollector + Send>, RuntimeError>,
+            Result<Box<dyn LogPicker + Send>, RuntimeError>,
         ),
     }
 
@@ -456,7 +456,7 @@ pub mod test {
             &self,
             workload_id: String,
             options: &LogRequestOptions,
-        ) -> Result<Box<dyn LogCollector + Send>, RuntimeError> {
+        ) -> Result<Box<dyn LogPicker + Send>, RuntimeError> {
             match self.get_expected_call() {
                 RuntimeCall::StartLogCollector(expected_options, result)
                     if expected_options == *options =>

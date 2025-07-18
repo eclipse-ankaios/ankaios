@@ -19,23 +19,23 @@ use tokio::task::{spawn, JoinHandle};
 
 use super::{
     log_channel,
-    log_collector::{self, LogCollector},
+    log_picker::{self, LogPicker},
 };
 
-pub struct LogCollectorSubscription {
+pub struct LogPickingRunner {
     join_handles: Vec<JoinHandle<()>>,
 }
 
-impl LogCollectorSubscription {
+impl LogPickingRunner {
     pub fn start_collecting_logs(
-        log_collectors: Vec<Box<dyn LogCollector + 'static>>,
+        log_collectors: Vec<Box<dyn LogPicker + 'static>>,
     ) -> (Self, Vec<log_channel::Receiver>) {
         let (join_handles, receivers) = log_collectors
             .into_iter()
             .map(|x| {
                 let (sender, receiver) = log_channel::channel();
                 let jh = spawn(async move {
-                    log_collector::run(x, sender).await;
+                    log_picker::run(x, sender).await;
                 });
                 (jh, receiver)
             })
@@ -45,7 +45,7 @@ impl LogCollectorSubscription {
     }
 }
 
-impl Drop for LogCollectorSubscription {
+impl Drop for LogPickingRunner {
     fn drop(&mut self) {
         self.join_handles.iter().for_each(|x| x.abort());
     }
@@ -69,8 +69,8 @@ mod tests {
     use tokio::{self};
 
     use crate::runtime_connectors::{
-        log_collector::{MockLogCollector, NextLinesResult},
-        log_collector_subscription::LogCollectorSubscription,
+        log_collector_subscription::LogPickingRunner,
+        log_picker::{MockLogPicker, NextLinesResult},
     };
 
     lazy_static! {
@@ -103,7 +103,7 @@ mod tests {
             &[COLLECTOR_2_LINE_2, COLLECTOR_2_LINE_3, COLLECTOR_2_LINE_4],
         ]);
 
-        let (_subscription, mut receivers) = LogCollectorSubscription::start_collecting_logs(vec![
+        let (_subscription, mut receivers) = LogPickingRunner::start_collecting_logs(vec![
             Box::new(log_collector_1),
             Box::new(log_collector_2),
         ]);
@@ -150,7 +150,7 @@ mod tests {
             &[COLLECTOR_2_LINE_2, COLLECTOR_2_LINE_3, COLLECTOR_2_LINE_4],
         ]);
 
-        let (subscription, mut _receivers) = LogCollectorSubscription::start_collecting_logs(vec![
+        let (subscription, mut _receivers) = LogPickingRunner::start_collecting_logs(vec![
             Box::new(log_collector_1),
             Box::new(log_collector_2),
         ]);
@@ -160,8 +160,8 @@ mod tests {
         assert!(check_all_aborted());
     }
 
-    fn create_mock_log_collector(lines: &[&[&str]]) -> MockLogCollector {
-        let mut log_collector = MockLogCollector::new();
+    fn create_mock_log_collector(lines: &[&[&str]]) -> MockLogPicker {
+        let mut log_collector = MockLogPicker::new();
         for &line_package in lines {
             let line_package = line_package.iter().map(|s| s.to_string()).collect();
             log_collector

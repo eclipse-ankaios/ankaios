@@ -35,7 +35,7 @@ use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 use crate::control_interface::ControlInterface;
 use crate::{
     control_interface::ControlInterfacePath,
-    runtime_connectors::{log_collector::LogCollector, LogRequestOptions},
+    runtime_connectors::{log_picker::LogPicker, LogRequestOptions},
 };
 
 use api::ank_base;
@@ -74,7 +74,7 @@ pub enum WorkloadCommand {
     Retry(Box<WorkloadInstanceName>, RetryToken),
     Create,
     Resume,
-    StartLogCollector(LogRequestOptions, oneshot::Sender<Box<dyn LogCollector>>),
+    StartLogCollector(LogRequestOptions, oneshot::Sender<Box<dyn LogPicker>>),
 }
 
 #[cfg(test)]
@@ -222,7 +222,7 @@ impl Workload {
     pub async fn start_collecting_logs(
         &self,
         log_request_options: LogRequestOptions,
-    ) -> Result<Box<dyn LogCollector>, Box<dyn Error>> {
+    ) -> Result<Box<dyn LogPicker>, Box<dyn Error>> {
         self.channel
             .start_collecting_logs(log_request_options)
             .await
@@ -258,7 +258,7 @@ mod tests {
             authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
             ControlInterfacePath, MockControlInterface,
         },
-        runtime_connectors::{log_collector::MockLogCollector, LogRequestOptions},
+        runtime_connectors::{log_picker::MockLogPicker, LogRequestOptions},
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
@@ -731,7 +731,7 @@ mod tests {
                 panic!("Did not receive StartLogCollection command")
             };
             assert_eq!(options, LOG_REQUEST_OPTIONS);
-            result_sink.send(Box::new(MockLogCollector::new())).unwrap();
+            result_sink.send(Box::new(MockLogPicker::new())).unwrap();
         });
 
         let test_workload =

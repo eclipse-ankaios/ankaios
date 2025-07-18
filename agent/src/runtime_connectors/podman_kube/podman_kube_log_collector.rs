@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::super::log_collector::{GetOutputStreams, StreamTrait};
+use super::super::log_picker::{GetOutputStreams, StreamTrait};
 use super::PodmanKubeWorkloadId;
 use crate::runtime_connectors::runtime_connector::LogRequestOptions;
 

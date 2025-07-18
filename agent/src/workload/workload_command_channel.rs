@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     control_interface::ControlInterfacePath,
-    runtime_connectors::{log_collector::LogCollector, LogRequestOptions},
+    runtime_connectors::{log_picker::LogPicker, LogRequestOptions},
     workload::WorkloadCommand,
 };
 use common::objects::{WorkloadInstanceName, WorkloadSpec};
@@ -92,7 +92,7 @@ impl WorkloadCommandSender {
     pub async fn start_collecting_logs(
         &self,
         log_request_options: LogRequestOptions,
-    ) -> Result<Box<dyn LogCollector>, Box<dyn std::error::Error>> {
+    ) -> Result<Box<dyn LogPicker>, Box<dyn std::error::Error>> {
         let (sender, receiver) = oneshot::channel();
         self.sender
             .send(WorkloadCommand::StartLogCollector(
@@ -115,7 +115,7 @@ impl WorkloadCommandSender {
 #[cfg(test)]
 mod tests {
     use crate::{
-        runtime_connectors::{log_collector::MockLogCollector, LogRequestOptions},
+        runtime_connectors::{log_picker::MockLogPicker, LogRequestOptions},
         workload::retry_manager::MockRetryToken,
     };
 
@@ -241,7 +241,7 @@ mod tests {
 
         let jh = listen_for_start_log_collector(
             workload_command_receiver,
-            Some(MockLogCollector::new()),
+            Some(MockLogPicker::new()),
         );
 
         let res = workload_command_sender
@@ -279,7 +279,7 @@ mod tests {
 
     fn listen_for_start_log_collector(
         mut receiver: Receiver<WorkloadCommand>,
-        res: Option<MockLogCollector>,
+        res: Option<MockLogPicker>,
     ) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let command = receiver.recv().await.unwrap();

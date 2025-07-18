@@ -14,7 +14,7 @@
 
 use crate::control_interface::ControlInterfacePath;
 use crate::io_utils::FileSystemError;
-use crate::runtime_connectors::log_collector::LogCollector;
+use crate::runtime_connectors::log_picker::LogPicker;
 use crate::runtime_connectors::{LogRequestOptions, RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
@@ -647,7 +647,7 @@ impl WorkloadControlLoop {
     fn start_logger<WorkloadId, StChecker>(
         control_loop_state: &ControlLoopState<WorkloadId, StChecker>,
         log_request_options: &LogRequestOptions,
-    ) -> Result<Box<dyn LogCollector + Send>, RuntimeError>
+    ) -> Result<Box<dyn LogPicker + Send>, RuntimeError>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
@@ -688,7 +688,7 @@ mockall::mock! {
 mod tests {
     use super::{ControlInterfacePath, WorkloadControlLoop};
     use crate::io_utils::mock_filesystem_async;
-    use crate::runtime_connectors::log_collector::MockLogCollector;
+    use crate::runtime_connectors::log_picker::MockLogPicker;
     use crate::runtime_connectors::{LogRequestOptions, RuntimeError};
     use crate::workload::retry_manager::MockRetryToken;
     use crate::workload::workload_command_channel::WorkloadCommandSender;
@@ -2762,7 +2762,7 @@ mod tests {
                 since: None,
                 until: None,
             },
-            Ok(Box::new(MockLogCollector::new())),
+            Ok(Box::new(MockLogPicker::new())),
         )]);
 
         let control_loop_state = ControlLoopState::builder()
@@ -2951,7 +2951,7 @@ mod tests {
                 since: None,
                 until: None,
             },
-            Ok(Box::new(MockLogCollector::new())),
+            Ok(Box::new(MockLogPicker::new())),
         )]);
 
         let control_loop_state = ControlLoopState::builder()

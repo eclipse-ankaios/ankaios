@@ -19,7 +19,7 @@ use tokio::{
     select,
 };
 
-use super::log_collector::{GetOutputStreams, LogCollector, NextLinesResult};
+use super::log_picker::{GetOutputStreams, LogPicker, NextLinesResult};
 
 const LINE_FEED: u8 = 0x0A;
 
@@ -51,9 +51,7 @@ impl<T: GetOutputStreams> GenericLogCollector<T> {
 }
 
 #[async_trait]
-impl<T: GetOutputStreams + std::fmt::Debug + Send + 'static> LogCollector
-    for GenericLogCollector<T>
-{
+impl<T: GetOutputStreams + std::fmt::Debug + Send + 'static> LogPicker for GenericLogCollector<T> {
     async fn next_lines(&mut self) -> NextLinesResult {
         loop {
             match (&mut self.stdout, &mut self.stderr) {
@@ -167,7 +165,7 @@ pub mod test {
     use super::NextLinesResult;
     use crate::runtime_connectors::{
         generic_log_collector::{GenericLogCollector, GenericSingleLogCollector},
-        log_collector::{LogCollector, StreamTrait},
+        log_picker::{LogPicker, StreamTrait},
         podman::{podman_log_collector::PodmanLogCollector, PodmanWorkloadId},
         runtime_connector::LogRequestOptions,
     };

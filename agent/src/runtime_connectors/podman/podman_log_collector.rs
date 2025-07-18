@@ -21,7 +21,7 @@ use tokio::process::{Child, Command};
 
 use crate::runtime_connectors::runtime_connector::LogRequestOptions;
 
-use super::super::log_collector::{GetOutputStreams, StreamTrait};
+use super::super::log_picker::{GetOutputStreams, StreamTrait};
 use super::PodmanWorkloadId;
 
 #[derive(Debug)]
@@ -140,7 +140,7 @@ mod tests {
 
     use super::PodmanLogCollector;
     use crate::runtime_connectors::{
-        log_collector::GetOutputStreams, podman::PodmanWorkloadId, LogRequestOptions,
+        log_picker::GetOutputStreams, podman::PodmanWorkloadId, LogRequestOptions,
     };
 
     const WORKLOAD_ID: &str = "workload_id";

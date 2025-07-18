@@ -28,7 +28,7 @@ pub enum NextLinesResult {
 
 #[cfg_attr(test, automock)]
 #[async_trait]
-pub trait LogCollector: std::fmt::Debug + Send + 'static {
+pub trait LogPicker: std::fmt::Debug + Send + 'static {
     async fn next_lines(&mut self) -> NextLinesResult;
 }
 
@@ -41,7 +41,7 @@ pub trait GetOutputStreams {
     fn get_output_streams(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>);
 }
 
-pub async fn run(mut log_collector: Box<dyn LogCollector>, mut sender: log_channel::Sender) {
+pub async fn run(mut log_collector: Box<dyn LogPicker>, mut sender: log_channel::Sender) {
     loop {
         select! {
             lines = log_collector.next_lines() => {
@@ -92,7 +92,7 @@ mod tests {
 
     use crate::runtime_connectors::log_channel;
 
-    use super::{LogCollector, NextLinesResult};
+    use super::{LogPicker, NextLinesResult};
 
     const LINES_1: [&str; 3] = ["line 1 1", "line 1 2", "line 1 3"];
     const LINES_2: [&str; 2] = ["line 2 1", "line 2 2"];
@@ -107,14 +107,14 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct MockLogCollector {
+    struct MockLogPicker {
         mock_data: VecDeque<Vec<String>>,
         limited: bool,
         semaphore: Arc<Semaphore>,
         line_type: NextLineType,
     }
 
-    impl MockLogCollector {
+    impl MockLogPicker {
         fn new<'a>(data: &'a [&'a [&'a str]], limited: bool, line_type: NextLineType) -> Self {
             Self {
                 mock_data: data
@@ -133,7 +133,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl LogCollector for MockLogCollector {
+    impl LogPicker for MockLogPicker {
         async fn next_lines(&mut self) -> NextLinesResult {
             self.semaphore.acquire().await.unwrap().forget();
             if self.limited {
@@ -158,7 +158,7 @@ mod tests {
     #[tokio::test]
     async fn utest_log_collector_read_all_lines() {
         let log_collector =
-            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stdout);
+            MockLogPicker::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stdout);
         let sem = log_collector.semaphore();
         sem.add_permits(4);
 
@@ -184,7 +184,7 @@ mod tests {
     #[tokio::test]
     async fn utest_log_collector_cannot_send_message() {
         let log_collector =
-            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
+            MockLogPicker::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
         let sem = log_collector.semaphore();
         sem.add_permits(4);
 
@@ -206,7 +206,7 @@ mod tests {
     #[tokio::test]
     async fn utest_log_collector_informed_about_receiver_dropped() {
         let log_collector =
-            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
+            MockLogPicker::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
         let sem = log_collector.semaphore();
         sem.add_permits(2);
 
@@ -228,7 +228,7 @@ mod tests {
     #[tokio::test]
     async fn utest_log_collector_stderr_read_all_lines() {
         let log_collector =
-            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stderr);
+            MockLogPicker::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stderr);
         let sem = log_collector.semaphore();
 
         sem.add_permits(4);
@@ -253,7 +253,7 @@ mod tests {
     #[tokio::test]
     async fn utest_log_collector_stderr_cannot_send_message() {
         let log_collector =
-            MockLogCollector::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stderr);
+            MockLogPicker::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stderr);
         let sem = log_collector.semaphore();
         sem.add_permits(4);
 
