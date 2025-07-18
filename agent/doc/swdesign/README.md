@@ -151,6 +151,14 @@ The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implem
 
 The `WorkloadLogFacade` encapsulates all steps to initialize the local to the current Ankaios agent log collection.
 
+### LogPicking
+
+The `LogPicking` unit is providing common functionalities for the collection (picking) of logs from workloads. With the common functionality, each runtime connector integrated in Ankaios just needs to implement a function that returns a runtime specific version of the `LogPicker` to support log collections.
+
+### SubscriptionStore
+
+The `SubscriptionStore` is responsible for holding local log subscriptions. A local to the agent log subscription is the collection of logs from one or more workload running in the agent for a specific log campaign running on the Ankaios server. The `SubscriptionStore` not only holds metadata about the collection, but also allows stopping the log picking when a subscription entry is deleted.
+
 ### External Libraries
 
 #### Communication Middleware
