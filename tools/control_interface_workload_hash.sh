@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright (c) 2023 Elektrobit Automotive GmbH
 #
 # This program and the accompanying materials are made available under the
@@ -12,7 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-*** Variables ***
-${CONFIGS_DIR}=    ${CURDIR}/configs
-${CERTS_DIR}=    /tmp/.certs
-${AGENT_NAME}=    agent_A
+set -e
+
+script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+base_dir="$script_dir/.."
+container_image_dir="$base_dir/tests/resources/control_interface_tester"
+
+cd $container_image_dir
+find . -type f | grep -v 'README.md' | sort | xargs sha256sum | sha256sum | sed 's/  -//'
