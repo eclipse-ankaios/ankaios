@@ -52,7 +52,7 @@ pub fn create_from_server_channel(capacity: usize) -> FromServerChannel {
 #[cfg_attr(test, mockall_double::double)]
 use log_campaign_store::LogCampaignStore;
 
-use log_campaign_store::LogSubscriberRequestId;
+use log_campaign_store::LogCollectorRequestId;
 
 use std::collections::HashSet;
 
@@ -496,7 +496,7 @@ impl AnkaiosServer {
     async fn cancel_log_requests_of_disconnected_collector(
         &mut self,
         connection_name: &str,
-        request_ids_to_cancel: HashSet<LogSubscriberRequestId>,
+        request_ids_to_cancel: HashSet<LogCollectorRequestId>,
     ) {
         for request_id in request_ids_to_cancel {
             log::debug!(
