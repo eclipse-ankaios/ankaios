@@ -87,7 +87,7 @@ mod tests {
     const PICKER_2_LINE_4: &str = "picker 2: line 4";
 
     #[tokio::test]
-    async fn utest_log_picker_subscription_forwards_logs() {
+    async fn utest_log_picking_runner_forwards_logs() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -103,7 +103,7 @@ mod tests {
             &[PICKER_2_LINE_2, PICKER_2_LINE_3, PICKER_2_LINE_4],
         ]);
 
-        let (_subscription, mut receivers) = LogPickingRunner::start_collecting_logs(vec![
+        let (_runner, mut receivers) = LogPickingRunner::start_collecting_logs(vec![
             Box::new(log_picker_1),
             Box::new(log_picker_2),
         ]);
@@ -134,7 +134,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_log_picker_subscription_abort_task_on_drop() {
+    async fn utest_log_picking_runner_abort_task_on_drop() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -150,13 +150,13 @@ mod tests {
             &[PICKER_2_LINE_2, PICKER_2_LINE_3, PICKER_2_LINE_4],
         ]);
 
-        let (subscription, mut _receivers) = LogPickingRunner::start_collecting_logs(vec![
+        let (runner, mut _receivers) = LogPickingRunner::start_collecting_logs(vec![
             Box::new(log_picker_1),
             Box::new(log_picker_2),
         ]);
 
         assert!(!check_all_aborted());
-        drop(subscription);
+        drop(runner);
         assert!(check_all_aborted());
     }
 

@@ -65,13 +65,13 @@ impl WorkloadLogFacade {
             .await
             .into_iter()
             .unzip();
-        let (subscription, receivers) = LogPickingRunner::start_collecting_logs(log_pickers);
+        let (runner, receivers) = LogPickingRunner::start_collecting_logs(log_pickers);
         let receivers = names.into_iter().zip(receivers).collect::<Vec<_>>();
         let cloned_request_id = request_id.clone();
         let subscription_store = synchronized_subscription_store.clone();
 
         let log_collection_join_handle = tokio::spawn(async move {
-            let _subscription = subscription;
+            let _runner = runner;
             let futures = Self::convert_log_receivers_to_futures(receivers);
 
             // [impl->swdd~workload-log-facade-forwards-logs-to-server~1]
@@ -273,20 +273,20 @@ mod tests {
             .once()
             .return_once(|| None);
 
-        let mut mock_log_picker_subscription = MockLogPickingRunner::new();
-        let mock_log_picker_subscription_dropped = Arc::new(Mutex::new(false));
-        let mock_log_picker_subscription_dropped_clone =
-            mock_log_picker_subscription_dropped.clone();
-        mock_log_picker_subscription
+        let mut mock_log_picking_runner = MockLogPickingRunner::new();
+        let mock_log_picking_runner_dropped = Arc::new(Mutex::new(false));
+        let mock_log_picking_runner_dropped_clone =
+            mock_log_picking_runner_dropped.clone();
+        mock_log_picking_runner
             .expect_drop()
             .returning(move || {
-                *mock_log_picker_subscription_dropped_clone.lock().unwrap() = true;
+                *mock_log_picking_runner_dropped_clone.lock().unwrap() = true;
             });
 
         let collecting_logs_context = MockLogPickingRunner::start_collecting_logs_context();
         collecting_logs_context.expect().return_once(|_| {
             (
-                mock_log_picker_subscription,
+                mock_log_picking_runner,
                 vec![
                     mock_runtime_connector_receiver_1,
                     mock_runtime_connector_receiver_2,
@@ -384,7 +384,7 @@ mod tests {
         assert!(log_responses.is_ok());
         assert!(log_responses.unwrap().is_none());
 
-        assert!(*mock_log_picker_subscription_dropped.lock().unwrap());
+        assert!(*mock_log_picking_runner_dropped.lock().unwrap());
     }
 
     // [utest->swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
@@ -408,8 +408,8 @@ mod tests {
             .once()
             .return_once(|| None);
 
-        let mut mock_log_picker_subscription = MockLogPickingRunner::new();
-        mock_log_picker_subscription
+        let mut mock_log_picking_runner = MockLogPickingRunner::new();
+        mock_log_picking_runner
             .expect_drop()
             .once()
             .return_const(());
@@ -417,7 +417,7 @@ mod tests {
         let collecting_logs_context = MockLogPickingRunner::start_collecting_logs_context();
         collecting_logs_context.expect().return_once(|_| {
             (
-                mock_log_picker_subscription,
+                mock_log_picking_runner,
                 vec![mock_runtime_connector_receiver_1],
             )
         });
