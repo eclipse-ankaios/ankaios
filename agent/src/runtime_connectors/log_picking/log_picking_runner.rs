@@ -28,9 +28,9 @@ pub struct LogPickingRunner {
 
 impl LogPickingRunner {
     pub fn start_collecting_logs(
-        log_collectors: Vec<Box<dyn LogPicker + 'static>>,
+        log_pickers: Vec<Box<dyn LogPicker + 'static>>,
     ) -> (Self, Vec<log_channel::Receiver>) {
-        let (join_handles, receivers) = log_collectors
+        let (join_handles, receivers) = log_pickers
             .into_iter()
             .map(|x| {
                 let (sender, receiver) = log_channel::channel();
@@ -78,81 +78,81 @@ mod tests {
             Mutex::new(Vec::new());
     }
 
-    const COLLECTOR_1_LINE_1: &str = "collector 1: line 1";
-    const COLLECTOR_1_LINE_2: &str = "collector 1: line 2";
-    const COLLECTOR_1_LINE_3: &str = "collector 1: line 3";
-    const COLLECTOR_2_LINE_1: &str = "collector 2: line 1";
-    const COLLECTOR_2_LINE_2: &str = "collector 2: line 2";
-    const COLLECTOR_2_LINE_3: &str = "collector 2: line 3";
-    const COLLECTOR_2_LINE_4: &str = "collector 2: line 4";
+    const PICKER_1_LINE_1: &str = "picker 1: line 1";
+    const PICKER_1_LINE_2: &str = "picker 1: line 2";
+    const PICKER_1_LINE_3: &str = "picker 1: line 3";
+    const PICKER_2_LINE_1: &str = "picker 2: line 1";
+    const PICKER_2_LINE_2: &str = "picker 2: line 2";
+    const PICKER_2_LINE_3: &str = "picker 2: line 3";
+    const PICKER_2_LINE_4: &str = "picker 2: line 4";
 
     #[tokio::test]
-    async fn utest_log_collector_subscription_forwards_logs() {
+    async fn utest_log_picker_subscription_forwards_logs() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
         clear_join_handles();
 
-        let log_collector_1 = create_mock_log_collector(&[
-            &[COLLECTOR_1_LINE_1, COLLECTOR_1_LINE_2],
-            &[COLLECTOR_1_LINE_3],
+        let log_picker_1 = create_mock_log_picker(&[
+            &[PICKER_1_LINE_1, PICKER_1_LINE_2],
+            &[PICKER_1_LINE_3],
         ]);
 
-        let log_collector_2 = create_mock_log_collector(&[
-            &[COLLECTOR_2_LINE_1],
-            &[COLLECTOR_2_LINE_2, COLLECTOR_2_LINE_3, COLLECTOR_2_LINE_4],
+        let log_picker_2 = create_mock_log_picker(&[
+            &[PICKER_2_LINE_1],
+            &[PICKER_2_LINE_2, PICKER_2_LINE_3, PICKER_2_LINE_4],
         ]);
 
         let (_subscription, mut receivers) = LogPickingRunner::start_collecting_logs(vec![
-            Box::new(log_collector_1),
-            Box::new(log_collector_2),
+            Box::new(log_picker_1),
+            Box::new(log_picker_2),
         ]);
 
         assert_eq!(receivers.len(), 2);
         assert_eq!(
             receivers[0].read_log_lines().await,
-            Some(vec![COLLECTOR_1_LINE_1.into(), COLLECTOR_1_LINE_2.into()])
+            Some(vec![PICKER_1_LINE_1.into(), PICKER_1_LINE_2.into()])
         );
         assert_eq!(
             receivers[0].read_log_lines().await,
-            Some(vec![COLLECTOR_1_LINE_3.into()])
+            Some(vec![PICKER_1_LINE_3.into()])
         );
         assert_eq!(receivers[0].read_log_lines().await, None);
         assert_eq!(
             receivers[1].read_log_lines().await,
-            Some(vec![COLLECTOR_2_LINE_1.into()])
+            Some(vec![PICKER_2_LINE_1.into()])
         );
         assert_eq!(
             receivers[1].read_log_lines().await,
             Some(vec![
-                COLLECTOR_2_LINE_2.into(),
-                COLLECTOR_2_LINE_3.into(),
-                COLLECTOR_2_LINE_4.into()
+                PICKER_2_LINE_2.into(),
+                PICKER_2_LINE_3.into(),
+                PICKER_2_LINE_4.into()
             ])
         );
         assert_eq!(receivers[1].read_log_lines().await, None);
     }
 
     #[tokio::test]
-    async fn utest_log_collector_subscription_abort_task_on_drop() {
+    async fn utest_log_picker_subscription_abort_task_on_drop() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
         clear_join_handles();
 
-        let log_collector_1 = create_mock_log_collector(&[
-            &[COLLECTOR_1_LINE_1, COLLECTOR_1_LINE_2],
-            &[COLLECTOR_1_LINE_3],
+        let log_picker_1 = create_mock_log_picker(&[
+            &[PICKER_1_LINE_1, PICKER_1_LINE_2],
+            &[PICKER_1_LINE_3],
         ]);
 
-        let log_collector_2 = create_mock_log_collector(&[
-            &[COLLECTOR_2_LINE_1],
-            &[COLLECTOR_2_LINE_2, COLLECTOR_2_LINE_3, COLLECTOR_2_LINE_4],
+        let log_picker_2 = create_mock_log_picker(&[
+            &[PICKER_2_LINE_1],
+            &[PICKER_2_LINE_2, PICKER_2_LINE_3, PICKER_2_LINE_4],
         ]);
 
         let (subscription, mut _receivers) = LogPickingRunner::start_collecting_logs(vec![
-            Box::new(log_collector_1),
-            Box::new(log_collector_2),
+            Box::new(log_picker_1),
+            Box::new(log_picker_2),
         ]);
 
         assert!(!check_all_aborted());
@@ -160,20 +160,20 @@ mod tests {
         assert!(check_all_aborted());
     }
 
-    fn create_mock_log_collector(lines: &[&[&str]]) -> MockLogPicker {
-        let mut log_collector = MockLogPicker::new();
+    fn create_mock_log_picker(lines: &[&[&str]]) -> MockLogPicker {
+        let mut log_picker = MockLogPicker::new();
         for &line_package in lines {
             let line_package = line_package.iter().map(|s| s.to_string()).collect();
-            log_collector
+            log_picker
                 .expect_next_lines()
                 .once()
                 .return_once(move || NextLinesResult::Stdout(line_package));
         }
-        log_collector
+        log_picker
             .expect_next_lines()
             .once()
             .return_const(NextLinesResult::EoF);
-        log_collector
+        log_picker
     }
 
     pub fn spawn<F>(future: F) -> JoinHandle<F::Output>

@@ -260,7 +260,7 @@ pub mod test {
             Result<StubStateChecker, RuntimeError>,
         ),
         DeleteWorkload(String, Result<(), RuntimeError>),
-        StartLogCollector(
+        StartLogPicker(
             LogRequestOptions,
             Result<Box<dyn LogPicker + Send>, RuntimeError>,
         ),
@@ -458,7 +458,7 @@ pub mod test {
             options: &LogRequestOptions,
         ) -> Result<Box<dyn LogPicker + Send>, RuntimeError> {
             match self.get_expected_call() {
-                RuntimeCall::StartLogCollector(expected_options, result)
+                RuntimeCall::StartLogPicker(expected_options, result)
                     if expected_options == *options =>
                 {
                     result

@@ -143,13 +143,13 @@ impl WorkloadControlLoop {
 
                             control_loop_state = Self::resume_workload_on_runtime(control_loop_state).await;
                         }
-                        Some(WorkloadCommand::StartLogCollector(log_request_options, result_sink)) =>  {
+                        Some(WorkloadCommand::StartLogPicker(log_request_options, result_sink)) =>  {
                             match Self::start_logger(&control_loop_state, &log_request_options) {
                                 Ok(logger) => {if let Err(error) = result_sink.send(logger){
-                                    log::warn!("Could not return log collector: '{:?}'", error);
+                                    log::warn!("Could not return log picker: '{:?}'", error);
                                 }},
                                 Err(error) => {
-                                    log::warn!("Could not start log collector: '{:?}'", error);
+                                    log::warn!("Could not start log picker: '{:?}'", error);
                                 }
                             }
                         }
@@ -2755,7 +2755,7 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![RuntimeCall::StartLogCollector(
+        runtime_mock.expect(vec![RuntimeCall::StartLogPicker(
             LogRequestOptions {
                 follow: true,
                 tail: None,
@@ -2821,7 +2821,7 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![RuntimeCall::StartLogCollector(
+        runtime_mock.expect(vec![RuntimeCall::StartLogPicker(
             LogRequestOptions {
                 follow: true,
                 tail: None,
@@ -2944,7 +2944,7 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![RuntimeCall::StartLogCollector(
+        runtime_mock.expect(vec![RuntimeCall::StartLogPicker(
             LogRequestOptions {
                 follow: true,
                 tail: None,
@@ -2970,7 +2970,7 @@ mod tests {
 
         let jh = tokio::spawn(async move {
             workload_command_sender
-                .send(WorkloadCommand::StartLogCollector(
+                .send(WorkloadCommand::StartLogPicker(
                     LogRequestOptions {
                         follow: true,
                         tail: None,

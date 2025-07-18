@@ -65,8 +65,7 @@ impl WorkloadLogFacade {
             .await
             .into_iter()
             .unzip();
-        let (subscription, receivers) =
-            LogPickingRunner::start_collecting_logs(log_pickers);
+        let (subscription, receivers) = LogPickingRunner::start_collecting_logs(log_pickers);
         let receivers = names.into_iter().zip(receivers).collect::<Vec<_>>();
         let cloned_request_id = request_id.clone();
         let subscription_store = synchronized_subscription_store.clone();
@@ -222,7 +221,7 @@ mod tests {
 
     mock! {
         pub LogPickingRunner {
-            pub fn start_collecting_logs(log_collectors: Vec<Box<dyn crate::runtime_connectors::log_picker::LogPicker>>) -> (Self, Vec<MockRuntimeConnectorReceiver>);
+            pub fn start_collecting_logs(log_pickers: Vec<Box<dyn crate::runtime_connectors::log_picker::LogPicker>>) -> (Self, Vec<MockRuntimeConnectorReceiver>);
         }
 
         impl Drop for LogPickingRunner {
@@ -247,8 +246,8 @@ mod tests {
 
         let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
 
-        let mock_log_collector_1 = MockLogPicker::new();
-        let mock_log_collector_2 = MockLogPicker::new();
+        let mock_log_picker_1 = MockLogPicker::new();
+        let mock_log_picker_2 = MockLogPicker::new();
 
         let mut mock_runtime_connector_receiver_1 = MockRuntimeConnectorReceiver::new();
         let mut mock_runtime_connector_receiver_2 = MockRuntimeConnectorReceiver::new();
@@ -274,22 +273,20 @@ mod tests {
             .once()
             .return_once(|| None);
 
-        let mut mock_log_collector_subscription = MockLogPickingRunner::new();
-        let mock_log_collector_subscription_dropped = Arc::new(Mutex::new(false));
-        let mock_log_collector_subscription_dropped_clone =
-            mock_log_collector_subscription_dropped.clone();
-        mock_log_collector_subscription
+        let mut mock_log_picker_subscription = MockLogPickingRunner::new();
+        let mock_log_picker_subscription_dropped = Arc::new(Mutex::new(false));
+        let mock_log_picker_subscription_dropped_clone =
+            mock_log_picker_subscription_dropped.clone();
+        mock_log_picker_subscription
             .expect_drop()
             .returning(move || {
-                *mock_log_collector_subscription_dropped_clone
-                    .lock()
-                    .unwrap() = true;
+                *mock_log_picker_subscription_dropped_clone.lock().unwrap() = true;
             });
 
         let collecting_logs_context = MockLogPickingRunner::start_collecting_logs_context();
         collecting_logs_context.expect().return_once(|_| {
             (
-                mock_log_collector_subscription,
+                mock_log_picker_subscription,
                 vec![
                     mock_runtime_connector_receiver_1,
                     mock_runtime_connector_receiver_2,
@@ -335,14 +332,8 @@ mod tests {
             )))
             .return_once(|_| {
                 vec![
-                    (
-                        workload_instance_name_1.into(),
-                        Box::new(mock_log_collector_1),
-                    ),
-                    (
-                        workload_instance_name_2.into(),
-                        Box::new(mock_log_collector_2),
-                    ),
+                    (workload_instance_name_1.into(), Box::new(mock_log_picker_1)),
+                    (workload_instance_name_2.into(), Box::new(mock_log_picker_2)),
                 ]
             });
 
@@ -393,7 +384,7 @@ mod tests {
         assert!(log_responses.is_ok());
         assert!(log_responses.unwrap().is_none());
 
-        assert!(*mock_log_collector_subscription_dropped.lock().unwrap());
+        assert!(*mock_log_picker_subscription_dropped.lock().unwrap());
     }
 
     // [utest->swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
@@ -408,7 +399,7 @@ mod tests {
 
         let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
 
-        let mock_log_collector_1 = MockLogPicker::new();
+        let mock_log_picker_1 = MockLogPicker::new();
 
         let mut mock_runtime_connector_receiver_1 = MockRuntimeConnectorReceiver::new();
 
@@ -417,8 +408,8 @@ mod tests {
             .once()
             .return_once(|| None);
 
-        let mut mock_log_collector_subscription = MockLogPickingRunner::new();
-        mock_log_collector_subscription
+        let mut mock_log_picker_subscription = MockLogPickingRunner::new();
+        mock_log_picker_subscription
             .expect_drop()
             .once()
             .return_const(());
@@ -426,7 +417,7 @@ mod tests {
         let collecting_logs_context = MockLogPickingRunner::start_collecting_logs_context();
         collecting_logs_context.expect().return_once(|_| {
             (
-                mock_log_collector_subscription,
+                mock_log_picker_subscription,
                 vec![mock_runtime_connector_receiver_1],
             )
         });
@@ -452,7 +443,7 @@ mod tests {
             .return_once(|_| {
                 vec![(
                     cloned_workload_instance_name_1.into(),
-                    Box::new(mock_log_collector_1),
+                    Box::new(mock_log_picker_1),
                 )]
             });
 

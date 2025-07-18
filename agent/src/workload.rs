@@ -74,7 +74,7 @@ pub enum WorkloadCommand {
     Retry(Box<WorkloadInstanceName>, RetryToken),
     Create,
     Resume,
-    StartLogCollector(LogRequestOptions, oneshot::Sender<Box<dyn LogPicker>>),
+    StartLogPicker(LogRequestOptions, oneshot::Sender<Box<dyn LogPicker>>),
 }
 
 #[cfg(test)]
@@ -86,7 +86,7 @@ impl PartialEq for WorkloadCommand {
             (Self::Retry(l0, l1), Self::Retry(r0, r1)) => (l0, l1) == (r0, r1),
             (Self::Create, Self::Create) => true,
             (Self::Resume, Self::Resume) => true,
-            (Self::StartLogCollector(_, _), Self::StartLogCollector(_, _)) => false,
+            (Self::StartLogPicker(_, _), Self::StartLogPicker(_, _)) => false,
             _ => false,
         }
     }
@@ -725,7 +725,7 @@ mod tests {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         let jh = tokio::spawn(async move {
-            let Some(WorkloadCommand::StartLogCollector(options, result_sink)) =
+            let Some(WorkloadCommand::StartLogPicker(options, result_sink)) =
                 workload_command_receiver.recv().await
             else {
                 panic!("Did not receive StartLogCollection command")

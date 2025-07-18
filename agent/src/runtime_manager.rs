@@ -647,9 +647,9 @@ impl RuntimeManager {
                 .start_collecting_logs(log_request_options.clone())
                 .await
             {
-                Ok(log_collector) => res.push((workload, log_collector)),
+                Ok(log_picker) => res.push((workload, log_picker)),
                 Err(err) => log::info!(
-                    "Did not get log collector for '{}': '{}'.",
+                    "Did not get log picker for '{}': '{}'.",
                     workload.workload_name(),
                     err
                 ),

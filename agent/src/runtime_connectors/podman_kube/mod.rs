@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod podman_kube_log_collector;
+pub mod podman_kube_log_picker;
 mod podman_kube_runtime;
 mod podman_kube_runtime_config;
 pub use podman_kube_runtime::{PodmanKubeRuntime, PodmanKubeWorkloadId};

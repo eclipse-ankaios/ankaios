@@ -95,10 +95,7 @@ impl WorkloadCommandSender {
     ) -> Result<Box<dyn LogPicker>, Box<dyn std::error::Error>> {
         let (sender, receiver) = oneshot::channel();
         self.sender
-            .send(WorkloadCommand::StartLogCollector(
-                log_request_options,
-                sender,
-            ))
+            .send(WorkloadCommand::StartLogPicker(log_request_options, sender))
             .await?;
         Ok(receiver.await?)
     }
@@ -239,10 +236,7 @@ mod tests {
     async fn utest_start_collecting_logs_success() {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
-        let jh = listen_for_start_log_collector(
-            workload_command_receiver,
-            Some(MockLogPicker::new()),
-        );
+        let jh = listen_for_start_log_picker(workload_command_receiver, Some(MockLogPicker::new()));
 
         let res = workload_command_sender
             .start_collecting_logs(LOG_REQUEST_OPTIONS.clone())
@@ -256,7 +250,7 @@ mod tests {
     async fn utest_start_collecting_logs_no_result() {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
-        let jh = listen_for_start_log_collector(workload_command_receiver, None);
+        let jh = listen_for_start_log_picker(workload_command_receiver, None);
 
         let res = workload_command_sender
             .start_collecting_logs(LOG_REQUEST_OPTIONS.clone())
@@ -277,14 +271,14 @@ mod tests {
         assert!(res.is_err());
     }
 
-    fn listen_for_start_log_collector(
+    fn listen_for_start_log_picker(
         mut receiver: Receiver<WorkloadCommand>,
         res: Option<MockLogPicker>,
     ) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let command = receiver.recv().await.unwrap();
-            let WorkloadCommand::StartLogCollector(options, result_sink) = command else {
-                panic!("Expected WorkloadCommand::StartLogCollector")
+            let WorkloadCommand::StartLogPicker(options, result_sink) = command else {
+                panic!("Expected WorkloadCommand::StartLogPicker")
             };
             assert_eq!(options, LOG_REQUEST_OPTIONS);
             if let Some(res) = res {

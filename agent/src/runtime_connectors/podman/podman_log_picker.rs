@@ -25,7 +25,7 @@ use super::super::log_picker::{GetOutputStreams, StreamTrait};
 use super::PodmanWorkloadId;
 
 #[derive(Debug)]
-pub struct PodmanLogCollector {
+pub struct PodmanLogPicker {
     child: Option<Child>,
     #[cfg(test)]
     pub stdout: Option<Box<dyn StreamTrait>>,
@@ -33,7 +33,7 @@ pub struct PodmanLogCollector {
     pub stderr: Option<Box<dyn StreamTrait>>,
 }
 
-impl PodmanLogCollector {
+impl PodmanLogPicker {
     pub fn new(workload_id: &PodmanWorkloadId, options: &LogRequestOptions) -> Self {
         let mut args = Vec::with_capacity(9);
         args.push("logs");
@@ -88,7 +88,7 @@ impl PodmanLogCollector {
     }
 }
 
-impl Drop for PodmanLogCollector {
+impl Drop for PodmanLogPicker {
     fn drop(&mut self) {
         if let Some(child) = &mut self.child {
             if let Err(err) = child.start_kill() {
@@ -98,7 +98,7 @@ impl Drop for PodmanLogCollector {
     }
 }
 
-impl GetOutputStreams for PodmanLogCollector {
+impl GetOutputStreams for PodmanLogPicker {
     type OutputStream = Box<dyn StreamTrait>;
     type ErrStream = Box<dyn StreamTrait>;
 
@@ -138,7 +138,7 @@ mod tests {
     use std::sync::Mutex;
     use tokio::io::Empty;
 
-    use super::PodmanLogCollector;
+    use super::PodmanLogPicker;
     use crate::runtime_connectors::{
         log_picker::GetOutputStreams, podman::PodmanWorkloadId, LogRequestOptions,
     };
@@ -218,7 +218,7 @@ mod tests {
     fn utest_new_with_no_parameters() {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = true;
-        let mut log_collector = PodmanLogCollector::new(
+        let mut log_picker = PodmanLogPicker::new(
             &PodmanWorkloadId {
                 id: WORKLOAD_ID.into(),
             },
@@ -231,7 +231,7 @@ mod tests {
         );
 
         assert!(matches!(
-            &log_collector.child,
+            &log_picker.child,
             Some(MockChild {
                 _stdout: _,
                 cmd,
@@ -241,7 +241,7 @@ mod tests {
 
             }) if cmd == "podman" && *args == vec!["logs".to_string(), WORKLOAD_ID.to_string()]
         ));
-        let (child_stdout, child_stderr) = log_collector.get_output_streams();
+        let (child_stdout, child_stderr) = log_picker.get_output_streams();
         assert!(child_stdout.is_none());
         assert!(child_stderr.is_none());
     }
@@ -250,7 +250,7 @@ mod tests {
     fn utest_new_with_with_parameters() {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = true;
-        let mut log_collector = PodmanLogCollector::new(
+        let mut log_picker = PodmanLogPicker::new(
             &PodmanWorkloadId {
                 id: WORKLOAD_ID.into(),
             },
@@ -263,7 +263,7 @@ mod tests {
         );
 
         assert!(matches!(
-            &log_collector.child,
+            &log_picker.child,
             Some(MockChild {
                 _stdout: _,
                 cmd,
@@ -272,7 +272,7 @@ mod tests {
                 stderr_option: Some(_),
             }) if cmd == "podman" && *args == vec!["logs".to_string(), "-f".to_string(), "--since".to_string(), "since".to_string(), "--until".to_string(), "until".to_string(), "--tail".to_string(), "10".to_string(), WORKLOAD_ID.to_string(), ]
         ));
-        let (child_stdout, child_stderr) = log_collector.get_output_streams();
+        let (child_stdout, child_stderr) = log_picker.get_output_streams();
         assert!(child_stdout.is_none());
         assert!(child_stderr.is_none());
     }
@@ -281,7 +281,7 @@ mod tests {
     fn utest_new_spawn_fails() {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = false;
-        let log_collector = PodmanLogCollector::new(
+        let log_picker = PodmanLogPicker::new(
             &PodmanWorkloadId {
                 id: WORKLOAD_ID.into(),
             },
@@ -293,7 +293,7 @@ mod tests {
             },
         );
 
-        assert!(&log_collector.child.is_none())
+        assert!(&log_picker.child.is_none())
     }
 
     #[test]
@@ -303,7 +303,7 @@ mod tests {
         *CAN_SPAWN.lock().unwrap() = true;
 
         *CAN_KILL.lock().unwrap() = true;
-        let log_collector = PodmanLogCollector::new(
+        let log_picker = PodmanLogPicker::new(
             &PodmanWorkloadId {
                 id: WORKLOAD_ID.into(),
             },
@@ -316,7 +316,7 @@ mod tests {
         );
 
         assert!(!*WAS_KILLED.lock().unwrap());
-        drop(log_collector);
+        drop(log_picker);
         assert!(*WAS_KILLED.lock().unwrap());
     }
 
@@ -326,7 +326,7 @@ mod tests {
         *WAS_KILLED.lock().unwrap() = false;
         *CAN_SPAWN.lock().unwrap() = true;
         *CAN_KILL.lock().unwrap() = false;
-        let log_collector = PodmanLogCollector::new(
+        let log_picker = PodmanLogPicker::new(
             &PodmanWorkloadId {
                 id: WORKLOAD_ID.into(),
             },
@@ -339,7 +339,7 @@ mod tests {
         );
 
         assert!(!*WAS_KILLED.lock().unwrap());
-        drop(log_collector);
+        drop(log_picker);
         assert!(*WAS_KILLED.lock().unwrap());
     }
 }
