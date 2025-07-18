@@ -3330,13 +3330,31 @@ Status: approved
 
 When the Authorizer checks if a workload is allowed to make a `LogsRequest`,
 the Authorizer shall:
-* deny the request if a requested workload name is found that has no allow LogRule authorizing it
-* deny the request if a requested workload name is found that has a deny LogRule forbidding it
+* deny the request if a requested workload name is found that has no allow LogRule matching it
+* deny the request if a requested workload name is found that has a deny LogRule matching it
 * allow the request otherwise
 
 Comment:
 Note that a LogsRequest with no specified workloads would be allowed as it is not denied by the above conditions.
 Requesting logs for no workload indeed does not make sense, but should not be explicitly denied as it has no effect at the end.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### LogRule matches a LogsRequest
+`swdd~agent-authorizing-log-rules-matches-request~1`
+
+Status: approved
+
+When the Authorizer checks a workload name from a `LogsRequest` against a `LogRule`,
+the Authorizer shall consider workload name matching if an entry of the `LogRule`:
+* completely matches the workload name or
+* is only consisting of a wildcard "*"
+* contains a wildcard "*" and the workload name starts with the prefix specified by the characters before the wildcard and ends with the characters after the wildcard
 
 Tags:
 - Authorizer
@@ -3364,14 +3382,14 @@ Needs:
 - utest
 
 #### Request without filter mask
-`swdd~agent-authorizing-request-without-filter-mask~3`
+`swdd~agent-authorizing-request-without-filter-mask~2`
 
 Status: approved
 
 The Authorizer allows an `UpdateStateRequest` with an empty update mask or a `CompleteStateRequest` with an empty field mask only if all of the following is true:
 
-* there is a corresponding allow StateRule providing full access
-* there is no corresponding deny StateRule forbidding any access
+* there is a corresponding (write/read) allow rule with a wildcard "*"
+* there is no corresponding (write/read) deny rule with a wildcard "*"
 
 Tags:
 - Authorizer

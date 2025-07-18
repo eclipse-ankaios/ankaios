@@ -130,7 +130,7 @@ impl Authorizer {
         deny_rules: &Vec<Arc<StateRule<DenyPathPattern>>>,
     ) -> bool {
         let request_mask = if state_request_mask.is_empty() {
-            // [impl->swdd~agent-authorizing-request-without-filter-mask~3]
+            // [impl->swdd~agent-authorizing-request-without-filter-mask~2]
             &vec!["".into()]
         } else {
             state_request_mask
@@ -345,7 +345,7 @@ mod test {
         populate_authorizer(Authorizer::default(), rules)
     }
 
-    // [utest->swdd~agent-authorizing-request-without-filter-mask~3]
+    // [utest->swdd~agent-authorizing-request-without-filter-mask~2]
     #[test]
     fn utest_request_without_filter_mask() {
         let mut authorizer = Authorizer::default();
