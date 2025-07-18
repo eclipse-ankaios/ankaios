@@ -149,7 +149,7 @@ The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implem
 
 ### WorkloadLogFacade
 
-The `WorkloadLogFacade` encapsulates all steps to initialize the local log collection on the Ankaios agent.
+The `WorkloadLogFacade` encapsulates all steps to initialize the local to the current Ankaios agent log collection.
 
 ### External Libraries
 
