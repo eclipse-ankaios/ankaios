@@ -27,7 +27,7 @@ use crate::{
         log_picker::LogPicker, podman_cli::PodmanStartConfig,
         runtime_connector::LogRequestOptions, ReusableWorkloadState, RuntimeConnector,
         RuntimeError, RuntimeStateGetter, StateChecker,
-        generic_log_collector::GenericLogCollector,
+        generic_log_picker::GenericLogCollector,
     },
     workload_state::WorkloadStateSender,
 };

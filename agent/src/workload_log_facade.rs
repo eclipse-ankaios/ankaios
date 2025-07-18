@@ -28,7 +28,7 @@ use crate::runtime_connectors::log_channel::Receiver;
 use tests::MockRuntimeConnectorReceiver as Receiver;
 
 #[cfg(not(test))]
-use crate::runtime_connectors::log_collector_subscription::LogPickingRunner;
+use crate::runtime_connectors::log_picking_runner::LogPickingRunner;
 #[cfg(test)]
 use tests::MockLogPickingRunner as LogPickingRunner;
 

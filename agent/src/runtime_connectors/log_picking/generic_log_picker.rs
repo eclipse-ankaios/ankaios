@@ -24,7 +24,7 @@ use super::log_picker::{GetOutputStreams, LogPicker, NextLinesResult};
 const LINE_FEED: u8 = 0x0A;
 
 #[derive(Debug)]
-pub struct GenericSingleLogCollector<T: AsyncRead + std::fmt::Debug> {
+pub struct GenericSingleLogPicker<T: AsyncRead + std::fmt::Debug> {
     reader: T,
     read_data: BytesMut,
 }
@@ -34,8 +34,8 @@ pub struct GenericLogCollector<T>
 where
     T: GetOutputStreams,
 {
-    stdout: Option<GenericSingleLogCollector<T::OutputStream>>,
-    stderr: Option<GenericSingleLogCollector<T::ErrStream>>,
+    stdout: Option<GenericSingleLogPicker<T::OutputStream>>,
+    stderr: Option<GenericSingleLogPicker<T::ErrStream>>,
     _streams: T,
 }
 
@@ -43,8 +43,8 @@ impl<T: GetOutputStreams> GenericLogCollector<T> {
     pub fn new(mut streams: T) -> Self {
         let (stdout, stderr) = streams.get_output_streams();
         Self {
-            stdout: stdout.map(GenericSingleLogCollector::new),
-            stderr: stderr.map(GenericSingleLogCollector::new),
+            stdout: stdout.map(GenericSingleLogPicker::new),
+            stderr: stderr.map(GenericSingleLogPicker::new),
             _streams: streams,
         }
     }
@@ -95,7 +95,7 @@ impl<T: GetOutputStreams + std::fmt::Debug + Send + 'static> LogPicker for Gener
     }
 }
 
-impl<T: AsyncRead + std::fmt::Debug + std::marker::Unpin> GenericSingleLogCollector<T> {
+impl<T: AsyncRead + std::fmt::Debug + std::marker::Unpin> GenericSingleLogPicker<T> {
     pub fn new(read: T) -> Self {
         Self {
             reader: read,
@@ -164,7 +164,7 @@ pub mod test {
 
     use super::NextLinesResult;
     use crate::runtime_connectors::{
-        generic_log_collector::{GenericLogCollector, GenericSingleLogCollector},
+        generic_log_picker::{GenericLogCollector, GenericSingleLogPicker},
         log_picker::{LogPicker, StreamTrait},
         podman::{podman_log_collector::PodmanLogCollector, PodmanWorkloadId},
         runtime_connector::LogRequestOptions,
@@ -232,7 +232,7 @@ pub mod test {
             .into(),
         };
 
-        let mut log_collector = GenericSingleLogCollector::new(read);
+        let mut log_collector = GenericSingleLogPicker::new(read);
         assert_eq!(
             log_collector.next_lines().await,
             Some(vec![LINE_1.into(), LINE_2.into(), LINE_3.into()])
@@ -254,7 +254,7 @@ pub mod test {
             .into(),
         };
 
-        let mut log_collector = GenericSingleLogCollector::new(read);
+        let mut log_collector = GenericSingleLogPicker::new(read);
         assert_eq!(
             log_collector.next_lines().await,
             Some(vec![LINE_1.into(), LINE_2.into(), LINE_3.into()])
@@ -276,7 +276,7 @@ pub mod test {
             .into(),
         };
 
-        let mut log_collector = GenericSingleLogCollector::new(read);
+        let mut log_collector = GenericSingleLogPicker::new(read);
         assert_eq!(
             log_collector.next_lines().await,
             Some(vec![LINE_1.into(), LINE_2.into()])
@@ -294,7 +294,7 @@ pub mod test {
             .into(),
         };
 
-        let mut log_collector = GenericSingleLogCollector::new(read);
+        let mut log_collector = GenericSingleLogPicker::new(read);
         assert_eq!(log_collector.next_lines().await, Some(vec!["line�".into()]));
         assert_eq!(log_collector.next_lines().await, None);
     }
@@ -309,7 +309,7 @@ pub mod test {
             .into(),
         };
 
-        let mut log_collector = GenericSingleLogCollector::new(read);
+        let mut log_collector = GenericSingleLogPicker::new(read);
         assert_eq!(log_collector.next_lines().await, Some(vec![LINE_1.into()]));
         assert_eq!(log_collector.next_lines().await, None);
     }
