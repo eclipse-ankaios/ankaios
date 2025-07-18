@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::response::ResponseContent;
-use api::ank_base::{LogEntriesResponse, State, UpdateStateRequest};
+use api::ank_base::{LogEntriesResponse, LogsRequestAccepted, State, UpdateStateRequest};
 
 use api::control_api::{from_ankaios::FromAnkaiosEnum, FromAnkaios};
 
@@ -107,6 +107,7 @@ struct TestResult {
 enum TestResultEnum {
     UpdateStateResult(TagSerializedResult<UpdateStateResult>),
     GetStateResult(TagSerializedResult<Option<State>>),
+    LogRequestResponse(TagSerializedResult<LogsRequestAccepted>),
     LogEntriesResponse(TagSerializedResult<LogEntriesResponse>),
     NoApi,
     SendHelloResult(TagSerializedResult<()>),
@@ -501,7 +502,19 @@ impl Connection {
             .write_all(&proto.encode_length_delimited_to_vec())
             .unwrap();
 
-        Ok(TestResultEnum::NoCheckNeeded)
+        let response = self.wait_for_response(request_id)?;
+        match response {
+            ResponseContent::LogsRequestAccepted(logs_response) => Ok(
+                TestResultEnum::LogRequestResponse(TagSerializedResult::Ok(logs_response)),
+            ),
+            ResponseContent::Error(error) => Ok(TestResultEnum::LogEntriesResponse(
+                TagSerializedResult::Err(error.message),
+            )),
+            response_content => Err(CommandError::GenericError(format!(
+                "Received wrong response type. Expected LogsResponse, received: '{:?}'",
+                response_content
+            ))),
+        }
     }
 
     fn handle_get_logs_command(
@@ -514,9 +527,6 @@ impl Connection {
             ResponseContent::LogEntriesResponse(logs_response) => Ok(
                 TestResultEnum::LogEntriesResponse(TagSerializedResult::Ok(logs_response)),
             ),
-            ResponseContent::Error(error) => Ok(TestResultEnum::LogEntriesResponse(
-                TagSerializedResult::Err(error.message),
-            )),
             response_content => Err(CommandError::GenericError(format!(
                 "Received wrong response type. Expected LogsResponse, received: '{:?}'",
                 response_content

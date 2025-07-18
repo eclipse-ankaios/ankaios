@@ -149,6 +149,4 @@ Log requests are denied if no log rules
     Given the controller workload is allowed to read on *
     And the controller workload requests the logs of simple_existing
 
-    When The controller workload gets the logs of simple_existing
-
     Then The controller workload last request shall fail
