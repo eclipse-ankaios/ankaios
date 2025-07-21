@@ -21,6 +21,8 @@ use tokio::{
 
 use super::log_picker::{GetOutputStreams, LogPicker, NextLinesResult};
 
+// [impl->swdd~log-picking-collects-logs~1]
+
 const LINE_FEED: u8 = 0x0A;
 
 #[derive(Debug)]
@@ -156,6 +158,7 @@ fn convert_to_string(vec: impl Into<Vec<u8>>) -> String {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
+// [utest->swdd~log-picking-collects-logs~1]
 #[cfg(test)]
 pub mod test {
     use std::{collections::VecDeque, vec};

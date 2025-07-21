@@ -60,6 +60,8 @@ impl WorkloadLogFacade {
         synchronized_subscription_store: SynchronizedSubscriptionStore,
         runtime_manager: &RuntimeManager,
     ) {
+        // The following can probably be pulled out somewhere. Way to much details are spilling out of the methods,
+        // where at the end we just need the runner and the log_receiver_futures.
         let (names, log_pickers): (Vec<_>, _) = runtime_manager
             .get_log_pickers(logs_request)
             .await
@@ -67,12 +69,12 @@ impl WorkloadLogFacade {
             .unzip();
         let (runner, receivers) = LogPickingRunner::start_collecting_logs(log_pickers);
         let receivers = names.into_iter().zip(receivers).collect::<Vec<_>>();
+        let futures = Self::convert_log_receivers_to_futures(receivers);
+
         let cloned_request_id = request_id.clone();
         let subscription_store = synchronized_subscription_store.clone();
-
         let log_collection_join_handle = tokio::spawn(async move {
             let _runner = runner;
-            let futures = Self::convert_log_receivers_to_futures(receivers);
 
             // [impl->swdd~workload-log-facade-forwards-logs-to-server~1]
             Self::consume_futures_and_forward_logs_until_stop(

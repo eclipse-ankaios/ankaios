@@ -41,6 +41,7 @@ pub trait GetOutputStreams {
     fn get_output_streams(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>);
 }
 
+// [impl->swdd~log-picking-collects-logs~1]
 pub async fn run(mut log_picker: Box<dyn LogPicker>, mut sender: log_channel::Sender) {
     loop {
         select! {
@@ -155,6 +156,7 @@ mod tests {
         }
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_log_picker_read_all_lines() {
         let log_picker =
@@ -181,6 +183,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_log_picker_cannot_send_message() {
         let log_picker =
@@ -203,6 +206,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_log_picker_informed_about_receiver_dropped() {
         let log_picker =
@@ -225,6 +229,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_log_picker_stderr_read_all_lines() {
         let log_picker =
@@ -250,6 +255,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_log_picker_stderr_cannot_send_message() {
         let log_picker =

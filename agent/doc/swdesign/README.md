@@ -96,6 +96,7 @@ Thus, the following WorkloadCommands exists:
 * `Retry` for retrying the create of an workload
 * `Resume` for resuming an existing workload
 * `Delete` for deleting a workload
+* `StartLogPicker` for initiating the log collection for a workload
 
 ### WorkloadControlLoop
 
@@ -153,7 +154,7 @@ The `WorkloadLogFacade` encapsulates all steps to initialize the local to the cu
 
 ### LogPicking
 
-The `LogPicking` unit is providing common functionalities for the collection (picking) of logs from workloads. With the common functionality, each runtime connector integrated in Ankaios just needs to implement a function that returns a runtime specific version of the `LogPicker` to support log collections.
+The `LogPicking` unit is providing common functionalities and the common interface for the collection (picking) of logs from workloads. With the common functionality, each runtime connector integrated in Ankaios just needs to implement a trait to provide a runtime specific version of the `LogPicker` to support log collections.
 
 ### SubscriptionStore
 
@@ -1021,7 +1022,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the control inferface's:
+When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the control interface's:
 
 * file path
 * authorizer
@@ -3535,11 +3536,14 @@ Needs:
 
 Status: approved
 
-When the WorkloadLogFacade is triggered by the AgentManager to start the log collection for the provided workloads, the WorkloadLogFacade shall:
-* request the RuntimeManager to start collecting logs for the workload names
-* initialize the log picking runners with their log receivers for the provided workload names
-* spawn the reading and forwarding of the logs for the provided workloads
-* add a log subscription entry to the SubscriptionStore
+When the WorkloadLogFacade is triggered by the AgentManager to start the log collection for a provided list of workloads, the WorkloadLogFacade shall:
+* request the RuntimeManager to create a log picker for each provided workload name
+* initialize the LogPicking runners with their log receivers for the provided workload names
+* spawn an asynchronous task for the the reading and forwarding of the logs for the provided workloads
+* add a log subscription entry with a reference to the spawned task to the SubscriptionStore
+
+Comment:
+The LogPicking runners are moved to the spawned asynchronous task. When the task is canceled, the runners are dropped which stoppes them automatically.
 
 Rationale:
 Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection is finished.
@@ -3547,6 +3551,118 @@ Decoupling the reading and forwarding into an asynchronous task ensures that the
 Tags:
 - WorkloadLogFacade
 - RuntimeManager
+- SubscriptionStore
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager creates log pickers for workloads
+`swdd~runtime-manager-creates-log-pickers~1`
+
+Status: approved
+
+When the RuntimeManager gets a request to provide the log pickers for a `LogsRequest`, the RuntimeManager shall trigger each specified in the request WorkloadObject to create a dedicated log picker.
+
+Tags:
+- RuntimeManager
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+##### Workload handles StartLogPicker command
+`swdd~agent-workload-obj-start-log-picker-command~1`
+
+Status: approved
+
+When the WorkloadObject is called to start a log picker, it shall:
+* send a `StartLogPicker` command via the WorkloadCommandSender to the WorkloadControlLoop
+* wait for the log picket to be created and returned by the WorkloadControlLoop
+* return the newly created log picker
+
+Tags:
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop creates log picker
+`swdd~workload-control-loop-creates-log-picker~1`
+
+Status: approved
+
+When the WorkloadControlLoop creates a log picker, the WorkloadControlLoop shall:
+* create a dedicated log picker via the corresponding runtime connector
+* return the created object back to the WorkloadObject
+
+Comment:
+For concurrency reasons the newly created log picker is sent back to the WorkloadObject via a one-shot channel.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### LogPicking runs log pickers
+`swdd~log-picking-runs-log-pickers~1`
+
+Status: approved
+
+When the LogPicking initializes the log pickers to start collecting logs, the LogPicking shall run each log picker in an asynchronous task returning a LogPicking runner object and the receiver end of the logs collection channel.
+
+Tags:
+- LogPicking
+
+Needs:
+- impl
+- utest
+
+#### LogPicking collects logs
+`swdd~log-picking-collects-logs~1`
+
+Status: approved
+
+When a log picker is ran, it shall:
+* collect logs from a runtime specific log picker
+* send them on the logs collection channel
+
+Tags:
+- LogPicking
+
+Needs:
+- impl
+- utest
+
+#### Podman LogPicking collects logs
+`swdd~log-picking-collects-logs~1`
+
+Status: approved
+
+When the podman log picker is ran, it shall:
+* request the logs from the podman runtime for the specified workload with all configured options
+* provide the streams for the `stdout` and `stderr` to enable log collection by the LogPicking
+
+Tags:
+- PodmanLogPicker
+
+Needs:
+- impl
+- utest
+
+#### LogPicking runner objects stops collection when dropped
+`swdd~log-picking-stops-collection-when-dropped~1`
+
+Status: approved
+
+When a LogPicking runner gets dropped, the LogPicking shall stop the collection of logs for that log picker.
+
+Tags:
+- LogPicking
 
 Needs:
 - impl
@@ -3605,20 +3721,32 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives a `LogsCancelRequest` message from the Ankaios server, the AgentManager shall delegate log subscription from the SubscriptionStore.
+When the AgentManager receives a `LogsCancelRequest` message from the Ankaios server, the AgentManager shall delete the corresponding log subscription from the SubscriptionStore.
 
 Comment:
-When a subscription is deleted from the SubscriptionStore, the subscription automatically stops the collection of logs for workload on the current agent.
+When a subscription is deleted from the SubscriptionStore, the SubscriptionStore automatically stops the collection of logs for this subscription on the current agent.
 
 Tags:
 - AgentManager
-- WorkloadLogFacade
+- SubscriptionStore
 
 Needs:
 - impl
 - utest
 
+#### Agent stops local log collection on removed subscription
+`swdd~agent-stops-log-collection-on-removed-subscription~1`
 
+Status: approved
+
+When the SubscriptionStore deletes an entry from its store, the SubscriptionStore shall abort the local log collection for this subscription entry.
+
+Tags:
+- SubscriptionStore
+
+Needs:
+- impl
+- utest
 
 ### Handling connection interruption to server
 
@@ -3637,6 +3765,7 @@ This prevents the Ankaios agent from collecting logs continuously from workloads
 
 Tags:
 - AgentManager
+- SubscriptionStore
 
 Needs:
 - impl

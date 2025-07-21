@@ -284,8 +284,8 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         workload_id: PodmanKubeWorkloadId,
         options: &LogRequestOptions,
     ) -> Result<Box<dyn LogPicker + Send>, RuntimeError> {
-        let x = super::podman_kube_log_picker::PodmanKubeLogPicker::new(&workload_id, options);
-        let log_picker = GenericLogPicker::new(x);
+        let podman_kube_log_picker = super::podman_kube_log_picker::PodmanKubeLogPicker::new(&workload_id, options);
+        let log_picker = GenericLogPicker::new(podman_kube_log_picker);
         Ok(Box::new(log_picker))
     }
 

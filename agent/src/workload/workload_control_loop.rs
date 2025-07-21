@@ -144,7 +144,7 @@ impl WorkloadControlLoop {
                             control_loop_state = Self::resume_workload_on_runtime(control_loop_state).await;
                         }
                         Some(WorkloadCommand::StartLogPicker(log_request_options, result_sink)) =>  {
-                            match Self::start_logger(&control_loop_state, &log_request_options) {
+                            match Self::create_log_picker(&control_loop_state, &log_request_options) {
                                 Ok(logger) => {if let Err(error) = result_sink.send(logger){
                                     log::warn!("Could not return log picker: '{:?}'", error);
                                 }},
@@ -644,7 +644,8 @@ impl WorkloadControlLoop {
             });
     }
 
-    fn start_logger<WorkloadId, StChecker>(
+    // [impl->swdd~workload-control-loop-creates-log-picker~1]
+    fn create_log_picker<WorkloadId, StChecker>(
         control_loop_state: &ControlLoopState<WorkloadId, StChecker>,
         log_request_options: &LogRequestOptions,
     ) -> Result<Box<dyn LogPicker + Send>, RuntimeError>
@@ -2737,6 +2738,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
+    // [utest->swdd~workload-control-loop-creates-log-picker~1]
     #[tokio::test]
     async fn utest_get_logs_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2803,6 +2805,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
+    // [utest->swdd~workload-control-loop-creates-log-picker~1]
     #[tokio::test]
     async fn utest_get_logs_fails() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2869,6 +2872,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
+    // [utest->swdd~workload-control-loop-creates-log-picker~1]
     #[tokio::test]
     async fn utest_get_logs_no_workload_id_yet() {
         let _ = env_logger::builder().is_test(true).try_init();

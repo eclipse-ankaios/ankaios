@@ -30,6 +30,7 @@ impl SubscriptionEntry {
     }
 }
 
+// [impl->swdd~agent-stops-log-collection-on-removed-subscription~1]
 impl Drop for SubscriptionEntry {
     fn drop(&mut self) {
         log::trace!("Dropping join handle of subscription entry from the log subscription store.");
@@ -45,14 +46,17 @@ pub struct SubscriptionStore {
 }
 
 impl SubscriptionStore {
+    // [impl->swdd~workload-log-facade-starts-log-collection~1]
     pub fn add_subscription(&mut self, id: SubscriptionId, subscription: SubscriptionEntry) {
         self.store.insert(id, subscription);
     }
 
+    // [impl->swdd~agent-handles-logs-cancel-requests-from-server~1]
     pub fn delete_subscription(&mut self, id: &SubscriptionId) {
         self.store.remove(id);
     }
 
+    // [impl->swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1]
     pub fn delete_all_subscriptions(&mut self) {
         log::debug!("Deleting all subscriptions from the log subscription store.");
         self.store.clear();
@@ -90,6 +94,8 @@ mod tests {
     const ID_1: &str = "id_1";
     const ID_2: &str = "id_2";
 
+    // [utest->swdd~workload-log-facade-starts-log-collection~1]
+    // [utest->swdd~agent-stops-log-collection-on-removed-subscription~1]
     #[test]
     fn utest_overwrite_drops_old_element() {
         let mut mock_join_handle_1 = MockJoinHandle::new();
@@ -120,6 +126,9 @@ mod tests {
         assert!(subscription_store.store.contains_key(ID_2));
     }
 
+    // [utest->swdd~workload-log-facade-starts-log-collection~1]
+    // [utest->swdd~agent-stops-log-collection-on-removed-subscription~1]
+    // [utest->swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1]
     #[test]
     fn utest_delete_all_subscriptions() {
         let mut mock_join_handle_1 = MockJoinHandle::new();

@@ -24,6 +24,8 @@ use crate::runtime_connectors::runtime_connector::LogRequestOptions;
 use super::super::log_picker::{GetOutputStreams, StreamTrait};
 use super::PodmanWorkloadId;
 
+// [impl->swdd~log-picking-collects-logs~1]
+
 #[derive(Debug)]
 pub struct PodmanLogPicker {
     child: Option<Child>,
@@ -132,7 +134,7 @@ impl GetOutputStreams for PodmanLogPicker {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~functions-required-by-runtime-connector~1]
+// [utest->swdd~log-picking-collects-logs~1]
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
