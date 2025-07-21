@@ -3604,7 +3604,6 @@ When a subscription is deleted from the SubscriptionStore, the subscription auto
 
 Tags:
 - AgentManager
-- WorkloadLogFacade
 
 Needs:
 - impl
