@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+// [impl->swdd~agent-authorizing-supported-rules~1]
+
 use super::{
     path::Path,
     path_pattern::{PathPattern, PathPatternMatchReason, PathPatternMatcher},
@@ -58,6 +60,7 @@ impl LogRule {
         }
     }
 
+    // [impl->swdd~agent-authorizing-log-rules-matches-request~1]
     pub fn matches(&self, workload_name: &str) -> bool {
         for pattern in &self.patterns {
             if pattern == workload_name || pattern == WILDCARD_SYMBOL {
@@ -115,6 +118,7 @@ impl From<Vec<String>> for LogRule {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
+// [utest->swdd~agent-authorizing-supported-rules~1]
 #[cfg(test)]
 mod test {
     use super::{super::path::Path, LogRule, StateRule, WILDCARD_SYMBOL};
@@ -150,12 +154,14 @@ mod test {
         }
     }
 
+    // [utest->swdd~agent-authorizing-log-rules-matches-request~1]
     #[test]
     fn utest_empty_state_rule() {
         let rule = StateRule::<MockPathPattern>::create(Vec::new());
         assert_eq!(rule.matches(&Path::from("some.path")), (false, "".into()));
     }
 
+    // [utest->swdd~agent-authorizing-log-rules-matches-request~1]
     #[test]
     fn utest_matches_on_pattern_in_state_rule() {
         let rule = StateRule::create(vec![
@@ -169,6 +175,7 @@ mod test {
         );
     }
 
+    // [utest->swdd~agent-authorizing-log-rules-matches-request~1]
     #[test]
     fn utest_matches_none_pattern_in_rule() {
         let rule = StateRule::create(vec![
@@ -197,6 +204,7 @@ mod test {
         assert!(rule.patterns.is_empty());
     }
 
+    // [utest->swdd~agent-authorizing-log-rules-matches-request~1]
     #[test]
     fn utest_log_rule_matches_no_wildcard() {
         let rule = LogRule::from(vec!["workload1".into(), "workload2".into()]);
@@ -205,6 +213,7 @@ mod test {
         assert!(!rule.matches("workload3"));
     }
 
+    // [utest->swdd~agent-authorizing-log-rules-matches-request~1]
     #[test]
     fn utest_log_rule_matches_wildcard() {
         let rule = LogRule::from(vec![WILDCARD_SYMBOL.into()]);

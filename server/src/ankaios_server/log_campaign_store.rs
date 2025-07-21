@@ -20,7 +20,7 @@ use std::{
 use common::objects::WorkloadInstanceName;
 
 type AgentName = String;
-pub type LogSubscriberRequestId = String;
+pub type LogCollectorRequestId = String;
 type AgentLogRequestIdMap = HashMap<AgentName, HashSet<AgentRequestId>>;
 type CliConnectionName = String;
 type CliConnectionLogRequestIdMap = HashMap<CliConnectionName, HashSet<CliRequestId>>;
@@ -46,7 +46,7 @@ struct AgentRequestId {
     request_uuid: String,
 }
 
-fn to_string_ids<I>(request_ids: HashSet<I>) -> HashSet<LogSubscriberRequestId>
+fn to_string_ids<I>(request_ids: HashSet<I>) -> HashSet<LogCollectorRequestId>
 where
     I: Display,
 {
@@ -122,8 +122,8 @@ where
 
 #[derive(Default, Debug, Clone)]
 pub struct RemovedLogRequests {
-    pub collector_requests: HashSet<LogSubscriberRequestId>,
-    pub disconnected_log_providers: Vec<(LogSubscriberRequestId, Vec<WorkloadInstanceName>)>,
+    pub collector_requests: HashSet<LogCollectorRequestId>,
+    pub disconnected_log_providers: Vec<(LogCollectorRequestId, Vec<WorkloadInstanceName>)>,
 }
 
 #[derive(Default)]
@@ -131,16 +131,16 @@ pub struct LogCampaignStore {
     agent_log_request_ids_store: AgentLogRequestIdMap,
     workload_name_request_id_store: WorkloadNameRequestIdMap,
     log_providers_store:
-        HashMap<AgentName, HashMap<LogSubscriberRequestId, Vec<WorkloadInstanceName>>>,
+        HashMap<AgentName, HashMap<LogCollectorRequestId, Vec<WorkloadInstanceName>>>,
     cli_log_request_id_store: CliConnectionLogRequestIdMap,
 }
 
 #[cfg_attr(test, mockall::automock)]
-// [impl->swdd~log-campaign-store-stores-log-subscriptions-metadata~1]
+// [impl->swdd~log-campaign-store-holds-log-campaign-metadata~1]
 impl LogCampaignStore {
     pub fn insert_log_campaign(
         &mut self,
-        input_request_id: &LogSubscriberRequestId,
+        input_request_id: &LogCollectorRequestId,
         log_providers: &Vec<WorkloadInstanceName>,
     ) {
         let request_id: RequestId = input_request_id.into();
@@ -213,7 +213,7 @@ impl LogCampaignStore {
     pub fn remove_cli_log_campaign_entry(
         &mut self,
         cli_connection_name: &CliConnectionName,
-    ) -> HashSet<LogSubscriberRequestId> {
+    ) -> HashSet<LogCollectorRequestId> {
         let removed_request_ids = self.cli_log_request_id_store.remove(cli_connection_name);
 
         if let Some(removed_request_ids) = &removed_request_ids {
@@ -225,7 +225,7 @@ impl LogCampaignStore {
         to_string_ids(removed_request_ids.unwrap_or_default())
     }
 
-    pub fn remove_logs_request_id(&mut self, input_request_id: &LogSubscriberRequestId) {
+    pub fn remove_logs_request_id(&mut self, input_request_id: &LogCollectorRequestId) {
         let request_id: RequestId = input_request_id.into();
         log::debug!("Remove log campaign '{}'", request_id);
 
@@ -246,7 +246,7 @@ impl LogCampaignStore {
     pub fn remove_collector_campaign_entry(
         &mut self,
         workload_name: &WorkloadName,
-    ) -> HashSet<LogSubscriberRequestId> {
+    ) -> HashSet<LogCollectorRequestId> {
         log::debug!(
             "Removing collector campaign for workload '{}'",
             workload_name
@@ -307,7 +307,7 @@ impl LogCampaignStore {
 
     fn remove_request_from_log_providers_store(
         &mut self,
-        agent_request_id: &LogSubscriberRequestId,
+        agent_request_id: &LogCollectorRequestId,
     ) {
         self.log_providers_store
             .retain(|_agent_name, provider_map| {
@@ -327,7 +327,7 @@ impl LogCampaignStore {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~log-campaign-store-stores-log-subscriptions-metadata~1]
+// [utest->swdd~log-campaign-store-holds-log-campaign-metadata~1]
 #[cfg(test)]
 mod tests {
     use common::objects::WorkloadInstanceName;

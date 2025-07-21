@@ -149,7 +149,7 @@ The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implem
 
 ### WorkloadLogFacade
 
-The `WorkloadLogFacade` encapsulates all steps to initialize a log collection campaign, when the agent receives a request from the server to collect logs for workloads.
+The `WorkloadLogFacade` encapsulates all steps to initialize the local to the current Ankaios agent log collection.
 
 ### External Libraries
 
@@ -3289,16 +3289,90 @@ Needs:
 
 ### Authorizing access to the Control Interface
 
+#### Supported authorization rules
+`swdd~agent-authorizing-supported-rules~1`
+
+Status: approved
+
+The Control Interface Authorizer supports the following type of authorization rules:
+* StateRule - allowing or denying "read"s and/or "write"s to specified parts of the Complete State
+* LogRule - allowing the requests of logs of specified workloads
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
 #### Request operations
-`swdd~agent-authorizing-request-operations~1`
+`swdd~agent-authorizing-request-operations~2`
 
 Status: approved
 
 When the Authorizer checks if a Workload is allowed to make a request,
 the Authorizer shall use:
 
-* "read" and "write_read" rules for a CompleteStateRequest.
-* "write" and "write_read" rules for a UpdateStateRequest.
+* `StateRule`s for CompleteStateRequests and UpdateStateRequests
+* `LogRule`s for LogsRequests
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### LogsRequest allowed if collection of logs for all requested workloads is allowed
+`swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1`
+
+Status: approved
+
+When the Authorizer checks if a workload is allowed to make a `LogsRequest`,
+the Authorizer shall:
+* deny the request if a requested workload name is found that has no allow LogRule matching it
+* deny the request if a requested workload name is found that has a deny LogRule matching it
+* allow the request otherwise
+
+Comment:
+Note that a LogsRequest with no specified workloads would be allowed as it is not denied by the above conditions.
+Requesting logs for no workload indeed does not make sense, but should not be explicitly denied as it has no effect at the end.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### LogRule matches a LogsRequest
+`swdd~agent-authorizing-log-rules-matches-request~1`
+
+Status: approved
+
+When the Authorizer checks a workload name from a `LogsRequest` against a `LogRule`,
+the Authorizer shall consider workload name matching if an entry of the `LogRule`:
+* completely matches the workload name or
+* is only consisting of a wildcard "*"
+* contains a wildcard "*" and the workload name starts with the prefix specified by the characters before the wildcard and ends with the characters after the wildcard
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### LogsCancelRequest always allowed
+`swdd~agent-authorizing-logs-cancel-always-allowed~1`
+
+Status: approved
+
+When the Authorizer checks if a workload is allowed to make a `LogsCancelRequest`,
+the Authorizer shall always allow the request.
+
+Rationale:
+`LogsCancelRequest` carry no specific information and can only stop an already allowed log collection.
 
 Tags:
 - Authorizer
@@ -3312,7 +3386,7 @@ Needs:
 
 Status: approved
 
-The Authorizer allows an UpdateStateRequest with an empty update mask or a CompleteStateRequest with an empty field mask only if all of the following is true:
+The Authorizer allows an `UpdateStateRequest` with an empty update mask or a `CompleteStateRequest` with an empty field mask only if all of the following is true:
 
 * there is a corresponding (write/read) allow rule with a wildcard "*"
 * there is no corresponding (write/read) deny rule with a wildcard "*"
@@ -3324,12 +3398,12 @@ Needs:
 - impl
 - utest
 
-#### Request allowed if all elements of filter mask are allowed
+#### State request allowed if all elements of filter mask are allowed
 `swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1`
 
 Status: approved
 
-When the Authorizer checks if a Workload is allowed to make a request
+When the Authorizer checks if a Workload is allowed to make a state request
 and all entries of the update/field mask are allowed,
 the Authorizer shall allow the request.
 
@@ -3345,7 +3419,7 @@ Needs:
 
 Status: approved
 
-When the Authorizer checks an individual entry of the update/field mask of an request,
+When the Authorizer checks an individual entry of the update/field mask of a state request,
 the Authorizer shall allow this element if all of the following is true:
 
 * there is at least one allow rule with a filter mask entry matching the update/field mask entry
@@ -3457,7 +3531,7 @@ When the WorkloadLogFacade is triggered by the AgentManager to start the log col
 * request the RuntimeManager to start collecting logs for the workload names
 * initialize the log collector subscriptions with their log receivers for the provided workload names
 * spawn the reading and forwarding of the logs for the provided workloads
-* add a log subscription entry to the subscription store
+* add a log subscription entry to the SubscriptionStore
 
 Rationale:
 Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection campaign is finished.
@@ -3506,13 +3580,30 @@ Needs:
 
 Status: approved
 
-When the WorkloadLogFacade has no more logs to forward for a log subscription, the WorkloadLogFacade shall delete the log subscription entry of the log collection campaign from the subscription store.
+When the WorkloadLogFacade has no more logs to forward for a log subscription, the WorkloadLogFacade shall delete the log subscription entry of the log collection campaign from the SubscriptionStore.
 
 Rationale:
 The subscriber does not have to actively cancel the log collection campaign if no more logs are available from workloads, which simplifies the API usage.
 
 Tags:
 - WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### Agent handles LogsCancelRequest from the server
+`swdd~agent-handles-logs-cancel-requests-from-server~1`
+
+Status: approved
+
+When the AgentManager receives a `LogsCancelRequest` message from the Ankaios server, the AgentManager shall delete the corresponding log subscription from the SubscriptionStore.
+
+Comment:
+When a subscription is deleted from the SubscriptionStore, the subscription automatically stops the collection of logs for workload on the current agent.
+
+Tags:
+- AgentManager
 
 Needs:
 - impl
@@ -3525,7 +3616,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives a `ServerGone` message, the AgentManager shall delete all existing entries from its log subscription store.
+When the AgentManager receives a `ServerGone` message, the AgentManager shall delete all existing entries from its log SubscriptionStore.
 
 Comment:
 The Agent remains operational.
