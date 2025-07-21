@@ -361,7 +361,7 @@ def err_logging_decorator(func: callable) -> callable:
         try:
             ret = func(*args, **kwargs)
         except Exception as e:
-            logger.error(f"Python error in function \"{func.__name__}\":")
+            logger.info(f"Python error in function \"{func.__name__}\":", also_console=False)
             raise e
         return ret
     return wrapper

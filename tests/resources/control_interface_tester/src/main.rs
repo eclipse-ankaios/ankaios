@@ -13,7 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::response::ResponseContent;
-use api::ank_base::{LogEntriesResponse, LogsRequestAccepted, State, UpdateStateRequest};
+use api::ank_base::{
+    LogEntriesResponse, LogsCancelAccepted, LogsRequestAccepted, State, UpdateStateRequest,
+};
 
 use api::control_api::{from_ankaios::FromAnkaiosEnum, FromAnkaios};
 
@@ -109,10 +111,10 @@ enum TestResultEnum {
     GetStateResult(TagSerializedResult<Option<State>>),
     LogRequestResponse(TagSerializedResult<LogsRequestAccepted>),
     LogEntriesResponse(TagSerializedResult<LogEntriesResponse>),
+    LogCancelResponse(TagSerializedResult<LogsCancelAccepted>),
     NoApi,
     SendHelloResult(TagSerializedResult<()>),
     ConnectionClosed,
-    NoCheckNeeded,
 }
 
 #[derive(Serialize)]
@@ -511,7 +513,7 @@ impl Connection {
                 TagSerializedResult::Err(error.message),
             )),
             response_content => Err(CommandError::GenericError(format!(
-                "Received wrong response type. Expected LogsResponse, received: '{:?}'",
+                "Received wrong response type. Expected LogsRequestAccepted, received: '{:?}'",
                 response_content
             ))),
         }
@@ -553,7 +555,19 @@ impl Connection {
             .write_all(&proto.encode_length_delimited_to_vec())
             .unwrap();
 
-        Ok(TestResultEnum::NoCheckNeeded)
+        let response = self.wait_for_response(request_id)?;
+        match response {
+            ResponseContent::LogsCancelAccepted(logs_response) => Ok(
+                TestResultEnum::LogCancelResponse(TagSerializedResult::Ok(logs_response)),
+            ),
+            ResponseContent::Error(error) => Ok(TestResultEnum::LogEntriesResponse(
+                TagSerializedResult::Err(error.message),
+            )),
+            response_content => Err(CommandError::GenericError(format!(
+                "Received wrong response type. Expected LogsCancelAccepted, received: '{:?}'",
+                response_content
+            ))),
+        }
     }
 
     fn read_message(&mut self) -> Result<FromAnkaiosEnum, String> {
