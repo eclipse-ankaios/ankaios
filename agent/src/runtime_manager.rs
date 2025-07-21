@@ -34,7 +34,7 @@ use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 use crate::{
     control_interface::ControlInterfacePath,
-    runtime_connectors::{log_collector::LogCollector, LogRequestOptions},
+    runtime_connectors::{log_picker::LogPicker, LogRequestOptions},
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -631,10 +631,10 @@ impl RuntimeManager {
         }
     }
 
-    pub async fn get_logs(
+    pub async fn get_log_pickers(
         &self,
         log_request: LogsRequest,
-    ) -> Vec<(WorkloadInstanceName, Box<dyn LogCollector>)> {
+    ) -> Vec<(WorkloadInstanceName, Box<dyn LogPicker>)> {
         let mut res = Vec::new();
         let log_request_options: LogRequestOptions = log_request.clone().into();
         for workload in log_request.workload_names {
@@ -647,9 +647,9 @@ impl RuntimeManager {
                 .start_collecting_logs(log_request_options.clone())
                 .await
             {
-                Ok(log_collector) => res.push((workload, log_collector)),
+                Ok(log_picker) => res.push((workload, log_picker)),
                 Err(err) => log::info!(
-                    "Did not get log collector for '{}': '{}'.",
+                    "Did not get log picker for '{}': '{}'.",
                     workload.workload_name(),
                     err
                 ),
@@ -678,7 +678,7 @@ mod tests {
         authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
         MockControlInterface,
     };
-    use crate::runtime_connectors::log_collector::MockLogCollector;
+    use crate::runtime_connectors::log_picker::MockLogPicker;
     use crate::runtime_connectors::{
         LogRequestOptions, MockRuntimeFacade, ReusableWorkloadState, RuntimeError,
     };
@@ -2909,7 +2909,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_execute_workload_operations_get_logs() {
+    async fn utest_execute_workload_operations_get_log_pickers() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -2934,7 +2934,7 @@ mod tests {
                 until: None,
             }))
             .once()
-            .returning(|_| Ok(Box::new(MockLogCollector::new())));
+            .returning(|_| Ok(Box::new(MockLogPicker::new())));
         let mut workload_2_mock = MockWorkload::default();
         workload_2_mock
             .expect_start_collecting_logs()
@@ -2955,7 +2955,7 @@ mod tests {
             .insert(WORKLOAD_2_NAME.to_string(), workload_2_mock);
 
         let res = runtime_manager
-            .get_logs(LogsRequest {
+            .get_log_pickers(LogsRequest {
                 workload_names: vec![
                     WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID),
                     WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_2_NAME, WORKLOAD_ID),

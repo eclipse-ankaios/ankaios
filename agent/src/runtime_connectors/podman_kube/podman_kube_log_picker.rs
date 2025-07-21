@@ -12,20 +12,20 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::super::log_collector::{GetOutputStreams, StreamTrait};
+use super::super::log_picker::{GetOutputStreams, StreamTrait};
 use super::PodmanKubeWorkloadId;
 use crate::runtime_connectors::runtime_connector::LogRequestOptions;
 
 #[derive(Debug)]
-pub struct PodmanKubeLogCollector {}
+pub struct PodmanKubeLogPicker {}
 
-impl PodmanKubeLogCollector {
+impl PodmanKubeLogPicker {
     pub fn new(_workload_id: &PodmanKubeWorkloadId, _options: &LogRequestOptions) -> Self {
         Self {}
     }
 }
 
-impl GetOutputStreams for PodmanKubeLogCollector {
+impl GetOutputStreams for PodmanKubeLogPicker {
     type OutputStream = Box<dyn StreamTrait>;
     type ErrStream = Box<dyn StreamTrait>;
 

@@ -35,7 +35,7 @@ use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 use crate::control_interface::ControlInterface;
 use crate::{
     control_interface::ControlInterfacePath,
-    runtime_connectors::{log_collector::LogCollector, LogRequestOptions},
+    runtime_connectors::{log_picker::LogPicker, LogRequestOptions},
 };
 
 use api::ank_base;
@@ -74,7 +74,7 @@ pub enum WorkloadCommand {
     Retry(Box<WorkloadInstanceName>, RetryToken),
     Create,
     Resume,
-    StartLogCollector(LogRequestOptions, oneshot::Sender<Box<dyn LogCollector>>),
+    StartLogPicker(LogRequestOptions, oneshot::Sender<Box<dyn LogPicker>>),
 }
 
 #[cfg(test)]
@@ -86,7 +86,7 @@ impl PartialEq for WorkloadCommand {
             (Self::Retry(l0, l1), Self::Retry(r0, r1)) => (l0, l1) == (r0, r1),
             (Self::Create, Self::Create) => true,
             (Self::Resume, Self::Resume) => true,
-            (Self::StartLogCollector(_, _), Self::StartLogCollector(_, _)) => false,
+            (Self::StartLogPicker(_, _), Self::StartLogPicker(_, _)) => false,
             _ => false,
         }
     }
@@ -222,7 +222,7 @@ impl Workload {
     pub async fn start_collecting_logs(
         &self,
         log_request_options: LogRequestOptions,
-    ) -> Result<Box<dyn LogCollector>, Box<dyn Error>> {
+    ) -> Result<Box<dyn LogPicker>, Box<dyn Error>> {
         self.channel
             .start_collecting_logs(log_request_options)
             .await
@@ -258,7 +258,7 @@ mod tests {
             authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
             ControlInterfacePath, MockControlInterface,
         },
-        runtime_connectors::{log_collector::MockLogCollector, LogRequestOptions},
+        runtime_connectors::{log_picker::MockLogPicker, LogRequestOptions},
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
@@ -725,13 +725,13 @@ mod tests {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         let jh = tokio::spawn(async move {
-            let Some(WorkloadCommand::StartLogCollector(options, result_sink)) =
+            let Some(WorkloadCommand::StartLogPicker(options, result_sink)) =
                 workload_command_receiver.recv().await
             else {
                 panic!("Did not receive StartLogCollection command")
             };
             assert_eq!(options, LOG_REQUEST_OPTIONS);
-            result_sink.send(Box::new(MockLogCollector::new())).unwrap();
+            result_sink.send(Box::new(MockLogPicker::new())).unwrap();
         });
 
         let test_workload =

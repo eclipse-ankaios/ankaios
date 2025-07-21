@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     control_interface::ControlInterfacePath,
-    runtime_connectors::{log_collector::LogCollector, LogRequestOptions},
+    runtime_connectors::{log_picker::LogPicker, LogRequestOptions},
     workload::WorkloadCommand,
 };
 use common::objects::{WorkloadInstanceName, WorkloadSpec};
@@ -92,13 +92,10 @@ impl WorkloadCommandSender {
     pub async fn start_collecting_logs(
         &self,
         log_request_options: LogRequestOptions,
-    ) -> Result<Box<dyn LogCollector>, Box<dyn std::error::Error>> {
+    ) -> Result<Box<dyn LogPicker>, Box<dyn std::error::Error>> {
         let (sender, receiver) = oneshot::channel();
         self.sender
-            .send(WorkloadCommand::StartLogCollector(
-                log_request_options,
-                sender,
-            ))
+            .send(WorkloadCommand::StartLogPicker(log_request_options, sender))
             .await?;
         Ok(receiver.await?)
     }
@@ -115,7 +112,7 @@ impl WorkloadCommandSender {
 #[cfg(test)]
 mod tests {
     use crate::{
-        runtime_connectors::{log_collector::MockLogCollector, LogRequestOptions},
+        runtime_connectors::{log_picker::MockLogPicker, LogRequestOptions},
         workload::retry_manager::MockRetryToken,
     };
 
@@ -239,10 +236,7 @@ mod tests {
     async fn utest_start_collecting_logs_success() {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
-        let jh = listen_for_start_log_collector(
-            workload_command_receiver,
-            Some(MockLogCollector::new()),
-        );
+        let jh = listen_for_start_log_picker(workload_command_receiver, Some(MockLogPicker::new()));
 
         let res = workload_command_sender
             .start_collecting_logs(LOG_REQUEST_OPTIONS.clone())
@@ -256,7 +250,7 @@ mod tests {
     async fn utest_start_collecting_logs_no_result() {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
-        let jh = listen_for_start_log_collector(workload_command_receiver, None);
+        let jh = listen_for_start_log_picker(workload_command_receiver, None);
 
         let res = workload_command_sender
             .start_collecting_logs(LOG_REQUEST_OPTIONS.clone())
@@ -277,14 +271,14 @@ mod tests {
         assert!(res.is_err());
     }
 
-    fn listen_for_start_log_collector(
+    fn listen_for_start_log_picker(
         mut receiver: Receiver<WorkloadCommand>,
-        res: Option<MockLogCollector>,
+        res: Option<MockLogPicker>,
     ) -> tokio::task::JoinHandle<()> {
         tokio::spawn(async move {
             let command = receiver.recv().await.unwrap();
-            let WorkloadCommand::StartLogCollector(options, result_sink) = command else {
-                panic!("Expected WorkloadCommand::StartLogCollector")
+            let WorkloadCommand::StartLogPicker(options, result_sink) = command else {
+                panic!("Expected WorkloadCommand::StartLogPicker")
             };
             assert_eq!(options, LOG_REQUEST_OPTIONS);
             if let Some(res) = res {

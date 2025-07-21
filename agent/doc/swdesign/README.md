@@ -3529,7 +3529,7 @@ Status: approved
 
 When the WorkloadLogFacade is triggered by the AgentManager to start the log collection campaign for the provided workloads, the WorkloadLogFacade shall:
 * request the RuntimeManager to start collecting logs for the workload names
-* initialize the log collector subscriptions with their log receivers for the provided workload names
+* initialize the log picking runners with their log receivers for the provided workload names
 * spawn the reading and forwarding of the logs for the provided workloads
 * add a log subscription entry to the SubscriptionStore
 
