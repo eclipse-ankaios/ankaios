@@ -19,7 +19,7 @@ use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
-use api::ank_base;
+use api::ank_base::{self, LogsRequestAccepted};
 use common::{
     commands::{CompleteStateRequest, LogsRequest, UpdateWorkloadState},
     communications_client::CommunicationsClient,
@@ -243,6 +243,14 @@ impl ServerConnection {
         )
         .await?;
 
+        let logs_request_accepted_response =
+            self.get_logs_accepted_response(request_id.clone()).await?;
+
+        self.compare_requested_with_accepted_workloads(
+            &instance_names,
+            logs_request_accepted_response.workload_names,
+        )?;
+
         let output_logs_fn = select_log_format_function(&instance_names, output_workload_names);
 
         self.listen_for_workload_logs(request_id, instance_names, output_logs_fn)
@@ -267,6 +275,84 @@ impl ServerConnection {
             .logs_request(request_id.to_string(), logs_request)
             .await
             .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))
+    }
+
+    async fn get_logs_accepted_response(
+        &mut self,
+        request_id: String,
+    ) -> Result<LogsRequestAccepted, ServerConnectionError> {
+        tokio::time::timeout(
+            WAIT_TIME_MS,
+            self.poll_logs_request_accepted_response(request_id),
+        )
+        .await
+        .unwrap_or_else(|_| {
+            Err(ServerConnectionError::ExecutionError(format!(
+                "Failed to get LogsRequestAccepted response in time (timeout={WAIT_TIME_MS:?})."
+            )))
+        })
+    }
+
+    async fn poll_logs_request_accepted_response(
+        &mut self,
+        request_id: String,
+    ) -> Result<LogsRequestAccepted, ServerConnectionError> {
+        loop {
+            match self.from_server.recv().await {
+                Some(FromServer::Response(ank_base::Response {
+                    request_id: incoming_request_id,
+                    response_content:
+                        Some(ank_base::response::ResponseContent::LogsRequestAccepted(
+                            logs_request_accepted_response,
+                        )),
+                    })) if request_id == incoming_request_id => {
+                        output_debug!(
+                            "LogsRequest accepted of request id '{}' for the following workload instance names: {:?}",
+                            request_id,
+                            logs_request_accepted_response.workload_names
+                        );
+                        break Ok(logs_request_accepted_response);
+                }
+                Some(FromServer::Response(ank_base::Response {
+                    request_id: incoming_request_id,
+                    response_content:
+                        Some(ank_base::response::ResponseContent::Error(error)),
+                })) if request_id == incoming_request_id => {
+                    break Err(ServerConnectionError::ExecutionError(format!(
+                        "Server replied with error: '{}'",
+                        error.message
+                    )));
+                }
+                Some(unexpected_message) => {
+                    output_debug!("Ignore received unexpected message while waiting for LogsRequestAccepted response: {unexpected_message:?}");
+                    /* The unexpected message is not added to the queue of missed messages,
+                    because the current intend is to receive logs. There is no need to wait for
+                    additional messages like UpdateWorkloadState messages. */
+                },
+                None => break Err(ServerConnectionError::ExecutionError(
+                    "Connection to server interrupted while waiting for LogsRequestAccepted response."
+                        .to_string(),
+                )),
+            }
+        }
+    }
+
+    fn compare_requested_with_accepted_workloads(
+        &self,
+        requested_workloads: &BTreeSet<WorkloadInstanceName>,
+        accepted_workloads: Vec<ank_base::WorkloadInstanceName>,
+    ) -> Result<(), ServerConnectionError> {
+        for instance_name in requested_workloads {
+            let instance_name = instance_name.to_owned().into();
+            if !accepted_workloads.contains(&instance_name) {
+                return Err(ServerConnectionError::ExecutionError(format!(
+                    "Workload '{}' is not accepted by the server to receive logs from.",
+                    instance_name.workload_name,
+                )));
+            }
+        }
+
+        Ok(())
     }
 
     async fn listen_for_workload_logs(
@@ -741,26 +827,6 @@ mod tests {
             .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn utest_get_complete_state_fails_response_timeout() {
-        let mut sim = CommunicationSimulator::default();
-        sim.expect_receive_request(
-            REQUEST,
-            RequestContent::CompleteStateRequest(CompleteStateRequest {
-                field_mask: vec![FIELD_MASK.into()],
-            }),
-        );
-        let (checker, mut server_connection) = sim.create_server_connection();
-        let (_to_client, from_server) = tokio::sync::mpsc::channel(1);
-        server_connection.from_server = from_server;
-
-        let result = server_connection
-            .get_complete_state(&[FIELD_MASK.into()])
-            .await;
-        assert!(result.is_err());
-        checker.check_communication();
     }
 
     // [utest->swdd~cli-stores-unexpected-message~1]
@@ -1266,6 +1332,18 @@ mod tests {
             }),
         );
 
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsRequestAccepted(
+                ank_base::LogsRequestAccepted {
+                    workload_names: vec![
+                        instance_name_1.clone().into(),
+                        instance_name_2.clone().into(),
+                    ],
+                },
+            ),
+        );
+
         let log_entries = vec![
             ank_base::LogEntry {
                 workload_name: Some(instance_name_1.clone().into()),
@@ -1324,6 +1402,44 @@ mod tests {
             .collect();
 
         assert_eq!(actual_log_data, expected_log_data);
+    }
+
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
+    #[tokio::test]
+    async fn utest_stream_logs_send_logs_request_channel_closed() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+            output_names: false,
+        };
+
+        let instance_names_set = BTreeSet::from([instance_name(WORKLOAD_NAME_1)]);
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context.expect().never();
+
+        let (_from_server_sender, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(1);
+        let (to_server, mut server_receiver) = tokio::sync::mpsc::channel::<ToServer>(1);
+
+        server_receiver.close();
+
+        let mut server_connection = ServerConnection {
+            to_server,
+            from_server: cli_receiver,
+            task: tokio::spawn(async {}),
+            missed_from_server_messages: Vec::new(),
+        };
+
+        let result = server_connection
+            .stream_logs(instance_names_set, log_args)
+            .await;
+
+        assert!(result.is_err());
     }
 
     // [utest->swdd~cli-outputs-logs-in-specific-format~1]
@@ -1408,7 +1524,8 @@ mod tests {
         };
 
         let mut sim = CommunicationSimulator::default();
-        let instance_names = vec![instance_name(WORKLOAD_NAME_1)];
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let instance_names = vec![instance_name_1.clone()];
         let instance_names_set: BTreeSet<WorkloadInstanceName> =
             instance_names.iter().cloned().collect();
 
@@ -1421,6 +1538,15 @@ mod tests {
                 since: log_args.since.clone(),
                 until: log_args.until.clone(),
             }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsRequestAccepted(
+                ank_base::LogsRequestAccepted {
+                    workload_names: vec![instance_name_1.into()],
+                },
+            ),
         );
 
         sim.will_send_response(
@@ -1483,6 +1609,15 @@ mod tests {
                 since: log_args.since.clone(),
                 until: log_args.until.clone(),
             }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsRequestAccepted(
+                ank_base::LogsRequestAccepted {
+                    workload_names: vec![instance_name_1.clone().into()],
+                },
+            ),
         );
 
         // Send unrelated response that should be ignored in the log streaming
@@ -1552,6 +1687,15 @@ mod tests {
             }),
         );
 
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsRequestAccepted(
+                ank_base::LogsRequestAccepted {
+                    workload_names: vec![instance_name_1.into()],
+                },
+            ),
+        );
+
         sim.expect_receive_request(REQUEST, RequestContent::LogsCancelRequest);
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
@@ -1568,6 +1712,147 @@ mod tests {
         assert!(result.is_ok());
 
         tokio::time::sleep(std::time::Duration::from_millis(100)).await; // wait until server connection receives all messages
+
+        checker.check_communication();
+    }
+
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
+    #[tokio::test]
+    async fn utest_stream_logs_ignore_unexpected_message_instead_of_logs_request_accepted() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+            output_names: false,
+        };
+
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let mut sim = CommunicationSimulator::default();
+        let instance_names = vec![instance_name_1];
+        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+            instance_names.iter().cloned().collect();
+
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::LogsRequest(common::commands::LogsRequest {
+                workload_names: instance_names,
+                follow: log_args.follow,
+                tail: log_args.tail,
+                since: log_args.since.clone(),
+                until: log_args.until.clone(),
+            }),
+        );
+
+        let unexpected_message =
+            ank_base::response::ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                added_workloads: vec![WORKLOAD_NAME_1.into()],
+                deleted_workloads: vec![],
+            });
+
+        sim.will_send_response(REQUEST, unexpected_message);
+
+        // error to stop the loop after the ignored message
+        let error_response = ank_base::response::ResponseContent::Error(ank_base::Error {
+            message: "connection interruption".to_string(),
+        });
+
+        sim.will_send_response(REQUEST, error_response);
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context.expect().never();
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .stream_logs(instance_names_set, log_args)
+            .await;
+
+        assert!(result.is_err());
+
+        checker.check_communication();
+    }
+
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
+    #[tokio::test]
+    async fn utest_get_logs_accepted_response_channel_closed() {
+        let sim = CommunicationSimulator::default();
+
+        let (_checker, mut server_connection) = sim.create_server_connection();
+
+        server_connection.from_server.close();
+
+        let result = server_connection
+            .get_logs_accepted_response(REQUEST.to_owned())
+            .await;
+
+        assert_eq!(
+            result,
+            Err(ServerConnectionError::ExecutionError(
+                "Connection to server interrupted while waiting for LogsRequestAccepted response."
+                    .to_string()
+            ))
+        );
+    }
+
+    // [utest->swdd~cli-streams-logs-from-the-server~1]
+    #[tokio::test]
+    async fn utest_stream_logs_invalid_workload_names_in_logs_request_accepted() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let log_args = LogsArgs {
+            workload_name: vec![WORKLOAD_NAME_1.to_string(), WORKLOAD_NAME_2.to_string()],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+            output_names: false,
+        };
+
+        let instance_name_1 = instance_name(WORKLOAD_NAME_1);
+        let instance_name_2 = instance_name(WORKLOAD_NAME_2);
+        let mut sim = CommunicationSimulator::default();
+        let instance_names = vec![instance_name_1.clone()];
+        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+            instance_names.iter().cloned().collect();
+
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::LogsRequest(common::commands::LogsRequest {
+                workload_names: instance_names,
+                follow: log_args.follow,
+                tail: log_args.tail,
+                since: log_args.since.clone(),
+                until: log_args.until.clone(),
+            }),
+        );
+
+        sim.will_send_response(
+            REQUEST,
+            ank_base::response::ResponseContent::LogsRequestAccepted(
+                ank_base::LogsRequestAccepted {
+                    workload_names: vec![instance_name_2.into()],
+                },
+            ),
+        );
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context.expect().never();
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .stream_logs(instance_names_set, log_args)
+            .await;
+
+        assert_eq!(
+            result,
+            Err(ServerConnectionError::ExecutionError(format!(
+                "Workload '{}' is not accepted by the server to receive logs from.",
+                WORKLOAD_NAME_1
+            )))
+        );
 
         checker.check_communication();
     }

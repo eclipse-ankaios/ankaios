@@ -389,7 +389,7 @@ message StateRule {
 * Message containing a rule for getting workload logs
 **/
 message LogRule {
-  repeated string workloadNames = 1; // The names of the workloads the rule applies to. If empty, the rule does not apply to any workload.
+  repeated string workloadNames = 1; // The names of the workloads the rule applies to. If empty, the rule does not apply to any workload. Wildcard "*" can be used to match all workloads.
 }
 
 /**
