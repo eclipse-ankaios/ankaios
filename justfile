@@ -51,7 +51,16 @@ utest:
     RUST_LOG=debug cargo nextest --config-file nextest.toml run
 
 # Build debug and run all system tests
-stest: build stest-only
+stest: build build-stest-image stest-only
+
+build-stest-image:
+    #!/usr/bin/env bash
+    SRC_HASH="$(./tools/control_interface_workload_hash.sh)"
+    podman pull "ghcr.io/eclipse-ankaios/control_interface_tester:$SRC_HASH"
+    if [ $? -ne 0 ]; then
+        podman build -t "ghcr.io/eclipse-ankaios/control_interface_tester:$SRC_HASH" --build-arg=SRC_HASH="$SRC_HASH" . -f tests/resources/control_interface_tester/Dockerfile
+        echo 'Had to build control_interface_tester image. Consider uploading it with `podman push ghcr.io/eclipse-ankaios/control_interface_tester:'"$SRC_HASH"'`'
+    fi
 
 # Only execute the stests without building
 stest-only tests="tests":
