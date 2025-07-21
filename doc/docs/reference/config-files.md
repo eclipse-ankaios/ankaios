@@ -12,9 +12,9 @@ The configuration files are formatted in [TOML](https://toml.io/), which is easy
 
 The Ankaios configuration files are per default loaded from the following location:
 
-- **Server Configuration**: `/etc/ankaios/server.toml`
-- **Agent Configuration**: `/etc/ankaios/server.toml`
-- **CLI Configuration**: `$HOME/.config/ankaios/ank.toml`
+- **Server Configuration**: `/etc/ankaios/ank-server.conf`
+- **Agent Configuration**: `/etc/ankaios/ank-agent.conf`
+- **CLI Configuration**: `$HOME/.config/ankaios/ank.conf`
 
 ## Configuration File Structure
 
