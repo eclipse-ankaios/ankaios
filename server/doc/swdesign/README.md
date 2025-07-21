@@ -1183,6 +1183,7 @@ The agent collecting the logs from the requested workloads must be informed to s
 Tags:
 - AnkaiosServer
 - LogCampaignStore
+- ServerState
 
 Needs:
 - impl
