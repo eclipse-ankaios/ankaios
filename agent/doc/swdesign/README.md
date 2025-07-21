@@ -3517,7 +3517,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives a `LogsRequest` message from the Ankaios server, the AgentManager shall delegate the start of the log collection campaign to the WorkloadLogFacade.
+When the AgentManager receives a `LogsRequest` message from the Ankaios server, the AgentManager shall delegate the start of the log collection to the WorkloadLogFacade.
 
 Rationale:
 The process of collecting logs for workloads must be decoupled from the main loop of the agent that handles incoming messages from the server.
@@ -3530,19 +3530,19 @@ Needs:
 - impl
 - utest
 
-#### WorkloadLogFacade starts log collection campaign for workloads
-`swdd~workload-log-facade-starts-log-collection-campaign~1`
+#### WorkloadLogFacade starts log collection for workloads
+`swdd~workload-log-facade-starts-log-collection~1`
 
 Status: approved
 
-When the WorkloadLogFacade is triggered by the AgentManager to start the log collection campaign for the provided workloads, the WorkloadLogFacade shall:
+When the WorkloadLogFacade is triggered by the AgentManager to start the log collection for the provided workloads, the WorkloadLogFacade shall:
 * request the RuntimeManager to start collecting logs for the workload names
 * initialize the log picking runners with their log receivers for the provided workload names
 * spawn the reading and forwarding of the logs for the provided workloads
 * add a log subscription entry to the SubscriptionStore
 
 Rationale:
-Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection campaign is finished.
+Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection is finished.
 
 Tags:
 - WorkloadLogFacade
@@ -3588,10 +3588,10 @@ Needs:
 
 Status: approved
 
-When the WorkloadLogFacade has no more logs to forward for a log subscription, the WorkloadLogFacade shall delete the log subscription entry of the log collection campaign from the SubscriptionStore.
+When the WorkloadLogFacade has no more logs to forward for a log subscription, the WorkloadLogFacade shall delete the log subscription entry of the log collection from the SubscriptionStore.
 
 Rationale:
-The subscriber does not have to actively cancel the log collection campaign if no more logs are available from workloads, which simplifies the API usage.
+The subscriber does not have to actively cancel the log collection if no more logs are available from workloads, which simplifies the API usage.
 
 Tags:
 - WorkloadLogFacade
@@ -3617,6 +3617,8 @@ Tags:
 Needs:
 - impl
 - utest
+
+
 
 ### Handling connection interruption to server
 

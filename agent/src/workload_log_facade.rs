@@ -52,7 +52,7 @@ type UnorderedLogReceiverFutures =
 
 #[cfg_attr(test, automock)]
 impl WorkloadLogFacade {
-    // [impl->swdd~workload-log-facade-starts-log-collection-campaign~1]
+    // [impl->swdd~workload-log-facade-starts-log-collection~1]
     pub async fn spawn_log_collection(
         request_id: String,
         logs_request: LogsRequest,
@@ -235,7 +235,7 @@ mod tests {
         }
     }
 
-    // [utest->swdd~workload-log-facade-starts-log-collection-campaign~1]
+    // [utest->swdd~workload-log-facade-starts-log-collection~1]
     // [utest->swdd~workload-log-facade-forwards-logs-to-server~1]
     #[tokio::test]
     async fn utest_workload_log_facade_spawn_log_collection() {
@@ -275,13 +275,10 @@ mod tests {
 
         let mut mock_log_picking_runner = MockLogPickingRunner::new();
         let mock_log_picking_runner_dropped = Arc::new(Mutex::new(false));
-        let mock_log_picking_runner_dropped_clone =
-            mock_log_picking_runner_dropped.clone();
-        mock_log_picking_runner
-            .expect_drop()
-            .returning(move || {
-                *mock_log_picking_runner_dropped_clone.lock().unwrap() = true;
-            });
+        let mock_log_picking_runner_dropped_clone = mock_log_picking_runner_dropped.clone();
+        mock_log_picking_runner.expect_drop().returning(move || {
+            *mock_log_picking_runner_dropped_clone.lock().unwrap() = true;
+        });
 
         let collecting_logs_context = MockLogPickingRunner::start_collecting_logs_context();
         collecting_logs_context.expect().return_once(|_| {
