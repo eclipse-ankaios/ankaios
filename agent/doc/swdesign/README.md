@@ -3597,7 +3597,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives a `LogsCancelRequest` message from the Ankaios server, the AgentManager shall delegate log subscription from the SubscriptionStore.
+When the AgentManager receives a `LogsCancelRequest` message from the Ankaios server, the AgentManager shall delete the corresponding log subscription from the SubscriptionStore.
 
 Comment:
 When a subscription is deleted from the SubscriptionStore, the subscription automatically stops the collection of logs for workload on the current agent.
