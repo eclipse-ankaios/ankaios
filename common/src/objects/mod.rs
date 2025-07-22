@@ -67,8 +67,9 @@ pub use workload_spec::{
 pub use workload_spec::{STR_RE_AGENT, STR_RE_WORKLOAD};
 
 pub use workload_spec::{
-    get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
-    DeletedWorkloadCollection, FulfilledBy, RestartPolicy, WorkloadCollection, WorkloadSpec, verify_workload_name_format,
+    get_workloads_per_agent, verify_workload_name_format, AddCondition, DeleteCondition,
+    DeletedWorkload, DeletedWorkloadCollection, FulfilledBy, RestartPolicy, WorkloadCollection,
+    WorkloadSpec,
 };
 
 mod tag;
@@ -86,7 +87,7 @@ mod control_interface_access;
 #[cfg(any(feature = "test_utils", test))]
 pub use control_interface_access::generate_test_control_interface_access;
 pub use control_interface_access::{
-    AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum, StateRule, LogRule,
+    AccessRightsRule, ControlInterfaceAccess, LogRule, ReadWriteEnum, StateRule, WILDCARD_SYMBOL,
 };
 
 mod config;

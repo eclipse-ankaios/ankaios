@@ -16,6 +16,8 @@ use serde::{Deserialize, Serialize};
 
 use super::verify_workload_name_format;
 
+pub const WILDCARD_SYMBOL: &str = "*";
+
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ControlInterfaceAccess {

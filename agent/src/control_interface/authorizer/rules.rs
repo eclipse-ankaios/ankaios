@@ -18,9 +18,7 @@ use super::{
     path::Path,
     path_pattern::{PathPattern, PathPatternMatchReason, PathPatternMatcher},
 };
-use common::std_extensions::UnreachableOption;
-
-pub(crate) const WILDCARD_SYMBOL: &str = "*";
+use common::{objects::WILDCARD_SYMBOL, std_extensions::UnreachableOption};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct StateRule<P: PathPattern> {
