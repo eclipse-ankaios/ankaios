@@ -24,17 +24,17 @@ tokio = { version = "1.41", features = [
     "process",
     "signal",
 ] }
-nix = { version = "0.29", features = ["fs", "user"] }
+nix = { version = "0.30", features = ["fs", "user"] }
 async-trait = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 clap = { version = "4.5", features = ["derive", "env"] }
 futures-util = "0.3"
 serde_json = "1.0"
-toml = "0.8"
+toml = "0.9"
 sha256 = "1.5"
 umask = "2.1.0"
-sysinfo = "0.32"
+sysinfo = "0.36"
 regex = "1.10"
 rand = "0.9.0"
 
