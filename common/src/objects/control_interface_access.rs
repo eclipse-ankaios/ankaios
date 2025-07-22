@@ -14,7 +14,12 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::verify_workload_name_format;
+use super::{
+    verify_workload_name_format,
+    workload_spec::{
+        verify_workload_name_length, verify_workload_name_not_empty, verify_workload_name_pattern,
+    },
+};
 
 pub const WILDCARD_SYMBOL: &str = "*";
 
@@ -92,13 +97,40 @@ impl AccessRightsRule {
                 })?;
             }
             AccessRightsRule::LogRule(log_rule) => {
-                log_rule
-                    .workload_names
-                    .iter()
-                    .try_for_each(|name| verify_workload_name_format(name))?;
+                log_rule.workload_names.iter().try_for_each(|name| {
+                    Self::verify_log_rule_workload_name_pattern_format(name)
+                })?;
             }
         }
         Ok(())
+    }
+
+    fn verify_log_rule_workload_name_pattern_format(workload_name: &str) -> Result<(), String> {
+        if let Some(wildcard_pos) = workload_name.find(WILDCARD_SYMBOL) {
+            let prefix = &workload_name[..wildcard_pos];
+            let suffix = &workload_name[wildcard_pos + 1..];
+            if suffix.contains(WILDCARD_SYMBOL) {
+                Err(format!(
+                    "Expected at most one '{}' symbol.",
+                    WILDCARD_SYMBOL
+                ))
+            } else {
+                verify_workload_name_pattern(prefix)
+                    .and_then(|_| verify_workload_name_pattern(suffix))
+                    .and_then(|_| verify_workload_name_length(prefix.len() + suffix.len()))
+            }
+        } else {
+            let length = workload_name.len();
+            verify_workload_name_format(workload_name)
+                .and_then(|_| verify_workload_name_length(length))
+                .and_then(|_| verify_workload_name_not_empty(length))
+        }
+        .map_err(|err| {
+            format!(
+                "Unsupported workload name for log rule '{}'. {}",
+                workload_name, err
+            )
+        })
     }
 }
 

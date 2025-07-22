@@ -28,7 +28,7 @@ pub type WorkloadCollection = Vec<WorkloadSpec>;
 pub type DeletedWorkloadCollection = Vec<DeletedWorkload>;
 
 const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
-pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]+$";
+pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]*$";
 pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]+$";
 
 // [impl->swdd~common-object-serialization~1]
@@ -41,20 +41,39 @@ pub struct DeletedWorkload {
 
 // [impl->swdd~common-workload-naming-convention~1]
 pub fn verify_workload_name_format(workload_name: &str) -> Result<(), String> {
+    let length = workload_name.len();
+    verify_workload_name_pattern(workload_name)
+        .and_then(|_| verify_workload_name_not_empty(length))
+        .and_then(|_| verify_workload_name_length(length))
+        .map_err(|err| format!("Unsupported workload name '{}'. {}", workload_name, err))
+}
+
+pub fn verify_workload_name_pattern(workload_name: &str) -> Result<(), String> {
     let re_workloads = Regex::new(STR_RE_WORKLOAD).unwrap();
     if !re_workloads.is_match(workload_name) {
-        return Err(format!(
-            "Unsupported workload name. Received '{}', expected to have characters in {}",
-            workload_name, STR_RE_WORKLOAD
-        ));
-    }
-
-    if workload_name.len() > MAX_CHARACTERS_WORKLOAD_NAME {
         Err(format!(
-            "Workload name length {} exceeds the maximum limit of {} characters",
-            workload_name.len(),
-            MAX_CHARACTERS_WORKLOAD_NAME
+            "Expected to have characters in {}.",
+            STR_RE_WORKLOAD
         ))
+    } else {
+        Ok(())
+    }
+}
+
+pub fn verify_workload_name_length(length: usize) -> Result<(), String> {
+    if length > MAX_CHARACTERS_WORKLOAD_NAME {
+        Err(format!(
+            "Length {} exceeds the maximum limit of {} characters.",
+            length, MAX_CHARACTERS_WORKLOAD_NAME
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+pub fn verify_workload_name_not_empty(length: usize) -> Result<(), String> {
+    if length == 0 {
+        Err("Is empty.".into())
     } else {
         Ok(())
     }
@@ -599,11 +618,7 @@ mod tests {
         let workload_name = "".to_string();
         assert_eq!(
             verify_workload_name_format(&workload_name),
-            Err(format!(
-                "Unsupported workload name. Received '{}', expected to have characters in {}",
-                workload_name,
-                super::STR_RE_WORKLOAD
-            ))
+            Err("Unsupported workload name ''. Is empty.".into())
         );
     }
 
@@ -619,7 +634,7 @@ mod tests {
         assert_eq!(
             spec_with_wrong_workload_name.verify_fields_format(),
             Err(format!(
-                "Unsupported workload name. Received '{}', expected to have characters in {}",
+                "Unsupported workload name '{}'. Expected to have characters in {}.",
                 spec_with_wrong_workload_name.instance_name.workload_name(),
                 super::STR_RE_WORKLOAD
             ))
@@ -667,7 +682,8 @@ mod tests {
         assert_eq!(
             verify_workload_name_format(&workload_name),
             Err(format!(
-                "Workload name length {} exceeds the maximum limit of {} characters",
+                "Unsupported workload name '{}'. Length {} exceeds the maximum limit of {} characters.",
+                workload_name,
                 workload_name.len(),
                 super::MAX_CHARACTERS_WORKLOAD_NAME,
             ))
