@@ -28,28 +28,37 @@ The [control interface](./control-interface.md) enables a [workload](glossary.md
 
 ## Authorization
 
-Ankaios checks for each request from a workload to the control interface, if the workload is authorized.
-The authorization is configured for each workload using `controlInterfaceAccess`.
-A workload without `controlInterfaceAccess` configuration is denied all actions on the control interface.
-The authorization configuration consists of allow and deny rules.
-Each rule defines the operation (e.g. read) the workload is allowed to execute
-and with which filter masks it is allowed to execute this operation.
+Ankaios authorizes each workload's request to the control interface based on its `controlInterfaceAccess` configuration. If not set, all actions are denied. The authorization uses allow and deny rules to specify the permitted operations, where rules can be of type `StateRule` or `LogRule`.
 
-A filter mask describes a path in the CompleteState object.
-The segments of the path are divided by the '.' symbol.
-Segments can also be the wildcard character '*', indicating this segment shall match every possible field.
-E.g. `desiredState.workloads.*.tag` allows access to the tags of all workloads.
+`StateRule`s authorize the reading and/or the updating (writing) of the CompleteState. Additionally to the operation, a `StateRule` defines the target of the rule using a filter mask. A filter mask describes a path in the CompleteState object, where segments are divided by the '.' symbol and can also be generalized with the wildcard character '*', e.g., `desiredState.workloads.*.tag` allows access to the tags of all workloads.
 
-In an allow rule the path gives access to the exact path and also all subfields.
-E.g. an allow rule with `desiredState.workloads.example` would also give access to `desiredState.workload.example.tags`.
-In a deny rule the path prohibits access to the exact path and also all parent fields.
-E.g. a deny rule with `desiredState.workloads.example` would also deny access to `desiredState.workloads`,
-but has no effect on `desiredState.workloads.other_example`.
+`LogRule`s authorize requesting logs of workloads. A `LogRule` defines the names of workloads that it targets, where a wildcard can be used to match multiple names with a single statement. If only a wildcard is specified, i.e., `*`, all workload names match. Prefixes and/or suffixes can be matched by specifying multiple characters and a wildcard, where only a single wildcard is allowed per statement, e.g., "ivi_*"
 
-Every request not allowed by a rule in `controlInterfaceAccess` is prohibited.
-Every request allowed by a rule, but denied by another rule is also prohibited.
-E.g. with an allow rule for path `desiredState.workloads.*.agent` and a deny rule for `desiredState.workloads.controller`,
-a workload would be allowed to change the agent of each workload, except for the `controller` workload.
+The following example shows the manifest for the workload `watchdog` with read access to all workload tags beside "ivi_updater" and log access to all workloads starting with "ivi_" beside "ivi_updater":
+
+```bash
+apiVersion: v0.1
+workloads:
+  watchdog:
+    ...
+    controlInterfaceAccess:
+      allowRules:
+      - type: StateRule
+        operation: Read
+        filterMask:
+          - "desiredState.workloads.*.tag"
+      - type: LogRule
+        workloadNames:
+          - "ivi_*"
+      denyRules:
+      - type: StateRule
+        operation: Read
+        filterMask:
+          - "desiredState.workloads.ivi_updater.tag"
+      - type: LogRule
+        workloadNames:
+          - "ivi_updater"
+```
 
 ## FIFO mount point
 
