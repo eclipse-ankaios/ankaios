@@ -1,0 +1,27 @@
+apiVersion: v0.1
+workloads:
+  control_interface_example:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: NEVER
+    tags:
+      - key: owner
+        value: Ankaios team
+    controlInterfaceAccess:
+      allowRules:
+        - type: StateRule
+          operation: Read
+          filterMask:
+            - "*"
+        - type: LogRule
+          workloadNames:
+            - screamer
+    runtimeConfig: |
+      image: control_interface_prod:0.1
+  screamer:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: NEVER
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "sh", "-c", "while true; do echo 'ANKAIOS'; sleep 1; done" ]
