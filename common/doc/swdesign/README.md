@@ -450,8 +450,8 @@ Needs:
 
 Status: approved
 
-The Common library shall provide functionality for enforcing workload names in Control Interface access rules for logs:
-- to contain at most one "*" symbol
+The Common library shall provide functionality for enforcing the validity of workload names in Control Interface access `LogRule`s:
+- to contain at most one wildcard symbol "*"
 - to be able to match a workload following the naming convention (e.g. not being to long, only containing valid characters)
 
 Rationale:
