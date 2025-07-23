@@ -22,6 +22,7 @@ Every subfolder of the control interface examples represents one for a specific 
 Besides the control interface examples, there are custom ones added (and the list hopefully will grow):
 
 - python_sdk_logging: example uses the [Python SDK](https://pypi.org/project/ankaios-sdk/) to read the logs of another workload.
+- sleepy: a simple workload that sleeps indefinitely.
 
 ## How to run the examples?
 
