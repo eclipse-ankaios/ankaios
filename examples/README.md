@@ -1,19 +1,28 @@
-# Ankaios control interface examples
+# Ankaios examples
 
-This subfolder contains examples in different programming languages showing how to use the [Ankaios control interface](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/) from a workload managed by Ankaios.
+This subfolder contains examples in different programming languages showing how to use the [Ankaios control interface](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/) from a workload managed by Ankaios and how to achieve different goals with the workload.
 
-The intention of the examples is to give workload developers a simple introduction of the control interface and with this allow an easy access to the Ankaios system to their applications.
+The intention of the examples is to give workload developers a simple introduction of the control interface and to the SDKs and with this, to allow an easy access to the Ankaios system to their applications.
 
-All examples share the same behavior regardless of the programming language and do the following:
+## Control Interface examples
+
+All these examples share the same behavior regardless of the programming language and do the following:
 
 1. Send a request to Ankaios cluster via the [Ankaios Control Interface](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/) to start a new workload  (named `dynamic_workload`) which was not part of the initial startup configuration.
 2. Every 5 seconds request the workload states from the Ankaios cluster via the [Ankaios Control Interface](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/) and output them to the console.
 
 You can track the execution state of the dynamically added workload on the console and see when the workload `dynamic_nginx` is up and running (execution state: EXEC_RUNNING).
 
-Every subfolder represents an example for a specific programming language. Feel free to try them out by running the steps described below.
+Every subfolder of the control interface examples represents one for a specific programming language. Feel free to try them out by running the steps described below.
 
 **Note:** The examples are simplified to focus on the usage of the control interface and designed for easy readability. They are not optimized for production usage.
+
+## Other examples
+
+Besides the control interface examples, there are custom ones added (and the list hopefully will grow):
+
+- python_sdk_logging: example uses the [Python SDK](https://pypi.org/project/ankaios-sdk/) to read the logs of another workload.
+- sleepy: a simple workload that sleeps indefinitely.
 
 ## How to run the examples?
 
@@ -66,11 +75,11 @@ Run the following command to see the Ankaios agent logs:
    tail -f /tmp/ankaios-agent_A.log
    ```
 
-## How to clean up after running an example
+## How to clean up the system
 
-If you want to run another example (or to just stop the one currently running), you need to stop Ankaios including all workloads.
-To reduce the overhead of these actions we've provided a script that takes care of the clean up for you:
+It is possible to run multiple examples in the same time. This will start the Ankaios server and agent only once and apply
+the examples on top of each other. To stop all examples and cleanup the system, run the following:
 
   ```shell
-  ./shutdown_example.sh
+  ./cleanup.sh
   ```
