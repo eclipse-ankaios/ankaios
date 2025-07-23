@@ -279,12 +279,13 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         ))
     }
 
-    fn get_logs(
+    fn get_log_picker(
         &self,
         workload_id: PodmanKubeWorkloadId,
         options: &LogRequestOptions,
     ) -> Result<Box<dyn LogPicker + Send>, RuntimeError> {
-        let podman_kube_log_picker = super::podman_kube_log_picker::PodmanKubeLogPicker::new(&workload_id, options);
+        let podman_kube_log_picker =
+            super::podman_kube_log_picker::PodmanKubeLogPicker::new(&workload_id, options);
         let log_picker = GenericLogPicker::new(podman_kube_log_picker);
         Ok(Box::new(log_picker))
     }
@@ -403,7 +404,7 @@ impl From<OrderedExecutionState> for ExecutionState {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~functions-required-by-runtime-connector~1]
+// [utest->swdd~functions-required-by-runtime-connector~2]
 #[cfg(test)]
 mod tests {
     use common::objects::{

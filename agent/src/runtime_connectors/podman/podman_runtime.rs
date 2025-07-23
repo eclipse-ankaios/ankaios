@@ -274,12 +274,13 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         Ok(checker)
     }
 
-    fn get_logs(
+    fn get_log_picker(
         &self,
         workload_id: PodmanWorkloadId,
         options: &LogRequestOptions,
     ) -> Result<Box<dyn LogPicker + Send>, RuntimeError> {
-        let podman_log_picker = super::podman_log_picker::PodmanLogPicker::new(&workload_id, options);
+        let podman_log_picker =
+            super::podman_log_picker::PodmanLogPicker::new(&workload_id, options);
         let log_picker = GenericLogPicker::new(podman_log_picker);
         Ok(Box::new(log_picker))
     }
@@ -301,7 +302,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~functions-required-by-runtime-connector~1]
+// [utest->swdd~functions-required-by-runtime-connector~2]
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;

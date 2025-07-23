@@ -102,7 +102,7 @@ impl ReusableWorkloadState {
     }
 }
 
-// [impl->swdd~functions-required-by-runtime-connector~1]
+// [impl->swdd~functions-required-by-runtime-connector~2]
 #[async_trait]
 pub trait RuntimeConnector<WorkloadId, StChecker>: Sync + Send
 where
@@ -137,7 +137,7 @@ where
         update_state_tx: WorkloadStateSender,
     ) -> Result<StChecker, RuntimeError>;
 
-    fn get_logs(
+    fn get_log_picker(
         &self,
         workload_id: WorkloadId,
         options: &LogRequestOptions,
@@ -452,7 +452,7 @@ pub mod test {
             }
         }
 
-        fn get_logs(
+        fn get_log_picker(
             &self,
             workload_id: String,
             options: &LogRequestOptions,

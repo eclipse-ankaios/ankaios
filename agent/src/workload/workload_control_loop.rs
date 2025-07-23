@@ -661,7 +661,7 @@ impl WorkloadControlLoop {
 
         control_loop_state
             .runtime
-            .get_logs(workload_id.clone(), log_request_options)
+            .get_log_picker(workload_id.clone(), log_request_options)
     }
 }
 

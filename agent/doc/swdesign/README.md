@@ -1922,7 +1922,7 @@ Needs:
 Ankaios supports multiple runtimes by providing a runtime connector trait specifying the functions that shall be implemented by the runtime.
 
 #### Functions required by the runtime connector trait
-`swdd~functions-required-by-runtime-connector~1`
+`swdd~functions-required-by-runtime-connector~2`
 
 Status: approved
 
@@ -1933,6 +1933,7 @@ The runtime connector trait shall require the implementation of the following fu
 * create workload
 * get workload id for given workload name
 * start the state checker
+* get log picker
 * delete workload
 
 Comment:
