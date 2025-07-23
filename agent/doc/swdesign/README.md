@@ -3522,8 +3522,8 @@ Status: approved
 The RuntimeConnectorInterface shall require the following options to be supported by the specific runtime connector for the providing workload logs:
 * follow - if the log shall be followed or not
 * tail - the number of logs that shall be delivered backwards
-* since - the starting time from which logs shall be delivered
-* until - the end time to which logs shall be delivered
+* since - the starting timestamp in RFC3339 format from which logs shall be delivered
+* until - the end timestamp in RFC3339 format to which logs shall be delivered
 
 Tags:
 - RuntimeConnectorInterfaces
