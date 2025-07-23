@@ -1,23 +1,22 @@
 apiVersion: v0.1
 workloads:
-  control_interface_example:
+  python_sdk_logging:
     runtime: podman
     agent: agent_A
     restartPolicy: NEVER
-    tags:
-      - key: owner
-        value: Ankaios team
     controlInterfaceAccess:
       allowRules:
         - type: StateRule
           operation: Read
           filterMask:
-            - "*"
+            # workload has read access to the workload states of the cluster
+            - "workloadStates"
+          # Workload is allowed to read the logs of the workload screamer
         - type: LogRule
           workloadNames:
             - screamer
     runtimeConfig: |
-      image: control_interface_prod:0.1
+      image: python_sdk_logging:0.1
   screamer:
     runtime: podman
     agent: agent_A

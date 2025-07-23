@@ -3,7 +3,7 @@ set -e
 
 # Usage function
 usage() {
-    echo "Usage: $0 [--sdk-source <pypi|github|local>] [--sdk-version <version>] [--sdk-branch <branch>] [--proto-source <default|repo|branch|local>] [--proto-branch <branch>] [--proto-path <path>]"
+    echo "Usage: $0 [--sdk-source <pypi|github|local>] [--sdk-version <version>] [--sdk-branch <branch>] [--proto-source <default|branch|local>] [--proto-branch <branch>] [--proto-path <path>]"
     echo ""
     echo "If the installation is made from Pypi, the proto files will be fetched during the install with no possibility to change them."
     echo ""
@@ -63,7 +63,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Check arguments
-if [[ $SDK_SOURCE == "pypi" && -n $PROTO_SOURCE ]]; then
+if [[ $SDK_SOURCE == "pypi" && -n $PROTO_SOURCE && $PROTO_SOURCE != "default" ]]; then
     echo "Proto files cannot be specified when installing from PyPI. They will be fetched during the installation."
     exit 1
 fi
@@ -135,6 +135,8 @@ if [[ -n $PROTO_SOURCE ]]; then
                 cp "$PROTO_PATH"/control_api.proto ank-sdk-python/ankaios_sdk/_protos/0.5.0/
             fi
             ;;
+        default)
+            ;;
         *)
             echo "Invalid proto source: $PROTO_SOURCE"
             usage
@@ -152,6 +154,5 @@ if [[ $SDK_SOURCE != "pypi" ]]; then
         exit 1
     fi
 fi
-
 
 echo "Setup completed successfully."
