@@ -96,6 +96,7 @@ impl AccessRightsRule {
                     Ok(())
                 })?;
             }
+            // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
             AccessRightsRule::LogRule(log_rule) => {
                 log_rule.workload_names.iter().try_for_each(|name| {
                     Self::verify_log_rule_workload_name_pattern_format(name)
