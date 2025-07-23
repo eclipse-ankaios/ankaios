@@ -19,6 +19,8 @@ use tokio::{io::AsyncRead, select};
 
 use super::log_channel;
 
+// [impl->swdd~log-picking-collects-logs~1]
+
 #[derive(Clone)]
 pub enum NextLinesResult {
     Stdout(Vec<String>),
@@ -41,7 +43,6 @@ pub trait GetOutputStreams {
     fn get_output_streams(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>);
 }
 
-// [impl->swdd~log-picking-collects-logs~1]
 pub async fn run(mut log_picker: Box<dyn LogPicker>, mut sender: log_channel::Sender) {
     loop {
         select! {
