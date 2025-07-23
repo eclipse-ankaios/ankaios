@@ -34,6 +34,7 @@ pub enum RuntimeError {
     Unsupported(String),
 }
 
+// [impl->swdd~agent-log-request-configuration~1]
 #[derive(Debug, Clone)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct LogRequestOptions {

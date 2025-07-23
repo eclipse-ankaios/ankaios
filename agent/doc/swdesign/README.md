@@ -3514,6 +3514,23 @@ Needs:
 
 ### Handling LogsRequests
 
+#### LogsRequest configuration
+`swdd~agent-log-request-configuration~1`
+
+Status: approved
+
+The RuntimeConnectorInterface shall require the following options to be supported by the specific runtime connector for the providing workload logs:
+* follow - if the log shall be followed or not
+* tail - the number of logs that shall be delivered backwards
+* since - the starting time from which logs shall be delivered
+* until - the end time to which logs shall be delivered
+
+Tags:
+- RuntimeConnectorInterfaces
+
+Needs:
+- impl
+
 #### Agent handles LogsRequests from the server
 `swdd~agent-handles-logs-requests-from-server~1`
 
