@@ -3304,8 +3304,8 @@ Needs:
 Status: approved
 
 The Control Interface Authorizer supports the following type of authorization rules:
-* StateRule - allowing or denying "read"s and/or "write"s to specified parts of the Complete State
-* LogRule - allowing the requests of logs of specified workloads
+* `StateRule` - allowing or denying "read"s and/or "write"s to specified parts of the Complete State
+* `LogRule` - allowing the requests of logs of specified workloads
 
 Tags:
 - Authorizer
@@ -3397,8 +3397,8 @@ Status: approved
 
 The Authorizer allows an `UpdateStateRequest` with an empty update mask or a `CompleteStateRequest` with an empty field mask only if all of the following is true:
 
-* there is a corresponding (write/read) allow rule with a wildcard "*"
-* there is no corresponding (write/read) deny rule with a wildcard "*"
+* there is a corresponding (write/read) allow `StateRule` with a wildcard "*" entry
+* there is no corresponding (write/read) deny `StateRule` with a wildcard "*" entry
 
 Tags:
 - Authorizer
@@ -3441,15 +3441,15 @@ Needs:
 - impl
 - utest
 
-#### Matching of allow rules
+#### Matching of allow `StateRule`s
 `swdd~agent-authorizing-matching-allow-rules~1`
 
 Status: approved
 
-When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow `StateRule`, the Authorizer shall consider them matching if all segments of the allow `StateRule`'s filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
-An allow rule matches, if it is the same or a prefix of the request's update/field mask. Consequently, when the allow rule consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
+An allow `StateRule` matches, if it is the same or a prefix of the request's update/field mask. Consequently, when the allow `StateRule` consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
 
 Tags:
 - Authorizer
@@ -3458,15 +3458,15 @@ Needs:
 - impl
 - utest
 
-#### Matching of deny rules
+#### Matching of deny `StateRule`s
 `swdd~agent-authorizing-matching-deny-rules~1`
 
 Status: approved
 
-When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny `StateRule`, the Authorizer shall consider them matching if all segments of the allow `StateRule`'s filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
-A deny rule matches, if the request's update/field mask is the same or a prefix of the rule. Consequently, when the allow rule consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
+A deny `StateRule` matches, if the request's update/field mask is the same or a prefix of the `StateRule`. Consequently, when the allow `StateRule` consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
 
 Tags:
 - Authorizer
@@ -3475,16 +3475,16 @@ Needs:
 - impl
 - utest
 
-#### Rules without segments never match
+#### `StateRule`s without segments never match
 `swdd~agent-authorizing-rules-without-segments-never-match~1`
 
 Status: approved
 
-When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow or deny rule,
-the Authorizer shall consider them not matching if the rule has no segments.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow or deny `StateRule`,
+the Authorizer shall consider them not matching if the `StateRule` has no segments.
 
 Comment:
-A rule with no segments is created when the filter mask of the rule is empty. Although such configurations are explicitly forbidden at the verification step, the use-case must be handled also at the authorizer level as it is security related.
+A `StateRule` with no segments is created when the filter mask of the `StateRule` is empty. Although such configurations are explicitly forbidden at the verification step, the use-case must be handled also at the authorizer level as it is security related.
 
 Tags:
 - Authorizer
@@ -3493,16 +3493,16 @@ Needs:
 - impl
 - utest
 
-#### Matching of rule elements
+#### Matching of `StateRule` elements
 `swdd~agent-authorizing-matching-rules-elements~1`
 
 Status: approved
 
-When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of an allow or deny rule,
+When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of an allow or deny `StateRule`,
 the Authorizer shall consider them matching if one of the following is true:
 
 * both segments are the same
-* the segment of the rule entry is the wildcards symbol "*"
+* the segment of the `StateRule` entry is the wildcards symbol "*"
 
 Tags:
 - Authorizer
