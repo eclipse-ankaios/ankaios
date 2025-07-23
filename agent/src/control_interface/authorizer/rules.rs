@@ -69,7 +69,9 @@ impl LogRule {
                 let wildcard_pos = pattern.find(WILDCARD_SYMBOL).unwrap_or_unreachable();
                 let prefix = &pattern[..wildcard_pos];
                 let suffix = &pattern[wildcard_pos + WILDCARD_SYMBOL.len()..];
-                return workload_name.starts_with(prefix) && workload_name.ends_with(suffix);
+                return workload_name.starts_with(prefix)
+                    && workload_name.ends_with(suffix)
+                    && prefix.len() + suffix.len() <= workload_name.len();
             }
         }
         false
@@ -235,5 +237,10 @@ mod test {
         assert!(rule.matches("abef"));
         assert!(!rule.matches("abc"));
         assert!(!rule.matches("def"));
+
+        let rule = LogRule::from(vec![format!("a{}ab", WILDCARD_SYMBOL)]);
+        assert!(rule.matches("aab"));
+        assert!(rule.matches("abab"));
+        assert!(!rule.matches("ab"));
     }
 }
