@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Usage function
 usage() {
@@ -11,7 +12,7 @@ usage() {
     echo "  --sdk-source       Source of the SDK (pypi, github, local). Default: pypi."
     echo "  --sdk-version      Version of the SDK (used with pypi)."
     echo "  --sdk-branch       Branch to clone (used with github). Default: main."
-    echo "  --proto-source     Source of the proto files (branch, local). By default, it fetches them automatically."
+    echo "  --proto-source     Source of the proto files (branch, local). By default the files are fetched automatically with the SDK."
     echo "  --proto-branch     Ankaios branch to fetch proto files (used with branch)."
     echo "  --proto-path       Path to local proto files (used with local)."
 }

@@ -17,9 +17,6 @@ This example demonstrates how to request logs from workloads running on the syst
 It connects to the Ankaios control interface, retrieves the names of workloads,
 and requests logs for those workloads that match a specific name ("screamer" in this case).
 It then prints the logs received from the log campaign for a limited time (10 seconds).
-
-How to run:
-$ ./run_example.sh python_sdk --manifest-file logging_manifest.yaml
 """
 
 from ankaios_sdk import Ankaios, AnkaiosException
