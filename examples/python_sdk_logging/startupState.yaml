@@ -7,14 +7,14 @@ workloads:
     controlInterfaceAccess:
       allowRules:
         - type: StateRule
-          operation: Read
+          operation: ReadWrite
           filterMask:
-            # workload has read access to the workload states of the cluster
-            - "workloadStates"
-          # Workload is allowed to read the logs of the workload screamer
+            # workload has full access to the state of the cluster
+            - "*"
+          # Workload is allowed to read the logs of all workloads
         - type: LogRule
           workloadNames:
-            - screamer
+            - "*"
     runtimeConfig: |
       image: python_sdk_logging:0.1
   screamer:
