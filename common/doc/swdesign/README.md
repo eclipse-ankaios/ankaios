@@ -445,6 +445,26 @@ Needs:
 - utest
 - stest
 
+#### Control Interface convention for workload names in logs access rules
+`swdd~common-access-rules-logs-workload-names-convention~1`
+
+Status: approved
+
+The Common library shall provide functionality for enforcing workload names in Control Interface access rules for logs:
+- to contain at most one "*" symbol
+- to be able to match a workload following the naming convention (e.g. not being to long, only containing valid characters)
+
+Rationale:
+This shall prevent users from providing rules which will never match any workload.
+Otherwise, invalid deny rules could lead to workloads having more rights than expected.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
 #### Provide common conversions between Ankaios and protobuf
 `swdd~common-conversions-between-ankaios-and-proto~1`
 

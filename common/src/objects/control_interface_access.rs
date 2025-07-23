@@ -105,6 +105,7 @@ impl AccessRightsRule {
         Ok(())
     }
 
+    // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
     fn verify_log_rule_workload_name_pattern_format(workload_name: &str) -> Result<(), String> {
         if let Some(wildcard_pos) = workload_name.find(WILDCARD_SYMBOL) {
             let prefix = &workload_name[..wildcard_pos];
@@ -306,7 +307,7 @@ mod tests {
         assert!(state_rule.verify_format().is_ok());
     }
 
-    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    // [utest->swdd~common-access-rules-logs-workload-names-convention~1]
     #[test]
     fn utest_access_rights_log_rule_verify_success() {
         const MAX_PREFIX: &str = "123456789012345678901234567890";
@@ -348,7 +349,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    // [utest->swdd~common-access-rules-logs-workload-names-convention~1]
     #[test]
     fn utest_access_rights_log_rule_verify_fails() {
         const TOO_LONG_PREFIX: &str = "123456789012345678901234567890";
