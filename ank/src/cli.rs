@@ -360,10 +360,10 @@ pub struct LogsArgs {
     /// Output the workload name in front of the log line
     #[arg(short = 'n', long = "names", default_value_t = false)]
     pub output_names: bool,
-    /// Show logs after a specific TIMESTAMP
+    /// Show logs after a specific TIMESTAMP in RFC3339 format
     #[arg(short = 's', long = "since")]
     pub since: Option<String>,
-    /// Show logs before a specific TIMESTAMP
+    /// Show logs before a specific TIMESTAMP in RFC3339 format
     #[arg(short = 'u', long = "until")]
     pub until: Option<String>,
 }
