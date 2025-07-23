@@ -3657,7 +3657,7 @@ Needs:
 - utest
 
 #### Podman LogPicking collects logs
-`swdd~log-picking-collects-logs~1`
+`swdd~podman-log-picking-collects-logs~1`
 
 Status: approved
 
