@@ -77,11 +77,11 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
         Ok(DummyStateChecker::new())
     }
 
-    fn get_log_picker(
+    fn get_log_fetcher(
         &self,
         _workload_id: String,
         _options: &super::LogRequestOptions,
-    ) -> Result<Box<dyn super::log_picker::LogPicker + Send>, RuntimeError> {
+    ) -> Result<Box<dyn super::log_fetcher::LogFetcher + Send>, RuntimeError> {
         Err(RuntimeError::Unsupported(
             "Cannot collect logs for workload with unsupported runtime".into(),
         ))
@@ -213,7 +213,7 @@ mod tests {
 
     // [utest->swdd~agent-skips-unknown-runtime~2]
     #[tokio::test]
-    async fn utest_get_log_picker_returns_err() {
+    async fn utest_get_log_fetcher_returns_err() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
         let workload_id = "test_id".to_string();
         let options = LogRequestOptions {
@@ -223,7 +223,7 @@ mod tests {
             tail: None,
         };
 
-        let result = unsupported_runtime.get_log_picker(workload_id, &options);
+        let result = unsupported_runtime.get_log_fetcher(workload_id, &options);
 
         assert!(matches!(
             result,

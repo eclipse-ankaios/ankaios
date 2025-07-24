@@ -36,9 +36,9 @@ use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 use crate::runtime_connectors::GenericRuntimeFacade;
 use crate::{
     control_interface::ControlInterfacePath,
-    runtime_connectors::{log_picker::LogPicker, LogRequestOptions, unsupported_runtime::UnsupportedRuntime},
-  
-  
+    runtime_connectors::{
+        log_fetcher::LogFetcher, unsupported_runtime::UnsupportedRuntime, LogRequestOptions,
+    },
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -643,11 +643,11 @@ impl RuntimeManager {
         }
     }
 
-    // [impl->swdd~runtime-manager-creates-log-pickers~1]
-    pub async fn get_log_pickers(
+    // [impl->swdd~runtime-manager-creates-log-fetchers~1]
+    pub async fn get_log_fetchers(
         &self,
         log_request: LogsRequest,
-    ) -> Vec<(WorkloadInstanceName, Box<dyn LogPicker>)> {
+    ) -> Vec<(WorkloadInstanceName, Box<dyn LogFetcher>)> {
         let mut res = Vec::new();
         let log_request_options: LogRequestOptions = log_request.clone().into();
         for workload in log_request.workload_names {
@@ -660,9 +660,9 @@ impl RuntimeManager {
                 .start_collecting_logs(log_request_options.clone())
                 .await
             {
-                Ok(log_picker) => res.push((workload, log_picker)),
+                Ok(log_fetcher) => res.push((workload, log_fetcher)),
                 Err(err) => log::info!(
-                    "Did not get log picker for '{}': '{}'.",
+                    "Did not get log fetcher for '{}': '{}'.",
                     workload.workload_name(),
                     err
                 ),
@@ -691,9 +691,10 @@ mod tests {
         authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
         MockControlInterface,
     };
-    use crate::runtime_connectors::log_picker::MockLogPicker;
+    use crate::runtime_connectors::log_fetcher::MockLogFetcher;
     use crate::runtime_connectors::{
-        LogRequestOptions, MockGenericRuntimeFacade, MockRuntimeFacade, ReusableWorkloadState, RuntimeError,
+        LogRequestOptions, MockGenericRuntimeFacade, MockRuntimeFacade, ReusableWorkloadState,
+        RuntimeError,
     };
     use crate::runtime_manager::ToReusableWorkloadSpecs;
     use crate::workload::{MockWorkload, WorkloadError};
@@ -2960,9 +2961,9 @@ mod tests {
             .await;
     }
 
-    // [utest->swdd~runtime-manager-creates-log-pickers~1]
+    // [utest->swdd~runtime-manager-creates-log-fetchers~1]
     #[tokio::test]
-    async fn utest_execute_workload_operations_get_log_pickers() {
+    async fn utest_execute_workload_operations_get_log_fetchers() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -2987,7 +2988,7 @@ mod tests {
                 until: None,
             }))
             .once()
-            .returning(|_| Ok(Box::new(MockLogPicker::new())));
+            .returning(|_| Ok(Box::new(MockLogFetcher::new())));
         let mut workload_2_mock = MockWorkload::default();
         workload_2_mock
             .expect_start_collecting_logs()
@@ -3008,7 +3009,7 @@ mod tests {
             .insert(WORKLOAD_2_NAME.to_string(), workload_2_mock);
 
         let res = runtime_manager
-            .get_log_pickers(LogsRequest {
+            .get_log_fetchers(LogsRequest {
                 workload_names: vec![
                     WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID),
                     WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_2_NAME, WORKLOAD_ID),

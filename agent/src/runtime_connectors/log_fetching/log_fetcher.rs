@@ -19,7 +19,7 @@ use tokio::{io::AsyncRead, select};
 
 use super::log_channel;
 
-// [impl->swdd~log-picking-collects-logs~1]
+// [impl->swdd~log-fetching-collects-logs~1]
 
 #[derive(Clone)]
 pub enum NextLinesResult {
@@ -30,7 +30,7 @@ pub enum NextLinesResult {
 
 #[cfg_attr(test, automock)]
 #[async_trait]
-pub trait LogPicker: std::fmt::Debug + Send + 'static {
+pub trait LogFetcher: std::fmt::Debug + Send + 'static {
     async fn next_lines(&mut self) -> NextLinesResult;
 }
 
@@ -43,10 +43,10 @@ pub trait GetOutputStreams {
     fn get_output_streams(&mut self) -> (Option<Self::OutputStream>, Option<Self::ErrStream>);
 }
 
-pub async fn run(mut log_picker: Box<dyn LogPicker>, mut sender: log_channel::Sender) {
+pub async fn run(mut log_fetcher: Box<dyn LogFetcher>, mut sender: log_channel::Sender) {
     loop {
         select! {
-            lines = log_picker.next_lines() => {
+            lines = log_fetcher.next_lines() => {
                 match lines{
                     NextLinesResult::Stdout(lines) => {
                         let res = sender.send_log_lines(lines).await;
@@ -63,7 +63,7 @@ pub async fn run(mut log_picker: Box<dyn LogPicker>, mut sender: log_channel::Se
                         }
                     }
                     NextLinesResult::EoF => {
-                        log::debug!("Log picker returned no more log lines, stopping.");
+                        log::debug!("Log fetcher returned no more log lines, stopping.");
                         drop(sender); // drop the non-cloneable log sender to indicate stop of log responses
                         break;
                     }
@@ -94,7 +94,7 @@ mod tests {
 
     use crate::runtime_connectors::log_channel;
 
-    use super::{LogPicker, NextLinesResult};
+    use super::{LogFetcher, NextLinesResult};
 
     const LINES_1: [&str; 3] = ["line 1 1", "line 1 2", "line 1 3"];
     const LINES_2: [&str; 2] = ["line 2 1", "line 2 2"];
@@ -109,14 +109,14 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct MockLogPicker {
+    struct MockLogFetcher {
         mock_data: VecDeque<Vec<String>>,
         limited: bool,
         semaphore: Arc<Semaphore>,
         line_type: NextLineType,
     }
 
-    impl MockLogPicker {
+    impl MockLogFetcher {
         fn new<'a>(data: &'a [&'a [&'a str]], limited: bool, line_type: NextLineType) -> Self {
             Self {
                 mock_data: data
@@ -135,7 +135,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl LogPicker for MockLogPicker {
+    impl LogFetcher for MockLogFetcher {
         async fn next_lines(&mut self) -> NextLinesResult {
             self.semaphore.acquire().await.unwrap().forget();
             if self.limited {
@@ -157,16 +157,16 @@ mod tests {
         }
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
-    async fn utest_log_picker_read_all_lines() {
-        let log_picker =
-            MockLogPicker::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stdout);
-        let sem = log_picker.semaphore();
+    async fn utest_log_fetcher_read_all_lines() {
+        let log_fetcher =
+            MockLogFetcher::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stdout);
+        let sem = log_fetcher.semaphore();
         sem.add_permits(4);
 
         let (sender, mut receiver) = log_channel::channel();
-        let jh = tokio::spawn(super::run(Box::new(log_picker), sender));
+        let jh = tokio::spawn(super::run(Box::new(log_fetcher), sender));
 
         assert_eq!(
             timeout(TIMEOUT, receiver.read_log_lines()).await,
@@ -184,16 +184,16 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
-    async fn utest_log_picker_cannot_send_message() {
-        let log_picker =
-            MockLogPicker::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
-        let sem = log_picker.semaphore();
+    async fn utest_log_fetcher_cannot_send_message() {
+        let log_fetcher =
+            MockLogFetcher::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
+        let sem = log_fetcher.semaphore();
         sem.add_permits(4);
 
         let (sender, mut receiver) = log_channel::channel();
-        let jh = tokio::spawn(super::run(Box::new(log_picker), sender));
+        let jh = tokio::spawn(super::run(Box::new(log_fetcher), sender));
 
         assert_eq!(
             timeout(TIMEOUT, receiver.read_log_lines()).await,
@@ -207,16 +207,16 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
-    async fn utest_log_picker_informed_about_receiver_dropped() {
-        let log_picker =
-            MockLogPicker::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
-        let sem = log_picker.semaphore();
+    async fn utest_log_fetcher_informed_about_receiver_dropped() {
+        let log_fetcher =
+            MockLogFetcher::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stdout);
+        let sem = log_fetcher.semaphore();
         sem.add_permits(2);
 
         let (sender, mut receiver) = log_channel::channel();
-        let jh = tokio::spawn(super::run(Box::new(log_picker), sender));
+        let jh = tokio::spawn(super::run(Box::new(log_fetcher), sender));
 
         assert_eq!(
             timeout(TIMEOUT, receiver.read_log_lines()).await,
@@ -230,16 +230,16 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
-    async fn utest_log_picker_stderr_read_all_lines() {
-        let log_picker =
-            MockLogPicker::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stderr);
-        let sem = log_picker.semaphore();
+    async fn utest_log_fetcher_stderr_read_all_lines() {
+        let log_fetcher =
+            MockLogFetcher::new(&[&LINES_1, &LINES_2, &LINES_3], true, NextLineType::Stderr);
+        let sem = log_fetcher.semaphore();
 
         sem.add_permits(4);
         let (sender, mut receiver) = log_channel::channel();
-        let jh = tokio::spawn(super::run(Box::new(log_picker), sender));
+        let jh = tokio::spawn(super::run(Box::new(log_fetcher), sender));
         assert_eq!(
             timeout(TIMEOUT, receiver.read_log_lines()).await,
             Ok(Some(LINES_1.iter().map(|&x| x.into()).collect()))
@@ -256,16 +256,16 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
-    async fn utest_log_picker_stderr_cannot_send_message() {
-        let log_picker =
-            MockLogPicker::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stderr);
-        let sem = log_picker.semaphore();
+    async fn utest_log_fetcher_stderr_cannot_send_message() {
+        let log_fetcher =
+            MockLogFetcher::new(&[&LINES_1, &LINES_2, &LINES_3], false, NextLineType::Stderr);
+        let sem = log_fetcher.semaphore();
         sem.add_permits(4);
 
         let (sender, mut receiver) = log_channel::channel();
-        let jh = tokio::spawn(super::run(Box::new(log_picker), sender));
+        let jh = tokio::spawn(super::run(Box::new(log_fetcher), sender));
 
         assert_eq!(
             timeout(TIMEOUT, receiver.read_log_lines()).await,

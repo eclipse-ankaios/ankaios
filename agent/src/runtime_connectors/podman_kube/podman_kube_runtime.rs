@@ -28,7 +28,7 @@ use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        generic_log_picker::GenericLogPicker, log_picker::LogPicker, podman_cli,
+        generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher, podman_cli,
         runtime_connector::LogRequestOptions, ReusableWorkloadState, RuntimeConnector,
         RuntimeError, RuntimeStateGetter, StateChecker,
     },
@@ -279,15 +279,15 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         ))
     }
 
-    fn get_log_picker(
+    fn get_log_fetcher(
         &self,
         workload_id: PodmanKubeWorkloadId,
         options: &LogRequestOptions,
-    ) -> Result<Box<dyn LogPicker + Send>, RuntimeError> {
-        let podman_kube_log_picker =
-            super::podman_kube_log_picker::PodmanKubeLogPicker::new(&workload_id, options);
-        let log_picker = GenericLogPicker::new(podman_kube_log_picker);
-        Ok(Box::new(log_picker))
+    ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
+        let podman_kube_log_fetcher =
+            super::podman_kube_log_fetcher::PodmanKubeLogFetcher::new(&workload_id, options);
+        let log_fetcher = GenericLogFetcher::new(podman_kube_log_fetcher);
+        Ok(Box::new(log_fetcher))
     }
 
     async fn delete_workload(

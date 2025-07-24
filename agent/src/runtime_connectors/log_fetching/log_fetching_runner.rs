@@ -19,24 +19,24 @@ use tokio::task::{spawn, JoinHandle};
 
 use super::{
     log_channel,
-    log_picker::{self, LogPicker},
+    log_fetcher::{self, LogFetcher},
 };
 
-pub struct LogPickingRunner {
+pub struct LogFetchingRunner {
     join_handles: Vec<JoinHandle<()>>,
 }
 
-// [impl->swdd~log-picking-runs-log-pickers~1]
-impl LogPickingRunner {
+// [impl->swdd~log-fetching-runs-log-fetchers~1]
+impl LogFetchingRunner {
     pub fn start_collecting_logs(
-        log_pickers: Vec<Box<dyn LogPicker + 'static>>,
+        log_fetchers: Vec<Box<dyn LogFetcher + 'static>>,
     ) -> (Self, Vec<log_channel::Receiver>) {
-        let (join_handles, receivers) = log_pickers
+        let (join_handles, receivers) = log_fetchers
             .into_iter()
             .map(|x| {
                 let (sender, receiver) = log_channel::channel();
                 let jh = spawn(async move {
-                    log_picker::run(x, sender).await;
+                    log_fetcher::run(x, sender).await;
                 });
                 (jh, receiver)
             })
@@ -46,8 +46,8 @@ impl LogPickingRunner {
     }
 }
 
-// [impl->swdd~log-picking-stops-collection-when-dropped~1]
-impl Drop for LogPickingRunner {
+// [impl->swdd~log-fetching-stops-collection-when-dropped~1]
+impl Drop for LogFetchingRunner {
     fn drop(&mut self) {
         self.join_handles.iter().for_each(|x| x.abort());
     }
@@ -71,8 +71,8 @@ mod tests {
     use tokio::{self};
 
     use crate::runtime_connectors::{
-        log_picking_runner::LogPickingRunner,
-        log_picker::{MockLogPicker, NextLinesResult},
+        log_fetcher::{MockLogFetcher, NextLinesResult},
+        log_fetching_runner::LogFetchingRunner,
     };
 
     lazy_static! {
@@ -80,83 +80,79 @@ mod tests {
             Mutex::new(Vec::new());
     }
 
-    const PICKER_1_LINE_1: &str = "picker 1: line 1";
-    const PICKER_1_LINE_2: &str = "picker 1: line 2";
-    const PICKER_1_LINE_3: &str = "picker 1: line 3";
-    const PICKER_2_LINE_1: &str = "picker 2: line 1";
-    const PICKER_2_LINE_2: &str = "picker 2: line 2";
-    const PICKER_2_LINE_3: &str = "picker 2: line 3";
-    const PICKER_2_LINE_4: &str = "picker 2: line 4";
+    const FETCHER_1_LINE_1: &str = "fetcher 1: line 1";
+    const FETCHER_1_LINE_2: &str = "fetcher 1: line 2";
+    const FETCHER_1_LINE_3: &str = "fetcher 1: line 3";
+    const FETCHER_2_LINE_1: &str = "fetcher 2: line 1";
+    const FETCHER_2_LINE_2: &str = "fetcher 2: line 2";
+    const FETCHER_2_LINE_3: &str = "fetcher 2: line 3";
+    const FETCHER_2_LINE_4: &str = "fetcher 2: line 4";
 
-    // [utest->swdd~log-picking-runs-log-pickers~1]
+    // [utest->swdd~log-fetching-runs-log-fetchers~1]
     #[tokio::test]
-    async fn utest_log_picking_runner_forwards_logs() {
+    async fn utest_log_fetching_runner_forwards_logs() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
         clear_join_handles();
 
-        let log_picker_1 = create_mock_log_picker(&[
-            &[PICKER_1_LINE_1, PICKER_1_LINE_2],
-            &[PICKER_1_LINE_3],
+        let log_fetcher_1 =
+            create_mock_log_fetcher(&[&[FETCHER_1_LINE_1, FETCHER_1_LINE_2], &[FETCHER_1_LINE_3]]);
+
+        let log_fetcher_2 = create_mock_log_fetcher(&[
+            &[FETCHER_2_LINE_1],
+            &[FETCHER_2_LINE_2, FETCHER_2_LINE_3, FETCHER_2_LINE_4],
         ]);
 
-        let log_picker_2 = create_mock_log_picker(&[
-            &[PICKER_2_LINE_1],
-            &[PICKER_2_LINE_2, PICKER_2_LINE_3, PICKER_2_LINE_4],
-        ]);
-
-        let (_runner, mut receivers) = LogPickingRunner::start_collecting_logs(vec![
-            Box::new(log_picker_1),
-            Box::new(log_picker_2),
+        let (_runner, mut receivers) = LogFetchingRunner::start_collecting_logs(vec![
+            Box::new(log_fetcher_1),
+            Box::new(log_fetcher_2),
         ]);
 
         assert_eq!(receivers.len(), 2);
         assert_eq!(
             receivers[0].read_log_lines().await,
-            Some(vec![PICKER_1_LINE_1.into(), PICKER_1_LINE_2.into()])
+            Some(vec![FETCHER_1_LINE_1.into(), FETCHER_1_LINE_2.into()])
         );
         assert_eq!(
             receivers[0].read_log_lines().await,
-            Some(vec![PICKER_1_LINE_3.into()])
+            Some(vec![FETCHER_1_LINE_3.into()])
         );
         assert_eq!(receivers[0].read_log_lines().await, None);
         assert_eq!(
             receivers[1].read_log_lines().await,
-            Some(vec![PICKER_2_LINE_1.into()])
+            Some(vec![FETCHER_2_LINE_1.into()])
         );
         assert_eq!(
             receivers[1].read_log_lines().await,
             Some(vec![
-                PICKER_2_LINE_2.into(),
-                PICKER_2_LINE_3.into(),
-                PICKER_2_LINE_4.into()
+                FETCHER_2_LINE_2.into(),
+                FETCHER_2_LINE_3.into(),
+                FETCHER_2_LINE_4.into()
             ])
         );
         assert_eq!(receivers[1].read_log_lines().await, None);
     }
 
-    // [utest->swdd~log-picking-stops-collection-when-dropped~1]
+    // [utest->swdd~log-fetching-stops-collection-when-dropped~1]
     #[tokio::test]
-    async fn utest_log_picking_runner_abort_task_on_drop() {
+    async fn utest_log_fetching_runner_abort_task_on_drop() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
         clear_join_handles();
 
-        let log_picker_1 = create_mock_log_picker(&[
-            &[PICKER_1_LINE_1, PICKER_1_LINE_2],
-            &[PICKER_1_LINE_3],
+        let log_fetcher_1 =
+            create_mock_log_fetcher(&[&[FETCHER_1_LINE_1, FETCHER_1_LINE_2], &[FETCHER_1_LINE_3]]);
+
+        let log_fetcher_2 = create_mock_log_fetcher(&[
+            &[FETCHER_2_LINE_1],
+            &[FETCHER_2_LINE_2, FETCHER_2_LINE_3, FETCHER_2_LINE_4],
         ]);
 
-        let log_picker_2 = create_mock_log_picker(&[
-            &[PICKER_2_LINE_1],
-            &[PICKER_2_LINE_2, PICKER_2_LINE_3, PICKER_2_LINE_4],
-        ]);
-
-        let (runner, mut _receivers) = LogPickingRunner::start_collecting_logs(vec![
-            Box::new(log_picker_1),
-            Box::new(log_picker_2),
+        let (runner, mut _receivers) = LogFetchingRunner::start_collecting_logs(vec![
+            Box::new(log_fetcher_1),
+            Box::new(log_fetcher_2),
         ]);
 
         assert!(!check_all_aborted());
@@ -164,20 +160,20 @@ mod tests {
         assert!(check_all_aborted());
     }
 
-    fn create_mock_log_picker(lines: &[&[&str]]) -> MockLogPicker {
-        let mut log_picker = MockLogPicker::new();
+    fn create_mock_log_fetcher(lines: &[&[&str]]) -> MockLogFetcher {
+        let mut log_fetcher = MockLogFetcher::new();
         for &line_package in lines {
             let line_package = line_package.iter().map(|s| s.to_string()).collect();
-            log_picker
+            log_fetcher
                 .expect_next_lines()
                 .once()
                 .return_once(move || NextLinesResult::Stdout(line_package));
         }
-        log_picker
+        log_fetcher
             .expect_next_lines()
             .once()
             .return_const(NextLinesResult::EoF);
-        log_picker
+        log_fetcher
     }
 
     pub fn spawn<F>(future: F) -> JoinHandle<F::Output>

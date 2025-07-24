@@ -17,7 +17,7 @@ use tokio::sync::{mpsc, watch};
 #[cfg(test)]
 use mockall::automock;
 
-// [impl->swdd~log-picking-collects-logs~1]
+// [impl->swdd~log-fetching-collects-logs~1]
 
 pub struct Receiver {
     log_line_receiver: mpsc::Receiver<Vec<String>>,
@@ -97,7 +97,7 @@ mod tests {
     const LINE2: [&str; 1] = ["line 3"];
     const LINE3: [&str; 3] = ["line 4", "line 5", "line 6"];
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_sender_dropped() {
         let (sender, mut receiver) = channel();
@@ -115,7 +115,7 @@ mod tests {
         jh.await.unwrap();
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_receiver_dropped() {
         let (mut sender, mut receiver) = channel();
@@ -139,7 +139,7 @@ mod tests {
         jh.await.unwrap();
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_receiver_dropped_before_wait() {
         let (mut sender, receiver) = channel();

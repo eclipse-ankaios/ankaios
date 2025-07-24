@@ -14,7 +14,7 @@
 
 use crate::control_interface::ControlInterfacePath;
 use crate::io_utils::FileSystemError;
-use crate::runtime_connectors::log_picker::LogPicker;
+use crate::runtime_connectors::log_fetcher::LogFetcher;
 use crate::runtime_connectors::{LogRequestOptions, RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
@@ -143,13 +143,13 @@ impl WorkloadControlLoop {
 
                             control_loop_state = Self::resume_workload_on_runtime(control_loop_state).await;
                         }
-                        Some(WorkloadCommand::StartLogPicker(log_request_options, result_sink)) =>  {
-                            match Self::create_log_picker(&control_loop_state, &log_request_options) {
+                        Some(WorkloadCommand::StartLogFetcher(log_request_options, result_sink)) =>  {
+                            match Self::create_log_fetcher(&control_loop_state, &log_request_options) {
                                 Ok(logger) => {if let Err(error) = result_sink.send(logger){
-                                    log::warn!("Could not return log picker: '{:?}'", error);
+                                    log::warn!("Could not return log fetcher: '{:?}'", error);
                                 }},
                                 Err(error) => {
-                                    log::warn!("Could not start log picker: '{:?}'", error);
+                                    log::warn!("Could not start log fetcher: '{:?}'", error);
                                 }
                             }
                         }
@@ -644,11 +644,11 @@ impl WorkloadControlLoop {
             });
     }
 
-    // [impl->swdd~workload-control-loop-creates-log-picker~1]
-    fn create_log_picker<WorkloadId, StChecker>(
+    // [impl->swdd~workload-control-loop-creates-log-fetcher~1]
+    fn create_log_fetcher<WorkloadId, StChecker>(
         control_loop_state: &ControlLoopState<WorkloadId, StChecker>,
         log_request_options: &LogRequestOptions,
-    ) -> Result<Box<dyn LogPicker + Send>, RuntimeError>
+    ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError>
     where
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
@@ -661,7 +661,7 @@ impl WorkloadControlLoop {
 
         control_loop_state
             .runtime
-            .get_log_picker(workload_id.clone(), log_request_options)
+            .get_log_fetcher(workload_id.clone(), log_request_options)
     }
 }
 
@@ -689,7 +689,7 @@ mockall::mock! {
 mod tests {
     use super::{ControlInterfacePath, WorkloadControlLoop};
     use crate::io_utils::mock_filesystem_async;
-    use crate::runtime_connectors::log_picker::MockLogPicker;
+    use crate::runtime_connectors::log_fetcher::MockLogFetcher;
     use crate::runtime_connectors::{LogRequestOptions, RuntimeError};
     use crate::workload::retry_manager::MockRetryToken;
     use crate::workload::workload_command_channel::WorkloadCommandSender;
@@ -2738,7 +2738,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
-    // [utest->swdd~workload-control-loop-creates-log-picker~1]
+    // [utest->swdd~workload-control-loop-creates-log-fetcher~1]
     #[tokio::test]
     async fn utest_get_logs_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2757,14 +2757,14 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![RuntimeCall::StartLogPicker(
+        runtime_mock.expect(vec![RuntimeCall::StartLogFetcher(
             LogRequestOptions {
                 follow: true,
                 tail: None,
                 since: None,
                 until: None,
             },
-            Ok(Box::new(MockLogPicker::new())),
+            Ok(Box::new(MockLogFetcher::new())),
         )]);
 
         let control_loop_state = ControlLoopState::builder()
@@ -2805,7 +2805,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
-    // [utest->swdd~workload-control-loop-creates-log-picker~1]
+    // [utest->swdd~workload-control-loop-creates-log-fetcher~1]
     #[tokio::test]
     async fn utest_get_logs_fails() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2824,7 +2824,7 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![RuntimeCall::StartLogPicker(
+        runtime_mock.expect(vec![RuntimeCall::StartLogFetcher(
             LogRequestOptions {
                 follow: true,
                 tail: None,
@@ -2872,7 +2872,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
-    // [utest->swdd~workload-control-loop-creates-log-picker~1]
+    // [utest->swdd~workload-control-loop-creates-log-fetcher~1]
     #[tokio::test]
     async fn utest_get_logs_no_workload_id_yet() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2948,14 +2948,14 @@ mod tests {
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![RuntimeCall::StartLogPicker(
+        runtime_mock.expect(vec![RuntimeCall::StartLogFetcher(
             LogRequestOptions {
                 follow: true,
                 tail: None,
                 since: None,
                 until: None,
             },
-            Ok(Box::new(MockLogPicker::new())),
+            Ok(Box::new(MockLogFetcher::new())),
         )]);
 
         let control_loop_state = ControlLoopState::builder()
@@ -2974,7 +2974,7 @@ mod tests {
 
         let jh = tokio::spawn(async move {
             workload_command_sender
-                .send(WorkloadCommand::StartLogPicker(
+                .send(WorkloadCommand::StartLogFetcher(
                     LogRequestOptions {
                         follow: true,
                         tail: None,

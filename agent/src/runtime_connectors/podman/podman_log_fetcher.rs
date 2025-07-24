@@ -21,13 +21,13 @@ use tokio::process::{Child, Command};
 
 use crate::runtime_connectors::runtime_connector::LogRequestOptions;
 
-use super::super::log_picker::{GetOutputStreams, StreamTrait};
+use super::super::log_fetcher::{GetOutputStreams, StreamTrait};
 use super::PodmanWorkloadId;
 
-// [impl->swdd~podman-log-picking-collects-logs~1]
+// [impl->swdd~podman-log-fetching-collects-logs~1]
 
 #[derive(Debug)]
-pub struct PodmanLogPicker {
+pub struct PodmanLogFetcher {
     child: Option<Child>,
     #[cfg(test)]
     pub stdout: Option<Box<dyn StreamTrait>>,
@@ -35,7 +35,7 @@ pub struct PodmanLogPicker {
     pub stderr: Option<Box<dyn StreamTrait>>,
 }
 
-impl PodmanLogPicker {
+impl PodmanLogFetcher {
     pub fn new(workload_id: &PodmanWorkloadId, options: &LogRequestOptions) -> Self {
         let mut args = Vec::with_capacity(9);
         args.push("logs");
@@ -90,7 +90,7 @@ impl PodmanLogPicker {
     }
 }
 
-impl Drop for PodmanLogPicker {
+impl Drop for PodmanLogFetcher {
     fn drop(&mut self) {
         if let Some(child) = &mut self.child {
             if let Err(err) = child.start_kill() {
@@ -100,7 +100,7 @@ impl Drop for PodmanLogPicker {
     }
 }
 
-impl GetOutputStreams for PodmanLogPicker {
+impl GetOutputStreams for PodmanLogFetcher {
     type OutputStream = Box<dyn StreamTrait>;
     type ErrStream = Box<dyn StreamTrait>;
 
@@ -134,15 +134,15 @@ impl GetOutputStreams for PodmanLogPicker {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~podman-log-picking-collects-logs~1]
+// [utest->swdd~podman-log-fetching-collects-logs~1]
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
     use tokio::io::Empty;
 
-    use super::PodmanLogPicker;
+    use super::PodmanLogFetcher;
     use crate::runtime_connectors::{
-        log_picker::GetOutputStreams, podman::PodmanWorkloadId, LogRequestOptions,
+        log_fetcher::GetOutputStreams, podman::PodmanWorkloadId, LogRequestOptions,
     };
 
     const WORKLOAD_ID: &str = "workload_id";
@@ -220,7 +220,7 @@ mod tests {
     fn utest_new_with_no_parameters() {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = true;
-        let mut log_picker = PodmanLogPicker::new(
+        let mut log_fetcher = PodmanLogFetcher::new(
             &PodmanWorkloadId {
                 id: WORKLOAD_ID.into(),
             },
@@ -233,7 +233,7 @@ mod tests {
         );
 
         assert!(matches!(
-            &log_picker.child,
+            &log_fetcher.child,
             Some(MockChild {
                 _stdout: _,
                 cmd,
@@ -243,7 +243,7 @@ mod tests {
 
             }) if cmd == "podman" && *args == vec!["logs".to_string(), WORKLOAD_ID.to_string()]
         ));
-        let (child_stdout, child_stderr) = log_picker.get_output_streams();
+        let (child_stdout, child_stderr) = log_fetcher.get_output_streams();
         assert!(child_stdout.is_none());
         assert!(child_stderr.is_none());
     }
@@ -252,7 +252,7 @@ mod tests {
     fn utest_new_with_with_parameters() {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = true;
-        let mut log_picker = PodmanLogPicker::new(
+        let mut log_fetcher = PodmanLogFetcher::new(
             &PodmanWorkloadId {
                 id: WORKLOAD_ID.into(),
             },
@@ -265,7 +265,7 @@ mod tests {
         );
 
         assert!(matches!(
-            &log_picker.child,
+            &log_fetcher.child,
             Some(MockChild {
                 _stdout: _,
                 cmd,
@@ -274,7 +274,7 @@ mod tests {
                 stderr_option: Some(_),
             }) if cmd == "podman" && *args == vec!["logs".to_string(), "-f".to_string(), "--since".to_string(), "since".to_string(), "--until".to_string(), "until".to_string(), "--tail".to_string(), "10".to_string(), WORKLOAD_ID.to_string(), ]
         ));
-        let (child_stdout, child_stderr) = log_picker.get_output_streams();
+        let (child_stdout, child_stderr) = log_fetcher.get_output_streams();
         assert!(child_stdout.is_none());
         assert!(child_stderr.is_none());
     }
@@ -283,7 +283,7 @@ mod tests {
     fn utest_new_spawn_fails() {
         let _guard = TEST_LOCK.lock().unwrap();
         *CAN_SPAWN.lock().unwrap() = false;
-        let log_picker = PodmanLogPicker::new(
+        let log_fetcher = PodmanLogFetcher::new(
             &PodmanWorkloadId {
                 id: WORKLOAD_ID.into(),
             },
@@ -295,7 +295,7 @@ mod tests {
             },
         );
 
-        assert!(&log_picker.child.is_none())
+        assert!(&log_fetcher.child.is_none())
     }
 
     #[test]
@@ -305,7 +305,7 @@ mod tests {
         *CAN_SPAWN.lock().unwrap() = true;
 
         *CAN_KILL.lock().unwrap() = true;
-        let log_picker = PodmanLogPicker::new(
+        let log_fetcher = PodmanLogFetcher::new(
             &PodmanWorkloadId {
                 id: WORKLOAD_ID.into(),
             },
@@ -318,7 +318,7 @@ mod tests {
         );
 
         assert!(!*WAS_KILLED.lock().unwrap());
-        drop(log_picker);
+        drop(log_fetcher);
         assert!(*WAS_KILLED.lock().unwrap());
     }
 
@@ -328,7 +328,7 @@ mod tests {
         *WAS_KILLED.lock().unwrap() = false;
         *CAN_SPAWN.lock().unwrap() = true;
         *CAN_KILL.lock().unwrap() = false;
-        let log_picker = PodmanLogPicker::new(
+        let log_fetcher = PodmanLogFetcher::new(
             &PodmanWorkloadId {
                 id: WORKLOAD_ID.into(),
             },
@@ -341,7 +341,7 @@ mod tests {
         );
 
         assert!(!*WAS_KILLED.lock().unwrap());
-        drop(log_picker);
+        drop(log_fetcher);
         assert!(*WAS_KILLED.lock().unwrap());
     }
 }

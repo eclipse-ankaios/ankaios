@@ -19,41 +19,41 @@ use tokio::{
     select,
 };
 
-use super::log_picker::{GetOutputStreams, LogPicker, NextLinesResult};
+use super::log_fetcher::{GetOutputStreams, LogFetcher, NextLinesResult};
 
-// [impl->swdd~log-picking-collects-logs~1]
+// [impl->swdd~log-fetching-collects-logs~1]
 
 const LINE_FEED: u8 = 0x0A;
 
 #[derive(Debug)]
-pub struct GenericSingleLogPicker<T: AsyncRead + std::fmt::Debug> {
+pub struct GenericSingleLogFetcher<T: AsyncRead + std::fmt::Debug> {
     reader: T,
     read_data: BytesMut,
 }
 
 #[derive(Debug)]
-pub struct GenericLogPicker<T>
+pub struct GenericLogFetcher<T>
 where
     T: GetOutputStreams,
 {
-    stdout: Option<GenericSingleLogPicker<T::OutputStream>>,
-    stderr: Option<GenericSingleLogPicker<T::ErrStream>>,
+    stdout: Option<GenericSingleLogFetcher<T::OutputStream>>,
+    stderr: Option<GenericSingleLogFetcher<T::ErrStream>>,
     _streams: T,
 }
 
-impl<T: GetOutputStreams> GenericLogPicker<T> {
+impl<T: GetOutputStreams> GenericLogFetcher<T> {
     pub fn new(mut streams: T) -> Self {
         let (stdout, stderr) = streams.get_output_streams();
         Self {
-            stdout: stdout.map(GenericSingleLogPicker::new),
-            stderr: stderr.map(GenericSingleLogPicker::new),
+            stdout: stdout.map(GenericSingleLogFetcher::new),
+            stderr: stderr.map(GenericSingleLogFetcher::new),
             _streams: streams,
         }
     }
 }
 
 #[async_trait]
-impl<T: GetOutputStreams + std::fmt::Debug + Send + 'static> LogPicker for GenericLogPicker<T> {
+impl<T: GetOutputStreams + std::fmt::Debug + Send + 'static> LogFetcher for GenericLogFetcher<T> {
     async fn next_lines(&mut self) -> NextLinesResult {
         loop {
             match (&mut self.stdout, &mut self.stderr) {
@@ -97,7 +97,7 @@ impl<T: GetOutputStreams + std::fmt::Debug + Send + 'static> LogPicker for Gener
     }
 }
 
-impl<T: AsyncRead + std::fmt::Debug + std::marker::Unpin> GenericSingleLogPicker<T> {
+impl<T: AsyncRead + std::fmt::Debug + std::marker::Unpin> GenericSingleLogFetcher<T> {
     pub fn new(read: T) -> Self {
         Self {
             reader: read,
@@ -166,9 +166,9 @@ pub mod test {
 
     use super::NextLinesResult;
     use crate::runtime_connectors::{
-        generic_log_picker::{GenericLogPicker, GenericSingleLogPicker},
-        log_picker::{LogPicker, StreamTrait},
-        podman::{podman_log_picker::PodmanLogPicker, PodmanWorkloadId},
+        generic_log_fetcher::{GenericLogFetcher, GenericSingleLogFetcher},
+        log_fetcher::{LogFetcher, StreamTrait},
+        podman::{podman_log_fetcher::PodmanLogFetcher, PodmanWorkloadId},
         runtime_connector::LogRequestOptions,
     };
 
@@ -224,7 +224,7 @@ pub mod test {
         }
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_multiple_lines() {
         let read = MockRead {
@@ -235,19 +235,19 @@ pub mod test {
             .into(),
         };
 
-        let mut log_picker = GenericSingleLogPicker::new(read);
+        let mut log_fetcher = GenericSingleLogFetcher::new(read);
         assert_eq!(
-            log_picker.next_lines().await,
+            log_fetcher.next_lines().await,
             Some(vec![LINE_1.into(), LINE_2.into(), LINE_3.into()])
         );
         assert_eq!(
-            log_picker.next_lines().await,
+            log_fetcher.next_lines().await,
             Some(vec![LINE_4.into(), LINE_5.into()])
         );
-        assert_eq!(log_picker.next_lines().await, None);
+        assert_eq!(log_fetcher.next_lines().await, None);
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_last_newline_missing() {
         let read = MockRead {
@@ -258,17 +258,17 @@ pub mod test {
             .into(),
         };
 
-        let mut log_picker = GenericSingleLogPicker::new(read);
+        let mut log_fetcher = GenericSingleLogFetcher::new(read);
         assert_eq!(
-            log_picker.next_lines().await,
+            log_fetcher.next_lines().await,
             Some(vec![LINE_1.into(), LINE_2.into(), LINE_3.into()])
         );
-        assert_eq!(log_picker.next_lines().await, Some(vec![LINE_4.into()]));
-        assert_eq!(log_picker.next_lines().await, Some(vec![LINE_5.into()]));
-        assert_eq!(log_picker.next_lines().await, None);
+        assert_eq!(log_fetcher.next_lines().await, Some(vec![LINE_4.into()]));
+        assert_eq!(log_fetcher.next_lines().await, Some(vec![LINE_5.into()]));
+        assert_eq!(log_fetcher.next_lines().await, None);
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_line_split_multiple_times() {
         let read = MockRead {
@@ -281,16 +281,16 @@ pub mod test {
             .into(),
         };
 
-        let mut log_picker = GenericSingleLogPicker::new(read);
+        let mut log_fetcher = GenericSingleLogFetcher::new(read);
         assert_eq!(
-            log_picker.next_lines().await,
+            log_fetcher.next_lines().await,
             Some(vec![LINE_1.into(), LINE_2.into()])
         );
-        assert_eq!(log_picker.next_lines().await, Some(vec![LINE_3.into()]));
-        assert_eq!(log_picker.next_lines().await, None);
+        assert_eq!(log_fetcher.next_lines().await, Some(vec![LINE_3.into()]));
+        assert_eq!(log_fetcher.next_lines().await, None);
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_handle_non_utf8() {
         let read = MockRead {
@@ -300,12 +300,12 @@ pub mod test {
             .into(),
         };
 
-        let mut log_picker = GenericSingleLogPicker::new(read);
-        assert_eq!(log_picker.next_lines().await, Some(vec!["line�".into()]));
-        assert_eq!(log_picker.next_lines().await, None);
+        let mut log_fetcher = GenericSingleLogFetcher::new(read);
+        assert_eq!(log_fetcher.next_lines().await, Some(vec!["line�".into()]));
+        assert_eq!(log_fetcher.next_lines().await, None);
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_read_fails() {
         let read = MockRead {
@@ -316,60 +316,60 @@ pub mod test {
             .into(),
         };
 
-        let mut log_picker = GenericSingleLogPicker::new(read);
-        assert_eq!(log_picker.next_lines().await, Some(vec![LINE_1.into()]));
-        assert_eq!(log_picker.next_lines().await, None);
+        let mut log_fetcher = GenericSingleLogFetcher::new(read);
+        assert_eq!(log_fetcher.next_lines().await, Some(vec![LINE_1.into()]));
+        assert_eq!(log_fetcher.next_lines().await, None);
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
-    async fn utest_generic_log_picker_none() {
-        let mut generic_log_picker = create_generic_log_picker(None, None);
+    async fn utest_generic_log_fetcher_none() {
+        let mut generic_log_fetcher = create_generic_log_fetcher(None, None);
         assert!(matches!(
-            generic_log_picker.next_lines().await,
+            generic_log_fetcher.next_lines().await,
             NextLinesResult::EoF
         ));
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
-    async fn utest_generic_log_picker_stdout() {
+    async fn utest_generic_log_fetcher_stdout() {
         let stdout = MockRead {
             data: vec![MockReadDataEntry::data(&format!("{STDOUT_LINE}\n"))].into(),
         };
 
-        let mut generic_log_picker = create_generic_log_picker(Some(Box::new(stdout)), None);
+        let mut generic_log_fetcher = create_generic_log_fetcher(Some(Box::new(stdout)), None);
         assert!(matches!(
-            generic_log_picker.next_lines().await,
+            generic_log_fetcher.next_lines().await,
             NextLinesResult::Stdout(lines) if lines == vec![STDOUT_LINE.to_string()]
         ));
         assert!(matches!(
-            generic_log_picker.next_lines().await,
+            generic_log_fetcher.next_lines().await,
             NextLinesResult::EoF
         ));
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
-    async fn utest_generic_log_picker_stderr() {
+    async fn utest_generic_log_fetcher_stderr() {
         let stderr = MockRead {
             data: vec![MockReadDataEntry::data(&format!("{STDERR_LINE}\n"))].into(),
         };
 
-        let mut generic_log_picker = create_generic_log_picker(None, Some(Box::new(stderr)));
+        let mut generic_log_fetcher = create_generic_log_fetcher(None, Some(Box::new(stderr)));
         assert!(matches!(
-            generic_log_picker.next_lines().await,
+            generic_log_fetcher.next_lines().await,
             NextLinesResult::Stderr(lines) if lines == vec![STDERR_LINE.to_string()]
         ));
         assert!(matches!(
-            generic_log_picker.next_lines().await,
+            generic_log_fetcher.next_lines().await,
             NextLinesResult::EoF
         ));
     }
 
-    // [utest->swdd~log-picking-collects-logs~1]
+    // [utest->swdd~log-fetching-collects-logs~1]
     #[tokio::test]
-    async fn utest_generic_log_picker_stdout_and_stderr() {
+    async fn utest_generic_log_fetcher_stdout_and_stderr() {
         let stdout = MockRead {
             data: vec![MockReadDataEntry::data(&format!("{STDOUT_LINE}\n"))].into(),
         };
@@ -377,13 +377,13 @@ pub mod test {
             data: vec![MockReadDataEntry::data(&format!("{STDERR_LINE}\n"))].into(),
         };
 
-        let mut generic_log_picker =
-            create_generic_log_picker(Some(Box::new(stdout)), Some(Box::new(stderr)));
+        let mut generic_log_fetcher =
+            create_generic_log_fetcher(Some(Box::new(stdout)), Some(Box::new(stderr)));
         let mut lines_from_stdout = 0;
         let mut lines_from_stderr = 0;
 
         for _ in 0..2 {
-            let line = generic_log_picker.next_lines().await;
+            let line = generic_log_fetcher.next_lines().await;
             match line {
                 NextLinesResult::Stdout(lines) => {
                     assert_eq!(lines, vec![STDOUT_LINE.to_string()]);
@@ -404,19 +404,19 @@ pub mod test {
 
         // Last line must be EoF
         assert!(matches!(
-            generic_log_picker.next_lines().await,
+            generic_log_fetcher.next_lines().await,
             NextLinesResult::EoF
         ));
     }
 
-    fn create_generic_log_picker(
+    fn create_generic_log_fetcher(
         stdout: Option<Box<dyn StreamTrait>>,
         stderr: Option<Box<dyn StreamTrait>>,
-    ) -> GenericLogPicker<PodmanLogPicker> {
+    ) -> GenericLogFetcher<PodmanLogFetcher> {
         let workload_id = PodmanWorkloadId {
             id: "test".to_string(),
         };
-        let mut podman_log_picker = PodmanLogPicker::new(
+        let mut podman_log_fetcher = PodmanLogFetcher::new(
             &workload_id,
             &LogRequestOptions {
                 follow: true,
@@ -425,9 +425,9 @@ pub mod test {
                 tail: Some(10),
             },
         );
-        podman_log_picker.set_stdout(stdout);
-        podman_log_picker.set_stderr(stderr);
+        podman_log_fetcher.set_stdout(stdout);
+        podman_log_fetcher.set_stderr(stderr);
 
-        GenericLogPicker::new(podman_log_picker)
+        GenericLogFetcher::new(podman_log_fetcher)
     }
 }

@@ -24,9 +24,9 @@ use common::{
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        generic_log_picker::GenericLogPicker, log_picker::LogPicker, podman_cli::PodmanStartConfig,
-        runtime_connector::LogRequestOptions, ReusableWorkloadState, RuntimeConnector,
-        RuntimeError, RuntimeStateGetter, StateChecker,
+        generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher,
+        podman_cli::PodmanStartConfig, runtime_connector::LogRequestOptions, ReusableWorkloadState,
+        RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
     },
     workload_state::WorkloadStateSender,
 };
@@ -274,15 +274,15 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         Ok(checker)
     }
 
-    fn get_log_picker(
+    fn get_log_fetcher(
         &self,
         workload_id: PodmanWorkloadId,
         options: &LogRequestOptions,
-    ) -> Result<Box<dyn LogPicker + Send>, RuntimeError> {
-        let podman_log_picker =
-            super::podman_log_picker::PodmanLogPicker::new(&workload_id, options);
-        let log_picker = GenericLogPicker::new(podman_log_picker);
-        Ok(Box::new(log_picker))
+    ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
+        let podman_log_fetcher =
+            super::podman_log_fetcher::PodmanLogFetcher::new(&workload_id, options);
+        let log_fetcher = GenericLogFetcher::new(podman_log_fetcher);
+        Ok(Box::new(log_fetcher))
     }
 
     // [impl->swdd~podman-delete-workload-stops-and-removes-workload~1]

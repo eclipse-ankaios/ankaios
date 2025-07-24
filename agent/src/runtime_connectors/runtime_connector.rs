@@ -23,7 +23,7 @@ use common::{
 
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
-use super::log_picker::LogPicker;
+use super::log_fetcher::LogFetcher;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -138,11 +138,11 @@ where
         update_state_tx: WorkloadStateSender,
     ) -> Result<StChecker, RuntimeError>;
 
-    fn get_log_picker(
+    fn get_log_fetcher(
         &self,
         workload_id: WorkloadId,
         options: &LogRequestOptions,
-    ) -> Result<Box<dyn LogPicker + Send>, RuntimeError>;
+    ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError>;
 
     async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;
 }
@@ -187,7 +187,7 @@ pub mod test {
 
     use crate::{
         runtime_connectors::{
-            log_picker::LogPicker, ReusableWorkloadState, RuntimeStateGetter, StateChecker,
+            log_fetcher::LogFetcher, ReusableWorkloadState, RuntimeStateGetter, StateChecker,
         },
         workload_state::WorkloadStateSender,
     };
@@ -261,9 +261,9 @@ pub mod test {
             Result<StubStateChecker, RuntimeError>,
         ),
         DeleteWorkload(String, Result<(), RuntimeError>),
-        StartLogPicker(
+        StartLogFetcher(
             LogRequestOptions,
-            Result<Box<dyn LogPicker + Send>, RuntimeError>,
+            Result<Box<dyn LogFetcher + Send>, RuntimeError>,
         ),
     }
 
@@ -453,13 +453,13 @@ pub mod test {
             }
         }
 
-        fn get_log_picker(
+        fn get_log_fetcher(
             &self,
             workload_id: String,
             options: &LogRequestOptions,
-        ) -> Result<Box<dyn LogPicker + Send>, RuntimeError> {
+        ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
             match self.get_expected_call() {
-                RuntimeCall::StartLogPicker(expected_options, result)
+                RuntimeCall::StartLogFetcher(expected_options, result)
                     if expected_options == *options =>
                 {
                     result
