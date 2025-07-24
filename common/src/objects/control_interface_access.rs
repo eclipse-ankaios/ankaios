@@ -311,12 +311,6 @@ mod tests {
         const MAX_PREFIX: &str = "123456789012345678901234567890";
         const MAX_SUFFIX: &str = "123456789012345678901234567890123";
 
-        fn log_rule_with_workload(workload_name: &str) -> AccessRightsRule {
-            AccessRightsRule::LogRule(LogRule {
-                workload_names: vec![workload_name.to_string()],
-            })
-        }
-
         assert!(log_rule_with_workload("workload_1").verify_format().is_ok());
         assert!(log_rule_with_workload("*workload_1")
             .verify_format()
@@ -352,12 +346,6 @@ mod tests {
     fn utest_access_rights_log_rule_verify_fails() {
         const TOO_LONG_PREFIX: &str = "123456789012345678901234567890";
         const TOO_LONG_SUFFIX: &str = "1234567890123456789012345678901234";
-
-        fn log_rule_with_workload(workload_name: &str) -> AccessRightsRule {
-            AccessRightsRule::LogRule(LogRule {
-                workload_names: vec![workload_name.to_string()],
-            })
-        }
 
         assert!(log_rule_with_workload("").verify_format().is_err());
         assert!(
@@ -398,6 +386,12 @@ mod tests {
         assert!(log_rule_with_workload("also@wrong*")
             .verify_format()
             .is_err());
+    }
+
+    fn log_rule_with_workload(workload_name: &str) -> AccessRightsRule {
+        AccessRightsRule::LogRule(LogRule {
+            workload_names: vec![workload_name.to_string()],
+        })
     }
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
