@@ -23,4 +23,4 @@ workloads:
     restartPolicy: NEVER
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
-      commandArgs: [ "sh", "-c", "trap 'echo; exit' INT; while true; do echo 'ANKAIOS'; sleep 1; done" ]
+      commandArgs: [ "sh", "-c", "trap 'echo; exit' SIGINT SIGTERM; while true; do echo 'ANKAIOS'; sleep 1; done" ]
