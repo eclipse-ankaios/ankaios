@@ -5,7 +5,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 ANKAIOS_SERVER_SOCKET="0.0.0.0:25551"
 ANKAIOS_SERVER_URL="http://${ANKAIOS_SERVER_SOCKET}"
 DEFAULT_ANKAIOS_BIN_PATH="/usr/local/bin"
-MANIFEST_FILE="startupState.yaml"
+MANIFEST_FILE="manifest.yaml"
 
 display_usage() {
   echo -e "Usage: $0 <name> [--ankaios-bin-dir <path>] [additional podman build args]"
