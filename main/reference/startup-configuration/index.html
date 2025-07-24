@@ -22,7 +22,7 @@
     
     
       
-        <title>Startup configuration - Eclipse Ankaios</title>
+        <title>Startup manifest - Eclipse Ankaios</title>
       
     
     
@@ -57,7 +57,7 @@
       
         <meta  property="og:type"  content="website" >
       
-        <meta  property="og:title"  content="Startup configuration - Eclipse Ankaios" >
+        <meta  property="og:title"  content="Startup manifest - Eclipse Ankaios" >
       
         <meta  property="og:description"  content="None" >
       
@@ -73,7 +73,7 @@
       
         <meta  name="twitter:card"  content="summary_large_image" >
       
-        <meta  name="twitter:title"  content="Startup configuration - Eclipse Ankaios" >
+        <meta  name="twitter:title"  content="Startup manifest - Eclipse Ankaios" >
       
         <meta  name="twitter:description"  content="None" >
       
@@ -100,7 +100,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#startup-configuration" class="md-skip">
+        <a href="#startup-manifest" class="md-skip">
           Skip to content
         </a>
       
@@ -149,7 +149,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Startup configuration
+              Startup manifest
             
           </span>
         </div>
@@ -991,7 +991,7 @@
   
   
   <span class="md-ellipsis">
-    Startup configuration
+    Startup manifest
     
   </span>
   
@@ -1004,7 +1004,7 @@
   
   
   <span class="md-ellipsis">
-    Startup configuration
+    Startup manifest
     
   </span>
   
@@ -1027,13 +1027,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#configuration-structure" class="md-nav__link">
+  <a href="#manifest-structure" class="md-nav__link">
     <span class="md-ellipsis">
-      Configuration structure
+      Manifest structure
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Configuration structure">
+    <nav class="md-nav" aria-label="Manifest structure">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1680,13 +1680,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#configuration-structure" class="md-nav__link">
+  <a href="#manifest-structure" class="md-nav__link">
     <span class="md-ellipsis">
-      Configuration structure
+      Manifest structure
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Configuration structure">
+    <nav class="md-nav" aria-label="Manifest structure">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1736,13 +1736,13 @@
   
 
 
-<h1 id="startup-configuration">Startup configuration<a class="headerlink" href="#startup-configuration" title="Permanent link">&para;</a></h1>
-<p>Depending on the use-case, the Ankaios cluster can be started with an optional predefined list of <a href="../glossary/#workload">workloads</a> - the startup configuration.
-Currently the startup configuration is provided as a file which is in YAML file format and can be passed to the Ankaios server through a command line argument.
-If Ankaios is started without or with an empty startup configuration, workloads can still be added to the cluster dynamically during runtime.</p>
+<h1 id="startup-manifest">Startup manifest<a class="headerlink" href="#startup-manifest" title="Permanent link">&para;</a></h1>
+<p>Depending on the use-case, the Ankaios cluster can be started with an optional predefined list of <a href="../glossary/#workload">workloads</a> - the startup manifest.
+The startup manifest can be provided as a YAML file. The file path can be passed to the Ankaios server through a command line argument or via the <a href="../config-files/">server configuration file</a>.
+If Ankaios is started without or with an empty startup manifest, workloads can still be added to the cluster dynamically during runtime.</p>
 <p><strong>Note:</strong> To be able to run a workload an Ankaios agent must be started on the same or on a different <a href="../glossary/#node">node</a>.</p>
-<h2 id="configuration-structure">Configuration structure<a class="headerlink" href="#configuration-structure" title="Permanent link">&para;</a></h2>
-<p>The startup configuration is composed of a list of workload specifications within the <code>workloads</code> object.
+<h2 id="manifest-structure">Manifest structure<a class="headerlink" href="#manifest-structure" title="Permanent link">&para;</a></h2>
+<p>The startup manifest is composed of a list of workload specifications within the <code>workloads</code> object.
 A workload specification must contain the following information:</p>
 <ul>
 <li><code>workload name</code><em>(via field key)</em>, specify the workload name to identify the workload in the Ankaios system.</li>

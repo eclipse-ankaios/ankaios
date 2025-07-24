@@ -977,7 +977,7 @@
   
   
   <span class="md-ellipsis">
-    Startup configuration
+    Startup manifest
     
   </span>
   
@@ -1722,9 +1722,9 @@
 </ul>
 <p>Thus, for new features:</p>
 <ul>
-<li>New requirements need to be added in the design or existing requirements need to be modified (type <code>swdd</code>)</li>
-<li>Mark the parts in the source code that actually implement the design requirement using the type <code>impl</code>, e.g., <code>// [impl-&gt;swdd~this-is-a-requirement~1]</code></li>
-<li>Mark the tests that check the implementation of the design with one of the types <code>utest</code>, <code>itest</code> or <code>stest</code> depending on the type of the test, e.g., <code>// [utest-&gt;swdd~this-is-a-requirement~1]</code> for a unit test</li>
+<li>New requirements need to be added in the design or existing requirements need to be modified (type <code>swdd</code>).</li>
+<li>Mark the parts in the source code that actually implement the design requirement using the type <code>impl</code>, e.g., <code>// [impl-&gt;swdd~this-is-a-requirement~1]</code>. If the whole code in the <code>.rs</code> file is affected, place the tracing anchor after the <code>use</code> statements.</li>
+<li>Mark the tests that check the implementation of the design with one of the types <code>utest</code>, <code>itest</code> or <code>stest</code> depending on the type of the test, e.g., <code>// [utest-&gt;swdd~this-is-a-requirement~1]</code> for a unit test.</li>
 </ul>
 <p>The format of a requirement is described in the next section <a href="../requirement-template/">Requirement description template</a>.</p>
 

@@ -1102,7 +1102,7 @@
   
   
   <span class="md-ellipsis">
-    Startup configuration
+    Startup manifest
     
   </span>
   
@@ -1884,7 +1884,7 @@ It should finally print:</p>
 <a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">      </span><span class="no">commandOptions:</span>
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">        </span><span class="no">- &quot;--net=host&quot;</span>
 </code></pre></div>
-<p>The source code for that image is available in the <a href="https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_vehicle_signals">Anakios repo</a>.</p>
+<p>The source code for that image is available in the <a href="https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_vehicle_signals">Ankaios repository</a>.</p>
 <p>Start the workload with:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>apply<span class="w"> </span>speed-provider.yaml
 </code></pre></div>
@@ -1976,14 +1976,9 @@ It should print:</p>
 <p>Optionally, you can re-run the previous <code>ank -k get agents</code> command again, to verify that the number of workloads managed by the <code>infotainment</code> agent has now increased.</p>
 <h2 id="reading-workload-logs">Reading workload logs<a class="headerlink" href="#reading-workload-logs" title="Permanent link">&para;</a></h2>
 <p>The speed-consumer workload subscribes to the vehicle speed signal and prints it to stdout.
-Use the web UI of the speed-provider to send a few vehicle speed values and watch the log messages of the speed-consumer.
-As the logs are specific for a runtime, we use Podman to read the logs:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>podman<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span><span class="k">$(</span>podman<span class="w"> </span>ps<span class="w"> </span>-a<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>speed-consumer<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $1}&#39;</span><span class="k">)</span>
+Use the web UI of the speed-provider to send a few vehicle speed values and watch the log messages of the speed-consumer with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>ank<span class="w"> </span>logs<span class="w"> </span>speed-consumer
 </code></pre></div>
-<div class="admonition info">
-<p class="admonition-title">Info</p>
-<p>If you want to see the logs of the databroker or speed-provider you need to use <code>sudo podman</code> instead of <code>podman</code> (two occurences) as those workloads run on podman as root on agent_A.</p>
-</div>
 <p>Now, we want to change the existing Ankaios manifest of the speed-provider to use auto mode which sends a new speed limit value every second.</p>
 <div class="highlight"><span class="filename">speed-provider.yaml</span><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
 <a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nt">workloads</span><span class="p">:</span>
@@ -2000,31 +1995,21 @@ As the logs are specific for a runtime, we use Podman to read the logs:</p>
 <p>We apply the changes with:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>apply<span class="w"> </span>speed-provider.yaml
 </code></pre></div>
-<p>and recognize that we get a new speed value every 1 second.</p>
+<p>and recognize that we get a new speed value every 1 second:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>ank<span class="w"> </span>logs<span class="w"> </span>--follow<span class="w"> </span>speed-consumer
+</code></pre></div>
 <h2 id="ankaios-state">Ankaios state<a class="headerlink" href="#ankaios-state" title="Permanent link">&para;</a></h2>
 <p>Previously we have used <code>ank -k get workloads</code> to a get list of running workloads.
 Ankaios also maintains a current state which can be retrieved with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>state
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>state
 </code></pre></div>
 <p>Let's delete all workloads and check the state again:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>databroker<span class="w"> </span>speed-provider<span class="w"> </span>speed-consumer
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>state
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>databroker<span class="w"> </span>speed-provider<span class="w"> </span>speed-consumer
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>state
 </code></pre></div>
 <p>If we want to start the three workloads on startup of the Ankaios server and agents we need to create a startup manifest file.
-In the default installation this file is <code>/etc/ankaios/state.yaml</code> as we can see in the systemd until file of the Ankaios server:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>$<span class="w"> </span>systemctl<span class="w"> </span>cat<span class="w"> </span>ank-server
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="c1"># /etc/systemd/system/ank-server.service</span>
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="o">[</span>Unit<span class="o">]</span>
-<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="nv">Description</span><span class="o">=</span>Ankaios<span class="w"> </span>server
-<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>
-<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="o">[</span>Service<span class="o">]</span>
-<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="nv">Environment</span><span class="o">=</span><span class="s2">&quot;RUST_LOG=info&quot;</span>
-<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="nv">ExecStart</span><span class="o">=</span>/usr/local/bin/ank-server<span class="w"> </span>--insecure<span class="w"> </span>--startup-config<span class="w"> </span>/etc/ankaios/state.yaml
-<a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>
-<a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a><span class="o">[</span>Install<span class="o">]</span>
-<a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a><span class="nv">WantedBy</span><span class="o">=</span>default.target
-</code></pre></div>
-<p>Now we create a startup manifest file containing all three workloads:</p>
+In the default server config (see <code>/etc/ankaios/ank-server.conf</code>), a startup manifest is read from <code>/etc/ankaios/state.yaml</code>.</p>
+<p>Now we create such a startup manifest file containing all three workloads:</p>
 <div class="highlight"><span class="filename">/etc/ankaios/state.yaml</span><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
 <a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="nt">workloads</span><span class="p">:</span>
 <a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span><span class="nt">databroker</span><span class="p">:</span>

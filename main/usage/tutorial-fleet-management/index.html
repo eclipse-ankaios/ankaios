@@ -1102,7 +1102,7 @@
   
   
   <span class="md-ellipsis">
-    Startup configuration
+    Startup manifest
     
   </span>
   
@@ -1962,7 +1962,7 @@ The following examples assume that the installation script was used with the def
 <a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;*&quot;</span>
 <a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">    </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NEVER</span>
 <a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/fleet-connector:0.5.4</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/fleet-connector:0.6.0</span>
 <a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">      </span><span class="no">commandOptions: [ &quot;--net=host&quot;, &quot;-e&quot;, &quot;VIN=1&quot;]</span>
 </code></pre></div>
 <p>Since the fleet connector needs to access the Ankaios control interface, we need to allow this with the <code>controlInterfaceAccess</code> section in the manifest.
@@ -2055,8 +2055,8 @@ Just publish the manifest with the workload and config from the previous section
 <a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>podman<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--net<span class="o">=</span>host<span class="w"> </span>-v<span class="w"> </span><span class="nv">$PWD</span>/<span class="nv">$FILE</span>:/<span class="nv">$FILE</span><span class="w"> </span>docker.io/eclipse-mosquitto:2.0.20<span class="w"> </span>mosquitto_pub<span class="w"> </span>-h<span class="w"> </span>localhost<span class="w"> </span>-t<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$TOPIC</span><span class="s2">&quot;</span><span class="w"> </span>-f<span class="w"> </span><span class="nv">$FILE</span>
 </code></pre></div>
 <h2 id="conclusion">Conclusion<a class="headerlink" href="#conclusion" title="Permanent link">&para;</a></h2>
-<p>This tutorial presented a simple way to manage a fleet of vehicles using Ankaios as an embedded container and workload orchestrator. A sample fleet connector was created using some of the features of the Ankaios SDK for Python. In the near future there will also be an <a href="https://github.com/eclipse-ankaios/ank-sdk-rust">Ankaios SDK for Rust</a>.</p>
-<p>If you have questions or want to to discuss a specific use case, you can contact the Ankaios maintainers via <a href="https://join.slack.com/t/ankaios/shared_invite/zt-2inyhbehh-iVp3YZD09VIgybv8D1gDpQ">Slack</a> or <a href="https://github.com/eclipse-ankaios/ankaios/discussions">Github discussions</a> (see also <a href="../../support/">Support</a>).</p>
+<p>This tutorial presented a simple way to manage a fleet of vehicles using Ankaios as an embedded container and workload orchestrator. A sample fleet connector was created using some of the features of the Ankaios SDK for Python. In addition to that, there is also an <a href="https://github.com/eclipse-ankaios/ank-sdk-rust">Ankaios SDK for Rust</a>.</p>
+<p>If you have questions or want to to discuss a specific use case, you can contact the Ankaios maintainers via <a href="https://join.slack.com/t/ankaios/shared_invite/zt-38857n3r5-1nXR7gSAMDtTdYjz_LBmzg">Slack</a> or <a href="https://github.com/eclipse-ankaios/ankaios/discussions">Github discussions</a> (see also <a href="../../support/">Support</a>).</p>
 
 
 

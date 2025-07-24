@@ -982,7 +982,7 @@
   
   
   <span class="md-ellipsis">
-    Startup configuration
+    Startup manifest
     
   </span>
   
@@ -1541,6 +1541,78 @@
   <a href="#freememory" class="md-nav__link">
     <span class="md-ellipsis">
       FreeMemory
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logentriesresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogEntriesResponse
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logrule" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogRule
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logscancelaccepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogsCancelAccepted
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logscancelrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogsCancelRequest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logsrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogsRequest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logsrequestaccepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogsRequestAccepted
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logsstopresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogsStopResponse
     </span>
   </a>
   
@@ -2521,6 +2593,78 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#logentriesresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogEntriesResponse
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logrule" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogRule
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logscancelaccepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogsCancelAccepted
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logscancelrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogsCancelRequest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logsrequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogsRequest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logsrequestaccepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogsRequestAccepted
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logsstopresponse" class="md-nav__link">
+    <span class="md-ellipsis">
+      LogsStopResponse
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#request" class="md-nav__link">
     <span class="md-ellipsis">
       Request
@@ -2835,6 +2979,14 @@
 <li><a href="#ank_base-File">File</a></li>
 <li><a href="#ank_base-Files">Files</a></li>
 <li><a href="#ank_base-FreeMemory">FreeMemory</a></li>
+<li><a href="#ank_base-LogEntriesResponse">LogEntriesResponse</a></li>
+<li><a href="#ank_base-LogEntry">LogEntry</a></li>
+<li><a href="#ank_base-LogRule">LogRule</a></li>
+<li><a href="#ank_base-LogsCancelAccepted">LogsCancelAccepted</a></li>
+<li><a href="#ank_base-LogsCancelRequest">LogsCancelRequest</a></li>
+<li><a href="#ank_base-LogsRequest">LogsRequest</a></li>
+<li><a href="#ank_base-LogsRequestAccepted">LogsRequestAccepted</a></li>
+<li><a href="#ank_base-LogsStopResponse">LogsStopResponse</a></li>
 <li><a href="#ank_base-Request">Request</a></li>
 <li><a href="#ank_base-Response">Response</a></li>
 <li><a href="#ank_base-State">State</a></li>
@@ -2930,7 +3082,7 @@ No more messages will be processed by Ankaios after this message is sent.</p>
 <td>connectionClosed</td>
 <td><a href="#control_api-ConnectionClosed">ConnectionClosed</a></td>
 <td></td>
-<td>A message sent by Ankaios to inform a workload that the connection to Anakios was closed.</td>
+<td>A message sent by Ankaios to inform a workload that the connection to Ankaios was closed.</td>
 </tr>
 </tbody>
 </table>
@@ -3004,6 +3156,12 @@ No more messages will be processed by Ankaios after this message is sent.</p>
 <td><a href="#ank_base-StateRule">StateRule</a></td>
 <td></td>
 <td>Rule for getting or setting the state</td>
+</tr>
+<tr>
+<td>logRule</td>
+<td><a href="#ank_base-LogRule">LogRule</a></td>
+<td></td>
+<td>Rule for getting workload logs</td>
 </tr>
 </tbody>
 </table>
@@ -3240,7 +3398,7 @@ This is usually answered with a <a href="#completestate">CompleteState</a> messa
 </table>
 <p><a name="ank_base-ConfigMappings"></a></p>
 <h3 id="configmappings">ConfigMappings<a class="headerlink" href="#configmappings" title="Permanent link">&para;</a></h3>
-<p>This is a workaround for proto not supporing optional maps</p>
+<p>This is a workaround for proto not supporting optional maps</p>
 <table>
 <thead>
 <tr>
@@ -3383,7 +3541,7 @@ Only if a matching allow rule is found, and no matching deny rules is found, the
 </table>
 <p><a name="ank_base-Dependencies"></a></p>
 <h3 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h3>
-<p>This is a workaround for proto not supporing optional maps</p>
+<p>This is a workaround for proto not supporting optional maps</p>
 <table>
 <thead>
 <tr>
@@ -3687,6 +3845,168 @@ This level is needed as a workload could be running more than once on one agent 
 </tr>
 </tbody>
 </table>
+<p><a name="ank_base-LogEntriesResponse"></a></p>
+<h3 id="logentriesresponse">LogEntriesResponse<a class="headerlink" href="#logentriesresponse" title="Permanent link">&para;</a></h3>
+<p>A message containing the requested logs.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>logEntries</td>
+<td><a href="#ank_base-LogEntry">LogEntry</a></td>
+<td>repeated</td>
+<td>The logs of the requested workloads.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-LogEntry"></a></p>
+<h3 id="logentry">LogEntry<a class="headerlink" href="#logentry" title="Permanent link">&para;</a></h3>
+<p>A message containing a single log entry.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workloadName</td>
+<td><a href="#ank_base-WorkloadInstanceName">WorkloadInstanceName</a></td>
+<td></td>
+<td>The name of the workloads for which logs are requested.</td>
+</tr>
+<tr>
+<td>message</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The log message.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-LogRule"></a></p>
+<h3 id="logrule">LogRule<a class="headerlink" href="#logrule" title="Permanent link">&para;</a></h3>
+<p>Message containing a rule for getting workload logs</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workloadNames</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>The names of the workloads the rule applies to. If empty, the rule does not apply to any workload. Wildcard &#34;*&#34; can be used to match all workloads.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-LogsCancelAccepted"></a></p>
+<h3 id="logscancelaccepted">LogsCancelAccepted<a class="headerlink" href="#logscancelaccepted" title="Permanent link">&para;</a></h3>
+<p>A message indicating that the request for canceling the log collection was accepted.
+Please note that the actual stopping of the log collection campaign could take longer so other log response messages could be delivered also after receiving this message.</p>
+<p><a name="ank_base-LogsCancelRequest"></a></p>
+<h3 id="logscancelrequest">LogsCancelRequest<a class="headerlink" href="#logscancelrequest" title="Permanent link">&para;</a></h3>
+<p>A message stopping the streaming of logs requested via a request with the follow flag.</p>
+<p><a name="ank_base-LogsRequest"></a></p>
+<h3 id="logsrequest">LogsRequest<a class="headerlink" href="#logsrequest" title="Permanent link">&para;</a></h3>
+<p>A message requesting workload logs.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workloadNames</td>
+<td><a href="#ank_base-WorkloadInstanceName">WorkloadInstanceName</a></td>
+<td>repeated</td>
+<td>The names of the workloads for which logs are requested.</td>
+</tr>
+<tr>
+<td>follow</td>
+<td><a href="#bool">bool</a></td>
+<td>optional</td>
+<td>If true, the server will stream the logs to the client until a LogsCancelRequest with the same Id is sent.</td>
+</tr>
+<tr>
+<td>tail</td>
+<td><a href="#int32">int32</a></td>
+<td>optional</td>
+<td>The number of lines to show from the end of the logs. Default is -1, which means all logs.</td>
+</tr>
+<tr>
+<td>since</td>
+<td><a href="#string">string</a></td>
+<td>optional</td>
+<td>Only return logs after a specific TIMESTAMP. The TIMESTAMP is a string in RFC3339 format.</td>
+</tr>
+<tr>
+<td>until</td>
+<td><a href="#string">string</a></td>
+<td>optional</td>
+<td>Only return logs before a specific TIMESTAMP. The TIMESTAMP is a string in RFC3339 format.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-LogsRequestAccepted"></a></p>
+<h3 id="logsrequestaccepted">LogsRequestAccepted<a class="headerlink" href="#logsrequestaccepted" title="Permanent link">&para;</a></h3>
+<p>A message indicating that the logs were successfully requested and for which workloads.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workloadNames</td>
+<td><a href="#ank_base-WorkloadInstanceName">WorkloadInstanceName</a></td>
+<td>repeated</td>
+<td>The instance names of the workloads for which the logs request was successfully accepted.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-LogsStopResponse"></a></p>
+<h3 id="logsstopresponse">LogsStopResponse<a class="headerlink" href="#logsstopresponse" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workloadName</td>
+<td><a href="#ank_base-WorkloadInstanceName">WorkloadInstanceName</a></td>
+<td></td>
+<td>The name of the workload for which the log streaming was stopped.</td>
+</tr>
+</tbody>
+</table>
 <p><a name="ank_base-Request"></a></p>
 <h3 id="request">Request<a class="headerlink" href="#request" title="Permanent link">&para;</a></h3>
 <p>A message containing a request to the Ankaios server to update the state or to request the complete state of the Ankaios system.</p>
@@ -3717,6 +4037,18 @@ This level is needed as a workload could be running more than once on one agent 
 <td><a href="#ank_base-CompleteStateRequest">CompleteStateRequest</a></td>
 <td></td>
 <td>A message to Ankaios server to request the complete state by the given request id and the optional field mask.</td>
+</tr>
+<tr>
+<td>logsRequest</td>
+<td><a href="#ank_base-LogsRequest">LogsRequest</a></td>
+<td></td>
+<td>A message to Ankaios server to request workload logs.</td>
+</tr>
+<tr>
+<td>logsCancelRequest</td>
+<td><a href="#ank_base-LogsCancelRequest">LogsCancelRequest</a></td>
+<td></td>
+<td>A message to Ankaios server to stop the request for workload logs.</td>
 </tr>
 </tbody>
 </table>
@@ -3757,6 +4089,30 @@ The response content depends on the request content previously sent to the Ankai
 <td><a href="#ank_base-UpdateStateSuccess">UpdateStateSuccess</a></td>
 <td></td>
 <td></td>
+</tr>
+<tr>
+<td>logsRequestAccepted</td>
+<td><a href="#ank_base-LogsRequestAccepted">LogsRequestAccepted</a></td>
+<td></td>
+<td>A message containing the workload names for which the logs were successfully requested.</td>
+</tr>
+<tr>
+<td>logEntriesResponse</td>
+<td><a href="#ank_base-LogEntriesResponse">LogEntriesResponse</a></td>
+<td></td>
+<td>A message containing workload logs.</td>
+</tr>
+<tr>
+<td>logsStopResponse</td>
+<td><a href="#ank_base-LogsStopResponse">LogsStopResponse</a></td>
+<td></td>
+<td>A message containing the workload instance name indicating the stop of the log streaming.</td>
+</tr>
+<tr>
+<td>logsCancelAccepted</td>
+<td><a href="#ank_base-LogsCancelAccepted">LogsCancelAccepted</a></td>
+<td></td>
+<td>A message indicating that the request for canceling the log collection was accepted. Please note that the actual stopping of the log collection campaign could take longer.</td>
 </tr>
 </tbody>
 </table>
@@ -3816,7 +4172,7 @@ The response content depends on the request content previously sent to the Ankai
 <td>filterMasks</td>
 <td><a href="#string">string</a></td>
 <td>repeated</td>
-<td>Pathes definind what can be accessed. Segements of path can be a wildcare &#34;*&#34;.</td>
+<td>Paths defining what can be accessed. Segments of path can be a wildcard &#34;*&#34;.</td>
 </tr>
 </tbody>
 </table>
@@ -3849,7 +4205,7 @@ The response content depends on the request content previously sent to the Ankai
 </table>
 <p><a name="ank_base-Tags"></a></p>
 <h3 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h3>
-<p>This is a workaround for proto not supporing optional repeated values</p>
+<p>This is a workaround for proto not supporting optional repeated values</p>
 <table>
 <thead>
 <tr>
@@ -3915,7 +4271,7 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>addedWorkloads</td>
 <td><a href="#string">string</a></td>
 <td>repeated</td>
-<td>Workload istance names of workloads which will be started</td>
+<td>Workload instance names of workloads which will be started</td>
 </tr>
 <tr>
 <td>deletedWorkloads</td>
@@ -4028,7 +4384,7 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 </table>
 <p><a name="ank_base-WorkloadMap"></a></p>
 <h3 id="workloadmap">WorkloadMap<a class="headerlink" href="#workloadmap" title="Permanent link">&para;</a></h3>
-<p>This is a workaround for proto not supporing optional maps
+<p>This is a workaround for proto not supporting optional maps
 Workload names shall not be shorter than 1 symbol longer then 63 symbols and can contain only regular characters, digits, the &#34;-&#34; and &#34;_&#34; symbols.</p>
 <table>
 <thead>
@@ -4405,7 +4761,7 @@ The first level allows searches by agent.</p>
 <tr>
 <td>STOPPING_REQUESTED_AT_RUNTIME</td>
 <td>2</td>
-<td>This is an Ankaios generated state returned when the stopping was explicitly trigged by the user and the request was sent to the runtime.</td>
+<td>This is an Ankaios generated state returned when the stopping was explicitly triggered by the user and the request was sent to the runtime.</td>
 </tr>
 <tr>
 <td>STOPPING_DELETE_FAILED</td>
