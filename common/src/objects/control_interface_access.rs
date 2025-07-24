@@ -14,11 +14,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{
-    verify_workload_name_format,
-    workload_spec::{
-        verify_workload_name_length, verify_workload_name_not_empty, verify_workload_name_pattern,
-    },
+use super::workload_spec::{
+    verify_workload_name_length, verify_workload_name_not_empty, verify_workload_name_pattern,
 };
 
 pub const WILDCARD_SYMBOL: &str = "*";
@@ -123,7 +120,7 @@ impl AccessRightsRule {
             }
         } else {
             let length = workload_name.len();
-            verify_workload_name_format(workload_name)
+            verify_workload_name_pattern(workload_name)
                 .and_then(|_| verify_workload_name_length(length))
                 .and_then(|_| verify_workload_name_not_empty(length))
         }

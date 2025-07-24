@@ -64,7 +64,7 @@ pub use workload_spec::{
     generate_test_workload_spec_with_rendered_files,
     generate_test_workload_spec_with_runtime_config,
 };
-pub use workload_spec::{STR_RE_AGENT, STR_RE_WORKLOAD};
+pub use workload_spec::{ALLOWED_SYMBOLS, STR_RE_AGENT};
 
 pub use workload_spec::{
     get_workloads_per_agent, verify_workload_name_format, AddCondition, DeleteCondition,

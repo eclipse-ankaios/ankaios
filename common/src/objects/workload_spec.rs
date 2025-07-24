@@ -28,6 +28,7 @@ pub type WorkloadCollection = Vec<WorkloadSpec>;
 pub type DeletedWorkloadCollection = Vec<DeletedWorkload>;
 
 const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
+pub const ALLOWED_SYMBOLS: &str = "[a-zA-Z0-9_-]";
 pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]*$";
 pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]+$";
 
@@ -53,7 +54,7 @@ pub fn verify_workload_name_pattern(workload_name: &str) -> Result<(), String> {
     if !re_workloads.is_match(workload_name) {
         Err(format!(
             "Expected to have characters in {}.",
-            STR_RE_WORKLOAD
+            ALLOWED_SYMBOLS
         ))
     } else {
         Ok(())
@@ -85,7 +86,7 @@ fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
     if !re_agent.is_match(agent_name) {
         Err(format!(
             "Unsupported agent name. Received '{}', expected to have characters in {}",
-            agent_name, STR_RE_AGENT
+            agent_name, ALLOWED_SYMBOLS
         ))
     } else {
         Ok(())
@@ -636,7 +637,7 @@ mod tests {
             Err(format!(
                 "Unsupported workload name '{}'. Expected to have characters in {}.",
                 spec_with_wrong_workload_name.instance_name.workload_name(),
-                super::STR_RE_WORKLOAD
+                super::ALLOWED_SYMBOLS
             ))
         );
     }
@@ -655,7 +656,7 @@ mod tests {
             Err(format!(
                 "Unsupported agent name. Received '{}', expected to have characters in {}",
                 spec_with_wrong_agent_name.instance_name.agent_name(),
-                super::STR_RE_AGENT
+                super::ALLOWED_SYMBOLS
             ))
         );
 
@@ -670,7 +671,7 @@ mod tests {
             Err(format!(
                 "Unsupported agent name. Received '{}', expected to have characters in {}",
                 spec_with_wrong_agent_name.instance_name.agent_name(),
-                super::STR_RE_AGENT
+                super::ALLOWED_SYMBOLS
             ))
         );
     }
