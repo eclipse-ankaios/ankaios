@@ -16,11 +16,10 @@ use super::{
     path::Path,
     path_pattern::{PathPattern, PathPatternMatchReason, PathPatternMatcher},
 };
-use common::std_extensions::UnreachableOption;
+
+use common::{objects::WILDCARD_SYMBOL, std_extensions::UnreachableOption};
 
 // [impl->swdd~agent-authorizing-supported-rules~1]
-
-pub(crate) const WILDCARD_SYMBOL: &str = "*";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct StateRule<P: PathPattern> {
@@ -57,9 +56,7 @@ impl<P: PathPattern> PathPatternMatcher for StateRule<P> {
 
 impl LogRule {
     pub fn create(patterns: Vec<String>) -> Self {
-        Self {
-            patterns: LogRule::validate_patterns(patterns),
-        }
+        Self { patterns }
     }
 
     // [impl->swdd~agent-authorizing-log-rules-matches-request~1]
@@ -71,38 +68,12 @@ impl LogRule {
                 let wildcard_pos = pattern.find(WILDCARD_SYMBOL).unwrap_or_unreachable();
                 let prefix = &pattern[..wildcard_pos];
                 let suffix = &pattern[wildcard_pos + WILDCARD_SYMBOL.len()..];
-                return workload_name.starts_with(prefix) && workload_name.ends_with(suffix);
+                return workload_name.starts_with(prefix)
+                    && workload_name.ends_with(suffix)
+                    && prefix.len() + suffix.len() <= workload_name.len();
             }
         }
         false
-    }
-
-    fn validate_patterns(patterns: Vec<String>) -> Vec<String> {
-        let mut valid_patterns: Vec<String> = Vec::new();
-        for pattern in patterns {
-            if pattern.is_empty() {
-                log::warn!("Invalid LogRule pattern: empty string");
-                continue;
-            }
-            if pattern == WILDCARD_SYMBOL {
-                // If the pattern is just a wildcard, we can ignore the others
-                return vec![WILDCARD_SYMBOL.to_string()];
-            }
-            // if pattern contains more than one wildcard, it's invalid
-            if let Some(first_wildcard_pos) = pattern.find(WILDCARD_SYMBOL) {
-                if let Some(_second_wildcard_pos) =
-                    pattern[first_wildcard_pos + WILDCARD_SYMBOL.len()..].find(WILDCARD_SYMBOL)
-                {
-                    log::warn!(
-                        "Invalid LogRule pattern: multiple wildcards in '{}'",
-                        pattern
-                    );
-                    continue;
-                }
-            }
-            valid_patterns.push(pattern.clone());
-        }
-        valid_patterns
     }
 }
 
@@ -194,21 +165,6 @@ mod test {
         );
     }
 
-    #[test]
-    fn utest_log_rule_invalid_patterns() {
-        let rule = LogRule::create(vec!["".into(), "valid_pattern".into()]);
-        assert_eq!(rule.patterns, vec!["valid_pattern".to_owned()]);
-
-        let rule = LogRule::create(vec![WILDCARD_SYMBOL.to_owned(), "another_valid".into()]);
-        assert_eq!(rule.patterns, vec![WILDCARD_SYMBOL.to_owned()]);
-
-        let rule = LogRule::create(vec![format!(
-            "too_many{}wildcard{}symbols",
-            WILDCARD_SYMBOL, WILDCARD_SYMBOL
-        )]);
-        assert!(rule.patterns.is_empty());
-    }
-
     // [utest->swdd~agent-authorizing-log-rules-matches-request~1]
     #[test]
     fn utest_log_rule_matches_no_wildcard() {
@@ -240,5 +196,10 @@ mod test {
         assert!(rule.matches("abef"));
         assert!(!rule.matches("abc"));
         assert!(!rule.matches("def"));
+
+        let rule = LogRule::from(vec![format!("a{}ab", WILDCARD_SYMBOL)]);
+        assert!(rule.matches("aab"));
+        assert!(rule.matches("abab"));
+        assert!(!rule.matches("ab"));
     }
 }

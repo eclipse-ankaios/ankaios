@@ -14,7 +14,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::verify_workload_name_format;
+use super::workload_spec::{
+    verify_workload_name_length, verify_workload_name_not_empty, verify_workload_name_pattern,
+};
+
+pub const WILDCARD_SYMBOL: &str = "*";
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -89,14 +93,43 @@ impl AccessRightsRule {
                     Ok(())
                 })?;
             }
+            // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
             AccessRightsRule::LogRule(log_rule) => {
-                log_rule
-                    .workload_names
-                    .iter()
-                    .try_for_each(|name| verify_workload_name_format(name))?;
+                log_rule.workload_names.iter().try_for_each(|name| {
+                    Self::verify_log_rule_workload_name_pattern_format(name)
+                })?;
             }
         }
         Ok(())
+    }
+
+    // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
+    fn verify_log_rule_workload_name_pattern_format(workload_name: &str) -> Result<(), String> {
+        if let Some(wildcard_pos) = workload_name.find(WILDCARD_SYMBOL) {
+            let prefix = &workload_name[..wildcard_pos];
+            let suffix = &workload_name[wildcard_pos + 1..];
+            if suffix.contains(WILDCARD_SYMBOL) {
+                Err(format!(
+                    "Expected at most one '{}' symbol.",
+                    WILDCARD_SYMBOL
+                ))
+            } else {
+                verify_workload_name_pattern(prefix)
+                    .and_then(|_| verify_workload_name_pattern(suffix))
+                    .and_then(|_| verify_workload_name_length(prefix.len() + suffix.len()))
+            }
+        } else {
+            let length = workload_name.len();
+            verify_workload_name_pattern(workload_name)
+                .and_then(|_| verify_workload_name_length(length))
+                .and_then(|_| verify_workload_name_not_empty(length))
+        }
+        .map_err(|err| {
+            format!(
+                "Unsupported workload name for log rule '{}'. {}",
+                workload_name, err
+            )
+        })
     }
 }
 
@@ -272,42 +305,93 @@ mod tests {
         assert!(state_rule.verify_format().is_ok());
     }
 
-    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    // [utest->swdd~common-access-rules-logs-workload-names-convention~1]
     #[test]
     fn utest_access_rights_log_rule_verify_success() {
-        let log_rule = AccessRightsRule::LogRule(LogRule {
-            workload_names: vec!["workload_1".to_string()],
-        });
+        const MAX_PREFIX: &str = "123456789012345678901234567890";
+        const MAX_SUFFIX: &str = "123456789012345678901234567890123";
 
-        assert!(log_rule.verify_format().is_ok());
+        assert!(log_rule_with_workload("workload_1").verify_format().is_ok());
+        assert!(log_rule_with_workload("*workload_1")
+            .verify_format()
+            .is_ok());
+        assert!(log_rule_with_workload("work*load_1")
+            .verify_format()
+            .is_ok());
+        assert!(log_rule_with_workload("workload_1*")
+            .verify_format()
+            .is_ok());
+        assert!(log_rule_with_workload(&format!("{MAX_PREFIX}{MAX_SUFFIX}"))
+            .verify_format()
+            .is_ok());
+        assert!(
+            log_rule_with_workload(&format!("*{MAX_PREFIX}{MAX_SUFFIX}"))
+                .verify_format()
+                .is_ok()
+        );
+        assert!(
+            log_rule_with_workload(&format!("{MAX_PREFIX}*{MAX_SUFFIX}"))
+                .verify_format()
+                .is_ok()
+        );
+        assert!(
+            log_rule_with_workload(&format!("{MAX_PREFIX}{MAX_SUFFIX}*"))
+                .verify_format()
+                .is_ok()
+        );
     }
 
-    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    // [utest->swdd~common-access-rules-logs-workload-names-convention~1]
     #[test]
     fn utest_access_rights_log_rule_verify_fails() {
-        assert!(AccessRightsRule::LogRule(LogRule {
-            workload_names: vec!["".to_string()],
-        })
-        .verify_format()
-        .is_err());
+        const TOO_LONG_PREFIX: &str = "123456789012345678901234567890";
+        const TOO_LONG_SUFFIX: &str = "1234567890123456789012345678901234";
 
-        assert!(AccessRightsRule::LogRule(LogRule {
-            workload_names: vec!["wayyyyyyyyyyyyyyyyyyyyyyyyyyyy_toooooooooooooooooooooooooo_looooooooooooooooooooooooooonngg".to_string()],
-        })
-        .verify_format()
-        .is_err());
+        assert!(log_rule_with_workload("").verify_format().is_err());
+        assert!(
+            log_rule_with_workload(&format!("{TOO_LONG_PREFIX}{TOO_LONG_SUFFIX}"))
+                .verify_format()
+                .is_err()
+        );
+        assert!(
+            log_rule_with_workload(&format!("*{TOO_LONG_PREFIX}{TOO_LONG_SUFFIX}"))
+                .verify_format()
+                .is_err()
+        );
+        assert!(
+            log_rule_with_workload(&format!("{TOO_LONG_PREFIX}*{TOO_LONG_SUFFIX}"))
+                .verify_format()
+                .is_err()
+        );
+        assert!(
+            log_rule_with_workload(&format!("{TOO_LONG_PREFIX}{TOO_LONG_SUFFIX}*"))
+                .verify_format()
+                .is_err()
+        );
+        assert!(log_rule_with_workload("just.wrong")
+            .verify_format()
+            .is_err());
+        assert!(log_rule_with_workload("also@wrong")
+            .verify_format()
+            .is_err());
+        assert!(log_rule_with_workload("*also@wrong")
+            .verify_format()
+            .is_err());
+        assert!(log_rule_with_workload("al*so@wrong")
+            .verify_format()
+            .is_err());
+        assert!(log_rule_with_workload("also@wr*ong")
+            .verify_format()
+            .is_err());
+        assert!(log_rule_with_workload("also@wrong*")
+            .verify_format()
+            .is_err());
+    }
 
-        assert!(AccessRightsRule::LogRule(LogRule {
-            workload_names: vec!["just.wrong".to_string()],
+    fn log_rule_with_workload(workload_name: &str) -> AccessRightsRule {
+        AccessRightsRule::LogRule(LogRule {
+            workload_names: vec![workload_name.to_string()],
         })
-        .verify_format()
-        .is_err());
-
-        assert!(AccessRightsRule::LogRule(LogRule {
-            workload_names: vec!["also@wrong".to_string()],
-        })
-        .verify_format()
-        .is_err());
     }
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]

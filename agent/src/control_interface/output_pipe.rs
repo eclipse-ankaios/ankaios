@@ -82,7 +82,7 @@ impl OutputPipe {
                 Err(err) if Self::receiver_gone(&err) => {
                     if retries < CONTROL_INTERFACE_MAX_RETRIES {
                         self.file = None;
-                        log::debug!("Broken pipe - the receiver is gone. Waiting for 'AGENT_RECONNECT_INTERVAL'ms before trying again.");
+                        log::debug!("Broken pipe - the receiver is gone. Waiting for '{}'ms before trying again.", AGENT_RECONNECT_INTERVAL_MS);
                         sleep(Duration::from_millis(AGENT_RECONNECT_INTERVAL_MS)).await;
                     } else {
                         log::warn!("Failed to write to output pipe after multiple attempts");
