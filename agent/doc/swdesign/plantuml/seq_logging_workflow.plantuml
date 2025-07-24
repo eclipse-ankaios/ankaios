@@ -17,39 +17,44 @@ box "Agent B"
     participant "Agent" as agent_b
 end box
 
-box "Logger workload"
-    participant "Logging process" as logger
-end box
+participant "Logging workload" as logging_wl
+
+activate collector_workload
 
 group Requesting logs
-    collector_workload -> agent_a: ank_base.LogsRequest
-    agent_a -> server: ank_base.LogsRequest
-    server -> agent_b: ank_base.LogsRequest
-    agent_b -> logger: *Start process*
-    activate logger
-    server -> agent_a: ank_base.LogsRequestAccepted
-    agent_a -> collector_workload: ank_base.LogsRequestAccepted
+    collector_workload -> agent_a ++: ank_base.LogsRequest
+    agent_a ->> server --++: ank_base.LogsRequest
+
+    server ->> agent_a ++: ank_base.LogsRequestAccepted
+    agent_a -->> collector_workload --: ank_base.LogsRequestAccepted
+
+    server ->> agent_b --++: ank_base.LogsRequest
+    agent_b ->> agent_b--++: start sampling logs
+
 end group
 
 ...
 
 group Logs Stream
-    logger -> agent_b: *Logs*
-    agent_b -> server: ank_base.LogsResponse
-    server -> agent_a: ank_base.LogsResponse
-    agent_a -> collector_workload: ank_base.LogsResponse
+    logging_wl ->> agent_b: logs
+    agent_b ->> server ++: ank_base.LogsResponse
+    server ->> agent_a --++: ank_base.LogsResponse
+    agent_a ->> collector_workload --: ank_base.LogsResponse
 end group
 
 ...
 
 group Stopping the logging campaign
-    collector_workload -> agent_a: ank_base.LogsCancelRequest
-    agent_a -> server: ank_base.LogsCancelRequest
-    server -> agent_b: ank_base.LogsCancelRequest
-    agent_b -> logger: *Stop process*
-    deactivate logger
-    server -> agent_a: ank_base.LogsCancelAccepted
-    agent_a -> collector_workload: ank_base.LogsCancelAccepted
+    collector_workload -> agent_a ++: ank_base.LogsCancelRequest
+    agent_a ->> server --++: ank_base.LogsCancelRequest
+
+    server ->> agent_a ++: ank_base.LogsCancelAccepted
+    agent_a -->> collector_workload --: ank_base.LogsCancelAccepted
+
+    server ->> agent_b --: ank_base.LogsCancelRequest
+    agent_b ->> agent_b: stop sampling logs
+    deactivate agent_b
+
 end group
 
 @enduml
