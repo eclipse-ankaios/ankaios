@@ -96,7 +96,7 @@ Thus, the following WorkloadCommands exists:
 * `Retry` for retrying the create of an workload
 * `Resume` for resuming an existing workload
 * `Delete` for deleting a workload
-* `StartLogPicker` for initiating the log collection for a workload
+* `StartLogFetcher` for initiating the log collection for a workload
 
 ### WorkloadControlLoop
 
@@ -152,13 +152,13 @@ The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implem
 
 The `WorkloadLogFacade` encapsulates all steps to initialize the local to the current Ankaios agent log collection.
 
-### LogPicking
+### LogFetching
 
-The `LogPicking` unit is providing common functionalities and the common interface for the collection (picking) of logs from workloads. With the common functionality, each runtime connector integrated in Ankaios just needs to implement a trait to provide a runtime specific version of the `LogPicker` to support log collections.
+The `LogFetching` unit is providing common functionalities and the common interface for the collection (fetching) of logs from workloads. With the common functionality, each runtime connector integrated in Ankaios just needs to implement a trait to provide a runtime specific version of the `LogFetcher` to support log collections.
 
 ### SubscriptionStore
 
-The `SubscriptionStore` is responsible for holding local log subscriptions. A local to the agent log subscription is the collection of logs from one or more workload running in the agent for a specific log campaign running on the Ankaios server. The `SubscriptionStore` not only holds metadata about the collection, but also allows stopping the log picking when a subscription entry is deleted.
+The `SubscriptionStore` is responsible for holding local log subscriptions. A local to the agent log subscription is the collection of logs from one or more workload running in the agent for a specific log campaign running on the Ankaios server. The `SubscriptionStore` not only holds metadata about the collection, but also allows stopping the log fetching when a subscription entry is deleted.
 
 ### External Libraries
 
@@ -1942,7 +1942,7 @@ The runtime connector trait shall require the implementation of the following fu
 * create workload
 * get workload id for given workload name
 * start the state checker
-* get log picker
+* get log fetcher
 * delete workload
 
 Comment:
@@ -3564,13 +3564,13 @@ Needs:
 Status: approved
 
 When the WorkloadLogFacade is triggered by the AgentManager to start the log collection for a provided list of workloads, the WorkloadLogFacade shall:
-* request the RuntimeManager to create a log picker for each provided workload name
-* initialize the LogPicking runners with their log receivers for the provided workload names
+* request the RuntimeManager to create a log fetcher for each provided workload name
+* initialize the LogFetching runners with their log receivers for the provided workload names
 * spawn an asynchronous task for the the reading and forwarding of the logs for the provided workloads
 * add a log subscription entry with a reference to the spawned task to the SubscriptionStore
 
 Comment:
-The LogPicking runners are moved to the spawned asynchronous task. When the task is canceled, the runners are dropped which stoppes them automatically.
+The LogFetching runners are moved to the spawned asynchronous task. When the task is canceled, the runners are dropped which stoppes them automatically.
 
 Rationale:
 Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection is finished.
@@ -3584,12 +3584,12 @@ Needs:
 - impl
 - utest
 
-#### RuntimeManager creates log pickers for workloads
-`swdd~runtime-manager-creates-log-pickers~1`
+#### RuntimeManager creates log fetchers for workloads
+`swdd~runtime-manager-creates-log-fetchers~1`
 
 Status: approved
 
-When the RuntimeManager gets a request to provide the log pickers for a `LogsRequest`, the RuntimeManager shall trigger each specified in the request WorkloadObject to create a dedicated log picker.
+When the RuntimeManager gets a request to provide the log fetchers for a `LogsRequest`, the RuntimeManager shall trigger each specified in the request WorkloadObject to create a dedicated log fetcher.
 
 Tags:
 - RuntimeManager
@@ -3599,15 +3599,15 @@ Needs:
 - impl
 - utest
 
-##### Workload handles StartLogPicker command
-`swdd~agent-workload-obj-start-log-picker-command~1`
+##### Workload handles StartLogFetcher command
+`swdd~agent-workload-obj-start-log-fetcher-command~1`
 
 Status: approved
 
-When the WorkloadObject is called to start a log picker, it shall:
-* send a `StartLogPicker` command via the WorkloadCommandSender to the WorkloadControlLoop
-* wait for the log picket to be created and returned by the WorkloadControlLoop
-* return the newly created log picker
+When the WorkloadObject is called to start a log fetcher, it shall:
+* send a `StartLogFetcher` command via the WorkloadCommandSender to the WorkloadControlLoop
+* wait for the log fetcher to be created and returned by the WorkloadControlLoop
+* return the newly created log fetcher
 
 Tags:
 - WorkloadObject
@@ -3616,17 +3616,17 @@ Needs:
 - impl
 - utest
 
-#### WorkloadControlLoop creates log picker
-`swdd~workload-control-loop-creates-log-picker~1`
+#### WorkloadControlLoop creates log fetcher
+`swdd~workload-control-loop-creates-log-fetcher~1`
 
 Status: approved
 
-When the WorkloadControlLoop creates a log picker, the WorkloadControlLoop shall:
-* create a dedicated log picker via the corresponding runtime connector
+When the WorkloadControlLoop creates a log fetcher, the WorkloadControlLoop shall:
+* create a dedicated log fetcher via the corresponding runtime connector
 * return the created object back to the WorkloadObject
 
 Comment:
-For concurrency reasons the newly created log picker is sent back to the WorkloadObject via a one-shot channel.
+For concurrency reasons the newly created log fetcher is sent back to the WorkloadObject via a one-shot channel.
 
 Tags:
 - WorkloadControlLoop
@@ -3635,61 +3635,61 @@ Needs:
 - impl
 - utest
 
-#### LogPicking runs log pickers
-`swdd~log-picking-runs-log-pickers~1`
+#### LogFetching runs log fetchers
+`swdd~log-fetching-runs-log-fetchers~1`
 
 Status: approved
 
-When the LogPicking initializes the log pickers to start collecting logs, the LogPicking shall run each log picker in an asynchronous task returning a LogPicking runner object and the receiver end of the logs collection channel.
+When the LogFetching initializes the log fetchers to start collecting logs, the LogFetching shall run each log fetcher in an asynchronous task returning a LogFetching runner object and the receiver end of the logs collection channel.
 
 Tags:
-- LogPicking
+- LogFetching
 
 Needs:
 - impl
 - utest
 
-#### LogPicking collects logs
-`swdd~log-picking-collects-logs~1`
+#### LogFetching collects logs
+`swdd~log-fetching-collects-logs~1`
 
 Status: approved
 
-When a log picker is ran, it shall:
-* collect logs from a runtime specific log picker
+When a log fetcher is ran, it shall:
+* collect logs from a runtime specific log fetcher
 * send them on the logs collection channel
 
 Tags:
-- LogPicking
+- LogFetching
 
 Needs:
 - impl
 - utest
 
-#### Podman LogPicking collects logs
-`swdd~podman-log-picking-collects-logs~1`
+#### Podman LogFetching collects logs
+`swdd~podman-log-fetching-collects-logs~1`
 
 Status: approved
 
-When the podman log picker is ran, it shall:
+When the podman log fetcher is ran, it shall:
 * request the logs from the podman runtime for the specified workload with all configured options
-* provide the streams for the `stdout` and `stderr` to enable log collection by the LogPicking
+* provide the streams for the `stdout` and `stderr` to enable log collection by the LogFetching
 
 Tags:
-- PodmanLogPicker
+- PodmanLogFetcher
 
 Needs:
 - impl
 - utest
 
-#### LogPicking runner objects stops collection when dropped
-`swdd~log-picking-stops-collection-when-dropped~1`
+#### LogFetching runner objects stops collection when dropped
+`swdd~log-fetching-stops-collection-when-dropped~1`
 
 Status: approved
 
-When a LogPicking runner gets dropped, the LogPicking shall stop the collection of logs for that log picker.
+When a LogFetching runner gets dropped, the LogFetching shall stop the collection of logs for that log fetcher.
 
 Tags:
-- LogPicking
+- LogFetching
 
 Needs:
 - impl

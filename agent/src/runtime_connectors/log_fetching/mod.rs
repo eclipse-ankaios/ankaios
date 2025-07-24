@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod generic_log_picker;
+pub mod generic_log_fetcher;
 pub mod log_channel;
-pub mod log_picker;
-pub mod log_picking_runner;
+pub mod log_fetcher;
+pub mod log_fetching_runner;

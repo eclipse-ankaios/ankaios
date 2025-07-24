@@ -45,5 +45,5 @@ pub use state_checker::{RuntimeStateGetter, StateChecker};
 #[cfg(test)]
 pub use state_checker::MockRuntimeStateGetter;
 
-mod log_picking;
-pub use log_picking::{generic_log_picker, log_channel, log_picker, log_picking_runner};
+mod log_fetching;
+pub use log_fetching::{generic_log_fetcher, log_channel, log_fetcher, log_fetching_runner};

@@ -28,9 +28,9 @@ use crate::runtime_connectors::log_channel::Receiver;
 use tests::MockRuntimeConnectorReceiver as Receiver;
 
 #[cfg(not(test))]
-use crate::runtime_connectors::log_picking_runner::LogPickingRunner;
+use crate::runtime_connectors::log_fetching_runner::LogFetchingRunner;
 #[cfg(test)]
-use tests::MockLogPickingRunner as LogPickingRunner;
+use tests::MockLogFetchingRunner as LogFetchingRunner;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
@@ -62,12 +62,12 @@ impl WorkloadLogFacade {
     ) {
         // The following can probably be pulled out somewhere. Way to much details are spilling out of the methods,
         // where at the end we just need the runner and the log_receiver_futures.
-        let (names, log_pickers): (Vec<_>, _) = runtime_manager
-            .get_log_pickers(logs_request)
+        let (names, log_fetchers): (Vec<_>, _) = runtime_manager
+            .get_log_fetchers(logs_request)
             .await
             .into_iter()
             .unzip();
-        let (runner, receivers) = LogPickingRunner::start_collecting_logs(log_pickers);
+        let (runner, receivers) = LogFetchingRunner::start_collecting_logs(log_fetchers);
         let receivers = names.into_iter().zip(receivers).collect::<Vec<_>>();
         let futures = Self::convert_log_receivers_to_futures(receivers);
 
@@ -179,7 +179,7 @@ impl WorkloadLogFacade {
 #[cfg(test)]
 mod tests {
     use super::SynchronizedSubscriptionStore;
-    use crate::runtime_connectors::log_picker::MockLogPicker;
+    use crate::runtime_connectors::log_fetcher::MockLogFetcher;
     use crate::runtime_manager::MockRuntimeManager;
     use crate::subscription_store::{MockJoinHandle, MockSubscriptionEntry, SubscriptionEntry};
     use crate::workload_log_facade::WorkloadLogFacade;
@@ -222,11 +222,11 @@ mod tests {
     }
 
     mock! {
-        pub LogPickingRunner {
-            pub fn start_collecting_logs(log_pickers: Vec<Box<dyn crate::runtime_connectors::log_picker::LogPicker>>) -> (Self, Vec<MockRuntimeConnectorReceiver>);
+        pub LogFetchingRunner {
+            pub fn start_collecting_logs(log_fetchers: Vec<Box<dyn crate::runtime_connectors::log_fetcher::LogFetcher>>) -> (Self, Vec<MockRuntimeConnectorReceiver>);
         }
 
-        impl Drop for LogPickingRunner {
+        impl Drop for LogFetchingRunner {
             fn drop(&mut self);
         }
     }
@@ -248,8 +248,8 @@ mod tests {
 
         let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
 
-        let mock_log_picker_1 = MockLogPicker::new();
-        let mock_log_picker_2 = MockLogPicker::new();
+        let mock_log_fetcher_1 = MockLogFetcher::new();
+        let mock_log_fetcher_2 = MockLogFetcher::new();
 
         let mut mock_runtime_connector_receiver_1 = MockRuntimeConnectorReceiver::new();
         let mut mock_runtime_connector_receiver_2 = MockRuntimeConnectorReceiver::new();
@@ -275,17 +275,17 @@ mod tests {
             .once()
             .return_once(|| None);
 
-        let mut mock_log_picking_runner = MockLogPickingRunner::new();
-        let mock_log_picking_runner_dropped = Arc::new(Mutex::new(false));
-        let mock_log_picking_runner_dropped_clone = mock_log_picking_runner_dropped.clone();
-        mock_log_picking_runner.expect_drop().returning(move || {
-            *mock_log_picking_runner_dropped_clone.lock().unwrap() = true;
+        let mut mock_log_fetching_runner = MockLogFetchingRunner::new();
+        let mock_log_fetching_runner_dropped = Arc::new(Mutex::new(false));
+        let mock_log_fetching_runner_dropped_clone = mock_log_fetching_runner_dropped.clone();
+        mock_log_fetching_runner.expect_drop().returning(move || {
+            *mock_log_fetching_runner_dropped_clone.lock().unwrap() = true;
         });
 
-        let collecting_logs_context = MockLogPickingRunner::start_collecting_logs_context();
+        let collecting_logs_context = MockLogFetchingRunner::start_collecting_logs_context();
         collecting_logs_context.expect().return_once(|_| {
             (
-                mock_log_picking_runner,
+                mock_log_fetching_runner,
                 vec![
                     mock_runtime_connector_receiver_1,
                     mock_runtime_connector_receiver_2,
@@ -325,14 +325,20 @@ mod tests {
 
         let mut mock_runtime_manager = MockRuntimeManager::default();
         mock_runtime_manager
-            .expect_get_log_pickers()
+            .expect_get_log_fetchers()
             .with(predicate::eq(common::commands::LogsRequest::from(
                 logs_request.clone(),
             )))
             .return_once(|_| {
                 vec![
-                    (workload_instance_name_1.into(), Box::new(mock_log_picker_1)),
-                    (workload_instance_name_2.into(), Box::new(mock_log_picker_2)),
+                    (
+                        workload_instance_name_1.into(),
+                        Box::new(mock_log_fetcher_1),
+                    ),
+                    (
+                        workload_instance_name_2.into(),
+                        Box::new(mock_log_fetcher_2),
+                    ),
                 ]
             });
 
@@ -383,7 +389,7 @@ mod tests {
         assert!(log_responses.is_ok());
         assert!(log_responses.unwrap().is_none());
 
-        assert!(*mock_log_picking_runner_dropped.lock().unwrap());
+        assert!(*mock_log_fetching_runner_dropped.lock().unwrap());
     }
 
     // [utest->swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
@@ -398,7 +404,7 @@ mod tests {
 
         let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
 
-        let mock_log_picker_1 = MockLogPicker::new();
+        let mock_log_fetcher_1 = MockLogFetcher::new();
 
         let mut mock_runtime_connector_receiver_1 = MockRuntimeConnectorReceiver::new();
 
@@ -407,16 +413,16 @@ mod tests {
             .once()
             .return_once(|| None);
 
-        let mut mock_log_picking_runner = MockLogPickingRunner::new();
-        mock_log_picking_runner
+        let mut mock_log_fetching_runner = MockLogFetchingRunner::new();
+        mock_log_fetching_runner
             .expect_drop()
             .once()
             .return_const(());
 
-        let collecting_logs_context = MockLogPickingRunner::start_collecting_logs_context();
+        let collecting_logs_context = MockLogFetchingRunner::start_collecting_logs_context();
         collecting_logs_context.expect().return_once(|_| {
             (
-                mock_log_picking_runner,
+                mock_log_fetching_runner,
                 vec![mock_runtime_connector_receiver_1],
             )
         });
@@ -438,11 +444,11 @@ mod tests {
         let mut mock_runtime_manager = MockRuntimeManager::default();
         let cloned_workload_instance_name_1 = workload_instance_name_1.clone();
         mock_runtime_manager
-            .expect_get_log_pickers()
+            .expect_get_log_fetchers()
             .return_once(|_| {
                 vec![(
                     cloned_workload_instance_name_1.into(),
-                    Box::new(mock_log_picker_1),
+                    Box::new(mock_log_fetcher_1),
                 )]
             });
 
