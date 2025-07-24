@@ -17,7 +17,7 @@ use crate::cli_commands::State;
 use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
-use common::objects::{CompleteState, CURRENT_API_VERSION, STR_RE_WORKLOAD};
+use common::objects::{CompleteState, ALLOWED_SYMBOLS, CURRENT_API_VERSION};
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
 
@@ -98,7 +98,7 @@ pub fn update_request_obj(
     for workload_path in paths.iter() {
         let workload_name = &workload_path.parts()[WORKLOAD_LEVEL];
         if !cur_obj.check_if_provided_path_exists(workload_path) {
-            return Err(format!("The provided path does not exist! This may be caused by improper naming. Ankaios supports names defined by '{}'", STR_RE_WORKLOAD));
+            return Err(format!("The provided path does not exist! This may be caused by improper naming. Names expected to have characters in '{}'", ALLOWED_SYMBOLS));
         }
         let cur_workload_spec = cur_obj.get(workload_path).unwrap();
         if req_obj.get(workload_path).is_none() {

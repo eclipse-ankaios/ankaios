@@ -17,26 +17,49 @@ import time
 import yaml
 import json
 import re
+import uuid
+import functools
 from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn
 from tempfile import TemporaryDirectory
-from os import path, popen
+from os import path
+from typing import Union
 import shutil
 import tomllib
 
-import re
-list_pattern = re.compile("^[\"|\']*\[.*\][\"|\']*$")
-CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START = "^"
-EXPLICIT_DOT_IN_REGEX = "\\\\."
 
-def run_command(command, timeout=3):
+###############################################################################
+## Global vars
+###############################################################################
+
+
+LIST_PATTERN: re.Pattern = re.compile("^[\"|\']*\\[.*\\][\"|\']*$")
+CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START: str = "^"
+EXPLICIT_DOT_IN_REGEX: str = "\\\\."
+EXECUTABLE: str = '/bin/bash'
+MANIFEST_TEMPLATE: str = "control_interface_workload.yaml.template"
+STARTUP_MANIFEST: str = "startup_config.yaml"
+DEFAULT_AGENT_NAME: str = "agent_A"
+FORCE_TRACE: bool = False
+
+
+if FORCE_TRACE:
+    logger.trace = logger.info
+
+###############################################################################
+## General utils
+###############################################################################
+
+
+def run_command(command: str, timeout: float=3):
     try:
-        return subprocess.run(command, timeout=timeout, shell=True, executable='/bin/bash', check=True, capture_output=True, text=True)
+        return subprocess.run(command, timeout=timeout, shell=True, executable=EXECUTABLE, check=True, capture_output=True, text=True)
     except Exception as e:
         logger.error(f"{e}")
         return None
 
-def table_to_list(raw):
+
+def table_to_list(raw: str) -> list:
     raw = raw.strip()
     splitted = raw.split('\n')
 
@@ -45,7 +68,12 @@ def table_to_list(raw):
     while splitted and ("WORKLOAD NAME" and "NAME") not in header:
         header = splitted.pop(0)
 
-    columns = [(x.group(0).strip(), x.start(), x.end()) for x in re.finditer(r'(([^\s]+\s?)+\s*)', header.replace('\x1b[1G\x1b[1G', ''))]
+    # Regex for extracting column names and positions
+    column_regex = r'(([^\s]+\s?)+\s*)'
+    # Replacement pattern for cleaning header
+    clean_header_pattern = '\x1b[1G\x1b[1G'
+
+    columns = [(x.group(0).strip(), x.start(), x.end()) for x in re.finditer(column_regex, header.replace(clean_header_pattern, ''))]
     logger.trace("columns: {}".format(columns))
     table = []
     for row in splitted:
@@ -58,7 +86,8 @@ def table_to_list(raw):
 
     return table
 
-def table_to_dict(input_list, key):
+
+def table_to_dict(input_list: list, key):
     out_dict = {}
     for item in input_list:
         out_dict[item[key]] = item
@@ -66,20 +95,81 @@ def table_to_dict(input_list, key):
     logger.trace(out_dict)
     return out_dict
 
-def get_agent_dict(table_dict, agent_name):
+
+def to_x_dot_y_format(x: str, y: str) -> str:
+    return f"{x}.{y}"
+
+
+def to_x_dot_y_dot_z_format(x: str, y: str, z: str) -> str:
+    return f"{x}.{y}.{z}"
+
+
+def get_time_secs() -> float:
+    return time.time()
+
+
+def generate_request_id() -> str:
+    return str(uuid.uuid4())
+
+
+def replace_key(data: Union[dict, list], match: str, func: callable):
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if k == match:
+                data[k] = func(v)
+            replace_key(data[k], match, func)
+    elif isinstance(data, list):
+        for item in data:
+            replace_key(item, match, func)
+
+
+def parse_yaml(raw: str) -> dict:
+    raw = raw.strip()
+    if not raw:
+        return {}
+    try:
+        return yaml.safe_load(raw)
+    except yaml.YAMLError as e:
+        logger.error(f"Error parsing YAML: {e}")
+        raise ValueError(f"Invalid YAML format: {raw}")
+
+
+def read_yaml(file_path: str) -> dict:
+    with open(file_path) as file:
+        content = file.read()
+        return parse_yaml(content)
+
+
+def write_yaml(new_yaml, path: str):
+    with open(path,"w+") as file:
+        replace_key(new_yaml, "runtimeConfig", yaml.dump)
+        yaml.dump(new_yaml, file)
+
+
+def yaml_to_dict(raw: str):
+    y = parse_yaml(raw)
+    replace_key(y, "runtimeConfig", parse_yaml)
+    return y
+
+
+def json_to_dict(raw: str) -> dict:
+    json_data = json.loads(raw)
+    return json_data
+
+
+###############################################################################
+## Ankaios utils
+###############################################################################
+
+
+def get_agent_dict(table_dict: dict, agent_name: str) -> dict:
     agent_dict = table_dict.get(agent_name)
-    assert agent_dict, f"Agent {agent_name} does not provide availabe resources information"
+    assert agent_dict, f"Agent {agent_name} does not provide available resources information"
     logger.trace(agent_dict)
     return agent_dict
 
 
-def to_x_dot_y_format(x, y):
-    return f"{x}.{y}"
-
-def to_x_dot_y_dot_z_format(x, y, z):
-    return f"{x}.{y}.{z}"
-
-def remove_hash_from_workload_name(wn_hash_an_string):
+def remove_hash_from_workload_name(wn_hash_an_string: str) -> str:
     items = wn_hash_an_string.split('.')
     if len(items) == 3:
         return f"{items[0]}.{items[2]}"
@@ -87,10 +177,8 @@ def remove_hash_from_workload_name(wn_hash_an_string):
         return f"{items[0]}.{items[2]}.{items[3]}"
     return items[0]
 
-def get_time_secs():
-    return time.time()
 
-def get_workload_names_from_podman():
+def get_workload_names_from_podman() -> list:
     res = run_command('podman ps -a --format "{{.Names}}"')
     raw = res.stdout.strip()
     raw_wln = raw.split('\n')
@@ -98,7 +186,8 @@ def get_workload_names_from_podman():
     logger.trace(workload_names)
     return workload_names
 
-def get_volume_names_from_podman():
+
+def get_volume_names_from_podman() -> list:
     res = run_command('podman volume ls --format "{{.Name}}"')
     raw = res.stdout.strip()
     raw_vols = raw.split('\n')
@@ -106,14 +195,18 @@ def get_volume_names_from_podman():
     logger.trace(vol_names)
     return vol_names
 
-def get_volume_name_by_workload_name_from_podman(workload_name):
-    res = run_command('podman volume ls --format "{{{{.Name}}}}" --filter name={}{}{}.*{}pods'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX, EXPLICIT_DOT_IN_REGEX))
+
+def get_volume_name_by_workload_name_from_podman(workload_name: str) -> str:
+    res = run_command('podman volume ls --format "{{{{.Name}}}}" --filter name={}{}{}.*{}pods'\
+                      .format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX, EXPLICIT_DOT_IN_REGEX))
     volume_name = res.stdout.strip()
     logger.trace(volume_name)
     return volume_name
 
-def get_container_id_and_name_by_workload_name_from_podman(workload_name):
-    res = run_command('podman ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}{}{}.*'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX))
+
+def get_container_id_and_name_by_workload_name_from_podman(workload_name: str) -> tuple[str, str]:
+    res = run_command('podman ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}{}{}.*'\
+                      .format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX))
     raw = res.stdout.strip()
     raw_wln = raw.split('\n')
     container_ids_and_names = list(map(lambda x: x.split(' '), raw_wln)) # 2-dim [[id,name],[id,name],...]
@@ -130,10 +223,20 @@ def get_container_id_and_name_by_workload_name_from_podman(workload_name):
     container_id = container_ids_and_names[0][0]
     container_name = container_ids_and_names[0][1]
 
+    logger.trace(f"Container ID: {container_id}, Container Name: {container_name}")
+    assert container_id and container_name, \
+        f"Container ID or name is empty for workload name {workload_name}. "
+
     return container_id, container_name
 
-def get_pod_id_by_pod_name_from_podman(pod_name):
-    res = run_command('podman pod ls --no-trunc --format="{{{{.ID}}}}" --filter=name={}{}'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, pod_name))
+
+def get_workload_instance_name_by_workload_name_from_podman(workload_name: str) -> str:
+    return get_container_id_and_name_by_workload_name_from_podman(workload_name)[1]
+
+
+def get_pod_id_by_pod_name_from_podman(pod_name: str) -> str:
+    res = run_command('podman pod ls --no-trunc --format="{{{{.ID}}}}" --filter=name={}{}'\
+                      .format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, pod_name))
     raw = res.stdout.strip()
     pod_ids = raw.split('\n')
     logger.trace(pod_ids)
@@ -145,7 +248,8 @@ def get_pod_id_by_pod_name_from_podman(pod_name):
     pod_id = pod_ids[0]
     return pod_id
 
-def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=0.25):
+
+def wait_for_initial_execution_state(command: str, agent_name: str, timeout: float=10, next_try_in_sec: float=0.25):
         start_time = get_time_secs()
         logger.trace(run_command("ps aux | grep ank").stdout)
         logger.trace(run_command("podman ps -a").stdout)
@@ -164,13 +268,15 @@ def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_i
             logger.trace(table)
         return list()
 
-def workload_with_execution_state(table, workload_name, expected_state):
+
+def workload_with_execution_state(table: list, workload_name: str, expected_state: str) -> list:
     logger.trace(table)
     if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
         return table
     return list()
 
-def wait_for_execution_state(command, workload_name, agent_name, expected_state, timeout=10, next_try_in_sec=0.25):
+
+def wait_for_execution_state(command: str, workload_name: str, agent_name: str, expected_state: str, timeout: float=10, next_try_in_sec: float=0.25) -> list:
         start_time = get_time_secs()
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
@@ -185,7 +291,113 @@ def wait_for_execution_state(command, workload_name, agent_name, expected_state,
             logger.trace(table)
         return list()
 
-def wait_for_workload_removal(command, workload_name, expected_agent_name, timeout=10, next_try_in_sec=0.25):
+
+def replace_config(data: Union[dict, list], filter_path: str, new_value: Union[str, int, dict]) -> Union[dict, list]:
+    filter_path = filter_path.split('.')
+    filter_iterator = iter(filter_path)
+    next_level = data[next(filter_iterator)]
+    for level in filter_iterator:
+        if filter_path[-1] == level:
+            break
+
+        next_level = next_level[level] if isinstance(next_level, dict) else next_level[int(level)]
+    next_level[filter_path[-1]] = int(new_value) if new_value.isdigit() else parse_yaml(new_value) if LIST_PATTERN.match(new_value) else new_value
+
+    return data
+
+
+###############################################################################
+## Operations utils
+###############################################################################
+
+
+def find_control_interface_test_tag():
+    global control_interface_tester_tag
+    control_interface_tester_tag = subprocess.check_output('./tools/control_interface_workload_hash.sh').decode().strip()
+
+def prepare_test_control_interface_workload():
+    global control_interface_workload_config
+    global manifest_files_location
+    global next_manifest_number
+    global control_interface_allow_rules
+    global control_interface_deny_rules
+    global logs_requests
+
+    control_interface_workload_config = []
+    manifest_files_location = []
+    next_manifest_number = 0
+    control_interface_allow_rules = []
+    control_interface_deny_rules = []
+    logs_requests = {}
+
+
+def create_control_interface_config_for_test() -> TemporaryDirectory:
+    tmp = TemporaryDirectory()
+    assert path.isdir(tmp.name) and path.exists(tmp.name), f"The temporary directory at {tmp.name} has not been created"
+    logger.trace(f"commands.yaml content:\n{control_interface_workload_config}")
+    write_yaml(new_yaml=control_interface_workload_config, path=path.join(tmp.name, "commands.yaml"))
+
+    for manifest in manifest_files_location:
+        shutil.copy(manifest["file_path"], path.join(tmp.name, manifest["internal_name"]))
+
+    configs_dir = BuiltIn().get_variable_value("${CONFIGS_DIR}")
+
+    with open(path.join(configs_dir, MANIFEST_TEMPLATE)) as startup_config_template, open(path.join(tmp.name, STARTUP_MANIFEST), "w") as startup_config:
+        template_content = startup_config_template.read()
+        content = template_content.format(temp_data_dir=tmp.name,
+                                          allow_rules=json.dumps(control_interface_allow_rules),
+                                          deny_rules=json.dumps(control_interface_deny_rules),
+                                          control_interface_tester_tag=control_interface_tester_tag)
+        logger.trace(f"Startup config content:\n{content}")
+        startup_config.write(content)
+    return tmp
+
+
+def err_logging_decorator(func: callable) -> callable:
+    # Decorator to log errors and the method that raised them
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            ret = func(*args, **kwargs)
+        except Exception as e:
+            logger.info(f"Python error in function \"{func.__name__}\":", also_console=False)
+            raise e
+        return ret
+    return wrapper
+
+
+def state_control_interface_convert_operation(operation: str) -> str:
+    operation_lower = operation.lower()
+    res = ""
+    if "read" in operation_lower:
+        res = "Read"
+    if "write" in operation_lower:
+        res += "Write"
+
+    assert res != "", f"The operation(s) '{operation}' is/are unknown"
+    return res
+
+
+def add_to_manifest_list(manifest_file: str) -> str:
+    global next_manifest_number
+    global manifest_files_location
+
+    internal_name = "manifest_{}.yaml".format(next_manifest_number)
+    manifest_files_location.append({"file_path": manifest_file, "internal_name": internal_name})
+    next_manifest_number += 1
+
+    return internal_name
+
+
+def extract_agent_name_from_config_file(config_file: str) -> str:
+    with open(config_file, "rb") as f:
+        parsed_config_file = tomllib.load(f)
+        agent_name = parsed_config_file["name"]
+
+        return agent_name
+
+
+def wait_for_workload_removal(command: str, workload_name: str, expected_agent_name: str, timeout: float=10, next_try_in_sec: float=0.25) -> list:
         start_time = get_time_secs()
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
@@ -200,97 +412,91 @@ def wait_for_workload_removal(command, workload_name, expected_agent_name, timeo
                 return list()
         return table
 
-def replace_key(data, match, func):
-    if isinstance(data, dict):
-        for k, v in data.items():
-            if k == match:
-                data[k] = func(v)
-            replace_key(data[k], match, func)
-    elif isinstance(data, list):
-        for item in data:
-            replace_key(item, match, func)
 
-def yaml_to_dict(raw):
-    y = yaml.safe_load(raw)
-    replace_key(y, "runtimeConfig", yaml.safe_load)
-    return y
+# MANDATORY FOR STABLE SYSTEM TESTS
+@err_logging_decorator
+def config_name_shall_exist_in_list(config_name: str, current_result: str):
+    config_names_list = list(current_result.split("\n"))[1:]  # skip the header
+    found = False
 
-def replace_config(data, filter_path, new_value):
-    filter_path = filter_path.split('.')
-    filter_iterator = iter(filter_path)
-    next_level = data[next(filter_iterator)]
-    for level in filter_iterator:
-        if filter_path[-1] == level:
+    for config in config_names_list:
+        if config_name in config:
+            found = True
             break
 
-        next_level = next_level[level] if isinstance(next_level, dict) else next_level[int(level)]
-    next_level[filter_path[-1]] = int(new_value) if new_value.isdigit() else yaml.safe_load(new_value) if list_pattern.match(new_value) else new_value
+    assert found, f"Config name {config_name} does not exist in the list"
 
-    return data
 
-def write_yaml(new_yaml, path):
-    with open(path,"w+") as file:
-        replace_key(new_yaml, "runtimeConfig", yaml.dump)
-        yaml.dump(new_yaml, file)
+###############################################################################
+## Internal operations - control interface rules
+###############################################################################
 
-def read_yaml(file_path):
-    with open(file_path) as file:
-        content = file.read()
-        return yaml.safe_load(content)
 
-def json_to_dict(raw):
-    json_data = json.loads(raw)
-    return json_data
-
-def find_control_interface_test_tag():
-    global control_interface_tester_tag
-    control_interface_tester_tag = "manual-build-5"
-
-def prepare_test_control_interface_workload():
-    global control_interface_workload_config
-    global manifest_files_location
-    global next_manifest_number
+@err_logging_decorator
+def internal_state_allow_control_interface(operation: str, filter_mask: str):
     global control_interface_allow_rules
-    global control_interface_deny_rules
 
-    control_interface_workload_config = []
-    manifest_files_location = []
-    next_manifest_number = 0
-    control_interface_allow_rules = []
-    control_interface_deny_rules = []
-
-def internal_allow_control_interface(operation, filter_mask):
     filter_mask = filter_mask.replace(" and ", ", ").split(", ")
     control_interface_allow_rules.append({
         "type": "StateRule",
-        "operation": internal_control_interface_convert_operation(operation),
+        "operation": state_control_interface_convert_operation(operation),
         "filterMask": filter_mask
     })
 
-def internal_deny_control_interface(operation, filter_mask):
+
+@err_logging_decorator
+def internal_state_deny_control_interface(operation: str, filter_mask: str):
+    global control_interface_deny_rules
+
     filter_mask = filter_mask.replace(" and ", ", ").split(", ")
     control_interface_deny_rules.append({
         "type": "StateRule",
-        "operation": internal_control_interface_convert_operation(operation),
+        "operation": state_control_interface_convert_operation(operation),
         "filterMask": filter_mask
     })
 
-def internal_control_interface_convert_operation(operation):
-    operation_lower = operation.lower()
-    res = ""
-    if "read" in operation_lower:
-        res = "Read"
-    if "write" in operation_lower:
-        res += "Write"
 
-    assert res != "", f"The operation(s) '{operation}' is/are unknown"
-    return res
+@err_logging_decorator
+def internal_log_allow_control_interface(workload_names: str):
+    global control_interface_allow_rules
 
-def internal_add_update_state_command(manifest, update_mask):
+    workload_names = workload_names.replace(" and ", ", ").split(", ")
+    control_interface_allow_rules.append({
+        "type": "LogRule",
+        "workloadNames": workload_names
+    })
+
+    # The controller should be able to get the workload states to get the
+    # workload instance name in the controller
+    internal_state_allow_control_interface("read", "workloadStates")
+
+
+@err_logging_decorator
+def internal_log_deny_control_interface(workload_names: str):
+    global control_interface_deny_rules
+
+    workload_names = workload_names.replace(" and ", ", ").split(", ")
+    control_interface_deny_rules.append({
+        "type": "LogRule",
+        "workloadNames": workload_names
+    })
+
+    # The controller should be able to get the workload states to get the
+    # workload instance name in the controller
+    internal_state_allow_control_interface("read", "workloadStates")
+
+
+###############################################################################
+## Internal operations - control interface commands
+###############################################################################
+
+
+@err_logging_decorator
+def internal_add_update_state_command(manifest: str, update_mask: str):
     global control_interface_workload_config
 
     update_mask = update_mask.replace(" and ", ", ").split(", ")
-    internal_manifest_name = internal_add_to_manifest_list(manifest)
+    internal_manifest_name = add_to_manifest_list(manifest)
     control_interface_workload_config.append({
         "command": {
             "type": "UpdateState",
@@ -299,8 +505,11 @@ def internal_add_update_state_command(manifest, update_mask):
         }
     })
 
-def internal_send_initial_hello(version):
+
+@err_logging_decorator
+def internal_send_initial_hello(version: str):
     global control_interface_workload_config
+
     control_interface_workload_config.append({
         "command": {
             "type": "SendHello",
@@ -308,17 +517,9 @@ def internal_send_initial_hello(version):
         }
     })
 
-def internal_add_to_manifest_list(manifest_file):
-    global next_manifest_number
-    global manifest_files_location
 
-    internal_name = "manifest_{}.yaml".format(next_manifest_number)
-    manifest_files_location.append({"file_path": manifest_file, "internal_name": internal_name})
-    next_manifest_number += 1
-
-    return internal_name
-
-def internal_add_get_state_command(field_mask):
+@err_logging_decorator
+def internal_add_get_state_command(field_mask: str):
     global control_interface_workload_config
 
     field_mask = field_mask.replace(" and ", ", ").split(", ")
@@ -332,65 +533,130 @@ def internal_add_get_state_command(field_mask):
     })
 
 
-def create_control_interface_config_for_test():
-    tmp = TemporaryDirectory()
-    assert path.isdir(tmp.name) and path.exists(tmp.name), f"The temporary directory at {tmp.name} has not been created"
-    write_yaml(new_yaml=control_interface_workload_config, path=path.join(tmp.name, "commands.yaml"))
+@err_logging_decorator
+def internal_add_logs_request_command(workload_names_with_agents: str):
+    """
+    If no agent is specified, the default agent name will be used.
 
-    for manifest in manifest_files_location:
-        shutil.copy(manifest["file_path"], path.join(tmp.name, manifest["internal_name"]))
+    Example of workload_names_with_agents:
+    "workload1 and workload2, workload3"
+    "workload1 and workload2 on agent1 and workload3 on agent2"
+    """
+    global control_interface_workload_config
+    global logs_requests
 
-    configs_dir = BuiltIn().get_variable_value("${CONFIGS_DIR}")
+    workload_names_with_agents = workload_names_with_agents.replace(" and ", ", ").split(", ")
+    workload_names = []
+    agent_names = []
+    for item in workload_names_with_agents:
+        if " on " in item:
+            workload_name, agent_name = item.split(" on ")
+            workload_names.append(workload_name.strip())
+            agent_names.append(agent_name.strip())
+        else:
+            workload_names.append(item.strip())
+            agent_names.append(DEFAULT_AGENT_NAME)
 
-    with open(path.join(configs_dir, "control_interface_workload.yaml.template")) as startup_config_template, open(path.join(tmp.name, "startup_config.yaml"), "w") as startup_config:
-        template_content = startup_config_template.read()
-        content = template_content.format(temp_data_dir=tmp.name,
-                                          allow_rules=json.dumps(control_interface_allow_rules),
-                                          deny_rules=json.dumps(control_interface_deny_rules),
-                                          control_interface_tester_tag=control_interface_tester_tag)
-        startup_config.write(content)
-    return tmp
+    request_id = generate_request_id()
+    logs_requests[", ".join(workload_names)] = request_id
 
+    control_interface_workload_config.append({
+        "command": {
+            "type": "RequestLogs",
+            "workload_names": workload_names,
+            "agent_names": agent_names,
+            "request_id": request_id
+        }
+    })
+
+
+@err_logging_decorator
+def internal_get_logs_command(workload_names: str):
+    global control_interface_workload_config
+    global logs_requests
+
+    workload_names = workload_names.replace(" and ", ", ")
+    assert workload_names in logs_requests, f"Workload names {workload_names} are not in previous logs requests"
+    request_id = logs_requests.get(workload_names)
+    control_interface_workload_config.append({
+        "command": {
+            "type": "GetLogs",
+            "request_id": request_id
+        }
+    })
+
+
+@err_logging_decorator
+def internal_add_cancel_logs_request_command(workload_names: str):
+    global control_interface_workload_config
+
+    workload_names = workload_names.replace(" and ", ", ")
+    assert workload_names in logs_requests, f"Workload names {workload_names} are not in previous logs requests"
+    request_id = logs_requests.get(workload_names)
+    control_interface_workload_config.append({
+        "command": {
+            "type": "CancelLogs",
+            "request_id": request_id
+        }
+    })
+
+
+###############################################################################
+## Internal operations - control interface checks
+###############################################################################
+
+@err_logging_decorator
 def internal_check_all_control_interface_requests_succeeded(tmp_folder):
-    output = read_yaml(path.join(tmp_folder, "output.yaml"))
-    print("requests shall succeed")
-    print(output)
-    for test_number,test_result in enumerate(output):
+    output_file_path = path.join(tmp_folder, "output.yaml")
+    assert path.exists(output_file_path), f"Output file {output_file_path} does not exist"
+    output = read_yaml(output_file_path)
+    logger.trace(output)
+    for test_number, test_result in enumerate(output):
+        if test_result["result"]["type"] == "NoCheckNeeded":
+            continue
         test_result = test_result["result"]["value"]["type"] == "Ok"
         assert test_result, \
             f"Expected request {test_number + 1} to succeed, but it failed"
 
+@err_logging_decorator
+def internal_check_last_control_interface_request_failed(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    logger.trace(output)
+    last_test_result = output[-1]
+    test_result = last_test_result["result"]["value"]["type"] == "Err"
+    assert test_result, "Expected the last request to fail, but it succeeded"
+
+@err_logging_decorator
 def internal_check_all_control_interface_requests_failed(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
-    print("requests shall fail")
-    print(output)
+    logger.trace(output)
     for test_number,test_result in enumerate(output):
         if test_result["result"]["type"] != "SendHelloResult":
             test_result = test_result["result"]["value"]["type"] != "Ok"
             assert test_result, \
                 f"Expected request {test_number + 1} to fail, but it succeeded"
 
+@err_logging_decorator
 def internal_check_no_access_to_control_interface(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
     for test_result in output:
         assert test_result["result"]["type"] == "NoApi", "Expect type is different to NoApi"
 
+@err_logging_decorator
 def internal_check_control_interface_closed(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
     for test_result in output:
         assert test_result["result"]["type"] == "ConnectionClosed", "Expect type is different to ConnectionClosed"
 
-def empty_keyword():
-    pass
-
-def check_if_mount_point_has_not_been_generated_for(agent_name, command_result):
+@err_logging_decorator
+def internal_check_if_mount_point_has_not_been_generated_for(agent_name, command_result):
     AGENT_NAME = agent_name
     TMP_DIRECTORY = path.join(path.sep, f"tmp/ankaios/{AGENT_NAME}_io")
     WORKLOAD_STATES_LEVEL = "workloadStates"
     CONTROL_INTERFACE_SUBFOLDER = "control_interface"
     SHA_ENCODING_LEVEL = 0
 
-    json_result = json.loads(command_result.stdout)
+    json_result = json_to_dict(command_result.stdout)
 
     workloads_list = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME].keys())
     for idx, _ in enumerate(workloads_list):
@@ -401,7 +667,8 @@ def check_if_mount_point_has_not_been_generated_for(agent_name, command_result):
 
         assert not path.exists(control_interface_path), "the mount point has been generated"
 
-def check_workload_files_exists(complete_state_json, workload_name, agent_name):
+@err_logging_decorator
+def internal_check_workload_files_exists(complete_state_json, workload_name, agent_name):
     DESIRED_STATE_LEVEL = "desiredState"
     WORKLOADS_LEVEL = "workloads"
     WORKLOAD_STATES_LEVEL = "workloadStates"
@@ -410,7 +677,7 @@ def check_workload_files_exists(complete_state_json, workload_name, agent_name):
     MOUNT_POINT = "mountPoint"
     ROOT_PATH = "/"
     tmp_directory = path.join(path.sep, f"tmp/ankaios/{agent_name}_io")
-    complete_state = json.loads(complete_state_json)
+    complete_state = json_to_dict(complete_state_json)
     workload_files = complete_state[DESIRED_STATE_LEVEL][WORKLOADS_LEVEL][workload_name][FILES_KEY]
     workload_id = list(complete_state[WORKLOAD_STATES_LEVEL][agent_name][workload_name].keys())[SHA_ENCODING_LEVEL]
     workload_folder_name = f"{workload_name}.{workload_id}"
@@ -421,22 +688,3 @@ def check_workload_files_exists(complete_state_json, workload_name, agent_name):
         relative_mount_point = path.relpath(file[MOUNT_POINT], ROOT_PATH)
         workload_file_host_path = path.join(tmp_directory, workload_folder_name, "files", relative_mount_point)
         assert path.exists(workload_file_host_path), f"the workload file for {workload_name} does not exist"
-
-# MANDATORY FOR STABLE SYSTEM TESTS
-def config_name_shall_exist_in_list(config_name, current_result):
-    config_names_list = list(current_result.split("\n"))[1:]  # skip the header
-    found = False
-
-    for config in config_names_list:
-        if config_name in config:
-            found = True
-            break
-
-    assert found, f"Config name {config_name} does not exist in the list"
-
-def extract_agent_name_from_config_file(config_file):
-    with open(config_file, "rb") as f:
-        parsed_config_file = tomllib.load(f)
-        agent_name = parsed_config_file["name"]
-
-        return agent_name

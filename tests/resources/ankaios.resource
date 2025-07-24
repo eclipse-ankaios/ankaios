@@ -24,6 +24,8 @@ Library             OperatingSystem
 Library             String
 Library             ankaios_library.py
 
+Resource            ./variables.resource
+
 
 *** Variables ***
 ${CURRENT_RESULT}       ${EMPTY}
@@ -63,7 +65,8 @@ Setup Ankaios
 Clean up Ankaios
     Terminate All Processes    kill=True
     Clean up Podman
-    Run Command    rm -rf %{ANKAIOS_TEMP}    timeout=20
+    ${ANKAIOS_TEMP}=    Get Environment Variable    ANKAIOS_TEMP
+    Run Command    rm -rf ${ANKAIOS_TEMP}    timeout=20
     Set Variable    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    {}
     Set Variable    ${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}    {}
     Remove Environment Variable    ANKSERVER_CA_PEM
@@ -486,22 +489,22 @@ podman shall have a container for workload "${workload_name}" with custom name "
     ${start_time}=    Get Time Secs
     ${workload_names}=    Create List
     ${used_name}=    Set Variable    ${name}
-    ${workload_name_angent_name}=    Set Variable    ${name}
+    ${workload_name_agent_name}=    Set Variable    ${name}
     IF    "${name}" == ""
         ${used_name}=    Set Variable    ${workload_name}
-        ${workload_name_angent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
+        ${workload_name_agent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
     END
     WHILE    True
         ${workload_names}=    Get Workload Names From Podman
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
-        ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_angent_name}
+        ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_agent_name}
         IF    ${found_index}!=-1    BREAK
         IF    ${elapsed_secs} >= ${timeout}    BREAK
     END
     Should Contain X Times
     ...    ${workload_names}
-    ...    ${workload_name_angent_name}
+    ...    ${workload_name_agent_name}
     ...    1
     ...    msg=Workload '${used_name}' on agent '${agent_name}' not found in podman!
     Log    Workload '${used_name}' on agent '${agent_name}' found in podman, found workloads: '${workload_names}'!
@@ -509,18 +512,18 @@ podman shall have a container for workload "${workload_name}" with custom name "
 podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
     ${workload_names}=    Create List
-    ${workload_name_angent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
+    ${workload_name_agent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
     WHILE    True
         ${workload_names}=    Get Workload Names From Podman
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
-        ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_angent_name}
+        ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_agent_name}
         IF    ${found_index}==-1    BREAK
         IF    ${elapsed_secs} >= ${timeout}    BREAK
     END
     Should Not Contain
     ...    ${workload_names}
-    ...    ${workload_name_angent_name}
+    ...    ${workload_name_agent_name}
     ...    msg=Unexpected workload '${workload_name}' on agent '${agent_name}' found in podman!
 
 list of workloads shall be empty
@@ -609,12 +612,12 @@ the pod "${pod_name}" of workload "${workload_name}" shall have a different id b
         IF    ${elapsed_secs} >= 20    BREAK
         ${current_pod_id}=    Get Pod Id By Pod Name From Podman    ${pod_name}
         ${current_volume_name}=    Get Volume Name By Workload Name From Podman    ${workload_name}
-        ${ankaos_instance_name}=    Fetch From Left    ${current_volume_name}    .pods
-        IF    '${current_pod_id}' == '' or '${ankaos_instance_name}' == ''
+        ${ankaios_instance_name}=    Fetch From Left    ${current_volume_name}    .pods
+        IF    '${current_pod_id}' == '' or '${ankaios_instance_name}' == ''
             CONTINUE
         END
 
-        ${pod_id}=    Get From Dictionary    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    ${ankaos_instance_name}
+        ${pod_id}=    Get From Dictionary    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    ${ankaios_instance_name}
 
         IF    '${current_pod_id}' != '${pod_id}'
             ${id_changed}=    Set Variable    ${True}
@@ -647,15 +650,32 @@ The controller workload has no access rights
     The controller workload sends initial hello with correct version
 
 The controller workload is allowed to ${operation} on ${filter_mask}
-    internal_allow_control_interface    ${operation}     ${filter_mask}
+    internal_state_allow_control_interface    ${operation}     ${filter_mask}
     The controller workload sends initial hello with correct version
 
 The controller workload is forbidden to ${operation} on ${filter_mask}
-    internal_deny_control_interface    ${operation}     ${filter_mask}
+    internal_state_deny_control_interface    ${operation}     ${filter_mask}
     The controller workload sends initial hello with correct version
 
 The controller workload does not send hello
-    internal_allow_control_interface    read    *
+    internal_state_allow_control_interface    read    *
+
+The controller workload can receive logs from ${workload_names}
+    internal_log_allow_control_interface    ${workload_names}
+    The controller workload sends initial hello with correct version
+
+The controller workload cannot receive logs from ${workload_names}
+    internal_log_deny_control_interface    ${workload_names}
+    The controller workload sends initial hello with correct version
+
+The controller workload requests the logs of ${workload_names_with_agents}
+    internal_add_logs_request_command    ${workload_names_with_agents}
+
+The controller workload gets the logs of ${workload_names}
+    internal_get_logs_command    ${workload_names}
+
+The controller workload cancels the logs request of ${workload_names}
+    internal_add_cancel_logs_request_command    ${workload_names}
 
 The controller workload sends initial hello with correct version
     internal_send_initial_hello    ${ANKAIOS_VERSION}
@@ -675,43 +695,79 @@ The controller workload gets the state of fields ${field_mask}
 The controller workload requests shall all succeed
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
-    Ankaios agent is started with name "agent_A"
-    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    Ankaios agent is started with name "${AGENT_NAME}"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
+
+The controller workload last request shall fail
+    ${ankaios_config_folder}=    create_control_interface_config_for_test
+    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios agent is started with name "${AGENT_NAME}"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
+    internal_check_last_control_interface_request_failed    ${ankaios_config_folder.name}
 
 The controller workload requests shall all fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
-    Ankaios agent is started with name "agent_A"
-    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    Ankaios agent is started with name "${AGENT_NAME}"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_all_control_interface_requests_failed    ${ankaios_config_folder.name}
 
 The controller workload shall get a closed connection
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
-    Ankaios agent is started with name "agent_A"
-    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    Ankaios agent is started with name "${AGENT_NAME}"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_control_interface_closed    ${ankaios_config_folder.name}
 
 The controller workload has no access to Control Interface
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
-    Ankaios agent is started with name "agent_A"
-    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    Ankaios agent is started with name "${AGENT_NAME}"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_no_access_to_control_interface    ${ankaios_config_folder.name}
 
 the mount point for the control interface has not been generated for ${agent_name}
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json
-    check_if_mount_point_has_not_been_generated_for    ${agent_name}    ${command_result}
+    internal_check_if_mount_point_has_not_been_generated_for    ${agent_name}    ${command_result}
 
 the mount point for the control interface has been generated for ${agent_name}
     Run Keyword And Expect Error    the mount point has been generated    the mount point for the control interface has not been generated for ${agent_name}
 
 the mount point for the workload files of workload "${workload_name}" on agent "${agent_name}" has not been generated
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json
-    Run Keyword And Expect Error    the workload file for ${workload_name} does not exist    Check Workload Files Exists    ${command_result.stdout}    ${workload_name}    ${agent_name}
+    Run Keyword And Expect Error    the workload file for ${workload_name} does not exist    Internal Check Workload Files Exists    ${command_result.stdout}    ${workload_name}    ${agent_name}
 Ankaios server is available
     the command "%{ANK_BIN_DIR}${/}ank get workloads" finished with exit code "0" within "2" seconds
+
+the cli log collection shall output "${total_log_lines}" log lines in total in the expected format for all workloads
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
+    @{list_result}=    table to list    ${command_result.stdout}
+    ${joined_workload_names}=    Set Variable    ${EMPTY}
+    FOR    ${workload}    IN    @{list_result}
+        ${workload_name}=    Get From Dictionary    ${workload}    WORKLOAD NAME
+        ${joined_workload_names}=    Catenate    ${joined_workload_names}    ${workload_name}
+    END
+
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank logs ${joined_workload_names}
+
+    ${log_lines}=    Split String    ${command_result.stdout}    separator=\n
+    # Ankaios CLI outputs log lines with a trailing newline, so we need to remove the last line
+    ${last_log_line}=    Get From List    ${log_lines}    -1
+    IF    '${last_log_line}' == ''
+        Remove From List    ${log_lines}    -1
+    END
+    ${len_log_lines}=    Get Length    ${log_lines}
+    Should Be Equal As Integers    ${len_log_lines}    ${total_log_lines}    msg=Expected ${total_log_lines} log lines, but got ${len_log_lines}
+
+    # check the format of each log line
+    ${dict_workload_names}=    Table To Dict    ${list_result}    WORKLOAD NAME
+    FOR    ${log_line}    IN    @{log_lines}
+        ${splitted_log_line}=    Split String    ${log_line}    separator=${SPACE}
+        Dictionary Should Contain Key    ${dict_workload_names}    ${splitted_log_line}[0]    msg=Log line does not start with the workload name: ${log_line}
+        ${len_splitted_log_line}=    Get Length    ${splitted_log_line}
+        Should Be True    ${len_splitted_log_line} >= 2    msg=Log line does not have the expected format: ${log_line}
+    END
 
 # ALIASES
 

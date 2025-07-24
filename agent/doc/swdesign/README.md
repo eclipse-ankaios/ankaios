@@ -96,6 +96,7 @@ Thus, the following WorkloadCommands exists:
 * `Retry` for retrying the create of an workload
 * `Resume` for resuming an existing workload
 * `Delete` for deleting a workload
+* `StartLogFetcher` for initiating the log collection for a workload
 
 ### WorkloadControlLoop
 
@@ -146,6 +147,18 @@ The PodmanKubeRuntime connector implements the runtime connector trait for 'podm
 ### GenericPollingStateChecker
 
 The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implements the state checker trait) that can be used by a runtime connector to make polling requests for workload state as predefined intervals.
+
+### WorkloadLogFacade
+
+The `WorkloadLogFacade` encapsulates all steps to initialize the local to the current Ankaios agent log collection.
+
+### LogFetching
+
+The `LogFetching` unit is providing common functionalities and the common interface for the collection (fetching) of logs from workloads. With the common functionality, each runtime connector integrated in Ankaios just needs to implement a trait to provide a runtime specific version of the `LogFetcher` to support log collections.
+
+### SubscriptionStore
+
+The `SubscriptionStore` is responsible for holding local log subscriptions. A local to the agent log subscription is the collection of logs from one or more workload running in the agent for a specific log campaign running on the Ankaios server. The `SubscriptionStore` not only holds metadata about the collection, but also allows stopping the log fetching when a subscription entry is deleted.
 
 ### External Libraries
 
@@ -1018,7 +1031,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the control inferface's:
+When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the control interface's:
 
 * file path
 * authorizer
@@ -1835,7 +1848,7 @@ Needs:
 - utest
 - stest
 
-### WorkloadControlLoop reset backoff on update
+#### WorkloadControlLoop reset backoff on update
 `swdd~agent-workload-control-loop-reset-backoff-on-update`
 
 Status: approved
@@ -1918,7 +1931,7 @@ Needs:
 Ankaios supports multiple runtimes by providing a runtime connector trait specifying the functions that shall be implemented by the runtime.
 
 #### Functions required by the runtime connector trait
-`swdd~functions-required-by-runtime-connector~1`
+`swdd~functions-required-by-runtime-connector~2`
 
 Status: approved
 
@@ -1929,6 +1942,7 @@ The runtime connector trait shall require the implementation of the following fu
 * create workload
 * get workload id for given workload name
 * start the state checker
+* get log fetcher
 * delete workload
 
 Comment:
@@ -3224,10 +3238,10 @@ Needs:
 
 Status: approved
 
-The Ankaios Agent shall ensure, that Control Interface input pipes are opened and messages are read.
+The Ankaios agent shall ensure, that Control Interface input pipes are opened and messages are read.
 
 Comment:
-If the Ankaios Agent does not open and read the Control Interface input pipes, a Workload could block, trying to write the output pipe.
+If the Ankaios agent does not open and read the Control Interface input pipes, a Workload could block, trying to write the output pipe.
 
 Tags:
 - AgentManager
@@ -3237,20 +3251,55 @@ Needs:
 - impl
 - utest
 
-#### Agent handles Control Interface input pipe not being read
-`swdd~agent-handles-control-interface-input-pipe-not-read~1`
+#### Agent handles Control Interface full output pipe buffer
+`swdd~agent-handles-control-interface-full-output-pipe-buffer~1`
 
 Status: approved
 
-If a Workload does not read data send to it on the Control Interface input pipe, the Ankaios Agent shall handle this situation gracefully.
-Hence the Ankaios Agent:
+When the Control Interface detects that the output pipe buffer is full by waiting for more then 500ms for a write, the Control Interface handles the write attempt as failed due to a "gone" receiver/workload.
 
-- does not block
-- does not use a infinite amount of memory to store message which could not be sent
-- overwhelm the Workload with messages once the Workload starts reading the Control Interface input pipe
+Comment:
+Writes to a named pipe are executed immediately unless the pipe buffer is full. Taking into account that the default size of the buffer is 64KiB and the workload has 500ms to grab data from the pipe, a healthy workload should not encounter communication problems.
+Ankaios cannot wait indefinitely on the reads as this would block the internal workflows rendering the complete system unresponsive.
 
 Tags:
-- AgentManager
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
+#### Agent handles Control Interface output pipe closed
+`swdd~agent-handles-control-interface-output-pipe-closed~1`
+
+Status: approved
+
+When the Control Interface detects a closed reading end of the output pipe while writing, the Control Interface retries the writes for 5 times in a 100ms interval before handling the write attempt as failed due to a gone receiver.
+
+Comment:
+This handling allows an internal error handling of the workload to recover from the problem.
+On the other hand Ankaios cannot wait indefinitely on the workload as this would block the internal workflows rendering the complete system unresponsive.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
+#### Agent handles Control Interface workload gone
+`swdd~agent-handles-control-interface-workload-gone~1`
+
+Status: approved
+
+When the Control Interface detects during a write attempt that a workload is "gone" and the write attempt was from a streaming type, i.e. log collection,
+the Control Interface cancels automatically the streaming session.
+
+Comment:
+The Control Interface instance itself is left intact so the workload is given the chance to recover.
+Nevertheless, streaming sessions could produce a lot of data so it is better to close them if connection issues occur.
+
+Tags:
 - ControlInterface
 
 Needs:
@@ -3259,16 +3308,90 @@ Needs:
 
 ### Authorizing access to the Control Interface
 
+#### Supported authorization rules
+`swdd~agent-authorizing-supported-rules~1`
+
+Status: approved
+
+The Control Interface Authorizer supports the following type of authorization rules:
+* `StateRule` - allowing or denying "read"s and/or "write"s to specified parts of the Complete State
+* `LogRule` - allowing the requests of logs of specified workloads
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
 #### Request operations
-`swdd~agent-authorizing-request-operations~1`
+`swdd~agent-authorizing-request-operations~2`
 
 Status: approved
 
 When the Authorizer checks if a Workload is allowed to make a request,
 the Authorizer shall use:
 
-* "read" and "write_read" rules for a CompleteStateRequest.
-* "write" and "write_read" rules for a UpdateStateRequest.
+* `StateRule`s for CompleteStateRequests and UpdateStateRequests
+* `LogRule`s for LogsRequests
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### LogsRequest allowed if collection of logs for all requested workloads is allowed
+`swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1`
+
+Status: approved
+
+When the Authorizer checks if a workload is allowed to make a `LogsRequest`,
+the Authorizer shall:
+* deny the request if a requested workload name is found that has no allow LogRule matching it
+* deny the request if a requested workload name is found that has a deny LogRule matching it
+* allow the request otherwise
+
+Comment:
+Note that a LogsRequest with no specified workloads would be allowed as it is not denied by the above conditions.
+Requesting logs for no workload indeed does not make sense, but should not be explicitly denied as it has no effect at the end.
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### LogRule matches a LogsRequest
+`swdd~agent-authorizing-log-rules-matches-request~1`
+
+Status: approved
+
+When the Authorizer checks a workload name from a `LogsRequest` against a `LogRule`,
+the Authorizer shall consider workload name matching if an entry of the `LogRule`:
+* completely matches the workload name or
+* is only consisting of a wildcard "*"
+* contains a wildcard "*" and the workload name starts with the prefix specified by the characters before the wildcard and ends with the characters after the wildcard
+
+Tags:
+- Authorizer
+
+Needs:
+- impl
+- utest
+
+#### LogsCancelRequest always allowed
+`swdd~agent-authorizing-logs-cancel-always-allowed~1`
+
+Status: approved
+
+When the Authorizer checks if a workload is allowed to make a `LogsCancelRequest`,
+the Authorizer shall always allow the request.
+
+Rationale:
+`LogsCancelRequest` carry no specific information and can only stop an already allowed log collection.
 
 Tags:
 - Authorizer
@@ -3278,15 +3401,14 @@ Needs:
 - utest
 
 #### Request without filter mask
-`swdd~agent-authorizing-request-without-filter-mask~1`
+`swdd~agent-authorizing-request-without-filter-mask~2`
 
 Status: approved
 
-When the Authorizer checks if a Workload is allowed to make a request,
-an UpdateStateRequest with an empty update mask or a CompleteStateRequest with an empty field mask is only allowed if all of the following is true:
+The Authorizer allows an `UpdateStateRequest` with an empty update mask or a `CompleteStateRequest` with an empty field mask only if all of the following is true:
 
-* there is at least one allow rule having an empty String in the filter mask
-* there is no deny rule with a non empty filter mask
+* there is a corresponding (write/read) allow `StateRule` with a wildcard "*" entry
+* there is no corresponding (write/read) deny `StateRule` with a wildcard "*" entry
 
 Tags:
 - Authorizer
@@ -3295,12 +3417,14 @@ Needs:
 - impl
 - utest
 
-#### Request allowed if all elements of filter mask are allowed
+#### State request allowed if all elements of filter mask are allowed
 `swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1`
 
 Status: approved
 
-When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow rule, the Authorizer shall allow the request.
+When the Authorizer checks if a Workload is allowed to make a state request
+and all entries of the update/field mask are allowed,
+the Authorizer shall allow the request.
 
 Tags:
 - Authorizer
@@ -3314,7 +3438,7 @@ Needs:
 
 Status: approved
 
-When the Authorizer checks an individual entry of the update/field mask of an request,
+When the Authorizer checks an individual entry of the update/field mask of a state request,
 the Authorizer shall allow this element if all of the following is true:
 
 * there is at least one allow rule with a filter mask entry matching the update/field mask entry
@@ -3327,15 +3451,15 @@ Needs:
 - impl
 - utest
 
-#### Matching of allow rules
+#### Matching of allow `StateRule`s
 `swdd~agent-authorizing-matching-allow-rules~1`
 
 Status: approved
 
-When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow `StateRule`, the Authorizer shall consider them matching if all segments of the allow `StateRule`'s filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
-An allow rule matches, if it is the same or a prefix of the request's update/field mask. Consequently, when the allow rule consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
+An allow `StateRule` matches, if it is the same or a prefix of the request's update/field mask. Consequently, when the allow `StateRule` consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
 
 Tags:
 - Authorizer
@@ -3344,15 +3468,15 @@ Needs:
 - impl
 - utest
 
-#### Matching of deny rules
+#### Matching of deny `StateRule`s
 `swdd~agent-authorizing-matching-deny-rules~1`
 
 Status: approved
 
-When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny `StateRule`, the Authorizer shall consider them matching if all segments of the allow `StateRule`'s filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
-A deny rule matches, if the request's update/field mask is the same or a prefix of the rule. Consequently, when the allow rule consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
+A deny `StateRule` matches, if the request's update/field mask is the same or a prefix of the `StateRule`. Consequently, when the allow `StateRule` consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
 
 Tags:
 - Authorizer
@@ -3361,16 +3485,16 @@ Needs:
 - impl
 - utest
 
-#### Rules without segments never match
+#### `StateRule`s without segments never match
 `swdd~agent-authorizing-rules-without-segments-never-match~1`
 
 Status: approved
 
-When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow or deny rule,
-the Authorizer shall consider them not matching if the rule has no segments.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow or deny `StateRule`,
+the Authorizer shall consider them not matching if the `StateRule` has no segments.
 
 Comment:
-A rule with no segments is created when the filter mask of the rule is empty. Although such configurations are explicitly forbidden at the verification step, the use-case must be handled also at the authorizer level as it is security related.
+A `StateRule` with no segments is created when the filter mask of the `StateRule` is empty. Although such configurations are explicitly forbidden at the verification step, the use-case must be handled also at the authorizer level as it is security related.
 
 Tags:
 - Authorizer
@@ -3379,19 +3503,296 @@ Needs:
 - impl
 - utest
 
-#### Matching of rule elements
+#### Matching of `StateRule` elements
 `swdd~agent-authorizing-matching-rules-elements~1`
 
 Status: approved
 
-When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of an allow or deny rule,
+When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of an allow or deny `StateRule`,
 the Authorizer shall consider them matching if one of the following is true:
 
 * both segments are the same
-* the segment of the rule entry is the wildcards symbol "*"
+* the segment of the `StateRule` entry is the wildcards symbol "*"
 
 Tags:
 - Authorizer
+
+Needs:
+- impl
+- utest
+
+### Handling LogsRequests
+
+#### LogsRequest configuration
+`swdd~agent-log-request-configuration~1`
+
+Status: approved
+
+The RuntimeConnectorInterface shall require the following options to be supported by the specific runtime connector for the providing workload logs:
+* follow - if the log shall be followed or not
+* tail - the number of logs that shall be delivered backwards
+* since - the starting timestamp in RFC3339 format from which logs shall be delivered
+* until - the end timestamp in RFC3339 format to which logs shall be delivered
+
+Tags:
+- RuntimeConnectorInterfaces
+
+Needs:
+- impl
+
+#### Agent handles LogsRequests from the server
+`swdd~agent-handles-logs-requests-from-server~1`
+
+Status: approved
+
+When the AgentManager receives a `LogsRequest` message from the Ankaios server, the AgentManager shall delegate the start of the log collection to the WorkloadLogFacade.
+
+Rationale:
+The process of collecting logs for workloads must be decoupled from the main loop of the agent that handles incoming messages from the server.
+
+Tags:
+- AgentManager
+- WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade starts log collection for workloads
+`swdd~workload-log-facade-starts-log-collection~1`
+
+Status: approved
+
+When the WorkloadLogFacade is triggered by the AgentManager to start the log collection for a provided list of workloads, the WorkloadLogFacade shall:
+* request the RuntimeManager to create a log fetcher for each provided workload name
+* initialize the LogFetching runners with their log receivers for the provided workload names
+* spawn an asynchronous task for the the reading and forwarding of the logs for the provided workloads
+* add a log subscription entry with a reference to the spawned task to the SubscriptionStore
+
+Comment:
+The LogFetching runners are moved to the spawned asynchronous task. When the task is canceled, the runners are dropped which stoppes them automatically.
+
+Rationale:
+Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection is finished.
+
+Tags:
+- WorkloadLogFacade
+- RuntimeManager
+- SubscriptionStore
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager creates log fetchers for workloads
+`swdd~runtime-manager-creates-log-fetchers~1`
+
+Status: approved
+
+When the RuntimeManager gets a request to provide the log fetchers for a `LogsRequest`, the RuntimeManager shall trigger each specified in the request WorkloadObject to create a dedicated log fetcher.
+
+Tags:
+- RuntimeManager
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+##### Workload handles StartLogFetcher command
+`swdd~agent-workload-obj-start-log-fetcher-command~1`
+
+Status: approved
+
+When the WorkloadObject is called to start a log fetcher, it shall:
+* send a `StartLogFetcher` command via the WorkloadCommandSender to the WorkloadControlLoop
+* wait for the log fetcher to be created and returned by the WorkloadControlLoop
+* return the newly created log fetcher
+
+Tags:
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop creates log fetcher
+`swdd~workload-control-loop-creates-log-fetcher~1`
+
+Status: approved
+
+When the WorkloadControlLoop creates a log fetcher, the WorkloadControlLoop shall:
+* create a dedicated log fetcher via the corresponding runtime connector
+* return the created object back to the WorkloadObject
+
+Comment:
+For concurrency reasons the newly created log fetcher is sent back to the WorkloadObject via a one-shot channel.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### LogFetching runs log fetchers
+`swdd~log-fetching-runs-log-fetchers~1`
+
+Status: approved
+
+When the LogFetching initializes the log fetchers to start collecting logs, the LogFetching shall run each log fetcher in an asynchronous task returning a LogFetching runner object and the receiver end of the logs collection channel.
+
+Tags:
+- LogFetching
+
+Needs:
+- impl
+- utest
+
+#### LogFetching collects logs
+`swdd~log-fetching-collects-logs~1`
+
+Status: approved
+
+When a log fetcher is ran, it shall:
+* collect logs from a runtime specific log fetcher
+* send them on the logs collection channel
+
+Tags:
+- LogFetching
+
+Needs:
+- impl
+- utest
+
+#### Podman LogFetching collects logs
+`swdd~podman-log-fetching-collects-logs~1`
+
+Status: approved
+
+When the podman log fetcher is ran, it shall:
+* request the logs from the podman runtime for the specified workload with all configured options
+* provide the streams for the `stdout` and `stderr` to enable log collection by the LogFetching
+
+Tags:
+- PodmanLogFetcher
+
+Needs:
+- impl
+- utest
+
+#### LogFetching runner objects stops collection when dropped
+`swdd~log-fetching-stops-collection-when-dropped~1`
+
+Status: approved
+
+When a LogFetching runner gets dropped, the LogFetching shall stop the collection of logs for that log fetcher.
+
+Tags:
+- LogFetching
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade forwards logs to the server
+`swdd~workload-log-facade-forwards-logs-to-server~1`
+
+Status: approved
+
+When the WorkloadLogFacade reads the logs from the log receivers, the WorkloadLogFacade shall send `LogEntriesResponse` messages containing the log entries of the workloads to the Ankaios server.
+
+Tags:
+- WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade sends LogsStopResponse messages
+`swdd~workload-log-facade-sends-logs-stop-response~1`
+
+Status: approved
+
+When the WorkloadLogFacade detects that there are no more logs available for a workload, the WorkloadLogFacade shall send a `LogsStopResponse` message to the server communication channel provided by the communication middleware.
+
+Rationale:
+Client applications that receive logs are notified when no more logs are available for a workload instance.
+
+Tags:
+- WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### WorkloadLogFacade automatically unsubscribes log subscriptions
+`swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1`
+
+Status: approved
+
+When the WorkloadLogFacade has no more logs to forward for a log subscription, the WorkloadLogFacade shall delete the log subscription entry of the log collection from the SubscriptionStore.
+
+Rationale:
+The subscriber does not have to actively cancel the log collection if no more logs are available from workloads, which simplifies the API usage.
+
+Tags:
+- WorkloadLogFacade
+
+Needs:
+- impl
+- utest
+
+#### Agent handles LogsCancelRequest from the server
+`swdd~agent-handles-logs-cancel-requests-from-server~1`
+
+Status: approved
+
+When the AgentManager receives a `LogsCancelRequest` message from the Ankaios server, the AgentManager shall delete the corresponding log subscription from the SubscriptionStore.
+
+Comment:
+When a subscription is deleted from the SubscriptionStore, the SubscriptionStore automatically stops the collection of logs for this subscription on the current agent.
+
+Tags:
+- AgentManager
+- SubscriptionStore
+
+Needs:
+- impl
+- utest
+
+#### Agent stops local log collection on removed subscription
+`swdd~agent-stops-log-collection-on-removed-subscription~1`
+
+Status: approved
+
+When the SubscriptionStore deletes an entry from its store, the SubscriptionStore shall abort the local log collection for this subscription entry.
+
+Tags:
+- SubscriptionStore
+
+Needs:
+- impl
+- utest
+
+### Handling connection interruption to server
+
+#### Agent deletes all log subscription entries upon ServerGone message
+`swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1`
+
+Status: approved
+
+When the AgentManager receives a `ServerGone` message, the AgentManager shall delete all existing entries from its log SubscriptionStore.
+
+Comment:
+The Agent remains operational.
+
+Rationale:
+This prevents the Ankaios agent from collecting logs continuously from workloads that cannot be forwarded to the Ankaios server due to a connection interruption.
+
+Tags:
+- AgentManager
+- SubscriptionStore
 
 Needs:
 - impl

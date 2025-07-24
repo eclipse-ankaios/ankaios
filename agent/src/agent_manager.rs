@@ -26,7 +26,9 @@ use crate::workload_state::workload_state_store::WorkloadStateStore;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
-use crate::workload_state::WorkloadStateReceiver;
+#[cfg_attr(test, mockall_double::double)]
+use crate::workload_log_facade::WorkloadLogFacade;
+use crate::{subscription_store::SubscriptionStore, workload_state::WorkloadStateReceiver};
 
 const RESOURCE_MEASUREMENT_INTERVAL_TICK: std::time::Duration = tokio::time::Duration::from_secs(2);
 
@@ -56,6 +58,8 @@ impl ResourceMonitor {
     }
 }
 
+pub type SynchronizedSubscriptionStore = std::sync::Arc<std::sync::Mutex<SubscriptionStore>>;
+
 // [impl->swdd~agent-shall-use-interfaces-to-server~1]
 pub struct AgentManager {
     agent_name: String,
@@ -66,6 +70,7 @@ pub struct AgentManager {
     workload_state_receiver: WorkloadStateReceiver,
     workload_state_store: WorkloadStateStore,
     res_monitor: ResourceMonitor,
+    subscription_store: SynchronizedSubscriptionStore,
 }
 
 impl AgentManager {
@@ -84,6 +89,7 @@ impl AgentManager {
             workload_state_receiver,
             workload_state_store: WorkloadStateStore::new(),
             res_monitor: ResourceMonitor::new(),
+            subscription_store: Default::default(),
         }
     }
 
@@ -165,7 +171,7 @@ impl AgentManager {
                     // [impl->swdd~agent-manager-stores-all-workload-states~1]
                     for new_workload_state in new_workload_states {
                         log::debug!("The server reports workload state '{:?}' for the workload '{}' in the agent '{}'", new_workload_state.execution_state,
-                    new_workload_state.instance_name.workload_name(), new_workload_state.instance_name.agent_name());
+                            new_workload_state.instance_name.workload_name(), new_workload_state.instance_name.agent_name());
                         self.workload_state_store
                             .update_workload_state(new_workload_state);
                     }
@@ -192,6 +198,42 @@ impl AgentManager {
             FromServer::Stop(_method_obj) => {
                 log::debug!("Agent '{}' received Stop from server", self.agent_name);
                 None
+            }
+            // [impl->swdd~agent-handles-logs-requests-from-server~1]
+            FromServer::LogsRequest(request_id, logs_request) => {
+                WorkloadLogFacade::spawn_log_collection(
+                    request_id,
+                    logs_request,
+                    self.to_server.clone(),
+                    self.subscription_store.clone(),
+                    &self.runtime_manager,
+                )
+                .await;
+
+                Some(())
+            }
+            // [impl->swdd~agent-handles-logs-cancel-requests-from-server~1]
+            FromServer::LogsCancelRequest(request_id) => {
+                log::debug!(
+                    "Agent '{}' received LogsCancelRequest with id {}",
+                    self.agent_name,
+                    request_id
+                );
+                self.subscription_store
+                    .lock()
+                    .unwrap()
+                    .delete_subscription(&request_id);
+                Some(())
+            }
+            FromServer::ServerGone => {
+                log::info!("Agent '{}' received ServerGone.", self.agent_name);
+
+                // [impl->swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1]
+                self.subscription_store
+                    .lock()
+                    .unwrap()
+                    .delete_all_subscriptions();
+                Some(())
             }
         }
     }
@@ -264,10 +306,9 @@ impl AgentManager {
 
 #[cfg(test)]
 mod tests {
-    use core::panic;
-
     use super::RuntimeManager;
     use crate::agent_manager::AgentManager;
+    use crate::workload_log_facade::MockWorkloadLogFacade;
     use crate::workload_state::{
         workload_state_store::{mock_parameter_storage_new_returns, MockWorkloadStateStore},
         WorkloadStateSenderInterface,
@@ -275,12 +316,18 @@ mod tests {
     use api::ank_base;
     use common::{
         commands::UpdateWorkloadState,
-        from_server_interface::FromServerInterface,
+        from_server_interface::{FromServer, FromServerInterface},
         objects::{generate_test_workload_spec_with_param, ExecutionState},
         to_server_interface::ToServer,
     };
-    use mockall::predicate::eq;
-    use tokio::{join, sync::mpsc::channel};
+
+    use crate::subscription_store::generate_test_subscription_entry;
+
+    use mockall::predicate::{self, eq};
+    use tokio::{
+        join,
+        sync::mpsc::{channel, Sender},
+    };
 
     const BUFFER_SIZE: usize = 20;
     const AGENT_NAME: &str = "agent_x";
@@ -606,5 +653,161 @@ mod tests {
 
         to_manager.stop().await.unwrap();
         assert!(join!(handle).0.is_ok());
+    }
+
+    // [utest->swdd~agent-handles-logs-requests-from-server~1]
+    #[tokio::test]
+    async fn utest_agent_manager_request_logs() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store);
+
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, _server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.into(),
+            WORKLOAD_1_NAME.into(),
+            RUNTIME_NAME.into(),
+        );
+
+        let mock_runtime_manager = RuntimeManager::default();
+
+        let logs_request = common::commands::LogsRequest {
+            workload_names: vec![workload_spec.instance_name],
+            follow: false,
+            tail: -1,
+            since: None,
+            until: None,
+        };
+
+        let to_server_clone = to_server.clone();
+        let mock_workload_log_facade = MockWorkloadLogFacade::spawn_log_collection_context();
+        mock_workload_log_facade
+            .expect()
+            .once()
+            .with(
+                predicate::eq(REQUEST_ID.to_string()),
+                predicate::eq(logs_request.clone()),
+                predicate::function(move |to_server_sender: &Sender<ToServer>| {
+                    to_server_sender.same_channel(&to_server_clone)
+                }),
+                predicate::always(),
+                predicate::always(),
+            )
+            .return_const(());
+
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        assert!(to_manager
+            .logs_request(
+                REQUEST_ID.to_string(),
+                ank_base::LogsRequest {
+                    workload_names: vec![ank_base::WorkloadInstanceName {
+                        workload_name: logs_request.workload_names[0].workload_name().to_string(),
+                        agent_name: logs_request.workload_names[0].agent_name().to_string(),
+                        id: logs_request.workload_names[0].id().to_string()
+                    }],
+                    follow: Some(logs_request.follow),
+                    tail: Some(logs_request.tail),
+                    since: logs_request.since,
+                    until: logs_request.until,
+                }
+            )
+            .await
+            .is_ok());
+
+        let handle = tokio::spawn(async move { agent_manager.start().await });
+
+        to_manager.stop().await.unwrap();
+        assert!(join!(handle).0.is_ok());
+    }
+
+    // [utest->swdd~agent-handles-logs-cancel-requests-from-server~1]
+    #[tokio::test]
+    async fn utest_agent_manager_logs_cancel_request() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store);
+
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, _server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+
+        let mock_runtime_manager = RuntimeManager::default();
+
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        let subscription_store = agent_manager.subscription_store.clone();
+        subscription_store
+            .lock()
+            .unwrap()
+            .add_subscription(REQUEST_ID.to_string(), generate_test_subscription_entry());
+
+        assert!(to_manager
+            .logs_cancel_request(REQUEST_ID.to_string())
+            .await
+            .is_ok());
+
+        to_manager.stop().await.unwrap();
+        agent_manager.start().await;
+        assert!(subscription_store.lock().unwrap().is_empty());
+    }
+
+    // [utest->swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1]
+    #[tokio::test]
+    async fn utest_agent_manager_server_gone_delete_all_subscription_store_entries() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store);
+
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, _server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+
+        let mock_runtime_manager = RuntimeManager::default();
+
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        agent_manager
+            .subscription_store
+            .lock()
+            .unwrap()
+            .add_subscription(REQUEST_ID.to_string(), generate_test_subscription_entry());
+
+        assert!(to_manager.send(FromServer::ServerGone).await.is_ok());
+        to_manager.stop().await.unwrap();
+
+        agent_manager.start().await;
+
+        assert!(agent_manager.subscription_store.lock().unwrap().is_empty());
     }
 }

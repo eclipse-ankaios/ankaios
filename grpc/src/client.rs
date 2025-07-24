@@ -213,7 +213,14 @@ impl GRPCCommunicationsClient {
             to_server_proxy::forward_from_ankaios_to_proto(grpc_tx, server_rx);
 
         select! {
-            _ = forward_exec_from_proto_task => {log::debug!("Forward from server message from proto to Ankaios task completed");}
+            result = forward_exec_from_proto_task => {
+                log::debug!("Forward from server message from proto to Ankaios task completed");
+                // [impl->swdd~grpc-client-connection-sends-server-gone-to-agent~1]
+                if let Err(GrpcMiddlewareError::ConnectionInterrupted(_)) = result {
+                    log::trace!("Connection to server interrupted: send ServerGone to agent.");
+                    agent_tx.send(common::from_server_interface::FromServer::ServerGone).await.unwrap_or_illegal_state();
+                }
+            }
             _ = forward_to_server_from_ank_task => {log::debug!("Forward from server message from Ankaios to proto task completed");}
         };
 

@@ -121,7 +121,7 @@ async fn main() {
     );
 
     let mut communications_server = GRPCCommunicationsServer::new(
-        to_server.clone(),
+        to_server,
         // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
         tls_config.unwrap_or_exit("Missing certificates files"),
     );

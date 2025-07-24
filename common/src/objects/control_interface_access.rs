@@ -14,6 +14,12 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::workload_spec::{
+    verify_workload_name_length, verify_workload_name_not_empty, verify_workload_name_pattern,
+};
+
+pub const WILDCARD_SYMBOL: &str = "*";
+
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ControlInterfaceAccess {
@@ -69,12 +75,13 @@ fn convert_rule_vec(
 #[serde(tag = "type")]
 pub enum AccessRightsRule {
     StateRule(StateRule),
+    LogRule(LogRule),
 }
 
 impl AccessRightsRule {
-    // [impl->swdd~common-access-rules-filter-mask-convention~1]
     fn verify_format(&self) -> Result<(), String> {
         match self {
+            // [impl->swdd~common-access-rules-filter-mask-convention~1]
             AccessRightsRule::StateRule(state_rule) => {
                 state_rule.filter_mask.iter().try_for_each(|filter| {
                     if filter.is_empty() {
@@ -86,8 +93,43 @@ impl AccessRightsRule {
                     Ok(())
                 })?;
             }
+            // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
+            AccessRightsRule::LogRule(log_rule) => {
+                log_rule.workload_names.iter().try_for_each(|name| {
+                    Self::verify_log_rule_workload_name_pattern_format(name)
+                })?;
+            }
         }
         Ok(())
+    }
+
+    // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
+    fn verify_log_rule_workload_name_pattern_format(workload_name: &str) -> Result<(), String> {
+        if let Some(wildcard_pos) = workload_name.find(WILDCARD_SYMBOL) {
+            let prefix = &workload_name[..wildcard_pos];
+            let suffix = &workload_name[wildcard_pos + 1..];
+            if suffix.contains(WILDCARD_SYMBOL) {
+                Err(format!(
+                    "Expected at most one '{}' symbol.",
+                    WILDCARD_SYMBOL
+                ))
+            } else {
+                verify_workload_name_pattern(prefix)
+                    .and_then(|_| verify_workload_name_pattern(suffix))
+                    .and_then(|_| verify_workload_name_length(prefix.len() + suffix.len()))
+            }
+        } else {
+            let length = workload_name.len();
+            verify_workload_name_pattern(workload_name)
+                .and_then(|_| verify_workload_name_length(length))
+                .and_then(|_| verify_workload_name_not_empty(length))
+        }
+        .map_err(|err| {
+            format!(
+                "Unsupported workload name for log rule '{}'. {}",
+                workload_name, err
+            )
+        })
     }
 }
 
@@ -102,6 +144,9 @@ impl TryFrom<api::ank_base::AccessRightsRule> for AccessRightsRule {
             api::ank_base::access_rights_rule::AccessRightsRuleEnum::StateRule(state_rule) => {
                 Ok(Self::StateRule(state_rule.try_into()?))
             }
+            api::ank_base::access_rights_rule::AccessRightsRuleEnum::LogRule(log_rule) => {
+                Ok(Self::LogRule(log_rule.into()))
+            }
         }
     }
 }
@@ -113,6 +158,11 @@ impl From<AccessRightsRule> for api::ank_base::AccessRightsRule {
                 AccessRightsRule::StateRule(state) => Some(
                     api::ank_base::access_rights_rule::AccessRightsRuleEnum::StateRule(
                         state.into(),
+                    ),
+                ),
+                AccessRightsRule::LogRule(log_rule) => Some(
+                    api::ank_base::access_rights_rule::AccessRightsRuleEnum::LogRule(
+                        log_rule.into(),
                     ),
                 ),
             },
@@ -142,6 +192,28 @@ impl From<StateRule> for api::ank_base::StateRule {
         Self {
             operation: value.operation.into(),
             filter_masks: value.filter_mask,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct LogRule {
+    pub workload_names: Vec<String>,
+}
+
+impl From<api::ank_base::LogRule> for LogRule {
+    fn from(value: api::ank_base::LogRule) -> Self {
+        Self {
+            workload_names: value.workload_names,
+        }
+    }
+}
+
+impl From<LogRule> for api::ank_base::LogRule {
+    fn from(value: LogRule) -> Self {
+        Self {
+            workload_names: value.workload_names,
         }
     }
 }
@@ -205,12 +277,13 @@ pub fn generate_test_control_interface_access() -> ControlInterfaceAccess {
 #[cfg(test)]
 mod tests {
     use crate::objects::{
-        generate_test_control_interface_access, AccessRightsRule, ReadWriteEnum, StateRule,
+        control_interface_access::LogRule, generate_test_control_interface_access,
+        AccessRightsRule, ReadWriteEnum, StateRule,
     };
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
-    fn utest_access_rights_rule_verify_fails() {
+    fn utest_access_rights_state_rule_verify_fails() {
         let empty_state_rule = AccessRightsRule::StateRule(StateRule {
             operation: ReadWriteEnum::Write,
             filter_mask: vec!["".to_string()],
@@ -223,13 +296,102 @@ mod tests {
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
-    fn utest_access_rights_rule_verify_success() {
+    fn utest_access_rights_state_rule_verify_success() {
         let state_rule = AccessRightsRule::StateRule(StateRule {
             operation: ReadWriteEnum::Write,
             filter_mask: vec!["some".to_string()],
         });
 
         assert!(state_rule.verify_format().is_ok());
+    }
+
+    // [utest->swdd~common-access-rules-logs-workload-names-convention~1]
+    #[test]
+    fn utest_access_rights_log_rule_verify_success() {
+        const MAX_PREFIX: &str = "123456789012345678901234567890";
+        const MAX_SUFFIX: &str = "123456789012345678901234567890123";
+
+        assert!(log_rule_with_workload("workload_1").verify_format().is_ok());
+        assert!(log_rule_with_workload("*workload_1")
+            .verify_format()
+            .is_ok());
+        assert!(log_rule_with_workload("work*load_1")
+            .verify_format()
+            .is_ok());
+        assert!(log_rule_with_workload("workload_1*")
+            .verify_format()
+            .is_ok());
+        assert!(log_rule_with_workload(&format!("{MAX_PREFIX}{MAX_SUFFIX}"))
+            .verify_format()
+            .is_ok());
+        assert!(
+            log_rule_with_workload(&format!("*{MAX_PREFIX}{MAX_SUFFIX}"))
+                .verify_format()
+                .is_ok()
+        );
+        assert!(
+            log_rule_with_workload(&format!("{MAX_PREFIX}*{MAX_SUFFIX}"))
+                .verify_format()
+                .is_ok()
+        );
+        assert!(
+            log_rule_with_workload(&format!("{MAX_PREFIX}{MAX_SUFFIX}*"))
+                .verify_format()
+                .is_ok()
+        );
+    }
+
+    // [utest->swdd~common-access-rules-logs-workload-names-convention~1]
+    #[test]
+    fn utest_access_rights_log_rule_verify_fails() {
+        const TOO_LONG_PREFIX: &str = "123456789012345678901234567890";
+        const TOO_LONG_SUFFIX: &str = "1234567890123456789012345678901234";
+
+        assert!(log_rule_with_workload("").verify_format().is_err());
+        assert!(
+            log_rule_with_workload(&format!("{TOO_LONG_PREFIX}{TOO_LONG_SUFFIX}"))
+                .verify_format()
+                .is_err()
+        );
+        assert!(
+            log_rule_with_workload(&format!("*{TOO_LONG_PREFIX}{TOO_LONG_SUFFIX}"))
+                .verify_format()
+                .is_err()
+        );
+        assert!(
+            log_rule_with_workload(&format!("{TOO_LONG_PREFIX}*{TOO_LONG_SUFFIX}"))
+                .verify_format()
+                .is_err()
+        );
+        assert!(
+            log_rule_with_workload(&format!("{TOO_LONG_PREFIX}{TOO_LONG_SUFFIX}*"))
+                .verify_format()
+                .is_err()
+        );
+        assert!(log_rule_with_workload("just.wrong")
+            .verify_format()
+            .is_err());
+        assert!(log_rule_with_workload("also@wrong")
+            .verify_format()
+            .is_err());
+        assert!(log_rule_with_workload("*also@wrong")
+            .verify_format()
+            .is_err());
+        assert!(log_rule_with_workload("al*so@wrong")
+            .verify_format()
+            .is_err());
+        assert!(log_rule_with_workload("also@wr*ong")
+            .verify_format()
+            .is_err());
+        assert!(log_rule_with_workload("also@wrong*")
+            .verify_format()
+            .is_err());
+    }
+
+    fn log_rule_with_workload(workload_name: &str) -> AccessRightsRule {
+        AccessRightsRule::LogRule(LogRule {
+            workload_names: vec![workload_name.to_string()],
+        })
     }
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]

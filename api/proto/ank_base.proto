@@ -25,6 +25,8 @@ message Request {
     oneof RequestContent {
         UpdateStateRequest updateStateRequest = 2; /// A message to Ankaios server to update the state of one or more agent(s).
         CompleteStateRequest completeStateRequest = 3; /// A message to Ankaios server to request the complete state by the given request id and the optional field mask.
+        LogsRequest logsRequest = 4; /// A message to Ankaios server to request workload logs.
+        LogsCancelRequest logsCancelRequest = 5; /// A message to Ankaios server to stop the request for workload logs.
     }
 }
 
@@ -38,7 +40,61 @@ message Response {
         Error error = 3;
         CompleteState completeState = 4;
         UpdateStateSuccess UpdateStateSuccess = 5;
+        LogsRequestAccepted logsRequestAccepted = 6; /// A message containing the workload names for which the logs were successfully requested.
+        LogEntriesResponse logEntriesResponse = 7; /// A message containing workload logs.
+        LogsStopResponse logsStopResponse = 8; /// A message containing the workload instance name indicating the stop of the log streaming.
+        LogsCancelAccepted logsCancelAccepted = 9; /// A message indicating that the request for canceling the log collection was accepted. Please note that the actual stopping of the log collection campaign could take longer.
     }
+}
+
+/**
+* A message requesting workload logs.
+*/
+message LogsRequest {
+    repeated WorkloadInstanceName workloadNames = 1; /// The names of the workloads for which logs are requested.
+    optional bool follow = 2; /// If true, the server will stream the logs to the client until a LogsCancelRequest with the same Id is sent.
+    optional int32 tail = 3; /// The number of lines to show from the end of the logs. Default is -1, which means all logs.
+    optional string since = 4; /// Only return logs after a specific TIMESTAMP. The TIMESTAMP is a string in RFC3339 format.
+    optional string until = 5; /// Only return logs before a specific TIMESTAMP. The TIMESTAMP is a string in RFC3339 format.
+}
+
+/**
+* A message stopping the streaming of logs requested via a request with the follow flag.
+*/
+message LogsCancelRequest {
+}
+
+/**
+* A message indicating that the logs were successfully requested and for which workloads.
+*/
+message LogsRequestAccepted {
+    repeated WorkloadInstanceName workloadNames = 1; /// The instance names of the workloads for which the logs request was successfully accepted.
+}
+
+/**
+* A message containing the requested logs.
+*/
+message LogEntriesResponse {
+    repeated LogEntry logEntries = 1; /// The logs of the requested workloads.
+}
+
+message LogsStopResponse {
+    WorkloadInstanceName workloadName = 1; /// The name of the workload for which the log streaming was stopped.
+}
+
+/**
+* A message indicating that the request for canceling the log collection was accepted.
+* Please note that the actual stopping of the log collection campaign could take longer so other log response messages could be delivered also after receiving this message.
+*/
+message LogsCancelAccepted {
+}
+
+/**
+* A message containing a single log entry.
+*/
+message LogEntry {
+    WorkloadInstanceName workloadName = 1; /// The name of the workloads for which logs are requested.
+    string message = 2; /// The log message.
 }
 
 /**
@@ -73,7 +129,7 @@ message UpdateStateRequest {
 * A message from the server containing the ids of the workloads that have been started and stopped in response to a previously sent UpdateStateRequest.
 */
 message UpdateStateSuccess {
-    repeated string addedWorkloads = 1; /// Workload istance names of workloads which will be started
+    repeated string addedWorkloads = 1; /// Workload instance names of workloads which will be started
     repeated string deletedWorkloads = 2; /// Workload instance names of workloads which will be stopped
 }
 
@@ -170,7 +226,7 @@ enum Running {
 enum Stopping {
     STOPPING = 0; /// The workload is being stopped.
     STOPPING_WAITING_TO_STOP = 1; /// The deletion of the workload will be triggered once neither 'pending' nor 'running' workload depending on it exists.
-    STOPPING_REQUESTED_AT_RUNTIME = 2; /// This is an Ankaios generated state returned when the stopping was explicitly trigged by the user and the request was sent to the runtime.
+    STOPPING_REQUESTED_AT_RUNTIME = 2; /// This is an Ankaios generated state returned when the stopping was explicitly triggered by the user and the request was sent to the runtime.
     STOPPING_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
 
@@ -244,7 +300,7 @@ message State {
 }
 
 /**
-* This is a workaround for proto not supporing optional maps
+* This is a workaround for proto not supporting optional maps
 * Workload names shall not be shorter than 1 symbol longer then 63 symbols and can contain only regular characters, digits, the "-" and "_" symbols.
 */
 message WorkloadMap {
@@ -267,14 +323,14 @@ message Workload {
 }
 
 /**
-* This is a workaround for proto not supporing optional repeated values
+* This is a workaround for proto not supporting optional repeated values
 */
 message Tags {
     repeated Tag tags = 1;
 }
 
 /**
-* This is a workaround for proto not supporing optional maps
+* This is a workaround for proto not supporting optional maps
 */
 message Dependencies {
     map<string, AddCondition> dependencies = 1;
@@ -317,6 +373,7 @@ message ControlInterfaceAccess {
 message AccessRightsRule {
   oneof AccessRightsRuleEnum {
       StateRule stateRule = 1; // Rule for getting or setting the state
+      LogRule logRule = 2; // Rule for getting workload logs
   }
 }
 
@@ -325,9 +382,15 @@ message AccessRightsRule {
 **/
 message StateRule {
   ReadWriteEnum operation = 1; // Defines which actions are allowed
-  repeated string filterMasks = 2; // Pathes definind what can be accessed. Segements of path can be a wildcare "*".
+  repeated string filterMasks = 2; // Paths defining what can be accessed. Segments of path can be a wildcard "*".
 }
 
+/**
+* Message containing a rule for getting workload logs
+**/
+message LogRule {
+  repeated string workloadNames = 1; // The names of the workloads the rule applies to. If empty, the rule does not apply to any workload. Wildcard "*" can be used to match all workloads.
+}
 
 /**
 * An enum type describing which action is allowed.
@@ -340,7 +403,7 @@ enum ReadWriteEnum {
 }
 
 /**
-* This is a workaround for proto not supporing optional maps
+* This is a workaround for proto not supporting optional maps
 */
 message ConfigMappings {
     map<string, string> configs = 1;

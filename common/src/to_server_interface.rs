@@ -13,15 +13,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    commands::{self, RequestContent},
+    commands::{self, LogsRequest, RequestContent},
     objects::CompleteState,
 };
+use api::ank_base;
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ToServer {
     AgentHello(commands::AgentHello),
     AgentLoadStatus(commands::AgentLoadStatus),
@@ -30,6 +31,8 @@ pub enum ToServer {
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Stop(commands::Stop),
     Goodbye(commands::Goodbye),
+    LogEntriesResponse(String, ank_base::LogEntriesResponse),
+    LogsStopResponse(String, ank_base::LogsStopResponse),
 }
 
 #[derive(Debug)]
@@ -71,6 +74,23 @@ pub trait ToServerInterface {
         request_id: String,
         request_complete_state: commands::CompleteStateRequest,
     ) -> Result<(), ToServerError>;
+    async fn logs_request(
+        &self,
+        request_id: String,
+        logs_request: LogsRequest,
+    ) -> Result<(), ToServerError>;
+    async fn logs_cancel_request(&self, request_id: String) -> Result<(), ToServerError>;
+    async fn log_entries_response(
+        &self,
+        request_id: String,
+        logs_response: ank_base::LogEntriesResponse,
+    ) -> Result<(), ToServerError>;
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
+    ) -> Result<(), ToServerError>;
+    async fn goodbye(&self, connection_name: String) -> Result<(), ToServerError>;
     async fn stop(&self) -> Result<(), ToServerError>;
 }
 
@@ -146,6 +166,54 @@ impl ToServerInterface for ToServerSender {
             .await?)
     }
 
+    async fn logs_request(
+        &self,
+        request_id: String,
+        logs_request: LogsRequest,
+    ) -> Result<(), ToServerError> {
+        Ok(self
+            .send(ToServer::Request(commands::Request {
+                request_id,
+                request_content: RequestContent::LogsRequest(logs_request),
+            }))
+            .await?)
+    }
+
+    async fn logs_cancel_request(&self, request_id: String) -> Result<(), ToServerError> {
+        Ok(self
+            .send(ToServer::Request(commands::Request {
+                request_id,
+                request_content: RequestContent::LogsCancelRequest,
+            }))
+            .await?)
+    }
+
+    async fn log_entries_response(
+        &self,
+        request_id: String,
+        logs_response: ank_base::LogEntriesResponse,
+    ) -> Result<(), ToServerError> {
+        Ok(self
+            .send(ToServer::LogEntriesResponse(request_id, logs_response))
+            .await?)
+    }
+
+    async fn logs_stop_response(
+        &self,
+        request_id: String,
+        logs_stop_response: ank_base::LogsStopResponse,
+    ) -> Result<(), ToServerError> {
+        Ok(self
+            .send(ToServer::LogsStopResponse(request_id, logs_stop_response))
+            .await?)
+    }
+
+    async fn goodbye(&self, connection_name: String) -> Result<(), ToServerError> {
+        Ok(self
+            .send(ToServer::Goodbye(commands::Goodbye { connection_name }))
+            .await?)
+    }
+
     async fn stop(&self) -> Result<(), ToServerError> {
         Ok(self.send(ToServer::Stop(commands::Stop {})).await?)
     }
@@ -161,11 +229,13 @@ impl ToServerInterface for ToServerSender {
 
 #[cfg(test)]
 mod tests {
+    use api::ank_base::{self, LogEntriesResponse, LogEntry};
+
     use crate::{
         commands::{self, AgentLoadStatus, RequestContent},
         objects::{
             generate_test_workload_spec, generate_test_workload_state, CpuUsage, ExecutionState,
-            FreeMemory,
+            FreeMemory, WorkloadInstanceName,
         },
         test_utils::generate_test_complete_state,
         to_server_interface::{ToServer, ToServerInterface},
@@ -310,6 +380,102 @@ mod tests {
                 request_id: REQUEST_ID.to_string(),
                 request_content
             })
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_to_server_send_logs_request() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let logs_request = commands::LogsRequest {
+            workload_names: vec![WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_NAME, "id")],
+            follow: true,
+            tail: 10,
+            since: None,
+            until: None,
+        };
+        let request_content = RequestContent::LogsRequest(logs_request.clone());
+        assert!(tx
+            .logs_request(REQUEST_ID.into(), logs_request)
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::Request(commands::Request {
+                request_id: REQUEST_ID.to_string(),
+                request_content
+            })
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_to_server_send_logs_cancel_request() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let request_content = RequestContent::LogsCancelRequest;
+        assert!(tx.logs_cancel_request(REQUEST_ID.into()).await.is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::Request(commands::Request {
+                request_id: REQUEST_ID.to_string(),
+                request_content
+            })
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_to_server_send_logs_response() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let logs_response = LogEntriesResponse {
+            log_entries: vec![LogEntry {
+                workload_name: Some(ank_base::WorkloadInstanceName {
+                    agent_name: AGENT_NAME.into(),
+                    workload_name: WORKLOAD_NAME.into(),
+                    id: "id".into(),
+                }),
+                message: "message".into(),
+            }],
+        };
+
+        assert!(tx
+            .log_entries_response(REQUEST_ID.into(), logs_response.clone())
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::LogEntriesResponse(REQUEST_ID.to_string(), logs_response)
+        );
+    }
+
+    // [utest->swdd~to-server-channel~1]
+    #[tokio::test]
+    async fn utest_to_server_send_logs_stop_response() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let response_content = ank_base::LogsStopResponse {
+            workload_name: Some(ank_base::WorkloadInstanceName {
+                agent_name: AGENT_NAME.into(),
+                workload_name: WORKLOAD_NAME.into(),
+                id: "id".into(),
+            }),
+        };
+
+        assert!(tx
+            .logs_stop_response(REQUEST_ID.into(), response_content.clone())
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::LogsStopResponse(REQUEST_ID.to_string(), response_content)
         )
     }
 }

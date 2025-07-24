@@ -11,11 +11,15 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::{control_interface::ControlInterfacePath, workload::WorkloadCommand};
+use crate::{
+    control_interface::ControlInterfacePath,
+    runtime_connectors::{log_fetcher::LogFetcher, LogRequestOptions},
+    workload::WorkloadCommand,
+};
 use common::objects::{WorkloadInstanceName, WorkloadSpec};
 #[cfg(test)]
 use mockall_double::double;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
 #[cfg_attr(test, double)]
 use super::retry_manager::RetryToken;
@@ -84,6 +88,21 @@ impl WorkloadCommandSender {
     pub async fn delete(self) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender.send(WorkloadCommand::Delete).await
     }
+
+    // [impl->swdd~agent-workload-obj-start-log-fetcher-command~1]
+    pub async fn start_collecting_logs(
+        &self,
+        log_request_options: LogRequestOptions,
+    ) -> Result<Box<dyn LogFetcher>, Box<dyn std::error::Error>> {
+        let (sender, receiver) = oneshot::channel();
+        self.sender
+            .send(WorkloadCommand::StartLogFetcher(
+                log_request_options,
+                sender,
+            ))
+            .await?;
+        Ok(receiver.await?)
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -96,14 +115,25 @@ impl WorkloadCommandSender {
 
 #[cfg(test)]
 mod tests {
-    use crate::workload::retry_manager::MockRetryToken;
+    use crate::{
+        runtime_connectors::{log_fetcher::MockLogFetcher, LogRequestOptions},
+        workload::retry_manager::MockRetryToken,
+    };
 
     use super::{ControlInterfacePath, WorkloadCommand, WorkloadCommandSender, WorkloadSpec};
     use common::objects::generate_test_workload_spec;
     use std::path::PathBuf;
-    const PIPES_LOCATION: &str = "/some/path";
+    use tokio::sync::mpsc::Receiver;
 
     use mockall::lazy_static;
+
+    const PIPES_LOCATION: &str = "/some/path";
+    const LOG_REQUEST_OPTIONS: LogRequestOptions = LogRequestOptions {
+        follow: true,
+        tail: Some(100),
+        since: None,
+        until: None,
+    };
 
     lazy_static! {
         pub static ref WORKLOAD_SPEC: WorkloadSpec = generate_test_workload_spec();
@@ -204,5 +234,65 @@ mod tests {
         workload_command_receiver.close();
 
         assert!(workload_command_sender.resume().is_err());
+    }
+
+    // [utest->swdd~agent-workload-obj-start-log-fetcher-command~1]
+    #[tokio::test]
+    async fn utest_start_collecting_logs_success() {
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+
+        let jh =
+            listen_for_start_log_fetcher(workload_command_receiver, Some(MockLogFetcher::new()));
+
+        let res = workload_command_sender
+            .start_collecting_logs(LOG_REQUEST_OPTIONS.clone())
+            .await;
+
+        assert!(res.is_ok());
+        assert!(jh.await.is_ok());
+    }
+
+    // [utest->swdd~agent-workload-obj-start-log-fetcher-command~1]
+    #[tokio::test]
+    async fn utest_start_collecting_logs_no_result() {
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+
+        let jh = listen_for_start_log_fetcher(workload_command_receiver, None);
+
+        let res = workload_command_sender
+            .start_collecting_logs(LOG_REQUEST_OPTIONS.clone())
+            .await;
+
+        assert!(res.is_err());
+        assert!(jh.await.is_ok());
+    }
+
+    // [utest->swdd~agent-workload-obj-start-log-fetcher-command~1]
+    #[tokio::test]
+    async fn utest_start_collecting_logs_receiver_gone() {
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
+
+        let res = workload_command_sender
+            .start_collecting_logs(LOG_REQUEST_OPTIONS.clone())
+            .await;
+
+        assert!(res.is_err());
+    }
+
+    // [utest->swdd~agent-workload-obj-start-log-fetcher-command~1]
+    fn listen_for_start_log_fetcher(
+        mut receiver: Receiver<WorkloadCommand>,
+        res: Option<MockLogFetcher>,
+    ) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            let command = receiver.recv().await.unwrap();
+            let WorkloadCommand::StartLogFetcher(options, result_sink) = command else {
+                panic!("Expected WorkloadCommand::StartLogFetcher")
+            };
+            assert_eq!(options, LOG_REQUEST_OPTIONS);
+            if let Some(res) = res {
+                result_sink.send(Box::new(res)).unwrap();
+            };
+        })
     }
 }

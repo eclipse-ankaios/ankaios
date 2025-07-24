@@ -12,7 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::objects::{CompleteState, CpuUsage, DeletedWorkload, FreeMemory, WorkloadSpec};
+use crate::objects::{
+    CompleteState, CpuUsage, DeletedWorkload, FreeMemory, WorkloadInstanceName, WorkloadSpec,
+};
 use api::ank_base;
 use serde::{Deserialize, Serialize};
 
@@ -54,8 +56,11 @@ impl From<Request> for ank_base::Request {
 }
 
 impl Request {
+    pub fn prefix_id(prefix: &str, request_id: &String) -> String {
+        format!("{}{}", prefix, request_id)
+    }
     pub fn prefix_request_id(&mut self, prefix: &str) {
-        self.request_id = format!("{}{}", prefix, self.request_id);
+        self.request_id = Self::prefix_id(prefix, &self.request_id);
     }
 }
 
@@ -76,6 +81,8 @@ impl TryFrom<ank_base::Request> for Request {
 pub enum RequestContent {
     CompleteStateRequest(CompleteStateRequest),
     UpdateStateRequest(Box<UpdateStateRequest>),
+    LogsRequest(LogsRequest),
+    LogsCancelRequest,
 }
 
 impl From<RequestContent> for ank_base::request::RequestContent {
@@ -86,6 +93,13 @@ impl From<RequestContent> for ank_base::request::RequestContent {
             }
             RequestContent::UpdateStateRequest(content) => {
                 ank_base::request::RequestContent::UpdateStateRequest(Box::new((*content).into()))
+            }
+            // TODO: tests are missing for the next two cases
+            RequestContent::LogsRequest(logs_request) => {
+                ank_base::request::RequestContent::LogsRequest(logs_request.into())
+            }
+            RequestContent::LogsCancelRequest => {
+                ank_base::request::RequestContent::LogsCancelRequest(ank_base::LogsCancelRequest {})
             }
         }
     }
@@ -101,7 +115,76 @@ impl TryFrom<ank_base::request::RequestContent> for RequestContent {
             ank_base::request::RequestContent::CompleteStateRequest(value) => {
                 RequestContent::CompleteStateRequest(value.into())
             }
+            // TODO: tests are missing for the next two cases
+            ank_base::request::RequestContent::LogsRequest(logs_request) => {
+                RequestContent::LogsRequest(logs_request.into())
+            }
+            ank_base::request::RequestContent::LogsCancelRequest(_logs_stop_request) => {
+                RequestContent::LogsCancelRequest
+            }
         })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogsRequest {
+    pub workload_names: Vec<WorkloadInstanceName>,
+    pub follow: bool,
+    pub tail: i32,
+    pub since: Option<String>,
+    pub until: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogsCancelRequest {}
+
+// TODO: add tests
+impl From<LogsRequest> for ank_base::LogsRequest {
+    fn from(item: LogsRequest) -> Self {
+        ank_base::LogsRequest {
+            workload_names: item
+                .workload_names
+                .into_iter()
+                .map(|name| name.into())
+                .collect(),
+            follow: if !item.follow { None } else { Some(true) },
+            tail: if -1 == item.tail {
+                None
+            } else {
+                Some(item.tail)
+            },
+            since: item.since,
+            until: item.until,
+        }
+    }
+}
+
+// TODO: add tests
+impl From<ank_base::LogsRequest> for LogsRequest {
+    fn from(value: ank_base::LogsRequest) -> Self {
+        LogsRequest {
+            workload_names: value
+                .workload_names
+                .into_iter()
+                .map(|name: ank_base::WorkloadInstanceName| name.into())
+                .collect(),
+            follow: value.follow.unwrap_or(false),
+            tail: value.tail.unwrap_or(-1),
+            since: value.since,
+            until: value.until,
+        }
+    }
+}
+
+impl From<LogsCancelRequest> for ank_base::LogsCancelRequest {
+    fn from(_logs_cancel_request: LogsCancelRequest) -> Self {
+        ank_base::LogsCancelRequest {}
+    }
+}
+
+impl From<ank_base::LogsCancelRequest> for LogsCancelRequest {
+    fn from(_logs_cancel_request: ank_base::LogsCancelRequest) -> Self {
+        LogsCancelRequest {}
     }
 }
 
@@ -165,7 +248,9 @@ pub struct UpdateWorkload {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct Goodbye {}
+pub struct Goodbye {
+    pub connection_name: String,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Stop {}
@@ -186,18 +271,21 @@ mod tests {
     mod ank_base {
         pub use api::ank_base::{
             request::RequestContent, CompleteState, CompleteStateRequest, ConfigMappings,
-            Dependencies, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
-            WorkloadMap,
+            Dependencies, LogsCancelRequest, LogsRequest, Request, RestartPolicy, State, Tag, Tags,
+            UpdateStateRequest, Workload, WorkloadInstanceName, WorkloadMap,
         };
     }
 
     mod ankaios {
         pub use crate::{
-            commands::{CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
+            commands::{
+                CompleteStateRequest, LogsCancelRequest, LogsRequest, Request, RequestContent,
+                UpdateStateRequest,
+            },
             objects::{
                 generate_test_agent_map, generate_test_workload_states_map_with_data, Base64Data,
                 CompleteState, Data, ExecutionState, File, FileContent, RestartPolicy, State,
-                StoredWorkloadSpec, Tag,
+                StoredWorkloadSpec, Tag, WorkloadInstanceName,
             },
         };
     }
@@ -207,6 +295,9 @@ mod tests {
     const FIELD_2: &str = "field_2";
     const AGENT_NAME: &str = "agent_1";
     const WORKLOAD_NAME_1: &str = "workload_name_1";
+    const WORKLOAD_NAME_2: &str = "workload_name_2";
+    const INSTANCE_ID_1: &str = "instance_id_1";
+    const INSTANCE_ID_2: &str = "instance_id_2";
     const RUNTIME: &str = "my_favorite_runtime";
     const RUNTIME_CONFIG: &str = "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n";
     const HASH: &str = "hash_1";
@@ -246,6 +337,74 @@ mod tests {
                 state: complete_state!(ankaios),
                 update_mask: vec![FIELD_1.into(), FIELD_2.into()],
             }))
+        };
+    }
+
+    macro_rules! logs_request {
+        ($expression:ident) => {{
+            $expression::Request {
+                request_id: REQUEST_ID.into(),
+                request_content: $expression::RequestContent::LogsRequest(
+                    $expression::LogsRequest {
+                        workload_names: vec![
+                            workload_instance_name!($expression, 1),
+                            workload_instance_name!($expression, 2),
+                        ],
+                        follow: true.into(),
+                        tail: 10.into(),
+                        since: None,
+                        until: None,
+                    },
+                )
+                .into(),
+            }
+        }};
+    }
+
+    macro_rules! workload_instance_name {
+        (ank_base, $number:expr) => {
+            ank_base::WorkloadInstanceName {
+                agent_name: AGENT_NAME.into(),
+                workload_name: workload_name!($number).into(),
+                id: instance_id!($number).into(),
+            }
+        };
+        (ankaios, $number:expr) => {
+            ankaios::WorkloadInstanceName::new(
+                AGENT_NAME,
+                workload_name!($number),
+                instance_id!($number),
+            )
+        };
+    }
+
+    macro_rules! workload_name {
+        ($number:literal) => {
+            [WORKLOAD_NAME_1, WORKLOAD_NAME_2][$number - 1]
+        };
+    }
+
+    macro_rules! instance_id {
+        ($number:literal) => {
+            [INSTANCE_ID_1, INSTANCE_ID_2][$number - 1]
+        };
+    }
+
+    macro_rules! logs_cancel_request {
+        (ank_base) => {
+            ank_base::Request {
+                request_id: REQUEST_ID.into(),
+                request_content: ank_base::RequestContent::LogsCancelRequest(
+                    api::ank_base::LogsCancelRequest {},
+                )
+                .into(),
+            }
+        };
+        (ankaios) => {
+            ankaios::Request {
+                request_id: REQUEST_ID.into(),
+                request_content: ankaios::RequestContent::LogsCancelRequest,
+            }
         };
     }
 
@@ -502,6 +661,100 @@ mod tests {
     }
 
     #[test]
+    fn utest_converts_from_proto_logs_request() {
+        let proto_logs_request = logs_request!(ank_base);
+        let ankaios_logs_request = logs_request!(ankaios);
+        assert_eq!(
+            ankaios::Request::try_from(proto_logs_request).unwrap(),
+            ankaios_logs_request
+        );
+    }
+
+    trait AsLogsRequest {
+        type LogsRequest;
+        fn as_logs_request(&mut self) -> &mut Self::LogsRequest;
+    }
+
+    impl AsLogsRequest for Option<ank_base::RequestContent> {
+        type LogsRequest = ank_base::LogsRequest;
+
+        fn as_logs_request(&mut self) -> &mut Self::LogsRequest {
+            if let Some(ank_base::RequestContent::LogsRequest(x)) = self {
+                x
+            } else {
+                panic!("Not an LogsRequest")
+            }
+        }
+    }
+
+    impl AsLogsRequest for ankaios::RequestContent {
+        type LogsRequest = ankaios::LogsRequest;
+
+        fn as_logs_request(&mut self) -> &mut ankaios::LogsRequest {
+            if let ankaios::RequestContent::LogsRequest(x) = self {
+                x
+            } else {
+                panic!("Not an LogsRequest")
+            }
+        }
+    }
+
+    #[test]
+    fn utest_converts_from_proto_logs_request_with_no_tail_option() {
+        let mut proto_logs_request = logs_request!(ank_base);
+        proto_logs_request.request_content.as_logs_request().tail = None;
+        let mut ankaios_logs_request = logs_request!(ankaios);
+        ankaios_logs_request.request_content.as_logs_request().tail = -1;
+
+        assert_eq!(
+            ankaios::Request::try_from(proto_logs_request).unwrap(),
+            ankaios_logs_request
+        );
+    }
+
+    #[test]
+    fn utest_converts_to_proto_logs_request() {
+        let proto_logs_request = logs_request!(ank_base);
+        let ankaios_logs_request = logs_request!(ankaios);
+        assert_eq!(
+            ank_base::Request::from(ankaios_logs_request),
+            proto_logs_request
+        );
+    }
+
+    #[test]
+    fn utest_converts_to_proto_logs_request_with_no_tail_optio() {
+        let mut proto_logs_request = logs_request!(ank_base);
+        proto_logs_request.request_content.as_logs_request().tail = None;
+        let mut ankaios_logs_request = logs_request!(ankaios);
+        ankaios_logs_request.request_content.as_logs_request().tail = -1;
+        assert_eq!(
+            ank_base::Request::from(ankaios_logs_request),
+            proto_logs_request
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_logs_cancel_request() {
+        let proto_logs_cancel_request = logs_cancel_request!(ank_base);
+        let ankaios_logs_cancel_request = logs_cancel_request!(ankaios);
+        assert_eq!(
+            ankaios::Request::try_from(proto_logs_cancel_request).unwrap(),
+            ankaios_logs_cancel_request
+        );
+    }
+
+    #[test]
+    fn utest_converts_to_proto_logs_cancel_request() {
+        let proto_logs_cancel_request = logs_cancel_request!(ank_base);
+        let ankaios_logs_cancel_request = logs_cancel_request!(ankaios);
+        assert_eq!(
+            ank_base::Request::from(ankaios_logs_cancel_request),
+            proto_logs_cancel_request
+        );
+    }
+
+    #[test]
     fn utest_converts_from_proto_request_fails_empty_request_content() {
         let proto_request = ank_base::Request {
             request_id: REQUEST_ID.into(),
@@ -512,6 +765,15 @@ mod tests {
             ankaios::Request::try_from(proto_request).unwrap_err(),
             "Request has no content"
         );
+    }
+
+    #[test]
+    fn utest_prefix_id() {
+        let request_id = "42".to_string();
+        let prefix = "prefix@";
+        let prefixed_request_id = ankaios::Request::prefix_id(prefix, &request_id);
+
+        assert_eq!("prefix@42", prefixed_request_id);
     }
 
     #[test]
@@ -528,5 +790,17 @@ mod tests {
         ankaios_request_complete_state.prefix_request_id("prefix@");
 
         assert_eq!("prefix@42", ankaios_request_complete_state.request_id);
+    }
+
+    #[test]
+    fn utest_ank_base_log_cancel_request() {
+        let ank_base_log_cancel_request = ank_base::LogsCancelRequest {};
+
+        assert_eq!(
+            ank_base_log_cancel_request.clone(),
+            ank_base::LogsCancelRequest::from(ankaios::LogsCancelRequest::from(
+                ank_base_log_cancel_request
+            ))
+        );
     }
 }

@@ -64,11 +64,12 @@ pub use workload_spec::{
     generate_test_workload_spec_with_rendered_files,
     generate_test_workload_spec_with_runtime_config,
 };
-pub use workload_spec::{STR_RE_AGENT, STR_RE_WORKLOAD};
+pub use workload_spec::{ALLOWED_SYMBOLS, STR_RE_AGENT};
 
 pub use workload_spec::{
-    get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
-    DeletedWorkloadCollection, FulfilledBy, RestartPolicy, WorkloadCollection, WorkloadSpec,
+    get_workloads_per_agent, verify_workload_name_format, AddCondition, DeleteCondition,
+    DeletedWorkload, DeletedWorkloadCollection, FulfilledBy, RestartPolicy, WorkloadCollection,
+    WorkloadSpec,
 };
 
 mod tag;
@@ -86,7 +87,7 @@ mod control_interface_access;
 #[cfg(any(feature = "test_utils", test))]
 pub use control_interface_access::generate_test_control_interface_access;
 pub use control_interface_access::{
-    AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum, StateRule,
+    AccessRightsRule, ControlInterfaceAccess, LogRule, ReadWriteEnum, StateRule, WILDCARD_SYMBOL,
 };
 
 mod config;

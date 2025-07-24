@@ -20,6 +20,7 @@ use crate::control_interface::authorizer::Authorizer;
 use api::ank_base;
 
 use common::{
+    commands::LogsRequest,
     objects::{
         AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec,
         WorkloadState,
@@ -35,7 +36,9 @@ use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 use crate::runtime_connectors::GenericRuntimeFacade;
 use crate::{
     control_interface::ControlInterfacePath,
-    runtime_connectors::unsupported_runtime::UnsupportedRuntime,
+    runtime_connectors::{
+        log_fetcher::LogFetcher, unsupported_runtime::UnsupportedRuntime, LogRequestOptions,
+    },
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -639,6 +642,35 @@ impl RuntimeManager {
             }
         }
     }
+
+    // [impl->swdd~runtime-manager-creates-log-fetchers~1]
+    pub async fn get_log_fetchers(
+        &self,
+        log_request: LogsRequest,
+    ) -> Vec<(WorkloadInstanceName, Box<dyn LogFetcher>)> {
+        let mut res = Vec::new();
+        let log_request_options: LogRequestOptions = log_request.clone().into();
+        for workload in log_request.workload_names {
+            let Some(workload_instance) = self.workloads.get(workload.workload_name()) else {
+                log::info!("Could not find workload '{}'", workload.workload_name());
+                continue;
+            };
+
+            match workload_instance
+                .start_collecting_logs(log_request_options.clone())
+                .await
+            {
+                Ok(log_fetcher) => res.push((workload, log_fetcher)),
+                Err(err) => log::info!(
+                    "Did not get log fetcher for '{}': '{}'.",
+                    workload.workload_name(),
+                    err
+                ),
+            };
+        }
+
+        res
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -659,8 +691,10 @@ mod tests {
         authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
         MockControlInterface,
     };
+    use crate::runtime_connectors::log_fetcher::MockLogFetcher;
     use crate::runtime_connectors::{
-        MockGenericRuntimeFacade, MockRuntimeFacade, ReusableWorkloadState, RuntimeError,
+        LogRequestOptions, MockGenericRuntimeFacade, MockRuntimeFacade, ReusableWorkloadState,
+        RuntimeError,
     };
     use crate::runtime_manager::ToReusableWorkloadSpecs;
     use crate::workload::{MockWorkload, WorkloadError};
@@ -670,6 +704,7 @@ mod tests {
     use crate::workload_state::WorkloadStateReceiver;
     use ank_base::response::ResponseContent;
     use api::ank_base::Files;
+    use common::commands::LogsRequest;
     use common::objects::{
         self, generate_test_control_interface_access,
         generate_test_workload_spec_with_control_interface_access,
@@ -683,6 +718,8 @@ mod tests {
     use common::to_server_interface::ToServerReceiver;
     use mockall::{predicate, Sequence};
     use std::collections::HashMap;
+    use std::error::Error;
+    use std::fmt::Display;
     use std::{any::Any, path::Path};
     use tokio::sync::mpsc::channel;
 
@@ -692,6 +729,8 @@ mod tests {
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_2_NAME: &str = "workload2";
+    const WORKLOAD_3_NAME: &str = "workload3";
+    const WORKLOAD_ID: &str = "workload_id";
     const REQUEST_ID: &str = "request_id";
     const RUN_FOLDER: &str = "run/folder";
 
@@ -2922,6 +2961,74 @@ mod tests {
             .await;
     }
 
+    // [utest->swdd~runtime-manager-creates-log-fetchers~1]
+    #[tokio::test]
+    async fn utest_execute_workload_operations_get_log_fetchers() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let _from_authorizer_context = setup_from_authorizer();
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| MockWorkloadScheduler::default());
+
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
+
+        let mut workload_1_mock = MockWorkload::default();
+        workload_1_mock
+            .expect_start_collecting_logs()
+            .with(mockall::predicate::eq(LogRequestOptions {
+                follow: true,
+                tail: None,
+                since: None,
+                until: None,
+            }))
+            .once()
+            .returning(|_| Ok(Box::new(MockLogFetcher::new())));
+        let mut workload_2_mock = MockWorkload::default();
+        workload_2_mock
+            .expect_start_collecting_logs()
+            .with(mockall::predicate::eq(LogRequestOptions {
+                follow: true,
+                tail: None,
+                since: None,
+                until: None,
+            }))
+            .once()
+            .returning(|_| Err(Box::new(MockError())));
+
+        runtime_manager
+            .workloads
+            .insert(WORKLOAD_1_NAME.to_string(), workload_1_mock);
+        runtime_manager
+            .workloads
+            .insert(WORKLOAD_2_NAME.to_string(), workload_2_mock);
+
+        let res = runtime_manager
+            .get_log_fetchers(LogsRequest {
+                workload_names: vec![
+                    WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID),
+                    WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_2_NAME, WORKLOAD_ID),
+                    WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_3_NAME, WORKLOAD_ID),
+                ],
+                follow: true,
+                tail: -1,
+                since: None,
+                until: None,
+            })
+            .await;
+
+        assert_eq!(res.len(), 1);
+        assert_eq!(
+            &res[0].0,
+            &WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID)
+        );
+    }
+
     fn setup_from_authorizer() -> Box<dyn Any> {
         let authorizer_from_context_mock = MockAuthorizer::from_context();
         authorizer_from_context_mock
@@ -2929,4 +3036,20 @@ mod tests {
             .returning(|_| MockAuthorizer::new());
         Box::new(authorizer_from_context_mock)
     }
+
+    struct MockError();
+
+    impl Display for MockError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "MockError")
+        }
+    }
+
+    impl std::fmt::Debug for MockError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            Display::fmt(self, f)
+        }
+    }
+
+    impl Error for MockError {}
 }

@@ -24,8 +24,9 @@ use common::{
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        podman_cli::PodmanStartConfig, ReusableWorkloadState, RuntimeConnector, RuntimeError,
-        RuntimeStateGetter, StateChecker,
+        generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher,
+        podman_cli::PodmanStartConfig, runtime_connector::LogRequestOptions, ReusableWorkloadState,
+        RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
     },
     workload_state::WorkloadStateSender,
 };
@@ -273,6 +274,17 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         Ok(checker)
     }
 
+    fn get_log_fetcher(
+        &self,
+        workload_id: PodmanWorkloadId,
+        options: &LogRequestOptions,
+    ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
+        let podman_log_fetcher =
+            super::podman_log_fetcher::PodmanLogFetcher::new(&workload_id, options);
+        let log_fetcher = GenericLogFetcher::new(podman_log_fetcher);
+        Ok(Box::new(log_fetcher))
+    }
+
     // [impl->swdd~podman-delete-workload-stops-and-removes-workload~1]
     async fn delete_workload(&self, workload_id: &PodmanWorkloadId) -> Result<(), RuntimeError> {
         log::debug!("Deleting workload with id '{}'", workload_id.id);
@@ -290,7 +302,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~functions-required-by-runtime-connector~1]
+// [utest->swdd~functions-required-by-runtime-connector~2]
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;

@@ -1,0 +1,73 @@
+@startuml seq_get_logs
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Ank"
+    actor "user" as user
+    participant Main as main
+    participant "CliCommands" as cli_commands
+    participant "ServerConnection" as server_connection
+    participant "<<task>>\nCommunicationsClient" as communications_client
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+-> main ++ : ank logs
+
+== startup ==
+
+... initialization ...
+
+== command ==
+
+main -> cli_commands ++ : get logs blocking
+
+cli_commands -> server_connection ++: request workload states
+server_connection ->> communications_client++: request workload states
+communications_client ->> server --++ : request workload states
+
+server_connection -> server_connection ++: wait for the response
+communications_client <<- server --++: workload states
+server_connection <<- communications_client --: workload states
+deactivate server_connection
+cli_commands <<-- server_connection --: workload states
+
+cli_commands -> cli_commands ++--: convert workload names to\nworkload instance names
+cli_commands -> server_connection ++: stream logs until stop or cli termination
+server_connection ->> communications_client ++: send logs request
+communications_client ->> server --++ : send logs request
+server_connection -> server_connection ++ : listen for workload logs
+loop until unix termination signal
+    server_connection ->> communications_client --++: listen to FromServer messages
+    communications_client ->> server --++: listen to FromServer messages
+    communications_client <<-- server --++: FromServer message
+    deactivate server
+    server_connection <<-- communications_client --++: FromServer message
+
+    alt message is LogEntriesResponse
+        server_connection -> server_connection ++--: print log messages
+        note right
+            format:
+            <workload_name> <log message>\n
+        end note
+    else message is LogsStopMessage
+        server_connection -> server_connection ++: remove workload from list\nof log collection workloads
+        opt list of log collection workloads is empty
+            server_connection -->> cli_commands --: stop listening for logs
+            cli_commands -->> main --: stop listening for logs
+            main -->> user --: exit
+        end
+    else message is response error
+        server_connection -->> cli_commands --++: error
+        cli_commands -->> main --++: error
+        main -> main ++--: print error
+        main -->> user --: exit
+    else message is of other type
+        server_connection -> server_connection ++--: ignore message
+    end
+end
+main <<-- cli_commands --++
+user <<-- main -- : exit
+
+@enduml

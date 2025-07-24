@@ -662,6 +662,26 @@ Needs:
 - impl
 - itest
 
+#### gRPC client connection sends ServerGone to Ankaios agent
+`swdd~grpc-client-connection-sends-server-gone-to-agent~1`
+
+Status: approved
+
+When the gRPC client detects a connection interruption of an Ankaios agent to the Ankaios server, the gRPC client connection shall send a `ServerGone` message to the Ankaios agent.
+
+Comment:
+The `ServerGone` message is forwarded via internal communication channels to the agent and thus not sent over the network.
+
+Rationale:
+The Ankaios agent must be notified about a connection interruption to the server to handle cleanup procedures.
+
+Tags:
+- gRPC_Client
+
+Needs:
+- impl
+- itest
+
 ## Data view
 
 The Structure of the objects used by the gRPC Communication Middleware is defined in the protobuf file located under [proto/grpc_api.proto](../../proto/grpc_api.proto).

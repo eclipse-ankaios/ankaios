@@ -1,6 +1,6 @@
 apiVersion: v0.1
 workloads:
-  control_interface_example:
+  python_control_interface:
     runtime: podman
     agent: agent_A
     restartPolicy: NEVER
@@ -20,4 +20,4 @@ workloads:
             # workload is allowed to read the workload state of the workload dynamic_nginx
             - "workloadStates.agent_A.dynamic_nginx"
     runtimeConfig: |
-      image: control_interface_prod:0.1
+      image: python_control_interface:0.1

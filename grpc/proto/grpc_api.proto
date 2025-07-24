@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
-* The Ankaios communication protocol is used in the communcation between the following components:
+* The Ankaios communication protocol is used in the communication between the following components:
 *
 * 1. Ankaios Agent and Ankaios Server,
 *
@@ -50,7 +50,19 @@ message ToServer {
         Goodbye goodbye = 4;
         AgentLoadStatus AgentLoadStatus = 5;
         CommanderHello commanderHello = 6; /// This is the first message sent by the ank CLI or a third-party command component connected directly to the Ankaios server.
+        LogEntriesResponse logEntriesResponse = 7;
+        LogsStopResponse logsStopResponse = 8;
     }
+}
+
+message LogEntriesResponse {
+    string requestId = 1;
+    ank_base.LogEntriesResponse logEntriesResponse = 2;
+}
+
+message LogsStopResponse {
+    string requestId = 1;
+    ank_base.LogsStopResponse logsStopResponse = 2;
 }
 
 /**
@@ -62,7 +74,18 @@ message FromServer {
         UpdateWorkloadState updateWorkloadState = 2; /// A message containing list of workload execution states.
         ank_base.Response response = 3; /// A message containing a response to a previous request.
         ServerHello serverHello = 4; /// A message containing information about the workloads to be added after the agent connects.
+        LogsRequest logsRequest = 5;
+        LogsCancelRequest logsCancelRequest = 6;
     }
+}
+
+message LogsRequest {
+    string requestId = 1;
+    ank_base.LogsRequest logsRequest = 2;
+}
+
+message LogsCancelRequest {
+    string requestId = 1;
 }
 
 /**

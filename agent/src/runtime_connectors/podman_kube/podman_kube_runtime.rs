@@ -28,8 +28,9 @@ use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
-        podman_cli, ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter,
-        StateChecker,
+        generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher, podman_cli,
+        runtime_connector::LogRequestOptions, ReusableWorkloadState, RuntimeConnector,
+        RuntimeError, RuntimeStateGetter, StateChecker,
     },
     workload_state::WorkloadStateSender,
 };
@@ -278,6 +279,17 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         ))
     }
 
+    fn get_log_fetcher(
+        &self,
+        workload_id: PodmanKubeWorkloadId,
+        options: &LogRequestOptions,
+    ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
+        let podman_kube_log_fetcher =
+            super::podman_kube_log_fetcher::PodmanKubeLogFetcher::new(&workload_id, options);
+        let log_fetcher = GenericLogFetcher::new(podman_kube_log_fetcher);
+        Ok(Box::new(log_fetcher))
+    }
+
     async fn delete_workload(
         &self,
         workload_id: &PodmanKubeWorkloadId,
@@ -392,7 +404,7 @@ impl From<OrderedExecutionState> for ExecutionState {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~functions-required-by-runtime-connector~1]
+// [utest->swdd~functions-required-by-runtime-connector~2]
 #[cfg(test)]
 mod tests {
     use common::objects::{
@@ -581,7 +593,6 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
 
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
-        println!("{:?}", workloads);
 
         assert!(
             matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])

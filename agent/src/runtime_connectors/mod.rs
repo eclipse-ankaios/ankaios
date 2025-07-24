@@ -25,7 +25,7 @@ pub(crate) mod unsupported_runtime;
 
 mod runtime_connector;
 pub use runtime_connector::{
-    OwnableRuntime, ReusableWorkloadState, RuntimeConnector, RuntimeError,
+    LogRequestOptions, OwnableRuntime, ReusableWorkloadState, RuntimeConnector, RuntimeError,
 };
 
 #[cfg(test)]
@@ -44,3 +44,6 @@ pub use state_checker::{RuntimeStateGetter, StateChecker};
 
 #[cfg(test)]
 pub use state_checker::MockRuntimeStateGetter;
+
+mod log_fetching;
+pub use log_fetching::{generic_log_fetcher, log_channel, log_fetcher, log_fetching_runner};
