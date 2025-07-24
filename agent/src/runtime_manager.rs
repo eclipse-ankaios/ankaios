@@ -631,6 +631,7 @@ impl RuntimeManager {
         }
     }
 
+    // [impl->swdd~runtime-manager-creates-log-pickers~1]
     pub async fn get_log_pickers(
         &self,
         log_request: LogsRequest,
@@ -2908,6 +2909,7 @@ mod tests {
             .await;
     }
 
+    // [utest->swdd~runtime-manager-creates-log-pickers~1]
     #[tokio::test]
     async fn utest_execute_workload_operations_get_log_pickers() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

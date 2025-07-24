@@ -19,6 +19,8 @@ use tokio::{io::AsyncRead, select};
 
 use super::log_channel;
 
+// [impl->swdd~log-picking-collects-logs~1]
+
 #[derive(Clone)]
 pub enum NextLinesResult {
     Stdout(Vec<String>),
@@ -155,6 +157,7 @@ mod tests {
         }
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_log_picker_read_all_lines() {
         let log_picker =
@@ -181,6 +184,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_log_picker_cannot_send_message() {
         let log_picker =
@@ -203,6 +207,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_log_picker_informed_about_receiver_dropped() {
         let log_picker =
@@ -225,6 +230,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_log_picker_stderr_read_all_lines() {
         let log_picker =
@@ -250,6 +256,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_log_picker_stderr_cannot_send_message() {
         let log_picker =

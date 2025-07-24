@@ -26,6 +26,7 @@ pub struct LogPickingRunner {
     join_handles: Vec<JoinHandle<()>>,
 }
 
+// [impl->swdd~log-picking-runs-log-pickers~1]
 impl LogPickingRunner {
     pub fn start_collecting_logs(
         log_pickers: Vec<Box<dyn LogPicker + 'static>>,
@@ -45,6 +46,7 @@ impl LogPickingRunner {
     }
 }
 
+// [impl->swdd~log-picking-stops-collection-when-dropped~1]
 impl Drop for LogPickingRunner {
     fn drop(&mut self) {
         self.join_handles.iter().for_each(|x| x.abort());
@@ -86,6 +88,7 @@ mod tests {
     const PICKER_2_LINE_3: &str = "picker 2: line 3";
     const PICKER_2_LINE_4: &str = "picker 2: line 4";
 
+    // [utest->swdd~log-picking-runs-log-pickers~1]
     #[tokio::test]
     async fn utest_log_picking_runner_forwards_logs() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -133,6 +136,7 @@ mod tests {
         assert_eq!(receivers[1].read_log_lines().await, None);
     }
 
+    // [utest->swdd~log-picking-stops-collection-when-dropped~1]
     #[tokio::test]
     async fn utest_log_picking_runner_abort_task_on_drop() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

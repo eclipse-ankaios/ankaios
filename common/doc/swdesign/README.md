@@ -432,7 +432,7 @@ Needs:
 
 Status: approved
 
-The Common library shall provide functionality for enforcing a non-empty filter mask for Control Interface access rules.
+The Common library shall provide functionality for enforcing a non-empty filter mask for Control Interface access `StateRule`s.
 
 Rationale:
 An empty filter mask for an allow access rules is might be misunderstood as allow nothing.

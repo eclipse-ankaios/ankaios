@@ -79,9 +79,9 @@ pub enum AccessRightsRule {
 }
 
 impl AccessRightsRule {
-    // [impl->swdd~common-access-rules-filter-mask-convention~1]
     fn verify_format(&self) -> Result<(), String> {
         match self {
+            // [impl->swdd~common-access-rules-filter-mask-convention~1]
             AccessRightsRule::StateRule(state_rule) => {
                 state_rule.filter_mask.iter().try_for_each(|filter| {
                     if filter.is_empty() {

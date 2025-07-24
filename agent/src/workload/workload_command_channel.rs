@@ -89,6 +89,7 @@ impl WorkloadCommandSender {
         self.sender.send(WorkloadCommand::Delete).await
     }
 
+    // [impl->swdd~agent-workload-obj-start-log-picker-command~1]
     pub async fn start_collecting_logs(
         &self,
         log_request_options: LogRequestOptions,
@@ -232,6 +233,7 @@ mod tests {
         assert!(workload_command_sender.resume().is_err());
     }
 
+    // [utest->swdd~agent-workload-obj-start-log-picker-command~1]
     #[tokio::test]
     async fn utest_start_collecting_logs_success() {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
@@ -246,6 +248,7 @@ mod tests {
         assert!(jh.await.is_ok());
     }
 
+    // [utest->swdd~agent-workload-obj-start-log-picker-command~1]
     #[tokio::test]
     async fn utest_start_collecting_logs_no_result() {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
@@ -260,6 +263,7 @@ mod tests {
         assert!(jh.await.is_ok());
     }
 
+    // [utest->swdd~agent-workload-obj-start-log-picker-command~1]
     #[tokio::test]
     async fn utest_start_collecting_logs_receiver_gone() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
@@ -271,6 +275,7 @@ mod tests {
         assert!(res.is_err());
     }
 
+    // [utest->swdd~agent-workload-obj-start-log-picker-command~1]
     fn listen_for_start_log_picker(
         mut receiver: Receiver<WorkloadCommand>,
         res: Option<MockLogPicker>,

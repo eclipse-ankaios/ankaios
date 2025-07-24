@@ -21,6 +21,8 @@ use tokio::{
 
 use super::log_picker::{GetOutputStreams, LogPicker, NextLinesResult};
 
+// [impl->swdd~log-picking-collects-logs~1]
+
 const LINE_FEED: u8 = 0x0A;
 
 #[derive(Debug)]
@@ -222,6 +224,7 @@ pub mod test {
         }
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_multiple_lines() {
         let read = MockRead {
@@ -244,6 +247,7 @@ pub mod test {
         assert_eq!(log_picker.next_lines().await, None);
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_last_newline_missing() {
         let read = MockRead {
@@ -264,6 +268,7 @@ pub mod test {
         assert_eq!(log_picker.next_lines().await, None);
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_line_split_multiple_times() {
         let read = MockRead {
@@ -285,6 +290,7 @@ pub mod test {
         assert_eq!(log_picker.next_lines().await, None);
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_handle_non_utf8() {
         let read = MockRead {
@@ -299,6 +305,7 @@ pub mod test {
         assert_eq!(log_picker.next_lines().await, None);
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_read_fails() {
         let read = MockRead {
@@ -314,6 +321,7 @@ pub mod test {
         assert_eq!(log_picker.next_lines().await, None);
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_generic_log_picker_none() {
         let mut generic_log_picker = create_generic_log_picker(None, None);
@@ -323,6 +331,7 @@ pub mod test {
         ));
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_generic_log_picker_stdout() {
         let stdout = MockRead {
@@ -340,6 +349,7 @@ pub mod test {
         ));
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_generic_log_picker_stderr() {
         let stderr = MockRead {
@@ -357,6 +367,7 @@ pub mod test {
         ));
     }
 
+    // [utest->swdd~log-picking-collects-logs~1]
     #[tokio::test]
     async fn utest_generic_log_picker_stdout_and_stderr() {
         let stdout = MockRead {

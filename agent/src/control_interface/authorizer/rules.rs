@@ -12,13 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// [impl->swdd~agent-authorizing-supported-rules~1]
-
 use super::{
     path::Path,
     path_pattern::{PathPattern, PathPatternMatchReason, PathPatternMatcher},
 };
+
 use common::{objects::WILDCARD_SYMBOL, std_extensions::UnreachableOption};
+
+// [impl->swdd~agent-authorizing-supported-rules~1]
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct StateRule<P: PathPattern> {
@@ -36,6 +37,8 @@ impl<P: PathPattern> StateRule<P> {
     }
 }
 
+// [impl->swdd~agent-authorizing-matching-allow-rules~1]
+// [impl->swdd~agent-authorizing-matching-deny-rules~1]
 impl<P: PathPattern> PathPatternMatcher for StateRule<P> {
     fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
         self.patterns
@@ -124,14 +127,16 @@ mod test {
         }
     }
 
-    // [utest->swdd~agent-authorizing-log-rules-matches-request~1]
+    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
+    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
     #[test]
     fn utest_empty_state_rule() {
         let rule = StateRule::<MockPathPattern>::create(Vec::new());
         assert_eq!(rule.matches(&Path::from("some.path")), (false, "".into()));
     }
 
-    // [utest->swdd~agent-authorizing-log-rules-matches-request~1]
+    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
+    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
     #[test]
     fn utest_matches_on_pattern_in_state_rule() {
         let rule = StateRule::create(vec![
@@ -145,7 +150,8 @@ mod test {
         );
     }
 
-    // [utest->swdd~agent-authorizing-log-rules-matches-request~1]
+    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
+    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
     #[test]
     fn utest_matches_none_pattern_in_rule() {
         let rule = StateRule::create(vec![

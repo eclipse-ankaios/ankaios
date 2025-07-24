@@ -96,6 +96,7 @@ Thus, the following WorkloadCommands exists:
 * `Retry` for retrying the create of an workload
 * `Resume` for resuming an existing workload
 * `Delete` for deleting a workload
+* `StartLogPicker` for initiating the log collection for a workload
 
 ### WorkloadControlLoop
 
@@ -150,6 +151,14 @@ The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implem
 ### WorkloadLogFacade
 
 The `WorkloadLogFacade` encapsulates all steps to initialize the local to the current Ankaios agent log collection.
+
+### LogPicking
+
+The `LogPicking` unit is providing common functionalities and the common interface for the collection (picking) of logs from workloads. With the common functionality, each runtime connector integrated in Ankaios just needs to implement a trait to provide a runtime specific version of the `LogPicker` to support log collections.
+
+### SubscriptionStore
+
+The `SubscriptionStore` is responsible for holding local log subscriptions. A local to the agent log subscription is the collection of logs from one or more workload running in the agent for a specific log campaign running on the Ankaios server. The `SubscriptionStore` not only holds metadata about the collection, but also allows stopping the log picking when a subscription entry is deleted.
 
 ### External Libraries
 
@@ -1013,7 +1022,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the control inferface's:
+When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the control interface's:
 
 * file path
 * authorizer
@@ -1913,7 +1922,7 @@ Needs:
 Ankaios supports multiple runtimes by providing a runtime connector trait specifying the functions that shall be implemented by the runtime.
 
 #### Functions required by the runtime connector trait
-`swdd~functions-required-by-runtime-connector~1`
+`swdd~functions-required-by-runtime-connector~2`
 
 Status: approved
 
@@ -1924,6 +1933,7 @@ The runtime connector trait shall require the implementation of the following fu
 * create workload
 * get workload id for given workload name
 * start the state checker
+* get log picker
 * delete workload
 
 Comment:
@@ -3295,8 +3305,8 @@ Needs:
 Status: approved
 
 The Control Interface Authorizer supports the following type of authorization rules:
-* StateRule - allowing or denying "read"s and/or "write"s to specified parts of the Complete State
-* LogRule - allowing the requests of logs of specified workloads
+* `StateRule` - allowing or denying "read"s and/or "write"s to specified parts of the Complete State
+* `LogRule` - allowing the requests of logs of specified workloads
 
 Tags:
 - Authorizer
@@ -3388,8 +3398,8 @@ Status: approved
 
 The Authorizer allows an `UpdateStateRequest` with an empty update mask or a `CompleteStateRequest` with an empty field mask only if all of the following is true:
 
-* there is a corresponding (write/read) allow rule with a wildcard "*"
-* there is no corresponding (write/read) deny rule with a wildcard "*"
+* there is a corresponding (write/read) allow `StateRule` with a wildcard "*" entry
+* there is no corresponding (write/read) deny `StateRule` with a wildcard "*" entry
 
 Tags:
 - Authorizer
@@ -3432,15 +3442,15 @@ Needs:
 - impl
 - utest
 
-#### Matching of allow rules
+#### Matching of allow `StateRule`s
 `swdd~agent-authorizing-matching-allow-rules~1`
 
 Status: approved
 
-When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow `StateRule`, the Authorizer shall consider them matching if all segments of the allow `StateRule`'s filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
-An allow rule matches, if it is the same or a prefix of the request's update/field mask. Consequently, when the allow rule consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
+An allow `StateRule` matches, if it is the same or a prefix of the request's update/field mask. Consequently, when the allow `StateRule` consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
 
 Tags:
 - Authorizer
@@ -3449,15 +3459,15 @@ Needs:
 - impl
 - utest
 
-#### Matching of deny rules
+#### Matching of deny `StateRule`s
 `swdd~agent-authorizing-matching-deny-rules~1`
 
 Status: approved
 
-When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny rule, the Authorizer shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of a deny `StateRule`, the Authorizer shall consider them matching if all segments of the allow `StateRule`'s filter mask match the corresponding segments of the request's update/field mask.
 
 Comment:
-A deny rule matches, if the request's update/field mask is the same or a prefix of the rule. Consequently, when the allow rule consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
+A deny `StateRule` matches, if the request's update/field mask is the same or a prefix of the `StateRule`. Consequently, when the allow `StateRule` consists only of the wildcards symbol "*", all possible update/field mask, including the empty one, match it.
 
 Tags:
 - Authorizer
@@ -3466,16 +3476,16 @@ Needs:
 - impl
 - utest
 
-#### Rules without segments never match
+#### `StateRule`s without segments never match
 `swdd~agent-authorizing-rules-without-segments-never-match~1`
 
 Status: approved
 
-When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow or deny rule,
-the Authorizer shall consider them not matching if the rule has no segments.
+When the Authorizer checks if an individual entry of the update/field mask of a request matches an individual entry of the filter mask of an allow or deny `StateRule`,
+the Authorizer shall consider them not matching if the `StateRule` has no segments.
 
 Comment:
-A rule with no segments is created when the filter mask of the rule is empty. Although such configurations are explicitly forbidden at the verification step, the use-case must be handled also at the authorizer level as it is security related.
+A `StateRule` with no segments is created when the filter mask of the `StateRule` is empty. Although such configurations are explicitly forbidden at the verification step, the use-case must be handled also at the authorizer level as it is security related.
 
 Tags:
 - Authorizer
@@ -3484,16 +3494,16 @@ Needs:
 - impl
 - utest
 
-#### Matching of rule elements
+#### Matching of `StateRule` elements
 `swdd~agent-authorizing-matching-rules-elements~1`
 
 Status: approved
 
-When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of an allow or deny rule,
+When the Authorizer checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of an allow or deny `StateRule`,
 the Authorizer shall consider them matching if one of the following is true:
 
 * both segments are the same
-* the segment of the rule entry is the wildcards symbol "*"
+* the segment of the `StateRule` entry is the wildcards symbol "*"
 
 Tags:
 - Authorizer
@@ -3504,12 +3514,29 @@ Needs:
 
 ### Handling LogsRequests
 
+#### LogsRequest configuration
+`swdd~agent-log-request-configuration~1`
+
+Status: approved
+
+The RuntimeConnectorInterface shall require the following options to be supported by the specific runtime connector for the providing workload logs:
+* follow - if the log shall be followed or not
+* tail - the number of logs that shall be delivered backwards
+* since - the starting timestamp in RFC3339 format from which logs shall be delivered
+* until - the end timestamp in RFC3339 format to which logs shall be delivered
+
+Tags:
+- RuntimeConnectorInterfaces
+
+Needs:
+- impl
+
 #### Agent handles LogsRequests from the server
 `swdd~agent-handles-logs-requests-from-server~1`
 
 Status: approved
 
-When the AgentManager receives a `LogsRequest` message from the Ankaios server, the AgentManager shall delegate the start of the log collection campaign to the WorkloadLogFacade.
+When the AgentManager receives a `LogsRequest` message from the Ankaios server, the AgentManager shall delegate the start of the log collection to the WorkloadLogFacade.
 
 Rationale:
 The process of collecting logs for workloads must be decoupled from the main loop of the agent that handles incoming messages from the server.
@@ -3522,23 +3549,138 @@ Needs:
 - impl
 - utest
 
-#### WorkloadLogFacade starts log collection campaign for workloads
-`swdd~workload-log-facade-starts-log-collection-campaign~1`
+#### WorkloadLogFacade starts log collection for workloads
+`swdd~workload-log-facade-starts-log-collection~1`
 
 Status: approved
 
-When the WorkloadLogFacade is triggered by the AgentManager to start the log collection campaign for the provided workloads, the WorkloadLogFacade shall:
-* request the RuntimeManager to start collecting logs for the workload names
-* initialize the log picking runners with their log receivers for the provided workload names
-* spawn the reading and forwarding of the logs for the provided workloads
-* add a log subscription entry to the SubscriptionStore
+When the WorkloadLogFacade is triggered by the AgentManager to start the log collection for a provided list of workloads, the WorkloadLogFacade shall:
+* request the RuntimeManager to create a log picker for each provided workload name
+* initialize the LogPicking runners with their log receivers for the provided workload names
+* spawn an asynchronous task for the the reading and forwarding of the logs for the provided workloads
+* add a log subscription entry with a reference to the spawned task to the SubscriptionStore
+
+Comment:
+The LogPicking runners are moved to the spawned asynchronous task. When the task is canceled, the runners are dropped which stoppes them automatically.
 
 Rationale:
-Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection campaign is finished.
+Decoupling the reading and forwarding into an asynchronous task ensures that the WorkloadLogFacade and its caller are not blocked until the log collection is finished.
 
 Tags:
 - WorkloadLogFacade
 - RuntimeManager
+- SubscriptionStore
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager creates log pickers for workloads
+`swdd~runtime-manager-creates-log-pickers~1`
+
+Status: approved
+
+When the RuntimeManager gets a request to provide the log pickers for a `LogsRequest`, the RuntimeManager shall trigger each specified in the request WorkloadObject to create a dedicated log picker.
+
+Tags:
+- RuntimeManager
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+##### Workload handles StartLogPicker command
+`swdd~agent-workload-obj-start-log-picker-command~1`
+
+Status: approved
+
+When the WorkloadObject is called to start a log picker, it shall:
+* send a `StartLogPicker` command via the WorkloadCommandSender to the WorkloadControlLoop
+* wait for the log picket to be created and returned by the WorkloadControlLoop
+* return the newly created log picker
+
+Tags:
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop creates log picker
+`swdd~workload-control-loop-creates-log-picker~1`
+
+Status: approved
+
+When the WorkloadControlLoop creates a log picker, the WorkloadControlLoop shall:
+* create a dedicated log picker via the corresponding runtime connector
+* return the created object back to the WorkloadObject
+
+Comment:
+For concurrency reasons the newly created log picker is sent back to the WorkloadObject via a one-shot channel.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### LogPicking runs log pickers
+`swdd~log-picking-runs-log-pickers~1`
+
+Status: approved
+
+When the LogPicking initializes the log pickers to start collecting logs, the LogPicking shall run each log picker in an asynchronous task returning a LogPicking runner object and the receiver end of the logs collection channel.
+
+Tags:
+- LogPicking
+
+Needs:
+- impl
+- utest
+
+#### LogPicking collects logs
+`swdd~log-picking-collects-logs~1`
+
+Status: approved
+
+When a log picker is ran, it shall:
+* collect logs from a runtime specific log picker
+* send them on the logs collection channel
+
+Tags:
+- LogPicking
+
+Needs:
+- impl
+- utest
+
+#### Podman LogPicking collects logs
+`swdd~podman-log-picking-collects-logs~1`
+
+Status: approved
+
+When the podman log picker is ran, it shall:
+* request the logs from the podman runtime for the specified workload with all configured options
+* provide the streams for the `stdout` and `stderr` to enable log collection by the LogPicking
+
+Tags:
+- PodmanLogPicker
+
+Needs:
+- impl
+- utest
+
+#### LogPicking runner objects stops collection when dropped
+`swdd~log-picking-stops-collection-when-dropped~1`
+
+Status: approved
+
+When a LogPicking runner gets dropped, the LogPicking shall stop the collection of logs for that log picker.
+
+Tags:
+- LogPicking
 
 Needs:
 - impl
@@ -3580,10 +3722,10 @@ Needs:
 
 Status: approved
 
-When the WorkloadLogFacade has no more logs to forward for a log subscription, the WorkloadLogFacade shall delete the log subscription entry of the log collection campaign from the SubscriptionStore.
+When the WorkloadLogFacade has no more logs to forward for a log subscription, the WorkloadLogFacade shall delete the log subscription entry of the log collection from the SubscriptionStore.
 
 Rationale:
-The subscriber does not have to actively cancel the log collection campaign if no more logs are available from workloads, which simplifies the API usage.
+The subscriber does not have to actively cancel the log collection if no more logs are available from workloads, which simplifies the API usage.
 
 Tags:
 - WorkloadLogFacade
@@ -3600,10 +3742,25 @@ Status: approved
 When the AgentManager receives a `LogsCancelRequest` message from the Ankaios server, the AgentManager shall delete the corresponding log subscription from the SubscriptionStore.
 
 Comment:
-When a subscription is deleted from the SubscriptionStore, the subscription automatically stops the collection of logs for workload on the current agent.
+When a subscription is deleted from the SubscriptionStore, the SubscriptionStore automatically stops the collection of logs for this subscription on the current agent.
 
 Tags:
 - AgentManager
+- SubscriptionStore
+
+Needs:
+- impl
+- utest
+
+#### Agent stops local log collection on removed subscription
+`swdd~agent-stops-log-collection-on-removed-subscription~1`
+
+Status: approved
+
+When the SubscriptionStore deletes an entry from its store, the SubscriptionStore shall abort the local log collection for this subscription entry.
+
+Tags:
+- SubscriptionStore
 
 Needs:
 - impl
@@ -3626,6 +3783,7 @@ This prevents the Ankaios agent from collecting logs continuously from workloads
 
 Tags:
 - AgentManager
+- SubscriptionStore
 
 Needs:
 - impl

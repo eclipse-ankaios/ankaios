@@ -219,6 +219,7 @@ impl Workload {
             .map_err(|err| WorkloadError::CompleteState(err.to_string()))
     }
 
+    // [impl->swdd~agent-workload-obj-start-log-picker-command~1]
     pub async fn start_collecting_logs(
         &self,
         log_request_options: LogRequestOptions,
@@ -716,6 +717,7 @@ mod tests {
         ));
     }
 
+    // [utest->swdd~agent-workload-obj-start-log-picker-command~1]
     #[tokio::test]
     async fn utest_workload_obj_start_collecting_logs_success() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
