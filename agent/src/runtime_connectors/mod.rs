@@ -20,6 +20,9 @@ pub(crate) mod podman;
 
 pub(crate) mod podman_kube;
 
+pub(crate) mod dummy_state_checker;
+pub(crate) mod unsupported_runtime;
+
 mod runtime_connector;
 pub use runtime_connector::{
     LogRequestOptions, OwnableRuntime, ReusableWorkloadState, RuntimeConnector, RuntimeError,
@@ -29,6 +32,8 @@ pub use runtime_connector::{
 pub use runtime_connector::test;
 
 mod runtime_facade;
+#[cfg(test)]
+pub use runtime_facade::MockGenericRuntimeFacade;
 pub use runtime_facade::{GenericRuntimeFacade, RuntimeFacade};
 
 #[cfg(test)]

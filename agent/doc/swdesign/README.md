@@ -677,11 +677,19 @@ Needs:
 - stest
 
 #### Agent skips unknown runtime
-`swdd~agent-skips-unknown-runtime~1`
+`swdd~agent-skips-unknown-runtime~2`
 
 Status: approved
 
-When the Ankaios Agent gets an add Workload command with the `UpdateWorkload` message and the runtime of the Workload is unknown, the RuntimeManager shall skip this Workload.
+When the Ankaios Agent gets an add Workload command with the `UpdateWorkload` message and the runtime of the Workload is unknown, the RuntimeManager shall:
+* skip this workload
+* send a `Pending(StartingFailed)` workload state with additional information.
+
+Comment:
+The `UnsupportedRuntime` implementation returns appropriate errors for unsupported operations while allowing the workload object lifecycle to be managed normally. When the workload attempts to be created through the `UnsupportedRuntime`, it will receive a `RuntimeError::Unsupported` error, which causes the workload to report a `Pending(StartingFailed)` state.
+
+Rationale:
+This approach provides better error handling and user feedback compared to completely skipping unknown runtime workloads. It allows the workload to be tracked and managed while clearly indicating why it cannot be started.
 
 Tags:
 - RuntimeManager
@@ -689,6 +697,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### RuntimeManager stores Workload in the list of running workloads
 `swdd~agent-stores-running-workload~1`

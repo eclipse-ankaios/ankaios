@@ -32,9 +32,13 @@ use common::{
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
+#[cfg_attr(test, mockall_double::double)]
+use crate::runtime_connectors::GenericRuntimeFacade;
 use crate::{
     control_interface::ControlInterfacePath,
-    runtime_connectors::{log_picker::LogPicker, LogRequestOptions},
+    runtime_connectors::{log_picker::LogPicker, LogRequestOptions, unsupported_runtime::UnsupportedRuntime},
+  
+  
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -533,24 +537,32 @@ impl RuntimeManager {
             None
         };
 
+        let unsupported_runtime: Box<dyn RuntimeFacade>;
+
         // [impl->swdd~agent-uses-specified-runtime~1]
-        // [impl->swdd~agent-skips-unknown-runtime~1]
-        if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
-            // [impl->swdd~agent-executes-create-workload-operation~1]
-            let workload = runtime.create_workload(
-                reusable_workload_spec,
-                control_interface_info,
-                &self.update_state_tx,
-            );
-            // [impl->swdd~agent-stores-running-workload~1]
-            self.workloads.insert(workload_name, workload);
+        // [impl->swdd~agent-skips-unknown-runtime~2]
+        let runtime = if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
+            runtime
         } else {
             log::warn!(
                 "Could not find runtime '{}'. Workload '{}' not scheduled.",
                 workload_spec.runtime,
                 workload_name
             );
-        }
+            unsupported_runtime = Box::new(GenericRuntimeFacade::new(
+                Box::new(UnsupportedRuntime(workload_spec.runtime.clone())),
+                PathBuf::new(),
+            ));
+            &unsupported_runtime
+        };
+        // [impl->swdd~agent-executes-create-workload-operation~1]
+        let workload = runtime.create_workload(
+            reusable_workload_spec,
+            control_interface_info,
+            &self.update_state_tx,
+        );
+        // [impl->swdd~agent-stores-running-workload~1]
+        self.workloads.insert(workload_name, workload);
     }
 
     async fn delete_workload(&mut self, deleted_workload: DeletedWorkload) {
@@ -681,7 +693,7 @@ mod tests {
     };
     use crate::runtime_connectors::log_picker::MockLogPicker;
     use crate::runtime_connectors::{
-        LogRequestOptions, MockRuntimeFacade, ReusableWorkloadState, RuntimeError,
+        LogRequestOptions, MockGenericRuntimeFacade, MockRuntimeFacade, ReusableWorkloadState, RuntimeError,
     };
     use crate::runtime_manager::ToReusableWorkloadSpecs;
     use crate::workload::{MockWorkload, WorkloadError};
@@ -838,7 +850,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
     }
 
-    // [utest->swdd~agent-skips-unknown-runtime~1]
+    // [utest->swdd~agent-skips-unknown-runtime~2]
     #[tokio::test]
     async fn utest_handle_update_workload_no_workload_with_unknown_runtime() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -885,18 +897,29 @@ mod tests {
 
         runtime_facade_mock.expect_create_workload().never(); // workload shall not be created due to unknown runtime
 
-        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let mock_workload = MockWorkload::default();
+
+        let mut mock_generic_runtime_facade = MockGenericRuntimeFacade::default();
+        mock_generic_runtime_facade
+            .expect_create_workload()
+            .return_once(|_, _, _| mock_workload);
+
+        let runtime_facade_mock_new_context = MockGenericRuntimeFacade::new_context();
+        runtime_facade_mock_new_context
+            .expect()
+            .return_once(|_, _| mock_generic_runtime_facade);
+
+        let (_server_recv, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         runtime_manager
             .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
-
-        assert!(runtime_manager.workloads.is_empty());
     }
 
     // [utest->swdd~agent-existing-workloads-finds-list~1]
@@ -1003,7 +1026,24 @@ mod tests {
 
         let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
 
-        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default().build();
+        let mut mock_workload = MockWorkload::default();
+        mock_workload
+            .expect_update()
+            .once()
+            .returning(|_, _| Ok(()));
+
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        runtime_facade_mock
+            .expect_create_workload()
+            .return_once(move |_, _, _| mock_workload);
+
+        let (_server_recv, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         control_interface_info_new_context
             .expect()
@@ -1545,7 +1585,18 @@ mod tests {
 
         let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
 
-        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default().build();
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        runtime_facade_mock
+            .expect_create_workload()
+            .returning(move |_, _, _| MockWorkload::default());
+
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         control_interface_info_new_context
             .expect()

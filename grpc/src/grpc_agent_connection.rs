@@ -75,7 +75,7 @@ impl AgentConnection for GRPCAgentConnection {
             let client_cert = X509Certificate::from_der(client_cert.as_ref())
                 .unwrap_or_exit("Could not parse certificate.")
                 .1;
-            log::info!("Client Subject: {}", client_cert.subject().to_string());
+            log::info!("Client Subject: {}", client_cert.subject());
             let subject_alt_names = client_cert
                 .subject_alternative_name()
                 .unwrap_or_exit("Could not get subject alt names");

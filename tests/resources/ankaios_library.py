@@ -315,7 +315,6 @@ def find_control_interface_test_tag():
     global control_interface_tester_tag
     control_interface_tester_tag = subprocess.check_output('./tools/control_interface_workload_hash.sh').decode().strip()
 
-
 def prepare_test_control_interface_workload():
     global control_interface_workload_config
     global manifest_files_location

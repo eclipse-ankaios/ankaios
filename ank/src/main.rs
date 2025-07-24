@@ -133,20 +133,30 @@ async fn main() {
                 workload_name,
                 agent_name,
                 state,
+                watch,
             }) => {
                 output_debug!(
-                    "Received get workload with workload_name='{:?}', agent_name='{:?}', state='{:?}'",
+                    "Received get workload with workload_name='{:?}', agent_name='{:?}', state='{:?}', watch='{:?}'",
                     workload_name,
                     agent_name,
                     state,
+                    watch,
                 );
 
-                match cmd
-                    .get_workloads_table(agent_name, state, workload_name)
-                    .await
-                {
-                    Ok(out_text) => output_and_exit!("{}", out_text),
-                    Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
+                if watch {
+                    // [impl->swdd~cli-get-workloads-with-watch~1]
+                    if let Err(error) = cmd.watch_workloads(agent_name, state, workload_name).await
+                    {
+                        output_and_error!("Failed to watch workloads: '{}'", error);
+                    }
+                } else {
+                    match cmd
+                        .get_workloads_table(agent_name, state, workload_name)
+                        .await
+                    {
+                        Ok(out_text) => output_and_exit!("{}", out_text),
+                        Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
+                    }
                 }
             }
             // [impl->swdd~cli-provides-list-of-agents~1]

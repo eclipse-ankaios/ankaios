@@ -39,9 +39,9 @@ struct ResourceMonitor {
 
 impl ResourceMonitor {
     fn new() -> ResourceMonitor {
-        let refresh_kind = RefreshKind::new()
-            .with_cpu(CpuRefreshKind::new().with_cpu_usage())
-            .with_memory(MemoryRefreshKind::new().with_ram());
+        let refresh_kind = RefreshKind::nothing()
+            .with_cpu(CpuRefreshKind::nothing().with_cpu_usage())
+            .with_memory(MemoryRefreshKind::nothing().with_ram());
         ResourceMonitor {
             refresh_kind,
             sys: System::new_with_specifics(refresh_kind),
