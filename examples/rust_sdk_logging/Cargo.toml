@@ -1,0 +1,21 @@
+[package]
+name = "rust_sdk_logging"
+edition = "2021"
+license = "Apache-2.0"
+
+[dependencies]
+ankaios_sdk = "0.5.0"
+chrono = "0.4"
+# required for encoding/decoding of protobuf varint format
+prost = "0.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+log = "0.4"
+env_logger = "0.11"
+tokio = { version = "1.41", features = [
+    "macros",
+    "rt-multi-thread",
+    "fs",
+    "io-util",
+    "process",
+] }

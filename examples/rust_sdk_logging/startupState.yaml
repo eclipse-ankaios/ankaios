@@ -1,0 +1,26 @@
+apiVersion: v0.1
+workloads:
+  rust_sdk_logging:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: NEVER
+    controlInterfaceAccess:
+      allowRules:
+        - type: StateRule
+          operation: ReadWrite
+          filterMask:
+            # workload has full access to the state of the cluster
+            - "*"
+          # Workload is allowed to read the logs of all workloads
+        - type: LogRule
+          workloadNames:
+            - "*"
+    runtimeConfig: |
+      image: rust_sdk_logging:0.1
+  screamer:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: NEVER
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "sh", "-c", "while true; do echo 'ANKAIOS'; sleep 1; done" ]
