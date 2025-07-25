@@ -58,7 +58,7 @@ with Ankaios() as ankaios:
                   ]))
 
         start_time = time.time()
-        while time.time() - start_time < 10000:
+        while time.time() - start_time < 10:
             # Get the logs from the queue
             log = log_campaign.queue.get()
 
