@@ -52,7 +52,7 @@ type UnorderedLogReceiverFutures =
 
 #[cfg_attr(test, automock)]
 impl WorkloadLogFacade {
-    // [impl->swdd~workload-log-facade-starts-log-collection~1]
+    // [impl->swdd~agent-workload-log-facade-starts-log-collection~1]
     pub async fn spawn_log_collection(
         request_id: String,
         logs_request: LogsRequest,
@@ -76,7 +76,7 @@ impl WorkloadLogFacade {
         let log_collection_join_handle = tokio::spawn(async move {
             let _runner = runner;
 
-            // [impl->swdd~workload-log-facade-forwards-logs-to-server~1]
+            // [impl->swdd~agent-workload-log-facade-forwards-logs-to-server~1]
             Self::consume_futures_and_forward_logs_until_stop(
                 futures,
                 cloned_request_id.clone(),
@@ -84,7 +84,7 @@ impl WorkloadLogFacade {
             )
             .await;
 
-            // [impl->swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
+            // [impl->swdd~agent-workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
             subscription_store
                 .lock()
                 .unwrap()
@@ -117,7 +117,7 @@ impl WorkloadLogFacade {
         ))
     }
 
-    // [impl->swdd~workload-log-facade-forwards-logs-to-server~1]
+    // [impl->swdd~agent-workload-log-facade-forwards-logs-to-server~1]
     async fn consume_futures_and_forward_logs_until_stop(
         mut log_futures: UnorderedLogReceiverFutures,
         request_id: String,
@@ -149,7 +149,7 @@ impl WorkloadLogFacade {
                 };
                 log_futures.push(Box::pin(workload_log_info));
             } else {
-                // [impl->swdd~workload-log-facade-sends-logs-stop-response~1]
+                // [impl->swdd~agent-workload-log-facade-sends-logs-stop-response~1]
                 log::debug!(
                     "No more log lines available for workload '{}', sending logs stop response.",
                     workload_instance_name
@@ -237,8 +237,8 @@ mod tests {
         }
     }
 
-    // [utest->swdd~workload-log-facade-starts-log-collection~1]
-    // [utest->swdd~workload-log-facade-forwards-logs-to-server~1]
+    // [utest->swdd~agent-workload-log-facade-starts-log-collection~1]
+    // [utest->swdd~agent-workload-log-facade-forwards-logs-to-server~1]
     #[tokio::test]
     async fn utest_workload_log_facade_spawn_log_collection() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -392,8 +392,8 @@ mod tests {
         assert!(*mock_log_fetching_runner_dropped.lock().unwrap());
     }
 
-    // [utest->swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
-    // [utest->swdd~workload-log-facade-sends-logs-stop-response~1]
+    // [utest->swdd~agent-workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
+    // [utest->swdd~agent-workload-log-facade-sends-logs-stop-response~1]
     #[tokio::test]
     async fn utest_workload_log_facade_unsubscribe_subscription_and_send_logs_stop_response_on_no_more_logs(
     ) {

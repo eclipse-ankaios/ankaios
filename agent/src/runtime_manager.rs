@@ -643,7 +643,7 @@ impl RuntimeManager {
         }
     }
 
-    // [impl->swdd~runtime-manager-creates-log-fetchers~1]
+    // [impl->swdd~agent-runtime-manager-creates-log-fetchers~1]
     pub async fn get_log_fetchers(
         &self,
         log_request: LogsRequest,
@@ -2961,7 +2961,7 @@ mod tests {
             .await;
     }
 
-    // [utest->swdd~runtime-manager-creates-log-fetchers~1]
+    // [utest->swdd~agent-runtime-manager-creates-log-fetchers~1]
     #[tokio::test]
     async fn utest_execute_workload_operations_get_log_fetchers() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

@@ -372,7 +372,7 @@ impl ServerConnection {
                     output_debug!("LogsCancelRequest sent after receiving signal to stop.");
                     break Ok(());
                 }
-                // [impl->swdd~handles-log-responses-from-server~1]
+                // [impl->swdd~cli-handles-log-responses-from-server~1]
                 server_message = self.from_server.recv() => {
                     let server_message = server_message
                         .ok_or(
@@ -384,7 +384,7 @@ impl ServerConnection {
                             output_log_format_function(log_entries.log_entries);
                         }
                         LogStreamingState::Continue => continue,
-                        // [impl->swdd~stops-log-output-for-specific-workloads~1]
+                        // [impl->swdd~cli-stops-log-output-for-specific-workloads~1]
                         LogStreamingState::StopForWorkload(instance_name) => {
                             instance_names.remove(&instance_name);
 
@@ -401,7 +401,7 @@ impl ServerConnection {
     }
 }
 
-// [impl->swdd~handles-log-responses-from-server~1]
+// [impl->swdd~cli-handles-log-responses-from-server~1]
 fn handle_server_log_response(
     request_id: &String,
     server_message: FromServer,
@@ -1298,8 +1298,8 @@ mod tests {
     }
 
     // [utest->swdd~cli-streams-logs-from-the-server~1]
-    // [utest->swdd~handles-log-responses-from-server~1]
-    // [utest->swdd~stops-log-output-for-specific-workloads~1]
+    // [utest->swdd~cli-handles-log-responses-from-server~1]
+    // [utest->swdd~cli-stops-log-output-for-specific-workloads~1]
     // [utest->swdd~cli-outputs-logs-in-specific-format~1]
     #[tokio::test]
     async fn utest_stream_logs_multiple_workloads_no_follow() {
@@ -1510,7 +1510,7 @@ mod tests {
     }
 
     // [utest->swdd~cli-streams-logs-from-the-server~1]
-    // [utest->swdd~handles-log-responses-from-server~1]
+    // [utest->swdd~cli-handles-log-responses-from-server~1]
     #[tokio::test]
     async fn utest_stream_logs_response_error() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1581,7 +1581,7 @@ mod tests {
     }
 
     // [utest->swdd~cli-streams-logs-from-the-server~1]
-    // [utest->swdd~handles-log-responses-from-server~1]
+    // [utest->swdd~cli-handles-log-responses-from-server~1]
     #[tokio::test]
     async fn utest_stream_logs_ignore_unrelated_response() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;

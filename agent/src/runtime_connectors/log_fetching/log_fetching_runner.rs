@@ -26,7 +26,7 @@ pub struct LogFetchingRunner {
     join_handles: Vec<JoinHandle<()>>,
 }
 
-// [impl->swdd~log-fetching-runs-log-fetchers~1]
+// [impl->swdd~agent-log-fetching-runs-log-fetchers~1]
 impl LogFetchingRunner {
     pub fn start_collecting_logs(
         log_fetchers: Vec<Box<dyn LogFetcher + 'static>>,
@@ -46,7 +46,7 @@ impl LogFetchingRunner {
     }
 }
 
-// [impl->swdd~log-fetching-stops-collection-when-dropped~1]
+// [impl->swdd~agent-log-fetching-stops-collection-when-dropped~1]
 impl Drop for LogFetchingRunner {
     fn drop(&mut self) {
         self.join_handles.iter().for_each(|x| x.abort());
@@ -88,7 +88,7 @@ mod tests {
     const FETCHER_2_LINE_3: &str = "fetcher 2: line 3";
     const FETCHER_2_LINE_4: &str = "fetcher 2: line 4";
 
-    // [utest->swdd~log-fetching-runs-log-fetchers~1]
+    // [utest->swdd~agent-log-fetching-runs-log-fetchers~1]
     #[tokio::test]
     async fn utest_log_fetching_runner_forwards_logs() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -134,7 +134,7 @@ mod tests {
         assert_eq!(receivers[1].read_log_lines().await, None);
     }
 
-    // [utest->swdd~log-fetching-stops-collection-when-dropped~1]
+    // [utest->swdd~agent-log-fetching-stops-collection-when-dropped~1]
     #[tokio::test]
     async fn utest_log_fetching_runner_abort_task_on_drop() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

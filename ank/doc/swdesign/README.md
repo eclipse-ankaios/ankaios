@@ -1185,7 +1185,7 @@ Needs:
 - utest
 
 #### CLI handles log responses from the Ankaios server
-`swdd~handles-log-responses-from-server~1`
+`swdd~cli-handles-log-responses-from-server~1`
 
 Status: approved
 
@@ -1229,7 +1229,7 @@ Needs:
 - utest
 
 #### CLI stops log output specific for workloads
-`swdd~stops-log-output-for-specific-workloads~1`
+`swdd~cli-stops-log-output-for-specific-workloads~1`
 
 Status: approved
 

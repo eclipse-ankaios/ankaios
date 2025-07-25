@@ -1931,7 +1931,7 @@ Needs:
 Ankaios supports multiple runtimes by providing a runtime connector trait specifying the functions that shall be implemented by the runtime.
 
 #### Functions required by the runtime connector trait
-`swdd~functions-required-by-runtime-connector~2`
+`swdd~agent-functions-required-by-runtime-connector~1`
 
 Status: approved
 
@@ -3559,7 +3559,7 @@ Needs:
 - utest
 
 #### WorkloadLogFacade starts log collection for workloads
-`swdd~workload-log-facade-starts-log-collection~1`
+`swdd~agent-workload-log-facade-starts-log-collection~1`
 
 Status: approved
 
@@ -3585,7 +3585,7 @@ Needs:
 - utest
 
 #### RuntimeManager creates log fetchers for workloads
-`swdd~runtime-manager-creates-log-fetchers~1`
+`swdd~agent-runtime-manager-creates-log-fetchers~1`
 
 Status: approved
 
@@ -3617,7 +3617,7 @@ Needs:
 - utest
 
 #### WorkloadControlLoop creates log fetcher
-`swdd~workload-control-loop-creates-log-fetcher~1`
+`swdd~agent-workload-control-loop-creates-log-fetcher~1`
 
 Status: approved
 
@@ -3636,7 +3636,7 @@ Needs:
 - utest
 
 #### LogFetching runs log fetchers
-`swdd~log-fetching-runs-log-fetchers~1`
+`swdd~agent-log-fetching-runs-log-fetchers~1`
 
 Status: approved
 
@@ -3650,7 +3650,7 @@ Needs:
 - utest
 
 #### LogFetching collects logs
-`swdd~log-fetching-collects-logs~1`
+`swdd~agent-log-fetching-collects-logs~1`
 
 Status: approved
 
@@ -3682,7 +3682,7 @@ Needs:
 - utest
 
 #### LogFetching runner objects stops collection when dropped
-`swdd~log-fetching-stops-collection-when-dropped~1`
+`swdd~agent-log-fetching-stops-collection-when-dropped~1`
 
 Status: approved
 
@@ -3696,7 +3696,7 @@ Needs:
 - utest
 
 #### WorkloadLogFacade forwards logs to the server
-`swdd~workload-log-facade-forwards-logs-to-server~1`
+`swdd~agent-workload-log-facade-forwards-logs-to-server~1`
 
 Status: approved
 
@@ -3710,7 +3710,7 @@ Needs:
 - utest
 
 #### WorkloadLogFacade sends LogsStopResponse messages
-`swdd~workload-log-facade-sends-logs-stop-response~1`
+`swdd~agent-workload-log-facade-sends-logs-stop-response~1`
 
 Status: approved
 
@@ -3727,7 +3727,7 @@ Needs:
 - utest
 
 #### WorkloadLogFacade automatically unsubscribes log subscriptions
-`swdd~workload-log-facade-automatically-unsubscribes-log-subscriptions~1`
+`swdd~agent-workload-log-facade-automatically-unsubscribes-log-subscriptions~1`
 
 Status: approved
 
