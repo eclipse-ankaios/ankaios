@@ -162,7 +162,6 @@ Test Ankaios Podman Update workload support empty agent name in workload specifi
 # [stest->swdd~update-desired-state-with-missing-version~1]
 Test Ankaios Podman Update workload with missing api version
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    run_only
 
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
