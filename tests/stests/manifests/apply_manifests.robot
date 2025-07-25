@@ -124,9 +124,9 @@ Test Ankaios apply workload specification defining the agent names
     And the workload "sleepy_from_manifest_no_agent_name" shall have the execution state "Running(Ok)" on agent "agent_B" within "20" seconds
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
+# [stest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~2]
 Test Ankaios apply workload specification without agent name
-    [Setup]           Run Keywords    Setup Ankaios
+    [Setup]   Run Keywords    Setup Ankaios
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "agent_A"
@@ -136,6 +136,33 @@ Test Ankaios apply workload specification without agent name
     # Asserts
     Then the last command shall finish with an error
     [Teardown]    Clean up Ankaios
+
+# [stest->swdd~common-agent-naming-convention~3]
+Test Ankaios apply workload specification with empty agent name
+    [Setup]   Run Keywords    Setup Ankaios
+    # Preconditions
+    Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+    And Ankaios agent is started with name "agent_A"
+    And all workloads of agent "agent_A" have an initial execution state
+    # Actions
+    When user triggers "ank apply ${CONFIGS_DIR}/manifest_empty_agent_name.yaml"
+    # Asserts
+    Then the last command shall finish with exit code "0"
+    [Teardown]    Clean up Ankaios
+
+#[stest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
+# [stest->swdd~common-agent-naming-convention~3]
+Test Ankaios apply workload with empty agent name cli argument
+  [Setup]   Run Keywords    Setup Ankaios
+  # Preconditions
+  Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
+  And Ankaios agent is started with name "agent_A"
+  And all workloads of agent "agent_A" have an initial execution state
+  # Actions
+  When user triggers "ank apply --agent "" ${CONFIGS_DIR}/manifest_no_agent_name.yaml"
+  # Asserts
+  Then the last command shall finish with exit code "0"
+  [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-send-update-state~1]
 Test Ankaios apply workload specifications via Ankaios Manifest files for deletion

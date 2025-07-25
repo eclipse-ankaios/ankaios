@@ -372,13 +372,14 @@ Needs:
 - stest
 
 #### Agent naming convention
-`swdd~common-agent-naming-convention~2`
+`swdd~common-agent-naming-convention~3`
 
 Status: approved
 
-The Common library shall provide functionality for enforcing an agent name to:
-* contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
-* have a minimal length of 1 character
+The Common library shall provide functionality for enforcing an agent name to contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
+
+Comment:
+Supporting an empty agent name in a workload configuration allows for scenarios where a workload is not scheduled on an Ankaios agent.
 
 Rationale:
 A consistent naming manner assures stability in usage and compatibility with Ankaios internal structure by ensuring proper function of the filtering.
