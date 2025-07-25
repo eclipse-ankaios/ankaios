@@ -78,7 +78,7 @@ pub fn handle_agent_overwrite(
                     .map_err(|_| "Could not find workload to update.".to_owned())?;
             } else if state_obj.get(&workload_agent_mask).is_none() {
                 // No agent name specified through cli and inside workload configuration!
-                // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
+                // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~2]
                 return Err(
                     "No agent name specified -> use '--agent' option to specify!".to_owned(),
                 );
@@ -450,7 +450,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
+    // [utest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~2]
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {

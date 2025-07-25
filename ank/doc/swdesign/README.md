@@ -945,14 +945,14 @@ Needs:
 - stest
 
 #### CLI emits an error on absence of agent name
-`swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1`
+`swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~2`
 
 Status: approved
 
 When the agent name is not specified in a workload specification
 and the user does not provide the agent name via the optional argument `--agent`
-and the user calls the Ankaios CLI `apply` command,
-the Ankaios CLI shall create a list of filter masks from all `workloads` in the `desiredState` of all given files.
+and the user calls the Ankaios CLI `apply` command
+and the list of generated filter masks from all `workloads` in the `desiredState` of all given files do not contain a valid path to the `agent`field, the Ankaios CLI shall exit with an error.
 
 Tags:
 - CliCommands
