@@ -20,9 +20,9 @@ WORKDIR ${WORKSPACE_DIR}/ankaios_example
 ENV ANKAIOS_VERSION=0.5.0
 
 COPY examples/rust_sdk_logging ${WORKSPACE_DIR}/ankaios_example
+COPY examples/tools/setup_rust_sdk.sh .
 
-# RUN ./setup_rust_sdk.sh --sdk-source crates --sdk-version 0.5.0
-RUN ./setup_rust_sdk.sh --sdk-source github --sdk-branch 9_support_workload_log_collection
+RUN if [[ -z "$RUST_SDK_BRANCH" ]] ; then ./setup_rust_sdk.sh --sdk-source crates --sdk-version "$ANKAIOS_VERSION" ; else ./setup_rust_sdk.sh --sdk-source github --sdk-branch "$RUST_SDK_BRANCH" ; fi
 
 RUN --mount=type=cache,target=${WORKSPACE_DIR}/target/release cargo build --release \
     && cp ${WORKSPACE_DIR}/ankaios_example/target/release/rust_sdk_logging /usr/local/bin/rust_sdk_logging

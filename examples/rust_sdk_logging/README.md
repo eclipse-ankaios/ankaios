@@ -4,7 +4,7 @@ This example uses the rust sdk to read the logs of another workload (in this cas
 
 ## Running
 
-For the intended production use, with the python_sdk downloaded from pypi, this should be enough:
+For the intended production use, with the rust_sdk downloaded from crates, this should be enough:
 
 ``` bash
 ./run_example.sh rust_sdk_logging
@@ -12,12 +12,10 @@ For the intended production use, with the python_sdk downloaded from pypi, this 
 
 ## Development
 
-For testing the python SDK, you can specify a specific branch that the SDK should be installed from. This can be done by setting the `PYTHON_SDK_BRANCH` environment variable in the script:
+For testing the rust SDK, you can specify a specific branch that the SDK should be installed from. This can be done by setting the `RUST_SDK_BRANCH` environment variable in the script:
 
 ``` bash
-./run_example.sh rust_sdk_logging --env PYTHON_SDK_BRANCH=python_sdk_branch
+./run_example.sh rust_sdk_logging --env RUST_SDK_BRANCH=rust_sdk_branch
 ```
 
-This will also automatically use the proto files from the local ankaios repository.
-
-For more advanced configurations, you can modify the Dockerfile or directly the `setup_python_sdk.sh` script with the required arguments.
+For more advanced configurations, you can modify the Dockerfile or directly the `setup_rust_sdk.sh` script with the required arguments.
