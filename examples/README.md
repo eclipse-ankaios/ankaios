@@ -51,10 +51,10 @@ Besides the control interface examples, there are custom ones added (and the lis
     ./run_example.sh <example_subfolder> --dns=<IP address of DNS server>
     ```
 
-1. Open an additional terminal in the dev container and run the following shell command to see the logs of the example workload:
+1. Get logs from the running workload:
 
    ```shell
-   podman logs -f $(podman ps -a | grep control_interface | awk '{print $1}')
+   ank -k logs -f <example_subfolder>
    ```
 
 **Note:** The examples are always kept in sync with the Ankaios repository and not with the Ankaios releases.

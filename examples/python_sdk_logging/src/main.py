@@ -29,7 +29,6 @@ import time
 with Ankaios() as ankaios:
 
     def signal_handler(sig, frame):
-        ankaios.disconnect()
         sys.exit(0)
 
     # Add a SIGTERM handler to allow a clean shutdown
@@ -58,8 +57,9 @@ with Ankaios() as ankaios:
                   for instance_name in log_campaign.accepted_workload_names
                   ]))
 
+        print("Retrieving logs for 60 seconds...")
         start_time = time.time()
-        while time.time() - start_time < 10:
+        while time.time() - start_time < 60:
             # Get the logs from the queue
             log = log_campaign.queue.get()
 
