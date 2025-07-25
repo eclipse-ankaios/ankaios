@@ -46,7 +46,7 @@ pub struct SubscriptionStore {
 }
 
 impl SubscriptionStore {
-    // [impl->swdd~workload-log-facade-starts-log-collection~1]
+    // [impl->swdd~agent-workload-log-facade-starts-log-collection~1]
     pub fn add_subscription(&mut self, id: SubscriptionId, subscription: SubscriptionEntry) {
         self.store.insert(id, subscription);
     }
@@ -94,7 +94,7 @@ mod tests {
     const ID_1: &str = "id_1";
     const ID_2: &str = "id_2";
 
-    // [utest->swdd~workload-log-facade-starts-log-collection~1]
+    // [utest->swdd~agent-workload-log-facade-starts-log-collection~1]
     // [utest->swdd~agent-stops-log-collection-on-removed-subscription~1]
     #[test]
     fn utest_overwrite_drops_old_element() {
@@ -126,7 +126,7 @@ mod tests {
         assert!(subscription_store.store.contains_key(ID_2));
     }
 
-    // [utest->swdd~workload-log-facade-starts-log-collection~1]
+    // [utest->swdd~agent-workload-log-facade-starts-log-collection~1]
     // [utest->swdd~agent-stops-log-collection-on-removed-subscription~1]
     // [utest->swdd~agent-deletes-all-log-subscription-entries-upon-server-gone~1]
     #[test]

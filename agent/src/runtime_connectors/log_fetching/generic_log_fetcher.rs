@@ -21,7 +21,7 @@ use tokio::{
 
 use super::log_fetcher::{GetOutputStreams, LogFetcher, NextLinesResult};
 
-// [impl->swdd~log-fetching-collects-logs~1]
+// [impl->swdd~agent-log-fetching-collects-logs~1]
 
 const LINE_FEED: u8 = 0x0A;
 
@@ -224,7 +224,7 @@ pub mod test {
         }
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_multiple_lines() {
         let read = MockRead {
@@ -247,7 +247,7 @@ pub mod test {
         assert_eq!(log_fetcher.next_lines().await, None);
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_last_newline_missing() {
         let read = MockRead {
@@ -268,7 +268,7 @@ pub mod test {
         assert_eq!(log_fetcher.next_lines().await, None);
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_line_split_multiple_times() {
         let read = MockRead {
@@ -290,7 +290,7 @@ pub mod test {
         assert_eq!(log_fetcher.next_lines().await, None);
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_handle_non_utf8() {
         let read = MockRead {
@@ -305,7 +305,7 @@ pub mod test {
         assert_eq!(log_fetcher.next_lines().await, None);
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_read_fails() {
         let read = MockRead {
@@ -321,7 +321,7 @@ pub mod test {
         assert_eq!(log_fetcher.next_lines().await, None);
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_generic_log_fetcher_none() {
         let mut generic_log_fetcher = create_generic_log_fetcher(None, None);
@@ -331,7 +331,7 @@ pub mod test {
         ));
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_generic_log_fetcher_stdout() {
         let stdout = MockRead {
@@ -349,7 +349,7 @@ pub mod test {
         ));
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_generic_log_fetcher_stderr() {
         let stderr = MockRead {
@@ -367,7 +367,7 @@ pub mod test {
         ));
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_generic_log_fetcher_stdout_and_stderr() {
         let stdout = MockRead {

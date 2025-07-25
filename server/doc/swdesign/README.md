@@ -1141,7 +1141,7 @@ Needs:
 ### Handle workload log campaigns
 
 #### LogCampaignStore holds log campaign metadata
-`swdd~log-campaign-store-holds-log-campaign-metadata~1`
+`swdd~server-log-campaign-store-holds-log-campaign-metadata~1`
 
 Status: approved
 

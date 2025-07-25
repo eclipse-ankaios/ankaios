@@ -644,7 +644,7 @@ impl WorkloadControlLoop {
             });
     }
 
-    // [impl->swdd~workload-control-loop-creates-log-fetcher~1]
+    // [impl->swdd~agent-workload-control-loop-creates-log-fetcher~1]
     fn create_log_fetcher<WorkloadId, StChecker>(
         control_loop_state: &ControlLoopState<WorkloadId, StChecker>,
         log_request_options: &LogRequestOptions,
@@ -2738,7 +2738,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
-    // [utest->swdd~workload-control-loop-creates-log-fetcher~1]
+    // [utest->swdd~agent-workload-control-loop-creates-log-fetcher~1]
     #[tokio::test]
     async fn utest_get_logs_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2805,7 +2805,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
-    // [utest->swdd~workload-control-loop-creates-log-fetcher~1]
+    // [utest->swdd~agent-workload-control-loop-creates-log-fetcher~1]
     #[tokio::test]
     async fn utest_get_logs_fails() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2872,7 +2872,7 @@ mod tests {
         runtime_mock.assert_all_expectations();
     }
 
-    // [utest->swdd~workload-control-loop-creates-log-fetcher~1]
+    // [utest->swdd~agent-workload-control-loop-creates-log-fetcher~1]
     #[tokio::test]
     async fn utest_get_logs_no_workload_id_yet() {
         let _ = env_logger::builder().is_test(true).try_init();
