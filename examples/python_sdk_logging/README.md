@@ -7,15 +7,15 @@ This example uses the python sdk to read the logs of another workload (in this c
 For the intended production use, with the python_sdk downloaded from pypi, this should be enough:
 
 ``` bash
-./run_example.sh python_sdk
+./run_example.sh python_sdk_logging
 ```
 
 ## Development
 
-For testing the python SDK, you can specify a specific branch that the SDK should be installed from. This can be done by setting the `PYTHON_SDK_BRANCH` environment variable in the script:
+For testing the python SDK, you can specify a distinct branch that the SDK should be installed from. This can be done by setting the `PYTHON_SDK_BRANCH` environment variable in the script:
 
 ``` bash
-./run_example.sh python_sdk --env PYTHON_SDK_BRANCH=python_sdk_branch
+./run_example.sh python_sdk_logging --env PYTHON_SDK_BRANCH=python_sdk_branch
 ```
 
 This will also automatically use the proto files from the local ankaios repository.
