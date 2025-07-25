@@ -26,8 +26,20 @@ For more advanced configurations, you can modify the Dockerfile or directly the 
 
 ## Manual interaction with the Control Interface
 
-Once the workload is up and running, start an interactive session:
+Once the workload is up and running, start an interactive python interpreter inside the container:
 
 ```bash
-podman exec -it $(podman ps -a | grep python_sdk_interactive | awk '{print $1}') bash
+podman exec -it $(podman ps -a | grep python_sdk_interactive | awk '{print $1}') python3
 ```
+
+In the interpreter you can now directly connect to Ankaios via the Control Interface, e.g.:
+
+```python
+from ankaios_sdk import Ankaios, AnkaiosException, WorkloadInstanceName
+ank=Ankaios()
+
+# get the workload states as dict and print them
+print(ank.get_workload_states().get_as_dict())
+```
+
+Feel free to try out other commands supported by the [Python SDK](https://pypi.org/project/ankaios-sdk/) to learn how the Control Interface works.
