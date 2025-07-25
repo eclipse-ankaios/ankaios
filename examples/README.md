@@ -54,7 +54,7 @@ Besides the control interface examples, there are custom ones added (and the lis
 1. Get logs from the running workload:
 
    ```shell
-   ank logs -f <example_subfolder>
+   ank -k logs -f <example_subfolder>
    ```
 
 **Note:** The examples are always kept in sync with the Ankaios repository and not with the Ankaios releases.
