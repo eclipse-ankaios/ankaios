@@ -20,4 +20,4 @@ For testing the python SDK, you can specify a distinct branch that the SDK shoul
 
 This will also automatically use the proto files from the local ankaios repository.
 
-For more advanced configurations, you can modify the Dockerfile or directly the `setup_python_sdk.sh` script with the required arguments.
+For more advanced configurations, you can modify the Dockerfile or directly run the `../tools/setup_python_sdk.sh` script with the required arguments.
