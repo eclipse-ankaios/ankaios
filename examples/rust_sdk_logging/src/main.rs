@@ -28,7 +28,7 @@ async fn main() {
 
         // Get the workload instance name of the "screamer" workload
         for workload_state in workload_states {
-            if workload_state.workload_instance_name.workload_name == "screamer"{
+            if workload_state.workload_instance_name.workload_name == "screamer" {
                 screamer_instance_name = Some(workload_state.workload_instance_name.clone());
                 break;
             }
@@ -71,7 +71,7 @@ async fn main() {
         match log_response {
             LogResponse::LogEntries(log_entries) => {
                 for entry in log_entries {
-                    println!("{}", entry.message);
+                    println!("Log from {}: {}", entry.workload_name, entry.message);
                 }
             }
             LogResponse::LogsStopResponse(workload_name) => {

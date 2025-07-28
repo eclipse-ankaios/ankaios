@@ -3,7 +3,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 ARG WORKSPACE_DIR=/workspaces/build
 
-RUN apk update && apk add --update-cache \
+RUN apk add --no-cache \
     curl \
     # Development tools
     bash \
@@ -11,8 +11,7 @@ RUN apk update && apk add --update-cache \
     protobuf \
     protobuf-dev \
     protoc \
-    build-base \
-    && rm -rf /var/cache/apk/*
+    build-base
 
 RUN curl --proto '=https' --tlsv1.2 -sS https://sh.rustup.rs | sh -s -- -y > /dev/null
 
