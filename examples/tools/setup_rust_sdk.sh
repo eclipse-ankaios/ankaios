@@ -82,6 +82,6 @@ if [ ! -f "$CARGO_TOML" ]; then
     exit 1
 fi
 # Use sed to update the ankaios_sdk = line
-sed -i "s/^# ankaios_sdk = .*/${TOML_CONTENT}/" "$CARGO_TOML"
+sed -i "s/^ankaios_sdk = .*/${TOML_CONTENT}/" "$CARGO_TOML"
 
 echo "Setup completed successfully."
