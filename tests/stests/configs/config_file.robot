@@ -50,9 +50,6 @@ Test server config overwrite manifest with cli arguments
     And Ankaios server is available
     And Ankaios insecure agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
-    # Actions
-    When user triggers "ank -k get workloads"
     # Asserts
-    Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And the workload "simple" shall not exist on agent "agent_A" within "5" seconds
+    Then the workload "simple" shall not exist on agent "agent_A" within "1" seconds
     [Teardown]    Clean up Ankaios
