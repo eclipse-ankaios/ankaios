@@ -45,7 +45,6 @@ Test agent config file successful start-up
 # [stest->swdd~server-loads-config-file~1]
 Test server config overwrite manifest with cli arguments
     [Setup]        Setup Ankaios
-    [Tags]    run_only
     # Preconditions
     Ankaios insecure server is started with config "${CONFIGS_DIR}/default.yaml" and server config file "${CONFIGS_DIR}/ank-server.conf"
     And Ankaios server is available
