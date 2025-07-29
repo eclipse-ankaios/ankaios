@@ -103,7 +103,7 @@ impl ReusableWorkloadState {
     }
 }
 
-// [impl->swdd~functions-required-by-runtime-connector~2]
+// [impl->swdd~agent-functions-required-by-runtime-connector~1]
 #[async_trait]
 pub trait RuntimeConnector<WorkloadId, StChecker>: Sync + Send
 where

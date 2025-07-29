@@ -1,0 +1,9 @@
+desiredState:
+  apiVersion: v0.1
+  workloads:
+    workload_with_empty_agent_name:
+      runtime: podman
+      agent: ""
+      restartPolicy: NEVER
+      runtimeConfig: |
+        image: ghcr.io/eclipse-ankaios/tests/sleepy:latest

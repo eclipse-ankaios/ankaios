@@ -404,7 +404,7 @@ impl From<OrderedExecutionState> for ExecutionState {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~functions-required-by-runtime-connector~2]
+// [utest->swdd~agent-functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
     use common::objects::{

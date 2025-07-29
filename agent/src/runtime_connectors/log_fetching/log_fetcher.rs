@@ -19,7 +19,7 @@ use tokio::{io::AsyncRead, select};
 
 use super::log_channel;
 
-// [impl->swdd~log-fetching-collects-logs~1]
+// [impl->swdd~agent-log-fetching-collects-logs~1]
 
 #[derive(Clone)]
 pub enum NextLinesResult {
@@ -157,7 +157,7 @@ mod tests {
         }
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_log_fetcher_read_all_lines() {
         let log_fetcher =
@@ -184,7 +184,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_log_fetcher_cannot_send_message() {
         let log_fetcher =
@@ -207,7 +207,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_log_fetcher_informed_about_receiver_dropped() {
         let log_fetcher =
@@ -230,7 +230,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_log_fetcher_stderr_read_all_lines() {
         let log_fetcher =
@@ -256,7 +256,7 @@ mod tests {
         timeout(TIMEOUT, jh).await.unwrap().unwrap();
     }
 
-    // [utest->swdd~log-fetching-collects-logs~1]
+    // [utest->swdd~agent-log-fetching-collects-logs~1]
     #[tokio::test]
     async fn utest_log_fetcher_stderr_cannot_send_message() {
         let log_fetcher =

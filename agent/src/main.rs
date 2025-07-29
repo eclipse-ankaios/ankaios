@@ -87,16 +87,24 @@ fn handle_agent_config(config_path: &Option<String>, default_path: &str) -> Agen
 }
 
 // [impl->swdd~agent-naming-convention~1]
-pub fn validate_agent_name(agent_name: &String) -> Result<(), String> {
+pub fn validate_agent_name(agent_name: &str) -> Result<(), String> {
+    const EXPECTED_AGENT_NAME_FORMAT: &str = "It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.";
+    if agent_name.is_empty() {
+        return Err(format!(
+            "Empty agent name is not allowed. {}",
+            EXPECTED_AGENT_NAME_FORMAT
+        ));
+    }
+
     let re = Regex::new(STR_RE_AGENT).unwrap();
 
     if re.is_match(agent_name) {
         Ok(())
     } else {
         Err(format!(
-                    "Agent name '{}' is invalid. It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.",
-                    agent_name
-                ))
+            "Agent name '{}' is invalid. {}",
+            agent_name, EXPECTED_AGENT_NAME_FORMAT,
+        ))
     }
 }
 
@@ -279,15 +287,25 @@ mod tests {
     #[test]
     fn utest_validate_agent_name_ok() {
         let name = "test_AgEnt-name1_56";
-        assert!(super::validate_agent_name(&name.to_string()).is_ok());
+        assert!(super::validate_agent_name(name).is_ok());
     }
 
     // [utest->swdd~agent-naming-convention~1]
     #[test]
     fn utest_validate_agent_name_fail() {
-        assert!(super::validate_agent_name(&"a.b".to_string()).is_err());
-        assert!(super::validate_agent_name(&"a_b_%#".to_string()).is_err());
-        assert!(super::validate_agent_name(&"a b".to_string()).is_err());
-        assert!(super::validate_agent_name(&"".to_string()).is_err());
+        let invalid_agent_names = ["a.b", "a_b_%#", "a b"];
+        for name in invalid_agent_names {
+            let result = super::validate_agent_name(name);
+            assert!(result.is_err());
+            assert!(result
+                .unwrap_err()
+                .contains(&format!("Agent name '{name}' is invalid.",)));
+        }
+
+        let result = super::validate_agent_name("");
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Empty agent name is not allowed."));
     }
 }
