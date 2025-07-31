@@ -104,11 +104,11 @@ if [[ -n $PROTO_SOURCE ]]; then
                 echo "Proto branch must be specified for branch source."
                 exit 1
             fi
-            mkdir -p ank-sdk-python/ankaios_sdk/_protos/0.5.0
+            mkdir -p ank-sdk-python/ankaios_sdk/_protos/0.6.0
 
             # Get ank_base proto file
             PROTO_LINK="https://raw.githubusercontent.com/eclipse-ankaios/ankaios/refs/heads/${PROTO_BRANCH}/api/proto/ank_base.proto"
-            curl -s "$PROTO_LINK" | grep -v "^\s*//" | grep -v "^\s*$" > ank-sdk-python/ankaios_sdk/_protos/0.5.0/ank_base.proto
+            curl -s "$PROTO_LINK" | grep -v "^\s*//" | grep -v "^\s*$" > ank-sdk-python/ankaios_sdk/_protos/0.6.0/ank_base.proto
             if [ $? -ne 0 ]; then
                 echo "Failed to download or process the ank_base.proto file."
                 exit 1
@@ -116,7 +116,7 @@ if [[ -n $PROTO_SOURCE ]]; then
 
             # Get the control_api proto file
             PROTO_LINK="https://raw.githubusercontent.com/eclipse-ankaios/ankaios/refs/heads/${PROTO_BRANCH}/api/proto/control_api.proto"
-            curl -s "$PROTO_LINK" | grep -v "^\s*//" | grep -v "^\s*$" > ank-sdk-python/ankaios_sdk/_protos/0.5.0/control_api.proto
+            curl -s "$PROTO_LINK" | grep -v "^\s*//" | grep -v "^\s*$" > ank-sdk-python/ankaios_sdk/_protos/0.6.0/control_api.proto
             if [ $? -ne 0 ]; then
                 echo "Failed to download or process the control_api.proto file."
                 exit 1
@@ -127,12 +127,12 @@ if [[ -n $PROTO_SOURCE ]]; then
                 echo "Proto path must be specified for local source."
                 exit 1
             fi
-            mkdir -p ank-sdk-python/ankaios_sdk/_protos/0.5.0
+            mkdir -p ank-sdk-python/ankaios_sdk/_protos/0.6.0
             if [ -f "$PROTO_PATH"/ank_base.proto ]; then
-                cp "$PROTO_PATH"/ank_base.proto ank-sdk-python/ankaios_sdk/_protos/0.5.0/
+                cp "$PROTO_PATH"/ank_base.proto ank-sdk-python/ankaios_sdk/_protos/0.6.0/
             fi
             if [ -f "$PROTO_PATH"/control_api.proto ]; then
-                cp "$PROTO_PATH"/control_api.proto ank-sdk-python/ankaios_sdk/_protos/0.5.0/
+                cp "$PROTO_PATH"/control_api.proto ank-sdk-python/ankaios_sdk/_protos/0.6.0/
             fi
             ;;
         default)

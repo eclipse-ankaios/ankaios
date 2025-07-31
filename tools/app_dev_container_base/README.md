@@ -14,7 +14,7 @@ FROM ghcr.io/eclipse-ankaios/app-ankaios-dev:<ankaios_version>
 RUN ... # customize the image with your dev dependencies
 ```
 
-**NOTE:** Replace the `<ankaios_version>` with a tag that points to an Ankaios release, e.g. 0.5.0.
+**NOTE:** Replace the `<ankaios_version>` with a tag that points to an Ankaios release, e.g. 0.6.0.
 
 The devcontainer contains the following:
 
