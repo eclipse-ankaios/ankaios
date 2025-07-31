@@ -44,7 +44,10 @@ fn handle_ank_config(config_path: &Option<String>, default_path: &str) -> AnkCon
         None => {
             let default_path = PathBuf::from(default_path.as_ref() as &std::path::Path);
             if !default_path.try_exists().unwrap_or(false) {
-                output_debug!("No config file found at default path '{}'. Using cli arguments and environment variables only.", default_path.display());
+                output_debug!(
+                    "No config file found at default path '{}'. Using cli arguments and environment variables only.",
+                    default_path.display()
+                );
                 AnkConfig::default()
             } else {
                 output_debug!(
@@ -67,8 +70,12 @@ async fn main() {
     ank_config.update_with_args(&args);
 
     let cli_name = "ank-cli";
-    env::set_var(log::VERBOSITY_KEY, ank_config.verbose.to_string());
-    env::set_var(log::QUIET_KEY, ank_config.quiet.to_string());
+
+    // action is thread-safe, so we can set the environment variables
+    unsafe {
+        env::set_var(log::VERBOSITY_KEY, ank_config.verbose.to_string());
+        env::set_var(log::QUIET_KEY, ank_config.quiet.to_string());
+    };
 
     output_debug!(
         "Started '{}' with the following parameters: '{:?}'",
@@ -278,7 +285,7 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ank_config::DEFAULT_ANK_CONFIG_FILE_PATH, handle_ank_config, AnkConfig};
+    use crate::{AnkConfig, ank_config::DEFAULT_ANK_CONFIG_FILE_PATH, handle_ank_config};
     use std::io::Write;
     use tempfile::NamedTempFile;
 

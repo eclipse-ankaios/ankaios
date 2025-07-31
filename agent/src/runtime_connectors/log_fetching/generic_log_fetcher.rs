@@ -57,7 +57,7 @@ impl<T: GetOutputStreams + std::fmt::Debug + Send + 'static> LogFetcher for Gene
     async fn next_lines(&mut self) -> NextLinesResult {
         loop {
             match (&mut self.stdout, &mut self.stderr) {
-                (Some(ref mut stdout), Some(ref mut stderr)) => {
+                (Some(stdout), Some(stderr)) => {
                     select! {
                         lines = stdout.next_lines() => {
                             if let Some(lines) = lines {
@@ -75,14 +75,14 @@ impl<T: GetOutputStreams + std::fmt::Debug + Send + 'static> LogFetcher for Gene
                         }
                     }
                 }
-                (Some(ref mut stdout), None) => {
+                (Some(stdout), None) => {
                     if let Some(lines) = stdout.next_lines().await {
                         return NextLinesResult::Stdout(lines);
                     } else {
                         return NextLinesResult::EoF;
                     }
                 }
-                (None, Some(ref mut stderr)) => {
+                (None, Some(stderr)) => {
                     if let Some(lines) = stderr.next_lines().await {
                         return NextLinesResult::Stderr(lines);
                     } else {
@@ -168,7 +168,7 @@ pub mod test {
     use crate::runtime_connectors::{
         generic_log_fetcher::{GenericLogFetcher, GenericSingleLogFetcher},
         log_fetcher::{LogFetcher, StreamTrait},
-        podman::{podman_log_fetcher::PodmanLogFetcher, PodmanWorkloadId},
+        podman::{PodmanWorkloadId, podman_log_fetcher::PodmanLogFetcher},
         runtime_connector::LogRequestOptions,
     };
 
