@@ -16,7 +16,7 @@ RUN apk add --no-cache \
 RUN curl --proto '=https' --tlsv1.2 -sS https://sh.rustup.rs | sh -s -- -y > /dev/null
 
 WORKDIR ${WORKSPACE_DIR}/ankaios_example
-ENV ANKAIOS_VERSION=0.6.0
+ENV ANKAIOS_VERSION=0.7.0-pre
 
 COPY examples/rust_sdk_logging ${WORKSPACE_DIR}/ankaios_example
 COPY examples/tools/setup_rust_sdk.sh .
