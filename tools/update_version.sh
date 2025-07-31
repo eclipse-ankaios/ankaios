@@ -79,7 +79,7 @@ if [ "$release" = "1" ]; then
 fi
 
 # Update the version of the examples
-examples=$(find "$base_dir/examples" -type d -name \*_control_interface -printf "%f\n")
+examples=$(find "$base_dir/examples" -type d \( -name \*_control_interface -o -name python_sdk_\* -o -name rust_sdk_\* \) -printf "%f\n")
 for example in $examples; do
     dockerfile="$base_dir/examples/$example/Dockerfile"
     log_update "$dockerfile"
