@@ -42,12 +42,12 @@ use crate::{
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
-use crate::workload::control_loop_state::ControlLoopState;
-#[cfg_attr(test, mockall_double::double)]
-use crate::workload::workload_control_loop::WorkloadControlLoop;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
 use crate::workload::WorkloadCommandSender;
+use crate::workload::control_loop_state::ControlLoopState;
+#[cfg_attr(test, mockall_double::double)]
+use crate::workload::workload_control_loop::WorkloadControlLoop;
 
 use tokio::task::JoinHandle;
 
@@ -106,9 +106,9 @@ where
 
 #[async_trait]
 impl<
-        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-    > RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
+    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+> RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
 {
     // [impl->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
     async fn get_reusable_workloads(
@@ -166,9 +166,9 @@ impl<
 }
 
 impl<
-        WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-    > GenericRuntimeFacade<WorkloadId, StChecker>
+    WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
+    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+> GenericRuntimeFacade<WorkloadId, StChecker>
 {
     // [impl->swdd~agent-create-workload~2]
     fn create_workload_non_blocking(
@@ -182,7 +182,7 @@ impl<
             Some(id) => match WorkloadId::from_str(&id) {
                 Ok(id) => Some(id),
                 Err(_) => {
-                    log::warn!("Cannot decode workload id '{}'", id);
+                    log::warn!("Cannot decode workload id '{id}'");
                     None
                 }
             },
@@ -207,25 +207,19 @@ impl<
             ) {
                 Ok(control_interface) => {
                     log::info!(
-                        "Successfully created control interface for workload '{}'.",
-                        workload_name
+                        "Successfully created control interface for workload '{workload_name}'."
                     );
                     (Some(control_interface_path), Some(control_interface))
                 }
                 Err(err) => {
                     log::warn!(
-                        "Could not create control interface when creating workload '{}': '{}'",
-                        workload_name,
-                        err
+                        "Could not create control interface when creating workload '{workload_name}': '{err}'"
                     );
                     (None, None)
                 }
             }
         } else {
-            log::debug!(
-                "Skipping creation of control interface for workload '{}'.",
-                workload_name
-            );
+            log::debug!("Skipping creation of control interface for workload '{workload_name}'.");
             (None, None)
         };
 
@@ -243,7 +237,7 @@ impl<
                 .create()
                 .await
                 .unwrap_or_else(|err| {
-                    log::warn!("Failed to send workload command create: '{}'", err);
+                    log::warn!("Failed to send workload command create: '{err}'");
                 });
 
             let control_loop_state = ControlLoopState::builder()
@@ -299,23 +293,25 @@ impl<
                 Ok(control_interface) => Some(control_interface),
                 Err(err) => {
                     log::warn!(
-                                "Could not reuse or create control interface when resuming workload '{}': '{}'",
-                                workload_spec.instance_name,
-                                err
-                            );
+                        "Could not reuse or create control interface when resuming workload '{}': '{}'",
+                        workload_spec.instance_name,
+                        err
+                    );
                     None
                 }
             }
         } else {
-            log::info!("No control interface access rights specified for resumed workload '{}'. Skipping creation of control interface.",
-                workload_spec.instance_name.clone().workload_name());
+            log::info!(
+                "No control interface access rights specified for resumed workload '{}'. Skipping creation of control interface.",
+                workload_spec.instance_name.clone().workload_name()
+            );
             None
         };
 
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
         workload_command_sender.resume().unwrap_or_else(|err| {
-            log::warn!("Failed to send workload command resume: '{}'", err);
+            log::warn!("Failed to send workload command resume: '{err}'");
         });
 
         let run_folder = self.run_folder.clone();
@@ -376,33 +372,26 @@ impl<
                     return; // The early exit is needed to skip sending the removed message.
                 }
             } else {
-                log::debug!("Workload '{}' already gone.", instance_name);
+                log::debug!("Workload '{instance_name}' already gone.");
             }
 
-            log::debug!(
-                "Deleting the workload subfolder of workload '{}'",
-                instance_name
-            );
+            log::debug!("Deleting the workload subfolder of workload '{instance_name}'");
 
             let workload_dir = instance_name.pipes_folder_name(&run_folder);
             match filesystem_async::remove_dir_all(&workload_dir).await {
                 Ok(_) => {
                     log::trace!(
-                        "Successfully deleted workload subfolder of workload '{}'",
-                        instance_name
+                        "Successfully deleted workload subfolder of workload '{instance_name}'"
                     );
                 }
                 Err(FileSystemError::NotFoundDirectory(_)) => {
                     log::debug!(
-                        "Workload subfolder for '{}' already missing, skipping deletion.",
-                        instance_name
+                        "Workload subfolder for '{instance_name}' already missing, skipping deletion."
                     );
                 }
                 Err(err) => {
                     log::warn!(
-                        "Failed to delete workload subfolder after deletion of workload '{}': '{}'",
-                        instance_name,
-                        err
+                        "Failed to delete workload subfolder after deletion of workload '{instance_name}': '{err}'"
                     );
                 }
             }
@@ -461,19 +450,20 @@ mockall::mock! {
 #[cfg(test)]
 mod tests {
     use common::objects::{
+        ExecutionState, WorkloadInstanceName,
         generate_test_workload_spec_with_control_interface_access,
-        generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
+        generate_test_workload_spec_with_param,
     };
 
     use crate::{
         control_interface::{
-            authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
-            ControlInterfacePath, MockControlInterface,
+            ControlInterfacePath, MockControlInterface, authorizer::MockAuthorizer,
+            control_interface_info::MockControlInterfaceInfo,
         },
         io_utils::mock_filesystem_async,
         runtime_connectors::{
-            runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             GenericRuntimeFacade, OwnableRuntime, ReusableWorkloadState, RuntimeFacade,
+            runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
         },
         workload::{ControlLoopState, MockWorkload, MockWorkloadControlLoop},
         workload_operation::ReusableWorkloadSpec,

@@ -34,7 +34,7 @@ mod grpc_tests {
     };
     use grpc::{
         client::GRPCCommunicationsClient,
-        security::{self, read_pem_file, TLSConfig},
+        security::{self, TLSConfig, read_pem_file},
         server::GRPCCommunicationsServer,
     };
 
@@ -211,7 +211,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>,
     ) {
         let (to_grpc_client, grpc_client_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
-        let url = format!("http://{}", server_addr);
+        let url = format!("http://{server_addr}");
         let grpc_communications_client = match comm_type {
             CommunicationType::Cli => GRPCCommunicationsClient::new_cli_communication(
                 test_request_id.to_owned(),
@@ -254,7 +254,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         //
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        let server_addr = format!("0.0.0.0:{}", port);
+        let server_addr = format!("0.0.0.0:{port}");
         let (to_grpc_server, grpc_server_receiver) = tokio::sync::mpsc::channel::<FromServer>(20);
         let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
 
@@ -304,8 +304,8 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
     // [itest->swdd~grpc-server-activate-mtls-when-certificates-and-key-provided-upon-start~1]
     // [itest->swdd~grpc-cli-activate-mtls-when-certificates-and-key-provided-upon-start~1]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
-    async fn itest_grpc_communication_client_cli_connection_grpc_server_received_request_complete_state_with_tls(
-    ) {
+    async fn itest_grpc_communication_client_cli_connection_grpc_server_received_request_complete_state_with_tls()
+     {
         let _ = env_logger::builder().is_test(true).try_init();
         let test_request_id = "test_request_id";
         let test_pem_files_package = TestPEMFilesPackage::new().unwrap();
@@ -350,8 +350,8 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
     // [itest->swdd~grpc-server-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
     // [itest->swdd~grpc-cli-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
-    async fn itest_grpc_communication_client_cli_connection_grpc_server_received_request_complete_state(
-    ) {
+    async fn itest_grpc_communication_client_cli_connection_grpc_server_received_request_complete_state()
+     {
         let test_request_id = "test_request_id";
         let (to_grpc_client, mut server_receiver, _, _) = generate_test_grpc_communication_setup(
             50051,
@@ -446,8 +446,8 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
 
     // [itest->swdd~grpc-agent-activate-mtls-when-certificates-and-key-provided-upon-start~1]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
-    async fn itest_grpc_communication_client_agent_connection_grpc_server_received_agent_hello_with_tls(
-    ) {
+    async fn itest_grpc_communication_client_agent_connection_grpc_server_received_agent_hello_with_tls()
+     {
         let _ = env_logger::builder().is_test(true).try_init();
         let test_agent_name = "test_agent_name";
         let test_pem_files_package = TestPEMFilesPackage::new().unwrap();

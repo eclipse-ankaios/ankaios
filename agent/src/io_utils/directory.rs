@@ -26,7 +26,7 @@ pub struct Directory {
 impl Directory {
     pub fn new(path: PathBuf) -> Result<Self, FileSystemError> {
         if path.exists() {
-            log::trace!("Reusing existing directory '{:?}'", path);
+            log::trace!("Reusing existing directory '{path:?}'");
             return Ok(Self { path });
         }
         match filesystem::make_dir(&path) {
@@ -103,8 +103,8 @@ mod tests {
 
     use super::Directory;
 
-    use crate::io_utils::mock_filesystem;
     use crate::io_utils::FileSystemError;
+    use crate::io_utils::mock_filesystem;
 
     use mockall::predicate;
 

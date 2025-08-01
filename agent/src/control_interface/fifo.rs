@@ -14,9 +14,9 @@
 
 use std::path::PathBuf;
 
+use crate::io_utils::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
 use crate::io_utils::filesystem;
-use crate::io_utils::FileSystemError;
 
 #[derive(Debug)]
 pub struct Fifo {
@@ -26,7 +26,7 @@ pub struct Fifo {
 impl Fifo {
     pub fn new(path: PathBuf) -> Result<Self, FileSystemError> {
         if filesystem::is_fifo(&path) {
-            log::trace!("Reusing existing fifo file '{:?}'", path);
+            log::trace!("Reusing existing fifo file '{path:?}'");
             Ok(Fifo { path })
         } else {
             match filesystem::make_fifo(&path) {
@@ -43,7 +43,7 @@ impl Fifo {
 impl Drop for Fifo {
     fn drop(&mut self) {
         if let Err(err) = filesystem::remove_fifo(&self.path) {
-            log::error!("{}", err);
+            log::error!("{err}");
         }
     }
 }

@@ -17,7 +17,7 @@ use api::ank_base::{
     LogEntriesResponse, LogsCancelAccepted, LogsRequestAccepted, State, UpdateStateRequest,
 };
 
-use api::control_api::{from_ankaios::FromAnkaiosEnum, FromAnkaios};
+use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
 
 use prost::Message;
 use serde::de::DeserializeOwned;
@@ -152,12 +152,12 @@ fn main() {
     };
 
     let commands_json = File::open(input_path).unwrap_or_else(|err| {
-        logging::log(&format!("Could not open input file: '{}'", err));
+        logging::log(&format!("Could not open input file: '{err}'"));
         exit(1);
     });
 
     let commands: Vec<Command> = serde_yaml::from_reader(commands_json).unwrap_or_else(|err| {
-        logging::log(&format!("Could not parse commands argument: '{}'", err));
+        logging::log(&format!("Could not parse commands argument: '{err}'"));
         exit(1)
     });
 
@@ -177,10 +177,7 @@ fn main() {
             write_result(output_path, result);
         }
         Err(CommandError::ConnectionClosed(err)) => {
-            logging::log(&format!(
-                "Connection to Ankaios server was closed: '{}'",
-                err
-            ));
+            logging::log(&format!("Connection to Ankaios server was closed: '{err}'"));
             write_result(
                 output_path,
                 vec![TestResult {
@@ -189,7 +186,7 @@ fn main() {
             );
         }
         Err(CommandError::GenericError(err)) => {
-            logging::log(&format!("Failed during test execution: {}", err));
+            logging::log(&format!("Failed during test execution: {err}"));
             exit(3);
         }
     }
@@ -197,11 +194,11 @@ fn main() {
 
 fn write_result(output_path: String, result: Vec<TestResult>) {
     let output_file = File::create(output_path).unwrap_or_else(|err| {
-        logging::log(&format!("Could not open output file: '{}'", err));
+        logging::log(&format!("Could not open output file: '{err}'"));
         exit(4);
     });
     serde_json::to_writer(output_file, &result).unwrap_or_else(|err| {
-        logging::log(&format!("Could not write to open output file: '{}'", err));
+        logging::log(&format!("Could not write to open output file: '{err}'"));
         exit(5);
     });
 }
@@ -328,8 +325,7 @@ impl Connection {
                 })
             }
             response_content => TagSerializedResult::Err(format!(
-                "Received wrong response type. Expected UpdateStateSuccess, received: '{:?}'",
-                response_content
+                "Received wrong response type. Expected UpdateStateSuccess, received: '{response_content:?}'"
             )),
         }))
     }
@@ -371,8 +367,7 @@ impl Connection {
                 TagSerializedResult::Ok(complete_state.desired_state)
             }
             response_content => TagSerializedResult::Err(format!(
-                "Received wrong response type. Expected CompleteState, received: '{:?}'",
-                response_content
+                "Received wrong response type. Expected CompleteState, received: '{response_content:?}'"
             )),
         }))
     }
@@ -383,7 +378,7 @@ impl Connection {
     ) -> Result<ResponseContent, CommandError> {
         loop {
             let message = self.read_message().map_err(CommandError::GenericError)?;
-            logging::log(&format!("Received message: {:?}", message));
+            logging::log(&format!("Received message: {message:?}"));
 
             match message {
                 FromAnkaiosEnum::Response(response) => {
@@ -406,7 +401,7 @@ impl Connection {
                 FromAnkaiosEnum::ConnectionClosed(_) => {
                     return Err(CommandError::ConnectionClosed(
                         "Control Interface connection closed by Ankaios.".into(),
-                    ))
+                    ));
                 }
             }
         }
@@ -437,8 +432,7 @@ impl Connection {
             ResponseContent::CompleteState(complete_state) => complete_state.workload_states,
             response_content => {
                 return Err(CommandError::GenericError(format!(
-                    "Received wrong response type. Expected CompleteState, received: '{:?}'",
-                    response_content
+                    "Received wrong response type. Expected CompleteState, received: '{response_content:?}'"
                 )));
             }
         }
@@ -451,16 +445,14 @@ impl Connection {
                 .get(agent_name)
                 .ok_or_else(|| {
                     CommandError::GenericError(format!(
-                        "Agent '{}' not found in workload states",
-                        agent_name
+                        "Agent '{agent_name}' not found in workload states"
                     ))
                 })?
                 .wl_name_state_map
                 .get(workload_name)
                 .ok_or_else(|| {
                     CommandError::GenericError(format!(
-                        "Workload '{}' not found in agent '{}' workload states",
-                        workload_name, agent_name
+                        "Workload '{workload_name}' not found in agent '{agent_name}' workload states"
                     ))
                 })?
                 .id_state_map
@@ -469,8 +461,7 @@ impl Connection {
                 .cloned()
                 .ok_or_else(|| {
                     CommandError::GenericError(format!(
-                        "No workload instance found for workload '{}' in agent '{}'",
-                        workload_name, agent_name
+                        "No workload instance found for workload '{workload_name}' in agent '{agent_name}'"
                     ))
                 })?;
 
@@ -513,8 +504,7 @@ impl Connection {
                 TagSerializedResult::Err(error.message),
             )),
             response_content => Err(CommandError::GenericError(format!(
-                "Received wrong response type. Expected LogsRequestAccepted, received: '{:?}'",
-                response_content
+                "Received wrong response type. Expected LogsRequestAccepted, received: '{response_content:?}'"
             ))),
         }
     }
@@ -530,8 +520,7 @@ impl Connection {
                 TestResultEnum::LogEntriesResponse(TagSerializedResult::Ok(logs_response)),
             ),
             response_content => Err(CommandError::GenericError(format!(
-                "Received wrong response type. Expected LogsResponse, received: '{:?}'",
-                response_content
+                "Received wrong response type. Expected LogsResponse, received: '{response_content:?}'"
             ))),
         }
     }
@@ -564,8 +553,7 @@ impl Connection {
                 TagSerializedResult::Err(error.message),
             )),
             response_content => Err(CommandError::GenericError(format!(
-                "Received wrong response type. Expected LogsCancelAccepted, received: '{:?}'",
-                response_content
+                "Received wrong response type. Expected LogsCancelAccepted, received: '{response_content:?}'"
             ))),
         }
     }
@@ -573,9 +561,9 @@ impl Connection {
     fn read_message(&mut self) -> Result<FromAnkaiosEnum, String> {
         let binary = self
             .read_protobuf_data()
-            .map_err(|err| format!("Failed to read message from input stream: '{}'", err))?;
+            .map_err(|err| format!("Failed to read message from input stream: '{err}'"))?;
         FromAnkaios::decode(&mut Box::new(binary.as_ref()))
-            .map_err(|err| format!("Could not decode proto received from input: '{}'", err))?
+            .map_err(|err| format!("Could not decode proto received from input: '{err}'"))?
             .from_ankaios_enum
             .ok_or_else(|| "The field FromAnkaiosEnum is not set".to_string())
     }

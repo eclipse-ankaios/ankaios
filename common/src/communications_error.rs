@@ -29,7 +29,7 @@ impl fmt::Display for CommunicationMiddlewareError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             CommunicationMiddlewareError(message) => {
-                write!(f, "{}", message)
+                write!(f, "{message}")
             }
         }
     }

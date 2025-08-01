@@ -37,7 +37,7 @@ use crate::runtime_connectors::GenericRuntimeFacade;
 use crate::{
     control_interface::ControlInterfacePath,
     runtime_connectors::{
-        log_fetcher::LogFetcher, unsupported_runtime::UnsupportedRuntime, LogRequestOptions,
+        LogRequestOptions, log_fetcher::LogFetcher, unsupported_runtime::UnsupportedRuntime,
     },
 };
 
@@ -196,17 +196,10 @@ impl RuntimeManager {
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
             response.request_id = request_id;
             if let Err(err) = workload.forward_response(response).await {
-                log::warn!(
-                    "Could not forward response to workload '{}': '{}'",
-                    workload_name,
-                    err
-                );
+                log::warn!("Could not forward response to workload '{workload_name}': '{err}'");
             }
         } else {
-            log::warn!(
-                "Could not forward response for unknown workload: '{}'",
-                workload_name
-            );
+            log::warn!("Could not forward response for unknown workload: '{workload_name}'");
         }
     }
 
@@ -367,21 +360,16 @@ impl RuntimeManager {
                             }
                         } else {
                             let workload_name = workload_state.instance_name.workload_name();
-                            log::info!(
-                                "Found existing workload '{}' is not needed.",
-                                workload_name
-                            );
+                            log::info!("Found existing workload '{workload_name}' is not needed.");
                             // [impl->swdd~agent-existing-workloads-delete-unneeded~2]
                             if let Some(workload) = self.workloads.remove(workload_name) {
                                 if let Err(err) = workload.delete().await {
                                     log::error!(
-                                        "Failed to delete unneeded workload '{}': '{}'",
-                                        workload_name,
-                                        err
+                                        "Failed to delete unneeded workload '{workload_name}': '{err}'"
                                     );
                                 }
                             } else {
-                                log::info!("Directly deleting workload {}", workload_name);
+                                log::info!("Directly deleting workload {workload_name}");
                                 runtime.delete_workload(
                                     workload_state.instance_name,
                                     &self.update_state_tx,
@@ -390,7 +378,7 @@ impl RuntimeManager {
                         }
                     }
                 }
-                Err(err) => log::warn!("Could not get reusable running workloads: '{}'", err),
+                Err(err) => log::warn!("Could not get reusable running workloads: '{err}'"),
             }
         }
 
@@ -472,8 +460,7 @@ impl RuntimeManager {
                 .workload_name();
             if self.workloads.contains_key(workload_name) {
                 log::warn!(
-                    "Added workload '{}' already exists. Updating without considering delete dependencies.",
-                    workload_name
+                    "Added workload '{workload_name}' already exists. Updating without considering delete dependencies."
                 );
                 // We know this workload, seems the server is sending it again, try an update
                 // [impl->swdd~agent-update-on-add-known-workload~1]
@@ -530,10 +517,7 @@ impl RuntimeManager {
                 Authorizer::from(&workload_spec.control_interface_access),
             ))
         } else {
-            log::info!(
-                "No control interface access specified for workload '{}'",
-                workload_name
-            );
+            log::info!("No control interface access specified for workload '{workload_name}'");
             None
         };
 
@@ -610,8 +594,7 @@ impl RuntimeManager {
                 ))
             } else {
                 log::info!(
-                    "No control interface access specified for updated workload '{}'",
-                    workload_name
+                    "No control interface access specified for updated workload '{workload_name}'"
                 );
                 None
             };
@@ -620,13 +603,10 @@ impl RuntimeManager {
                 .update(Some(workload_spec), control_interface_info)
                 .await
             {
-                log::error!("Failed to update workload '{}': '{}'", workload_name, err);
+                log::error!("Failed to update workload '{workload_name}': '{err}'");
             }
         } else {
-            log::warn!(
-                "Workload for update '{}' not found. Recreating.",
-                workload_name
-            );
+            log::warn!("Workload for update '{workload_name}' not found. Recreating.");
             // [impl->swdd~agent-add-on-update-missing-workload~1]
             self.add_workload(ReusableWorkloadSpec::new(workload_spec, None))
                 .await;
@@ -638,7 +618,7 @@ impl RuntimeManager {
         let workload_name = deleted_workload.instance_name.workload_name().to_owned();
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
             if let Err(err) = workload.update(None, None).await {
-                log::error!("Failed to update workload '{}': '{}'", workload_name, err);
+                log::error!("Failed to update workload '{workload_name}': '{err}'");
             }
         }
     }
@@ -684,12 +664,12 @@ impl RuntimeManager {
 #[cfg(test)]
 mod tests {
     use super::{
-        ank_base, ControlInterfaceInfo, DeletedWorkload, ExecutionState, RuntimeFacade,
-        RuntimeManager, WorkloadInstanceName, WorkloadOperation, WorkloadSpec,
+        ControlInterfaceInfo, DeletedWorkload, ExecutionState, RuntimeFacade, RuntimeManager,
+        WorkloadInstanceName, WorkloadOperation, WorkloadSpec, ank_base,
     };
     use crate::control_interface::{
-        authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
-        MockControlInterface,
+        MockControlInterface, authorizer::MockAuthorizer,
+        control_interface_info::MockControlInterfaceInfo,
     };
     use crate::runtime_connectors::log_fetcher::MockLogFetcher;
     use crate::runtime_connectors::{
@@ -700,23 +680,23 @@ mod tests {
     use crate::workload::{MockWorkload, WorkloadError};
     use crate::workload_operation::ReusableWorkloadSpec;
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
-    use crate::workload_state::workload_state_store::MockWorkloadStateStore;
     use crate::workload_state::WorkloadStateReceiver;
+    use crate::workload_state::workload_state_store::MockWorkloadStateStore;
     use ank_base::response::ResponseContent;
     use api::ank_base::Files;
     use common::commands::LogsRequest;
     use common::objects::{
-        self, generate_test_control_interface_access,
+        self, AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
+        generate_test_control_interface_access,
         generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
-        AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
     };
     use common::test_utils::{
         self, generate_test_complete_state, generate_test_deleted_workload,
         generate_test_deleted_workload_with_dependencies,
     };
     use common::to_server_interface::ToServerReceiver;
-    use mockall::{predicate, Sequence};
+    use mockall::{Sequence, predicate};
     use std::collections::HashMap;
     use std::error::Error;
     use std::fmt::Display;
@@ -1625,8 +1605,8 @@ mod tests {
 
     // [utest->swdd~agent-existing-workloads-replace-updated~4]
     #[tokio::test]
-    async fn utest_handle_update_workload_initial_call_replace_workload_with_unfulfilled_dependencies(
-    ) {
+    async fn utest_handle_update_workload_initial_call_replace_workload_with_unfulfilled_dependencies()
+     {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -2147,8 +2127,8 @@ mod tests {
 
     // [utest->swdd~agent-executes-update-delete-only-workload-operation~1]
     #[tokio::test]
-    async fn utest_handle_update_workload_subsequent_update_delete_only_with_fulfilled_delete_dependencies(
-    ) {
+    async fn utest_handle_update_workload_subsequent_update_delete_only_with_fulfilled_delete_dependencies()
+     {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -2215,8 +2195,8 @@ mod tests {
 
     // [utest->swdd~agent-handles-new-workload-operations~1]
     #[tokio::test]
-    async fn utest_handle_update_workload_subsequent_deleted_workload_with_not_fulfilled_dependencies(
-    ) {
+    async fn utest_handle_update_workload_subsequent_deleted_workload_with_not_fulfilled_dependencies()
+     {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;

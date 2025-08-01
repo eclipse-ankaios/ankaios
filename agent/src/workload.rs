@@ -30,12 +30,12 @@ pub use workload_control_loop::MockWorkloadControlLoop;
 use std::{error::Error, fmt::Display};
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::control_interface_info::ControlInterfaceInfo;
-#[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::ControlInterface;
+#[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 use crate::{
     control_interface::ControlInterfacePath,
-    runtime_connectors::{log_fetcher::LogFetcher, LogRequestOptions},
+    runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
 };
 
 use api::ank_base;
@@ -58,10 +58,10 @@ impl Display for WorkloadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             WorkloadError::Communication(msg) => {
-                write!(f, "Could not send command to workload task: '{}'", msg)
+                write!(f, "Could not send command to workload task: '{msg}'")
             }
             WorkloadError::CompleteState(msg) => {
-                write!(f, "Could not forward complete state '{}'", msg)
+                write!(f, "Could not forward complete state '{msg}'")
             }
         }
     }
@@ -139,7 +139,7 @@ impl Workload {
             ) {
                 Ok(control_interface) => Some(control_interface),
                 Err(err) => {
-                    log::warn!("Could not exchange control interface. Error: '{}'", err);
+                    log::warn!("Could not exchange control interface. Error: '{err}'");
                     None
                 }
             }
@@ -243,12 +243,12 @@ mod tests {
     use std::path::PathBuf;
     use std::time::Duration;
 
-    use super::ank_base::{self, response::ResponseContent, Response};
+    use super::ank_base::{self, Response, response::ResponseContent};
     use common::{
         from_server_interface::FromServer,
         objects::{
-            generate_test_workload_spec_with_control_interface_access,
-            generate_test_workload_spec_with_param, CompleteState,
+            CompleteState, generate_test_workload_spec_with_control_interface_access,
+            generate_test_workload_spec_with_param,
         },
         test_utils::generate_test_complete_state,
     };
@@ -256,10 +256,10 @@ mod tests {
 
     use crate::{
         control_interface::{
-            authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
-            ControlInterfacePath, MockControlInterface,
+            ControlInterfacePath, MockControlInterface, authorizer::MockAuthorizer,
+            control_interface_info::MockControlInterfaceInfo,
         },
-        runtime_connectors::{log_fetcher::MockLogFetcher, LogRequestOptions},
+        runtime_connectors::{LogRequestOptions, log_fetcher::MockLogFetcher},
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
@@ -324,8 +324,10 @@ mod tests {
             workload_command_sender.clone(),
             None,
         );
-        assert!(test_workload_with_control_interface
-            .is_control_interface_changed(&Some(MockControlInterfaceInfo::default())));
+        assert!(
+            test_workload_with_control_interface
+                .is_control_interface_changed(&Some(MockControlInterfaceInfo::default()))
+        );
     }
 
     // [utest->swdd~agent-compares-control-interface-metadata~2]
@@ -371,8 +373,10 @@ mod tests {
             Some(MockControlInterface::default()),
         );
 
-        assert!(test_workload_with_control_interface
-            .is_control_interface_changed(&Some(control_interface_info_mock)));
+        assert!(
+            test_workload_with_control_interface
+                .is_control_interface_changed(&Some(control_interface_info_mock))
+        );
     }
 
     // [utest->swdd~agent-compares-control-interface-metadata~2]
@@ -392,8 +396,10 @@ mod tests {
             Some(MockControlInterface::default()),
         );
 
-        assert!(!test_workload_with_control_interface
-            .is_control_interface_changed(&Some(control_interface_info_mock)));
+        assert!(
+            !test_workload_with_control_interface
+                .is_control_interface_changed(&Some(control_interface_info_mock))
+        );
     }
 
     // [utest->swdd~agent-control-interface-created-for-eligible-workloads~1]

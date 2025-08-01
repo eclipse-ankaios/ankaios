@@ -63,12 +63,12 @@ pub mod filesystem {
     #[cfg(not(test))]
     use nix::unistd::mkfifo;
 
+    use super::FileSystemError;
     #[cfg(test)]
     use super::tests::{
         create_dir_all, metadata, mkfifo, remove_dir_all as fs_remove_dir_all, remove_file,
         set_permissions as fs_set_permissions,
     };
-    use super::FileSystemError;
     #[cfg(not(test))]
     use std::fs::{
         create_dir_all, metadata, remove_dir_all as fs_remove_dir_all, remove_file,
@@ -126,9 +126,9 @@ pub mod filesystem {
 
 #[cfg_attr(test, automock)]
 pub mod filesystem_async {
+    use super::FileSystemError;
     #[cfg(test)]
     use super::tests::{remove_dir_all_async as fs_async_remove_dir_all, write as fs_async_write};
-    use super::FileSystemError;
 
     use std::path::Path;
     #[cfg(not(test))]
@@ -175,7 +175,7 @@ mod tests {
     use mockall::lazy_static;
     use nix::sys::stat::Mode;
 
-    use super::{filesystem, filesystem_async, FileSystemError};
+    use super::{FileSystemError, filesystem, filesystem_async};
 
     #[allow(non_camel_case_types)]
     pub enum FakeCall {
@@ -305,10 +305,7 @@ mod tests {
             }
         }
 
-        panic!(
-            "No mock specified for call set_permissions({:?}, {:?})",
-            path, perm
-        );
+        panic!("No mock specified for call set_permissions({path:?}, {perm:?})");
     }
 
     pub async fn write<C>(path: &Path, file_content: C) -> io::Result<()>
@@ -388,7 +385,7 @@ mod tests {
             .unwrap()
             .push_back(FakeCall::create_dir_all(
                 Path::new("test_dir").to_path_buf(),
-                Err(std::io::Error::new(std::io::ErrorKind::Other, "some error")),
+                Err(std::io::Error::other("some error")),
             ));
 
         assert_eq!(
@@ -449,7 +446,7 @@ mod tests {
         let _test_lock = TEST_LOCK.lock();
         FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::metadata(
             Path::new("test_fifo").to_path_buf(),
-            Err(std::io::Error::new(ErrorKind::Other, "oh no!")),
+            Err(std::io::Error::other("oh no!")),
         ));
 
         assert!(!filesystem::is_fifo(Path::new("test_fifo")));
@@ -475,7 +472,7 @@ mod tests {
             .unwrap()
             .push_back(FakeCall::remove_dir_all(
                 Path::new("test_dir").to_path_buf(),
-                Err(Error::new(ErrorKind::Other, "Some Error!")),
+                Err(Error::other("Some Error!")),
             ));
 
         assert!(matches!(
@@ -526,7 +523,7 @@ mod tests {
             .unwrap()
             .push_back(FakeCall::remove_dir_all(
                 path.to_path_buf(),
-                Err(Error::new(ErrorKind::Other, "Some Error!")),
+                Err(Error::other("Some Error!")),
             ));
 
         let result = filesystem_async::remove_dir_all(path).await;
@@ -559,7 +556,7 @@ mod tests {
             .unwrap()
             .push_back(FakeCall::remove_file(
                 Path::new("test_file").to_path_buf(),
-                Err(Error::new(ErrorKind::Other, "Some Error!")),
+                Err(Error::other("Some Error!")),
             ));
 
         assert!(matches!(
@@ -579,9 +576,11 @@ mod tests {
             Ok(()),
         ));
 
-        assert!(filesystem_async::write_file(path, file_content)
-            .await
-            .is_ok());
+        assert!(
+            filesystem_async::write_file(path, file_content)
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]
@@ -595,7 +594,7 @@ mod tests {
         FAKE_CALL_LIST.lock().unwrap().push_back(FakeCall::write(
             path.to_path_buf(),
             file_content.clone(),
-            Err(Error::new(io_error_kind, "Some Error!")),
+            Err(Error::other("Some Error!")),
         ));
 
         let result = filesystem_async::write_file(path, file_content).await;

@@ -21,8 +21,8 @@ use serde::{Deserialize, Serialize};
 use crate::helpers::serialize_to_ordered_map;
 
 use super::{
-    control_interface_access::ControlInterfaceAccess, file::File, AddCondition, RestartPolicy, Tag,
-    WorkloadInstanceName, WorkloadSpec,
+    AddCondition, RestartPolicy, Tag, WorkloadInstanceName, WorkloadSpec,
+    control_interface_access::ControlInterfaceAccess, file::File,
 };
 
 pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
@@ -56,15 +56,13 @@ impl StoredWorkloadSpec {
         for (config_alias, referenced_config) in config_references {
             if !re_config_references.is_match(config_alias) {
                 return Err(format!(
-                    "Unsupported config alias. Received '{}', expected to have characters in {}",
-                    config_alias, STR_RE_CONFIG_REFERENCES
+                    "Unsupported config alias. Received '{config_alias}', expected to have characters in {STR_RE_CONFIG_REFERENCES}"
                 ));
             }
 
             if !re_config_references.is_match(referenced_config) {
                 return Err(format!(
-                    "Unsupported config reference key. Received '{}', expected to have characters in {}",
-                    referenced_config, STR_RE_CONFIG_REFERENCES
+                    "Unsupported config reference key. Received '{referenced_config}', expected to have characters in {STR_RE_CONFIG_REFERENCES}"
                 ));
             }
         }

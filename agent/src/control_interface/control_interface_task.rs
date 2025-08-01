@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use crate::control_interface::{output_pipe::OutputPipeError, to_ankaios, ToAnkaios};
+use crate::control_interface::{ToAnkaios, output_pipe::OutputPipeError, to_ankaios};
 
 #[cfg_attr(test, mockall_double::double)]
 use super::authorizer::Authorizer;
@@ -80,7 +80,7 @@ impl ControlInterfaceTask {
     async fn check_initial_hello(&mut self) -> Result<(), String> {
         let to_ankaios =
             decode_to_server(self.input_stream.read_protobuf_data().await).map_err(|err| {
-                log::debug!("{}: '{:?}'", PROTOBUF_DECODE_ERROR_MSG, err);
+                log::debug!("{PROTOBUF_DECODE_ERROR_MSG}: '{err:?}'");
                 PROTOBUF_DECODE_ERROR_MSG.to_string()
             })?;
         match to_ankaios.try_into() {
@@ -117,12 +117,12 @@ impl ControlInterfaceTask {
                                     let _ =self.to_server_sender.logs_cancel_request(commands::Request::prefix_id(&self.request_id_prefix, &response.request_id)).await;
                                 }
                                 unexpected => {
-                                    log::warn!("Unexpected response content: '{:?}'", unexpected);
+                                    log::warn!("Unexpected response content: '{unexpected:?}'");
                                 },
                             }
                         }
                     } else {
-                        log::warn!("The server is sending unrequested messages to a workload: '{:?}'", from_server);
+                        log::warn!("The server is sending unrequested messages to a workload: '{from_server:?}'");
                     }
                 }
                 // [impl->swdd~agent-listens-for-requests-from-pipe~1]
@@ -159,7 +159,7 @@ impl ControlInterfaceTask {
                                 }
                             }
                             Err(error) => {
-                                log::warn!("Could not convert protobuf in internal data structure: '{}'", error);
+                                log::warn!("Could not convert protobuf in internal data structure: '{error}'");
                             }
                         }
                     } else {
@@ -207,14 +207,14 @@ impl ControlInterfaceTask {
         let binary = message.encode_length_delimited_to_vec();
         self.output_stream.write_all(&binary).await.map_err(|err| {
             if let OutputPipeError::ReceiverGone(err) = err {
-                log::info!("Detected a problem in the connected workload. The response will not be delivered. Error: '{}'", err);
+                log::info!("Detected a problem in the connected workload. The response will not be delivered. Error: '{err}'");
                 if let Some(FromAnkaiosEnum::Response(response)) = message.from_ankaios_enum {
                     DeliveryError::NoReader(response)
                 } else {
                     unreachable!() // This should never happen, as we only send responses here.
                 }
             } else {
-                log::warn!("Forwarding failed with error: '{:?}'", err);
+                log::warn!("Forwarding failed with error: '{err:?}'");
                 DeliveryError::Io
             }
         })?;
@@ -254,7 +254,7 @@ mod tests {
     use common::{
         commands, from_server_interface::FromServerInterface, to_server_interface::ToServer,
     };
-    use mockall::{predicate, Sequence};
+    use mockall::{Sequence, predicate};
     use semver::Version;
     use tokio::sync::mpsc;
 
@@ -341,10 +341,12 @@ mod tests {
             Arc::new(MockAuthorizer::default()),
         );
 
-        assert!(control_interface_task
-            .forward_from_server(response)
-            .await
-            .is_ok());
+        assert!(
+            control_interface_task
+                .forward_from_server(response)
+                .await
+                .is_ok()
+        );
     }
 
     // [utest->swdd~agent-handles-control-interface-workload-gone~1]
@@ -403,8 +405,7 @@ mod tests {
                 Err(super::DeliveryError::NoReader(received_response))
                 if received_response.as_ref() == &response,
             ),
-            "Result was: '{:?}'",
-            result
+            "Result was: '{result:?}'"
         );
     }
 
@@ -438,18 +439,16 @@ mod tests {
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .return_once(move || Box::pin(async {
-                Ok(workload_hello_binary)
-            }));
+            .return_once(move || Box::pin(async { Ok(workload_hello_binary) }));
 
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
             .return_once(|| {
-                Box::pin(async{
+                Box::pin(async {
                     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                    Err(Error::new(std::io::ErrorKind::Other, "error"))
+                    Err(Error::other("error"))
                 })
             });
 
@@ -544,9 +543,7 @@ mod tests {
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .returning(move || {
-                Box::pin(async { Err(Error::new(std::io::ErrorKind::Other, "error")) })
-            });
+            .returning(move || Box::pin(async { Err(Error::other("error")) }));
 
         let error = ank_base::Response {
             request_id: REQUEST_ID.into(),
@@ -639,9 +636,7 @@ mod tests {
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .returning(move || {
-                Box::pin(async { Err(Error::new(std::io::ErrorKind::Other, "error")) })
-            });
+            .returning(move || Box::pin(async { Err(Error::other("error")) }));
 
         let output_stream_mock = MockOutputPipe::default();
 
@@ -754,7 +749,7 @@ mod tests {
             from_ankaios_enum: Some(
                 control_api::from_ankaios::FromAnkaiosEnum::ConnectionClosed(
                     control_api::ConnectionClosed {
-                        reason: format!("Unsupported protocol version '{unsupported_version}'. Currently supported '{}'", supported_version),
+                        reason: format!("Unsupported protocol version '{unsupported_version}'. Currently supported '{supported_version}'"),
                     },
                 ),
             ),

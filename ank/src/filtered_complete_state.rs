@@ -102,7 +102,7 @@ impl FilteredAgentAttributes {
     pub fn get_cpu_usage_as_string(&mut self) -> String {
         if let Some(cpu_usage) = &self.cpu_usage {
             if let Some(cpu_usage_value) = cpu_usage.cpu_usage {
-                format!("{}%", cpu_usage_value)
+                format!("{cpu_usage_value}%")
             } else {
                 "".to_string()
             }
@@ -114,7 +114,7 @@ impl FilteredAgentAttributes {
     pub fn get_free_memory_as_string(&mut self) -> String {
         if let Some(free_memory) = &self.free_memory {
             if let Some(free_memory_value) = free_memory.free_memory {
-                format!("{}B", free_memory_value)
+                format!("{free_memory_value}B")
             } else {
                 "".to_string()
             }

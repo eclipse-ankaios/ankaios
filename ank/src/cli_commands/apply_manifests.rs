@@ -17,7 +17,7 @@ use crate::cli_commands::State;
 use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
-use common::objects::{CompleteState, ALLOWED_SYMBOLS, CURRENT_API_VERSION};
+use common::objects::{ALLOWED_SYMBOLS, CURRENT_API_VERSION, CompleteState};
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
 
@@ -33,7 +33,7 @@ const WORKLOAD_LEVEL: usize = 1;
 // [impl->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
     let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
-        .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
+        .map_err(|err| format!("Invalid manifest data provided: {err}"))?;
     let obj = state_obj_parsing_check.into();
 
     let mut workload_paths: HashSet<Path> = HashSet::new();
@@ -49,8 +49,7 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
                 .unwrap_or("Invalid manifest API version or format provided.");
             if manifest_api_version != CURRENT_API_VERSION {
                 return Err(format!(
-                    "Invalid manifest API version provided. Expected: '{}', got: '{}'.",
-                    CURRENT_API_VERSION, manifest_api_version
+                    "Invalid manifest API version provided. Expected: '{CURRENT_API_VERSION}', got: '{manifest_api_version}'."
                 ));
             }
         }
@@ -87,7 +86,7 @@ pub fn handle_agent_overwrite(
     }
     state_obj
         .try_into()
-        .map_err(|err| format!("Invalid manifest data provided: {}", err))
+        .map_err(|err| format!("Invalid manifest data provided: {err}"))
 }
 
 pub fn update_request_obj(
@@ -98,15 +97,16 @@ pub fn update_request_obj(
     for workload_path in paths.iter() {
         let workload_name = &workload_path.parts()[WORKLOAD_LEVEL];
         if !cur_obj.check_if_provided_path_exists(workload_path) {
-            return Err(format!("The provided path does not exist! This may be caused by improper naming. Names expected to have characters in '{}'", ALLOWED_SYMBOLS));
+            return Err(format!(
+                "The provided path does not exist! This may be caused by improper naming. Names expected to have characters in '{ALLOWED_SYMBOLS}'"
+            ));
         }
         let cur_workload_spec = cur_obj.get(workload_path).unwrap();
         if req_obj.get(workload_path).is_none() {
             let _ = req_obj.set(workload_path, cur_workload_spec.clone());
         } else {
             return Err(format!(
-                "Multiple workloads with the same name '{}' found!",
-                workload_name
+                "Multiple workloads with the same name '{workload_name}' found!"
             ));
         }
     }
@@ -209,8 +209,8 @@ mod tests {
         commands::UpdateWorkloadState,
         from_server_interface::FromServer,
         objects::{
-            self, generate_test_workload_spec_with_param, CompleteState, ExecutionState,
-            RunningSubstate, State, WorkloadState,
+            self, CompleteState, ExecutionState, RunningSubstate, State, WorkloadState,
+            generate_test_workload_spec_with_param,
         },
         state_manipulation::{Object, Path},
         test_utils,
@@ -220,12 +220,12 @@ mod tests {
     use crate::{
         cli::ApplyArgs,
         cli_commands::{
+            CliCommands, InputSourcePair,
             apply_manifests::{
                 create_filter_masks_from_paths, generate_state_obj_and_filter_masks_from_manifests,
                 handle_agent_overwrite, parse_manifest, update_request_obj,
             },
             server_connection::MockServerConnection,
-            CliCommands, InputSourcePair,
         },
         filtered_complete_state::FilteredCompleteState,
     };
@@ -261,11 +261,13 @@ mod tests {
         commandOptions: [\"-p\", \"8081:80\"]",
         );
 
-        assert!(parse_manifest(&mut (
-            "valid_manifest_content".to_string(),
-            Box::new(manifest_content)
-        ))
-        .is_ok());
+        assert!(
+            parse_manifest(&mut (
+                "valid_manifest_content".to_string(),
+                Box::new(manifest_content)
+            ))
+            .is_ok()
+        );
     }
 
     #[test]
@@ -287,11 +289,13 @@ mod tests {
     fn utest_parse_manifest_invalid_api_version() {
         let manifest_content = io::Cursor::new(b"apiVersion: v3");
 
-        assert!(parse_manifest(&mut (
-            "invalid_api_version".to_string(),
-            Box::new(manifest_content),
-        ))
-        .is_err());
+        assert!(
+            parse_manifest(&mut (
+                "invalid_api_version".to_string(),
+                Box::new(manifest_content),
+            ))
+            .is_err()
+        );
     }
 
     #[test]

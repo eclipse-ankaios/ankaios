@@ -67,15 +67,15 @@ impl<'a> CliCommand<'a> {
                 .ok_or_else(|| "Could not access commands stdin".to_string())?
                 .write_all(stdin)
                 .await
-                .map_err(|err| format!("Could write stdin data to command: '{}'", err))?;
+                .map_err(|err| format!("Could write stdin data to command: '{err}'"))?;
         }
         let result = child.wait_with_output().await.unwrap();
         if result.status.success() {
             String::from_utf8(result.stdout)
-                .map_err(|err| format!("Could not decode command's output as UTF8: '{}'", err))
+                .map_err(|err| format!("Could not decode command's output as UTF8: '{err}'"))
         } else {
             let stderr = String::from_utf8(result.stderr).unwrap_or_else(|err| {
-                format!("Could not decode command's stderr as UTF8: '{}'", err)
+                format!("Could not decode command's stderr as UTF8: '{err}'")
             });
 
             let args_with_quotes = self.get_quoted_args(); // quoted args for easy debugging of the user
@@ -92,7 +92,7 @@ impl<'a> CliCommand<'a> {
     fn get_quoted_args(&self) -> String {
         self.args
             .iter()
-            .map(|arg| format!("\"{}\"", arg))
+            .map(|arg| format!("\"{arg}\""))
             .collect::<Vec<String>>()
             .join(" ")
     }

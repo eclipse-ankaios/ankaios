@@ -23,7 +23,7 @@ use tonic::{Request, Response, Status};
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::to_server::ToServerEnum;
-use crate::to_server_proxy::{forward_from_proto_to_ankaios, GRPCToServerStreaming};
+use crate::to_server_proxy::{GRPCToServerStreaming, forward_from_proto_to_ankaios};
 use grpc_api::cli_connection_server::CliConnection;
 
 use crate::grpc_api;
@@ -98,16 +98,11 @@ impl CliConnection for GRPCCliConnection {
                     .await;
                     if result.is_err() {
                         log::debug!(
-                            "Connection to CLI (name={}) failed with {:?}.",
-                            cli_connection_name,
-                            result
+                            "Connection to CLI (name={cli_connection_name}) failed with {result:?}."
                         );
                     }
                     cli_senders.remove(&cli_connection_name);
-                    log::debug!(
-                        "Connection to CLI (name={}) has been closed.",
-                        cli_connection_name
-                    );
+                    log::debug!("Connection to CLI (name={cli_connection_name}) has been closed.");
                 });
                 // [impl->swdd~grpc-commander-connection-responds-with-from-server-channel-rx~1]
                 Ok(Response::new(Box::pin(ReceiverStream::new(new_receiver))))

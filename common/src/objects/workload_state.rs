@@ -180,11 +180,7 @@ impl ExecutionState {
                 | ExecutionStateEnum::Failed(FailedSubstate::Lost)
                 | ExecutionStateEnum::Failed(FailedSubstate::Unknown),
             ) => {
-                log::trace!(
-                    "Skipping transition from '{}' to '{}' state.",
-                    self,
-                    incoming
-                );
+                log::trace!("Skipping transition from '{self}' to '{incoming}' state.");
                 self.clone()
             }
             _ => incoming,
@@ -574,7 +570,7 @@ mod tests {
     use api::ank_base::{self};
 
     use crate::objects::{
-        workload_state::NO_MORE_RETRIES_MSG, ExecutionState, WorkloadInstanceName, WorkloadState,
+        ExecutionState, WorkloadInstanceName, WorkloadState, workload_state::NO_MORE_RETRIES_MSG,
     };
 
     // [utest->swdd~common-workload-state-transitions~1]
@@ -702,7 +698,7 @@ mod tests {
         );
         assert_eq!(
             ank_base::ExecutionState {
-                additional_info: format!("{}: {}", NO_MORE_RETRIES_MSG, additional_info),
+                additional_info: format!("{NO_MORE_RETRIES_MSG}: {additional_info}"),
                 execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Pending(
                     ank_base::Pending::StartingFailed.into(),
                 )),
@@ -809,7 +805,7 @@ mod tests {
         assert_eq!(
             ExecutionState::retry_failed_no_retry(additional_info),
             ank_base::ExecutionState {
-                additional_info: format!("{}: {}", NO_MORE_RETRIES_MSG, additional_info),
+                additional_info: format!("{NO_MORE_RETRIES_MSG}: {additional_info}"),
                 execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Pending(
                     ank_base::Pending::StartingFailed.into(),
                 )),
@@ -915,10 +911,7 @@ mod tests {
         );
         assert_eq!(
             ExecutionState::retry_failed_no_retry(additional_info).to_string(),
-            format!(
-                "Pending(StartingFailed): '{}: {}'",
-                NO_MORE_RETRIES_MSG, additional_info
-            )
+            format!("Pending(StartingFailed): '{NO_MORE_RETRIES_MSG}: {additional_info}'")
         );
         assert_eq!(
             ExecutionState::removed().to_string(),

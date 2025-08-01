@@ -116,7 +116,7 @@ impl<T: AsyncRead + std::fmt::Debug + std::marker::Unpin> GenericSingleLogFetche
                 }
             }
             Err(err) => {
-                log::warn!("Failed to read log lines: {:?}", err);
+                log::warn!("Failed to read log lines: {err:?}");
                 return None;
             }
             _ => {}
@@ -197,10 +197,7 @@ pub mod test {
         }
 
         fn error() -> Self {
-            Self::Error(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "".to_string(),
-            ))
+            Self::Error(std::io::Error::other("".to_string()))
         }
     }
 

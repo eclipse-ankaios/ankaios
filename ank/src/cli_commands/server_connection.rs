@@ -556,7 +556,7 @@ mod tests {
     use crate::{
         cli::LogsArgs,
         cli_commands::server_connection::{
-            select_log_format_function, ServerConnectionError, TEST_LOG_OUTPUT_DATA,
+            ServerConnectionError, TEST_LOG_OUTPUT_DATA, select_log_format_function,
         },
         cli_signals::MockSignalHandler,
         test_helper::MOCKALL_CONTEXT_SYNC,
@@ -692,7 +692,7 @@ mod tests {
             };
             self.join_handle.abort();
             if let Ok(message) = to_server.try_recv() {
-                panic!("Received unexpected message: {:#?}", message);
+                panic!("Received unexpected message: {message:#?}");
             }
         }
     }
@@ -1469,7 +1469,7 @@ mod tests {
         output_log_fn(vec![log_entry]);
 
         let actual_log_data = TEST_LOG_OUTPUT_DATA.take();
-        assert_eq!(actual_log_data, vec![format!("{}\n", log_message)]);
+        assert_eq!(actual_log_data, vec![format!("{log_message}\n")]);
     }
 
     // [utest->swdd~cli-outputs-logs-in-specific-format~1]
@@ -1849,8 +1849,7 @@ mod tests {
         assert_eq!(
             result,
             Err(ServerConnectionError::ExecutionError(format!(
-                "Workload '{}' is not accepted by the server to receive logs from.",
-                WORKLOAD_NAME_1
+                "Workload '{WORKLOAD_NAME_1}' is not accepted by the server to receive logs from."
             )))
         );
 

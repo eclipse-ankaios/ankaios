@@ -284,7 +284,7 @@ mod tests {
     #[test]
     fn utest_handle_ank_config_valid_config() {
         let mut tmp_config_file = NamedTempFile::new().expect("could not create temp file");
-        write!(tmp_config_file, "{}", VALID_ANK_CONFIG_CONTENT)
+        write!(tmp_config_file, "{VALID_ANK_CONFIG_CONTENT}")
             .expect("could not write to temp file");
 
         let ank_config = handle_ank_config(
@@ -304,7 +304,7 @@ mod tests {
     #[test]
     fn utest_handle_ank_config_default_path() {
         let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
-        writeln!(file, "{}", VALID_ANK_CONFIG_CONTENT).expect("Failed to write to file");
+        writeln!(file, "{VALID_ANK_CONFIG_CONTENT}").expect("Failed to write to file");
 
         let ank_config = handle_ank_config(&None, file.path().to_str().unwrap());
 

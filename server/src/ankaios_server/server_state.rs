@@ -91,16 +91,15 @@ impl Display for UpdateStateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             UpdateStateError::FieldNotFound(field) => {
-                write!(f, "Could not find field {}", field)
+                write!(f, "Could not find field {field}")
             }
             UpdateStateError::ResultInvalid(reason) => {
-                write!(f, "Resulting State is invalid, reason: '{}'", reason)
+                write!(f, "Resulting State is invalid, reason: '{reason}'")
             }
             UpdateStateError::CycleInDependencies(workload_part_of_cycle) => {
                 write!(
                     f,
-                    "workload dependency '{}' is part of a cycle.",
-                    workload_part_of_cycle
+                    "workload dependency '{workload_part_of_cycle}' is part of a cycle."
                 )
             }
         }
@@ -149,15 +148,16 @@ impl ServerState {
                 current_complete_state.try_into().unwrap_or_illegal_state();
             let mut return_state = Object::default();
 
-            log::debug!("Current state: {:?}", current_complete_state);
+            log::debug!("Current state: {current_complete_state:?}");
             for field in &filters {
                 if let Some(value) = current_complete_state.get(&field.into()) {
                     return_state.set(&field.into(), value.to_owned())?;
                 } else {
                     log::debug!(
                         concat!(
-                        "Result for CompleteState incomplete, as requested field does not exist:\n",
-                        "   field: {}"),
+                            "Result for CompleteState incomplete, as requested field does not exist:\n",
+                            "   field: {}"
+                        ),
                         field
                     );
                     continue;
@@ -165,7 +165,7 @@ impl ServerState {
             }
 
             return_state.try_into().map_err(|err: serde_yaml::Error| {
-                format!("The result for CompleteState is invalid: '{}'", err)
+                format!("The result for CompleteState is invalid: '{err}'")
             })
         } else {
             Ok(current_complete_state)
@@ -310,10 +310,10 @@ impl ServerState {
 
         // [impl->swdd~update-desired-state-with-update-mask~1]
         let mut new_state: Object = (&self.state).try_into().map_err(|err| {
-            UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{}'", err))
+            UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{err}'"))
         })?;
         let state_from_update: Object = updated_state.try_into().map_err(|err| {
-            UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{}'", err))
+            UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{err}'"))
         })?;
 
         for field in update_mask {
@@ -328,10 +328,7 @@ impl ServerState {
         }
 
         new_state.try_into().map_err(|err| {
-            UpdateStateError::ResultInvalid(format!(
-                "Could not parse into CompleteState: '{}'",
-                err
-            ))
+            UpdateStateError::ResultInvalid(format!("Could not parse into CompleteState: '{err}'"))
         })
     }
 
@@ -368,10 +365,11 @@ mod tests {
     use common::{
         commands::{AgentLoadStatus, CompleteStateRequest},
         objects::{
-            generate_test_agent_map, generate_test_configs, generate_test_stored_workload_spec,
+            AgentMap, CompleteState, ConfigItem, CpuUsage, DeletedWorkload, FreeMemory, State,
+            WorkloadSpec, WorkloadStatesMap, generate_test_agent_map, generate_test_configs,
+            generate_test_stored_workload_spec,
             generate_test_workload_spec_with_control_interface_access,
-            generate_test_workload_spec_with_param, AgentMap, CompleteState, ConfigItem, CpuUsage,
-            DeletedWorkload, FreeMemory, State, WorkloadSpec, WorkloadStatesMap,
+            generate_test_workload_spec_with_param,
         },
         test_utils::{self, generate_test_complete_state},
     };
@@ -1109,10 +1107,12 @@ mod tests {
 
         let result = server_state.update(updated_state, update_mask);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("config item does not exist"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("config item does not exist")
+        );
 
         assert_eq!(old_state, server_state.state); // keep old state
     }

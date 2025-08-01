@@ -18,7 +18,7 @@ use std::collections::HashMap;
 
 use crate::helpers::serialize_to_ordered_map;
 use crate::objects::ConfigItem;
-use crate::objects::{StoredWorkloadSpec, STR_RE_CONFIG_REFERENCES};
+use crate::objects::{STR_RE_CONFIG_REFERENCES, StoredWorkloadSpec};
 
 use api::ank_base;
 
@@ -111,8 +111,7 @@ impl State {
         for config_key in provided_state.configs.keys() {
             if !re_config_items.is_match(config_key.as_str()) {
                 return Err(format!(
-                    "Unsupported config item key. Received '{}', expected to have characters in {}",
-                    config_key, STR_RE_CONFIG_REFERENCES
+                    "Unsupported config item key. Received '{config_key}', expected to have characters in {STR_RE_CONFIG_REFERENCES}"
                 ));
             }
         }
@@ -142,7 +141,7 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{
-        objects::{generate_test_configs, generate_test_stored_workload_spec, ConfigItem, State},
+        objects::{ConfigItem, State, generate_test_configs, generate_test_stored_workload_spec},
         test_utils::{generate_test_proto_state, generate_test_state},
     };
 

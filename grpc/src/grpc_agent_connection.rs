@@ -28,7 +28,7 @@ use x509_parser::extensions::GeneralName;
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::grpc_api::{self, agent_connection_server::AgentConnection, to_server::ToServerEnum};
-use crate::to_server_proxy::{forward_from_proto_to_ankaios, GRPCToServerStreaming};
+use crate::to_server_proxy::{GRPCToServerStreaming, forward_from_proto_to_ankaios};
 use common::to_server_interface::{self, ToServerInterface};
 
 #[derive(Debug)]
@@ -95,7 +95,7 @@ impl AgentConnection for GRPCAgentConnection {
                     "No subject alt names found in agent certificates!",
                 ));
             }
-            log::info!("Client SAN: {:?}", sans);
+            log::info!("Client SAN: {sans:?}");
         }
 
         let mut stream = request.into_inner();
@@ -120,7 +120,7 @@ impl AgentConnection for GRPCAgentConnection {
                 agent_name,
                 protocol_version,
             }) => {
-                log::trace!("Received a hello from '{}'", agent_name);
+                log::trace!("Received a hello from '{agent_name}'");
 
                 // [impl->swdd~grpc-agent-connection-checks-version-compatibility~1]
                 check_version_compatibility(&protocol_version).map_err(|err| {
@@ -151,30 +151,23 @@ impl AgentConnection for GRPCAgentConnection {
                         .await
                         {
                             log::warn!(
-                                "Connection to agent {} interrupted with error: {}",
-                                agent_name,
-                                error
+                                "Connection to agent {agent_name} interrupted with error: {error}"
                             );
 
                             agent_senders.remove(&agent_name);
                             log::trace!(
-                            "The connection is interrupted or has been closed. Deleting the agent sender '{}'",
-                            agent_name
-                        );
+                                "The connection is interrupted or has been closed. Deleting the agent sender '{agent_name}'"
+                            );
                             // inform also the server that the agent is gone
                             // [impl->swdd~grpc-agent-connection-sends-agent-gone~1]
                             if let Err(error) = ankaios_tx.agent_gone(agent_name).await {
-                                log::error!(
-                                    "Could not inform server about gone agent: '{}'",
-                                    error
-                                );
+                                log::error!("Could not inform server about gone agent: '{error}'");
                             }
                         }
                     });
                 } else {
                     return Err(Status::unauthenticated(format!(
-                        "Agent name '{agent_name}' does not match SAN {:?} in agent certificates!",
-                        sans
+                        "Agent name '{agent_name}' does not match SAN {sans:?} in agent certificates!"
                     )));
                 }
                 Ok(Response::new(Box::pin(ReceiverStream::new(

@@ -109,10 +109,7 @@ impl AccessRightsRule {
             let prefix = &workload_name[..wildcard_pos];
             let suffix = &workload_name[wildcard_pos + 1..];
             if suffix.contains(WILDCARD_SYMBOL) {
-                Err(format!(
-                    "Expected at most one '{}' symbol.",
-                    WILDCARD_SYMBOL
-                ))
+                Err(format!("Expected at most one '{WILDCARD_SYMBOL}' symbol."))
             } else {
                 verify_workload_name_pattern(prefix)
                     .and_then(|_| verify_workload_name_pattern(suffix))
@@ -124,12 +121,7 @@ impl AccessRightsRule {
                 .and_then(|_| verify_workload_name_length(length))
                 .and_then(|_| verify_workload_name_not_empty(length))
         }
-        .map_err(|err| {
-            format!(
-                "Unsupported workload name for log rule '{}'. {}",
-                workload_name, err
-            )
-        })
+        .map_err(|err| format!("Unsupported workload name for log rule '{workload_name}'. {err}"))
     }
 }
 
@@ -277,8 +269,8 @@ pub fn generate_test_control_interface_access() -> ControlInterfaceAccess {
 #[cfg(test)]
 mod tests {
     use crate::objects::{
-        control_interface_access::LogRule, generate_test_control_interface_access,
-        AccessRightsRule, ReadWriteEnum, StateRule,
+        AccessRightsRule, ReadWriteEnum, StateRule, control_interface_access::LogRule,
+        generate_test_control_interface_access,
     };
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
@@ -312,18 +304,26 @@ mod tests {
         const MAX_SUFFIX: &str = "123456789012345678901234567890123";
 
         assert!(log_rule_with_workload("workload_1").verify_format().is_ok());
-        assert!(log_rule_with_workload("*workload_1")
-            .verify_format()
-            .is_ok());
-        assert!(log_rule_with_workload("work*load_1")
-            .verify_format()
-            .is_ok());
-        assert!(log_rule_with_workload("workload_1*")
-            .verify_format()
-            .is_ok());
-        assert!(log_rule_with_workload(&format!("{MAX_PREFIX}{MAX_SUFFIX}"))
-            .verify_format()
-            .is_ok());
+        assert!(
+            log_rule_with_workload("*workload_1")
+                .verify_format()
+                .is_ok()
+        );
+        assert!(
+            log_rule_with_workload("work*load_1")
+                .verify_format()
+                .is_ok()
+        );
+        assert!(
+            log_rule_with_workload("workload_1*")
+                .verify_format()
+                .is_ok()
+        );
+        assert!(
+            log_rule_with_workload(&format!("{MAX_PREFIX}{MAX_SUFFIX}"))
+                .verify_format()
+                .is_ok()
+        );
         assert!(
             log_rule_with_workload(&format!("*{MAX_PREFIX}{MAX_SUFFIX}"))
                 .verify_format()
@@ -368,24 +368,36 @@ mod tests {
                 .verify_format()
                 .is_err()
         );
-        assert!(log_rule_with_workload("just.wrong")
-            .verify_format()
-            .is_err());
-        assert!(log_rule_with_workload("also@wrong")
-            .verify_format()
-            .is_err());
-        assert!(log_rule_with_workload("*also@wrong")
-            .verify_format()
-            .is_err());
-        assert!(log_rule_with_workload("al*so@wrong")
-            .verify_format()
-            .is_err());
-        assert!(log_rule_with_workload("also@wr*ong")
-            .verify_format()
-            .is_err());
-        assert!(log_rule_with_workload("also@wrong*")
-            .verify_format()
-            .is_err());
+        assert!(
+            log_rule_with_workload("just.wrong")
+                .verify_format()
+                .is_err()
+        );
+        assert!(
+            log_rule_with_workload("also@wrong")
+                .verify_format()
+                .is_err()
+        );
+        assert!(
+            log_rule_with_workload("*also@wrong")
+                .verify_format()
+                .is_err()
+        );
+        assert!(
+            log_rule_with_workload("al*so@wrong")
+                .verify_format()
+                .is_err()
+        );
+        assert!(
+            log_rule_with_workload("also@wr*ong")
+                .verify_format()
+                .is_err()
+        );
+        assert!(
+            log_rule_with_workload("also@wrong*")
+                .verify_format()
+                .is_err()
+        );
     }
 
     fn log_rule_with_workload(workload_name: &str) -> AccessRightsRule {

@@ -79,7 +79,7 @@ pub(crate) fn output_and_error_fn(args: fmt::Arguments<'_>) -> ! {
 }
 
 pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) -> ! {
-    std::println!("{}", args);
+    std::println!("{args}");
     exit(0);
 }
 
@@ -97,7 +97,7 @@ pub(crate) fn output_warn_fn(args: fmt::Arguments<'_>) {
 
 pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
     if !is_quiet() {
-        std::println!("{}", args);
+        std::println!("{args}");
         *ROWS_PREV_MSG.lock().unwrap() = 0;
     }
 }
@@ -125,7 +125,7 @@ pub(crate) fn output_update_fn(args: fmt::Arguments<'_>) {
         let args = args.to_string();
 
         if !interactive() {
-            println!("{}\n", args);
+            println!("{args}\n");
             return;
         }
 

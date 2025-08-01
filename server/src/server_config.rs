@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::Arguments;
-use common::std_extensions::{UnreachableOption, UnreachableResult};
 use common::DEFAULT_SOCKET_ADDRESS;
+use common::std_extensions::{UnreachableOption, UnreachableResult};
 use grpc::security::read_pem_file;
 
 use serde::{Deserialize, Deserializer};
@@ -40,20 +40,16 @@ impl fmt::Display for ConversionErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ConversionErrors::WrongVersion(msg) => {
-                write!(f, "Wrong version: {}", msg)
+                write!(f, "Wrong version: {msg}")
             }
             ConversionErrors::ConflictingCertificates(msg) => {
-                write!(f, "Conflicting certificates: {}", msg)
+                write!(f, "Conflicting certificates: {msg}")
             }
             ConversionErrors::InvalidServerConfig(msg) => {
-                write!(
-                    f,
-                    "Server Config could not have been parsed due to: {}",
-                    msg
-                )
+                write!(f, "Server Config could not have been parsed due to: {msg}")
             }
             ConversionErrors::InvalidCertificate(msg) => {
-                write!(f, "Certificate could not have been read due to: {}", msg)
+                write!(f, "Certificate could not have been read due to: {msg}")
             }
         }
     }
@@ -196,8 +192,8 @@ mod tests {
 
     use crate::{cli::Arguments, server_config::ConversionErrors};
 
-    use super::ServerConfig;
     use super::DEFAULT_SERVER_CONFIG_FILE_PATH;
+    use super::ServerConfig;
 
     const STARTUP_MANIFEST_PATH: &str = "some_path_to_config/config.yaml";
     const TEST_SOCKET_ADDRESS: &str = "127.0.0.1:3333";
@@ -232,7 +228,7 @@ mod tests {
         #";
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", server_config_content).unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
 
         let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
@@ -248,14 +244,13 @@ mod tests {
         let server_config_content = format!(
             r"#
         version = 'v1'
-        ca_pem = '''{}'''
-        ca_pem_content = '''{}'''
-        #",
-            CA_PEM_PATH, CRT_PEM_CONTENT
+        ca_pem = '''{CA_PEM_PATH}'''
+        ca_pem_content = '''{CRT_PEM_CONTENT}'''
+        #"
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", server_config_content).unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
 
         let server_config = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
@@ -303,15 +298,14 @@ mod tests {
         let server_config_content = format!(
             r"#
         version = 'v1'
-        ca_pem_content = '''{}'''
-        crt_pem_content = '''{}'''
-        key_pem_content = '''{}'''
-        #",
-            CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
+        ca_pem_content = '''{CA_PEM_CONTENT}'''
+        crt_pem_content = '''{CRT_PEM_CONTENT}'''
+        key_pem_content = '''{KEY_PEM_CONTENT}'''
+        #"
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", server_config_content).unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
 
         let mut server_config =
             ServerConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
@@ -350,15 +344,14 @@ mod tests {
         startup_manifest = '/workspaces/ankaios/server/resources/startConfig.yaml'
         address = '127.0.0.1:25551'
         insecure = true
-        ca_pem_content = '''{}'''
-        crt_pem_content = '''{}'''
-        key_pem_content = '''{}'''
-        #",
-            CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
+        ca_pem_content = '''{CA_PEM_CONTENT}'''
+        crt_pem_content = '''{CRT_PEM_CONTENT}'''
+        key_pem_content = '''{KEY_PEM_CONTENT}'''
+        #"
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", server_config_content).unwrap();
+        write!(tmp_config_file, "{server_config_content}").unwrap();
 
         let server_config_res = ServerConfig::from_file(PathBuf::from(tmp_config_file.path()));
 

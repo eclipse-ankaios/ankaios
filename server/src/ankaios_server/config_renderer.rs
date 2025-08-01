@@ -35,13 +35,12 @@ impl fmt::Display for ConfigRenderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ConfigRenderError::Field(field, reason) => {
-                write!(f, "Failed to render field '{}': '{}'", field, reason)
+                write!(f, "Failed to render field '{field}': '{reason}'")
             }
             ConfigRenderError::NotExistingConfigKey(config_key) => {
                 write!(
                     f,
-                    "Workload references config key '{}' that does not exist",
-                    config_key
+                    "Workload references config key '{config_key}' that does not exist"
                 )
             }
         }
@@ -55,7 +54,7 @@ impl ConfigRenderError {
     pub fn for_files(mount_point: &str) -> impl Fn(RenderError) -> Self + '_ {
         move |err| {
             ConfigRenderError::Field(
-                format!("files with mount point {}", mount_point),
+                format!("files with mount point {mount_point}"),
                 err.to_string(),
             )
         }
@@ -92,24 +91,19 @@ impl ConfigRenderer {
         for (workload_name, stored_workload) in workloads {
             let workload_spec = if stored_workload.configs.is_empty() {
                 log::debug!(
-                    "Skipping to render workload '{}' as no config is assigned to the workload",
-                    workload_name
+                    "Skipping to render workload '{workload_name}' as no config is assigned to the workload"
                 );
                 WorkloadSpec::from((workload_name.to_owned(), stored_workload.clone()))
             } else {
                 let wl_config_map =
                     self.create_config_map_for_workload(stored_workload, configs)?;
-                log::debug!(
-                    "Rendering workload '{}' with config '{:?}'",
-                    workload_name,
-                    wl_config_map
-                );
+                log::debug!("Rendering workload '{workload_name}' with config '{wl_config_map:?}'");
                 self.render_workload_fields(workload_name, stored_workload, &wl_config_map)?
             };
 
             rendered_workloads.insert(workload_name.clone(), workload_spec);
         }
-        log::trace!("Rendered CompleteState: {:?}", rendered_workloads);
+        log::trace!("Rendered CompleteState: {rendered_workloads:?}");
         Ok(rendered_workloads)
     }
 
@@ -223,12 +217,11 @@ mod tests {
     use std::collections::HashMap;
 
     use common::objects::{
-        generate_test_configs, generate_test_rendered_workload_files,
-        generate_test_stored_workload_spec_with_config,
+        Base64Data, ConfigItem, Data, File, FileContent, generate_test_configs,
+        generate_test_rendered_workload_files, generate_test_stored_workload_spec_with_config,
         generate_test_stored_workload_spec_with_files,
         generate_test_workload_spec_with_rendered_files,
-        generate_test_workload_spec_with_runtime_config, Base64Data, ConfigItem, Data, File,
-        FileContent,
+        generate_test_workload_spec_with_runtime_config,
     };
 
     const WORKLOAD_NAME_1: &str = "workload_1";

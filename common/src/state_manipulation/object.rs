@@ -18,9 +18,9 @@ use super::Path;
 use crate::objects as ankaios;
 use api::ank_base as proto;
 use serde_yaml::{
-    from_value,
+    Mapping, Value, from_value,
     mapping::{Entry::Occupied, Entry::Vacant},
-    to_value, Mapping, Value,
+    to_value,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -150,12 +150,12 @@ fn generate_paths_from_yaml_node(
                             .unwrap()
                             .to_owned()
                     }
-                    _ => panic!("Unsupported mapping key '{:?}'", key),
+                    _ => panic!("Unsupported mapping key '{key:?}'"),
                 };
                 let new_path = if start_path.is_empty() {
                     key_str
                 } else {
-                    format!("{}.{}", start_path, key_str)
+                    format!("{start_path}.{key_str}")
                 };
 
                 if includes_mappings_and_sequences {
@@ -171,7 +171,7 @@ fn generate_paths_from_yaml_node(
         }
         Value::Sequence(sequence) => {
             for (index, value) in sequence.iter().enumerate() {
-                let new_path = format!("{}.{}", start_path, index);
+                let new_path = format!("{start_path}.{index}");
                 if includes_mappings_and_sequences {
                     paths.insert(new_path.clone());
                 }
@@ -233,7 +233,7 @@ impl Object {
         let (path_head, path_last) = path.split_last()?;
 
         self.get_as_mapping(&path_head)
-            .ok_or_else(|| format!("{:?} is not mapping", path_head))?
+            .ok_or_else(|| format!("{path_head:?} is not mapping"))?
             .remove(Value::String(path_last));
         Ok(())
     }
@@ -295,9 +295,9 @@ impl Object {
 mod tests {
     use crate::{
         objects::{
-            generate_test_agent_map_from_specs, generate_test_rendered_workload_files,
-            generate_test_workload_spec_with_rendered_files,
-            generate_test_workload_states_map_with_data, CompleteState, ExecutionState, State,
+            CompleteState, ExecutionState, State, generate_test_agent_map_from_specs,
+            generate_test_rendered_workload_files, generate_test_workload_spec_with_rendered_files,
+            generate_test_workload_states_map_with_data,
         },
         test_utils::generate_test_state_from_workloads,
     };

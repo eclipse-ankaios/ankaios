@@ -258,10 +258,7 @@ impl AgentManager {
                 old_execution_state.transition(new_workload_state.execution_state);
         }
 
-        log::debug!(
-            "Storing and forwarding local workload state '{:?}'.",
-            new_workload_state
-        );
+        log::debug!("Storing and forwarding local workload state '{new_workload_state:?}'.");
 
         // [impl->swdd~agent-stores-workload-states-of-its-workloads~1]
         self.workload_state_store

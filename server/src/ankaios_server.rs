@@ -126,9 +126,7 @@ impl AnkaiosServer {
 
                     if !workload_states.is_empty() {
                         log::debug!(
-                            "Sending initial UpdateWorkloadState to agent '{}' with workload states: '{:?}'",
-                            agent_name,
-                            workload_states,
+                            "Sending initial UpdateWorkloadState to agent '{agent_name}' with workload states: '{workload_states:?}'",
                         );
 
                         self.to_agents
@@ -144,9 +142,7 @@ impl AnkaiosServer {
                     let added_workloads = self.server_state.get_workloads_for_agent(&agent_name);
 
                     log::debug!(
-                        "Sending initial ServerHello to agent '{}' with added workloads: '{:?}'",
-                        agent_name,
-                        added_workloads,
+                        "Sending initial ServerHello to agent '{agent_name}' with added workloads: '{added_workloads:?}'",
                     );
 
                     // [impl->swdd~server-sends-all-workloads-on-start~2]
@@ -231,7 +227,7 @@ impl AnkaiosServer {
                                 .await
                                 .unwrap_or_illegal_state(),
                             Err(error) => {
-                                log::error!("Failed to get complete state: '{}'", error);
+                                log::error!("Failed to get complete state: '{error}'");
                                 self.to_agents
                                     .complete_state(
                                         request_id,
@@ -260,7 +256,9 @@ impl AnkaiosServer {
                         if let Err(error_message) = State::verify_api_version(updated_desired_state)
                             .and_then(|_| State::verify_configs_format(updated_desired_state))
                         {
-                            log::warn!("The CompleteState in the request has wrong format. {} -> ignoring the request", error_message);
+                            log::warn!(
+                                "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
+                            );
 
                             self.to_agents
                                 .error(request_id, error_message)
@@ -277,10 +275,10 @@ impl AnkaiosServer {
                         {
                             Ok(Some((added_workloads, deleted_workloads))) => {
                                 log::info!(
-                                        "The update has {} new or updated workloads, {} workloads to delete",
-                                        added_workloads.len(),
-                                        deleted_workloads.len()
-                                    );
+                                    "The update has {} new or updated workloads, {} workloads to delete",
+                                    added_workloads.len(),
+                                    deleted_workloads.len()
+                                );
 
                                 // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
                                 self.workload_states_map.initial_state(&added_workloads);
@@ -312,7 +310,7 @@ impl AnkaiosServer {
                                     .send(from_server_command)
                                     .await
                                     .unwrap_or_illegal_state();
-                                log::debug!("Send UpdateStateSuccess for request '{}'", request_id);
+                                log::debug!("Send UpdateStateSuccess for request '{request_id}'");
                                 // [impl->swdd~server-update-state-success-response~1]
                                 self.to_agents
                                     .update_state_success(
@@ -325,8 +323,8 @@ impl AnkaiosServer {
                             }
                             Ok(None) => {
                                 log::debug!(
-                                "The current state and new state are identical -> nothing to do"
-                            );
+                                    "The current state and new state are identical -> nothing to do"
+                                );
                                 self.to_agents
                                     .update_state_success(request_id, vec![], vec![])
                                     .await
@@ -375,7 +373,7 @@ impl AnkaiosServer {
                     }
                     // [impl->swdd~server-handles-logs-cancel-request-message~1]
                     common::commands::RequestContent::LogsCancelRequest => {
-                        log::debug!("Got log cancel request with ID: {}", request_id);
+                        log::debug!("Got log cancel request with ID: {request_id}");
 
                         self.log_campaign_store.remove_logs_request_id(&request_id);
 
@@ -418,7 +416,7 @@ impl AnkaiosServer {
                 }
                 // [impl->swdd~server-forwards-logs-stop-response-messages~1]
                 ToServer::LogsStopResponse(request_id, logs_stop_response) => {
-                    log::debug!("Received LogsStopResponse with ID: {}", request_id);
+                    log::debug!("Received LogsStopResponse with ID: {request_id}");
                     self.to_agents
                         .logs_stop_response(request_id, logs_stop_response)
                         .await
@@ -469,8 +467,7 @@ impl AnkaiosServer {
         });
         if !deleted_states.is_empty() {
             log::debug!(
-                "Send UpdateWorkloadState for not started deleted workloads: '{:?}'",
-                deleted_states
+                "Send UpdateWorkloadState for not started deleted workloads: '{deleted_states:?}'"
             );
             self.to_agents
                 .update_workload_state(deleted_states)
@@ -500,9 +497,7 @@ impl AnkaiosServer {
     ) {
         for request_id in request_ids_to_cancel {
             log::debug!(
-                "Sending logs cancel request for disconnected connection '{}' with request id: {}",
-                connection_name,
-                request_id
+                "Sending logs cancel request for disconnected connection '{connection_name}' with request id: {request_id}"
             );
             self.to_agents
                 .logs_cancel_request(request_id)
@@ -580,10 +575,10 @@ mod tests {
     };
     use common::from_server_interface::FromServer;
     use common::objects::{
+        CompleteState, CpuUsage, DeletedWorkload, ExecutionState, ExecutionStateEnum, FreeMemory,
+        PendingSubstate, State, WorkloadInstanceName, WorkloadState,
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
-        generate_test_workload_states_map_with_data, CompleteState, CpuUsage, DeletedWorkload,
-        ExecutionState, ExecutionStateEnum, FreeMemory, PendingSubstate, State,
-        WorkloadInstanceName, WorkloadState,
+        generate_test_workload_states_map_with_data,
     };
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -742,14 +737,16 @@ mod tests {
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send the new invalid state update
-        assert!(to_server
-            .update_state(
-                REQUEST_ID_A.to_string(),
-                new_state.clone(),
-                update_mask.clone()
-            )
-            .await
-            .is_ok());
+        assert!(
+            to_server
+                .update_state(
+                    REQUEST_ID_A.to_string(),
+                    new_state.clone(),
+                    update_mask.clone()
+                )
+                .await
+                .is_ok()
+        );
 
         assert!(matches!(
             comm_middle_ware_receiver.recv().await.unwrap(),
@@ -760,10 +757,12 @@ mod tests {
         ));
 
         // send the update with the new clean state again
-        assert!(to_server
-            .update_state(REQUEST_ID_A.to_string(), fixed_state.clone(), update_mask)
-            .await
-            .is_ok());
+        assert!(
+            to_server
+                .update_state(REQUEST_ID_A.to_string(), fixed_state.clone(), update_mask)
+                .await
+                .is_ok()
+        );
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
@@ -1122,8 +1121,8 @@ mod tests {
     // [utest->swdd~server-provides-update-desired-state-interface~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
-    async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_to_do(
-    ) {
+    async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_to_do()
+     {
         let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
@@ -1173,12 +1172,14 @@ mod tests {
             }) if request_id == REQUEST_ID_A && added_workloads.is_empty() && deleted_workloads.is_empty()
         ));
 
-        assert!(tokio::time::timeout(
-            tokio::time::Duration::from_millis(200),
-            comm_middle_ware_receiver.recv()
-        )
-        .await
-        .is_err());
+        assert!(
+            tokio::time::timeout(
+                tokio::time::Duration::from_millis(200),
+                comm_middle_ware_receiver.recv()
+            )
+            .await
+            .is_err()
+        );
 
         server_task.abort();
         assert!(comm_middle_ware_receiver.try_recv().is_err());
@@ -1235,12 +1236,14 @@ mod tests {
             }) if request_id == REQUEST_ID_A
         ));
 
-        assert!(tokio::time::timeout(
-            tokio::time::Duration::from_millis(200),
-            comm_middle_ware_receiver.recv()
-        )
-        .await
-        .is_err());
+        assert!(
+            tokio::time::timeout(
+                tokio::time::Duration::from_millis(200),
+                comm_middle_ware_receiver.recv()
+            )
+            .await
+            .is_err()
+        );
 
         server_task.abort();
         assert!(comm_middle_ware_receiver.try_recv().is_err());
@@ -1678,8 +1681,7 @@ mod tests {
         for request in actual_logs_cancel_requests {
             assert!(
                 expected_logs_cancel_requests.contains(&request),
-                "Actual request: '{:?}' not found in expected requests.",
-                request
+                "Actual request: '{request:?}' not found in expected requests."
             );
         }
 
@@ -1756,8 +1758,7 @@ mod tests {
         for request in actual_logs_stop_response {
             assert!(
                 expected_logs_stop_responses.contains(&request),
-                "Actual request: '{:?}' not found in expected requests.",
-                request
+                "Actual request: '{request:?}' not found in expected requests."
             );
         }
 
@@ -1964,22 +1965,24 @@ mod tests {
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        assert!(to_server
-            .log_entries_response(
-                REQUEST_ID.into(),
-                ank_base::LogEntriesResponse {
-                    log_entries: vec![ank_base::LogEntry {
-                        workload_name: Some(ank_base::WorkloadInstanceName {
-                            workload_name: WORKLOAD_NAME_1.into(),
-                            agent_name: AGENT_A.into(),
-                            id: INSTANCE_ID.into()
-                        }),
-                        message: MESSAGE.into()
-                    }]
-                }
-            )
-            .await
-            .is_ok());
+        assert!(
+            to_server
+                .log_entries_response(
+                    REQUEST_ID.into(),
+                    ank_base::LogEntriesResponse {
+                        log_entries: vec![ank_base::LogEntry {
+                            workload_name: Some(ank_base::WorkloadInstanceName {
+                                workload_name: WORKLOAD_NAME_1.into(),
+                                agent_name: AGENT_A.into(),
+                                id: INSTANCE_ID.into()
+                            }),
+                            message: MESSAGE.into()
+                        }]
+                    }
+                )
+                .await
+                .is_ok()
+        );
 
         assert_eq!(
             comm_middle_ware_receiver.recv().await.unwrap(),

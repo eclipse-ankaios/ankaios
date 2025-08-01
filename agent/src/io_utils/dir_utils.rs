@@ -16,7 +16,7 @@ use std::path::Path;
 
 use crate::io_utils::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
-use crate::io_utils::{filesystem, Directory};
+use crate::io_utils::{Directory, filesystem};
 
 use super::DEFAULT_RUN_FOLDER;
 const RUNFOLDER_SUFFIX: &str = "_io";
@@ -27,7 +27,7 @@ pub fn prepare_agent_run_directory(
     agent_name: &str,
 ) -> Result<Directory, FileSystemError> {
     let base_path = Path::new(run_folder);
-    let agent_run_folder = base_path.join(format!("{}{}", agent_name, RUNFOLDER_SUFFIX));
+    let agent_run_folder = base_path.join(format!("{agent_name}{RUNFOLDER_SUFFIX}"));
 
     // If the default base dir is used, we need to take care of its creation
     if !filesystem::exists(base_path) {
@@ -43,7 +43,6 @@ pub fn prepare_agent_run_directory(
     Directory::new(agent_run_folder)
 }
 
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -54,7 +53,7 @@ pub fn prepare_agent_run_directory(
 
 #[cfg(test)]
 mod tests {
-    use super::{FileSystemError, Path, DEFAULT_RUN_FOLDER};
+    use super::{DEFAULT_RUN_FOLDER, FileSystemError, Path};
     use crate::io_utils::generate_test_directory_mock;
     use crate::io_utils::mock_filesystem;
     use crate::io_utils::prepare_agent_run_directory;

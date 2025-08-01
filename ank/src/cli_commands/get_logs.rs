@@ -32,7 +32,7 @@ impl CliCommands {
         self.server_connection
             .stream_logs(workload_instance_names, args)
             .await
-            .map_err(|e| CliError::ExecutionError(format!("Failed to get logs: '{:?}'", e)))
+            .map_err(|e| CliError::ExecutionError(format!("Failed to get logs: '{e:?}'")))
     }
 
     // [impl->swdd~cli-uses-workload-states-to-sample-workload-to-instance-names~1]
@@ -68,8 +68,7 @@ impl CliCommands {
                     }
                 } else {
                     return Err(CliError::ExecutionError(format!(
-                        "Workload name '{}' does not exist.",
-                        wl_name
+                        "Workload name '{wl_name}' does not exist."
                     )));
                 }
             }
@@ -98,8 +97,8 @@ mod tests {
 
     use crate::cli::LogsArgs;
     use crate::cli_commands::{
-        server_connection::{MockServerConnection, ServerConnectionError},
         CliCommands,
+        server_connection::{MockServerConnection, ServerConnectionError},
     };
     use crate::cli_error::CliError;
     use api::ank_base;
@@ -176,7 +175,7 @@ mod tests {
         };
         let result = cmd.get_logs_blocking(args).await;
 
-        assert!(result.is_ok(), "Got result {:?}", result);
+        assert!(result.is_ok(), "Got result {result:?}");
     }
 
     // [utest->swdd~cli-provides-workload-logs~1]
@@ -304,8 +303,7 @@ mod tests {
         assert_eq!(
             result,
             Err(CliError::ExecutionError(format!(
-                "Workload name '{}' does not exist.",
-                NOT_EXISTING_WORKLOAD_NAME
+                "Workload name '{NOT_EXISTING_WORKLOAD_NAME}' does not exist."
             )))
         );
     }
@@ -376,7 +374,7 @@ mod tests {
         let workload_names = vec![WORKLOAD_NAME_1.to_string()];
         let result = cmd.workload_names_to_instance_names(workload_names).await;
 
-        assert!(result.is_ok(), "Got result {:?}", result);
+        assert!(result.is_ok(), "Got result {result:?}");
         let instance_names = result.unwrap();
         let expected_instance_names: BTreeSet<WorkloadInstanceName> =
             BTreeSet::from([instance_name_wl_1_agent_a, instance_name_wl_1_agent_b]);

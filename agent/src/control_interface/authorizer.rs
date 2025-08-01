@@ -105,7 +105,7 @@ impl Authorizer {
                             .iter()
                             .any(|deny_rule| deny_rule.matches(instance_name.workload_name()))
                     })
-                    .map(|instance_name| format!("denied by rule for workload '{}'", instance_name))
+                    .map(|instance_name| format!("denied by rule for workload '{instance_name}'"))
                 {
                     log::info!(
                         "Deny log request '{}' it is allowed, but also denied by '{}'",
@@ -144,9 +144,7 @@ impl Authorizer {
                 reason
             } else {
                 log::info!(
-                    "Denying mask '{}' of request '{}' as no rule matches",
-                    path_string,
-                    request_id
+                    "Denying mask '{path_string}' of request '{request_id}' as no rule matches",
                 );
                 return false;
             };
@@ -156,20 +154,13 @@ impl Authorizer {
                 reason
             } else {
                 log::debug!(
-                    "Allow mask '{}' of request '{}' as '{}' is allowed",
-                    path_string,
-                    request_id,
-                    allow_reason
+                    "Allow mask '{path_string}' of request '{request_id}' as '{allow_reason}' is allowed",
                 );
                 return true;
             };
 
             log::info!(
-                "Deny mask '{}' of request '{}', also allowed by '{}', as denied by '{}'",
-                path_string,
-                request_id,
-                allow_reason,
-                deny_reason
+                "Deny mask '{path_string}' of request '{request_id}', also allowed by '{allow_reason}', as denied by '{deny_reason}'",
             );
             false
         })
@@ -256,8 +247,8 @@ mod test {
     use std::sync::Arc;
 
     use super::{
-        path_pattern::{AllowPathPattern, DenyPathPattern},
         Authorizer, LogRule, StateRule,
+        path_pattern::{AllowPathPattern, DenyPathPattern},
     };
 
     const MATCHING_PATH: &str = "matching.path";
@@ -674,18 +665,18 @@ mod test {
             authorizer.state_allow_read,
             vec![
                 Arc::new(StateRule::create(vec!["state.allow.read.mask".into()])),
-                Arc::new(StateRule::create(
-                    vec!["state.allow.read.write.mask".into()]
-                ))
+                Arc::new(StateRule::create(vec![
+                    "state.allow.read.write.mask".into()
+                ]))
             ]
         );
         assert_eq!(
             authorizer.state_allow_write,
             vec![
                 Arc::new(StateRule::create(vec!["state.allow.write.mask".into()])),
-                Arc::new(StateRule::create(
-                    vec!["state.allow.read.write.mask".into()]
-                ))
+                Arc::new(StateRule::create(vec![
+                    "state.allow.read.write.mask".into()
+                ]))
             ]
         );
         assert_eq!(

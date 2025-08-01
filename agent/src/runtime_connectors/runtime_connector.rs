@@ -48,19 +48,19 @@ impl Display for RuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RuntimeError::Create(msg) => {
-                write!(f, "{}", msg)
+                write!(f, "{msg}")
             }
             RuntimeError::Delete(msg) => {
-                write!(f, "{}", msg)
+                write!(f, "{msg}")
             }
             RuntimeError::List(msg) => {
-                write!(f, "{}", msg)
+                write!(f, "{msg}")
             }
             RuntimeError::CollectLog(msg) => {
-                write!(f, "{}", msg)
+                write!(f, "{msg}")
             }
             RuntimeError::Unsupported(msg) => {
-                write!(f, "{}", msg)
+                write!(f, "{msg}")
             }
         }
     }
@@ -187,7 +187,7 @@ pub mod test {
 
     use crate::{
         runtime_connectors::{
-            log_fetcher::LogFetcher, ReusableWorkloadState, RuntimeStateGetter, StateChecker,
+            ReusableWorkloadState, RuntimeStateGetter, StateChecker, log_fetcher::LogFetcher,
         },
         workload_state::WorkloadStateSender,
     };
@@ -334,8 +334,7 @@ pub mod test {
 
             assert!(
                 call_checker.expected_calls.is_empty(),
-                "Not all expected calls were done: {:?}",
-                call_checker
+                "Not all expected calls were done: {call_checker:?}"
             );
             assert!(
                 0 == call_checker.unexpected_call_count,
@@ -378,7 +377,9 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call();
-                    panic!("Unexpected get_reusable_running_workloads call. Expected: '{expected_call:?}'\n\nGot: {agent_name:?}");
+                    panic!(
+                        "Unexpected get_reusable_running_workloads call. Expected: '{expected_call:?}'\n\nGot: {agent_name:?}"
+                    );
                 }
             }
         }
@@ -406,7 +407,9 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call();
-                    panic!("Unexpected create_workload call. Expected: '{expected_call:?}'\n\nGot: {runtime_workload_config:?}, {control_interface_path:?}");
+                    panic!(
+                        "Unexpected create_workload call. Expected: '{expected_call:?}'\n\nGot: {runtime_workload_config:?}, {control_interface_path:?}"
+                    );
                 }
             }
         }
@@ -423,7 +426,9 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call();
-                    panic!("Unexpected get_workload_id call. Expected: '{expected_call:?}' \n\nGot: {instance_name:?}");
+                    panic!(
+                        "Unexpected get_workload_id call. Expected: '{expected_call:?}' \n\nGot: {instance_name:?}"
+                    );
                 }
             }
         }
@@ -448,7 +453,9 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call();
-                    panic!("Unexpected start_checker call. Expected: '{expected_call:?}' \n\nGot: {workload_id:?}, {runtime_workload_config:?}, {update_state_tx:?}");
+                    panic!(
+                        "Unexpected start_checker call. Expected: '{expected_call:?}' \n\nGot: {workload_id:?}, {runtime_workload_config:?}, {update_state_tx:?}"
+                    );
                 }
             }
         }
@@ -466,7 +473,9 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call();
-                    panic!("Unexpected get_logs call. Expected: '{expected_call:?}'\n\nGot: {workload_id:?}, {options:?}");
+                    panic!(
+                        "Unexpected get_logs call. Expected: '{expected_call:?}'\n\nGot: {workload_id:?}, {options:?}"
+                    );
                 }
             }
         }
@@ -480,7 +489,9 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call();
-                    panic!("Unexpected delete_workload call. Expected: '{expected_call:?}'\n\nGot: {workload_id:?}");
+                    panic!(
+                        "Unexpected delete_workload call. Expected: '{expected_call:?}'\n\nGot: {workload_id:?}"
+                    );
                 }
             }
         }

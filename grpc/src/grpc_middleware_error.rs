@@ -85,11 +85,11 @@ impl std::error::Error for GrpcMiddlewareError {}
 impl fmt::Display for GrpcMiddlewareError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
-            GrpcMiddlewareError::StartError(message) => write!(f, "StartError: '{}'", message),
-            GrpcMiddlewareError::ReceiveError(message) => write!(f, "ReceiveError: '{}'", message),
-            GrpcMiddlewareError::SendError(message) => write!(f, "SendError: '{}'", message),
+            GrpcMiddlewareError::StartError(message) => write!(f, "StartError: '{message}'"),
+            GrpcMiddlewareError::ReceiveError(message) => write!(f, "ReceiveError: '{message}'"),
+            GrpcMiddlewareError::SendError(message) => write!(f, "SendError: '{message}'"),
             GrpcMiddlewareError::ConversionError(message) => {
-                write!(f, "ConversionError: '{}'", message)
+                write!(f, "ConversionError: '{message}'")
             }
             GrpcMiddlewareError::ServerNotAvailable(message) => {
                 write!(f, "Could not connect to the server: '{message}'")

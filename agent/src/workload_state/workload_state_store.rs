@@ -78,8 +78,7 @@ impl MockWorkloadStateStore {
             .expect("No further call for update_workload_state expected");
         assert_eq!(
             expected_workload_state, workload_state,
-            "Expected workload state {:?}, got {:?}",
-            expected_workload_state, workload_state
+            "Expected workload state {expected_workload_state:?}, got {workload_state:?}"
         );
     }
 
@@ -245,8 +244,10 @@ mod tests {
             .states_storage
             .insert("workload_1".to_owned(), ExecutionState::running());
 
-        assert!(parameter_storage
-            .get_state_of_workload("unknown workload")
-            .is_none());
+        assert!(
+            parameter_storage
+                .get_state_of_workload("unknown workload")
+                .is_none()
+        );
     }
 }

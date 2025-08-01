@@ -14,8 +14,8 @@
 
 use crate::cli::Arguments;
 use crate::io_utils::DEFAULT_RUN_FOLDER;
-use common::std_extensions::UnreachableOption;
 use common::DEFAULT_SERVER_ADDRESS;
+use common::std_extensions::UnreachableOption;
 use grpc::security::read_pem_file;
 
 use serde::Deserialize;
@@ -40,16 +40,16 @@ impl fmt::Display for ConversionErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ConversionErrors::WrongVersion(msg) => {
-                write!(f, "Wrong version: {}", msg)
+                write!(f, "Wrong version: {msg}")
             }
             ConversionErrors::ConflictingCertificates(msg) => {
-                write!(f, "Conflicting certificates: {}", msg)
+                write!(f, "Conflicting certificates: {msg}")
             }
             ConversionErrors::InvalidAgentConfig(msg) => {
-                write!(f, "Agent Config could not have been parsed due to: {}", msg)
+                write!(f, "Agent Config could not have been parsed due to: {msg}")
             }
             ConversionErrors::InvalidCertificate(msg) => {
-                write!(f, "Certificate could not have been read due to: {}", msg)
+                write!(f, "Certificate could not have been read due to: {msg}")
             }
         }
     }
@@ -229,7 +229,7 @@ mod tests {
         #";
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", agent_config_content).unwrap();
+        write!(tmp_config_file, "{agent_config_content}").unwrap();
 
         let agent_config = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
@@ -245,14 +245,13 @@ mod tests {
         let agent_config_content = format!(
             r"#
         version = 'v1'
-        ca_pem = '''{}'''
-        ca_pem_content = '''{}'''
-        #",
-            CA_PEM_PATH, CRT_PEM_CONTENT
+        ca_pem = '''{CA_PEM_PATH}'''
+        ca_pem_content = '''{CRT_PEM_CONTENT}'''
+        #"
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", agent_config_content).unwrap();
+        write!(tmp_config_file, "{agent_config_content}").unwrap();
 
         let agent_config = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
@@ -296,15 +295,14 @@ mod tests {
         let agent_config_content = format!(
             r"#
         version = 'v1'
-        ca_pem_content = '''{}'''
-        crt_pem_content = '''{}'''
-        key_pem_content = '''{}'''
-        #",
-            CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
+        ca_pem_content = '''{CA_PEM_CONTENT}'''
+        crt_pem_content = '''{CRT_PEM_CONTENT}'''
+        key_pem_content = '''{KEY_PEM_CONTENT}'''
+        #"
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", agent_config_content).unwrap();
+        write!(tmp_config_file, "{agent_config_content}").unwrap();
 
         let mut agent_config =
             AgentConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
@@ -345,15 +343,14 @@ mod tests {
         server_url = 'https://127.0.0.1:25551'
         run_folder = '/tmp/ankaios/'
         insecure = true
-        ca_pem_content = '''{}'''
-        crt_pem_content = '''{}'''
-        key_pem_content = '''{}'''
-        #",
-            CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
+        ca_pem_content = '''{CA_PEM_CONTENT}'''
+        crt_pem_content = '''{CRT_PEM_CONTENT}'''
+        key_pem_content = '''{KEY_PEM_CONTENT}'''
+        #"
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", agent_config_content).unwrap();
+        write!(tmp_config_file, "{agent_config_content}").unwrap();
 
         let agent_config_res = AgentConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
