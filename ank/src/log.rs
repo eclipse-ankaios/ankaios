@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
-    env, fmt,
+    fmt,
     io::{self, IsTerminal},
     process::exit,
     sync::Mutex,
@@ -25,8 +25,10 @@ use crossterm::{
     terminal::{self, ClearType},
 };
 
-pub const VERBOSITY_KEY: &str = "VERBOSE";
-pub const QUIET_KEY: &str = "SILENT";
+use std::sync::OnceLock;
+
+pub static IS_VERBOSE: OnceLock<bool> = OnceLock::new();
+pub static IS_QUIET: OnceLock<bool> = OnceLock::new();
 
 static ROWS_PREV_MSG: Mutex<u16> = Mutex::new(0);
 
@@ -175,10 +177,9 @@ pub(crate) fn output_update_fn(args: fmt::Arguments<'_>) {
 }
 
 fn is_verbose() -> bool {
-    matches!(env::var(VERBOSITY_KEY), Ok(verbose) if verbose.to_lowercase() == "true")
-        && !is_quiet()
+    *IS_VERBOSE.get().unwrap_or(&false) && !is_quiet()
 }
 
 fn is_quiet() -> bool {
-    matches!(env::var(QUIET_KEY), Ok(quiet) if quiet.to_lowercase() == "true")
+    *IS_QUIET.get().unwrap_or(&false)
 }
