@@ -17,7 +17,7 @@ use common::commands::LogsRequest;
 use common::objects::WorkloadInstanceName;
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerInterface, ToServerSender};
-use futures_util::{stream::FuturesUnordered, StreamExt};
+use futures_util::{StreamExt, stream::FuturesUnordered};
 use std::{future::Future, pin::Pin};
 
 use crate::agent_manager::SynchronizedSubscriptionStore;
@@ -89,7 +89,9 @@ impl WorkloadLogFacade {
                 .lock()
                 .unwrap()
                 .delete_subscription(&cloned_request_id);
-            log::debug!("Log collection for request '{}' finished. Subscription has been deleted successfully. ", cloned_request_id);
+            log::debug!(
+                "Log collection for request '{cloned_request_id}' finished. Subscription has been deleted successfully. "
+            );
         });
 
         synchronized_subscription_store
@@ -125,7 +127,7 @@ impl WorkloadLogFacade {
     ) {
         while let Some((workload_instance_name, mut receiver, log_lines)) = log_futures.next().await
         {
-            log::debug!("Got new log lines: {:?}", log_lines);
+            log::debug!("Got new log lines: {log_lines:?}");
             if let Some(log_lines) = log_lines {
                 to_server
                     .log_entries_response(
@@ -151,8 +153,7 @@ impl WorkloadLogFacade {
             } else {
                 // [impl->swdd~agent-workload-log-facade-sends-logs-stop-response~1]
                 log::debug!(
-                    "No more log lines available for workload '{}', sending logs stop response.",
-                    workload_instance_name
+                    "No more log lines available for workload '{workload_instance_name}', sending logs stop response."
                 );
                 to_server
                     .logs_stop_response(
@@ -395,8 +396,8 @@ mod tests {
     // [utest->swdd~agent-workload-log-facade-automatically-unsubscribes-log-subscriptions~1]
     // [utest->swdd~agent-workload-log-facade-sends-logs-stop-response~1]
     #[tokio::test]
-    async fn utest_workload_log_facade_unsubscribe_subscription_and_send_logs_stop_response_on_no_more_logs(
-    ) {
+    async fn utest_workload_log_facade_unsubscribe_subscription_and_send_logs_stop_response_on_no_more_logs()
+     {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()

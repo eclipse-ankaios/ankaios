@@ -28,8 +28,8 @@ use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
 };
 use common::objects::{
-    get_workloads_per_agent, DeletedWorkload, DeletedWorkloadCollection, WorkloadCollection,
-    WorkloadInstanceName, WorkloadSpec, WorkloadState,
+    DeletedWorkload, DeletedWorkloadCollection, WorkloadCollection, WorkloadInstanceName,
+    WorkloadSpec, WorkloadState, get_workloads_per_agent,
 };
 use common::request_id_prepending::detach_prefix_from_request_id;
 
@@ -58,7 +58,7 @@ pub async fn forward_from_proto_to_ankaios(
     agent_tx: &FromServerSender,
 ) -> Result<(), GrpcMiddlewareError> {
     while let Some(value) = grpc_streaming.message().await? {
-        log::trace!("RESPONSE={:?}", value);
+        log::trace!("RESPONSE={value:?}");
 
         let try_block = async {
             match value
@@ -110,7 +110,7 @@ pub async fn forward_from_proto_to_ankaios(
                     logs_request,
                 }) => {
                     let Some(logs_request) = logs_request else {
-                        log::warn!("LogRequest '{}' did not return actual request", request_id);
+                        log::warn!("LogRequest '{request_id}' did not return actual request");
                         return Ok(());
                     };
                     agent_tx.logs_request(request_id, logs_request).await?;
@@ -124,7 +124,7 @@ pub async fn forward_from_proto_to_ankaios(
         .await;
 
         if let Err::<(), GrpcMiddlewareError>(error) = try_block {
-            log::debug!("Could not forward from server message: {}", error);
+            log::debug!("Could not forward from server message: {error}");
         }
     }
 
@@ -139,7 +139,7 @@ pub async fn forward_from_ankaios_to_proto(
     while let Some(from_server_msg) = receiver.recv().await {
         match from_server_msg {
             FromServer::ServerHello(method_obj) => {
-                log::trace!("Received ServerHello from server: {:?}.", method_obj);
+                log::trace!("Received ServerHello from server: {method_obj:?}.");
 
                 let agent_name = method_obj.agent_name.unwrap_or(String::default());
 
@@ -159,16 +159,15 @@ pub async fn forward_from_ankaios_to_proto(
                         .await;
                     if result.is_err() {
                         log::warn!(
-                            "Could not send added workloads to started agent '{}'",
-                            agent_name,
+                            "Could not send added workloads to started agent '{agent_name}'",
                         );
                     }
                 } else {
-                    log::warn!("Unknown agent with name: '{}'", agent_name);
+                    log::warn!("Unknown agent with name: '{agent_name}'");
                 }
             }
             FromServer::UpdateWorkload(method_obj) => {
-                log::trace!("Received UpdateWorkload from server: {:?}.", method_obj);
+                log::trace!("Received UpdateWorkload from server: {method_obj:?}.");
 
                 distribute_workloads_to_agents(
                     agent_senders,
@@ -178,7 +177,7 @@ pub async fn forward_from_ankaios_to_proto(
                 .await;
             }
             FromServer::UpdateWorkloadState(method_obj) => {
-                log::trace!("Received UpdateWorkloadState from server: {:?}", method_obj);
+                log::trace!("Received UpdateWorkloadState from server: {method_obj:?}");
 
                 distribute_workload_states_to_agents(agent_senders, method_obj.workload_states)
                     .await;
@@ -188,11 +187,7 @@ pub async fn forward_from_ankaios_to_proto(
                     detach_prefix_from_request_id(response.request_id.as_ref());
                 if let Some(sender) = agent_senders.get(&agent_name) {
                     let response_content: Option<ResponseContent> = response.response_content;
-                    log::trace!(
-                        "Sending response to agent '{}': {:?}.",
-                        agent_name,
-                        response_content
-                    );
+                    log::trace!("Sending response to agent '{agent_name}': {response_content:?}.");
 
                     let result = sender
                         .send(Ok(grpc_api::FromServer {
@@ -207,14 +202,14 @@ pub async fn forward_from_ankaios_to_proto(
                         }))
                         .await;
                     if result.is_err() {
-                        log::warn!("Could not send response to agent '{}'", agent_name,);
+                        log::warn!("Could not send response to agent '{agent_name}'",);
                     }
                 } else {
-                    log::warn!("Unknown agent with name: '{}'", agent_name);
+                    log::warn!("Unknown agent with name: '{agent_name}'");
                 }
             }
             FromServer::LogsRequest(request_id, logs_request) => {
-                log::trace!("Received LogsRequest from server: {:?}", logs_request);
+                log::trace!("Received LogsRequest from server: {logs_request:?}");
                 distribute_log_requests_to_agent(agent_senders, request_id, logs_request).await;
             }
             FromServer::LogsCancelRequest(request_id) => {
@@ -259,9 +254,7 @@ async fn distribute_workload_states_to_agents(
 
         if let Some(sender) = agent_senders.get(&agent_name) {
             log::trace!(
-                "Sending workload states to agent '{}': {:?}.",
-                agent_name,
-                filtered_workload_states
+                "Sending workload states to agent '{agent_name}': {filtered_workload_states:?}."
             );
             let result = sender
                 .send(Ok(grpc_api::FromServer {
@@ -273,10 +266,12 @@ async fn distribute_workload_states_to_agents(
                 }))
                 .await;
             if result.is_err() {
-                log::warn!("Could not send workload states to agent '{}'", agent_name,);
+                log::warn!("Could not send workload states to agent '{agent_name}'",);
             }
         } else {
-            log::info!("Skipping sending workload states to agent '{agent_name}'. Agent disappeared in the meantime.");
+            log::info!(
+                "Skipping sending workload states to agent '{agent_name}'. Agent disappeared in the meantime."
+            );
         }
     }
 }
@@ -292,8 +287,9 @@ async fn distribute_workloads_to_agents(
         get_workloads_per_agent(added_workloads, deleted_workloads)
     {
         if let Some(sender) = agent_senders.get(&agent_name) {
-            log::trace!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.",
-                agent_name, added_workload_vector, deleted_workload_vector);
+            log::trace!(
+                "Sending added and deleted workloads to agent '{agent_name}'.\n\tAdded workloads: {added_workload_vector:?}.\n\tDeleted workloads: {deleted_workload_vector:?}."
+            );
             let result = sender
                 .send(Ok(grpc_api::FromServer {
                     from_server_enum: Some(FromServerEnum::UpdateWorkload(
@@ -311,15 +307,11 @@ async fn distribute_workloads_to_agents(
                 }))
                 .await;
             if result.is_err() {
-                log::warn!(
-                    "Could not send added and deleted workloads to agent '{}'",
-                    agent_name,
-                );
+                log::warn!("Could not send added and deleted workloads to agent '{agent_name}'",);
             }
         } else {
             log::info!(
-                "Agent {} not found, workloads not sent. Waiting for agent to connect.",
-                agent_name
+                "Agent {agent_name} not found, workloads not sent. Waiting for agent to connect."
             )
         }
     }
@@ -338,11 +330,7 @@ async fn distribute_log_requests_to_agent(
             ..logs_request.clone()
         };
         if let Some(sender) = agent_senders.get(&agent) {
-            log::trace!(
-                "Sending logs request '{:?}' to agent '{}'",
-                logs_requests_for_agent,
-                agent
-            );
+            log::trace!("Sending logs request '{logs_requests_for_agent:?}' to agent '{agent}'");
             let res = sender
                 .send(Ok(grpc_api::FromServer {
                     from_server_enum: Some(FromServerEnum::LogsRequest(grpc_api::LogsRequest {
@@ -352,11 +340,7 @@ async fn distribute_log_requests_to_agent(
                 }))
                 .await;
             if let Err(err) = res {
-                log::warn!(
-                    "Could not send logs request to agent '{}': {:?}",
-                    agent,
-                    err
-                )
+                log::warn!("Could not send logs request to agent '{agent}': {err:?}")
             }
         }
     }
@@ -383,17 +367,10 @@ async fn distribute_log_cancel_requests_to_agent(
                 }))
                 .await;
             if let Err(err) = res {
-                log::warn!(
-                    "Could not send logs cancel request to agent '{}': {:?}",
-                    agent,
-                    err
-                )
+                log::warn!("Could not send logs cancel request to agent '{agent}': {err:?}")
             }
         } else {
-            log::debug!(
-                "Sender for agent '{}' gone while iterating all agents",
-                agent
-            );
+            log::debug!("Sender for agent '{agent}' gone while iterating all agents");
             continue;
         };
     }
@@ -423,9 +400,9 @@ mod tests {
     extern crate tonic;
     use super::ank_base;
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
-    use crate::grpc_api::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
+    use crate::grpc_api::{self, FromServer, UpdateWorkload, from_server::FromServerEnum};
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
-    use api::ank_base::{response, WorkloadMap};
+    use api::ank_base::{WorkloadMap, response};
     use async_trait::async_trait;
     use common::from_server_interface::FromServerInterface;
     use common::objects::{
@@ -589,8 +566,8 @@ mod tests {
 
     // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_added_workloads(
-    ) {
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_added_workloads()
+     {
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
@@ -633,8 +610,8 @@ mod tests {
 
     // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_deleted_workloads(
-    ) {
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_deleted_workloads()
+     {
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
@@ -765,8 +742,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_distribute_workloads_to_agents_shall_not_distribute_workloads_to_non_existing_agents(
-    ) {
+    async fn utest_distribute_workloads_to_agents_shall_not_distribute_workloads_to_non_existing_agents()
+     {
         let agent_name = "agent_X";
         let (_, _, _, mut agent_rx, agent_senders) = create_test_setup(agent_name);
 
@@ -786,8 +763,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_distribute_workload_states_to_agents_shall_distribute_workload_states_from_other_agents(
-    ) {
+    async fn utest_distribute_workload_states_to_agents_shall_distribute_workload_states_from_other_agents()
+     {
         let agent_name = "agent_X";
         let (_, _, _, mut agent_rx, agent_senders) = create_test_setup(agent_name);
 

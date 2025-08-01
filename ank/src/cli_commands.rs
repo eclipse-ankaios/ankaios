@@ -88,7 +88,7 @@ pub fn get_input_sources(manifest_files: &[String]) -> Result<Vec<InputSourcePai
                         Err(err) => {
                             return Err(match err.kind() {
                                 std::io::ErrorKind::NotFound => {
-                                    format!("File '{}' not found!", file_path)
+                                    format!("File '{file_path}' not found!")
                                 }
                                 _ => err.to_string(),
                             });
@@ -282,7 +282,9 @@ impl CliCommands {
             output!("Apply successful. No workloads updated.");
             return Ok(());
         } else {
-            output!("Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n");
+            output!(
+                "Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n"
+            );
         }
 
         let field_mask_whole_complete_state = Vec::new();
@@ -371,7 +373,7 @@ mod tests {
 
     use std::io;
 
-    use super::{get_input_sources, InputSourcePair};
+    use super::{InputSourcePair, get_input_sources};
 
     mockall::lazy_static! {
         pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =

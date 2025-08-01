@@ -24,9 +24,9 @@ use common::{
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
+        ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
         generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher,
-        podman_cli::PodmanStartConfig, runtime_connector::LogRequestOptions, ReusableWorkloadState,
-        RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
+        podman_cli::PodmanStartConfig, runtime_connector::LogRequestOptions,
     },
     workload_state::WorkloadStateSender,
 };
@@ -118,9 +118,8 @@ impl PodmanRuntime {
                 )),
                 Ok(None) => {
                     return Err(RuntimeError::List(format!(
-                        "Could not get execution state for workload '{}'",
-                        instance_name
-                    )))
+                        "Could not get execution state for workload '{instance_name}'"
+                    )));
                 }
                 Err(err) => return Err(RuntimeError::List(err)),
             }
@@ -214,10 +213,9 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
                     .await
                 {
                     Ok(()) => log::debug!("The broken container has been deleted successfully"),
-                    Err(e) => log::warn!(
-                        "Failed container cleanup after failed create. Error: '{}'",
-                        e
-                    ),
+                    Err(e) => {
+                        log::warn!("Failed container cleanup after failed create. Error: '{e}'")
+                    }
                 }
 
                 // No matter if we have deleted the broken container or not, we have to report that the "workload create" failed.
@@ -237,13 +235,10 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 
         if 1 == res.len() {
             let id = res.first().unwrap_or_unreachable();
-            log::debug!("Found an id for workload '{}': '{}'", instance_name, id);
+            log::debug!("Found an id for workload '{instance_name}': '{id}'");
             Ok(PodmanWorkloadId { id: id.to_string() })
         } else {
-            log::warn!(
-                "get_workload_id returned unexpected number of workloads {:?}",
-                res
-            );
+            log::warn!("get_workload_id returned unexpected number of workloads {res:?}");
             Err(RuntimeError::List(
                 "Unexpected number of workloads".to_string(),
             ))
@@ -309,13 +304,13 @@ mod tests {
     use std::str::FromStr;
 
     use common::objects::{
-        generate_test_workload_spec_with_param, AgentName, ExecutionState, WorkloadInstanceName,
+        AgentName, ExecutionState, WorkloadInstanceName, generate_test_workload_spec_with_param,
     };
     use mockall::Sequence;
 
     use super::PodmanCli;
     use super::PodmanRuntime;
-    use super::{PodmanStateGetter, PodmanWorkloadId, PODMAN_RUNTIME_NAME};
+    use super::{PODMAN_RUNTIME_NAME, PodmanStateGetter, PodmanWorkloadId};
     use crate::runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 

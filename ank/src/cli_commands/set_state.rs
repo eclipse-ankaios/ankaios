@@ -58,14 +58,12 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<O
         "-" => {
             let stdin = io::read_to_string(reader).map_err(|error| {
                 CliError::ExecutionError(format!(
-                    "Could not read the state object from stdin.\nError: '{}'",
-                    error
+                    "Could not read the state object from stdin.\nError: '{error}'"
                 ))
             })?;
             let value: serde_yaml::Value = serde_yaml::from_str(&stdin).map_err(|error| {
                 CliError::YamlSerialization(format!(
-                    "Could not convert stdin input to yaml.\nError: '{}'",
-                    error
+                    "Could not convert stdin input to yaml.\nError: '{error}'"
                 ))
             })?;
             Ok(value.into())
@@ -74,15 +72,13 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<O
             let state_object_data =
                 read_file_to_string(state_object_file.to_string()).map_err(|error| {
                     CliError::ExecutionError(format!(
-                        "Could not read the state object file '{}'.\nError: '{}'",
-                        state_object_file, error
+                        "Could not read the state object file '{state_object_file}'.\nError: '{error}'"
                     ))
                 })?;
             let value: serde_yaml::Value =
                 serde_yaml::from_str(&state_object_data).map_err(|error| {
                     CliError::YamlSerialization(format!(
-                        "Could not convert state object file to yaml.\nError: '{}'",
-                        error
+                        "Could not convert state object file to yaml.\nError: '{error}'"
                     ))
                 })?;
             Ok(value.into())
@@ -150,8 +146,8 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use super::{
-        create_state_with_default_workload_specs, io, overwrite_using_field_mask, process_inputs,
-        CliCommands, StoredWorkloadSpec,
+        CliCommands, StoredWorkloadSpec, create_state_with_default_workload_specs, io,
+        overwrite_using_field_mask, process_inputs,
     };
     use crate::{
         cli_commands::server_connection::MockServerConnection,
@@ -216,10 +212,12 @@ mod tests {
             complete_state.desired_state.workloads.get("nginx2"),
             Some(&StoredWorkloadSpec::default())
         );
-        assert!(!complete_state
-            .desired_state
-            .workloads
-            .contains_key("nginx3"));
+        assert!(
+            !complete_state
+                .desired_state
+                .workloads
+                .contains_key("nginx3")
+        );
     }
 
     // [utest->swdd~cli-provides-set-desired-state~1]

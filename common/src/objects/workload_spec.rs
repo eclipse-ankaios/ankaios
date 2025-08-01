@@ -19,10 +19,10 @@ use std::collections::HashMap;
 use crate::helpers::serialize_to_ordered_map;
 use crate::objects::Tag;
 
-use super::control_interface_access::ControlInterfaceAccess;
-use super::file::File;
 use super::ExecutionState;
 use super::WorkloadInstanceName;
+use super::control_interface_access::ControlInterfaceAccess;
+use super::file::File;
 
 pub type WorkloadCollection = Vec<WorkloadSpec>;
 pub type DeletedWorkloadCollection = Vec<DeletedWorkload>;
@@ -46,16 +46,13 @@ pub fn verify_workload_name_format(workload_name: &str) -> Result<(), String> {
     verify_workload_name_pattern(workload_name)
         .and_then(|_| verify_workload_name_not_empty(length))
         .and_then(|_| verify_workload_name_length(length))
-        .map_err(|err| format!("Unsupported workload name '{}'. {}", workload_name, err))
+        .map_err(|err| format!("Unsupported workload name '{workload_name}'. {err}"))
 }
 
 pub fn verify_workload_name_pattern(workload_name: &str) -> Result<(), String> {
     let re_workloads = Regex::new(STR_RE_WORKLOAD).unwrap();
     if !re_workloads.is_match(workload_name) {
-        Err(format!(
-            "Expected to have characters in {}.",
-            ALLOWED_SYMBOLS
-        ))
+        Err(format!("Expected to have characters in {ALLOWED_SYMBOLS}."))
     } else {
         Ok(())
     }
@@ -64,8 +61,7 @@ pub fn verify_workload_name_pattern(workload_name: &str) -> Result<(), String> {
 pub fn verify_workload_name_length(length: usize) -> Result<(), String> {
     if length > MAX_CHARACTERS_WORKLOAD_NAME {
         Err(format!(
-            "Length {} exceeds the maximum limit of {} characters.",
-            length, MAX_CHARACTERS_WORKLOAD_NAME
+            "Length {length} exceeds the maximum limit of {MAX_CHARACTERS_WORKLOAD_NAME} characters."
         ))
     } else {
         Ok(())
@@ -85,8 +81,7 @@ fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
     let re_agent = Regex::new(STR_RE_AGENT).unwrap();
     if !re_agent.is_match(agent_name) {
         Err(format!(
-            "Unsupported agent name. Received '{}', expected to have characters in {}",
-            agent_name, ALLOWED_SYMBOLS
+            "Unsupported agent name. Received '{agent_name}', expected to have characters in {ALLOWED_SYMBOLS}"
         ))
     } else {
         Ok(())

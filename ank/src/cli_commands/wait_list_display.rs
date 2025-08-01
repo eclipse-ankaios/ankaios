@@ -60,7 +60,7 @@ impl Display for WaitListDisplay {
             )
             .unwrap_or_else(|_err| CliTable::new(&table_rows_with_spinner).create_default_table());
 
-        write!(f, "{}", table)
+        write!(f, "{table}")
     }
 }
 

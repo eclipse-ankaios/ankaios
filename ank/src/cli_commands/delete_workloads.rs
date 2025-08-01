@@ -27,7 +27,7 @@ impl CliCommands {
         let update_mask = workload_names
             .into_iter()
             .map(|name_of_workload_to_delete| {
-                format!("{}.{}", DESIRED_STATE_WORKLOADS, name_of_workload_to_delete)
+                format!("{DESIRED_STATE_WORKLOADS}.{name_of_workload_to_delete}")
             })
             .collect();
 
@@ -59,7 +59,7 @@ mod tests {
     use mockall::predicate::eq;
 
     use crate::{
-        cli_commands::{server_connection::MockServerConnection, CliCommands},
+        cli_commands::{CliCommands, server_connection::MockServerConnection},
         filtered_complete_state::FilteredCompleteState,
     };
 

@@ -14,13 +14,13 @@
 
 use crate::from_server_proxy::GRPCFromServerStreaming;
 use crate::grpc_api::{
-    self, agent_connection_client::AgentConnectionClient,
-    cli_connection_client::CliConnectionClient, to_server::ToServerEnum, AgentHello,
+    self, AgentHello, agent_connection_client::AgentConnectionClient,
+    cli_connection_client::CliConnectionClient, to_server::ToServerEnum,
 };
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use crate::security::TLSConfig;
 use crate::to_server_proxy;
-use crate::{from_server_proxy, CommanderHello};
+use crate::{CommanderHello, from_server_proxy};
 
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
@@ -64,8 +64,7 @@ fn verify_address_format(server_address: &String) -> Result<(), CommunicationMid
     let re = Regex::new(r"^https?:\/\/.+").unwrap_or_illegal_state();
     if !re.is_match(server_address) {
         return Err(CommunicationMiddlewareError(format!(
-            "Wrong server address format: '{}'.",
-            server_address
+            "Wrong server address format: '{server_address}'."
         )));
     }
     Ok(())
@@ -119,16 +118,15 @@ impl CommunicationsClient for GRPCCommunicationsClient {
             // Take care of general errors
             if let Err(GrpcMiddlewareError::VersionMismatch(err)) = result {
                 return Err(CommunicationMiddlewareError(format!(
-                    "Ankaios version mismatch: '{}'.",
-                    err
+                    "Ankaios version mismatch: '{err}'."
                 )));
             }
 
             match self.connection_type {
                 ConnectionType::Agent => {
-                    log::warn!("Connection to server interrupted: '{:?}'", result);
+                    log::warn!("Connection to server interrupted: '{result:?}'");
 
-                    use tokio::time::{sleep, Duration};
+                    use tokio::time::{Duration, sleep};
                     sleep(Duration::from_secs(RECONNECT_TIMEOUT_SECONDS)).await;
                 }
                 ConnectionType::Cli => {
@@ -149,8 +147,7 @@ impl CommunicationsClient for GRPCCommunicationsClient {
                         }
                         Err(GrpcMiddlewareError::CertificateError(err)) => {
                             return Err(CommunicationMiddlewareError(format!(
-                                "Certificate error: '{}'.",
-                                err
+                                "Certificate error: '{err}'."
                             )));
                         }
                         _ => {

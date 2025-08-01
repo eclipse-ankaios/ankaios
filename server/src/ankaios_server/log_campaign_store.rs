@@ -73,10 +73,10 @@ impl Display for RequestId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             RequestId::CliRequestId(cli_request_id) => {
-                write!(f, "CLI request Id: {}", cli_request_id)
+                write!(f, "CLI request Id: {cli_request_id}")
             }
             RequestId::AgentRequestId(agent_request_id) => {
-                write!(f, "agent request Id: {}", agent_request_id)
+                write!(f, "agent request Id: {agent_request_id}")
             }
         }
     }
@@ -144,7 +144,7 @@ impl LogCampaignStore {
         log_providers: &Vec<WorkloadInstanceName>,
     ) {
         let request_id: RequestId = input_request_id.into();
-        log::debug!("Insert log campaign '{}'", request_id);
+        log::debug!("Insert log campaign '{request_id}'");
 
         match request_id {
             RequestId::CliRequestId(cli_request_id) => {
@@ -227,7 +227,7 @@ impl LogCampaignStore {
 
     pub fn remove_logs_request_id(&mut self, input_request_id: &LogCollectorRequestId) {
         let request_id: RequestId = input_request_id.into();
-        log::debug!("Remove log campaign '{}'", request_id);
+        log::debug!("Remove log campaign '{request_id}'");
 
         self.remove_request_from_log_providers_store(input_request_id);
 
@@ -247,10 +247,7 @@ impl LogCampaignStore {
         &mut self,
         workload_name: &WorkloadName,
     ) -> HashSet<LogCollectorRequestId> {
-        log::debug!(
-            "Removing collector campaign for workload '{}'",
-            workload_name
-        );
+        log::debug!("Removing collector campaign for workload '{workload_name}'");
 
         let removed_request_ids = self.workload_name_request_id_store.remove(workload_name);
         if let Some(removed_request_ids) = &removed_request_ids {
@@ -440,11 +437,10 @@ mod tests {
         );
 
         let extra_part = "@extra@parts.with_strange#format";
-        let agent_request_id =
-            super::RequestId::from(format!("{}{}", REQUEST_ID_AGENT_A, extra_part));
+        let agent_request_id = super::RequestId::from(format!("{REQUEST_ID_AGENT_A}{extra_part}"));
         assert!(
             matches!(agent_request_id, super::RequestId::AgentRequestId(super::AgentRequestId { agent_name, workload_name, request_uuid })
-            if agent_name == AGENT_A && workload_name == WORKLOAD_1_NAME && request_uuid == format!("request_id{}", extra_part))
+            if agent_name == AGENT_A && workload_name == WORKLOAD_1_NAME && request_uuid == format!("request_id{extra_part}"))
         );
     }
 

@@ -72,8 +72,7 @@ impl From<PodmanContainerInfo> for ContainerState {
             "unknown" => ContainerState::Unknown,
             state => {
                 log::trace!(
-                    "Mapping the container state '{}' to the container state 'Unknown'",
-                    state
+                    "Mapping the container state '{state}' to the container state 'Unknown'"
                 );
                 ContainerState::Unknown
             }
@@ -99,8 +98,7 @@ impl From<PodmanContainerInfo> for ExecutionState {
             "unknown" => ExecutionState::unknown(value.state),
             state => {
                 log::trace!(
-                    "Mapping the container state '{}' to the execution state 'ExecUnknown'",
-                    state
+                    "Mapping the container state '{state}' to the execution state 'ExecUnknown'"
                 );
                 ExecutionState::unknown(state)
             }
@@ -256,7 +254,7 @@ impl PodmanCli {
     }
 
     pub async fn list_workload_ids_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
-        log::debug!("Listing workload ids for: {}='{}'", key, value,);
+        log::debug!("Listing workload ids for: {key}='{value}'",);
         let output = CliCommand::new(PODMAN_CMD)
             .args(&[
                 "ps",
@@ -269,7 +267,7 @@ impl PodmanCli {
             .await?;
 
         let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
-            .map_err(|err| format!("Could not parse podman output: '{}'", err))?;
+            .map_err(|err| format!("Could not parse podman output: '{err}'"))?;
 
         Ok(res.into_iter().map(|x| x.id).collect())
     }
@@ -278,7 +276,7 @@ impl PodmanCli {
         key: &str,
         value: &str,
     ) -> Result<Vec<String>, String> {
-        log::trace!("Listing workload names for: '{}'='{}'", key, value,);
+        log::trace!("Listing workload names for: '{key}'='{value}'",);
         let output = CliCommand::new(PODMAN_CMD)
             .args(&[
                 "ps",
@@ -291,7 +289,7 @@ impl PodmanCli {
             .await?;
 
         let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
-            .map_err(|err| format!("Could not parse podman output: '{}'", err))?;
+            .map_err(|err| format!("Could not parse podman output: '{err}'"))?;
 
         let mut names: Vec<String> = Vec::new();
         for mut podman_info in res {
@@ -365,7 +363,7 @@ impl PodmanCli {
 
         args.append(&mut run_config.command_args);
 
-        log::debug!("The args are: '{:?}'", args);
+        log::debug!("The args are: '{args:?}'");
         let id = CliCommand::new(PODMAN_CMD)
             .args(&args.iter().map(|x| &**x).collect::<Vec<&str>>())
             .exec()
@@ -426,7 +424,7 @@ impl PodmanCli {
             .iter()
             .flat_map(|key| {
                 all_pod_states.get(key).cloned().unwrap_or_else(|| {
-                    log::warn!("The pod '{}' is missing.", key);
+                    log::warn!("The pod '{key}' is missing.");
                     vec![ContainerState::Unknown]
                 })
             })
@@ -439,8 +437,7 @@ impl PodmanCli {
             .exec()
             .await?;
 
-        serde_json::from_str(&output)
-            .map_err(|err| format!("Could not parse podman output:{}", err))
+        serde_json::from_str(&output).map_err(|err| format!("Could not parse podman output:{err}"))
     }
 
     pub async fn list_volumes_by_name(name: &str) -> Result<Vec<String>, String> {
@@ -482,7 +479,7 @@ impl PodmanCli {
             .await?;
 
         let res: Vec<Volume> = serde_json::from_str(&result)
-            .map_err(|err| format!("Could not decoded volume information as JSON: {}", err))?;
+            .map_err(|err| format!("Could not decoded volume information as JSON: {err}"))?;
         let res = base64::engine::general_purpose::STANDARD_NO_PAD
             .decode(
                 &res.first()
@@ -490,9 +487,9 @@ impl PodmanCli {
                     .labels
                     .data,
             )
-            .map_err(|err| format!("Could not base64 decoded volume's data label: {}", err))?;
+            .map_err(|err| format!("Could not base64 decoded volume's data label: {err}"))?;
         let res = String::from_utf8(res)
-            .map_err(|err| format!("Could not decode data stored in volume: {}", err))?;
+            .map_err(|err| format!("Could not decode data stored in volume: {err}"))?;
 
         Ok(res)
     }
@@ -1830,10 +1827,12 @@ mod tests {
                 .to_json())),
         );
 
-        assert!(PodmanCli::list_states_from_pods(&[])
-            .await
-            .unwrap()
-            .is_empty());
+        assert!(
+            PodmanCli::list_states_from_pods(&[])
+                .await
+                .unwrap()
+                .is_empty()
+        );
     }
 
     // [utest->swdd~podmancli-container-state-cache-all-containers~1]

@@ -82,7 +82,9 @@ impl OutputPipe {
                 Err(err) if Self::receiver_gone(&err) => {
                     if retries < CONTROL_INTERFACE_MAX_RETRIES {
                         self.file = None;
-                        log::debug!("Broken pipe - the receiver is gone. Waiting for '{}'ms before trying again.", AGENT_RECONNECT_INTERVAL_MS);
+                        log::debug!(
+                            "Broken pipe - the receiver is gone. Waiting for '{AGENT_RECONNECT_INTERVAL_MS}'ms before trying again."
+                        );
                         sleep(Duration::from_millis(AGENT_RECONNECT_INTERVAL_MS)).await;
                     } else {
                         log::warn!("Failed to write to output pipe after multiple attempts");
@@ -91,7 +93,7 @@ impl OutputPipe {
                     retries += 1;
                 }
                 Err(err) => {
-                    log::warn!("Writing failed with error: {:?}", err);
+                    log::warn!("Writing failed with error: {err:?}");
                     return Err(OutputPipeError::Io(err));
                 }
             }
@@ -298,8 +300,7 @@ mod tests {
                     // We should exit here at some point, as the writing should fail after a while
                     assert!(
                         i >= 1024,
-                        "Writing timed out before we were able to write at least 64k. Iteration: {}",
-                        i
+                        "Writing timed out before we were able to write at least 64k. Iteration: {i}"
                     );
                     return;
                 }

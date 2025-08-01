@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::AnkCli;
-use common::std_extensions::UnreachableOption;
 use common::DEFAULT_SERVER_ADDRESS;
+use common::std_extensions::UnreachableOption;
 use grpc::security::read_pem_file;
 use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::fs::read_to_string;
 use std::path::PathBuf;
-use toml::{from_str, Value};
+use toml::{Value, from_str};
 
 use common::std_extensions::GracefulExitResult;
 use once_cell::sync::Lazy;
@@ -34,7 +34,7 @@ pub const DEFAULT_RESPONSE_TIMEOUT: u64 = 3000;
 
 pub static DEFAULT_ANK_CONFIG_FILE_PATH: Lazy<String> = Lazy::new(|| {
     let home_dir = env::var("HOME").unwrap_or_exit("HOME environment variable not set");
-    format!("{}/.config/ankaios/ank.conf", home_dir)
+    format!("{home_dir}/.config/ankaios/ank.conf")
 });
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -48,15 +48,15 @@ pub enum ConversionErrors {
 impl fmt::Display for ConversionErrors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ConversionErrors::WrongVersion(msg) => write!(f, "Wrong version: {}", msg),
+            ConversionErrors::WrongVersion(msg) => write!(f, "Wrong version: {msg}"),
             ConversionErrors::ConflictingCertificates(msg) => {
-                write!(f, "Conflicting certificates: {}", msg)
+                write!(f, "Conflicting certificates: {msg}")
             }
             ConversionErrors::InvalidAnkConfig(msg) => {
-                write!(f, "Ank Config could not have been parsed due to: {}", msg)
+                write!(f, "Ank Config could not have been parsed due to: {msg}")
             }
             ConversionErrors::InvalidCertificate(msg) => {
-                write!(f, "Certificate could not have been read due to: {}", msg)
+                write!(f, "Certificate could not have been read due to: {msg}")
             }
         }
     }
@@ -301,7 +301,7 @@ mod tests {
     use common::DEFAULT_SERVER_ADDRESS;
 
     use crate::{
-        ank_config::{get_default_response_timeout, get_default_url, ConversionErrors},
+        ank_config::{ConversionErrors, get_default_response_timeout, get_default_url},
         cli::{AnkCli, Commands, GetArgs, GetCommands},
     };
 
@@ -347,7 +347,7 @@ mod tests {
         #";
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", ank_config_content).unwrap();
+        write!(tmp_config_file, "{ank_config_content}").unwrap();
 
         let ank_config = AnkConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
@@ -364,14 +364,13 @@ mod tests {
             r"#
         version = 'v1'
         [default]
-        ca_pem = '''{}'''
-        ca_pem_content = '''{}'''
-        #",
-            CA_PEM_PATH, CRT_PEM_CONTENT
+        ca_pem = '''{CA_PEM_PATH}'''
+        ca_pem_content = '''{CRT_PEM_CONTENT}'''
+        #"
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", ank_config_content).unwrap();
+        write!(tmp_config_file, "{ank_config_content}").unwrap();
 
         let ank_config = AnkConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
@@ -426,15 +425,14 @@ mod tests {
             r"#
         version = 'v1'
         [default]
-        ca_pem_content = '''{}'''
-        crt_pem_content = '''{}'''
-        key_pem_content = '''{}'''
-        #",
-            CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
+        ca_pem_content = '''{CA_PEM_CONTENT}'''
+        crt_pem_content = '''{CRT_PEM_CONTENT}'''
+        key_pem_content = '''{KEY_PEM_CONTENT}'''
+        #"
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", ank_config_content).unwrap();
+        write!(tmp_config_file, "{ank_config_content}").unwrap();
 
         let mut ank_config = AnkConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
         let args = AnkCli {
@@ -476,15 +474,14 @@ mod tests {
             r"#
         version = 'v1'
         [default]
-        ca_pem_content = '''{}'''
-        crt_pem_content = '''{}'''
-        key_pem_content = '''{}'''
-        #",
-            CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
+        ca_pem_content = '''{CA_PEM_CONTENT}'''
+        crt_pem_content = '''{CRT_PEM_CONTENT}'''
+        key_pem_content = '''{KEY_PEM_CONTENT}'''
+        #"
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", ank_config_content).unwrap();
+        write!(tmp_config_file, "{ank_config_content}").unwrap();
 
         let mut ank_config = AnkConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
         let args = AnkCli {
@@ -521,7 +518,7 @@ mod tests {
         version = 'v1'
         #";
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", ank_config_content).unwrap();
+        write!(tmp_config_file, "{ank_config_content}").unwrap();
 
         let ank_config = AnkConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
 
@@ -544,7 +541,7 @@ mod tests {
         [context]
         #";
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", ank_config_content).unwrap();
+        write!(tmp_config_file, "{ank_config_content}").unwrap();
 
         let ank_config = AnkConfig::from_file(PathBuf::from(tmp_config_file.path()));
 
@@ -564,15 +561,14 @@ mod tests {
         [default]
         server_url = 'https://127.0.0.1:25551'
         insecure = false
-        ca_pem_content = '''{}'''
-        crt_pem_content = '''{}'''
-        key_pem_content = '''{}'''
-        #",
-            CA_PEM_CONTENT, CRT_PEM_CONTENT, KEY_PEM_CONTENT
+        ca_pem_content = '''{CA_PEM_CONTENT}'''
+        crt_pem_content = '''{CRT_PEM_CONTENT}'''
+        key_pem_content = '''{KEY_PEM_CONTENT}'''
+        #"
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
-        write!(tmp_config_file, "{}", ank_config_content).unwrap();
+        write!(tmp_config_file, "{ank_config_content}").unwrap();
 
         let ank_config_res = AnkConfig::from_file(PathBuf::from(tmp_config_file.path()));
 

@@ -28,9 +28,9 @@ use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
+        ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
         generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher, podman_cli,
-        runtime_connector::LogRequestOptions, ReusableWorkloadState, RuntimeConnector,
-        RuntimeError, RuntimeStateGetter, StateChecker,
+        runtime_connector::LogRequestOptions,
     },
     workload_state::WorkloadStateSender,
 };
@@ -117,8 +117,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
                 .await
                 .map_err(|err| {
                     RuntimeError::Create(format!(
-                        "Could not list volume containing config: '{}'",
-                        err
+                        "Could not list volume containing config: '{err}'"
                     ))
                 })?
                 .into_iter()
@@ -130,7 +129,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
                 .filter_map(|x| match x {
                     Ok(value) => Some(value),
                     Err(err) => {
-                        log::warn!("Could not recreate workload from volume: '{}'", err);
+                        log::warn!("Could not recreate workload from volume: '{err}'");
                         None
                     }
                 })
@@ -187,7 +186,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
                 )
                 .await
             }
-            Err(err) => Err(format!("Could not encoded pods as json: {:?}", err)),
+            Err(err) => Err(format!("Could not encoded pods as json: {err:?}")),
         }
         .unwrap_or_else(|err| {
             log::warn!(
@@ -226,27 +225,26 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         let runtime_config =
             PodmanCli::read_data_from_volume(&(instance_name.to_string() + CONFIG_VOLUME_SUFFIX))
                 .await
-                .map_err(|err| format!("Could not read config from volume: {:?}", err))
+                .map_err(|err| format!("Could not read config from volume: {err:?}"))
                 .and_then(|json| {
-                    serde_yaml::from_str::<PodmanKubeRuntimeConfig>(&json).map_err(|err| {
-                        format!("Could not parse config read from volume: {:?}", err)
-                    })
+                    serde_yaml::from_str::<PodmanKubeRuntimeConfig>(&json)
+                        .map_err(|err| format!("Could not parse config read from volume: {err:?}"))
                 })
                 .map_err(RuntimeError::Create)?;
         let pods =
             PodmanCli::read_data_from_volume(&(instance_name.to_string() + PODS_VOLUME_SUFFIX))
                 .await
-                .map_err(|err| format!("Could not read pods from volume: {:?}", err))
+                .map_err(|err| format!("Could not read pods from volume: {err:?}"))
                 .and_then(|json| {
                     serde_json::from_str(&json).map_err(|err| {
-                        format!("Could not parse pod list read from volume: {:?}", err)
+                        format!("Could not parse pod list read from volume: {err:?}")
                     })
                 });
 
         let pods = match pods {
             Ok(pods) => Some(pods),
             Err(err) => {
-                log::warn!("{}", err);
+                log::warn!("{err}");
                 None
             }
         };
@@ -306,12 +304,12 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         // [impl->swdd~podman-kube-delete-removes-volumes~1]
         PodmanCli::remove_volume(&(workload_id.name.to_string() + PODS_VOLUME_SUFFIX))
             .await
-            .unwrap_or_else(|err| log::warn!("Could not remove pods volume: '{}'", err));
+            .unwrap_or_else(|err| log::warn!("Could not remove pods volume: '{err}'"));
         // [impl->swdd~podman-kube-delete-removes-volumes~1]
 
         PodmanCli::remove_volume(&(workload_id.name.to_string() + CONFIG_VOLUME_SUFFIX))
             .await
-            .unwrap_or_else(|err| log::warn!("Could not remove configs volume: '{}'", err));
+            .unwrap_or_else(|err| log::warn!("Could not remove configs volume: '{err}'"));
         Ok(())
     }
 }
@@ -421,11 +419,11 @@ mod tests {
 
     use super::PodmanCli;
     use crate::runtime_connectors::podman_cli::__mock_MockPodmanCli as podman_cli_mock;
-    use crate::runtime_connectors::{podman_cli::ContainerState, RuntimeConnector, RuntimeError};
+    use crate::runtime_connectors::{RuntimeConnector, RuntimeError, podman_cli::ContainerState};
 
     use super::{
-        PodmanKubeRuntime, PodmanKubeWorkloadId, CONFIG_VOLUME_SUFFIX, PODMAN_KUBE_RUNTIME_NAME,
-        PODS_VOLUME_SUFFIX,
+        CONFIG_VOLUME_SUFFIX, PODMAN_KUBE_RUNTIME_NAME, PODS_VOLUME_SUFFIX, PodmanKubeRuntime,
+        PodmanKubeWorkloadId,
     };
     use crate::runtime_connectors::RuntimeStateGetter;
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
@@ -1379,10 +1377,10 @@ mod tests {
 
     impl<T: Display> AsVolumeName for T {
         fn as_config_volume(&self) -> String {
-            format!("{self}{}", CONFIG_VOLUME_SUFFIX)
+            format!("{self}{CONFIG_VOLUME_SUFFIX}")
         }
         fn as_pods_volume(&self) -> String {
-            format!("{self}{}", PODS_VOLUME_SUFFIX)
+            format!("{self}{PODS_VOLUME_SUFFIX}")
         }
     }
 }

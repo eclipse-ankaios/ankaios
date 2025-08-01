@@ -26,7 +26,7 @@ impl CliCommands {
         let update_mask = config_names
             .into_iter()
             .map(|name_of_config_to_delete| {
-                format!("{}.{}", DESIRED_STATE_CONFIGS, name_of_config_to_delete)
+                format!("{DESIRED_STATE_CONFIGS}.{name_of_config_to_delete}")
             })
             .collect();
 
@@ -39,7 +39,7 @@ impl CliCommands {
             .update_state(complete_state_update, update_mask)
             .await
             .map_err(|error| {
-                CliError::ExecutionError(format!("Failed to delete configs: {:?}", error))
+                CliError::ExecutionError(format!("Failed to delete configs: {error:?}"))
             })?;
 
         Ok(())
@@ -55,7 +55,7 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use crate::cli_commands::{server_connection::MockServerConnection, CliCommands};
+    use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
     use crate::filtered_complete_state::FilteredCompleteState;
     use api::ank_base::UpdateStateSuccess;
     use common::objects::CompleteState;

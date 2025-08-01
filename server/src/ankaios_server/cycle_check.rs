@@ -27,10 +27,7 @@ use std::collections::{HashSet, VecDeque};
 ///   if [`None`] the search is started from all workloads of the state
 ///
 pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
-    log::trace!(
-        "Execute cyclic dependency check with start_nodes = {:?}",
-        start_nodes
-    );
+    log::trace!("Execute cyclic dependency check with start_nodes = {start_nodes:?}");
 
     /* The stack is used to push the neighbors of a workload inside the dependency graph
     that needs to be visited next and to terminate the search. If a workload is not already visited,
@@ -67,16 +64,16 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
             continue;
         }
 
-        log::trace!("searching for workload = '{}'", workload_name);
+        log::trace!("searching for workload = '{workload_name}'");
         stack.push_front(workload_name);
         while let Some(head) = stack.front() {
             if let Some(workload_spec) = state.workloads.get(*head) {
                 if !visited.contains(head) {
-                    log::trace!("visit '{}'", head);
+                    log::trace!("visit '{head}'");
                     visited.insert(head);
                     path.push_back(head);
                 } else {
-                    log::trace!("remove '{}' from path", head);
+                    log::trace!("remove '{head}' from path");
                     path.pop_back();
                     stack.pop_front();
                 }
@@ -96,10 +93,7 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
                 }
             } else {
                 // [impl->swdd~cycle-detection-ignores-non-existing-workloads~1]
-                log::trace!(
-                    "workload '{}' is skipped because it is not part of the state.",
-                    head
-                );
+                log::trace!("workload '{head}' is skipped because it is not part of the state.");
                 stack.pop_front();
             }
         }
@@ -118,7 +112,7 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
 mod tests {
     use super::*;
     use common::{
-        objects::{generate_test_stored_workload_spec, AddCondition},
+        objects::{AddCondition, generate_test_stored_workload_spec},
         test_utils::generate_test_complete_state,
     };
     use std::{collections::HashSet, ops::Deref};
@@ -145,10 +139,7 @@ mod tests {
             assert!(
                 expected_nodes_part_of_a_cycle.contains(&workload_part_of_cycle.deref()),
                 "{}",
-                format!(
-                    "expected workload '{}' is not part of a cycle",
-                    workload_part_of_cycle
-                )
+                format!("expected workload '{workload_part_of_cycle}' is not part of a cycle")
             );
 
             actual.insert(workload_part_of_cycle);
@@ -175,8 +166,7 @@ mod tests {
                 result.is_none(),
                 "{}",
                 format!(
-                    "expected no cycle, but cycle detected, workload '{:?}' is part of cycle.",
-                    result
+                    "expected no cycle, but cycle detected, workload '{result:?}' is part of cycle."
                 )
             );
         }

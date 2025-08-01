@@ -57,7 +57,7 @@ impl From<Request> for ank_base::Request {
 
 impl Request {
     pub fn prefix_id(prefix: &str, request_id: &String) -> String {
-        format!("{}{}", prefix, request_id)
+        format!("{prefix}{request_id}")
     }
     pub fn prefix_request_id(&mut self, prefix: &str) {
         self.request_id = Self::prefix_id(prefix, &self.request_id);
@@ -270,9 +270,9 @@ mod tests {
 
     mod ank_base {
         pub use api::ank_base::{
-            request::RequestContent, CompleteState, CompleteStateRequest, ConfigMappings,
-            Dependencies, LogsCancelRequest, LogsRequest, Request, RestartPolicy, State, Tag, Tags,
-            UpdateStateRequest, Workload, WorkloadInstanceName, WorkloadMap,
+            CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, LogsCancelRequest,
+            LogsRequest, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
+            WorkloadInstanceName, WorkloadMap, request::RequestContent,
         };
     }
 
@@ -283,9 +283,9 @@ mod tests {
                 UpdateStateRequest,
             },
             objects::{
-                generate_test_agent_map, generate_test_workload_states_map_with_data, Base64Data,
-                CompleteState, Data, ExecutionState, File, FileContent, RestartPolicy, State,
-                StoredWorkloadSpec, Tag, WorkloadInstanceName,
+                Base64Data, CompleteState, Data, ExecutionState, File, FileContent, RestartPolicy,
+                State, StoredWorkloadSpec, Tag, WorkloadInstanceName, generate_test_agent_map,
+                generate_test_workload_states_map_with_data,
             },
         };
     }
@@ -517,9 +517,7 @@ mod tests {
     }
 
     macro_rules! agent_map {
-        (ankaios) => {{
-            ankaios::generate_test_agent_map(AGENT_NAME)
-        }};
+        (ankaios) => {{ ankaios::generate_test_agent_map(AGENT_NAME) }};
         (ank_base) => {
             ankaios::generate_test_agent_map(AGENT_NAME).into()
         };

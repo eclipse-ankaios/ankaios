@@ -41,8 +41,7 @@ impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
         // [impl->swdd~podman-kube-rejects-workload-files~1]
         if !workload_spec.files.is_empty() {
             return Err(format!(
-                "Workload files are not supported for runtime {}. Use ConfigMaps instead.",
-                PODMAN_KUBE_RUNTIME_NAME
+                "Workload files are not supported for runtime {PODMAN_KUBE_RUNTIME_NAME}. Use ConfigMaps instead."
             ));
         }
 
@@ -68,7 +67,7 @@ mod tests {
         generate_test_workload_spec_with_rendered_files,
     };
 
-    use super::{PodmanKubeRuntimeConfig, PODMAN_KUBE_RUNTIME_NAME};
+    use super::{PODMAN_KUBE_RUNTIME_NAME, PodmanKubeRuntimeConfig};
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
     const AGENT_NAME: &str = "agent_x";
@@ -118,7 +117,7 @@ mod tests {
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
         );
 
-        workload_spec.runtime_config = format!("manifest: {}", MANIFEST_CONTENT);
+        workload_spec.runtime_config = format!("manifest: {MANIFEST_CONTENT}");
 
         assert!(
             PodmanKubeRuntimeConfig::try_from(&workload_spec)

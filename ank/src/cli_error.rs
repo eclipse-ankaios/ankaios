@@ -33,7 +33,7 @@ impl fmt::Display for CliError {
                 write!(f, "Could not serialize JSON object: '{message}'")
             }
             CliError::ExecutionError(message) => {
-                write!(f, "Command failed: '{}'", message)
+                write!(f, "Command failed: '{message}'")
             }
         }
     }

@@ -143,10 +143,12 @@ impl AgentManager {
                 Some(())
             }
             FromServer::UpdateWorkload(method_obj) => {
-                log::debug!("Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
+                log::debug!(
+                    "Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
                     self.agent_name,
                     method_obj.added_workloads,
-                    method_obj.deleted_workloads);
+                    method_obj.deleted_workloads
+                );
 
                 // [impl->swdd~agent-handles-update-workload-requests~1]
                 self.runtime_manager
@@ -170,8 +172,12 @@ impl AgentManager {
                 if !new_workload_states.is_empty() {
                     // [impl->swdd~agent-manager-stores-all-workload-states~1]
                     for new_workload_state in new_workload_states {
-                        log::debug!("The server reports workload state '{:?}' for the workload '{}' in the agent '{}'", new_workload_state.execution_state,
-                            new_workload_state.instance_name.workload_name(), new_workload_state.instance_name.agent_name());
+                        log::debug!(
+                            "The server reports workload state '{:?}' for the workload '{}' in the agent '{}'",
+                            new_workload_state.execution_state,
+                            new_workload_state.instance_name.workload_name(),
+                            new_workload_state.instance_name.agent_name()
+                        );
                         self.workload_state_store
                             .update_workload_state(new_workload_state);
                     }
@@ -252,10 +258,7 @@ impl AgentManager {
                 old_execution_state.transition(new_workload_state.execution_state);
         }
 
-        log::debug!(
-            "Storing and forwarding local workload state '{:?}'.",
-            new_workload_state
-        );
+        log::debug!("Storing and forwarding local workload state '{new_workload_state:?}'.");
 
         // [impl->swdd~agent-stores-workload-states-of-its-workloads~1]
         self.workload_state_store
@@ -310,14 +313,14 @@ mod tests {
     use crate::agent_manager::AgentManager;
     use crate::workload_log_facade::MockWorkloadLogFacade;
     use crate::workload_state::{
-        workload_state_store::{mock_parameter_storage_new_returns, MockWorkloadStateStore},
         WorkloadStateSenderInterface,
+        workload_state_store::{MockWorkloadStateStore, mock_parameter_storage_new_returns},
     };
     use api::ank_base;
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::{FromServer, FromServerInterface},
-        objects::{generate_test_workload_spec_with_param, ExecutionState},
+        objects::{ExecutionState, generate_test_workload_spec_with_param},
         to_server_interface::ToServer,
     };
 
@@ -326,7 +329,7 @@ mod tests {
     use mockall::predicate::{self, eq};
     use tokio::{
         join,
-        sync::mpsc::{channel, Sender},
+        sync::mpsc::{Sender, channel},
     };
 
     const BUFFER_SIZE: usize = 20;
@@ -709,23 +712,27 @@ mod tests {
             workload_state_receiver,
         );
 
-        assert!(to_manager
-            .logs_request(
-                REQUEST_ID.to_string(),
-                ank_base::LogsRequest {
-                    workload_names: vec![ank_base::WorkloadInstanceName {
-                        workload_name: logs_request.workload_names[0].workload_name().to_string(),
-                        agent_name: logs_request.workload_names[0].agent_name().to_string(),
-                        id: logs_request.workload_names[0].id().to_string()
-                    }],
-                    follow: Some(logs_request.follow),
-                    tail: Some(logs_request.tail),
-                    since: logs_request.since,
-                    until: logs_request.until,
-                }
-            )
-            .await
-            .is_ok());
+        assert!(
+            to_manager
+                .logs_request(
+                    REQUEST_ID.to_string(),
+                    ank_base::LogsRequest {
+                        workload_names: vec![ank_base::WorkloadInstanceName {
+                            workload_name: logs_request.workload_names[0]
+                                .workload_name()
+                                .to_string(),
+                            agent_name: logs_request.workload_names[0].agent_name().to_string(),
+                            id: logs_request.workload_names[0].id().to_string()
+                        }],
+                        follow: Some(logs_request.follow),
+                        tail: Some(logs_request.tail),
+                        since: logs_request.since,
+                        until: logs_request.until,
+                    }
+                )
+                .await
+                .is_ok()
+        );
 
         let handle = tokio::spawn(async move { agent_manager.start().await });
 
@@ -763,10 +770,12 @@ mod tests {
             .unwrap()
             .add_subscription(REQUEST_ID.to_string(), generate_test_subscription_entry());
 
-        assert!(to_manager
-            .logs_cancel_request(REQUEST_ID.to_string())
-            .await
-            .is_ok());
+        assert!(
+            to_manager
+                .logs_cancel_request(REQUEST_ID.to_string())
+                .await
+                .is_ok()
+        );
 
         to_manager.stop().await.unwrap();
         agent_manager.start().await;

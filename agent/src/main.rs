@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use common::communications_client::CommunicationsClient;
-use common::objects::{AgentName, WorkloadState, STR_RE_AGENT};
+use common::objects::{AgentName, STR_RE_AGENT, WorkloadState};
 use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use grpc::security::TLSConfig;
@@ -51,9 +51,9 @@ use agent_manager::AgentManager;
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
 use runtime_connectors::{
+    GenericRuntimeFacade, RuntimeConnector, RuntimeFacade,
     podman::{PodmanRuntime, PodmanWorkloadId},
     podman_kube::{PodmanKubeRuntime, PodmanKubeWorkloadId},
-    GenericRuntimeFacade, RuntimeConnector, RuntimeFacade,
 };
 
 const BUFFER_SIZE: usize = 20;
@@ -72,7 +72,10 @@ fn handle_agent_config(config_path: &Option<String>, default_path: &str) -> Agen
         None => {
             let default_path = PathBuf::from(default_path);
             if !default_path.try_exists().unwrap_or(false) {
-                log::debug!("No config file found at default path '{}'. Using cli arguments and environment variables only.", default_path.display());
+                log::debug!(
+                    "No config file found at default path '{}'. Using cli arguments and environment variables only.",
+                    default_path.display()
+                );
                 AgentConfig::default()
             } else {
                 log::info!(
@@ -91,8 +94,7 @@ pub fn validate_agent_name(agent_name: &str) -> Result<(), String> {
     const EXPECTED_AGENT_NAME_FORMAT: &str = "It shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols '-' and '_'.";
     if agent_name.is_empty() {
         return Err(format!(
-            "Empty agent name is not allowed. {}",
-            EXPECTED_AGENT_NAME_FORMAT
+            "Empty agent name is not allowed. {EXPECTED_AGENT_NAME_FORMAT}"
         ));
     }
 
@@ -102,8 +104,7 @@ pub fn validate_agent_name(agent_name: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(format!(
-            "Agent name '{}' is invalid. {}",
-            agent_name, EXPECTED_AGENT_NAME_FORMAT,
+            "Agent name '{agent_name}' is invalid. {EXPECTED_AGENT_NAME_FORMAT}",
         ))
     }
 }
@@ -178,7 +179,7 @@ async fn main() {
         &agent_config.crt_pem_content,
         &agent_config.key_pem_content,
     ) {
-        log::warn!("{}", err_message);
+        log::warn!("{err_message}");
     }
 
     // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
@@ -229,7 +230,7 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::{agent_config::DEFAULT_AGENT_CONFIG_FILE_PATH, handle_agent_config, AgentConfig};
+    use crate::{AgentConfig, agent_config::DEFAULT_AGENT_CONFIG_FILE_PATH, handle_agent_config};
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -244,7 +245,7 @@ mod tests {
     #[test]
     fn utest_handle_agent_config_valid_config() {
         let mut tmp_config = NamedTempFile::new().expect("could not create temp file");
-        write!(tmp_config, "{}", VALID_AGENT_CONFIG_CONTENT).expect("could not write to temp file");
+        write!(tmp_config, "{VALID_AGENT_CONFIG_CONTENT}").expect("could not write to temp file");
 
         let agent_config = handle_agent_config(
             &Some(tmp_config.into_temp_path().to_str().unwrap().to_string()),
@@ -263,7 +264,7 @@ mod tests {
     #[test]
     fn utest_handle_agent_config_default_path() {
         let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
-        writeln!(file, "{}", VALID_AGENT_CONFIG_CONTENT).expect("Failed to write to file");
+        writeln!(file, "{VALID_AGENT_CONFIG_CONTENT}").expect("Failed to write to file");
 
         let agent_config = handle_agent_config(&None, file.path().to_str().unwrap());
 
@@ -297,15 +298,19 @@ mod tests {
         for name in invalid_agent_names {
             let result = super::validate_agent_name(name);
             assert!(result.is_err());
-            assert!(result
-                .unwrap_err()
-                .contains(&format!("Agent name '{name}' is invalid.",)));
+            assert!(
+                result
+                    .unwrap_err()
+                    .contains(&format!("Agent name '{name}' is invalid.",))
+            );
         }
 
         let result = super::validate_agent_name("");
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .contains("Empty agent name is not allowed."));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("Empty agent name is not allowed.")
+        );
     }
 }

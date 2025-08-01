@@ -58,14 +58,11 @@ pub mod security {
         ) -> Result<Option<TLSConfig>, String> {
             match (insecure, ca_pem, crt_pem, key_pem) {
                 // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
-                (_, Some(ca_pem), Some(crt_pem), Some(key_pem)) => {
-
-                    Ok(Some(TLSConfig {
-                        ca_pem,
-                        crt_pem,
-                        key_pem,
-                    }))
-                }
+                (_, Some(ca_pem), Some(crt_pem), Some(key_pem)) => Ok(Some(TLSConfig {
+                    ca_pem,
+                    crt_pem,
+                    key_pem,
+                })),
                 // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
                 (true, None, None, None) => Ok(None),
                 // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
@@ -88,8 +85,7 @@ pub mod security {
 
         let mut file = File::open(path_of_pem_file).map_err(|err| {
             GrpcMiddlewareError::CertificateError(format!(
-                "Error during opening the given file {:?}: {}",
-                path_of_pem_file, err
+                "Error during opening the given file {path_of_pem_file:?}: {err}"
             ))
         })?;
 
@@ -102,8 +98,7 @@ pub mod security {
                 .metadata()
                 .map_err(|err| {
                     GrpcMiddlewareError::CertificateError(format!(
-                        "Error during getting permissions of the given file {:?}: {}",
-                        path_of_pem_file, err
+                        "Error during getting permissions of the given file {path_of_pem_file:?}: {err}"
                     ))
                 })?
                 .permissions();
@@ -118,15 +113,13 @@ pub mod security {
             let mut buffer = String::new();
             file.read_to_string(&mut buffer).map_err(|err| {
                 GrpcMiddlewareError::CertificateError(format!(
-                    "Error during reading the given file {:?}: {:?}",
-                    path_of_pem_file, err
+                    "Error during reading the given file {path_of_pem_file:?}: {err:?}"
                 ))
             })?;
             Ok(buffer)
         } else {
             Err(GrpcMiddlewareError::CertificateError(format!(
-                "The given certificate file {:?} has incorrect permissions!",
-                path_of_pem_file
+                "The given certificate file {path_of_pem_file:?} has incorrect permissions!"
             )))
         }
     }

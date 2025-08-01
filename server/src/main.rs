@@ -25,8 +25,8 @@ use common::communications_server::CommunicationsServer;
 use common::objects::State;
 use common::std_extensions::GracefulExitResult;
 
-use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
-use server_config::{ServerConfig, DEFAULT_SERVER_CONFIG_FILE_PATH};
+use ankaios_server::{AnkaiosServer, create_from_server_channel, create_to_server_channel};
+use server_config::{DEFAULT_SERVER_CONFIG_FILE_PATH, ServerConfig};
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 
@@ -43,7 +43,10 @@ fn handle_sever_config(config_path: &Option<String>, default_path: &str) -> Serv
         None => {
             let default_path = PathBuf::from(default_path);
             if !default_path.try_exists().unwrap_or(false) {
-                log::debug!("No config file found at default path '{}'. Using cli arguments and environment variables only.", default_path.display());
+                log::debug!(
+                    "No config file found at default path '{}'. Using cli arguments and environment variables only.",
+                    default_path.display()
+                );
                 ServerConfig::default()
             } else {
                 log::info!(
@@ -107,7 +110,7 @@ async fn main() {
         &server_config.crt_pem_content,
         &server_config.key_pem_content,
     ) {
-        log::warn!("{}", err_message);
+        log::warn!("{err_message}");
     }
 
     // [impl->swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
@@ -150,12 +153,9 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use crate::{
-        handle_sever_config, server_config::DEFAULT_SERVER_CONFIG_FILE_PATH, ServerConfig,
+        ServerConfig, handle_sever_config, server_config::DEFAULT_SERVER_CONFIG_FILE_PATH,
     };
-    use std::{
-        io::Write,
-        net::SocketAddr,
-    };
+    use std::{io::Write, net::SocketAddr};
     use tempfile::NamedTempFile;
 
     const VALID_SERVER_CONFIG_CONTENT: &str = r"#
@@ -168,8 +168,7 @@ mod tests {
     #[test]
     fn utest_handle_server_config_valid_config() {
         let mut tmp_config = NamedTempFile::new().expect("could not create temp file");
-        write!(tmp_config, "{}", VALID_SERVER_CONFIG_CONTENT)
-            .expect("could not write to temp file");
+        write!(tmp_config, "{VALID_SERVER_CONFIG_CONTENT}").expect("could not write to temp file");
 
         let server_config = handle_sever_config(
             &Some(tmp_config.into_temp_path().to_str().unwrap().to_string()),
@@ -190,7 +189,7 @@ mod tests {
     #[test]
     fn utest_handle_server_config_default_path() {
         let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
-        writeln!(file, "{}", VALID_SERVER_CONFIG_CONTENT).expect("Failed to write to file");
+        writeln!(file, "{VALID_SERVER_CONFIG_CONTENT}").expect("Failed to write to file");
 
         let server_config = handle_sever_config(&None, file.path().to_str().unwrap());
 

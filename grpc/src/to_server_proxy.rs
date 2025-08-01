@@ -17,8 +17,8 @@ use crate::grpc_middleware_error::GrpcMiddlewareError;
 
 use crate::grpc_api::{self, to_server::ToServerEnum};
 use api::ank_base::{
-    self, request::RequestContent, CompleteStateRequest, LogsStopResponse, Request,
-    UpdateStateRequest,
+    self, CompleteStateRequest, LogsStopResponse, Request, UpdateStateRequest,
+    request::RequestContent,
 };
 
 use common::request_id_prepending::prepend_request_id;
@@ -53,7 +53,7 @@ pub async fn forward_from_proto_to_ankaios(
     sink: ToServerSender,
 ) -> Result<(), GrpcMiddlewareError> {
     while let Some(message) = grpc_streaming.message().await? {
-        log::trace!("REQUEST={:?}", message);
+        log::trace!("REQUEST={message:?}");
 
         match message
             .to_server_enum
@@ -64,20 +64,19 @@ pub async fn forward_from_proto_to_ankaios(
                 request_id,
                 request_content,
             }) => {
-                log::debug!("Received Request from '{}'", agent_name);
+                log::debug!("Received Request from '{agent_name}'");
 
                 // [impl->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
                 let request_id = prepend_request_id(request_id.as_ref(), agent_name.as_ref());
                 match request_content.ok_or(GrpcMiddlewareError::ConversionError(format!(
-                    "Request content empty for request ID: '{}'",
-                    request_id
+                    "Request content empty for request ID: '{request_id}'"
                 )))? {
                     RequestContent::UpdateStateRequest(update_state_request) => {
                         let UpdateStateRequest {
                             new_state,
                             update_mask,
                         } = *update_state_request;
-                        log::debug!("Received UpdateStateRequest from '{}'", agent_name);
+                        log::debug!("Received UpdateStateRequest from '{agent_name}'");
                         match new_state.unwrap_or_default().try_into() {
                             Ok(new_state) => {
                                 sink.update_state(request_id, new_state, update_mask)
@@ -85,14 +84,13 @@ pub async fn forward_from_proto_to_ankaios(
                             }
                             Err(error) => {
                                 return Err(GrpcMiddlewareError::ConversionError(format!(
-                                    "Could not convert UpdateStateRequest for forwarding: '{}'",
-                                    error
+                                    "Could not convert UpdateStateRequest for forwarding: '{error}'"
                                 )));
                             }
                         };
                     }
                     RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask }) => {
-                        log::trace!("Received RequestCompleteState from '{}'", agent_name);
+                        log::trace!("Received RequestCompleteState from '{agent_name}'");
                         sink.request_complete_state(
                             request_id,
                             ank_base::CompleteStateRequest { field_mask }.into(),
@@ -100,18 +98,18 @@ pub async fn forward_from_proto_to_ankaios(
                         .await?;
                     }
                     RequestContent::LogsRequest(logs_request) => {
-                        log::trace!("Received LogsRequest from '{}'", agent_name);
+                        log::trace!("Received LogsRequest from '{agent_name}'");
                         sink.logs_request(request_id, logs_request.into()).await?;
                     }
                     RequestContent::LogsCancelRequest(_logs_stop_request) => {
-                        log::trace!("Received LogsCancelRequest from '{}'", agent_name);
+                        log::trace!("Received LogsCancelRequest from '{agent_name}'");
                         sink.logs_cancel_request(request_id).await?;
                     }
                 }
             }
 
             ToServerEnum::UpdateWorkloadState(update_workload_state) => {
-                log::trace!("Received UpdateWorkloadState from '{}'", agent_name);
+                log::trace!("Received UpdateWorkloadState from '{agent_name}'");
 
                 sink.update_workload_state(
                     update_workload_state
@@ -124,10 +122,7 @@ pub async fn forward_from_proto_to_ankaios(
             }
 
             ToServerEnum::Goodbye(_goodbye) => {
-                log::trace!(
-                    "Received Goodbye from '{}'. Stopping the control loop.",
-                    agent_name
-                );
+                log::trace!("Received Goodbye from '{agent_name}'. Stopping the control loop.");
                 sink.goodbye(agent_name).await?;
                 break;
             }
@@ -141,7 +136,7 @@ pub async fn forward_from_proto_to_ankaios(
             }
 
             ToServerEnum::LogEntriesResponse(log_entries_response) => {
-                log::trace!("Received LogEntriesResponse from '{}'", agent_name);
+                log::trace!("Received LogEntriesResponse from '{agent_name}'");
                 if let Some(logs_response_object) = log_entries_response.log_entries_response {
                     sink.log_entries_response(
                         log_entries_response.request_id,
@@ -150,14 +145,13 @@ pub async fn forward_from_proto_to_ankaios(
                     .await?;
                 } else {
                     log::warn!(
-                        "Received a LogEntriesResponse from '{}' without actual data",
-                        agent_name
+                        "Received a LogEntriesResponse from '{agent_name}' without actual data"
                     );
                 }
             }
 
             ToServerEnum::LogsStopResponse(logs_stop_response) => {
-                log::trace!("Received LogsStopResponse from '{}'", agent_name);
+                log::trace!("Received LogsStopResponse from '{agent_name}'");
 
                 if let Some(logs_stop_response_object) = logs_stop_response.logs_stop_response {
                     sink.logs_stop_response(
@@ -167,8 +161,7 @@ pub async fn forward_from_proto_to_ankaios(
                     .await?;
                 } else {
                     log::warn!(
-                        "Received a LogsStopResponse from '{}' without actual data",
-                        agent_name
+                        "Received a LogsStopResponse from '{agent_name}' without actual data"
                     );
                 }
             }
@@ -249,7 +242,7 @@ pub async fn forward_from_ankaios_to_proto(
             }
 
             ToServer::LogEntriesResponse(request_id, log_entries_response) => {
-                log::trace!("Received LogEntriesResponse for '{}'", request_id);
+                log::trace!("Received LogEntriesResponse for '{request_id}'");
                 grpc_tx
                     .send(grpc_api::ToServer {
                         to_server_enum: Some(
@@ -265,7 +258,7 @@ pub async fn forward_from_ankaios_to_proto(
             }
 
             ToServer::LogsStopResponse(request_id, logs_stop_response) => {
-                log::trace!("Received LogsStopResponse for '{}'", request_id);
+                log::trace!("Received LogsStopResponse for '{request_id}'");
                 grpc_tx
                     .send(grpc_api::ToServer {
                         to_server_enum: Some(grpc_api::to_server::ToServerEnum::LogsStopResponse(
@@ -311,7 +304,7 @@ mod tests {
 
     use std::collections::LinkedList;
 
-    use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios, GRPCStreaming};
+    use super::{GRPCStreaming, forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use async_trait::async_trait;
     use common::objects::{CpuUsage, FreeMemory};
     use common::test_utils::generate_test_complete_state;
@@ -520,7 +513,12 @@ mod tests {
         )
         .await;
         assert!(forward_result.is_err());
-        assert_eq!(forward_result.unwrap_err().to_string(), String::from("Connection interrupted: 'status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }'"));
+        assert_eq!(
+            forward_result.unwrap_err().to_string(),
+            String::from(
+                "Connection interrupted: 'status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }'"
+            )
+        );
 
         // pick received from server message
         let result = server_rx.recv().await;
@@ -666,7 +664,7 @@ mod tests {
 
         // pick received from server message
         let result = server_rx.recv().await.unwrap();
-        let expected_prefixed_my_request_id = format!("{}@{}", AGENT_A_NAME, REQUEST_ID);
+        let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
 
         assert!(matches!(
             result,
@@ -756,7 +754,7 @@ mod tests {
         // pick received from server message
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
-        let expected_prefixed_my_request_id = format!("{}@{}", AGENT_A_NAME, REQUEST_ID);
+        let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
         let expected_empty_field_mask: Vec<String> = vec![];
         assert!(
             matches!(result, common::to_server_interface::ToServer::Request(common::commands::Request {
@@ -848,7 +846,7 @@ mod tests {
         // pick received from server message
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
-        let expected_prefixed_my_request_id = format!("{}@{}", AGENT_A_NAME, REQUEST_ID);
+        let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
         let expected_workload_names: Vec<common::objects::WorkloadInstanceName> = vec![
             common::objects::WorkloadInstanceName::new(
                 AGENT_A_NAME,
@@ -907,7 +905,7 @@ mod tests {
         // pick received from server message
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
-        let expected_prefixed_my_request_id = format!("{}@{}", AGENT_A_NAME, REQUEST_ID);
+        let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
 
         assert!(matches!(
             result,

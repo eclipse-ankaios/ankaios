@@ -12,7 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::env;
 use std::path::PathBuf;
 
 mod ank_config;
@@ -21,8 +20,10 @@ mod cli_commands;
 mod cli_signals;
 use ank_config::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
 use cli_commands::CliCommands;
-use common::std_extensions::GracefulExitResult;
+use common::std_extensions::{GracefulExitResult, IllegalStateResult};
 use grpc::security::TLSConfig;
+
+use crate::log::{IS_QUIET, IS_VERBOSE};
 mod cli_error;
 mod filtered_complete_state;
 mod log;
@@ -35,22 +36,13 @@ fn handle_ank_config(config_path: &Option<String>, default_path: &str) -> AnkCon
     match config_path {
         Some(config_path) => {
             let config_path = PathBuf::from(config_path);
-            output_debug!(
-                "Loading server config from user provided path '{}'",
-                config_path.display()
-            );
             AnkConfig::from_file(config_path).unwrap_or_exit("Config file could not be parsed")
         }
         None => {
             let default_path = PathBuf::from(default_path.as_ref() as &std::path::Path);
             if !default_path.try_exists().unwrap_or(false) {
-                output_debug!("No config file found at default path '{}'. Using cli arguments and environment variables only.", default_path.display());
                 AnkConfig::default()
             } else {
-                output_debug!(
-                    "Loading server config from default path '{}'",
-                    default_path.display()
-                );
                 AnkConfig::from_file(default_path).expect("Config file could not be parsed")
             }
         }
@@ -67,8 +59,9 @@ async fn main() {
     ank_config.update_with_args(&args);
 
     let cli_name = "ank-cli";
-    env::set_var(log::VERBOSITY_KEY, ank_config.verbose.to_string());
-    env::set_var(log::QUIET_KEY, ank_config.quiet.to_string());
+
+    IS_VERBOSE.set(ank_config.verbose).unwrap_or_illegal_state();
+    IS_QUIET.set(ank_config.quiet).unwrap_or_illegal_state();
 
     output_debug!(
         "Started '{}' with the following parameters: '{:?}'",
@@ -278,7 +271,7 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ank_config::DEFAULT_ANK_CONFIG_FILE_PATH, handle_ank_config, AnkConfig};
+    use crate::{AnkConfig, ank_config::DEFAULT_ANK_CONFIG_FILE_PATH, handle_ank_config};
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -291,7 +284,7 @@ mod tests {
     #[test]
     fn utest_handle_ank_config_valid_config() {
         let mut tmp_config_file = NamedTempFile::new().expect("could not create temp file");
-        write!(tmp_config_file, "{}", VALID_ANK_CONFIG_CONTENT)
+        write!(tmp_config_file, "{VALID_ANK_CONFIG_CONTENT}")
             .expect("could not write to temp file");
 
         let ank_config = handle_ank_config(
@@ -311,7 +304,7 @@ mod tests {
     #[test]
     fn utest_handle_ank_config_default_path() {
         let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
-        writeln!(file, "{}", VALID_ANK_CONFIG_CONTENT).expect("Failed to write to file");
+        writeln!(file, "{VALID_ANK_CONFIG_CONTENT}").expect("Failed to write to file");
 
         let ank_config = handle_ank_config(&None, file.path().to_str().unwrap());
 

@@ -14,7 +14,7 @@
 
 use std::{error::Error, ffi::OsStr};
 
-use clap::{command, ArgAction, CommandFactory, Parser, Subcommand, ValueHint};
+use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueHint, command};
 
 use clap_complete::{ArgValueCompleter, CompleteEnv, CompletionCandidate};
 
@@ -25,7 +25,7 @@ const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
 fn state_from_command(object_field_mask: &str) -> Vec<u8> {
     std::process::Command::new("sh")
         .arg("-c")
-        .arg(format!("ank get state -o json {}", object_field_mask))
+        .arg(format!("ank get state -o json {object_field_mask}"))
         .output()
         .expect("failed to execute process")
         .stdout
@@ -101,16 +101,16 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
     if let Some(desired_state) = state.desired_state {
         result.push(DESIRED_STATE.to_string());
         if let Some(workloads) = desired_state.workloads {
-            result.push(format!("{}.{}", DESIRED_STATE, WORKLOADS));
+            result.push(format!("{DESIRED_STATE}.{WORKLOADS}"));
             for workload_name in workloads.keys() {
-                result.push(format!("{}.{}.{}", DESIRED_STATE, WORKLOADS, workload_name));
+                result.push(format!("{DESIRED_STATE}.{WORKLOADS}.{workload_name}"));
             }
         }
         result.push(CONFIGS.to_string());
         if let Some(configs) = desired_state.configs {
-            result.push(format!("{}.{}", DESIRED_STATE, CONFIGS));
+            result.push(format!("{DESIRED_STATE}.{CONFIGS}"));
             for config_name in configs.keys() {
-                result.push(format!("{}.{}.{}", DESIRED_STATE, CONFIGS, config_name));
+                result.push(format!("{DESIRED_STATE}.{CONFIGS}.{config_name}"));
             }
         }
     }
@@ -118,9 +118,9 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
     if let Some(workload_states) = state.workload_states {
         result.push(WORKLOAD_STATES.to_string());
         for (agent, workloads) in workload_states.into_iter() {
-            result.push(format!("{}.{}", WORKLOAD_STATES, agent));
+            result.push(format!("{WORKLOAD_STATES}.{agent}"));
             for workload_name in workloads.keys() {
-                result.push(format!("{}.{}.{}", WORKLOAD_STATES, agent, workload_name));
+                result.push(format!("{WORKLOAD_STATES}.{agent}.{workload_name}"));
             }
         }
     }

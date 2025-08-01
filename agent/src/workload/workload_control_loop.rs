@@ -146,10 +146,10 @@ impl WorkloadControlLoop {
                         Some(WorkloadCommand::StartLogFetcher(log_request_options, result_sink)) =>  {
                             match Self::create_log_fetcher(&control_loop_state, &log_request_options) {
                                 Ok(logger) => {if let Err(error) = result_sink.send(logger){
-                                    log::warn!("Could not return log fetcher: '{:?}'", error);
+                                    log::warn!("Could not return log fetcher: '{error:?}'");
                                 }},
                                 Err(error) => {
-                                    log::warn!("Could not start log fetcher: '{:?}'", error);
+                                    log::warn!("Could not start log fetcher: '{error:?}'");
                                 }
                             }
                         }
@@ -253,7 +253,7 @@ impl WorkloadControlLoop {
             .retry_sender
             .retry(instance_name, retry_token)
             .await
-            .unwrap_or_else(|err| log::info!("Could not send WorkloadCommand::Retry: '{}'", err));
+            .unwrap_or_else(|err| log::info!("Could not send WorkloadCommand::Retry: '{err}'"));
         control_loop_state
     }
 
@@ -335,7 +335,7 @@ impl WorkloadControlLoop {
                         )
                         .await;
 
-                        log::error!("Failed to create workload with error: '{}'", err);
+                        log::error!("Failed to create workload with error: '{err}'");
 
                         control_loop_state
                     }
@@ -612,18 +612,14 @@ impl WorkloadControlLoop {
                 .await
                 .map_err(|err| {
                     log::warn!(
-                        "Failed to start state checker when resuming workload '{}': '{}'",
-                        workload_name,
-                        err
+                        "Failed to start state checker when resuming workload '{workload_name}': '{err}'"
                     );
                     err
                 })
                 .ok(),
             Err(err) => {
                 log::warn!(
-                    "Failed to get workload id when resuming workload '{}': '{}'",
-                    workload_name,
-                    err
+                    "Failed to get workload id when resuming workload '{workload_name}': '{err}'"
                 );
                 None
             }
@@ -640,7 +636,7 @@ impl WorkloadControlLoop {
             .await
             .unwrap_or_else(|err| match err {
                 FileSystemError::NotFoundDirectory(_) => {}
-                _ => log::warn!("Failed to delete folder: '{}'", err),
+                _ => log::warn!("Failed to delete folder: '{err}'"),
             });
     }
 
@@ -691,9 +687,9 @@ mod tests {
     use crate::io_utils::mock_filesystem_async;
     use crate::runtime_connectors::log_fetcher::MockLogFetcher;
     use crate::runtime_connectors::{LogRequestOptions, RuntimeError};
+    use crate::workload::WorkloadCommand;
     use crate::workload::retry_manager::MockRetryToken;
     use crate::workload::workload_command_channel::WorkloadCommandSender;
-    use crate::workload::WorkloadCommand;
     use crate::workload_files::{
         MockWorkloadFilesCreator, WorkloadFileCreationError, WorkloadFilesBasePath,
     };
@@ -706,11 +702,11 @@ mod tests {
     use mockall::predicate;
 
     use common::objects::{
+        ExecutionState, ExecutionStateEnum, WorkloadInstanceName,
         generate_test_rendered_workload_files, generate_test_workload_spec_with_param,
-        generate_test_workload_spec_with_rendered_files, ExecutionState, ExecutionStateEnum,
-        WorkloadInstanceName,
+        generate_test_workload_spec_with_rendered_files,
     };
-    use common::objects::{generate_test_workload_state_with_workload_spec, RestartPolicy};
+    use common::objects::{RestartPolicy, generate_test_workload_state_with_workload_spec};
 
     use tokio::{sync::mpsc, time::timeout};
 
@@ -835,12 +831,14 @@ mod tests {
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
         control_loop_state.state_checker = Some(old_mock_state_checker);
 
-        assert!(timeout(
-            Duration::from_millis(200),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(200),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert_execution_state_sequence(
             state_change_rx,
@@ -928,12 +926,14 @@ mod tests {
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
         control_loop_state.state_checker = Some(old_mock_state_checker);
 
-        assert!(timeout(
-            Duration::from_millis(200),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(200),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert_execution_state_sequence(
             state_change_rx,
@@ -1047,12 +1047,14 @@ mod tests {
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
         control_loop_state.state_checker = Some(old_mock_state_checker);
 
-        assert!(timeout(
-            Duration::from_millis(200),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(200),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert_execution_state_sequence(
             state_change_rx,
@@ -1155,12 +1157,14 @@ mod tests {
             .expect_new_token()
             .return_once(|| mock_retry_token);
 
-        assert!(timeout(
-            Duration::from_millis(200),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(200),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert_execution_state_sequence(
             state_change_rx,
@@ -1250,12 +1254,14 @@ mod tests {
             .times(2)
             .return_const(());
 
-        assert!(timeout(
-            Duration::from_millis(200),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(200),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert_execution_state_sequence(
             state_change_rx,
@@ -1329,12 +1335,14 @@ mod tests {
         control_loop_state.workload_id = Some(OLD_WORKLOAD_ID.to_string());
         control_loop_state.state_checker = Some(mock_state_checker);
 
-        assert!(timeout(
-            Duration::from_millis(200),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(200),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert_execution_state_sequence(
             state_change_rx,
@@ -1391,12 +1399,14 @@ mod tests {
             .once()
             .return_const(());
 
-        assert!(timeout(
-            Duration::from_millis(200),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(200),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
@@ -1473,12 +1483,14 @@ mod tests {
             .expect_new_token()
             .return_once(|| mock_retry_token);
 
-        assert!(timeout(
-            Duration::from_millis(100),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(100),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
@@ -1551,12 +1563,14 @@ mod tests {
         workload_command_sender.resume().unwrap();
         workload_command_sender.delete().await.unwrap();
 
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(150),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
@@ -1797,12 +1811,14 @@ mod tests {
             )
             .await;
 
-        assert!(timeout(
-            Duration::from_millis(100),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(100),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert_eq!(
             Ok(Some(workload_state)),
@@ -1851,12 +1867,14 @@ mod tests {
         // close the channel to panic within the workload control loop
         workload_state_forward_rx.close();
 
-        assert!(timeout(
-            Duration::from_millis(100),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(100),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
@@ -1956,12 +1974,14 @@ mod tests {
             )
             .await;
 
-        assert!(timeout(
-            Duration::from_millis(100),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(100),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
@@ -2371,12 +2391,14 @@ mod tests {
             .once()
             .return_once(|| retry_token);
 
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(150),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         let Some(WorkloadCommand::Retry(received_instance_name, _received_retry_token)) =
             workload_command_receiver2.recv().await
@@ -2479,12 +2501,14 @@ mod tests {
             .once()
             .return_once(|| retry_token);
 
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(150),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         let Some(WorkloadCommand::Retry(received_instance_name, _received_retry_token)) =
             workload_command_receiver2.recv().await
@@ -2564,12 +2588,14 @@ mod tests {
             .once()
             .return_const(());
 
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(150),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert!(workload_command_receiver2.is_empty());
         assert!(workload_command_receiver2.is_closed());
@@ -2637,12 +2663,14 @@ mod tests {
             .once()
             .return_const(());
 
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(150),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         assert!(workload_command_receiver2.is_empty());
         assert!(workload_command_receiver2.is_closed());
@@ -2720,12 +2748,14 @@ mod tests {
             .once()
             .return_const(());
 
-        assert!(timeout(
-            Duration::from_millis(150),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
+        assert!(
+            timeout(
+                Duration::from_millis(150),
+                WorkloadControlLoop::run(control_loop_state)
+            )
+            .await
+            .is_ok()
+        );
 
         let Some(WorkloadCommand::Retry(received_instance_name, _received_retry_token)) =
             workload_command_receiver2.recv().await

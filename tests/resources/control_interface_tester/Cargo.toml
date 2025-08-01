@@ -1,6 +1,6 @@
 [package]
 name = "control_interface_tester"
-edition = "2021"
+edition = "2024"
 license = "Apache-2.0"
 description = "Application using the Control Interface used for system tests"
 

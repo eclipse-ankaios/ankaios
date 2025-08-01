@@ -56,7 +56,7 @@ impl WorkloadScheduler {
     where
         T: Into<String> + Display + 'static,
     {
-        log::debug!("Putting workload '{}' on waiting queue.", workload_name);
+        log::debug!("Putting workload '{workload_name}' on waiting queue.");
         self.queue.insert(workload_name.into(), pending_entry);
     }
 
@@ -335,8 +335,9 @@ impl WorkloadScheduler {
 mod tests {
     use common::{
         objects::{
-            generate_test_workload_spec, generate_test_workload_spec_with_param,
-            generate_test_workload_state_with_workload_spec, ExecutionState, WorkloadState,
+            ExecutionState, WorkloadState, generate_test_workload_spec,
+            generate_test_workload_spec_with_param,
+            generate_test_workload_state_with_workload_spec,
         },
         test_utils::generate_test_deleted_workload,
     };
@@ -405,12 +406,14 @@ mod tests {
             .await
         );
 
-        assert!(workload_scheduler.queue.contains_key(
-            pending_reusable_workload
-                .workload_spec
-                .instance_name
-                .workload_name()
-        ));
+        assert!(
+            workload_scheduler.queue.contains_key(
+                pending_reusable_workload
+                    .workload_spec
+                    .instance_name
+                    .workload_name()
+            )
+        );
 
         assert!(ready_workload_operations.is_empty());
     }
@@ -960,8 +963,8 @@ mod tests {
 
     // [utest->swdd~agent-shall-not-enqueue-update-delete-only-workload-operation~1]
     #[tokio::test]
-    async fn utest_enqueue_filtered_workload_operations_ignore_update_delete_only_workload_operations(
-    ) {
+    async fn utest_enqueue_filtered_workload_operations_ignore_update_delete_only_workload_operations()
+     {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -989,8 +992,8 @@ mod tests {
 
     // [utest->swdd~agent-handles-update-with-fulfilled-delete~1]
     #[tokio::test]
-    async fn utest_next_workload_operations_enqueue_pending_update_create_on_delete_fulfilled_update(
-    ) {
+    async fn utest_next_workload_operations_enqueue_pending_update_create_on_delete_fulfilled_update()
+     {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1136,9 +1139,11 @@ mod tests {
 
         assert!(ready_workload_operations.is_empty());
 
-        assert!(workload_scheduler
-            .queue
-            .contains_key(instance_name_deleted_workload.workload_name()));
+        assert!(
+            workload_scheduler
+                .queue
+                .contains_key(instance_name_deleted_workload.workload_name())
+        );
     }
 
     // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
@@ -1211,9 +1216,11 @@ mod tests {
 
         assert!(ready_workload_operations.is_empty());
 
-        assert!(workload_scheduler
-            .queue
-            .contains_key(instance_name_create_workload.workload_name()));
+        assert!(
+            workload_scheduler
+                .queue
+                .contains_key(instance_name_create_workload.workload_name())
+        );
     }
 
     // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
@@ -1303,9 +1310,11 @@ mod tests {
 
         assert!(ready_workload_operations.is_empty());
 
-        assert!(workload_scheduler
-            .queue
-            .contains_key(instance_name.workload_name()));
+        assert!(
+            workload_scheduler
+                .queue
+                .contains_key(instance_name.workload_name())
+        );
     }
 
     // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
@@ -1405,15 +1414,17 @@ mod tests {
 
         assert!(ready_workload_operations.is_empty());
 
-        assert!(workload_scheduler
-            .queue
-            .contains_key(instance_name.workload_name()));
+        assert!(
+            workload_scheduler
+                .queue
+                .contains_key(instance_name.workload_name())
+        );
     }
 
     // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
     #[tokio::test]
-    async fn utest_next_workload_operations_no_report_pending_create_on_pending_update_create_reenqueue(
-    ) {
+    async fn utest_next_workload_operations_no_report_pending_create_on_pending_update_create_reenqueue()
+     {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;

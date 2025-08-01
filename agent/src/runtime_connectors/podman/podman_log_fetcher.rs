@@ -65,7 +65,7 @@ impl PodmanLogFetcher {
         let cmd = match cmd {
             Ok(cmd) => Some(cmd),
             Err(err) => {
-                log::warn!("Can not collect logs for '{}': '{}'", workload_id, err);
+                log::warn!("Can not collect logs for '{workload_id}': '{err}'");
                 None
             }
         };
@@ -94,7 +94,7 @@ impl Drop for PodmanLogFetcher {
     fn drop(&mut self) {
         if let Some(child) = &mut self.child {
             if let Err(err) = child.start_kill() {
-                log::warn!("Could not stop log collection: '{}'", err);
+                log::warn!("Could not stop log collection: '{err}'");
             }
         }
     }
@@ -142,7 +142,7 @@ mod tests {
 
     use super::PodmanLogFetcher;
     use crate::runtime_connectors::{
-        log_fetcher::GetOutputStreams, podman::PodmanWorkloadId, LogRequestOptions,
+        LogRequestOptions, log_fetcher::GetOutputStreams, podman::PodmanWorkloadId,
     };
 
     const WORKLOAD_ID: &str = "workload_id";
