@@ -529,7 +529,7 @@ impl AnkaiosServer {
         }
     }
 
-    // [impl->swdd~server-sends-logs-stop-response-for-disconnected-agents~1]
+    // [impl->swdd~server-handles-log-campaign-for-disconnected-agent~1]
     async fn send_log_stop_response_for_disconnected_agent(
         &mut self,
         stopped_log_gatherings: Vec<(String, Vec<WorkloadInstanceName>)>,
