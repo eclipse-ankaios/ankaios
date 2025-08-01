@@ -618,48 +618,48 @@ mod tests {
     }
 
     // [utest->swdd~agent-sends-node-resource-availability-to-server~1]
-    // #[tokio::test]
-    // async fn utest_agent_manager_sends_available_resources() {
-    //     let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-    //         .get_lock_async()
-    //         .await;
+    #[tokio::test]
+    async fn utest_agent_manager_sends_available_resources() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
 
-    //     let mock_wl_state_store = MockWorkloadStateStore::default();
-    //     mock_parameter_storage_new_returns(mock_wl_state_store);
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store);
 
-    //     let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-    //     let (to_server, mut server_receiver) = channel(BUFFER_SIZE);
-    //     let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
-    //     let mut mock_runtime_manager = RuntimeManager::default();
-    //     mock_runtime_manager.expect_handle_update_workload().never();
-    //     mock_runtime_manager.expect_forward_response().never();
-    //     mock_runtime_manager.expect_execute_workloads().never();
-    //     mock_runtime_manager.expect_handle_server_hello().never();
-    //     mock_runtime_manager
-    //         .expect_update_workloads_on_fulfilled_dependencies()
-    //         .never();
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, mut server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+        let mut mock_runtime_manager = RuntimeManager::default();
+        mock_runtime_manager.expect_handle_update_workload().never();
+        mock_runtime_manager.expect_forward_response().never();
+        mock_runtime_manager.expect_execute_workloads().never();
+        mock_runtime_manager.expect_handle_server_hello().never();
+        mock_runtime_manager
+            .expect_update_workloads_on_fulfilled_dependencies()
+            .never();
 
-    //     let mut agent_manager = AgentManager::new(
-    //         AGENT_NAME.to_string(),
-    //         manager_receiver,
-    //         mock_runtime_manager,
-    //         to_server,
-    //         workload_state_receiver,
-    //     );
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
 
-    //     let handle = tokio::spawn(async move { agent_manager.start().await });
+        let handle = tokio::spawn(async move { agent_manager.start().await });
 
-    //     let result = server_receiver.recv().await.unwrap();
-    //     if let ToServer::AgentLoadStatus(load_status) = result {
-    //         assert_eq!(load_status.agent_name, AGENT_NAME.to_string());
-    //         assert_ne!(load_status.cpu_usage.cpu_usage, 0);
-    //     } else {
-    //         panic!("Expected AgentLoadStatus, got something else");
-    //     }
+        let result = server_receiver.recv().await.unwrap();
+        if let ToServer::AgentLoadStatus(load_status) = result {
+            assert_eq!(load_status.agent_name, AGENT_NAME.to_string());
+            assert_ne!(load_status.cpu_usage.cpu_usage, 0);
+        } else {
+            panic!("Expected AgentLoadStatus, got something else");
+        }
 
-    //     to_manager.stop().await.unwrap();
-    //     assert!(join!(handle).0.is_ok());
-    // }
+        to_manager.stop().await.unwrap();
+        assert!(join!(handle).0.is_ok());
+    }
 
     // [utest->swdd~agent-handles-logs-requests-from-server~1]
     #[tokio::test]
