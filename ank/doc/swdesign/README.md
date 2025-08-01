@@ -45,8 +45,7 @@ Therefore the information shall not be written to the log, but it shall be provi
 Existing crates either do not behave as it is required or they are too complex for such task.
 
 Needs:
-
-* impl
+- impl
 
 Considered alternatives:
 
