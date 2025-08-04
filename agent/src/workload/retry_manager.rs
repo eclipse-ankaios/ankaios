@@ -59,7 +59,7 @@ impl RetryManager {
         let (sender, receiver) = watch::channel(true);
         self.current_token_is_valid_sink = sender;
 
-        // [impl->swdd~agent-workload-control-loop-reset-backoff-on-update]
+        // [impl->swdd~agent-workload-control-loop-reset-backoff-on-update~1]
         RetryToken {
             counter: 0,
             valid: receiver,
@@ -168,7 +168,7 @@ mod tests {
     use std::{
         cell::RefCell,
         ops::{DerefMut, RangeToInclusive},
-        pin::{pin, Pin},
+        pin::{Pin, pin},
         rc::Rc,
         sync::{Arc, Mutex},
         task::{Context, Poll, Wake, Waker},
@@ -360,7 +360,7 @@ mod tests {
         assert_eq!(token.counter(), 11);
     }
 
-    // [utest->swdd~agent-workload-control-loop-reset-backoff-on-update]
+    // [utest->swdd~agent-workload-control-loop-reset-backoff-on-update~1]
     #[test]
     fn utest_new_toke_resets_timeout() {
         let _lock = MOCKALL_CONTEXT_SYNC.get_lock();

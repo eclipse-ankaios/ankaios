@@ -1850,7 +1850,7 @@ Needs:
 - stest
 
 #### WorkloadControlLoop reset backoff on update
-`swdd~agent-workload-control-loop-reset-backoff-on-update`
+`swdd~agent-workload-control-loop-reset-backoff-on-update~1`
 
 Status: approved
 
