@@ -3234,6 +3234,21 @@ Needs:
 - impl
 - utest
 
+#### A Fake requirement
+`swdd~fake-requirement~1`
+
+Status: approved
+
+This is a fake requirement.
+
+Tags:
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Agent ensures the Control Interface input pipes are read
 `swdd~agent-ensures-control-interface-input-pipe-read~1`
 
