@@ -1,0 +1,33 @@
+name: Build
+on:
+  pull_request:
+
+jobs:
+  compare_requirements:
+    name: Compare requirements with main branch
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.3
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Compare requirement tracing reports
+        id: compare
+        run: |
+          just compare-requirements > req-results.txt
+          if [ -s req-results.txt ]; then
+            echo "diff=true" >> $GITHUB_OUTPUT
+            echo "**Uncovered requirements found**\n\n" > comment.md
+            cat req-results.txt >> comment.md
+          else
+            echo "diff=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Show PR labels
+        run: |
+          echo "Labels:"
+          echo "${{ toJson(github.event.pull_request.labels) }}"
+      - name: Comment on PR if diff has been found
+        if: steps.compare.outputs.diff == 'true'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: comment.md
