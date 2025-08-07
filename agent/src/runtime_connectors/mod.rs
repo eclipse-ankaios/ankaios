@@ -20,6 +20,8 @@ pub(crate) mod podman;
 
 pub(crate) mod podman_kube;
 
+pub(crate) mod containerd;
+
 pub(crate) mod dummy_state_checker;
 pub(crate) mod unsupported_runtime;
 

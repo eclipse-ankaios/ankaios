@@ -10,6 +10,16 @@ workloads:
     runtimeConfig: |
       image: docker.io/nginx:latest
       commandOptions: ["-p", "8081:80"]
+  screamer:
+    runtime: containerd
+    agent: agent_A
+    restartPolicy: NEVER
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "sh", "-c", "trap 'echo; exit' SIGINT SIGTERM; while true; do echo 'ANKAIOS'; sleep 1; done" ]
   hello1:
     runtime: podman
     agent: agent_B
