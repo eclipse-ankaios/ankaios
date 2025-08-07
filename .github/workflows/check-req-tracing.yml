@@ -18,9 +18,9 @@ jobs:
           just compare-requirements > req-results.txt
           if [ -s req-results.txt ]; then
             echo "diff=true" >> $GITHUB_OUTPUT
-            echo "**Uncovered requirements found:**\n\n```\n" > comment.md
+            echo '**Uncovered requirements found:**\n```' > comment.md
             cat req-results.txt >> comment.md
-            echo "```\n" > comment.md
+            echo '```\n' >> comment.md
           else
             echo "diff=false" >> $GITHUB_OUTPUT
           fi
