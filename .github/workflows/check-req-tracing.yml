@@ -13,6 +13,7 @@ jobs:
       - name: Compare requirement tracing reports
         id: compare
         run: |
+          git config --global --add safe.directory $PWD
           just compare-requirements > req-results.txt
           if [ -s req-results.txt ]; then
             echo "diff=true" >> $GITHUB_OUTPUT
