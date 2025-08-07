@@ -88,7 +88,7 @@ trace-requirements report="build/req/req_tracing_report.html":
     mkdir -p $(dirname "{{ report }}")
     oft trace $(find . {{oft_dirs}}) {{oft_args}} -o html -f "{{ report }}" || true
 
-# Compare requirement tracing report from
+# Compare requirement tracing report from current branch with main branch
 compare-requirements:
     #!/usr/bin/env bash
     set -e
