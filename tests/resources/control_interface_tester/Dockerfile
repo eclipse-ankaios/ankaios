@@ -1,4 +1,4 @@
-FROM ghcr.io/eclipse-ankaios/devcontainer-base:0.10.3 AS compile
+FROM ghcr.io/eclipse-ankaios/devcontainer-base:0.10.4 AS compile
 
 ARG WORKSPACE_DIR=/workspaces/build
 
