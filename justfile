@@ -14,6 +14,8 @@
 
 vendor_dir := "vendor"
 config := ".cargo/config.toml"
+oft_dirs := "-type d \\( -name 'src' -o -name 'doc' -o -name 'tests' \\) -not -path './doc'"
+oft_args := "-a swdd,impl,utest,itest,stest"
 
 all: check-test-images check-licenses check-advisories check-copyright-headers clippy test stest build-release
 
@@ -84,7 +86,25 @@ coverage:
 # Create requirement tracing report
 trace-requirements report="build/req/req_tracing_report.html":
     mkdir -p $(dirname "{{ report }}")
-    oft trace $(find . -type d \( -name "src" -o -name "doc" -o -name "tests" \) -not -path './doc') -a swdd,impl,utest,itest,stest -o html -f "{{ report }}" || true
+    oft trace $(find . {{oft_dirs}}) {{oft_args}} -o html -f "{{ report }}" || true
+
+# Compare requirement tracing report from
+compare-requirements:
+    #!/usr/bin/env bash
+    # Get main branch
+    maindir=$(mktemp -d)
+    git fetch origin main --quiet
+    git worktree add "$maindir" main --quiet
+    # Create requirment tracing report for main
+    mkdir -p build/req
+    oft trace $(find "$maindir" {{oft_dirs}}) {{oft_args}} -o aspec -f build/req/main.xml || true
+    # Create requirement tracing report for current branch
+    oft trace $(find . {{oft_dirs}}) {{oft_args}} -o aspec -f build/req/current.xml || true
+    # Compare
+    python3 tools/compare_req_tracing.py build/req/main.xml  build/req/current.xml
+    # Cleanup
+    git worktree remove "$maindir"
+    rm -rf "$maindir"
 
 _dist:
     mkdir -p dist
