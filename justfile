@@ -91,6 +91,7 @@ trace-requirements report="build/req/req_tracing_report.html":
 # Compare requirement tracing report from
 compare-requirements:
     #!/usr/bin/env bash
+    set -e
     # Get main branch
     maindir=$(mktemp -d)
     git fetch origin main --quiet

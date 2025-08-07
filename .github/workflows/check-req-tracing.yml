@@ -5,6 +5,7 @@ on:
 jobs:
   compare_requirements:
     name: Compare requirements with main branch
+    permissions: write-all
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.3
