@@ -169,7 +169,6 @@ async fn main() {
         ContainerdWorkloadId,
         GenericPollingStateChecker,
     >::new(containerd_runtime, run_directory.get_path()));
-    let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
     runtime_facade_map.insert(containerd_runtime_name, containerd_facade);
 
     // The RuntimeManager currently directly gets the server ToServerInterface, but it shall get the agent manager interface
