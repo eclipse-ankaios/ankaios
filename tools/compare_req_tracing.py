@@ -60,6 +60,6 @@ def main(file_a, file_b):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python compare_coverage.py <old-report.xml> <new-report.xml>")
+        print("Usage: python compare_req_tracing.py <old-report.xml> <new-report.xml>")
         sys.exit(1)
     main(sys.argv[1], sys.argv[2])

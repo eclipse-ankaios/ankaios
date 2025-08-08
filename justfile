@@ -96,7 +96,7 @@ compare-requirements:
     maindir=$(mktemp -d)
     git fetch origin main --quiet
     git worktree add "$maindir" main --quiet
-    # Create requirment tracing report for main
+    # Create requirement tracing report for main
     mkdir -p build/req
     oft trace $(find "$maindir" {{oft_dirs}}) {{oft_args}} -o aspec -f build/req/main.xml || true
     # Create requirement tracing report for current branch
