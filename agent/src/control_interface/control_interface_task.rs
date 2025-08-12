@@ -100,6 +100,7 @@ impl ControlInterfaceTask {
         match self.check_initial_hello().await {
             Ok(_) => {
                 log::info!("Control interface connection established.");
+                // [impl->swdd~agent-sends-accepted-message-on-valid-initial-hello~1]
                 if let Err(err) = self.send_control_interface_accepted().await {
                     log::warn!("Could not send ControlInterfaceAccepted message: '{err}'");
                     return;
@@ -645,6 +646,7 @@ mod tests {
     // [utest->swdd~agent-checks-request-for-authorization~1]
     // [utest->swdd~agent-forward-request-from-control-interface-pipe-to-server~2]
     // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
+    // [utest->swdd~agent-sends-accepted-message-on-valid-initial-hello~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_access_allowed() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
