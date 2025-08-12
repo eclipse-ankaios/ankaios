@@ -214,7 +214,6 @@ impl NerdctlCli {
             }
         }
 
-        println!("Parsed label names: {names:?}");
         Ok(names)
     }
 
