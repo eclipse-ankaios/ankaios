@@ -24,6 +24,8 @@ pub const WILDCARD_SYMBOL: &str = "*";
 #[serde(rename_all = "camelCase")]
 pub struct ControlInterfaceAccess {
     #[serde(default)]
+    pub target_path: Option<String>,
+    #[serde(default)]
     pub allow_rules: Vec<AccessRightsRule>,
     #[serde(default)]
     pub deny_rules: Vec<AccessRightsRule>,
@@ -43,6 +45,7 @@ impl TryFrom<api::ank_base::ControlInterfaceAccess> for ControlInterfaceAccess {
     type Error = String;
     fn try_from(value: api::ank_base::ControlInterfaceAccess) -> Result<Self, Self::Error> {
         Ok(Self {
+            target_path: value.target_path,
             allow_rules: convert_rule_vec(value.allow_rules)?,
             deny_rules: convert_rule_vec(value.deny_rules)?,
         })
@@ -55,6 +58,7 @@ impl From<ControlInterfaceAccess> for Option<api::ank_base::ControlInterfaceAcce
             None
         } else {
             Some(api::ank_base::ControlInterfaceAccess {
+                target_path: value.target_path,
                 allow_rules: value.allow_rules.into_iter().map(|x| x.into()).collect(),
                 deny_rules: value.deny_rules.into_iter().map(|x| x.into()).collect(),
             })
@@ -255,6 +259,7 @@ impl From<ReadWriteEnum> for i32 {
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_control_interface_access() -> ControlInterfaceAccess {
     ControlInterfaceAccess {
+        target_path: None,
         allow_rules: vec![AccessRightsRule::StateRule(StateRule {
             operation: ReadWriteEnum::ReadWrite,
             filter_mask: vec!["desiredState".to_string()],

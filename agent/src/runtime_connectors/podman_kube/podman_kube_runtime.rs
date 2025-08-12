@@ -14,10 +14,15 @@
 
 use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
-use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
+use common::{
+    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
+    std_extensions::{IllegalStateResult, UnreachableOption},
+};
 
 use async_trait::async_trait;
 use futures_util::TryFutureExt;
+use serde::Deserialize;
+use serde_yaml::{self, Deserializer, Mapping, Value};
 
 #[cfg(test)]
 use mockall_double::double;
@@ -92,6 +97,188 @@ impl PodmanKubeRuntime {
         }
         Ok(workload_states)
     }
+
+    /// Processes Kubernetes manifests and injects control interface configuration when needed.
+    fn process_manifests_with_control_interface(
+        manifest_str: &str,
+        workload_spec: &WorkloadSpec,
+        target_pod: Option<&str>,
+        target_container: Option<&str>,
+    ) -> Result<String, RuntimeError> {
+        let manifests = Self::parse_yaml_manifests(manifest_str)?;
+        let processed_manifests =
+            Self::process_manifest_list(manifests, workload_spec, target_pod, target_container)?;
+
+        Ok(processed_manifests.join("---\n"))
+    }
+
+    /// Parses YAML manifests from a multi-document string.
+    fn parse_yaml_manifests(manifest_str: &str) -> Result<Vec<Value>, RuntimeError> {
+        let mut manifests = Vec::new();
+
+        for manifest_result in Deserializer::from_str(manifest_str) {
+            let manifest = Value::deserialize(manifest_result).map_err(|e| {
+                RuntimeError::Unsupported(format!("Failed to parse YAML manifest: {}", e))
+            })?;
+            manifests.push(manifest);
+        }
+
+        Ok(manifests)
+    }
+
+    /// Processes a list of manifests and injects control interface when target is specified.
+    fn process_manifest_list(
+        manifests: Vec<Value>,
+        workload_spec: &WorkloadSpec,
+        target_pod: Option<&str>,
+        target_container: Option<&str>,
+    ) -> Result<Vec<String>, RuntimeError> {
+        manifests
+            .into_iter()
+            .map(|mut manifest| {
+                if Self::should_inject_control_interface(&manifest, target_pod)? {
+                    Self::inject_control_interface(&mut manifest, workload_spec, target_container)?;
+                }
+                Self::serialize_yaml_manifest(&manifest)
+            })
+            .collect()
+    }
+
+    /// Checks if the manifest is a target Pod that needs control interface injection.
+    fn should_inject_control_interface(
+        manifest: &Value,
+        target_pod: Option<&str>,
+    ) -> Result<bool, RuntimeError> {
+        let Some(target_pod_name) = target_pod else {
+            return Ok(false);
+        };
+
+        let kind = manifest
+            .get("kind")
+            .and_then(|k| k.as_str())
+            .ok_or_else(|| {
+                RuntimeError::Unsupported("Manifest missing 'kind' field".to_string())
+            })?;
+
+        if kind != "Pod" {
+            return Ok(false);
+        }
+
+        let pod_name = manifest
+            .get("metadata")
+            .and_then(|m| m.get("name"))
+            .and_then(|n| n.as_str())
+            .ok_or_else(|| {
+                RuntimeError::Unsupported("Pod manifest missing metadata.name".to_string())
+            })?;
+
+        Ok(pod_name == target_pod_name)
+    }
+
+    /// Injects control interface volume mount and volume into the specified pod.
+    fn inject_control_interface(
+        manifest: &mut Value,
+        workload_spec: &WorkloadSpec,
+        target_container: Option<&str>,
+    ) -> Result<(), RuntimeError> {
+        if let Some(container_name) = target_container {
+            Self::inject_volume_mount(manifest, container_name)?;
+        }
+        Self::inject_control_volume(manifest, workload_spec)?;
+        Ok(())
+    }
+
+    /// Injects volume mount into the specified container.
+    fn inject_volume_mount(
+        manifest: &mut Value,
+        target_container_name: &str,
+    ) -> Result<(), RuntimeError> {
+        let containers = manifest
+            .get_mut("spec")
+            .and_then(|s| s.get_mut("containers"))
+            .and_then(|c| c.as_sequence_mut())
+            .ok_or_else(|| {
+                RuntimeError::Unsupported("Pod manifest missing spec.containers".to_string())
+            })?;
+
+        for container in containers {
+            let container_name =
+                container
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .ok_or_else(|| {
+                        RuntimeError::Unsupported("Container missing name field".to_string())
+                    })?;
+
+            if container_name == target_container_name {
+                Self::add_control_interface_mount(container);
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Adds the control interface volume mount to a container.
+    fn add_control_interface_mount(container: &mut Value) {
+        if let Some(vol_mounts) = container
+            .get_mut("volumeMounts")
+            .and_then(|v| v.as_sequence_mut())
+        {
+            let mut volume_mount = Mapping::new();
+            volume_mount.insert(Value::from("name"), Value::from("control-interface-volume"));
+            volume_mount.insert(
+                Value::from("mountPath"),
+                Value::from("/run/ankaios/control_interface"),
+            );
+
+            vol_mounts.push(Value::Mapping(volume_mount));
+        }
+    }
+
+    /// Injects the control interface volume into the pod specification.
+    fn inject_control_volume(
+        manifest: &mut Value,
+        workload_spec: &WorkloadSpec,
+    ) -> Result<(), RuntimeError> {
+        let volumes = manifest
+            .get_mut("spec")
+            .and_then(|s| s.get_mut("volumes"))
+            .and_then(|v| v.as_sequence_mut())
+            .ok_or_else(|| {
+                RuntimeError::Unsupported("Pod manifest missing spec.volumes".to_string())
+            })?;
+
+        let volume = Self::create_control_interface_volume(workload_spec);
+        volumes.push(volume);
+        Ok(())
+    }
+
+    /// Creates the control interface volume configuration.
+    fn create_control_interface_volume(workload_spec: &WorkloadSpec) -> Value {
+        let mut host_path = Mapping::new();
+        let path = format!(
+            "/tmp/ankaios/{}_io/{}.{}/control_interface/",
+            workload_spec.instance_name.agent_name(),
+            workload_spec.instance_name.workload_name(),
+            workload_spec.instance_name.id()
+        );
+
+        host_path.insert(Value::from("path"), Value::from(path));
+        host_path.insert(Value::from("type"), Value::from("Directory"));
+
+        let mut volume = Mapping::new();
+        volume.insert(Value::from("name"), Value::from("control-interface-volume"));
+        volume.insert(Value::from("hostPath"), Value::Mapping(host_path));
+
+        Value::Mapping(volume)
+    }
+
+    /// Serializes a manifest back to YAML string.
+    fn serialize_yaml_manifest(manifest: &Value) -> Result<String, RuntimeError> {
+        serde_yaml::to_string(manifest)
+            .map_err(|e| RuntimeError::Unsupported(format!("Failed to serialize manifest: {}", e)))
+    }
 }
 
 #[async_trait]
@@ -147,7 +334,31 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         update_state_tx: WorkloadStateSender,
         _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
+        // println!("workload_spec: {:?}", workload_spec);
+        // println!("_reusable_workload_id: {:?}", _reusable_workload_id);
+        // println!("_control_interface_path: {:?}", _control_interface_path);
+        // println!("update_state_tx: {:?}", update_state_tx);
+        // println!(
+        //     "_workload_file_path_mapping: {:?}",
+        //     _workload_file_path_mapping
+        // );
+
         let instance_name = workload_spec.instance_name.clone();
+        let target_pod;
+        let target_container;
+
+        if let Some(target_path) = workload_spec.clone().control_interface_access.target_path {
+            let composite_parts: Vec<String> =
+                target_path.split('/').map(|s| s.to_owned()).collect();
+
+            target_pod = composite_parts.first().cloned();
+            target_container = composite_parts.get(1).cloned();
+        } else {
+            target_pod = None;
+            target_container = None;
+        }
+
+        // println!("target_path: {target_pod:?}/{target_container:?}");
 
         let workload_config =
             PodmanKubeRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Unsupported)?;
@@ -167,11 +378,20 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             )
         });
 
+        ////////////////////////////////    WIP     ////////////////////////////////
+        let nukube = Self::process_manifests_with_control_interface(
+            &workload_config.manifest,
+            &workload_spec,
+            target_pod.as_deref(),
+            target_container.as_deref(),
+        )?;
+        ////////////////////////////////    WIP     ////////////////////////////////
+
         // [impl->swdd~podman-kube-create-workload-apply-manifest~1]
         let created_pods = PodmanCli::play_kube(
             &workload_config.general_options,
             &workload_config.play_options,
-            workload_config.manifest.as_bytes(),
+            nukube.as_bytes(),
         )
         .await
         .map_err(RuntimeError::Create)?;

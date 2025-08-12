@@ -93,3 +93,10 @@ Test server started with empty Control Interface access field mask fails
     Given Ankaios server is started with config "${CONFIGS_DIR}/faulty_with_control_as_empty.yaml""
     # Asserts
     Then the last command finished with exit code "1"
+
+# Test cases for podman-kube:
+# 1. check successful start-up of Ankaios workload without Control Interface access
+# 2. check restart of Ankaios workload after update without Control Interface access
+# 3. check restart of Ankaios workload after update with Control Interface access
+# 4. check that the control interface can read/write only to the relevant pod and containers
+# Before doing this I need to implement the unit tests and manually test how the complete state behaves with those funny podman-kube rules.

@@ -363,8 +363,9 @@ message Error {
 * Only if a matching allow rule is found, and no matching deny rules is found, the access is allowed.
 */
 message ControlInterfaceAccess {
-  repeated AccessRightsRule allowRules = 1; // Rules allow the access
-  repeated AccessRightsRule denyRules = 2; // Rules denying the access
+  optional string targetPath = 1; // The path to the control interface at pod level (necessary for podman kube).
+  repeated AccessRightsRule allowRules = 2; // Rules allow the access
+  repeated AccessRightsRule denyRules = 3; // Rules denying the access
 }
 
 /**

@@ -11,6 +11,8 @@ echo "Cleaning up podman ..."
 podman stop -a >/dev/null 2>&1
 podman rm -a >/dev/null 2>&1
 podman volume rm -a >/dev/null 2>&1
+podman pod stop -a >/dev/null 2>&1
+podman pod rm -fa >/dev/null 2>&1
 echo "done."
 
 # Cleanup certs
