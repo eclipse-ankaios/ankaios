@@ -315,6 +315,7 @@ mod tests {
     use super::ContainerdRuntime;
     use super::NerdctlCli;
     use super::{CONTAINERD_RUNTIME_NAME, ContainerdStateGetter, ContainerdWorkloadId};
+    use crate::runtime_connectors::LogRequestOptions;
     use crate::runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
@@ -360,9 +361,9 @@ mod tests {
             .expect()
             .return_const(Ok(Some(ExecutionState::initial())));
 
-        let nerdctl_runtime = ContainerdRuntime {};
+        let containerd_runtime = ContainerdRuntime {};
         let agent_name = AgentName::from("dummy_agent");
-        let res = nerdctl_runtime
+        let res = containerd_runtime
             .get_reusable_workloads(&agent_name)
             .await
             .unwrap();
@@ -385,9 +386,9 @@ mod tests {
         let context = NerdctlCli::list_workload_names_by_label_context();
         context.expect().return_const(Ok(Vec::new()));
 
-        let nerdctl_runtime = ContainerdRuntime {};
+        let containerd_runtime = ContainerdRuntime {};
         let agent_name = AgentName::from("different_agent");
-        let res = nerdctl_runtime
+        let res = containerd_runtime
             .get_reusable_workloads(&agent_name)
             .await
             .unwrap();
@@ -404,11 +405,11 @@ mod tests {
             .expect()
             .return_const(Err("Simulated error".to_string()));
 
-        let nerdctl_runtime = ContainerdRuntime {};
+        let containerd_runtime = ContainerdRuntime {};
         let agent_name = AgentName::from("dummy_agent");
 
         assert_eq!(
-            nerdctl_runtime.get_reusable_workloads(&agent_name).await,
+            containerd_runtime.get_reusable_workloads(&agent_name).await,
             Err(crate::runtime_connectors::RuntimeError::List(
                 "Simulated error".into()
             ))
@@ -433,8 +434,8 @@ mod tests {
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let nerdctl_runtime = ContainerdRuntime {};
-        let res = nerdctl_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
                 None,
@@ -472,8 +473,8 @@ mod tests {
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let nerdctl_runtime = ContainerdRuntime {};
-        let res = nerdctl_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
                 Some(ContainerdWorkloadId::from_str(reusable_workload_id).unwrap()),
@@ -520,8 +521,8 @@ mod tests {
         );
         let (state_change_tx, mut state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let nerdctl_runtime = ContainerdRuntime {};
-        let res = nerdctl_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
                 None,
@@ -577,8 +578,8 @@ mod tests {
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let nerdctl_runtime = ContainerdRuntime {};
-        let res = nerdctl_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
                 None,
@@ -613,8 +614,8 @@ mod tests {
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let nerdctl_runtime = ContainerdRuntime {};
-        let res = nerdctl_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
                 None,
@@ -640,8 +641,8 @@ mod tests {
 
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let nerdctl_runtime = ContainerdRuntime {};
-        let res = nerdctl_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
                 None,
@@ -666,8 +667,8 @@ mod tests {
 
         let workload_name = "container1.hash.dummy_agent".try_into().unwrap();
 
-        let nerdctl_runtime = ContainerdRuntime {};
-        let res = nerdctl_runtime.get_workload_id(&workload_name).await;
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.get_workload_id(&workload_name).await;
 
         assert_eq!(
             res,
@@ -686,8 +687,8 @@ mod tests {
 
         let workload_name = "container1.hash.dummy_agent".try_into().unwrap();
 
-        let nerdctl_runtime = ContainerdRuntime {};
-        let res = nerdctl_runtime.get_workload_id(&workload_name).await;
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.get_workload_id(&workload_name).await;
 
         assert_eq!(
             res,
@@ -706,8 +707,8 @@ mod tests {
 
         let workload_name = "container1.hash.dummy_agent".try_into().unwrap();
 
-        let nerdctl_runtime = ContainerdRuntime {};
-        let res = nerdctl_runtime.get_workload_id(&workload_name).await;
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.get_workload_id(&workload_name).await;
 
         assert_eq!(res, Err(RuntimeError::List("simulated error".to_owned())))
     }
@@ -777,8 +778,8 @@ mod tests {
             id: "test_id".into(),
         };
 
-        let nerdctl_runtime = ContainerdRuntime {};
-        let res = nerdctl_runtime.delete_workload(&workload_id).await;
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.delete_workload(&workload_id).await;
         assert_eq!(res, Ok(()));
     }
 
@@ -793,8 +794,28 @@ mod tests {
             id: "test_id".into(),
         };
 
-        let nerdctl_runtime = ContainerdRuntime {};
-        let res = nerdctl_runtime.delete_workload(&workload_id).await;
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.delete_workload(&workload_id).await;
         assert_eq!(res, Err(RuntimeError::Delete("simulated error".into())));
+    }
+
+    #[tokio::test]
+    async fn utest_get_log_fetcher() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let workload_id = ContainerdWorkloadId {
+            id: "test_id".into(),
+        };
+
+        let log_request = LogRequestOptions {
+            follow: false,
+            since: None,
+            until: None,
+            tail: None,
+        };
+
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.get_log_fetcher(workload_id, &log_request);
+        assert!(res.is_ok());
     }
 }
