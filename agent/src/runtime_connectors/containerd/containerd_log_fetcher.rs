@@ -24,6 +24,8 @@ use crate::runtime_connectors::runtime_connector::LogRequestOptions;
 use super::super::log_fetcher::{GetOutputStreams, StreamTrait};
 use super::ContainerdWorkloadId;
 
+const NERDCTL_CMD: &str = "nerdctl";
+
 // [impl->swdd~podman-log-fetching-collects-logs~1]
 
 #[derive(Debug)]
@@ -57,7 +59,7 @@ impl ContainerdLogFetcher {
             args.push(_tail.as_str());
         }
         args.push(&workload_id.id);
-        let cmd = Command::new("podman")
+        let cmd = Command::new(NERDCTL_CMD)
             .args(args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -140,7 +142,7 @@ mod tests {
     use std::sync::Mutex;
     use tokio::io::Empty;
 
-    use super::ContainerdLogFetcher;
+    use super::{ContainerdLogFetcher, NERDCTL_CMD};
     use crate::runtime_connectors::{
         LogRequestOptions, containerd::ContainerdWorkloadId, log_fetcher::GetOutputStreams,
     };
@@ -241,7 +243,7 @@ mod tests {
                 stdout_option: Some(_),
                 stderr_option: Some(_)
 
-            }) if cmd == "podman" && *args == vec!["logs".to_string(), WORKLOAD_ID.to_string()]
+            }) if cmd == NERDCTL_CMD && *args == vec!["logs".to_string(), WORKLOAD_ID.to_string()]
         ));
         let (child_stdout, child_stderr) = log_fetcher.get_output_streams();
         assert!(child_stdout.is_none());
@@ -272,7 +274,7 @@ mod tests {
                 args,
                 stdout_option: Some(_),
                 stderr_option: Some(_),
-            }) if cmd == "podman" && *args == vec!["logs".to_string(), "-f".to_string(), "--since".to_string(), "since".to_string(), "--until".to_string(), "until".to_string(), "--tail".to_string(), "10".to_string(), WORKLOAD_ID.to_string(), ]
+            }) if cmd == NERDCTL_CMD && *args == vec!["logs".to_string(), "-f".to_string(), "--since".to_string(), "since".to_string(), "--until".to_string(), "until".to_string(), "--tail".to_string(), "10".to_string(), WORKLOAD_ID.to_string(), ]
         ));
         let (child_stdout, child_stderr) = log_fetcher.get_output_streams();
         assert!(child_stdout.is_none());
