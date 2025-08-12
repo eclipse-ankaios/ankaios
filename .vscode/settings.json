@@ -6,6 +6,7 @@
         "Comms",
         "Elektrobit",
         "mockall",
+        "nerdctl",
         "Northstar",
         "peekable",
         "proto",
