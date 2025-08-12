@@ -325,9 +325,9 @@ mod tests {
 
     // [utest->swdd~nerdctl-name-returns-nerdctl~1]
     #[test]
-    fn utest_name_nerdctl() {
-        let nerdctl_runtime = ContainerdRuntime {};
-        assert_eq!(nerdctl_runtime.name(), "nerdctl".to_string());
+    fn utest_name_containerd() {
+        let containerd_runtime = ContainerdRuntime {};
+        assert_eq!(containerd_runtime.name(), "containerd".to_string());
     }
 
     // [utest->swdd~nerdctl-list-of-existing-workloads-uses-labels~1]

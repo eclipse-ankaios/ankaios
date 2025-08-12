@@ -32,16 +32,6 @@ const NERDCTL_CMD: &str = "nerdctl";
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
 const NERDCTL_PS_CACHE_MAX_AGE: Duration = Duration::from_millis(1000);
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum ContainerState {
-    Starting,
-    Exited(u8),
-    Paused,
-    Running,
-    Unknown,
-    Stopping,
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct NerdctlRunConfig {
     pub general_options: Vec<String>,
@@ -56,45 +46,20 @@ pub struct NerdctlStartConfig {
     pub container_id: String,
 }
 
-impl From<NerdctlContainerInfo> for ContainerState {
-    fn from(value: NerdctlContainerInfo) -> Self {
-        match value.state.to_lowercase().as_str() {
-            "created" => ContainerState::Starting,
-            "configured" => ContainerState::Starting,
-            "initialized" => ContainerState::Starting,
-            "exited" => ContainerState::Exited(value.exit_code),
-            "paused" => ContainerState::Paused,
-            "running" => ContainerState::Running,
-            "stopping" => ContainerState::Stopping,
-            "stopped" => ContainerState::Stopping,
-            "removing" => ContainerState::Stopping,
-            "unknown" => ContainerState::Unknown,
-            state => {
-                log::trace!(
-                    "Mapping the container state '{state}' to the container state 'Unknown'"
-                );
-                ContainerState::Unknown
-            }
-        }
-    }
-}
-
 // [impl->swdd~nerdctl-state-getter-maps-state~3]
 impl From<NerdctlContainerInfo> for ExecutionState {
     fn from(value: NerdctlContainerInfo) -> Self {
-        match value.state.to_lowercase().as_str() {
-            "created" => ExecutionState::starting(value.state),
-            "configured" => ExecutionState::starting(value.state),
-            "initialized" => ExecutionState::starting(value.state),
-            "exited" if value.exit_code == 0 => ExecutionState::succeeded(),
-            "exited" if value.exit_code != 0 => {
-                ExecutionState::failed(format!("Exit code: '{}'", value.exit_code))
+        match value.state.status.to_lowercase().as_str() {
+            "created" => ExecutionState::starting(value.state.status),
+            "exited" if value.state.exit_code == 0 => ExecutionState::succeeded(),
+            "exited" if value.state.exit_code != 0 => {
+                ExecutionState::failed(format!("Exit code: '{}'", value.state.exit_code))
             }
             "running" => ExecutionState::running(),
-            "stopping" => ExecutionState::stopping(value.state),
-            "stopped" => ExecutionState::stopping(value.state),
-            "removing" => ExecutionState::stopping(value.state),
-            "unknown" => ExecutionState::unknown(value.state),
+            "removing" => ExecutionState::stopping(value.state.status),
+            "paused" => ExecutionState::succeeded(),
+            "restarting" => ExecutionState::starting(value.state.status),
+            "dead" => ExecutionState::failed(format!("Exit code: '{}'", value.state.exit_code)),
             state => {
                 log::trace!(
                     "Mapping the container state '{state}' to the execution state 'ExecUnknown'"
@@ -169,15 +134,12 @@ impl From<Result<Vec<NerdctlContainerInfo>, String>> for NerdctlPsResult {
         match value {
             Ok(container_infos) => {
                 let mut container_states = HashMap::new();
-                let mut pod_states: HashMap<String, Vec<ContainerState>> = HashMap::new();
 
                 for container_entry in container_infos {
-                    container_states
-                        .insert(container_entry.id.clone(), container_entry.clone().into());
-                    pod_states
-                        .entry(container_entry.pod.clone())
-                        .or_default()
-                        .push(container_entry.into());
+                    container_states.insert(
+                        container_entry.id.id.clone(),
+                        container_entry.clone().into(),
+                    );
                 }
                 Self {
                     container_states: Ok(container_states),
@@ -206,6 +168,7 @@ impl NerdctlCli {
             .args(&[
                 "ps",
                 "--all",
+                "--no-trunc",
                 "--filter",
                 &format!("label={key}={value}"),
                 "--format=json",
@@ -213,10 +176,16 @@ impl NerdctlCli {
             .exec()
             .await?;
 
-        let res: Vec<NerdctlContainerInfo> = serde_json::from_str(&output)
-            .map_err(|err| format!("Could not parse nerdctl output: '{err}'"))?;
+        let mut container_ids = Vec::new();
+        for line in output.lines().filter(|l| !l.trim().is_empty()) {
+            let container_id: NerdctlContainerId = serde_json::from_str(line)
+                .map_err(|err| format!("Could not parse nerdctl output: '{err}'"))?;
+            container_ids.push(container_id.id);
+        }
 
-        Ok(res.into_iter().map(|x| x.id).collect())
+        log::trace!("Parsed container ids: {container_ids:?}");
+
+        Ok(container_ids)
     }
 
     pub async fn list_workload_names_by_label(
@@ -228,6 +197,7 @@ impl NerdctlCli {
             .args(&[
                 "ps",
                 "--all",
+                "--no-trunc",
                 "--filter",
                 &format!("label={key}={value}"),
                 "--format=json",
@@ -235,15 +205,16 @@ impl NerdctlCli {
             .exec()
             .await?;
 
-        let res: Vec<NerdctlContainerInfo> = serde_json::from_str(&output)
-            .map_err(|err| format!("Could not parse nerdctl output: '{err}'"))?;
-
-        let mut names: Vec<String> = Vec::new();
-        for mut nerdctl_info in res {
-            if let Some(name_val) = nerdctl_info.labels.get_mut("name") {
-                names.push(name_val.to_string());
+        let mut names = Vec::new();
+        for line in output.lines().filter(|l| !l.trim().is_empty()) {
+            let mut container_labels: NerdctlContainerLabels = serde_json::from_str(line)
+                .map_err(|err| format!("Could not parse nerdctl output: '{err}'"))?;
+            if let Some(name) = container_labels.labels.remove("name") {
+                names.push(name);
             }
         }
+
+        println!("Parsed label names: {names:?}");
         Ok(names)
     }
 
@@ -360,43 +331,109 @@ impl NerdctlCli {
 
     async fn list_states_internal() -> Result<Vec<NerdctlContainerInfo>, String> {
         let output = CliCommand::new(NERDCTL_CMD)
-            .args(&["ps", "--all", "--format=json"])
+            .args(&["ps", "--all", "--no-trunc", "--format=json"])
             .exec()
             .await?;
 
-        serde_json::from_str(&output).map_err(|err| format!("Could not parse nerdctl output:{err}"))
+        let mut container_ids = Vec::new();
+        for line in output.lines().filter(|l| !l.trim().is_empty()) {
+            let container_id: NerdctlContainerId = serde_json::from_str(line)
+                .map_err(|err| format!("Could not parse nerdctl ps output: '{err}'"))?;
+            container_ids.push(container_id.id);
+        }
+
+        if container_ids.is_empty() {
+            log::warn!("No containers found.");
+            return Ok(Vec::default());
+        }
+
+        let inspect_args: Vec<&str> = std::iter::once("inspect")
+            .chain(container_ids.iter().map(String::as_str))
+            .collect();
+
+        let output = CliCommand::new(NERDCTL_CMD)
+            .args(&inspect_args)
+            .exec()
+            .await?;
+
+        let container_info: Vec<NerdctlContainerInfo> =
+            serde_json::from_str(&output).map_err(|err| {
+                format!("Could not parse nerdctl inspect output: '{err}', output: {output}")
+            })?;
+
+        Ok(container_info)
     }
 
     pub async fn remove_workloads_by_id(workload_id: &str) -> Result<(), String> {
-        // Containers may have "--rm" flag -> it can happen, that they already do not exist.
-        let args = vec!["stop", "--ignore", workload_id];
-        CliCommand::new(NERDCTL_CMD).args(&args).exec().await?;
-        let args = vec!["rm", "--ignore", workload_id];
-        CliCommand::new(NERDCTL_CMD).args(&args).exec().await?;
+        /* nerdctl does not support '-d' and '--rm' flags specified together
+        (https://github.com/containerd/nerdctl/issues/3698) and no 'ignore' flag. */
+
+        const CONTAINER_NOT_EXISTING: &str = "no such container";
+
+        let args = ["stop", workload_id];
+        if let Err(err) = CliCommand::new(NERDCTL_CMD).args(&args).exec().await {
+            if err.contains(CONTAINER_NOT_EXISTING) {
+                log::debug!("Tried to stop container with id '{workload_id}' that does not exist.");
+            } else {
+                return Err(err);
+            }
+        }
+
+        let args = ["rm", workload_id];
+        if let Err(err) = CliCommand::new(NERDCTL_CMD).args(&args).exec().await {
+            if err.contains(CONTAINER_NOT_EXISTING) {
+                log::debug!(
+                    "Tried to remove container with id '{workload_id}' that does not exist."
+                );
+            } else {
+                return Err(err);
+            }
+        }
         Ok(())
     }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
-#[serde(rename_all = "PascalCase")]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 struct NerdctlContainerInfo {
-    state: String,
-    exit_code: u8,
-    #[serde(deserialize_with = "nullable_labels")]
-    labels: HashMap<String, String>,
-    #[serde(deserialize_with = "nullable_labels")]
-    id: String,
-    #[serde(deserialize_with = "nullable_labels")]
-    pod: String,
+    #[serde(rename = "State")]
+    state: NerdctlContainerState,
+    #[serde(flatten)]
+    id: NerdctlContainerId,
 }
 
-fn nullable_labels<'a, D, V>(deserializer: D) -> Result<V, D::Error>
+#[derive(Debug, Deserialize, Default, Clone, Serialize)]
+struct NerdctlContainerId {
+    #[serde(rename = "ID", alias = "Id")]
+    id: String,
+}
+
+#[derive(Debug, Deserialize, Default, Clone, Serialize)]
+struct NerdctlContainerLabels {
+    #[serde(rename = "Labels", deserialize_with = "parse_labels")]
+    labels: HashMap<String, String>,
+}
+
+#[derive(Debug, Deserialize, Default, Clone, Serialize)]
+struct NerdctlContainerState {
+    #[serde(rename = "Status")]
+    status: String,
+    #[serde(rename = "ExitCode")]
+    exit_code: u8,
+}
+
+fn parse_labels<'a, D>(deserializer: D) -> Result<HashMap<String, String>, D::Error>
 where
     D: Deserializer<'a>,
-    V: Deserialize<'a> + Default,
 {
-    let opt = Option::deserialize(deserializer)?;
-    Ok(opt.unwrap_or_default())
+    let raw_labels: String = Deserialize::deserialize(deserializer)?;
+    let mut labels = HashMap::new();
+
+    for part in raw_labels.split(',') {
+        if let Some((key, value)) = part.split_once('=') {
+            labels.insert(key.to_string(), value.to_string());
+        }
+    }
+    Ok(labels)
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -410,172 +447,17 @@ where
 // [utest->swdd~nerdctl-kube-uses-nerdctl-cli~1]
 #[cfg(test)]
 mod tests {
-    use super::{ContainerState, NerdctlCli, NerdctlPsCache};
+    use super::{NERDCTL_CMD, NerdctlCli, NerdctlPsCache};
 
-    use super::NerdctlContainerInfo;
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
     use common::objects::ExecutionState;
-    use common::test_utils::serialize_as_map;
     use serde::Serialize;
     use std::collections::HashMap;
     use std::sync::Arc;
     use std::time::{self, Duration};
 
     const SAMPLE_ERROR_MESSAGE: &str = "error message";
-
-    #[test]
-    fn utest_container_state_from_nerdctl_container_info_created() {
-        let container_state: ContainerState = NerdctlContainerInfo {
-            state: "Created".to_string(),
-            exit_code: 0,
-            labels: Default::default(),
-            pod: "".into(),
-            id: "".into(),
-        }
-        .into();
-
-        assert!(matches!(container_state, ContainerState::Starting));
-    }
-
-    #[test]
-    fn utest_container_state_from_nerdctl_container_info_configured() {
-        let container_state: ContainerState = NerdctlContainerInfo {
-            state: "Configured".to_string(),
-            exit_code: 0,
-            labels: Default::default(),
-            pod: "".into(),
-            id: "".into(),
-        }
-        .into();
-
-        assert!(matches!(container_state, ContainerState::Starting));
-    }
-
-    #[test]
-    fn utest_container_state_from_nerdctl_container_info_initialized() {
-        let container_state: ContainerState = NerdctlContainerInfo {
-            state: "Initialized".to_string(),
-            exit_code: 0,
-            labels: Default::default(),
-            pod: "".into(),
-            id: "".into(),
-        }
-        .into();
-
-        assert!(matches!(container_state, ContainerState::Starting));
-    }
-
-    #[test]
-    fn utest_container_state_from_nerdctl_container_info_exited() {
-        let container_state: ContainerState = NerdctlContainerInfo {
-            state: "Exited".to_string(),
-            exit_code: 23,
-            labels: Default::default(),
-            pod: "".into(),
-            id: "".into(),
-        }
-        .into();
-
-        assert!(matches!(container_state, ContainerState::Exited(23)));
-    }
-
-    #[test]
-    fn utest_container_state_from_nerdctl_container_info_paused() {
-        let container_state: ContainerState = NerdctlContainerInfo {
-            state: "Paused".to_string(),
-            exit_code: 0,
-            labels: Default::default(),
-            pod: "".into(),
-            id: "".into(),
-        }
-        .into();
-
-        assert!(matches!(container_state, ContainerState::Paused));
-    }
-
-    #[test]
-    fn utest_container_state_from_nerdctl_container_info_running() {
-        let container_state: ContainerState = NerdctlContainerInfo {
-            state: "Running".to_string(),
-            exit_code: 0,
-            labels: Default::default(),
-            pod: "".into(),
-            id: "".into(),
-        }
-        .into();
-
-        assert!(matches!(container_state, ContainerState::Running));
-    }
-
-    #[test]
-    fn utest_container_state_from_nerdctl_container_info_stopping() {
-        let container_state: ContainerState = NerdctlContainerInfo {
-            state: "Stopping".to_string(),
-            exit_code: 0,
-            labels: Default::default(),
-            pod: "".into(),
-            id: "".into(),
-        }
-        .into();
-
-        assert!(matches!(container_state, ContainerState::Stopping));
-    }
-
-    #[test]
-    fn utest_container_state_from_nerdctl_container_info_stopped() {
-        let container_state: ContainerState = NerdctlContainerInfo {
-            state: "Stopped".to_string(),
-            exit_code: 0,
-            labels: Default::default(),
-            pod: "".into(),
-            id: "".into(),
-        }
-        .into();
-
-        assert!(matches!(container_state, ContainerState::Stopping));
-    }
-
-    #[test]
-    fn utest_container_state_from_nerdctl_container_info_removing() {
-        let container_state: ContainerState = NerdctlContainerInfo {
-            state: "Removing".to_string(),
-            exit_code: 0,
-            labels: Default::default(),
-            pod: "".into(),
-            id: "".into(),
-        }
-        .into();
-
-        assert!(matches!(container_state, ContainerState::Stopping));
-    }
-
-    #[test]
-    fn utest_container_state_from_nerdctl_container_info_undefined() {
-        let container_state: ContainerState = NerdctlContainerInfo {
-            state: "Undefined".to_string(),
-            exit_code: 0,
-            labels: Default::default(),
-            pod: "".into(),
-            id: "".into(),
-        }
-        .into();
-
-        assert!(matches!(container_state, ContainerState::Unknown));
-    }
-
-    #[test]
-    fn utest_container_state_from_nerdctl_container_info_unknown() {
-        let container_state: ContainerState = NerdctlContainerInfo {
-            state: "Unknown".to_string(),
-            exit_code: 0,
-            labels: Default::default(),
-            pod: "".into(),
-            id: "".into(),
-        }
-        .into();
-
-        assert!(matches!(container_state, ContainerState::Unknown));
-    }
+    const WORKLOAD_ID: &str = "test_id";
 
     #[tokio::test]
     async fn utest_list_workload_ids_success() {
@@ -583,30 +465,29 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
                     "--all",
+                    "--no-trunc",
                     "--filter",
                     "label=name=test_agent",
                     "--format=json",
                 ])
                 .exec_returns(Ok([
-                    TestNerdctlContainerInfo {
-                        id: "result1",
-                        ..Default::default()
+                    TestNerdctlContainerId {
+                        id: "result1".into(),
                     },
-                    TestNerdctlContainerInfo {
-                        id: "result2",
-                        ..Default::default()
+                    TestNerdctlContainerId {
+                        id: "result2".into(),
                     },
                 ]
                 .to_json())),
         );
 
         let res = NerdctlCli::list_workload_ids_by_label("name", "test_agent").await;
-        assert!(matches!(res, Ok(res) if res == vec!["result1", "result2"]));
+        assert_eq!(res, Ok(vec!["result1".to_owned(), "result2".to_owned()]));
     }
 
     #[tokio::test]
@@ -615,11 +496,12 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
                     "--all",
+                    "--no-trunc",
                     "--filter",
                     "label=name=test_agent",
                     "--format=json",
@@ -637,11 +519,12 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
                     "--all",
+                    "--no-trunc",
                     "--filter",
                     "label=name=test_agent",
                     "--format=json",
@@ -659,20 +542,20 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
                     "--all",
+                    "--no-trunc",
                     "--filter",
                     "label=name=test_agent",
                     "--format=json",
                 ])
-                .exec_returns(Ok([TestNerdctlContainerInfo {
-                    labels: &[("name", "workload_name")],
-                    ..Default::default()
-                }]
-                .to_json())),
+                .exec_returns(Ok(TestNerdctlContainerLabels {
+                    labels: HashMap::from([("name".to_owned(), "workload_name".to_owned())]),
+                }
+                .to_string())),
         );
 
         let res = NerdctlCli::list_workload_names_by_label("name", "test_agent").await;
@@ -685,20 +568,21 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
                     "--all",
+                    "--no-trunc",
                     "--filter",
                     "label=name=test_agent",
                     "--format=json",
                 ])
-                .exec_returns(Ok([TestNerdctlContainerInfo::default()].to_json())),
+                .exec_returns(Ok(TestNerdctlContainerLabels::default().to_string())),
         );
 
         let res = NerdctlCli::list_workload_names_by_label("name", "test_agent").await;
-        assert_eq!(res, Ok(vec![]));
+        assert_eq!(res, Ok(Vec::default()));
     }
 
     #[tokio::test]
@@ -707,11 +591,12 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
                     "--all",
+                    "--no-trunc",
                     "--filter",
                     "label=name=test_agent",
                     "--format=json",
@@ -729,11 +614,12 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
                     "--all",
+                    "--no-trunc",
                     "--filter",
                     "label=name=test_agent",
                     "--format=json",
@@ -755,7 +641,7 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&[
                     "run",
@@ -766,7 +652,7 @@ mod tests {
                     "--label=agent=test_agent",
                     "alpine:latest",
                 ])
-                .exec_returns(Ok("test_id".to_string())),
+                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
         );
 
         let run_config = super::NerdctlRunConfig {
@@ -783,7 +669,7 @@ mod tests {
             Default::default(),
         )
         .await;
-        assert_eq!(res, Ok("test_id".to_string()));
+        assert_eq!(res, Ok("test_id".to_owned()));
     }
 
     #[tokio::test]
@@ -792,7 +678,7 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&[
                     "run",
@@ -835,7 +721,7 @@ mod tests {
         const MOUNT_POINT_PATH: &str = "/mount/point/in/container/test.conf";
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&[
                     "--remote",
@@ -853,7 +739,7 @@ mod tests {
                     "alpine:latest",
                     "sh",
                 ])
-                .exec_returns(Ok("test_id".to_string())),
+                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
         );
 
         let run_config = super::NerdctlRunConfig {
@@ -870,30 +756,27 @@ mod tests {
             HashMap::from([(HOST_WORKLOAD_FILE_PATH.into(), MOUNT_POINT_PATH.into())]),
         )
         .await;
-        assert_eq!(res, Ok("test_id".to_string()));
+        assert_eq!(res, Ok(WORKLOAD_ID.to_owned()));
     }
 
     // [utest->swdd~nerdctl-create-workload-starts-existing-workload~1]
     #[tokio::test]
     async fn utest_start_container_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
-
-        const ID: &str = "test_id";
-
         super::CliCommand::reset();
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["--remote", "start", ID])
-                .exec_returns(Ok(ID.to_string())),
+                .expect_args(&["--remote", "start", WORKLOAD_ID])
+                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
         );
 
         let start_config = super::NerdctlStartConfig {
             general_options: vec!["--remote".into()],
-            container_id: ID.into(),
+            container_id: WORKLOAD_ID.into(),
         };
         let res = NerdctlCli::nerdctl_start(start_config, "test_workload_name").await;
-        assert_eq!(res, Ok(ID.to_string()));
+        assert_eq!(res, Ok(WORKLOAD_ID.to_owned()));
     }
 
     // [utest->swdd~nerdctl-create-workload-starts-existing-workload~1]
@@ -905,14 +788,14 @@ mod tests {
 
         super::CliCommand::reset();
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&["start", ID])
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
         let start_config = super::NerdctlStartConfig {
-            general_options: vec![],
+            general_options: Vec::default(),
             container_id: ID.into(),
         };
         let res = NerdctlCli::nerdctl_start(start_config, "test_workload_name").await;
@@ -927,68 +810,33 @@ mod tests {
         super::CliCommand::reset();
         NerdctlCli::reset_ps_cache().await;
 
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.to_owned(),
+        };
+
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "created",
-                    ..Default::default()
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "created".to_owned(),
+                        ..Default::default()
+                    },
                 }]
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id("test_id").await;
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
         assert_eq!(res, Ok(Some(ExecutionState::starting("created"))));
-    }
-
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
-    #[tokio::test]
-    async fn utest_list_states_by_id_configured() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
-        super::CliCommand::reset();
-        NerdctlCli::reset_ps_cache().await;
-
-        super::CliCommand::new_expect(
-            "nerdctl",
-            super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
-                .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "configured",
-                    ..Default::default()
-                }]
-                .to_json())),
-        );
-
-        let res = NerdctlCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::starting("configured"))));
-    }
-
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
-    #[tokio::test]
-    async fn utest_list_states_by_id_initialized() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
-        super::CliCommand::reset();
-        NerdctlCli::reset_ps_cache().await;
-
-        super::CliCommand::new_expect(
-            "nerdctl",
-            super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
-                .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "initialized",
-                    ..Default::default()
-                }]
-                .to_json())),
-        );
-
-        let res = NerdctlCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::starting("initialized"))));
     }
 
     // [utest->swdd~nerdctl-state-getter-maps-state~3]
@@ -999,20 +847,32 @@ mod tests {
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
 
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.to_owned(),
+        };
+
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "exited",
-                    exit_code: 0,
-                    ..Default::default()
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "exited".to_owned(),
+                        exit_code: 0,
+                    },
                 }]
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id("test_id").await;
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
         assert_eq!(res, Ok(Some(ExecutionState::succeeded())));
     }
 
@@ -1024,20 +884,32 @@ mod tests {
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
 
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.to_owned(),
+        };
+
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "exited",
-                    exit_code: 1,
-                    ..Default::default()
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "exited".to_owned(),
+                        exit_code: 1,
+                    },
                 }]
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id("test_id").await;
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
         assert_eq!(res, Ok(Some(ExecutionState::failed("Exit code: '1'"))));
     }
 
@@ -1049,68 +921,33 @@ mod tests {
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
 
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.to_owned(),
+        };
+
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "running",
-                    ..Default::default()
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "running".to_owned(),
+                        ..Default::default()
+                    },
                 }]
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id("test_id").await;
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
         assert_eq!(res, Ok(Some(ExecutionState::running())));
-    }
-
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
-    #[tokio::test]
-    async fn utest_list_states_by_id_stopping() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
-        super::CliCommand::reset();
-        *super::LAST_PS_RESULT.lock().await = None;
-
-        super::CliCommand::new_expect(
-            "nerdctl",
-            super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
-                .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "stopping",
-                    ..Default::default()
-                }]
-                .to_json())),
-        );
-
-        let res = NerdctlCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::stopping("stopping"))));
-    }
-
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
-    #[tokio::test]
-    async fn utest_list_states_by_id_stopped() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
-        super::CliCommand::reset();
-        NerdctlCli::reset_ps_cache().await;
-
-        super::CliCommand::new_expect(
-            "nerdctl",
-            super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
-                .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "stopped",
-                    ..Default::default()
-                }]
-                .to_json())),
-        );
-
-        let res = NerdctlCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::stopping("stopped"))));
     }
 
     // [utest->swdd~nerdctl-state-getter-maps-state~3]
@@ -1121,20 +958,140 @@ mod tests {
         super::CliCommand::reset();
         NerdctlCli::reset_ps_cache().await;
 
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.to_owned(),
+        };
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "removing",
-                    ..Default::default()
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "removing".to_owned(),
+                        ..Default::default()
+                    },
                 }]
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id("test_id").await;
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
         assert_eq!(res, Ok(Some(ExecutionState::stopping("removing"))));
+    }
+
+    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    #[tokio::test]
+    async fn utest_list_states_by_id_paused() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        NerdctlCli::reset_ps_cache().await;
+
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.to_owned(),
+        };
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
+                .exec_returns(Ok([TestNerdctlContainerInfo {
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "paused".to_owned(),
+                        ..Default::default()
+                    },
+                }]
+                .to_json())),
+        );
+
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
+        assert_eq!(res, Ok(Some(ExecutionState::succeeded())));
+    }
+
+    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    #[tokio::test]
+    async fn utest_list_states_by_id_restarting() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        NerdctlCli::reset_ps_cache().await;
+
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.to_owned(),
+        };
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
+                .exec_returns(Ok([TestNerdctlContainerInfo {
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "restarting".to_owned(),
+                        ..Default::default()
+                    },
+                }]
+                .to_json())),
+        );
+
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
+        assert_eq!(res, Ok(Some(ExecutionState::starting("restarting"))));
+    }
+
+    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    #[tokio::test]
+    async fn utest_list_states_by_id_dead() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        NerdctlCli::reset_ps_cache().await;
+
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.to_owned(),
+        };
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
+                .exec_returns(Ok([TestNerdctlContainerInfo {
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "dead".to_owned(),
+                        exit_code: 1,
+                    },
+                }]
+                .to_json())),
+        );
+
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
+        assert_eq!(res, Ok(Some(ExecutionState::failed("Exit code: '1'"))));
     }
 
     // [utest->swdd~nerdctl-state-getter-maps-state~3]
@@ -1145,44 +1102,33 @@ mod tests {
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
 
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.to_owned(),
+        };
+
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "unknown",
-                    ..Default::default()
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "unknown".to_owned(),
+                        ..Default::default()
+                    },
                 }]
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id("test_id").await;
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
         assert_eq!(res, Ok(Some(ExecutionState::unknown("unknown"))));
-    }
-
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
-    #[tokio::test]
-    async fn utest_list_states_by_id_undefined() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
-        super::CliCommand::reset();
-        NerdctlCli::reset_ps_cache().await;
-
-        super::CliCommand::new_expect(
-            "nerdctl",
-            super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
-                .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "undefined",
-                    ..Default::default()
-                }]
-                .to_json())),
-        );
-
-        let res = NerdctlCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::unknown("undefined"))));
     }
 
     #[tokio::test]
@@ -1192,13 +1138,13 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = None;
 
         let mock_cli_command = super::CliCommand::default()
-            .expect_args(&["ps", "--all", "--format=json"])
+            .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
             .exec_returns(Err("simulated error".to_string()));
         // NerdctlCli retries the command when the command fails -> we have to mock the command twice.
-        super::CliCommand::new_expect("nerdctl", mock_cli_command.clone());
-        super::CliCommand::new_expect("nerdctl", mock_cli_command);
+        super::CliCommand::new_expect(NERDCTL_CMD, mock_cli_command.clone());
+        super::CliCommand::new_expect(NERDCTL_CMD, mock_cli_command);
 
-        let res = NerdctlCli::list_states_by_id("test_id").await;
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
         assert_eq!(res, Err("simulated error".to_string()));
     }
 
@@ -1209,24 +1155,38 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = None;
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
                 .exec_returns(Err("simulated error".to_string())),
         );
+
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.to_owned(),
+        };
+
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "running",
-                    ..Default::default()
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "running".to_owned(),
+                        ..Default::default()
+                    },
                 }]
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id("test_id").await;
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
         assert_eq!(res, Ok(Some(ExecutionState::running())));
     }
 
@@ -1241,25 +1201,38 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = Some(NerdctlPsCache {
             last_update: old_time_stamp,
             cache: Arc::new(super::NerdctlPsResult {
-                container_states: Ok([("test_id".into(), ExecutionState::failed("Some error"))]
+                container_states: Ok([(WORKLOAD_ID.into(), ExecutionState::failed("Some error"))]
                     .into_iter()
                     .collect()),
             }),
         });
 
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.to_owned(),
+        };
+
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "running",
-                    ..Default::default()
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "running".to_owned(),
+                        ..Default::default()
+                    },
                 }]
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id("test_id").await;
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
         assert_eq!(res, Ok(Some(ExecutionState::running())));
     }
 
@@ -1270,14 +1243,14 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = None;
 
         let mock_cli_command = super::CliCommand::default()
-            .expect_args(&["ps", "--all", "--format=json"])
+            .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
             .exec_returns(Ok("non-json response from nerdctl".to_string()));
         // NerdctlCli retries the command when the command fails -> we have to mock the command twice.
-        super::CliCommand::new_expect("nerdctl", mock_cli_command.clone());
-        super::CliCommand::new_expect("nerdctl", mock_cli_command);
+        super::CliCommand::new_expect(NERDCTL_CMD, mock_cli_command.clone());
+        super::CliCommand::new_expect(NERDCTL_CMD, mock_cli_command);
 
-        let res = NerdctlCli::list_states_by_id("test_id").await;
-        assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse nerdctl output") ));
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
+        assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse nerdctl ps output") ));
     }
 
     #[tokio::test]
@@ -1287,24 +1260,38 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = None;
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
                 .exec_returns(Ok("non-json response from nerdctl".to_string())),
         );
+
+        let container_id = TestNerdctlContainerId {
+            id: WORKLOAD_ID.into(),
+        };
+
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
+                .expect_args(&["ps", "--all", "--no-trunc", "--format=json"])
+                .exec_returns(Ok(container_id.clone().to_json())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["inspect", WORKLOAD_ID])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
-                    id: "test_id",
-                    state: "running",
-                    ..Default::default()
+                    id: container_id,
+                    state: TestNerdctlContainerState {
+                        status: "running".into(),
+                        ..Default::default()
+                    },
                 }]
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_states_by_id("test_id").await;
+        let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
         assert_eq!(res, Ok(Some(ExecutionState::running())));
     }
 
@@ -1314,15 +1301,42 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["stop", "--ignore", "test_id"])
+                .expect_args(&["stop", WORKLOAD_ID])
                 .exec_returns(Err("simulated error".to_string())),
         );
 
         assert_eq!(
-            NerdctlCli::remove_workloads_by_id("test_id").await,
+            NerdctlCli::remove_workloads_by_id(WORKLOAD_ID).await,
             Err("simulated error".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_remove_workloads_by_id_ignore_failed_stop_on_non_existing_container() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["stop", WORKLOAD_ID])
+                .exec_returns(Err(format!("1 errors:\nno such container: {WORKLOAD_ID}"))),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["rm", WORKLOAD_ID])
+                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
+        );
+
+        assert!(
+            NerdctlCli::remove_workloads_by_id(WORKLOAD_ID)
+                .await
+                .is_ok(),
+            "Expected to ignore the failed stop of non-existing container."
         );
     }
 
@@ -1332,22 +1346,49 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["stop", "--ignore", "test_id"])
-                .exec_returns(Ok("".to_string())),
+                .expect_args(&["stop", WORKLOAD_ID])
+                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
         );
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["rm", "--ignore", "test_id"])
+                .expect_args(&["rm", WORKLOAD_ID])
                 .exec_returns(Err("simulated error".to_string())),
         );
 
         assert_eq!(
-            NerdctlCli::remove_workloads_by_id("test_id").await,
+            NerdctlCli::remove_workloads_by_id(WORKLOAD_ID).await,
             Err("simulated error".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_remove_workloads_by_id_ignore_failed_remove_on_non_existing_container() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["stop", WORKLOAD_ID])
+                .exec_returns(Ok(WORKLOAD_ID.to_owned())),
+        );
+
+        super::CliCommand::new_expect(
+            NERDCTL_CMD,
+            super::CliCommand::default()
+                .expect_args(&["rm", WORKLOAD_ID])
+                .exec_returns(Err(format!("1 errors:\nno such container: {WORKLOAD_ID}"))),
+        );
+
+        assert!(
+            NerdctlCli::remove_workloads_by_id(WORKLOAD_ID)
+                .await
+                .is_ok(),
+            "Expected to ignore the failed remove of non-existing container."
         );
     }
 
@@ -1357,35 +1398,79 @@ mod tests {
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["stop", "--ignore", "test_id"])
-                .exec_returns(Ok("".to_string())),
+                .expect_args(&["stop", WORKLOAD_ID])
+                .exec_returns(Ok("".to_owned())),
         );
 
         super::CliCommand::new_expect(
-            "nerdctl",
+            NERDCTL_CMD,
             super::CliCommand::default()
-                .expect_args(&["rm", "--ignore", "test_id"])
-                .exec_returns(Ok("".to_string())),
+                .expect_args(&["rm", WORKLOAD_ID])
+                .exec_returns(Ok("".to_owned())),
         );
 
-        let res = NerdctlCli::remove_workloads_by_id("test_id").await;
+        let res = NerdctlCli::remove_workloads_by_id(WORKLOAD_ID).await;
         assert_eq!(res, Ok(()));
     }
 
-    #[derive(Serialize, Clone, Default)]
-    #[serde(rename_all = "PascalCase")]
-    struct TestNerdctlContainerInfo<'a> {
-        state: &'a str,
-        exit_code: u8,
-        #[serde(serialize_with = "serialize_as_map")]
-        labels: &'a [(&'a str, &'a str)],
-        id: &'a str,
-        pod: &'a str,
+    #[derive(Debug, Default, Clone, Serialize)]
+    struct TestNerdctlContainerLabels {
+        #[serde(rename = "Labels")]
+        labels: HashMap<String, String>,
     }
 
-    impl ToJson for [TestNerdctlContainerInfo<'_>] {
+    impl std::fmt::Display for TestNerdctlContainerLabels {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            let labels = self.labels.iter().fold(String::new(), |acc, (key, value)| {
+                format!("{acc},{key}={value}")
+            });
+            let raw_labels =
+                serde_json::to_string(&HashMap::from([("Labels".to_owned(), labels)])).unwrap();
+
+            write!(f, "{raw_labels}",)
+        }
+    }
+
+    #[derive(Debug, Default, Clone, Serialize)]
+    struct TestNerdctlContainerState {
+        #[serde(rename = "Status")]
+        status: String,
+        #[serde(rename = "ExitCode")]
+        exit_code: u8,
+    }
+
+    #[derive(Debug, Default, Clone, Serialize)]
+    struct TestNerdctlContainerId {
+        #[serde(rename = "ID", alias = "Id")]
+        id: String,
+    }
+
+    impl ToJson for TestNerdctlContainerId {
+        fn to_json(&self) -> String {
+            serde_json::to_string(self).unwrap()
+        }
+    }
+
+    impl ToJson for [TestNerdctlContainerId] {
+        fn to_json(&self) -> String {
+            self.iter()
+                .map(|id| id.to_json())
+                .collect::<Vec<_>>()
+                .join("\n")
+        }
+    }
+
+    #[derive(Serialize, Clone, Debug, Default)]
+    struct TestNerdctlContainerInfo {
+        #[serde(rename = "State")]
+        state: TestNerdctlContainerState,
+        #[serde(flatten)]
+        id: TestNerdctlContainerId,
+    }
+
+    impl ToJson for [TestNerdctlContainerInfo] {
         fn to_json(&self) -> String {
             serde_json::to_string(self).unwrap()
         }
