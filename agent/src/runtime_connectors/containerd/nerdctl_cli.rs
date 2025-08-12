@@ -370,26 +370,32 @@ impl NerdctlCli {
 
         const CONTAINER_NOT_EXISTING: &str = "no such container";
 
-        let args = ["stop", workload_id];
-        if let Err(err) = CliCommand::new(NERDCTL_CMD).args(&args).exec().await {
-            if err.contains(CONTAINER_NOT_EXISTING) {
+        match CliCommand::new(NERDCTL_CMD)
+            .args(&["stop", workload_id])
+            .exec()
+            .await
+        {
+            Ok(_) => {}
+            Err(err) if err.contains(CONTAINER_NOT_EXISTING) => {
                 log::debug!("Tried to stop container with id '{workload_id}' that does not exist.");
-            } else {
-                return Err(err);
             }
+            Err(err) => return Err(err),
         }
 
-        let args = ["rm", workload_id];
-        if let Err(err) = CliCommand::new(NERDCTL_CMD).args(&args).exec().await {
-            if err.contains(CONTAINER_NOT_EXISTING) {
+        match CliCommand::new(NERDCTL_CMD)
+            .args(&["rm", workload_id])
+            .exec()
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(err) if err.contains(CONTAINER_NOT_EXISTING) => {
                 log::debug!(
                     "Tried to remove container with id '{workload_id}' that does not exist."
                 );
-            } else {
-                return Err(err);
+                Ok(())
             }
+            Err(err) => Err(err),
         }
-        Ok(())
     }
 }
 
