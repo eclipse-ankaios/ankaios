@@ -80,16 +80,6 @@ impl ContainerdLogFetcher {
             stderr: None,
         }
     }
-
-    #[cfg(test)]
-    pub fn set_stdout(&mut self, stdout: Option<Box<dyn StreamTrait>>) {
-        self.stdout = stdout;
-    }
-
-    #[cfg(test)]
-    pub fn set_stderr(&mut self, stderr: Option<Box<dyn StreamTrait>>) {
-        self.stderr = stderr;
-    }
 }
 
 impl Drop for ContainerdLogFetcher {
