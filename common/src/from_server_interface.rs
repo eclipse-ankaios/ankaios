@@ -95,7 +95,7 @@ pub trait FromServerInterface {
         logs_stop_response: ank_base::LogsStopResponse,
     ) -> Result<(), FromServerInterfaceError>;
     async fn logs_cancel_request(&self, request_id: String)
-        -> Result<(), FromServerInterfaceError>;
+    -> Result<(), FromServerInterfaceError>;
     async fn logs_cancel_request_accepted(
         &self,
         request_id: String,
@@ -310,8 +310,8 @@ mod tests {
         commands,
         from_server_interface::{FromServer, FromServerInterface},
         objects::{
-            generate_test_workload_spec, generate_test_workload_state, ExecutionState,
-            WorkloadInstanceName,
+            ExecutionState, WorkloadInstanceName, generate_test_workload_spec,
+            generate_test_workload_state,
         },
         test_utils::{generate_test_complete_state, generate_test_deleted_workload},
     };
@@ -335,10 +335,11 @@ mod tests {
             AGENT_NAME.to_string(),
             WORKLOAD_NAME_1.to_string(),
         )];
-        assert!(tx
-            .update_workload(added_workloads.clone(), deleted_workloads.clone())
-            .await
-            .is_ok());
+        assert!(
+            tx.update_workload(added_workloads.clone(), deleted_workloads.clone())
+                .await
+                .is_ok()
+        );
 
         assert_eq!(
             rx.recv().await.unwrap(),
@@ -357,10 +358,11 @@ mod tests {
 
         let workload_state =
             generate_test_workload_state(WORKLOAD_NAME_1, ExecutionState::running());
-        assert!(tx
-            .update_workload_state(vec![workload_state.clone()])
-            .await
-            .is_ok());
+        assert!(
+            tx.update_workload_state(vec![workload_state.clone()])
+                .await
+                .is_ok()
+        );
 
         assert_eq!(
             rx.recv().await.unwrap(),
@@ -378,10 +380,11 @@ mod tests {
 
         let complete_state: ank_base::CompleteState =
             generate_test_complete_state(vec![generate_test_workload_spec()]).into();
-        assert!(tx
-            .complete_state(REQUEST_ID.to_string(), complete_state.clone())
-            .await
-            .is_ok());
+        assert!(
+            tx.complete_state(REQUEST_ID.to_string(), complete_state.clone())
+                .await
+                .is_ok()
+        );
 
         assert_eq!(
             rx.recv().await.unwrap(),
@@ -402,14 +405,15 @@ mod tests {
 
         let added_workloads = vec!["some_name".to_string(), "some_other_name".to_string()];
         let deleted_workloads = vec!["some_name_1".to_string(), "some_other_name_1".to_string()];
-        assert!(tx
-            .update_state_success(
+        assert!(
+            tx.update_state_success(
                 REQUEST_ID.to_string(),
                 added_workloads.clone(),
                 deleted_workloads.clone()
             )
             .await
-            .is_ok());
+            .is_ok()
+        );
 
         assert_eq!(
             rx.recv().await.unwrap(),
@@ -434,10 +438,11 @@ mod tests {
         let error = ank_base::Error {
             message: "error".to_string(),
         };
-        assert!(tx
-            .error(REQUEST_ID.to_string(), error.message.clone())
-            .await
-            .is_ok());
+        assert!(
+            tx.error(REQUEST_ID.to_string(), error.message.clone())
+                .await
+                .is_ok()
+        );
 
         assert_eq!(
             rx.recv().await.unwrap(),
@@ -453,8 +458,8 @@ mod tests {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        assert!(tx
-            .logs_request(
+        assert!(
+            tx.logs_request(
                 REQUEST_ID.to_string(),
                 ank_base::LogsRequest {
                     workload_names: vec![
@@ -476,7 +481,8 @@ mod tests {
                 }
             )
             .await
-            .is_ok());
+            .is_ok()
+        );
 
         assert_eq!(
             rx.recv().await.unwrap(),
@@ -501,8 +507,8 @@ mod tests {
         let (tx, _): (FromServerSender, FromServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        assert!(tx
-            .logs_request(
+        assert!(
+            tx.logs_request(
                 REQUEST_ID.to_string(),
                 ank_base::LogsRequest {
                     workload_names: vec![ank_base::WorkloadInstanceName {
@@ -517,7 +523,8 @@ mod tests {
                 }
             )
             .await
-            .is_err());
+            .is_err()
+        );
     }
 
     #[tokio::test]
@@ -525,8 +532,8 @@ mod tests {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        assert!(tx
-            .log_entries_response(
+        assert!(
+            tx.log_entries_response(
                 REQUEST_ID.into(),
                 ank_base::LogEntriesResponse {
                     log_entries: vec![
@@ -550,7 +557,8 @@ mod tests {
                 }
             )
             .await
-            .is_ok());
+            .is_ok()
+        );
 
         assert_eq!(
             rx.recv().await.unwrap(),
@@ -587,8 +595,8 @@ mod tests {
         let (tx, _): (FromServerSender, FromServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        assert!(tx
-            .log_entries_response(
+        assert!(
+            tx.log_entries_response(
                 REQUEST_ID.into(),
                 ank_base::LogEntriesResponse {
                     log_entries: vec![ank_base::LogEntry {
@@ -602,7 +610,8 @@ mod tests {
                 }
             )
             .await
-            .is_err());
+            .is_err()
+        );
     }
 
     // [utest->swdd~from-server-channel~1]
@@ -617,15 +626,16 @@ mod tests {
             id: "1".into(),
         };
 
-        assert!(tx
-            .logs_stop_response(
+        assert!(
+            tx.logs_stop_response(
                 REQUEST_ID.to_string(),
                 ank_base::LogsStopResponse {
                     workload_name: Some(workload_instance_name.clone()),
                 }
             )
             .await
-            .is_ok());
+            .is_ok()
+        );
 
         assert_eq!(
             rx.recv().await,
@@ -648,8 +658,8 @@ mod tests {
 
         rx.close();
 
-        assert!(tx
-            .logs_stop_response(
+        assert!(
+            tx.logs_stop_response(
                 REQUEST_ID.to_string(),
                 ank_base::LogsStopResponse {
                     workload_name: Some(ank_base::WorkloadInstanceName {
@@ -660,6 +670,7 @@ mod tests {
                 }
             )
             .await
-            .is_err());
+            .is_err()
+        );
     }
 }

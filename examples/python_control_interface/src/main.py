@@ -102,11 +102,19 @@ def read_from_control_interface():
                 logger.info(f"Invalid response, parsing error: '{e}'")
                 continue
 
-            request_id = from_ankaios.response.requestId
-            if from_ankaios.response.requestId == REQUEST_ID:
-                logger.info(f"Receiving Response containing the workload states of the current state:\nFromServer {{\n{from_ankaios}}}\n")
+            if from_ankaios.HasField("response"):
+                request_id = from_ankaios.response.requestId
+                if from_ankaios.response.requestId == REQUEST_ID:
+                    logger.info(f"Receiving Response containing the workload states of the current state:\nFromServer {{\n{from_ankaios}}}\n")
+                else:
+                    logger.info(f"RequestId does not match. Skipping messages from requestId: {request_id}")
+            elif from_ankaios.HasField("controlInterfaceAccepted"):
+                logger.info("Received Control interface accepted response.")
+            elif from_ankaios.HasField("connectionClosed"):
+                logger.info("Received Connection Closed response. Exiting..")
+                break
             else:
-                logger.info(f"RequestId does not match. Skipping messages from requestId: {request_id}")
+                logger.info("Received unknown message type. Skipping message.")
 
 def write_to_control_interface():
     """Writes a Request into the control interface output fifo

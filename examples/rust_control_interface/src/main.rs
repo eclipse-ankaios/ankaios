@@ -161,26 +161,32 @@ fn read_from_control_interface() {
     loop {
         if let Ok(binary) = read_protobuf_data(&mut ex_req) {
             match FromAnkaios::decode(&mut Box::new(binary.as_ref())) {
-                Ok(from_ankaios) => {
-                    let Some(FromAnkaiosEnum::Response(response)) = &from_ankaios.from_ankaios_enum
-                    else {
-                        logging::log("No response. Continue.");
-                        continue;
-                    };
-
-                    let request_id: &String = &response.request_id;
-                    if request_id == REQUEST_ID {
-                        logging::log(&format!(
-                            "Receiving Response containing the workload states of the current state:\n{:#?}",
-                            from_ankaios
-                        ));
-                    } else {
-                        logging::log(&format!(
-                            "RequestId does not match. Skipping messages from requestId: {}",
-                            request_id
-                        ));
+                Ok(from_ankaios) => match &from_ankaios.from_ankaios_enum {
+                    Some(FromAnkaiosEnum::Response(response)) => {
+                        let request_id: &String = &response.request_id;
+                        if request_id == REQUEST_ID {
+                            logging::log(&format!(
+                                    "Receiving Response containing the workload states of the current state:\n{:#?}",
+                                    from_ankaios
+                                ));
+                        } else {
+                            logging::log(&format!(
+                                "RequestId does not match. Skipping messages from requestId: {}",
+                                request_id
+                            ));
+                        }
                     }
-                }
+                    Some(FromAnkaiosEnum::ControlInterfaceAccepted(_)) => {
+                        logging::log("Received Control Interface Accepted response.");
+                    }
+                    Some(FromAnkaiosEnum::ConnectionClosed(_)) => {
+                        logging::log("Received Connection Closed response. Exiting..");
+                        break;
+                    }
+                    None => {
+                        logging::log("No message type found in FromAnkaiosEnum. Skipping.");
+                    }
+                },
                 Err(err) => logging::log(&format!("Invalid response, parsing error: '{}'", err)),
             }
         }
