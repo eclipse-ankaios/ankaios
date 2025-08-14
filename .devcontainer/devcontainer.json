@@ -6,6 +6,7 @@
         "dockerfile": "Dockerfile"
     },
     "mounts": [
+        "type=tmpfs,target=/var/lib/containerd"
     ],
     "runArgs": ["--privileged"],
     "customizations": {
