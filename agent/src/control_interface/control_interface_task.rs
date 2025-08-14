@@ -99,12 +99,12 @@ impl ControlInterfaceTask {
         // [impl->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
         match self.check_initial_hello().await {
             Ok(_) => {
-                log::info!("Control interface connection established.");
-                // [impl->swdd~agent-sends-accepted-message-on-valid-initial-hello~1]
+                // [impl->swdd~control-interface-accepted-message~1]
                 if let Err(err) = self.send_control_interface_accepted().await {
                     log::warn!("Could not send ControlInterfaceAccepted message: '{err}'");
                     return;
                 }
+                log::info!("Control interface connection established.");
             }
             Err(message) => {
                 log::warn!("{message}");
@@ -310,6 +310,17 @@ mod tests {
         workload_hello.encode_to_vec()
     }
 
+    fn prepare_control_interface_accepted_message() -> Vec<u8> {
+        control_api::FromAnkaios {
+            from_ankaios_enum: Some(
+                control_api::from_ankaios::FromAnkaiosEnum::ControlInterfaceAccepted(
+                    control_api::ControlInterfaceAccepted {},
+                ),
+            ),
+        }
+        .encode_length_delimited_to_vec()
+    }
+
     fn prepare_request_complete_state_binary_message(field_mask: impl Into<String>) -> Vec<u8> {
         let ank_request = ank_base::Request {
             request_id: REQUEST_ID.into(),
@@ -449,14 +460,6 @@ mod tests {
             )),
         };
 
-        let control_interface_accepted = control_api::FromAnkaios {
-            from_ankaios_enum: Some(
-                control_api::from_ankaios::FromAnkaiosEnum::ControlInterfaceAccepted(
-                    control_api::ControlInterfaceAccepted {},
-                ),
-            ),
-        }
-        .encode_length_delimited_to_vec();
         let test_command_binary = control_api::FromAnkaios {
             from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
                 Box::new(response.clone()),
@@ -490,7 +493,7 @@ mod tests {
 
         output_stream_mock
             .expect_write_all()
-            .with(predicate::eq(control_interface_accepted))
+            .with(predicate::eq(prepare_control_interface_accepted_message()))
             .once()
             .returning(|_| Ok(()));
 
@@ -594,14 +597,6 @@ mod tests {
             )),
         };
 
-        let control_interface_accepted = control_api::FromAnkaios {
-            from_ankaios_enum: Some(
-                control_api::from_ankaios::FromAnkaiosEnum::ControlInterfaceAccepted(
-                    control_api::ControlInterfaceAccepted {},
-                ),
-            ),
-        }
-        .encode_length_delimited_to_vec();
         let test_input_command_binary = control_api::FromAnkaios {
             from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
                 Box::new(error.clone()),
@@ -612,7 +607,7 @@ mod tests {
         let mut output_stream_mock = MockOutputPipe::default();
         output_stream_mock
             .expect_write_all()
-            .with(predicate::eq(control_interface_accepted))
+            .with(predicate::eq(prepare_control_interface_accepted_message()))
             .once()
             .returning(|_| Ok(()));
         output_stream_mock
@@ -646,7 +641,7 @@ mod tests {
     // [utest->swdd~agent-checks-request-for-authorization~1]
     // [utest->swdd~agent-forward-request-from-control-interface-pipe-to-server~2]
     // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
-    // [utest->swdd~agent-sends-accepted-message-on-valid-initial-hello~1]
+    // [utest->swdd~control-interface-accepted-message~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_access_allowed() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -661,14 +656,6 @@ mod tests {
                 },
             )),
         };
-        let control_interface_accepted = control_api::FromAnkaios {
-            from_ankaios_enum: Some(
-                control_api::from_ankaios::FromAnkaiosEnum::ControlInterfaceAccepted(
-                    control_api::ControlInterfaceAccepted {},
-                ),
-            ),
-        }
-        .encode_length_delimited_to_vec();
         let test_output_request = control_api::ToAnkaios {
             to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(
                 ank_request.clone(),
@@ -704,7 +691,7 @@ mod tests {
 
         output_stream_mock
             .expect_write_all()
-            .with(predicate::eq(control_interface_accepted))
+            .with(predicate::eq(prepare_control_interface_accepted_message()))
             .once()
             .returning(|_| Ok(()));
 
@@ -794,14 +781,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let control_interface_accepted = control_api::FromAnkaios {
-            from_ankaios_enum: Some(
-                control_api::from_ankaios::FromAnkaiosEnum::ControlInterfaceAccepted(
-                    control_api::ControlInterfaceAccepted {},
-                ),
-            ),
-        }
-        .encode_length_delimited_to_vec();
+        let control_interface_accepted = prepare_control_interface_accepted_message();
 
         let mut mockall_seq = Sequence::new();
 

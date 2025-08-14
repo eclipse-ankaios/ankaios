@@ -3091,12 +3091,15 @@ Needs:
 - utest
 - stest
 
-#### Agent send control interface accepted message on valid initial hello
-`swdd~agent-sends-accepted-message-on-valid-initial-hello~1`
+#### Agent sends control interface accepted message on valid initial `Hello`
+`swdd~control-interface-accepted-message~1`
 
 Status: approved
 
 When an Ankaios agent receives an initial valid `Hello` message, the agent shall reply with a `ControlInterfaceAccepted` message, informing the workload that the connection has been accepted.
+
+Rationale:
+Accepting the connection with an explicit message allows clients to obtain the status via the connection without first sending a message.
 
 Tags:
 - ControlInterface

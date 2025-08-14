@@ -52,13 +52,13 @@ message Hello {
 message FromAnkaios {
   oneof FromAnkaiosEnum {
     ank_base.Response response = 3; /// A message containing a response to a previous request.
-    ControlInterfaceAccepted controlInterfaceAccepted = 4; /// A message indicating that the control interface is accepted.
+    ControlInterfaceAccepted controlInterfaceAccepted = 4; /// A message indicating that the control interface connection is accepted.
     ConnectionClosed connectionClosed = 5; /// A message sent by Ankaios to inform a workload that the connection to Ankaios was closed.
   }
 }
 
 /**
-* An message indicating that the control interface is accepted.
+* An message indicating that the control interface connection is accepted.
 * This message is sent in response to a hello message from the workload to Ankaios.
 */
 message ControlInterfaceAccepted {
