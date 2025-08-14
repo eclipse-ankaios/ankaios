@@ -29,7 +29,6 @@ pub struct ResourceMonitor {
     sys: System,
 }
 
-// [impl->swdd~agent-sends-node-resource-availability-to-server~1]
 #[cfg_attr(test, automock)]
 impl ResourceMonitor {
     pub fn new() -> Self {
@@ -60,7 +59,6 @@ impl ResourceMonitor {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~agent-sends-node-resource-availability-to-server~1]
 #[cfg(test)]
 mod tests {
 
