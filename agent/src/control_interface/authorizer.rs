@@ -624,6 +624,7 @@ mod test {
     #[test]
     fn utest_authorizer_from_control_interface_access() {
         let control_interface_access = ControlInterfaceAccess {
+            target_path: None,
             allow_rules: vec![
                 AccessRightsRule::StateRule(objects::StateRule {
                     operation: common::objects::ReadWriteEnum::Read,
