@@ -11,12 +11,10 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System};
-
 use common::{
     commands::AgentLoadStatus,
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{CpuUsage, FreeMemory, WorkloadState},
+    objects::WorkloadState,
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -32,31 +30,8 @@ use crate::{subscription_store::SubscriptionStore, workload_state::WorkloadState
 
 const RESOURCE_MEASUREMENT_INTERVAL_TICK: std::time::Duration = tokio::time::Duration::from_secs(2);
 
-struct ResourceMonitor {
-    refresh_kind: RefreshKind,
-    sys: System,
-}
-
-impl ResourceMonitor {
-    fn new() -> ResourceMonitor {
-        let refresh_kind = RefreshKind::nothing()
-            .with_cpu(CpuRefreshKind::nothing().with_cpu_usage())
-            .with_memory(MemoryRefreshKind::nothing().with_ram());
-        ResourceMonitor {
-            refresh_kind,
-            sys: System::new_with_specifics(refresh_kind),
-        }
-    }
-
-    fn sample_resource_usage(&mut self) -> (CpuUsage, FreeMemory) {
-        self.sys.refresh_specifics(self.refresh_kind);
-
-        let cpu_usage = self.sys.global_cpu_usage();
-        let free_memory = self.sys.free_memory();
-
-        (CpuUsage::new(cpu_usage), FreeMemory { free_memory })
-    }
-}
+#[cfg_attr(test, mockall_double::double)]
+use crate::resource_monitor::ResourceMonitor;
 
 pub type SynchronizedSubscriptionStore = std::sync::Arc<std::sync::Mutex<SubscriptionStore>>;
 
@@ -311,6 +286,7 @@ impl AgentManager {
 mod tests {
     use super::RuntimeManager;
     use crate::agent_manager::AgentManager;
+    use crate::resource_monitor::MockResourceMonitor;
     use crate::workload_log_facade::MockWorkloadLogFacade;
     use crate::workload_state::{
         WorkloadStateSenderInterface,
@@ -320,7 +296,7 @@ mod tests {
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::{FromServer, FromServerInterface},
-        objects::{ExecutionState, generate_test_workload_spec_with_param},
+        objects::{CpuUsage, ExecutionState, FreeMemory, generate_test_workload_spec_with_param},
         to_server_interface::ToServer,
     };
 
@@ -359,6 +335,12 @@ mod tests {
             .expect_handle_update_workload()
             .once()
             .return_const(());
+
+        let mock_resource_monitor_context = MockResourceMonitor::new_context();
+        mock_resource_monitor_context
+            .expect()
+            .once()
+            .return_once(MockResourceMonitor::default);
 
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
@@ -428,6 +410,12 @@ mod tests {
             .push_back(workload_state.clone());
         mock_parameter_storage_new_returns(mock_wl_state_store);
 
+        let mock_resource_monitor_context = MockResourceMonitor::new_context();
+        mock_resource_monitor_context
+            .expect()
+            .once()
+            .return_once(MockResourceMonitor::default);
+
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
             manager_receiver,
@@ -463,6 +451,12 @@ mod tests {
 
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager.expect_handle_update_workload().never();
+
+        let mock_resource_monitor_context = MockResourceMonitor::new_context();
+        mock_resource_monitor_context
+            .expect()
+            .once()
+            .return_once(MockResourceMonitor::default);
 
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
@@ -515,6 +509,12 @@ mod tests {
             .with(eq(response.clone()))
             .once()
             .return_const(());
+
+        let mock_resource_monitor_context = MockResourceMonitor::new_context();
+        mock_resource_monitor_context
+            .expect()
+            .once()
+            .return_once(MockResourceMonitor::default);
 
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
@@ -580,6 +580,12 @@ mod tests {
             .once()
             .return_const(());
 
+        let mock_resource_monitor_context = MockResourceMonitor::new_context();
+        mock_resource_monitor_context
+            .expect()
+            .once()
+            .return_once(MockResourceMonitor::default);
+
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
             manager_receiver,
@@ -636,6 +642,18 @@ mod tests {
             .expect_update_workloads_on_fulfilled_dependencies()
             .never();
 
+        let mock_resource_monitor_context = MockResourceMonitor::new_context();
+        mock_resource_monitor_context
+            .expect()
+            .once()
+            .return_once(|| {
+                let mut mock_resource_monitor = MockResourceMonitor::default();
+                mock_resource_monitor
+                    .expect_sample_resource_usage()
+                    .returning(|| (CpuUsage::new(50.0), FreeMemory { free_memory: 1024 }));
+                mock_resource_monitor
+            });
+
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
             manager_receiver,
@@ -649,7 +667,8 @@ mod tests {
         let result = server_receiver.recv().await.unwrap();
         if let ToServer::AgentLoadStatus(load_status) = result {
             assert_eq!(load_status.agent_name, AGENT_NAME.to_string());
-            assert_ne!(load_status.cpu_usage.cpu_usage, 0);
+            assert_eq!(load_status.cpu_usage.cpu_usage, 50);
+            assert_eq!(load_status.free_memory.free_memory, 1024);
         } else {
             panic!("Expected AgentLoadStatus, got something else");
         }
@@ -679,6 +698,12 @@ mod tests {
         );
 
         let mock_runtime_manager = RuntimeManager::default();
+
+        let mock_resource_monitor_context = MockResourceMonitor::new_context();
+        mock_resource_monitor_context
+            .expect()
+            .once()
+            .return_once(MockResourceMonitor::default);
 
         let logs_request = common::commands::LogsRequest {
             workload_names: vec![workload_spec.instance_name],
@@ -756,6 +781,12 @@ mod tests {
 
         let mock_runtime_manager = RuntimeManager::default();
 
+        let mock_resource_monitor_context = MockResourceMonitor::new_context();
+        mock_resource_monitor_context
+            .expect()
+            .once()
+            .return_once(MockResourceMonitor::default);
+
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
             manager_receiver,
@@ -797,6 +828,12 @@ mod tests {
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
         let mock_runtime_manager = RuntimeManager::default();
+
+        let mock_resource_monitor_context = MockResourceMonitor::new_context();
+        mock_resource_monitor_context
+            .expect()
+            .once()
+            .return_once(MockResourceMonitor::default);
 
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
