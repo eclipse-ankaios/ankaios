@@ -13,6 +13,13 @@ podman rm -a >/dev/null 2>&1
 podman volume rm -a >/dev/null 2>&1
 echo "done."
 
+# Check if containerd is running
+if pgrep -x "containerd" > /dev/null; then
+    echo "Cleaning up containerd ..."
+    nerdctl stop $(nerdctl ps -a -q) >/dev/null 2>&1
+    nerdctl rm $(nerdctl ps -a -q) >/dev/null 2>&1
+fi
+
 # Cleanup certs
 echo "Cleaning up certs ..."
 rm -rf .certs
