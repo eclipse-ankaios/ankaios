@@ -65,6 +65,7 @@ Setup Ankaios
 Clean up Ankaios
     Terminate All Processes    kill=True
     Clean up Podman
+    Clean up Containerd
     ${ANKAIOS_TEMP}=    Get Environment Variable    ANKAIOS_TEMP
     Run Command    rm -rf ${ANKAIOS_TEMP}    timeout=20
     Set Variable    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    {}
@@ -87,6 +88,10 @@ Clean up Podman
     Podman has deleted all existing containers
     Podman has deleted all existing pods
     Podman has deleted all existing volumes
+
+Clean up Containerd
+    Log    Clean up Containerd
+    Containerd has deleted all existing containers
 
 Setup MTLS
     [Arguments]    ${enabled}
@@ -323,6 +328,10 @@ Podman has deleted all existing volumes
 Podman has terminated all existing containers
     Run Process    podman    stop    --all    timeout=20    shell=True
 
+Containerd has deleted all existing containers
+    Run Process    nerdctl    stop    --time    2    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True
+    Run Process    nerdctl    rm    --force    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True
+
 all workloads of agent "${agent_name}" have an initial execution state
     ${list_result}=    Wait For Initial Execution State
     ...    %{ANK_BIN_DIR}${/}ank get workloads
@@ -463,9 +472,11 @@ volumes for "${workload_name}" shall not exist on "${agent_name}" within "${time
     ...    0
     ...    msg=Unexpected Volume '${workload_name}.{hash}.${agent_name}.{config|pods}' found in podman!
 
-podman shall have assigned a container id for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
-    podman shall have a container for workload "${workload_name}" with custom name "" on agent "${agent_name}" within "${timeout}" seconds
-    ${container_id}    ${ankaios_instance_name}    Get Container Id And Name By Workload Name From Podman    ${workload_name}
+runtime "${runtime_name}" shall have assigned a container id for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+    ${runtime_cli_name}=    Convert Runtime Name To Cli Process Name    ${runtime_name}
+
+    runtime "${runtime_name}" shall have a container for workload "${workload_name}" with custom name "" on agent "${agent_name}" within "${timeout}" seconds
+    ${container_id}    ${ankaios_instance_name}    Get Container Id And Name By Workload Name From Runtime    ${runtime_cli_name}    ${workload_name}
     Should Not Be Empty    ${container_id}    msg=Workload '${workload_name}' has no id assigned in podman!
     Set To Dictionary    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    ${ankaios_instance_name}=${container_id}
     Set Global Variable    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
@@ -485,7 +496,9 @@ podman kube shall have assigned an id for pod "${pod_name}" of workload "${workl
     Set Global Variable    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
     Log   ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING = '${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}'
 
-podman shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "${timeout}" seconds
+runtime "${runtime_name}" shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "${timeout}" seconds
+    ${runtime_cli_name}=    Convert Runtime Name To Cli Process Name    ${runtime_name}
+
     ${start_time}=    Get Time Secs
     ${workload_names}=    Create List
     ${used_name}=    Set Variable    ${name}
@@ -495,7 +508,7 @@ podman shall have a container for workload "${workload_name}" with custom name "
         ${workload_name_agent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
     END
     WHILE    True
-        ${workload_names}=    Get Workload Names From Podman
+        ${workload_names}=    Get Workload Names From Runtime    ${runtime_cli_name}
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_agent_name}
@@ -506,15 +519,17 @@ podman shall have a container for workload "${workload_name}" with custom name "
     ...    ${workload_names}
     ...    ${workload_name_agent_name}
     ...    1
-    ...    msg=Workload '${used_name}' on agent '${agent_name}' not found in podman!
-    Log    Workload '${used_name}' on agent '${agent_name}' found in podman, found workloads: '${workload_names}'!
+    ...    msg=Workload '${used_name}' on agent '${agent_name}' not found in '${runtime_name}'!
+    Log    Workload '${used_name}' on agent '${agent_name}' found in '${runtime_name}', found workloads: '${workload_names}'!
 
-podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+runtime "${runtime_name}" shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+    ${runtime_cli_name}=    Convert Runtime Name To Cli Process Name    ${runtime_name}
+
     ${start_time}=    Get Time Secs
     ${workload_names}=    Create List
     ${workload_name_agent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
     WHILE    True
-        ${workload_names}=    Get Workload Names From Podman
+        ${workload_names}=    Get Workload Names From Runtime    ${runtime_cli_name}
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_agent_name}
@@ -524,7 +539,7 @@ podman shall not have a container for workload "${workload_name}" on agent "${ag
     Should Not Contain
     ...    ${workload_names}
     ...    ${workload_name_agent_name}
-    ...    msg=Unexpected workload '${workload_name}' on agent '${agent_name}' found in podman!
+    ...    msg=Unexpected workload '${workload_name}' on agent '${agent_name}' found in '${runtime_name}'!
 
 list of workloads shall be empty
     @{list_result}=    Create List
@@ -537,14 +552,16 @@ the configs field inside the state shall be empty
     ${configs}=    Get From Dictionary    ${desiredState}    configs
     Should Be Empty    ${configs}
 
-the container of workload "${workload_name}" shall have a different id but same configuration on the podman runtime
+the container of workload "${workload_name}" shall have a different id but same configuration on the runtime "${runtime_name}"
+    ${runtime_cli_name}=    Convert Runtime Name To Cli Process Name    ${runtime_name}
+
     ${id_changed}=    Set Variable    ${False}
     ${start_time}=    Get Time Secs
     WHILE    True
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         IF    ${elapsed_secs} >= 20    BREAK
-        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Podman    ${workload_name}
+        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Runtime    ${runtime_cli_name}    ${workload_name}
         IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
             CONTINUE
         END
@@ -566,7 +583,7 @@ the container of workload "${workload_name}" shall have a different id on the po
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         IF    ${elapsed_secs} >= 20    BREAK
-        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Podman    ${workload_name}
+        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Runtime    "podman"    ${workload_name}
         IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
             CONTINUE
         END
@@ -588,7 +605,7 @@ the container of workload "${workload_name}" shall have the same id and same con
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         IF    ${elapsed_secs} >= 20    BREAK
-        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Podman    ${workload_name}
+        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Runtime    "podman"    ${workload_name}
         IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
             CONTINUE
         END
@@ -626,6 +643,48 @@ the pod "${pod_name}" of workload "${workload_name}" shall have a different id b
     END
 
     Should Be True    ${id_changed}    msg='Workload ${pod_name}' has the same pod id '${pod_id}' and the same configuration on podman kube runtime!
+
+# containerd shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "${timeout}" seconds
+#     ${start_time}=    Get Time Secs
+#     ${workload_names}=    Create List
+#     ${used_name}=    Set Variable    ${name}
+#     ${workload_name_agent_name}=    Set Variable    ${name}
+#     IF    "${name}" == ""
+#         ${used_name}=    Set Variable    ${workload_name}
+#         ${workload_name_agent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
+#     END
+#     WHILE    True
+#         ${workload_names}=    Get Workload Names From Runtime    "nerdctl"
+#         Log    Workload names found in containerd: ${workload_names}
+#         ${current_secs}=    Get Time Secs
+#         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+#         ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_agent_name}
+#         IF    ${found_index}!=-1    BREAK
+#         IF    ${elapsed_secs} >= ${timeout}    BREAK
+#     END
+#     Should Contain X Times
+#     ...    ${workload_names}
+#     ...    ${workload_name_agent_name}
+#     ...    1
+#     ...    msg=Workload '${used_name}' on agent '${agent_name}' not found in containerd!
+#     Log    Workload '${used_name}' on agent '${agent_name}' found in containerd, found workloads: '${workload_names}'!
+
+# containerd shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+#     ${start_time}=    Get Time Secs
+#     ${workload_names}=    Create List
+#     ${workload_name_agent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
+#     WHILE    True
+#         ${workload_names}=    Get Workload Names From Runtime    "nerdctl"
+#         ${current_secs}=    Get Time Secs
+#         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+#         ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_agent_name}
+#         IF    ${found_index}==-1    BREAK
+#         IF    ${elapsed_secs} >= ${timeout}    BREAK
+#     END
+#     Should Not Contain
+#     ...    ${workload_names}
+#     ...    ${workload_name_agent_name}
+#     ...    msg=Unexpected workload '${workload_name}' on agent '${agent_name}' found in nerdctl!
 
 the last command shall list the connected agent "${agent_name}"
     ${table_as_list}=    Table To List    ${CURRENT_RESULT.stdout}
@@ -793,19 +852,43 @@ volumes for "${workload_name}" shall exist on "${agent_name}"
     volumes for "${workload_name}" shall exist on "${agent_name}" within "1" seconds
 
 podman shall have a container for workload "${workload_name}" on agent "${agent_name}"
-    podman shall have a container for workload "${workload_name}" with custom name "" on agent "${agent_name}" within "1" seconds
+    runtime "podman" shall have a container for workload "${workload_name}" with custom name "" on agent "${agent_name}" within "1" seconds
 
 podman shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}"
-    podman shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "1" seconds
+    runtime "podman" shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "1" seconds
 
 podman shall not have a container for workload "${workload_name}" on agent "${agent_name}"
-    podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "1" seconds
+    runtime "podman" shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "1" seconds
 
 podman has assigned a container id for workload "${workload_name}" on agent "${agent_name}"
-    podman shall have assigned a container id for workload "${workload_name}" on agent "${agent_name}" within "10" seconds
+    runtime "podman" shall have assigned a container id for workload "${workload_name}" on agent "${agent_name}" within "10" seconds
+
+podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+    runtime "podman" shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+
+the container of workload "${workload_name}" shall have a different id but same configuration on the podman runtime
+    the container of workload "${workload_name}" shall have a different id but same configuration on the runtime "podman"
 
 podman kube has assigned an id for pod "${pod_name}" of workload "${workload_name}" on agent "${agent_name}"
     podman kube shall have assigned an id for pod "${pod_name}" of workload "${workload_name}" on agent "${agent_name}" within "10" seconds
+
+containerd shall have a container for workload "${workload_name}" on agent "${agent_name}"
+    runtime "containerd" shall have a container for workload "${workload_name}" with custom name "" on agent "${agent_name}" within "1" seconds
+
+containerd shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}"
+    runtime "containerd" shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "1" seconds
+
+containerd shall not have a container for workload "${workload_name}" on agent "${agent_name}"
+    runtime "containerd" shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "1" seconds
+
+containerd shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+    runtime "containerd" shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+
+the container of workload "${workload_name}" shall have a different id but same configuration on the containerd runtime
+    the container of workload "${workload_name}" shall have a different id but same configuration on the runtime "containerd"
+
+containerd has assigned a container id for workload "${workload_name}" on agent "${agent_name}"
+    runtime "containerd" shall have assigned a container id for workload "${workload_name}" on agent "${agent_name}" within "10" seconds
 
 the last command shall finish with an error
     the last command finished with an error

@@ -14,8 +14,8 @@
 
 
 *** Settings ***
-Documentation       Tests to verify that Ankaios creates and deletes workloads
-...                 with inter-workload dependencies properly.
+Documentation       Tests to verify that Ankaios restarts workloads according to
+...                 the configured restart policy.
 
 Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource

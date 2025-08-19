@@ -4,6 +4,7 @@
         "automock",
         "clippy",
         "Comms",
+        "containerd",
         "Elektrobit",
         "mockall",
         "nerdctl",
