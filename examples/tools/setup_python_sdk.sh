@@ -96,6 +96,22 @@ case $SDK_SOURCE in
         ;;
 esac
 
+get_ank_version_for_proto_files() {
+    file="${PYTHON_SDK_DIR}/setup.cfg"
+    if [ -f "$file" ]; then
+        extracted_version=$(grep "ankaios_version" "$file" | cut -d'=' -f2 | tr -d ' ')
+        if [ -n "$extracted_version" ]; then
+            echo "$extracted_version"
+        else
+            echo "Error: Failed to extract Ankaios version from setup.cfg." >&2
+            exit 1
+        fi
+    else
+        echo "Error: setup.cfg not found to extract the Ankaios version." >&2
+        exit 1
+    fi
+}
+
 # Handle proto files
 if [[ -n $PROTO_SOURCE ]]; then
     case $PROTO_SOURCE in
@@ -104,11 +120,12 @@ if [[ -n $PROTO_SOURCE ]]; then
                 echo "Proto branch must be specified for branch source."
                 exit 1
             fi
-            mkdir -p ank-sdk-python/ankaios_sdk/_protos/0.6.0
+            ank_version=$(get_ank_version_for_proto_files)
+            mkdir -p "ank-sdk-python/ankaios_sdk/_protos/${ank_version}"
 
             # Get ank_base proto file
             PROTO_LINK="https://raw.githubusercontent.com/eclipse-ankaios/ankaios/refs/heads/${PROTO_BRANCH}/api/proto/ank_base.proto"
-            curl -s "$PROTO_LINK" | grep -v "^\s*//" | grep -v "^\s*$" > ank-sdk-python/ankaios_sdk/_protos/0.6.0/ank_base.proto
+            curl -s "$PROTO_LINK" | grep -v "^\s*//" | grep -v "^\s*$" > ank-sdk-python/ankaios_sdk/_protos/"$ank_version"/ank_base.proto
             if [ $? -ne 0 ]; then
                 echo "Failed to download or process the ank_base.proto file."
                 exit 1
@@ -116,7 +133,7 @@ if [[ -n $PROTO_SOURCE ]]; then
 
             # Get the control_api proto file
             PROTO_LINK="https://raw.githubusercontent.com/eclipse-ankaios/ankaios/refs/heads/${PROTO_BRANCH}/api/proto/control_api.proto"
-            curl -s "$PROTO_LINK" | grep -v "^\s*//" | grep -v "^\s*$" > ank-sdk-python/ankaios_sdk/_protos/0.6.0/control_api.proto
+            curl -s "$PROTO_LINK" | grep -v "^\s*//" | grep -v "^\s*$" > ank-sdk-python/ankaios_sdk/_protos/"$ank_version"/control_api.proto
             if [ $? -ne 0 ]; then
                 echo "Failed to download or process the control_api.proto file."
                 exit 1
@@ -127,12 +144,13 @@ if [[ -n $PROTO_SOURCE ]]; then
                 echo "Proto path must be specified for local source."
                 exit 1
             fi
-            mkdir -p ank-sdk-python/ankaios_sdk/_protos/0.6.0
+            ank_version=$(get_ank_version_for_proto_files)
+            mkdir -p "ank-sdk-python/ankaios_sdk/_protos/${ank_version}"
             if [ -f "$PROTO_PATH"/ank_base.proto ]; then
-                cp "$PROTO_PATH"/ank_base.proto ank-sdk-python/ankaios_sdk/_protos/0.6.0/
+                cp "$PROTO_PATH"/ank_base.proto ank-sdk-python/ankaios_sdk/_protos/"$ank_version"/
             fi
             if [ -f "$PROTO_PATH"/control_api.proto ]; then
-                cp "$PROTO_PATH"/control_api.proto ank-sdk-python/ankaios_sdk/_protos/0.6.0/
+                cp "$PROTO_PATH"/control_api.proto ank-sdk-python/ankaios_sdk/_protos/"$ank_version"/
             fi
             ;;
         default)
