@@ -3091,8 +3091,8 @@ Needs:
 - utest
 - stest
 
-#### Agent sends control interface accepted message on valid initial `Hello`
-`swdd~control-interface-accepted-message~1`
+#### Agent sends control interface accepted message on initial `Hello`
+`swdd~control-interface-accepted-message-on-initial-hello~1`
 
 Status: approved
 

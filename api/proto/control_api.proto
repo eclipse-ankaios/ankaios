@@ -58,7 +58,7 @@ message FromAnkaios {
 }
 
 /**
-* An message indicating that the control interface connection is accepted.
+* A message indicating that the control interface connection is accepted.
 * This message is sent in response to a hello message from the workload to Ankaios.
 */
 message ControlInterfaceAccepted {
