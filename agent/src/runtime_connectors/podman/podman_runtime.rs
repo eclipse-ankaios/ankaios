@@ -793,4 +793,49 @@ mod tests {
         let res = podman_runtime.delete_workload(&workload_id).await;
         assert_eq!(res, Err(RuntimeError::Delete("simulated error".into())));
     }
+
+    #[tokio::test]
+    async fn utest_create_workload_ignores_target_path() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let run_context = PodmanCli::podman_run_context();
+        run_context.expect().return_const(Ok("test_id".into()));
+
+        let reset_cache_context = PodmanCli::reset_ps_cache_context();
+        reset_cache_context.expect().return_const(());
+
+        let mut workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            PODMAN_RUNTIME_NAME.to_string(),
+        );
+
+        workload_spec.control_interface_access = common::objects::ControlInterfaceAccess {
+            target_path: Some("nginx-pod/nginx-container".to_string()),
+            allow_rules: vec![common::objects::AccessRightsRule::StateRule(
+                common::objects::StateRule {
+                    operation: common::objects::ReadWriteEnum::ReadWrite,
+                    filter_mask: vec!["desiredState".to_string()],
+                },
+            )],
+            deny_rules: vec![],
+        };
+
+        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
+
+        let podman_runtime = PodmanRuntime {};
+        let res = podman_runtime
+            .create_workload(
+                workload_spec,
+                None,
+                Some(PathBuf::from("run_folder")),
+                state_change_tx,
+                Default::default(),
+            )
+            .await;
+
+        let (workload_id, _checker) = res.unwrap();
+
+        assert_eq!(workload_id.id, "test_id".to_string());
+    }
 }

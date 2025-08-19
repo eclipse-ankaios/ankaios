@@ -153,13 +153,14 @@ mod tests {
     use tokio::sync::mpsc;
 
     const CONFIG: &str = "config";
+    const PIPES_FOLDER: &str = "api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910/control_interface";
 
     use crate::control_interface::{
-        authorizer::MockAuthorizer,
+        ControlInterfacePath, authorizer::MockAuthorizer,
         control_interface_task::generate_test_control_interface_task_mock,
         from_server_channels::MockFromServerChannels,
         input_output::generate_test_input_output_mock, input_pipe::MockInputPipe,
-        output_pipe::MockOutputPipe, ControlInterfacePath,
+        output_pipe::MockOutputPipe,
     };
     use common::objects::WorkloadInstanceName;
 
@@ -193,7 +194,6 @@ mod tests {
 
         let _control_interface_task_mock = generate_test_control_interface_task_mock();
 
-        const PIPES_FOLDER: &str = "api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910/control_interface";
         let control_interface = ControlInterface::new(
             ControlInterfacePath::new(PIPES_FOLDER.into()),
             &WorkloadInstanceName::builder()
@@ -276,5 +276,116 @@ mod tests {
         );
 
         control_interface.abort_control_interface_task();
+    }
+
+    #[tokio::test]
+    async fn utest_control_interface_not_created_when_no_access_rules() {
+        use common::objects::generate_test_workload_spec_with_param;
+
+        let mut workload_spec_with_target_path = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "workload_name_1".to_string(),
+            "podman".to_string(),
+        );
+        workload_spec_with_target_path.control_interface_access =
+            common::objects::ControlInterfaceAccess {
+                target_path: Some("nginx-pod/nginx-container".to_string()),
+                allow_rules: vec![],
+                deny_rules: vec![],
+            };
+
+        assert!(
+            workload_spec_with_target_path
+                .control_interface_access
+                .allow_rules
+                .is_empty()
+        );
+        assert!(
+            workload_spec_with_target_path
+                .control_interface_access
+                .deny_rules
+                .is_empty()
+        );
+        assert!(
+            workload_spec_with_target_path
+                .control_interface_access
+                .target_path
+                .is_some()
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_control_interface_created_when_access_rules_present() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let input_pipe_mock_open = MockInputPipe::open_context();
+        input_pipe_mock_open
+            .expect()
+            .returning(|_| MockInputPipe::default());
+
+        let output_pipe_mock_open = MockOutputPipe::open_context();
+        output_pipe_mock_open
+            .expect()
+            .returning(|_| MockOutputPipe::default());
+
+        let _input_output_mock = generate_test_input_output_mock();
+
+        let ex_com_ch_mock_context = MockFromServerChannels::new_context();
+        let (sender, receiver) = mpsc::channel(1);
+        ex_com_ch_mock_context.expect().return_once(move |_| {
+            let mut mock = MockFromServerChannels::default();
+            mock.expect_get_sender().return_const(sender);
+            mock.expect_move_receiver().return_once(|| receiver);
+            mock
+        });
+
+        let _control_interface_task_mock = generate_test_control_interface_task_mock();
+
+        use common::objects::generate_test_workload_spec_with_param;
+        let mut workload_spec_with_access_rules = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "workload_name_1".to_string(),
+            "podman".to_string(),
+        );
+
+        workload_spec_with_access_rules.control_interface_access =
+            common::objects::ControlInterfaceAccess {
+                target_path: Some("nginx-pod/nginx-container".to_string()),
+                allow_rules: vec![common::objects::AccessRightsRule::StateRule(
+                    common::objects::StateRule {
+                        operation: common::objects::ReadWriteEnum::ReadWrite,
+                        filter_mask: vec!["desiredState".to_string()],
+                    },
+                )],
+                deny_rules: vec![],
+            };
+
+        let control_interface = ControlInterface::new(
+            ControlInterfacePath::new(PIPES_FOLDER.into()),
+            &WorkloadInstanceName::builder()
+                .workload_name("workload_name_1")
+                .config(&String::from(CONFIG))
+                .build(),
+            mpsc::channel(1).0,
+            MockAuthorizer::default(),
+        );
+
+        assert!(control_interface.is_ok());
+
+        assert!(
+            !workload_spec_with_access_rules
+                .control_interface_access
+                .allow_rules
+                .is_empty()
+        );
+
+        assert!(
+            workload_spec_with_access_rules
+                .control_interface_access
+                .target_path
+                .is_some()
+        );
     }
 }
