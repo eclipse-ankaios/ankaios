@@ -60,4 +60,13 @@ echo Generate certificates and keys for stests...
 $tools_dir/certs/create_certs.sh /tmp/.certs
 echo done.
 
+# check if containerd is running as process already
+if pgrep -x "containerd" > /dev/null
+then
+    echo "containerd is already running. No need to start again."
+else
+    echo "containerd is not running. Starting it for system tests."
+    script_dir/containerd_start.sh
+fi
+
 ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:TRACE -x xunitOut.xml -d ${target_dir} "$@"
