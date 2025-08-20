@@ -33,7 +33,7 @@ workloads:
         data: "{{nginx_conf}}"
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
-      commandOptions: [ "-p", "8087:80" ]
+      commandOptions: [ "-p", "8088:80" ]
   containerd_workload_with_mounted_binary_file:
     agent: agent_A
     runtime: containerd
