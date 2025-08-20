@@ -272,6 +272,7 @@ def wait_for_initial_execution_state(command: str, agent_name: str, timeout: flo
             logger.trace(run_command("ps aux | grep ank").stdout)
             logger.trace(run_command("podman ps -a").stdout)
             res = run_command(command)
+            logger.trace(res)
             table = table_to_list(res.stdout if res else "")
             logger.trace(table)
         return list()
