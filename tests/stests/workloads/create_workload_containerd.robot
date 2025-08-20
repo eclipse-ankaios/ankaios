@@ -27,7 +27,6 @@ Resource            ../../resources/variables.resource
 # [stest->swdd~containerd-create-workload-runs-workload~2]
 Test Ankaios Containerd create workloads
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    containerd
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
@@ -49,7 +48,6 @@ Test Ankaios Containerd create workloads
 # [stest->swdd~containerd-create-workload-sets-optionally-container-name~2]
 Test Ankaios Containerd create a container with custom name
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    containerd
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first

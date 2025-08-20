@@ -23,6 +23,7 @@ Resource            ../../resources/variables.resource
 *** Test Cases ***
 
 # [stest->swdd~podman-create-mounts-workload-files~1]
+# [stest->swdd~containerd-create-mounts-workload-files~1]
 Test Ankaios starts manifest with workload files assigned to workloads
     [Documentation]    Create the assigned workload files on the agent's host file system and mount it into workloads.
     [Setup]    Run Keywords    Setup Ankaios
@@ -30,12 +31,15 @@ Test Ankaios starts manifest with workload files assigned to workloads
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
+    And Containerd has deleted all existing containers
     # Actions
     When Ankaios server is started with config "${CONFIGS_DIR}/manifest_with_workload_files.yaml"
     And Ankaios agent is started with name "agent_A"
     # Asserts
-    Then the workload "workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And the workload "workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
+    Then the workload "podman_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "podman_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
+    And the workload "containerd_workload_with_mounted_text_file" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "containerd_workload_with_mounted_binary_file" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     And the command "curl -Lf localhost:8087/custom" shall finish with exit code "0"
     [Teardown]    Clean up Ankaios
 

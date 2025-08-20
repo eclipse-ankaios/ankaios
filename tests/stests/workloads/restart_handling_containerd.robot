@@ -32,7 +32,6 @@ Test Ankaios restarts workloads with restart policy ALWAYS.
     [Documentation]    Restart workloads with restart policy set to ALWAYS and
     ...                ignores workloads with restart policy set to NEVER.
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    containerd
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
@@ -55,7 +54,6 @@ Test Ankaios restarts workloads with restart policy ALWAYS.
 Test Ankaios restarts workloads with restart policy ON_FAILURE.
     [Documentation]    Restart workloads with restart policy set to ON_FAILURE
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    containerd
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first

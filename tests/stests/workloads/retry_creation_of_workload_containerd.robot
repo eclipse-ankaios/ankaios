@@ -27,7 +27,6 @@ ${new_state_yaml_file}
 Test Ankaios Containerd retry creation of a workload on creation failure
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_containerd_alpine_sleep.yaml
-    [Tags]    containerd
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
@@ -51,7 +50,6 @@ Test Ankaios Containerd retry creation of a workload on creation failure
 Test Ankaios Containerd retry creation of a workload on creation failure intercepted by update
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_containerd_alpine_sleep.yaml
-    [Tags]    containerd
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
@@ -77,7 +75,6 @@ Test Ankaios Containerd retry creation of a workload on creation failure interce
 Test Ankaios Containerd retry creation of a workload on creation failure intercepted by delete
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_containerd_alpine_sleep.yaml
-    [Tags]    containerd
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first

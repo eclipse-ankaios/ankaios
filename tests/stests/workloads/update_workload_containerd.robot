@@ -33,7 +33,7 @@ Test Ankaios CLI update workload for containerd runtime
     [Setup]    Run Keywords    Setup Ankaios
     ...    AND    Set Global Variable    ${default_state_yaml_file}    ${CONFIGS_DIR}/containerd_nginx.yaml
     ...    AND    Set Global Variable    ${new_state_file}    %{ANKAIOS_TEMP}/itest_update_workload_new_state_containerd.yaml
-    [Tags]    containerd
+
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
     Given Containerd has deleted all existing containers

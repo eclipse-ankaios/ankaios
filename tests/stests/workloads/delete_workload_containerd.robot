@@ -27,7 +27,6 @@ Resource            ../../resources/variables.resource
 # [stest->swdd~containerd-delete-workload-stops-and-removes-workload~1]
 Test Ankaios Containerd remove workloads
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    containerd
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
