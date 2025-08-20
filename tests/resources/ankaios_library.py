@@ -186,7 +186,7 @@ def remove_hash_from_workload_name(wn_hash_an_string: str) -> str:
     return items[0]
 
 
-def get_workload_names_from_runtime(runtime_cli) -> list:
+def get_workload_names_from_runtime(runtime_cli: str) -> list:
     res = run_command(f'{runtime_cli} ps --all --format "{{{{.Names}}}}"')
     raw = res.stdout.strip()
     raw_wln = raw.split('\n')
