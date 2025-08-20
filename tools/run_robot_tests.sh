@@ -60,13 +60,12 @@ echo Generate certificates and keys for stests...
 $tools_dir/certs/create_certs.sh /tmp/.certs
 echo done.
 
-# check if containerd is running as process already
 if pgrep -x "containerd" > /dev/null
 then
     echo "Containerd is already running. No need to start again."
 else
     echo "Containerd is not running. Starting it for system tests."
-    sudo $script_dir/start-containerd.sh $target_dir/containerd.log
+    $script_dir/start-containerd.sh $target_dir/containerd.log
 fi
 
 ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:TRACE -x xunitOut.xml -d ${target_dir} "$@"

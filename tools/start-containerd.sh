@@ -11,8 +11,7 @@ if [ -n "$1" ]; then
     echo "Log file set to: $LOG_FILE"
 fi
 
-# Ensure log directory exists
-mkdir -p "$LOG_DIR"
+# create log directory
+mkdir -p "$(dirname "$LOG_FILE")"
 
-# Start containerd with sudo and log output
 sudo containerd 2>&1 | sudo tee "$LOG_FILE" &
