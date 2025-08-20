@@ -63,10 +63,10 @@ echo done.
 # check if containerd is running as process already
 if pgrep -x "containerd" > /dev/null
 then
-    echo "containerd is already running. No need to start again."
+    echo "Containerd is already running. No need to start again."
 else
-    echo "containerd is not running. Starting it for system tests."
-    $script_dir/start-containerd.sh $target_dir/containerd.log
+    echo "Containerd is not running. Starting it for system tests."
+    sudo $script_dir/start-containerd.sh $target_dir/containerd.log
 fi
 
 ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:TRACE -x xunitOut.xml -d ${target_dir} "$@"
