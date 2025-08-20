@@ -644,48 +644,6 @@ the pod "${pod_name}" of workload "${workload_name}" shall have a different id b
 
     Should Be True    ${id_changed}    msg='Workload ${pod_name}' has the same pod id '${pod_id}' and the same configuration on podman kube runtime!
 
-# containerd shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "${timeout}" seconds
-#     ${start_time}=    Get Time Secs
-#     ${workload_names}=    Create List
-#     ${used_name}=    Set Variable    ${name}
-#     ${workload_name_agent_name}=    Set Variable    ${name}
-#     IF    "${name}" == ""
-#         ${used_name}=    Set Variable    ${workload_name}
-#         ${workload_name_agent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
-#     END
-#     WHILE    True
-#         ${workload_names}=    Get Workload Names From Runtime    "nerdctl"
-#         Log    Workload names found in containerd: ${workload_names}
-#         ${current_secs}=    Get Time Secs
-#         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
-#         ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_agent_name}
-#         IF    ${found_index}!=-1    BREAK
-#         IF    ${elapsed_secs} >= ${timeout}    BREAK
-#     END
-#     Should Contain X Times
-#     ...    ${workload_names}
-#     ...    ${workload_name_agent_name}
-#     ...    1
-#     ...    msg=Workload '${used_name}' on agent '${agent_name}' not found in containerd!
-#     Log    Workload '${used_name}' on agent '${agent_name}' found in containerd, found workloads: '${workload_names}'!
-
-# containerd shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
-#     ${start_time}=    Get Time Secs
-#     ${workload_names}=    Create List
-#     ${workload_name_agent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
-#     WHILE    True
-#         ${workload_names}=    Get Workload Names From Runtime    "nerdctl"
-#         ${current_secs}=    Get Time Secs
-#         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
-#         ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_agent_name}
-#         IF    ${found_index}==-1    BREAK
-#         IF    ${elapsed_secs} >= ${timeout}    BREAK
-#     END
-#     Should Not Contain
-#     ...    ${workload_names}
-#     ...    ${workload_name_agent_name}
-#     ...    msg=Unexpected workload '${workload_name}' on agent '${agent_name}' found in nerdctl!
-
 the last command shall list the connected agent "${agent_name}"
     ${table_as_list}=    Table To List    ${CURRENT_RESULT.stdout}
     ${table_as_dict}=    Table To Dict    ${table_as_list}    NAME
