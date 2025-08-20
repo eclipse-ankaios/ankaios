@@ -66,7 +66,7 @@ then
     echo "containerd is already running. No need to start again."
 else
     echo "containerd is not running. Starting it for system tests."
-    $script_dir/start-containerd.sh
+    $script_dir/start-containerd.sh $target_dir/containerd.log
 fi
 
 ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:TRACE -x xunitOut.xml -d ${target_dir} "$@"
