@@ -6,7 +6,7 @@ This example is used to test the basic functionality of the ankaios sdk. It crea
 
 ### Starting with the latest version of the Rust SDK
 
-For the intended production use, with the rust_sdk downloaded from crates, just run:
+For the intended production use, with the Rust SDK downloaded from crates, just run:
 
 ``` bash
 ./run_example.sh rust_sdk_hello
@@ -14,7 +14,7 @@ For the intended production use, with the rust_sdk downloaded from crates, just 
 
 ### Starting with a development branch of the Rust SDK
 
-For testing the rust SDK, you can specify a distinct branch that the SDK should be installed from. This can be done by setting the `RUST_SDK_BRANCH` environment variable in the script:
+For testing the Rust SDK, you can specify a distinct branch that the SDK should be installed from. This can be done by setting the `RUST_SDK_BRANCH` environment variable in the script:
 
 ``` bash
 ./run_example.sh rust_sdk_hello --env RUST_SDK_BRANCH=rust_sdk_branch

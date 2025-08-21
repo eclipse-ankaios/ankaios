@@ -12,7 +12,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from ankaios_sdk import Workload, Ankaios, WorkloadStateEnum, AnkaiosException, AnkaiosLogLevel, ControlInterfaceException
+from ankaios_sdk import Workload, Ankaios, WorkloadStateEnum, AnkaiosException, AnkaiosLogLevel
 import sys, signal
 
 # Create a new Ankaios object.

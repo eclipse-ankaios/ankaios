@@ -15,6 +15,8 @@
 use ankaios_sdk::{Ankaios, AnkaiosError, Workload, WorkloadStateEnum};
 use tokio::time::Duration;
 
+const NGINX_RUN_TIME: u64 = 10; // seconds
+
 #[tokio::main]
 async fn main() {
     // Create a new Ankaios object.
@@ -93,7 +95,8 @@ async fn main() {
         );
     }
 
-    tokio::time::sleep(Duration::from_secs(5)).await;
+    // Wait for a while to let the workload run
+    tokio::time::sleep(Duration::from_secs(NGINX_RUN_TIME)).await;
 
     // Delete the workload
     let _response = ank

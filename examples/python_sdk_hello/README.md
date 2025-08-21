@@ -6,7 +6,7 @@ This example is used to test the basic functionality of the ankaios sdk. It crea
 
 ### Starting with the latest version of the Python SDK
 
-For the intended production use, with the python_sdk downloaded from pypi, just run:
+For the intended production use, with the Python SDK downloaded from pypi, just run:
 
 ``` bash
 ./run_example.sh python_sdk_hello
@@ -14,7 +14,7 @@ For the intended production use, with the python_sdk downloaded from pypi, just 
 
 ### Starting with a development branch of the Python SDK
 
-For testing the python SDK, you can specify a distinct branch that the SDK should be installed from. This can be done by setting the `PYTHON_SDK_BRANCH` environment variable in the script:
+For testing the Python SDK, you can specify a distinct branch that the SDK should be installed from. This can be done by setting the `PYTHON_SDK_BRANCH` environment variable in the script:
 
 ``` bash
 ./run_example.sh python_sdk_hello --env PYTHON_SDK_BRANCH=python_sdk_branch
