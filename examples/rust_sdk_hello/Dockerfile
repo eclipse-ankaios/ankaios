@@ -1,19 +1,15 @@
-FROM docker.io/alpine:3.18.4 as compile
-ENV PATH="/root/.cargo/bin:${PATH}"
+FROM docker.io/rust:slim as compile
 
 ARG WORKSPACE_DIR=/workspaces/build
 
-RUN apk add --no-cache \
-    curl \
+RUN apt-get update && apt-get install -y \
     # Development tools
-    bash \
     git \
-    protobuf \
-    protobuf-dev \
-    protoc \
-    build-base
-
-RUN curl --proto '=https' --tlsv1.2 -sS https://sh.rustup.rs | sh -s -- -y > /dev/null
+    build-essential \
+    pkg-config \
+    protobuf-compiler \
+    libprotobuf-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR ${WORKSPACE_DIR}/ankaios_example
 ENV ANKAIOS_VERSION=0.7.0-pre
