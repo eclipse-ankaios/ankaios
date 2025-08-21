@@ -1262,6 +1262,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#controlinterfaceaccepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      ControlInterfaceAccepted
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fromankaios" class="md-nav__link">
     <span class="md-ellipsis">
       FromAnkaios
@@ -2308,6 +2317,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#controlinterfaceaccepted" class="md-nav__link">
+    <span class="md-ellipsis">
+      ControlInterfaceAccepted
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#fromankaios" class="md-nav__link">
     <span class="md-ellipsis">
       FromAnkaios
@@ -2944,6 +2962,7 @@
 <p><a href="#control_api-proto">control_api.proto</a></p>
 <ul>
 <li><a href="#control_api-ConnectionClosed">ConnectionClosed</a></li>
+<li><a href="#control_api-ControlInterfaceAccepted">ControlInterfaceAccepted</a></li>
 <li><a href="#control_api-FromAnkaios">FromAnkaios</a></li>
 <li><a href="#control_api-Hello">Hello</a></li>
 <li><a href="#control_api-ToAnkaios">ToAnkaios</a></li>
@@ -3027,7 +3046,7 @@
 <p align="right"><a href="#top">Top</a></p>
 
 <h2 id="control_apiproto">control_api.proto<a class="headerlink" href="#control_apiproto" title="Permanent link">&para;</a></h2>
-<p>The Ankaios Control Interface is used in the communcation between a workload and Ankaios</p>
+<p>The Ankaios Control Interface is used in the communication between a workload and Ankaios</p>
 <p>The protocol consists of the following top-level message types:</p>
 <ol>
 <li>
@@ -3059,6 +3078,10 @@ No more messages will be processed by Ankaios after this message is sent.</p>
 </tr>
 </tbody>
 </table>
+<p><a name="control_api-ControlInterfaceAccepted"></a></p>
+<h3 id="controlinterfaceaccepted">ControlInterfaceAccepted<a class="headerlink" href="#controlinterfaceaccepted" title="Permanent link">&para;</a></h3>
+<p>A message indicating that the control interface connection is accepted.
+This message is sent in response to a hello message from the workload to Ankaios.</p>
 <p><a name="control_api-FromAnkaios"></a></p>
 <h3 id="fromankaios">FromAnkaios<a class="headerlink" href="#fromankaios" title="Permanent link">&para;</a></h3>
 <p>Messages from the Ankaios server to e.g. the Ankaios agent.</p>
@@ -3077,6 +3100,12 @@ No more messages will be processed by Ankaios after this message is sent.</p>
 <td><a href="#ank_base-Response">ank_base.Response</a></td>
 <td></td>
 <td>A message containing a response to a previous request.</td>
+</tr>
+<tr>
+<td>controlInterfaceAccepted</td>
+<td><a href="#control_api-ControlInterfaceAccepted">ControlInterfaceAccepted</a></td>
+<td></td>
+<td>A message indicating that the control interface connection is accepted.</td>
 </tr>
 <tr>
 <td>connectionClosed</td>
