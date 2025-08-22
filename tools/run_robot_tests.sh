@@ -16,9 +16,6 @@
 
 set -e
 
-echo "Show kernel version:"
-uname -r
-
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 base_dir="$script_dir/.."
 tools_dir="$base_dir/tools"
