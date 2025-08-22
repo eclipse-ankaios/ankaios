@@ -26,7 +26,7 @@ use super::ContainerdWorkloadId;
 
 const NERDCTL_CMD: &str = "nerdctl";
 
-// [impl->swdd~podman-log-fetching-collects-logs~1]
+// [impl->swdd~containerd-log-fetching-collects-logs~1]
 
 #[derive(Debug)]
 pub struct ContainerdLogFetcher {
@@ -126,7 +126,7 @@ impl GetOutputStreams for ContainerdLogFetcher {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-// [utest->swdd~podman-log-fetching-collects-logs~1]
+// [utest->swdd~containerd-log-fetching-collects-logs~1]
 #[cfg(test)]
 mod tests {
     use std::sync::Mutex;
