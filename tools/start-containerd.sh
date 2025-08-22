@@ -14,4 +14,4 @@ fi
 # create log directory
 mkdir -p "$(dirname "$LOG_FILE")"
 
-sudo containerd 2>&1 | sudo tee "$LOG_FILE" &
+sudo containerd 2> "$LOG_FILE" &

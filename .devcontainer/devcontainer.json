@@ -5,9 +5,7 @@
     "build": {
         "dockerfile": "Dockerfile"
     },
-    "mounts": [
-        "type=tmpfs,target=/var/lib/containerd"
-    ],
+    "mounts": [],
     "runArgs": ["--privileged"],
     "postStartCommand": "sudo /workspaces/ankaios/tools/start-containerd.sh",
     "customizations": {
