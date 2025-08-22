@@ -91,11 +91,21 @@ function create_request_for_complete_state(root) {
 function decode_from_server_response_message(root, data) {
     FromAnkaios = root.lookupType("control_api.FromAnkaios");
     const decoded_message = FromAnkaios.decodeDelimited(data);
-    let requestId = decoded_message.response.requestId;
-    if (requestId === REQUEST_ID) {
-        console.log(`[${new Date().toISOString()}] Receiving Response containing the workload states of the current state:\nFromAnkaios `, util.inspect(decoded_message.toJSON(), { depth: null }));
+
+    if (decoded_message.response) {
+        let requestId = decoded_message.response.requestId;
+        if (requestId === REQUEST_ID) {
+            console.log(`[${new Date().toISOString()}] Receiving Response containing the workload states of the current state:\nFromAnkaios `, util.inspect(decoded_message.toJSON(), { depth: null }));
+        } else {
+            console.log(`RequestId does not match. Skipping messages from requestId: ${requestId}`);
+        }
+    } else if (decoded_message.controlInterfaceAccepted) {
+        console.log(`[${new Date().toISOString()}] Received Control Interface Accepted response.\n`);
+    } else if (decoded_message.connectionClosed) {
+        console.log(`[${new Date().toISOString()}] Received Connection Closed response. Exiting..\n`);
+        process.exit(0);
     } else {
-        console.log(`RequestId does not match. Skipping messages from requestId: ${requestId}`);
+        console.log(`[${new Date().toISOString()}] Received unknown message type. Skipping message.\n`);
     }
 }
 

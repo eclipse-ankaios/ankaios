@@ -276,11 +276,19 @@ impl Connection {
             )),
         };
 
-        Ok(TestResultEnum::SendHelloResult(TagSerializedResult::Ok(
-            self.output
-                .write_all(&proto.encode_length_delimited_to_vec())
-                .map_err(|err| CommandError::GenericError(err.to_string()))?,
-        )))
+        self.output
+            .write_all(&proto.encode_length_delimited_to_vec())
+            .map_err(|err| CommandError::GenericError(err.to_string()))?;
+
+        match self.read_message().map_err(CommandError::GenericError)? {
+            FromAnkaiosEnum::ControlInterfaceAccepted(_) => {
+                logging::log("Received ControlInterfaceAccepted message from Ankaios.");
+                Ok(TestResultEnum::SendHelloResult(TagSerializedResult::Ok(())))
+            }
+            _ => Err(CommandError::GenericError(
+                "Expected ControlInterfaceAccepted message, but received something else.".into(),
+            )),
+        }
     }
 
     pub fn handle_update_state_command(
@@ -397,6 +405,11 @@ impl Connection {
                             response.request_id
                         ));
                     }
+                }
+                FromAnkaiosEnum::ControlInterfaceAccepted(_) => {
+                    logging::log(
+                        "Received ControlInterfaceAccepted message from Ankaios. Ignoring..",
+                    );
                 }
                 FromAnkaiosEnum::ConnectionClosed(_) => {
                     return Err(CommandError::ConnectionClosed(

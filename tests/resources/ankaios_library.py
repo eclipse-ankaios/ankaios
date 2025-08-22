@@ -519,6 +519,11 @@ def internal_add_update_state_command(manifest: str, update_mask: str):
 def internal_send_initial_hello(version: str):
     global control_interface_workload_config
 
+    if control_interface_workload_config and \
+        control_interface_workload_config[-1]["command"]["type"] == "SendHello":
+        logger.trace("Another SendHello received in a row, skipping it.")
+        return
+
     control_interface_workload_config.append({
         "command": {
             "type": "SendHello",
