@@ -14,6 +14,7 @@
 
 use super::{CliCommands, InputSourcePair};
 use crate::cli_commands::State;
+use crate::cli_commands::dry_run_plan::{build_dry_run_rows, render_dry_run_table};
 use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
@@ -177,9 +178,31 @@ impl CliCommands {
                     generate_state_obj_and_filter_masks_from_manifests(&mut manifests, &apply_args)
                         .map_err(CliError::ExecutionError)?
                 {
-                    // [impl->swdd~cli-apply-send-update-state~1]
-                    self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
+                    if apply_args.dry_run {
+                        let dry_run_result = self
+                            .server_connection
+                            .update_state(complete_state_req_obj, filter_masks.clone(), true)
+                            .await?;
+
+                        let added_workloads = dry_run_result.added_workloads;
+                        let deleted_workloads = dry_run_result.deleted_workloads;
+
+                        if added_workloads.is_empty() && deleted_workloads.is_empty() {
+                            output!("Dry run: no changes.");
+                        } else {
+                            let rows = build_dry_run_rows(&filter_masks, &added_workloads, &deleted_workloads);
+                            let table = render_dry_run_table(&rows);
+                            output!("{table}");
+                        }
+                        Ok(())
+                    } else {
+                        // [impl->swdd~cli-apply-send-update-state~1]
+                        self.update_state_and_wait_for_complete(
+                            complete_state_req_obj,
+                            filter_masks,
+                        )
                         .await
+                    }
                 } else {
                     output!("Nothing to update.");
                     Ok(())
@@ -585,6 +608,7 @@ mod tests {
                     agent_name: None,
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: false,
+                    dry_run: false,
                 },
             )
         );
@@ -622,6 +646,7 @@ mod tests {
                     agent_name: None,
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: true,
+                    dry_run: false,
                 },
             )
         );
@@ -658,8 +683,9 @@ mod tests {
             .with(
                 eq(updated_state.clone()),
                 eq(vec!["desiredState.workloads.simple_manifest1".to_string()]),
+                eq(false),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec!["name4.abc.agent_B".to_string()],
@@ -709,6 +735,7 @@ mod tests {
                 agent_name: None,
                 delete_mode: true,
                 manifest_files: vec!["manifest_yaml".to_string()],
+                dry_run: false,
             })
             .await;
         assert!(apply_result.is_ok());
@@ -745,8 +772,9 @@ mod tests {
             .with(
                 eq(updated_state.clone()),
                 eq(vec!["desiredState.workloads.simple_manifest1".to_string()]),
+                eq(false),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec!["simple_manifest1.abc.agent_B".to_string()],
                     deleted_workloads: vec![],
@@ -821,6 +849,7 @@ mod tests {
                 agent_name: None,
                 delete_mode: false,
                 manifest_files: vec!["manifest_yaml".to_string()],
+                dry_run: false,
             })
             .await;
         assert!(apply_result.is_ok());
@@ -853,8 +882,9 @@ mod tests {
             .with(
                 eq(updated_state.clone()),
                 eq(vec!["desiredState.configs.config_1".to_string()]),
+                eq(false),
             )
-            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
+            .return_once(|_, _, _| Ok(UpdateStateSuccess::default()));
 
         mock_server_connection
             .expect_get_complete_state()
@@ -887,6 +917,7 @@ mod tests {
                 agent_name: None,
                 delete_mode: false,
                 manifest_files: vec!["manifest_yaml".to_string()],
+                dry_run: false,
             })
             .await;
         assert!(apply_result.is_ok());
@@ -934,6 +965,7 @@ mod tests {
                 agent_name: None,
                 delete_mode: false,
                 manifest_files: vec!["manifest_yaml".to_string()],
+                dry_run: false,
             })
             .await;
         assert!(apply_result.is_ok());
@@ -968,8 +1000,9 @@ mod tests {
             .with(
                 eq(updated_state.clone()),
                 eq(vec!["desiredState.workloads.simple.manifest1".to_string()]),
+                eq(false),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec!["simple_manifest1.abc.agent_B".to_string()],
                     deleted_workloads: vec![],
@@ -1039,6 +1072,7 @@ mod tests {
                 agent_name: None,
                 delete_mode: false,
                 manifest_files: vec!["manifest_yaml".to_string()],
+                dry_run: false,
             })
             .await;
         assert!(apply_result.is_err());

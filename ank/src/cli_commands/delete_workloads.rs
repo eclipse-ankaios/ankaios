@@ -85,8 +85,9 @@ mod tests {
                     "desiredState.workloads.name1".to_string(),
                     "desiredState.workloads.name2".to_string(),
                 ]),
+                eq(false),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![
@@ -159,8 +160,9 @@ mod tests {
             .with(
                 eq(complete_state_update),
                 eq(vec!["desiredState.workloads.unknown_workload".to_string()]),
+                eq(false),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![],
