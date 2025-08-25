@@ -53,6 +53,7 @@ use agent_manager::AgentManager;
 use crate::runtime_manager::RuntimeManager;
 use runtime_connectors::{
     GenericRuntimeFacade, RuntimeConnector, RuntimeFacade,
+    containerd::{ContainerdRuntime, ContainerdWorkloadId},
     podman::{PodmanRuntime, PodmanWorkloadId},
     podman_kube::{PodmanKubeRuntime, PodmanKubeWorkloadId},
 };
@@ -162,6 +163,15 @@ async fn main() {
         GenericPollingStateChecker,
     >::new(podman_kube_runtime, run_directory.get_path()));
     runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
+
+    // [impl->swdd~agent-supports-containerd~1]
+    let containerd_runtime = Box::new(ContainerdRuntime {});
+    let containerd_runtime_name = containerd_runtime.name();
+    let containerd_facade = Box::new(GenericRuntimeFacade::<
+        ContainerdWorkloadId,
+        GenericPollingStateChecker,
+    >::new(containerd_runtime, run_directory.get_path()));
+    runtime_facade_map.insert(containerd_runtime_name, containerd_facade);
 
     // The RuntimeManager currently directly gets the server ToServerInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server

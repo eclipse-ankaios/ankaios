@@ -1,0 +1,33 @@
+apiVersion: v0.1
+workloads:
+  restarted_always:
+    runtime: containerd
+    agent: agent_A
+    restartPolicy: ALWAYS
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "echo 'Always restarted.'; sleep 2"]
+  restarted_never:
+    runtime: containerd
+    agent: agent_A
+    restartPolicy: NEVER
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "echo 'Explicitly never restarted.'; sleep 2"]
+  default_restarted_never: # default restart value = NEVER
+    runtime: containerd
+    agent: agent_A
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "echo 'Implicitly never restarted.'; sleep 2"]
+  restarted_on_failure:
+    runtime: containerd
+    agent: agent_A
+    restartPolicy: ON_FAILURE
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "echo 'Restarted on failure.'; sleep 2; exit 1"]

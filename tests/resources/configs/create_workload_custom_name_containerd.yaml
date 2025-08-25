@@ -1,0 +1,12 @@
+apiVersion: v0.1
+workloads:
+  sleepy:
+    runtime: containerd
+    agent: agent_A
+    restartPolicy: NEVER
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/sleepy:latest
+      commandOptions: ["--name", "test_workload1"]

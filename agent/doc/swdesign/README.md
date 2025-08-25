@@ -144,6 +144,12 @@ The PodmanRuntime also implements the runtime state getter trait for Podman to e
 
 The PodmanKubeRuntime connector implements the runtime connector trait for 'podman play kube'. It serves as glue between Ankaios and the Podman container engine for running Kubernetes manifest files via the Podman container engine. It is implemented as a separate engine as the functionality is very specific.
 
+### ContainerdRuntime connector
+
+The ContainerdRuntime connector implements the runtime connector trait for 'nerdctl' operating with the containerd daemon. It serves as glue between Ankaios and the Containerd  container engine for running Containerd containers.
+
+The ContainerdRuntime also implements the runtime state getter trait for Containerd to enable getting workload states.
+
 ### GenericPollingStateChecker
 
 The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implements the state checker trait) that can be used by a runtime connector to make polling requests for workload state as predefined intervals.
@@ -490,6 +496,23 @@ Supporting Kubernetes resources as a separate runtime allows differentiating bet
 
 Tags:
 - PodmanKubeRuntime
+
+Needs:
+- impl
+- stest
+
+#### Agent supports Containerd
+`swdd~agent-supports-containerd~1`
+
+Status: approved
+
+The Agent shall support Containerd for creating containers as a build-in runtime connector named "containerd".
+
+Comment:
+For operating with containerd, the `nerdctl` cli is used.
+
+Tags:
+- ContainerdRuntime
 
 Needs:
 - impl
@@ -2246,7 +2269,7 @@ Needs:
 - impl
 - utest
 
-#### Podman-kube rejects workloads with workload files
+##### Podman-kube rejects workloads with workload files
 `swdd~podman-kube-rejects-workload-files~1`
 
 Status: approved
@@ -2479,6 +2502,43 @@ Needs:
 - impl
 - utest
 - stest
+
+#### Containerd runtime connector
+
+This section describes features specific to the containerd runtime connector which can run containerized workloads using the [Containerd](https://containerd.io/) container engine. The containerd runtime connector uses the [nerdctl](https://github.com/containerd/nerdctl) CLI to operate with the Containerd daemon.
+
+##### Containerd runtime connector implements the runtime connector trait
+`swdd~containerd-implements-runtime-connector~1`
+
+Status: approved
+
+The containerd runtime connector shall implement the runtime connector trait.
+
+Comment:
+No unit tests are required here as this is just a simple implementation of a trait.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+
+##### Containerd runtime connector uses CLI
+`swdd~containerd-uses-nerdctl-cli~1`
+
+Status: approved
+
+The containerd runtime connector shall use the `nerdctl` CLI to operate with the containerd daemon.
+
+Rationale:
+The `nerdctl` CLI has a built-in implementation for managing networks, file mounts and more for interacting with containers.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
 
 ### Getting workload states
 
@@ -2880,6 +2940,125 @@ the `PodmanKubeStateGetter` shall treat this pod, as if it contains one containe
 
 Tags:
 - PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+#### Containerd runtime connector specific state getter
+
+##### Containerd runtime implements the runtime state getter trait
+`swdd~containerd-implements-runtime-state-getter~1`
+
+Status: approved
+
+The containerd runtime connector shall implement the runtime state getter trait.
+
+Comment:
+In the following requirements this part of the functionality is called the ContainerdStateGetter.
+No unit tests are required here as this is just a simple implementation of a trait.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+
+##### ContainerdStateGetter maps workload state
+`swdd~containerd-state-getter-maps-state~1`
+
+Status: approved
+
+The `ContainerdStateGetter` shall map the workload state returned by the `nerdctl` CLI into workload states according to the next table:
+
+| Nerdctl Container State | Container ExitCode | Workload State |
+| ----------------------- | :----------------: | :------------: |
+| Created                 |         -          |    Starting    |
+| Restarting              |         -          |    Starting    |
+| Paused                  |         -          |    Unknown     |
+| Running                 |         -          |    Running     |
+| Exited                  |        == 0        |   Succeeded    |
+| Exited                  |        != 0        |     Failed     |
+| Dead                    |         -          |     Failed     |
+| Removing                |         -          |    Stopping    |
+| (anything else)         |         -          |    Unknown     |
+
+Comment:
+The container state `Removing` is mapped to the workload state `Stopping`,
+because it is considered as transition state from the state `Succeeded` or `Running` into `Removed`.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### ContainerdStateGetter uses Nerdctl CLI
+`swdd~containerd-state-getter-uses-nerdctlcli~1`
+
+Status: approved
+
+When the `ContainerdStateGetter` is called to get the current state of a workload over the state getter interface, the `ContainerdStateGetter` shall use the `NerdctlCLI`.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### ContainerdStateGetter reset Containerd container state cache
+`swdd~containerd-state-getter-reset-cache~1`
+
+Status: approved
+
+When the `ContainerdStateGetter` is created for a new workload, the `ContainerdStateGetter` shall reset the Containerd container state cache.
+
+Rationale:
+After a new workload is created,
+the Containerd container state cache will not contain containers of this workload,
+the `ContainerdStateGetter` will return `removed` and
+the `GenericPollingStateChecker` will stop updating the state of this workload.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### ContainerdStateGetter returns lost state
+`swdd~containerd-state-getter-returns-lost-state~1`
+
+Status: approved
+
+When the `ContainerdStateGetter` is called to get the current state of a workload over the state getter interface
+and the `ContainerdStateGetter` gets no state for this workload, the `ContainerdStateGetter` shall return the state `lost`.
+
+Rationale:
+This happens when the container has been removed and the Agent meanwhile triggers status check of the workload.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### ContainerdStateGetter returns unknown state
+`swdd~containerd-state-getter-returns-unknown-state~1`
+
+Status: approved
+
+When the `ContainerdStateGetter` is called to get the current state over the state getter interface and
+the `ContainerdStateGetter` is unable to read the container state, the unknown state shall be returned.
+
+Comment:
+In other words the unknown state shall be the default state.
+
+Tags:
+- ContainerdRuntimeConnector
 
 Needs:
 - impl
@@ -3694,6 +3873,22 @@ When the podman log fetcher is ran, it shall:
 
 Tags:
 - PodmanLogFetcher
+
+Needs:
+- impl
+- utest
+
+#### Containerd LogFetching collects logs
+`swdd~containerd-log-fetching-collects-logs~1`
+
+Status: approved
+
+When the containerd log fetcher is ran, it shall:
+* request the logs from the containerd runtime for the specified workload with all configured options
+* provide the streams for the `stdout` and `stderr` to enable log collection by the LogFetching
+
+Tags:
+- ContainerdLogFetcher
 
 Needs:
 - impl
