@@ -31,7 +31,6 @@ ${new_state_yaml_file}          ${EMPTY}
 Test Ankaios restarts podman kube workloads with restart policy ALWAYS.
     [Documentation]    Restart workloads with restart policy set to ALWAYS on runtime podman-kube
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    restart
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
