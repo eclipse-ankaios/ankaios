@@ -67,14 +67,14 @@ impl FromStr for ContainerdWorkloadId {
 }
 
 #[async_trait]
-// [impl->swdd~nerdctl-implements-runtime-state-getter~1]
+// [impl->swdd~containerd-implements-runtime-state-getter~1]
 impl RuntimeStateGetter<ContainerdWorkloadId> for ContainerdStateGetter {
     async fn get_state(&self, workload_id: &ContainerdWorkloadId) -> ExecutionState {
         log::trace!("Getting the state for the workload '{}'", workload_id.id);
 
-        // [impl->swdd~nerdctl-state-getter-returns-unknown-state~1]
-        // [impl->swdd~nerdctl-state-getter-uses-nerdctlcli~1]
-        // [impl->swdd~nerdctl-state-getter-returns-lost-state~1]
+        // [impl->swdd~containerd-state-getter-returns-unknown-state~1]
+        // [impl->swdd~containerd-state-getter-uses-nerdctlcli~1]
+        // [impl->swdd~containerd-state-getter-returns-lost-state~1]
         let exec_state = match NerdctlCli::list_states_by_id(workload_id.id.as_str()).await {
             Ok(state) => {
                 if let Some(state) = state {
@@ -129,7 +129,7 @@ impl ContainerdRuntime {
 }
 
 #[async_trait]
-// [impl->swdd~nerdctl-implements-runtime-connector~1]
+// [impl->swdd~containerd-implements-runtime-connector~1]
 impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for ContainerdRuntime {
     // [impl->swdd~nerdctl-name-returns-nerdctl~1]
     fn name(&self) -> String {
@@ -253,7 +253,7 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
         workload_spec: WorkloadSpec,
         update_state_tx: WorkloadStateSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
-        // [impl->swdd~nerdctl-state-getter-reset-cache~1]
+        // [impl->swdd~containerd-state-getter-reset-cache~1]
         NerdctlCli::reset_ps_cache().await;
 
         log::debug!(
@@ -490,7 +490,7 @@ mod tests {
         assert_eq!(workload_id.id, reusable_workload_id);
     }
 
-    // [utest->swdd~nerdctl-state-getter-reset-cache~1]
+    // [utest->swdd~containerd-state-getter-reset-cache~1]
     #[tokio::test]
     async fn utest_state_getter_resets_cache() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -537,7 +537,7 @@ mod tests {
         state_change_rx.recv().await;
     }
 
-    // [utest->swdd~nerdctl-state-getter-uses-nerdctlcli~1]
+    // [utest->swdd~containerd-state-getter-uses-nerdctlcli~1]
     #[tokio::test]
     async fn utest_state_getter_uses_nerdctl_cli() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -731,7 +731,7 @@ mod tests {
         assert_eq!(res, ExecutionState::running());
     }
 
-    // [utest->swdd~nerdctl-state-getter-returns-lost-state~1]
+    // [utest->swdd~containerd-state-getter-returns-lost-state~1]
     #[tokio::test]
     async fn utest_get_state_returns_lost_on_missing_state() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -747,7 +747,7 @@ mod tests {
         assert_eq!(res, ExecutionState::lost())
     }
 
-    // [utest->swdd~nerdctl-state-getter-returns-unknown-state~1]
+    // [utest->swdd~containerd-state-getter-returns-unknown-state~1]
     #[tokio::test]
     async fn utest_get_state_returns_error() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;

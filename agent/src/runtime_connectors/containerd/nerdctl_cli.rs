@@ -46,7 +46,7 @@ pub struct NerdctlStartConfig {
     pub container_id: String,
 }
 
-// [impl->swdd~nerdctl-state-getter-maps-state~3]
+// [impl->swdd~containerd-state-getter-maps-state~1]
 impl From<NerdctlContainerInfo> for ExecutionState {
     fn from(value: NerdctlContainerInfo) -> Self {
         match value.state.status.to_lowercase().as_str() {
@@ -57,7 +57,7 @@ impl From<NerdctlContainerInfo> for ExecutionState {
             }
             "running" => ExecutionState::running(),
             "removing" => ExecutionState::stopping(value.state.status),
-            "paused" => ExecutionState::succeeded(),
+            "paused" => ExecutionState::unknown(value.state.status),
             "restarting" => ExecutionState::starting(value.state.status),
             "dead" => ExecutionState::failed(format!("Exit code: '{}'", value.state.exit_code)),
             state => {
@@ -807,7 +807,7 @@ mod tests {
         assert_eq!(res, Err(SAMPLE_ERROR_MESSAGE.to_string()));
     }
 
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~containerd-state-getter-maps-state~1]
     // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_created() {
@@ -844,7 +844,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::starting("created"))));
     }
 
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~containerd-state-getter-maps-state~1]
     // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_succeeded() {
@@ -881,7 +881,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::succeeded())));
     }
 
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~containerd-state-getter-maps-state~1]
     // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_failed() {
@@ -918,7 +918,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::failed("Exit code: '1'"))));
     }
 
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~containerd-state-getter-maps-state~1]
     // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_running() {
@@ -955,7 +955,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::running())));
     }
 
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~containerd-state-getter-maps-state~1]
     // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_removing() {
@@ -991,7 +991,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::stopping("removing"))));
     }
 
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~containerd-state-getter-maps-state~1]
     // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_paused() {
@@ -1027,7 +1027,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::succeeded())));
     }
 
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~containerd-state-getter-maps-state~1]
     // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_restarting() {
@@ -1063,7 +1063,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::starting("restarting"))));
     }
 
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~containerd-state-getter-maps-state~1]
     // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_dead() {
@@ -1099,7 +1099,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::failed("Exit code: '1'"))));
     }
 
-    // [utest->swdd~nerdctl-state-getter-maps-state~3]
+    // [utest->swdd~containerd-state-getter-maps-state~1]
     // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_unknown() {
