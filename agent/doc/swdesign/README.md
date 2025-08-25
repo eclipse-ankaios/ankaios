@@ -2269,7 +2269,7 @@ Needs:
 - impl
 - utest
 
-#### Podman-kube rejects workloads with workload files
+##### Podman-kube rejects workloads with workload files
 `swdd~podman-kube-rejects-workload-files~1`
 
 Status: approved
@@ -2502,6 +2502,27 @@ Needs:
 - impl
 - utest
 - stest
+
+#### Containerd runtime connector
+
+This section describes features specific to the containerd runtime connector which can run containerized workloads using the [Containerd](https://containerd.io/) container engine. The containerd runtime connector uses the [nerdctl](https://github.com/containerd/nerdctl) CLI to operate with the Containerd daemon.
+
+##### Containerd runtime connector uses CLI
+`swdd~containerd-uses-nerdctl-cli~1`
+
+Status: approved
+
+The containerd runtime connector shall use the `nerdctl` CLI to operate with the containerd daemon.
+
+Rationale:
+The `nerdctl` CLI has a built-in implementation for managing networks, file mounts and more for interacting with containers.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
 
 ### Getting workload states
 

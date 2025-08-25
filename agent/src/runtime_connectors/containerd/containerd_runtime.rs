@@ -34,7 +34,7 @@ use crate::{
 #[cfg(test)]
 use mockall_double::double;
 
-// [impl->swdd~nerdctl-uses-nerdctl-cli~1]
+// [impl->swdd~containerd-uses-nerdctl-cli~1]
 #[cfg_attr(test, double)]
 use crate::runtime_connectors::containerd::nerdctl_cli::NerdctlCli;
 

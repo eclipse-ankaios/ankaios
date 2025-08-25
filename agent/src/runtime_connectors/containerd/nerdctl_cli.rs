@@ -448,7 +448,7 @@ where
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
-// [utest->swdd~nerdctl-uses-nerdctl-cli~1]
+// [utest->swdd~containerd-uses-nerdctl-cli~1]
 // [utest->swdd~nerdctl-kube-uses-nerdctl-cli~1]
 #[cfg(test)]
 mod tests {
