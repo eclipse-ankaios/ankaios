@@ -36,7 +36,7 @@ impl CliCommands {
         );
 
         self.server_connection
-            .update_state(complete_state_update, update_mask)
+            .update_state(complete_state_update, update_mask, false)
             .await
             .map_err(|error| {
                 CliError::ExecutionError(format!("Failed to delete configs: {error:?}"))
@@ -82,8 +82,9 @@ mod tests {
                     ["desiredState.configs.", CONFIG_1].join(""),
                     ["desiredState.configs.", CONFIG_2].join(""),
                 ]),
+                eq(false),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![],
@@ -127,8 +128,10 @@ mod tests {
             .with(
                 eq(complete_state_update),
                 eq(vec!["desiredState.configs.unknown_config".to_string()]),
+                eq(false),
+
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
                     deleted_workloads: vec![],
