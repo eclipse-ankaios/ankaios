@@ -164,6 +164,7 @@ async fn main() {
     >::new(podman_kube_runtime, run_directory.get_path()));
     runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
 
+    // [impl->swdd~agent-supports-containerd~1]
     let containerd_runtime = Box::new(ContainerdRuntime {});
     let containerd_runtime_name = containerd_runtime.name();
     let containerd_facade = Box::new(GenericRuntimeFacade::<

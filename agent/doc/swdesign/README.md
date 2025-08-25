@@ -495,6 +495,23 @@ Needs:
 - impl
 - stest
 
+#### Agent supports Containerd
+`swdd~agent-supports-containerd~1`
+
+Status: approved
+
+The Agent shall support Containerd for creating containers as a build-in runtime connector named "containerd".
+
+Comment:
+For operating with containerd, the `nerdctl` cli is used.
+
+Tags:
+- ContainerdRuntime
+
+Needs:
+- impl
+- stest
+
 ### Handling UpdateWorkload commands from the Ankaios Server
 
 The following diagram show the general steps the Ankaios Agent takes when receiving an UpdateWorkload command:

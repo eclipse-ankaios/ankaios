@@ -23,7 +23,7 @@ Resource            ../../resources/variables.resource
 
 *** Test Cases ***
 
-# [stest->swdd~agent-supports-containerd~2]
+# [stest->swdd~agent-supports-containerd~1]
 # [stest->swdd~containerd-delete-workload-stops-and-removes-workload~1]
 Test Ankaios Containerd remove workloads
     [Setup]    Run Keywords    Setup Ankaios
