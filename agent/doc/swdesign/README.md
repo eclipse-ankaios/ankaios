@@ -3722,6 +3722,22 @@ Needs:
 - impl
 - utest
 
+#### Containerd LogFetching collects logs
+`swdd~containerd-log-fetching-collects-logs~1`
+
+Status: approved
+
+When the containerd log fetcher is ran, it shall:
+* request the logs from the containerd runtime for the specified workload with all configured options
+* provide the streams for the `stdout` and `stderr` to enable log collection by the LogFetching
+
+Tags:
+- ContainerdLogFetcher
+
+Needs:
+- impl
+- utest
+
 #### LogFetching runner objects stops collection when dropped
 `swdd~agent-log-fetching-stops-collection-when-dropped~1`
 
