@@ -144,6 +144,12 @@ The PodmanRuntime also implements the runtime state getter trait for Podman to e
 
 The PodmanKubeRuntime connector implements the runtime connector trait for 'podman play kube'. It serves as glue between Ankaios and the Podman container engine for running Kubernetes manifest files via the Podman container engine. It is implemented as a separate engine as the functionality is very specific.
 
+### ContainerdRuntime connector
+
+The ContainerdRuntime connector implements the runtime connector trait for 'nerdctl' operating with the containerd daemon. It serves as glue between Ankaios and the Containerd  container engine for running Containerd containers.
+
+The ContainerdRuntime also implements the runtime state getter trait for Containerd to enable getting workload states.
+
 ### GenericPollingStateChecker
 
 The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implements the state checker trait) that can be used by a runtime connector to make polling requests for workload state as predefined intervals.
