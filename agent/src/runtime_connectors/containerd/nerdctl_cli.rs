@@ -1009,22 +1009,28 @@ mod tests {
                 .exec_returns(Ok(container_id.clone().to_json())),
         );
 
+        let container_state = TestNerdctlContainerState {
+            status: "paused".to_owned(),
+            ..Default::default()
+        };
+        let expected_container_status = container_state.status.clone();
+
         super::CliCommand::new_expect(
             NERDCTL_CMD,
             super::CliCommand::default()
                 .expect_args(&["inspect", WORKLOAD_ID])
                 .exec_returns(Ok([TestNerdctlContainerInfo {
                     id: container_id,
-                    state: TestNerdctlContainerState {
-                        status: "paused".to_owned(),
-                        ..Default::default()
-                    },
+                    state: container_state,
                 }]
                 .to_json())),
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionState::succeeded())));
+        assert_eq!(
+            res,
+            Ok(Some(ExecutionState::unknown(expected_container_status)))
+        );
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
