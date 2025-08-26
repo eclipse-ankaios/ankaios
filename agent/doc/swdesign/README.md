@@ -162,7 +162,7 @@ The `SubscriptionStore` is responsible for holding local log subscriptions. A lo
 
 ### ResourceMonitor
 
-The `ResourceMonitor` is responsible for providing resource availability metrics like CPU usage or free memory of the agent's node. Those metrics are useful to schedule workloads based on the current available resources.
+The `ResourceMonitor` is responsible for providing metrics on the availability of resources, such as CPU usage and free memory, on the agent's node. These metrics are useful for scheduling workloads based on current resource availability.
 
 ### External Libraries
 
