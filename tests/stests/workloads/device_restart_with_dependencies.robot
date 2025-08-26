@@ -26,6 +26,7 @@ Resource            ../../resources/variables.resource
 # [stest->swdd~agent-enqueues-unfulfilled-create~1]
 # [stest->swdd~agent-existing-workloads-reuse-unmodified~1]
 # [stest->swdd~podman-create-workload-starts-existing-workload~1]
+# [stest->swdd~containerd-create-workload-starts-existing-workload~1]
 Test Ankaios restarts exited workloads on device restart with considering inter-workload dependencies
     [Documentation]    Restart not running workloads after a device restart with considering inter-workload dependencies
     [Setup]    Run Keywords    Setup Ankaios
@@ -38,12 +39,13 @@ Test Ankaios restarts exited workloads on device restart with considering inter-
     And Ankaios agent is started with name "agent_B"
     And podman has assigned a container id for workload "filesystem_init" on agent "agent_A"
     And podman has assigned a container id for workload "web_service_init" on agent "agent_A"
-    And podman has assigned a container id for workload "web_service" on agent "agent_B"
+    And containerd has assigned a container id for workload "web_service" on agent "agent_B"
     # Simulate full device restart
     And Ankaios server is terminated
     And Ankaios agent with name "agent_A" is terminated
     And Ankaios agent with name "agent_B" is terminated
     And Podman has terminated all existing containers
+    And Containerd has terminated all existing containers
     # Restart of Ankaios on full device restart
     And Ankaios server is started with config "${CONFIGS_DIR}/device_restart_with_dependencies_modified_web_service_init.yaml"
     And Ankaios agent is started with name "agent_B"
@@ -53,5 +55,5 @@ Test Ankaios restarts exited workloads on device restart with considering inter-
     And the workload "web_service" shall have the execution state "Running(Ok)" on agent "agent_B"
     And the container of workload "filesystem_init" shall have the same id and same configuration on the podman runtime
     And the container of workload "web_service_init" shall have a different id on the podman runtime
-    And the container of workload "web_service" shall have the same id and same configuration on the podman runtime
+    And the container of workload "web_service" shall have the same id and same configuration on the containerd runtime
     [Teardown]    Clean up Ankaios

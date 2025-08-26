@@ -24,7 +24,7 @@ Resource            ../../resources/variables.resource
 *** Test Cases ***
 
 # [stest->swdd~agent-supports-containerd~1]
-# [stest->swdd~containerd-create-workload-runs-workload~2]
+# [stest->swdd~containerd-create-workload-runs-workload~1]
 Test Ankaios Containerd create workloads
     [Setup]    Run Keywords    Setup Ankaios
 
@@ -45,7 +45,7 @@ Test Ankaios Containerd create workloads
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-supports-containerd~1]
-# [stest->swdd~containerd-create-workload-sets-optionally-container-name~2]
+# [stest->swdd~containerd-create-workload-sets-optionally-container-name~1]
 Test Ankaios Containerd create a container with custom name
     [Setup]    Run Keywords    Setup Ankaios
 

@@ -332,6 +332,9 @@ Containerd has deleted all existing containers
     Run Process    nerdctl    stop    --time    2    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True
     Run Process    nerdctl    rm    --force    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True
 
+Containerd has terminated all existing containers
+    Run Process    nerdctl    stop    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True
+
 all workloads of agent "${agent_name}" have an initial execution state
     ${list_result}=    Wait For Initial Execution State
     ...    %{ANK_BIN_DIR}${/}ank get workloads
@@ -598,14 +601,15 @@ the container of workload "${workload_name}" shall have a different id on the po
 
     Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' on podman!
 
-the container of workload "${workload_name}" shall have the same id and same configuration on the podman runtime
+the container of workload "${workload_name}" shall have the same id and same configuration on the runtime "${runtime_name}"
+    ${runtime_cli_name}=    Convert Runtime Name To Cli Process Name    ${runtime_name}
     ${id_changed}=    Set Variable    ${True}
     ${start_time}=    Get Time Secs
     WHILE    True
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         IF    ${elapsed_secs} >= 20    BREAK
-        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Runtime    "podman"    ${workload_name}
+        ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Runtime    ${runtime_cli_name}    ${workload_name}
         IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
             CONTINUE
         END
@@ -618,7 +622,7 @@ the container of workload "${workload_name}" shall have the same id and same con
         END
     END
 
-    Should Not Be True    ${id_changed}    msg=Workload '${workload_name}' has a different '${old_container_id}' on podman!
+    Should Not Be True    ${id_changed}    msg=Workload '${workload_name}' has a different '${old_container_id}' on ${runtime_name}!
 
 the pod "${pod_name}" of workload "${workload_name}" shall have a different id but same configuration on the podman kube runtime
     ${id_changed}=    Set Variable    ${False}
@@ -824,11 +828,17 @@ podman has assigned a container id for workload "${workload_name}" on agent "${a
 podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
     runtime "podman" shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
 
+the container of workload "${workload_name}" shall have the same id and same configuration on the podman runtime
+    the container of workload "${workload_name}" shall have the same id and same configuration on the runtime "podman"
+
 the container of workload "${workload_name}" shall have a different id but same configuration on the podman runtime
     the container of workload "${workload_name}" shall have a different id but same configuration on the runtime "podman"
 
 podman kube has assigned an id for pod "${pod_name}" of workload "${workload_name}" on agent "${agent_name}"
     podman kube shall have assigned an id for pod "${pod_name}" of workload "${workload_name}" on agent "${agent_name}" within "10" seconds
+
+the container of workload "${workload_name}" shall have the same id and same configuration on the containerd runtime
+    the container of workload "${workload_name}" shall have the same id and same configuration on the runtime "containerd"
 
 containerd shall have a container for workload "${workload_name}" on agent "${agent_name}"
     runtime "containerd" shall have a container for workload "${workload_name}" with custom name "" on agent "${agent_name}" within "1" seconds

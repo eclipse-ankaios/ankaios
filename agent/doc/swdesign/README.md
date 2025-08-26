@@ -2144,7 +2144,7 @@ Needs:
 
 Status: approved
 
-When the podman runtime connector is called is called without an existing workload id to create a new workload and the workload name is not set in the runtime configuration,
+When the podman runtime connector is called without an existing workload id to create a new workload and the workload name is not set in the runtime configuration,
 the podman runtime connector shall set the workload execution name as the workload name.
 
 Tags:
@@ -2539,6 +2539,221 @@ Tags:
 Needs:
 - impl
 - utest
+
+##### Containerd get name returns `containerd`
+`swdd~containerd-name-returns-containerd~1`
+
+Status: approved
+
+When the containerd runtime connector is called to return its unique name, the containerd runtime connector shall return `containerd`.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### Containerd list of existing workloads uses labels
+`swdd~containerd-list-of-existing-workloads-uses-labels~1`
+
+Status: approved
+
+When the containerd runtime connector is called to return list of existing workloads,
+the containerd runtime connector shall use the label `agent` stored in the workloads.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### Containerd create workload runs the workload object
+`swdd~containerd-create-workload-runs-workload~1`
+
+Status: approved
+
+When the containerd runtime connector is called to create a workload and no existing workload id is provided, the containerd runtime connector shall:
+
+* pull the workload image specified in the runtime configuration if the image is not already available locally
+* create the container
+* start the container in the detached mode
+* start a `GenericPollingStateChecker` to check the workload state
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
+##### Containerd create workload starts an existing workload object
+`swdd~containerd-create-workload-starts-existing-workload~1`
+
+Status: approved
+
+When the containerd runtime connector is called to create a workload and an existing workload id is provided, the containerd runtime connector shall:
+
+* start the existing container
+* start a `GenericPollingStateChecker` to check the workload state
+
+Rationale:
+Starting a stopped container is much faster than creating a new container bundle and starting that. Short startup times are usually crucial for automotive.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
+##### Containerd create workload returns workload id
+`swdd~containerd-create-workload-returns-workload-id~1`
+
+Status: approved
+
+When the containerd runtime connector is called to create a workload and the action is successfully processed by the containerd runtime connector, the containerd runtime connector shall return the workload id.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### Containerd create workload deletes failed the container
+`swdd~containerd-create-workload-deletes-failed-container~1`
+
+Status: approved
+
+When the containerd runtime connector is called to create workload and the creation fails,
+the containerd runtime connector shall delete failed container.
+
+Rationale:
+If the user tries to update the failed workload and the update is successful (new container is created and started),
+the old container is left on the system and cannot be deleted via Ankaios anymore.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### Containerd create workload creates labels
+`swdd~containerd-create-workload-creates-labels~1`
+
+Status: approved
+
+When the containerd runtime connector is called without an existing workload id to create a new workload, the containerd runtime connector shall create following labels in the workload:
+
+* `name` as the key and workload execution name as the value
+* `agent` as the key and the agent name where the workload is being created as the value
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### Containerd create workload sets optionally container name
+`swdd~containerd-create-workload-sets-optionally-container-name~1`
+
+Status: approved
+
+When the containerd runtime connector is called without an existing workload id to create a new workload and the workload name is not set in the runtime configuration, the containerd runtime connector shall set the workload execution name as the workload name.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
+##### Containerd create workload optionally mounts FIFO files
+`swdd~containerd-create-workload-mounts-fifo-files~1`
+
+Status: approved
+
+When the containerd runtime connector is called to create workload and the RuntimeFacade requests to mount the Control Interface pipes, the containerd runtime connector shall mount the Control Interface pipes into the container in the file path `/run/ankaios/control_interface`.
+
+Tags:
+- ControlInterface
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### Containerd create workload optionally mounts workload files
+`swdd~containerd-create-mounts-workload-files~1`
+
+Status: approved
+
+When the containerd runtime connector is called to create a workload and the provided host workload file path to mount point mapping is not empty, the containerd runtime connector shall mount the provided files into the container at the provided mount points in `readonly` mode.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
+##### Containerd get workload id uses label
+`swdd~containerd-get-workload-id-uses-label~1`
+
+Status: approved
+
+When the containerd runtime connector is called to get workload id, the containerd runtime connector shall use the label `name` stored in the workload.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### Containerd start state checker starts ContainerdStateGetter
+`swdd~containerd-start-checker-starts-containerd-state-checker~1`
+
+Status: approved
+
+When the containerd runtime connector is called to start the state checker, the containerd runtime connector shall:
+* create the `ContainerdStateGetter`
+* start it using `GenericPollingStateChecker`
+
+Comment:
+No unit tests are required here as this function is simple and writing a unit test too difficult.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+
+##### Containerd delete workload stops and removes workload
+`swdd~containerd-delete-workload-stops-and-removes-workload~1`
+
+Status: approved
+
+When the containerd runtime connector is called to delete workload, the containerd runtime connector shall first stop the workload followed by deleting it.
+
+Comment:
+Since nerdctl does not support ignoring a stop or delete of a non-existent container, stdout output is used to determine whether the container has already been stopped or deleted.
+
+Tags:
+- ContainerdRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
 
 ### Getting workload states
 

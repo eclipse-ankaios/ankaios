@@ -241,12 +241,12 @@ impl NerdctlCli {
         // We store workload name as a label (and use them from there).
         // Therefore we do insist on container names in particular format.
         //
-        // [impl->swdd~nerdctl-create-workload-sets-optionally-container-name~2]
+        // [impl->swdd~containerd-create-workload-sets-optionally-container-name~1]
         args.append(&mut vec!["--name".into(), workload_name.to_string()]);
 
         args.append(&mut run_config.command_options);
 
-        // [impl->swdd~nerdctl-create-workload-mounts-fifo-files~1]
+        // [impl->swdd~containerd-create-workload-mounts-fifo-files~1]
         if let Some(path) = control_interface_path {
             args.push(
                 [
@@ -259,7 +259,7 @@ impl NerdctlCli {
             );
         }
 
-        // [impl->swdd~nerdctl-create-mounts-workload-files~1]
+        // [impl->swdd~containerd-create-mounts-workload-files~1]
         for (host_file_path, mount_point) in workload_file_path_mappings {
             args.push(
                 [
@@ -273,7 +273,7 @@ impl NerdctlCli {
             );
         }
 
-        // [impl->swdd~nerdctl-create-workload-creates-labels~2]
+        // [impl->swdd~containerd-create-workload-creates-labels~1]
         args.push(format!("--label=name={workload_name}"));
         args.push(format!("--label=agent={agent}"));
         args.push(run_config.image);
@@ -636,10 +636,10 @@ mod tests {
         assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse nerdctl output") ));
     }
 
-    // [utest->swdd~nerdctl-create-workload-creates-labels~2]
-    // [utest->swdd~nerdctl-create-workload-sets-optionally-container-name~2]
-    // [utest->swdd~nerdctl-create-workload-mounts-fifo-files~1]
-    // [utest->swdd~nerdctl-create-mounts-workload-files~1]
+    // [utest->swdd~containerd-create-workload-creates-labels~1]
+    // [utest->swdd~containerd-create-workload-sets-optionally-container-name~1]
+    // [utest->swdd~containerd-create-workload-mounts-fifo-files~1]
+    // [utest->swdd~containerd-create-mounts-workload-files~1]
     #[tokio::test]
     async fn utest_run_container_success_no_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -714,9 +714,9 @@ mod tests {
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
-    // [utest->swdd~nerdctl-create-workload-sets-optionally-container-name~2]
-    // [utest->swdd~nerdctl-create-workload-mounts-fifo-files~1]
-    // [utest->swdd~nerdctl-create-mounts-workload-files~1]
+    // [utest->swdd~containerd-create-workload-sets-optionally-container-name~1]
+    // [utest->swdd~containerd-create-workload-mounts-fifo-files~1]
+    // [utest->swdd~containerd-create-mounts-workload-files~1]
     #[tokio::test]
     async fn utest_run_container_success_with_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -764,7 +764,7 @@ mod tests {
         assert_eq!(res, Ok(WORKLOAD_ID.to_owned()));
     }
 
-    // [utest->swdd~nerdctl-create-workload-starts-existing-workload~1]
+    // [utest->swdd~containerd-create-workload-starts-existing-workload~1]
     #[tokio::test]
     async fn utest_start_container_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -784,7 +784,7 @@ mod tests {
         assert_eq!(res, Ok(WORKLOAD_ID.to_owned()));
     }
 
-    // [utest->swdd~nerdctl-create-workload-starts-existing-workload~1]
+    // [utest->swdd~containerd-create-workload-starts-existing-workload~1]
     #[tokio::test]
     async fn utest_start_container_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;

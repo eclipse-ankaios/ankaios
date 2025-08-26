@@ -131,7 +131,7 @@ impl ContainerdRuntime {
 #[async_trait]
 // [impl->swdd~containerd-implements-runtime-connector~1]
 impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for ContainerdRuntime {
-    // [impl->swdd~nerdctl-name-returns-nerdctl~1]
+    // [impl->swdd~containerd-name-returns-containerd~1]
     fn name(&self) -> String {
         CONTAINERD_RUNTIME_NAME.to_string()
     }
@@ -140,7 +140,7 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
-        // [impl->swdd~nerdctl-list-of-existing-workloads-uses-labels~1]
+        // [impl->swdd~containerd-list-of-existing-workloads-uses-labels~1]
         let res = NerdctlCli::list_workload_names_by_label("agent", agent_name.get())
             .await
             .map_err(|err| RuntimeError::List(err.to_string()))?;
@@ -156,8 +156,8 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
             .await
     }
 
-    // [impl->swdd~nerdctl-create-workload-runs-workload~2]
-    // [impl->swdd~nerdctl-create-workload-starts-existing-workload~1]
+    // [impl->swdd~containerd-create-workload-runs-workload~1]
+    // [impl->swdd~containerd-create-workload-starts-existing-workload~1]
     async fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
@@ -203,11 +203,11 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
                     .start_checker(&nerdctl_workload_id, workload_spec, update_state_tx)
                     .await?;
 
-                // [impl->swdd~nerdctl-create-workload-returns-workload-id~1]
+                // [impl->swdd~containerd-create-workload-returns-workload-id~1]
                 Ok((nerdctl_workload_id, state_checker))
             }
             Err(err) => {
-                // [impl->swdd~nerdctl-create-workload-deletes-failed-container~1]
+                // [impl->swdd~containerd-create-workload-deletes-failed-container~1]
                 log::debug!("Creating/starting container failed, cleaning up. Error: '{err}'");
                 match NerdctlCli::remove_workloads_by_id(&workload_spec.instance_name.to_string())
                     .await
@@ -228,7 +228,7 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
         &self,
         instance_name: &WorkloadInstanceName,
     ) -> Result<ContainerdWorkloadId, RuntimeError> {
-        // [impl->swdd~nerdctl-get-workload-id-uses-label~1]
+        // [impl->swdd~containerd-get-workload-id-uses-label~1]
         let res =
             NerdctlCli::list_workload_ids_by_label("name", instance_name.to_string().as_str())
                 .await
@@ -246,7 +246,7 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
         }
     }
 
-    // [impl->swdd~nerdctl-start-checker-starts-nerdctl-state-checker~1]
+    // [impl->swdd~containerd-start-checker-starts-containerd-state-checker~1]
     async fn start_checker(
         &self,
         workload_id: &ContainerdWorkloadId,
@@ -281,7 +281,7 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
         Ok(Box::new(log_fetcher))
     }
 
-    // [impl->swdd~nerdctl-delete-workload-stops-and-removes-workload~1]
+    // [impl->swdd~containerd-delete-workload-stops-and-removes-workload~1]
     async fn delete_workload(
         &self,
         workload_id: &ContainerdWorkloadId,
@@ -324,14 +324,14 @@ mod tests {
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
 
-    // [utest->swdd~nerdctl-name-returns-nerdctl~1]
+    // [utest->swdd~containerd-name-returns-containerd~1]
     #[test]
     fn utest_name_containerd() {
         let containerd_runtime = ContainerdRuntime {};
         assert_eq!(containerd_runtime.name(), "containerd".to_string());
     }
 
-    // [utest->swdd~nerdctl-list-of-existing-workloads-uses-labels~1]
+    // [utest->swdd~containerd-list-of-existing-workloads-uses-labels~1]
     #[tokio::test]
     async fn utest_get_reusable_workloads_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -416,7 +416,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~nerdctl-create-workload-runs-workload~2]
+    // [utest->swdd~containerd-create-workload-runs-workload~1]
     #[tokio::test]
     async fn utest_create_workload_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -447,11 +447,11 @@ mod tests {
 
         let (workload_id, _checker) = res.unwrap();
 
-        // [utest->swdd~nerdctl-create-workload-returns-workload-id~1]
+        // [utest->swdd~containerd-create-workload-returns-workload-id~1]
         assert_eq!(workload_id.id, "test_id".to_string());
     }
 
-    // [utest->swdd~nerdctl-create-workload-starts-existing-workload~1]
+    // [utest->swdd~containerd-create-workload-starts-existing-workload~1]
     #[tokio::test]
     async fn utest_create_workload_with_existing_workload_id_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -486,7 +486,7 @@ mod tests {
 
         let (workload_id, _checker) = res.unwrap();
 
-        // [utest->swdd~nerdctl-create-workload-returns-workload-id~1]
+        // [utest->swdd~containerd-create-workload-returns-workload-id~1]
         assert_eq!(workload_id.id, reusable_workload_id);
     }
 
@@ -557,7 +557,7 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::running());
     }
 
-    // [utest->swdd~nerdctl-create-workload-deletes-failed-container~1]
+    // [utest->swdd~containerd-create-workload-deletes-failed-container~1]
     #[tokio::test]
     async fn utest_create_workload_run_failed_cleanup_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -655,7 +655,7 @@ mod tests {
         assert!(res.is_err());
     }
 
-    // [utest->swdd~nerdctl-get-workload-id-uses-label~1]
+    // [utest->swdd~containerd-get-workload-id-uses-label~1]
     #[tokio::test]
     async fn utest_get_workload_id_workload_found() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -766,7 +766,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~nerdctl-delete-workload-stops-and-removes-workload~1]
+    // [utest->swdd~containerd-delete-workload-stops-and-removes-workload~1]
     #[tokio::test]
     async fn utest_delete_workload_succeeds() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
