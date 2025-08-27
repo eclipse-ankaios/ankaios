@@ -3012,7 +3012,7 @@ Needs:
 Status: approved
 
 At an interval of 2 seconds, the AgentManager shall:
-* request the ResourceMonitor to provide the resource metrics for the agent's node
+* sample resource metrics for the agent's node via the ResourceMonitor
 * send the metrics to the Ankaios server via an `AgentLoadStatus` message
 
 Rationale:
