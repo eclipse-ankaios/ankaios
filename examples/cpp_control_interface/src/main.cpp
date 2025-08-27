@@ -119,17 +119,34 @@ void readFromControlInterface()
             continue;
         }
 
-        const auto requestId = fromAnkaios.response().requestid();
-        if (requestId == REQUEST_ID)
+        if (fromAnkaios.has_response())
         {
-        logging::log(std::cout,
-                        "Receiving Response containing the workload states of the current state:\n",
-                        "FromAnkaios {\n",
-                        fromAnkaios.DebugString(),
-                        "}\n");
-        } else
+            const auto requestId = fromAnkaios.response().requestid();
+            if (requestId == REQUEST_ID)
+            {
+            logging::log(std::cout,
+                "Receiving Response containing the workload states of the current state:\n",
+                "FromAnkaios {\n",
+                fromAnkaios.DebugString(),
+                "}\n");
+            }
+            else
+            {
+                logging::log(std::cout, "RequestId does not match. Skipping messages from requestId: ", requestId);
+            }
+        }
+        else if (fromAnkaios.has_controlinterfaceaccepted())
         {
-            logging::log(std::cout, "RequestId does not match. Skipping messages from requestId: ", requestId);
+            logging::log(std::cout, "Received control_interface_accepted message");
+        }
+        else if (fromAnkaios.has_connectionclosed())
+        {
+            logging::log(std::cout, "Received connection_closed message. Exiting..");
+            break;
+        }
+        else
+        {
+            logging::log(std::cout, "Received unknown message type. Skipping message.");
         }
     } while (result);
 }

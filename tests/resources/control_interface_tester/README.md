@@ -5,17 +5,23 @@ The workload reads commands from a file, executes them and writes an output file
 
 If no Control Interface instance was provided to the workload, a `NoAPI` result is written. If the Control Interface was preliminary closed by Ankaios, e.g., due to a protocol error, a `ConnectionClosed` result is provided.
 
-## Building and pushing a new image
+## Building a new image
 
-It is planned to automate the process of building and pushing a new version of the container, but for now the process is done manually.
-
-To build a new image run the following command from the project root folder:
+When running the system tests, the image `ghcr.io/eclipse-ankaios/control_interface_tester:<hash-code>` will be fetched automatically based on the hash code provided as tag. To manually build the image, a just command is available:
 
 ```bash
-podman build -t ghcr.io/eclipse-ankaios/control_interface_tester:manual-build-<new version number> . -f tests/resources/control_interface_tester/Dockerfile
+just build-stest-image
 ```
 
-To push the new image to GitHub container registry, you will need to generate an access token that is allowed to write packages and login to `ghcr.io`:
+To get the hash code of the image, a script is provided:
+
+```bash
+./tools/control_interface_workload_hash.sh
+```
+
+## Pushing the new image to the registry
+
+To push the new image to the GitHub container registry, you will need to generate an access token that is allowed to write packages and login to `ghcr.io`:
 
 ```bash
 podman login ghcr.io
@@ -24,5 +30,5 @@ podman login ghcr.io
 Afterwards the new image can be published with:
 
 ```bash
-podman push ghcr.io/eclipse-ankaios/control_interface_tester:manual-build-<new version number>
+podman push ghcr.io/eclipse-ankaios/control_interface_tester:$(./tools/control_interface_workload_hash.sh)
 ```

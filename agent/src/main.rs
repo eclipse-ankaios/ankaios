@@ -31,6 +31,7 @@ pub mod test_helper;
 mod workload_operation;
 
 mod generic_polling_state_checker;
+mod resource_monitor;
 mod runtime_manager;
 mod subscription_store;
 mod workload;

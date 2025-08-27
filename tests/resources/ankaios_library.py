@@ -510,6 +510,11 @@ def internal_add_update_state_command(manifest: str, update_mask: str):
 def internal_send_initial_hello(version: str):
     global control_interface_workload_config
 
+    if control_interface_workload_config and \
+        control_interface_workload_config[-1]["command"]["type"] == "SendHello":
+        logger.trace("Another SendHello received in a row, skipping it.")
+        return
+
     control_interface_workload_config.append({
         "command": {
             "type": "SendHello",
@@ -688,3 +693,27 @@ def internal_check_workload_files_exists(complete_state_json, workload_name, age
         relative_mount_point = path.relpath(file[MOUNT_POINT], ROOT_PATH)
         workload_file_host_path = path.join(tmp_directory, workload_folder_name, "files", relative_mount_point)
         assert path.exists(workload_file_host_path), f"the workload file for {workload_name} does not exist"
+
+def get_instance_name_from_ankaios_workload_states(workload_states: str, workload_name: str) -> str:
+    workload_states_dict = json_to_dict(workload_states)
+
+    curr_workload_states = workload_states_dict.get("workloadStates")
+    if not curr_workload_states:
+        logger.error("'workloadStates' key not found in the provided JSON")
+        return ""
+
+    for agent, workloads in curr_workload_states.items():
+        if not workloads:
+            logger.error(f"No workloads found for agent '{agent}'")
+            return ""
+
+        for wl_name, state in workloads.items():
+            if wl_name == workload_name:
+                hash_key = next(iter(state.keys()), None)
+                if not hash_key:
+                    logger.error(f"No hash key found for workload '{workload_name}' on agent '{agent}'")
+                    return ""
+                return f"{workload_name}.{hash_key}.{agent}"
+
+    logger.warning(f"Workload '{workload_name}' not found in workload states")
+    return ""

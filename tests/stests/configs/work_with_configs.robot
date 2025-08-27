@@ -34,7 +34,7 @@ Test Ankaios CLI get configs
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-provides-delete-configs~1]
-Test Ankaios Podman remove confgis
+Test Ankaios Podman remove configs
     [Setup]        Setup Ankaios
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
