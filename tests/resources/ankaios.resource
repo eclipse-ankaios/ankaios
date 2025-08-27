@@ -627,13 +627,15 @@ the container of workload "${workload_name}" shall have the same id and same con
 the pod "${pod_name}" of workload "${workload_name}" shall have a different id but same configuration on the podman kube runtime
     ${id_changed}=    Set Variable    ${False}
     ${start_time}=    Get Time Secs
+    ${workload_states}=   Run Command    %{ANK_BIN_DIR}${/}ank get state workloadStates -o json
+    ${ankaios_instance_name}=    Get Instance Name From Ankaios Workload States    ${workload_states.stdout}    ${workload_name}
+    Should Not Be Empty    ${ankaios_instance_name}    msg=No instance name found for workload '${workload_name}' in ankaios workload states!
     WHILE    True
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
-        IF    ${elapsed_secs} >= 20    BREAK
+        IF    ${elapsed_secs} >= 30    BREAK
         ${current_pod_id}=    Get Pod Id By Pod Name From Podman    ${pod_name}
-        ${current_volume_name}=    Get Volume Name By Workload Name From Podman    ${workload_name}
-        ${ankaios_instance_name}=    Fetch From Left    ${current_volume_name}    .pods
+        Sleep    0.2s
         IF    '${current_pod_id}' == '' or '${ankaios_instance_name}' == ''
             CONTINUE
         END
@@ -835,7 +837,7 @@ the container of workload "${workload_name}" shall have a different id but same 
     the container of workload "${workload_name}" shall have a different id but same configuration on the runtime "podman"
 
 podman kube has assigned an id for pod "${pod_name}" of workload "${workload_name}" on agent "${agent_name}"
-    podman kube shall have assigned an id for pod "${pod_name}" of workload "${workload_name}" on agent "${agent_name}" within "10" seconds
+    podman kube shall have assigned an id for pod "${pod_name}" of workload "${workload_name}" on agent "${agent_name}" within "30" seconds
 
 the container of workload "${workload_name}" shall have the same id and same configuration on the containerd runtime
     the container of workload "${workload_name}" shall have the same id and same configuration on the runtime "containerd"

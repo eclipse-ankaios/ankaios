@@ -166,6 +166,10 @@ The `LogFetching` unit is providing common functionalities and the common interf
 
 The `SubscriptionStore` is responsible for holding local log subscriptions. A local to the agent log subscription is the collection of logs from one or more workload running in the agent for a specific log campaign running on the Ankaios server. The `SubscriptionStore` not only holds metadata about the collection, but also allows stopping the log fetching when a subscription entry is deleted.
 
+### ResourceMonitor
+
+The `ResourceMonitor` is responsible for providing metrics on the availability of resources, such as CPU usage and free memory, on the agent's node. These metrics are useful for scheduling workloads based on current resource availability.
+
 ### External Libraries
 
 #### Communication Middleware
@@ -3509,13 +3513,32 @@ Needs:
 
 Status: approved
 
-At an interval of 2 seconds, the AgentManager measures the global CPU usage and the available free memory and sends them to the Ankaios server via an `AgentLoadStatus` message.
+At an interval of 2 seconds, the AgentManager shall:
+* sample resource metrics for the agent's node via the ResourceMonitor
+* send the metrics to the Ankaios server via an `AgentLoadStatus` message
 
 Rationale:
 Available resources must be available in the cluster in order to enable dynamic scheduling, e.g., done by a workload.
 
 Tags:
 - AgentManager
+- ResourceMonitor
+
+Needs:
+- impl
+- utest
+
+#### ResourceMonitor provides resource metrics
+`swdd~agent-provides-resource-metrics~1`
+
+Status: approved
+
+When the ResourceMonitor is requested to provide metrics about the resource availability, the ResourceMonitor shall provide the following measured resource metrics:
+* global CPU usage in percentage
+* available free memory in bytes
+
+Tags:
+- ResourceMonitor
 
 Needs:
 - impl
