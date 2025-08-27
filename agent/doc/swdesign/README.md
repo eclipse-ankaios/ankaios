@@ -146,7 +146,7 @@ The PodmanKubeRuntime connector implements the runtime connector trait for 'podm
 
 ### ContainerdRuntime connector
 
-The ContainerdRuntime connector implements the runtime connector trait for 'nerdctl' operating with the containerd daemon. It serves as glue between Ankaios and the Containerd  container engine for running Containerd containers.
+The ContainerdRuntime connector implements the runtime connector trait for 'nerdctl' operating with the containerd daemon. It serves as glue between Ankaios and the Containerd container engine for running Containerd containers.
 
 The ContainerdRuntime also implements the runtime state getter trait for Containerd to enable getting workload states.
 
@@ -2160,7 +2160,7 @@ Needs:
 
 Status: approved
 
-When the podman runtime connector is called to create workload and the RuntimeFacade requests to mount the Control Interface pipes,
+When the podman runtime connector is called to create workload and the optional Control Interface pipes path is provided,
 the podman runtime connector shall mount the Control Interface pipes into the container in the file path `/run/ankaios/control_interface`.
 
 Tags:
@@ -2224,8 +2224,7 @@ Needs:
 
 Status: approved
 
-When the podman runtime connector is called to delete workload,
-the podman runtime connector shall stop and remove the workload.
+When the podman runtime connector is called to delete a workload, the podman runtime connector shall shall first stop the workload followed by deleting it.
 
 Tags:
 - PodmanRuntimeConnector
@@ -2680,7 +2679,7 @@ Needs:
 
 Status: approved
 
-When the containerd runtime connector is called to create workload and the RuntimeFacade requests to mount the Control Interface pipes, the containerd runtime connector shall mount the Control Interface pipes into the container in the file path `/run/ankaios/control_interface`.
+When the containerd runtime connector is called to create a workload and the optional Control Interface pipes path is provided, the containerd runtime connector shall mount the Control Interface pipes into the container in the file path `/run/ankaios/control_interface`.
 
 Tags:
 - ControlInterface
@@ -2742,10 +2741,7 @@ Needs:
 
 Status: approved
 
-When the containerd runtime connector is called to delete workload, the containerd runtime connector shall first stop the workload followed by deleting it.
-
-Comment:
-Since nerdctl does not support ignoring a stop or delete of a non-existent container, stdout output is used to determine whether the container has already been stopped or deleted.
+When the containerd runtime connector is called to delete a workload, the containerd runtime connector shall first stop the workload followed by deleting it.
 
 Tags:
 - ContainerdRuntimeConnector
@@ -2754,6 +2750,66 @@ Needs:
 - impl
 - utest
 - stest
+
+#### Containerd nerdctlcli lists workloads by label
+`swdd~containerd-nerdctlcli-lists-workloads-by-label~1`
+
+Status: approved
+
+The NerdctlCli shall provide functionality to list workloads by label that:
+* executes `nerdctl ps` with filtering all existing containers for the provided label key-value pair
+* returns a collection of the filtered container ids
+
+Rationale:
+The containerd runtime connector requires the nerdctl cli as interface to operate with the containerd daemon.
+
+Tags:
+- NerdctlCli
+
+Needs:
+- impl
+- utest
+
+#### Containerd nerdctlcli lists workload names by label
+`swdd~containerd-nerdctlcli-list-workload-names-by-label~1`
+
+Status: approved
+
+The NerdctlCli shall provide functionality to list workload names by label that:
+* executes `nerdctl ps` with filtering all existing containers for the provided label key-value pair
+* returns a collection of the filtered workload names from the labels
+
+Rationale:
+The containerd runtime connector requires the nerdctl cli as interface to operate with the containerd daemon.
+
+Tags:
+- NerdctlCli
+
+Needs:
+- impl
+- utest
+
+#### Containerd nerdctlcli removes workloads by id
+`swdd~containerd-nerdctlcli-removes-workloads-by-id~1`
+
+Status: approved
+
+The NerdctlCli shall provide functionality to remove a workload by id that:
+* stops the workload by its id using `nerdctl stop`
+* deletes the workload by its id using `nerdctl rm`
+
+Comment:
+Since nerdctl does not support ignoring a stop or delete of an already non-existent container, stdout output is used to determine whether the container has already been stopped or deleted.
+
+Rationale:
+The containerd runtime connector requires the nerdctl cli as interface to operate with the containerd daemon.
+
+Tags:
+- NerdctlCli
+
+Needs:
+- impl
+- utest
 
 ### Getting workload states
 
@@ -2894,6 +2950,58 @@ before returning the requested states.
 
 Tags:
 - PodmanCli
+
+Needs:
+- impl
+- utest
+
+#### Containerd nerdctl container state cache
+
+##### Containerd nerdctlcli container state cache contains all containers
+`swdd~containerd-nerdctlcli-container-state-cache-all-containers~1`
+
+Status: approved
+
+The NerdctlCli container state cache shall store the state of all Containerd containers.
+
+Rationale:
+Calling nerdctl for each workload to get its current state uses unnecessary system resources.
+Using this cache only two nerdctl calls (`nerdctl ps` and `nerdctl inspect`) are needed to get the states of all Containerd workloads. Since the state data returned by `nerdctl ps` is not machine-friendly, the inspect call is needed to get the state data about the containers.
+
+Tags:
+- NerdctlCli
+
+Needs:
+- impl
+- utest
+
+##### Containerd nerdctlcli uses container state cache
+`swdd~containerd-nerdctlcli-uses-container-state-cache~1`
+
+Status: approved
+
+When the NerdctlCli is called to get container states, the NerdctlCli shall use the NerdctlCli container state cache for returning the requested states.
+
+Tags:
+- NerdctlCli
+
+Needs:
+- impl
+- utest
+
+##### Containerd container state cache refresh
+`swdd~containerd-container-state-cache-refresh~1`
+
+Status: approved
+
+When the NerdctlCli is called to get container states
+and the cache is empty or the content is older than a second, the NerdctlCli shall:
+
+* request Containerd for the current container states by using the `nerdctl` cli
+* refresh the NerdctlCli container state cache with the result before returning the requested states.
+
+Tags:
+- NerdctlCli
 
 Needs:
 - impl

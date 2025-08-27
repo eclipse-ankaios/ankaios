@@ -234,7 +234,9 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
                 .await
                 .map_err(|err| RuntimeError::List(err.to_string()))?;
 
-        if 1 == res.len() {
+        const LENGTH_FOR_VALID_ID: usize = 1;
+
+        if LENGTH_FOR_VALID_ID == res.len() {
             let id = res.first().unwrap_or_unreachable();
             log::debug!("Found an id for workload '{instance_name}': '{id}'");
             Ok(ContainerdWorkloadId { id: id.to_string() })

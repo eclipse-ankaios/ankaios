@@ -82,7 +82,7 @@ impl TimedNerdctlPsResult {
         *self.lock().await = None;
     }
 
-    // [impl->swdd~nerdctlcli-container-state-cache-refresh~1]
+    // [impl->swdd~containerd-container-state-cache-refresh~1]
     async fn get(&self) -> Arc<NerdctlPsResult> {
         let mut guard = self.lock().await;
 
@@ -102,7 +102,6 @@ impl TimedNerdctlPsResult {
     async fn new_inner() -> NerdctlPsCache {
         let mut res = NerdctlCli::list_states_internal().await;
 
-        // TODO: remove this workaround when the nerdctl does not have this issue.
         if res.is_err() {
             // This is a workaround for the known issue in nerdctl (nerdctl ps sometimes fails).
             log::trace!("'nerdctl ps' has returned error - let's retry it.");
@@ -123,7 +122,7 @@ impl Deref for TimedNerdctlPsResult {
     }
 }
 
-// [impl->swdd~nerdctlcli-container-state-cache-all-containers~1]
+// [impl->swdd~containerd-nerdctlcli-container-state-cache-all-containers~1]
 #[derive(Debug)]
 struct NerdctlPsResult {
     container_states: Result<HashMap<String, ExecutionState>, String>,
@@ -162,6 +161,7 @@ impl NerdctlCli {
         LAST_PS_RESULT.reset().await;
     }
 
+    // [impl->swdd~containerd-nerdctlcli-lists-workloads-by-label~1]
     pub async fn list_workload_ids_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
         log::debug!("Listing workload ids for: {key}='{value}'",);
         let output = CliCommand::new(NERDCTL_CMD)
@@ -188,6 +188,7 @@ impl NerdctlCli {
         Ok(container_ids)
     }
 
+    // [impl->swdd~containerd-nerdctlcli-list-workload-names-by-label~1]
     pub async fn list_workload_names_by_label(
         key: &str,
         value: &str,
@@ -315,7 +316,7 @@ impl NerdctlCli {
         Ok(id)
     }
 
-    // [impl->swdd~nerdctlcli-uses-container-state-cache~1]
+    // [impl->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     pub async fn list_states_by_id(workload_id: &str) -> Result<Option<ExecutionState>, String> {
         let ps_result = LAST_PS_RESULT.get().await;
         let all_containers_states = ps_result
@@ -363,6 +364,7 @@ impl NerdctlCli {
         Ok(container_info)
     }
 
+    // [impl->swdd~containerd-nerdctlcli-removes-workloads-by-id~1]
     pub async fn remove_workloads_by_id(workload_id: &str) -> Result<(), String> {
         /* nerdctl does not support '-d' and '--rm' flags specified together
         (https://github.com/containerd/nerdctl/issues/3698) and no 'ignore' flag. */
@@ -449,7 +451,6 @@ where
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 // [utest->swdd~containerd-uses-nerdctl-cli~1]
-// [utest->swdd~nerdctl-kube-uses-nerdctl-cli~1]
 #[cfg(test)]
 mod tests {
     use super::{NERDCTL_CMD, NerdctlCli, NerdctlPsCache};
@@ -464,6 +465,7 @@ mod tests {
     const SAMPLE_ERROR_MESSAGE: &str = "error message";
     const WORKLOAD_ID: &str = "test_id";
 
+    // [utest->swdd~containerd-nerdctlcli-lists-workloads-by-label~1]
     #[tokio::test]
     async fn utest_list_workload_ids_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -495,6 +497,7 @@ mod tests {
         assert_eq!(res, Ok(vec!["result1".to_owned(), "result2".to_owned()]));
     }
 
+    // [utest->swdd~containerd-nerdctlcli-lists-workloads-by-label~1]
     #[tokio::test]
     async fn utest_list_workload_ids_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -518,6 +521,7 @@ mod tests {
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
+    // [utest->swdd~containerd-nerdctlcli-lists-workloads-by-label~1]
     #[tokio::test]
     async fn utest_list_workload_ids_broken_response() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -541,6 +545,7 @@ mod tests {
         assert!(matches!(res, Err(msg) if msg.contains("Could not parse nerdctl output")));
     }
 
+    // [utest->swdd~containerd-nerdctlcli-list-workload-names-by-label~1]
     #[tokio::test]
     async fn utest_list_workload_names_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -567,6 +572,7 @@ mod tests {
         assert_eq!(res, Ok(vec!["workload_name".into()]));
     }
 
+    // [utest->swdd~containerd-nerdctlcli-list-workload-names-by-label~1]
     #[tokio::test]
     async fn utest_list_workload_names_not_found_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -590,6 +596,7 @@ mod tests {
         assert_eq!(res, Ok(Vec::default()));
     }
 
+    // [utest->swdd~containerd-nerdctlcli-list-workload-names-by-label~1]
     #[tokio::test]
     async fn utest_list_workload_names_nerdctl_error() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -613,6 +620,7 @@ mod tests {
         assert_eq!(res, Err("simulated error".to_string()));
     }
 
+    // [utest->swdd~containerd-nerdctlcli-list-workload-names-by-label~1]
     #[tokio::test]
     async fn utest_list_workload_names_broken_response() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -808,7 +816,8 @@ mod tests {
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     #[tokio::test]
     async fn utest_list_states_by_id_created() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -845,7 +854,8 @@ mod tests {
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     #[tokio::test]
     async fn utest_list_states_by_id_succeeded() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -882,7 +892,7 @@ mod tests {
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -919,7 +929,8 @@ mod tests {
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     #[tokio::test]
     async fn utest_list_states_by_id_running() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -956,7 +967,8 @@ mod tests {
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     #[tokio::test]
     async fn utest_list_states_by_id_removing() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -992,7 +1004,8 @@ mod tests {
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     #[tokio::test]
     async fn utest_list_states_by_id_paused() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1034,7 +1047,8 @@ mod tests {
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     #[tokio::test]
     async fn utest_list_states_by_id_restarting() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1070,7 +1084,8 @@ mod tests {
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     #[tokio::test]
     async fn utest_list_states_by_id_dead() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1106,7 +1121,8 @@ mod tests {
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     #[tokio::test]
     async fn utest_list_states_by_id_unknown() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1142,6 +1158,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::unknown("unknown"))));
     }
 
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_nerdctl_error_retry_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1159,6 +1176,8 @@ mod tests {
         assert_eq!(res, Err("simulated error".to_string()));
     }
 
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     #[tokio::test]
     async fn utest_list_states_by_id_nerdctl_error_retry_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1201,7 +1220,9 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::running())));
     }
 
-    // [utest->swdd~nerdctlcli-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-nerdctlcli-container-state-cache-all-containers~1]
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     #[tokio::test]
     async fn utest_list_states_by_id_nerdctl_existing_ps_result_to_old() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1247,6 +1268,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::running())));
     }
 
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_broken_response_retry_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1264,6 +1286,8 @@ mod tests {
         assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse nerdctl ps output") ));
     }
 
+    // [utest->swdd~containerd-container-state-cache-refresh~1]
+    // [utest->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     #[tokio::test]
     async fn utest_list_states_by_id_broken_response_retry_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1306,6 +1330,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::running())));
     }
 
+    // [utest->swdd~containerd-nerdctlcli-removes-workloads-by-id~1]
     #[tokio::test]
     async fn utest_remove_workloads_by_id_stop_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1324,6 +1349,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~containerd-nerdctlcli-removes-workloads-by-id~1]
     #[tokio::test]
     async fn utest_remove_workloads_by_id_ignore_failed_stop_on_non_existing_container() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1351,6 +1377,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~containerd-nerdctlcli-removes-workloads-by-id~1]
     #[tokio::test]
     async fn utest_remove_workloads_by_id_remove_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1376,6 +1403,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~containerd-nerdctlcli-removes-workloads-by-id~1]
     #[tokio::test]
     async fn utest_remove_workloads_by_id_ignore_failed_remove_on_non_existing_container() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -1403,6 +1431,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~containerd-nerdctlcli-removes-workloads-by-id~1]
     #[tokio::test]
     async fn utest_remove_workloads_by_id_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
