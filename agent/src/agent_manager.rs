@@ -499,7 +499,10 @@ mod tests {
         let response = ank_base::Response {
             request_id: request_id.clone(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                complete_state.clone(),
+                ank_base::CompleteStateResponse {
+                    complete_state: Some(complete_state.clone()),
+                    ..Default::default()
+                },
             )),
         };
 

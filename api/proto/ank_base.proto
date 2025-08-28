@@ -38,7 +38,7 @@ message Response {
     string requestId = 1;
     oneof ResponseContent {
         Error error = 3;
-        CompleteState completeState = 4;
+        CompleteStateResponse completeState = 4;
         UpdateStateSuccess UpdateStateSuccess = 5;
         LogsRequestAccepted logsRequestAccepted = 6; /// A message containing the workload names for which the logs were successfully requested.
         LogEntriesResponse logEntriesResponse = 7; /// A message containing workload logs.
@@ -112,6 +112,7 @@ enum AddCondition {
 */
 message CompleteStateRequest {
     repeated string fieldMask = 1; /// A list of symbolic field paths within the State message structure e.g. 'desiredState.workloads.nginx'.
+    bool subscribe = 2; /// If true, the server will send updates to the client whenever the state changes. The updates will contain only the fields specified in the fieldMask. If false, the server will send only one response.
 }
 
 /**
@@ -131,6 +132,18 @@ message UpdateStateRequest {
 message UpdateStateSuccess {
     repeated string addedWorkloads = 1; /// Workload instance names of workloads which will be started
     repeated string deletedWorkloads = 2; /// Workload instance names of workloads which will be stopped
+}
+
+
+/*** A message containing the complete state of the Ankaios system along with information about what has changed.
+* This is a response to the [CompleteStateRequest](#completestaterequest) message.
+* If this is the first response to a CompleteStateRequest,l the addedFields, updatedFields, and removedFields will all be empty.
+*/
+message CompleteStateResponse {
+    CompleteState completeState = 1; /// The complete state of the Ankaios system.
+    repeated string addedFields = 2; /// The fields that were added in the state compared to the previous state.
+    repeated string updatedFields = 3; /// The fields that were updated in the state compared to the previous state.
+    repeated string removedFields = 4; /// The fields that were removed in the state compared to the previous state.
 }
 
 /**
