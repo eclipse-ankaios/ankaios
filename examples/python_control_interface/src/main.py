@@ -12,45 +12,24 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# =======================================================================
-# Imports
-# =======================================================================
-# - ank_base_pb2 and control_api_pb2 are generated from the protobuf files.
-#     They are required to create and parse the protobuf messages.
-# - _VarintBytes and _DecodeVarint are used to handle the variable-length
-#     encoding of protobuf messages.
+
 import ank_base_pb2 as ank_base
 import control_api_pb2 as control_api
 from google.protobuf.internal.encoder import _VarintBytes
 from google.protobuf.internal.decoder import _DecodeVarint
-import os, time, logging
-import threading
+import os
+import time
+import logging
 
 
-# =======================================================================
-# Variables - general
-# =======================================================================
-# - ANKAIOS_CONTROL_INTERFACE_BASE_PATH is the path to the input and output
-#     FIFO files of the control interface.
-# - WAITING_TIME_IN_SEC represents the default waiting time.
-# - UPDATE_STATE_REQUEST_ID is the request ID for the update state request.
-# - COMPLETE_STATE_REQUEST_ID is the request ID for the complete state request.
-# - PROTOCOL_VERSION is the version of Ankaios, which for this example
-#     is set to the value of the environment variable 'ANKAIOS_VERSION'.
-# - CONNECTED is a flag to check the connection is established.
-# - CONNECTION_CLOSED is a flag to check if Ankaios closed the connection.
 ANKAIOS_CONTROL_INTERFACE_BASE_PATH = "/run/ankaios/control_interface"
 WAITING_TIME_IN_SEC = 5
-UPDATE_STATE_REQUEST_ID = "dynamic_nginx@12345"
-COMPLETE_STATE_REQUEST_ID = "dynamic_nginx@67890"
+TIMEOUT_IN_SEC = 1
+UPDATE_STATE_REQUEST_ID = "RWNsaXBzZSBBbmthaW9z"
+COMPLETE_STATE_REQUEST_ID = "QW5rYWlvcyBpcyB0aGUgYmVzdA=="
 PROTOCOL_VERSION = os.environ.get('ANKAIOS_VERSION')
-CONNECTED = False
-CONNECTION_CLOSED = False
 
 
-# =======================================================================
-# Setup logger
-# =======================================================================
 def create_logger():
     """Create a logger with custom format and default log level."""
     formatter = logging.Formatter('%(asctime)s %(message)s', datefmt="%FT%TZ")
@@ -64,17 +43,6 @@ def create_logger():
 logger = create_logger()
 
 
-# =======================================================================
-# Variables - messages
-# =======================================================================
-# - PROTO_HELLO_MESSAGE is the initial required message to establish
-#     a connection with Ankaios.
-# - PROTO_UPDATE_STATE_REQUEST is used to update the state of the cluster.
-#     In this example, it is used to add a new workload dynamically. It
-#     contains the details for adding the new workload and the update mask
-#     to add only the new workload.
-# - PROTO_COMPLETE_STATE_REQUEST is used to request the CompleteState for
-#     querying the state of the dynamic_nginx workload.
 PROTO_HELLO_MESSAGE = control_api.ToAnkaios (
     hello=control_api.Hello(
         protocolVersion=PROTOCOL_VERSION,
@@ -112,17 +80,6 @@ PROTO_COMPLETE_STATE_REQUEST = control_api.ToAnkaios(
 )
 
 
-# =======================================================================
-# Ankaios control interface methods
-# =======================================================================
-# - read_protobuf_data reads the protobuf message from the control interface
-#     input fifo.
-# - read_from_control_interface continuously reads from the control interface
-#     input fifo and sends the response to be handled.
-# - handle_response processes the response from Ankaios. It checks the type
-#     of the response and handles it accordingly.
-# - write_to_control_interface writes a ToAnkaios message to the control
-#     interface output fifo.
 def read_protobuf_data(file_handle):
     """Reads a protobuf message from the control interface input fifo."""
     varint_buffer = b'' # Buffer for reading in the byte size of the proto msg
@@ -144,57 +101,17 @@ def read_protobuf_data(file_handle):
     return msg_buf
 
 
-def read_from_control_interface():
-    """Reads from the control interface input fifo and handles the responses."""
-    global CONNECTION_CLOSED
-    with open(f"{ANKAIOS_CONTROL_INTERFACE_BASE_PATH}/input", "rb") as file_handle:
-        while not CONNECTION_CLOSED:
-            from_ankaios = control_api.FromAnkaios()  # Prepare the FromAnkaios object
-            msg_buf = read_protobuf_data(file_handle)  # Read the protobuf message from the input fifo
-            try:
-                from_ankaios.ParseFromString(msg_buf) # Deserialize the received proto msg
-            except Exception as e:
-                logger.error(f"Invalid response, parsing error: '{e}'")
-                continue
+def read_from_control_interface(file_handle) -> control_api.FromAnkaios:
+    """Reads from the control interface input fifo and returns the response"""
+    from_ankaios = control_api.FromAnkaios()  # Prepare the FromAnkaios object
+    msg_buf = read_protobuf_data(file_handle)  # Read the protobuf message from the input fifo
+    try:
+        from_ankaios.ParseFromString(msg_buf) # Deserialize the received proto msg
+    except Exception as e:
+        logger.error(f"Invalid response, parsing error: '{e}'")
+        return None
 
-            handle_response(from_ankaios)  # Handle the response from Ankaios
-
-
-def handle_response(from_ankaios: control_api.FromAnkaios):
-    """Handles the response from Ankaios."""
-    global CONNECTED, CONNECTION_CLOSED
-
-    # Check if the connection has been established or not
-    if not CONNECTED:
-        if from_ankaios.HasField("controlInterfaceAccepted"):
-            logger.info("Received Control interface accepted response.")
-            CONNECTED = True
-        elif from_ankaios.HasField("connectionClosed"):
-            logger.info("Received Connection Closed response. Exiting..")
-            CONNECTION_CLOSED = True
-        else:
-            logger.info("Received unknown message type before connection established. Skipping message..")
-
-    # Connection is established, handle the response accordingly
-    else:
-        if from_ankaios.HasField("response"):
-            request_id = from_ankaios.response.requestId
-            if from_ankaios.response.requestId == UPDATE_STATE_REQUEST_ID:
-                # Extract the workload instance names from the response
-                added_workloads = from_ankaios.response.UpdateStateSuccess.addedWorkloads
-                deleted_workloads = from_ankaios.response.UpdateStateSuccess.deletedWorkloads
-                logger.info("Received Response for the UpdateStateRequest:\n"
-                            f"added workloads: {added_workloads}, deleted workloads: {deleted_workloads}")
-            elif from_ankaios.response.requestId == COMPLETE_STATE_REQUEST_ID:
-                logger.info(f"Received Response for the CompleteStateRequest: \n{from_ankaios.response.completeState}")
-            else:
-                logger.info(f"RequestId does not match. Skipping messages from requestId: {request_id}")
-        elif from_ankaios.HasField("connectionClosed"):
-            logger.info("Received Connection Closed response. Exiting..")
-            CONNECTION_CLOSED = True
-            CONNECTED = False
-        else:
-            logger.info("Received unknown message type. Skipping message.")
+    return from_ankaios
 
 
 def write_to_control_interface(file_handle, message: control_api.ToAnkaios):
@@ -207,37 +124,44 @@ def write_to_control_interface(file_handle, message: control_api.ToAnkaios):
     file_handle.flush()  # Flush to ensure immediate delivery
 
 
-# =======================================================================
-# Main
-# =======================================================================
 if __name__ == '__main__':
     # Assure the control interface fifo files exist
     assert os.path.exists(f"{ANKAIOS_CONTROL_INTERFACE_BASE_PATH}/output"), "Output FIFO does not exist."
     assert os.path.exists(f"{ANKAIOS_CONTROL_INTERFACE_BASE_PATH}/input"), "Input FIFO does not exist."
 
-    # Start the reading thread
-    read_thread = threading.Thread(target=read_from_control_interface)
-    read_thread.start()
+    # Open file for writing to the control interface and send the initial Hello message
+    output_file = open(f"{ANKAIOS_CONTROL_INTERFACE_BASE_PATH}/output", "ab")
+    logger.info("Sending initial Hello message to establish connection...")
+    write_to_control_interface(output_file, PROTO_HELLO_MESSAGE)
 
-    with open(f"{ANKAIOS_CONTROL_INTERFACE_BASE_PATH}/output", "ab") as output_file:
-        # Send hello message to establish the connection
-        logger.info("Sending initial Hello message to establish connection...")
-        write_to_control_interface(output_file, PROTO_HELLO_MESSAGE)
-        time.sleep(1)  # Give some time for the connection to be established
-        assert CONNECTED, "Connection to Ankaios not established."
+    # Open file for writing to the control interface and check for the response
+    input_file = open(f"{ANKAIOS_CONTROL_INTERFACE_BASE_PATH}/input", "rb")
+    response = read_from_control_interface(input_file)
+    assert response.HasField("controlInterfaceAccepted"), "Response should have been ControlInterfaceAccepted"
 
-        # Send the request to add the dynamic_nginx workload
-        logger.info("Requesting to add the dynamic_nginx workload...")
-        write_to_control_interface(output_file, PROTO_UPDATE_STATE_REQUEST)
-        time.sleep(0.1)  # Give some time for the request to be processed
+    logger.info("Requesting to add the dynamic_nginx workload...")
+    write_to_control_interface(output_file, PROTO_UPDATE_STATE_REQUEST)
+    response = read_from_control_interface(input_file)
+    assert response.HasField("response"), "Response should contain a response field"
+    assert response.response.HasField("UpdateStateSuccess"), "Response should be of type UpdateStateSuccess"
+    assert response.response.requestId == UPDATE_STATE_REQUEST_ID, f"Response requestId should be {UPDATE_STATE_REQUEST_ID}"
+    added_workloads = response.response.UpdateStateSuccess.addedWorkloads
+    deleted_workloads = response.response.UpdateStateSuccess.deletedWorkloads
+    logger.info("Received Response for the UpdateStateRequest:\n"
+                f"added workloads: {added_workloads}, deleted workloads: {deleted_workloads}")
 
-        while CONNECTED:
-            # Send the request for the complete state
-            logger.info("Requesting complete state of the dynamic_nginx workload...")
-            write_to_control_interface(output_file, PROTO_COMPLETE_STATE_REQUEST)
-            time.sleep(WAITING_TIME_IN_SEC)
+    while not output_file.closed and not input_file.closed:
+        logger.info("Requesting complete state of the dynamic_nginx workload...")
+        write_to_control_interface(output_file, PROTO_COMPLETE_STATE_REQUEST)
+        response = read_from_control_interface(input_file)
+        assert response.HasField("response"), "Response should contain a response field"
+        assert response.response.HasField("completeState"), "Response should be of type CompleteState"
+        assert response.response.requestId == COMPLETE_STATE_REQUEST_ID, f"Response requestId should be {COMPLETE_STATE_REQUEST_ID}"
+        logger.info(f"Received Response for the CompleteStateRequest: \n{response.response.completeState}")
+        time.sleep(WAITING_TIME_IN_SEC)
 
-        # Wait for the reading thread to finish
-        read_thread.join()
+    # CLose the file handles
+    output_file.close()
+    input_file.close()
 
     exit(0)

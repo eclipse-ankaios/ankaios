@@ -12,15 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// ======================================================================
-// Imports
-// ======================================================================
-// - ank_base.pb.h and control_api.pb.h: Ankaios protocol definitions
-// - google/protobuf/*: Used for encoding and decoding protobuf messages.
 #include <iostream>
 #include <fstream>
 #include <thread>
-#include <atomic>
+#include <assert.h>
 #include <optional>
 #include <chrono>
 #include <iomanip>
@@ -32,32 +27,17 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
 
-// =======================================================================
-// Variables - general
-// =======================================================================
-// - ANKAIOS_CONTROL_INTERFACE_BASE_PATH is the path to the input and output
-//     FIFO files of the control interface.
-// - WAITING_TIME_IN_SEC represents the default waiting time.
-// - UPDATE_STATE_REQUEST_ID is the request ID for the update state request.
-// - COMPLETE_STATE_REQUEST_ID is the request ID for the complete state request.
-// - PROTOCOL_VERSION is the version of Ankaios, which for this example
-//     is set to the value of the environment variable 'ANKAIOS_VERSION'.
-// - CONNECTED is a flag to check the connection is established.
-// - CONNECTION_CLOSED is a flag to check if Ankaios closed the connection.
 static const std::string ANKAIOS_CONTROL_INTERFACE_BASE_PATH{"/run/ankaios/control_interface"};
 static const int WAITING_TIME_IN_SEC { 5 };
-static const char* UPDATE_STATE_REQUEST_ID{ "dynamic_nginx@12345" };
-static const char* COMPLETE_STATE_REQUEST_ID{ "dynamic_nginx@67890" };
+static const char* UPDATE_STATE_REQUEST_ID{ "RWNsaXBzZSBBbmthaW9z" };
+static const char* COMPLETE_STATE_REQUEST_ID{ "QW5rYWlvcyBpcyB0aGUgYmVzdA==" };
 static const char* PROTOCOL_VERSION{ std::getenv("ANKAIOS_VERSION") ? std::getenv("ANKAIOS_VERSION") : "v0.1" };
-std::atomic<bool> CONNECTED{false};
-std::atomic<bool> CONNECTION_CLOSED{false};
 
-// =======================================================================
-// Setup logger & utility functions
-// =======================================================================
+
 namespace logging {
     /* Log function that logs various arguments
-        to the specified stream in a custom log format. */
+     * to the specified stream in a custom log format.
+     */
     template <typename... Msgs>
     void Log(std::ostream &stream, Msgs &&...msgs) {
         std::stringstream message;
@@ -69,22 +49,27 @@ namespace logging {
 }
 
 bool FileExists(const std::string& path) {
+    /* Used to check if a file exists */
     struct stat buffer;
     return (stat(path.c_str(), &buffer) == 0);
 }
 
-// =======================================================================
-// Functions for creating protobuf messages
-// =======================================================================
-// - CreateHelloMessage returns the initial required message to establish
-//     a connection with Ankaios.
-// - CreateRequestToAddNewWorkload returns the message used to update
-//     the state of the cluster. In this example, it is used to add a new
-//     workload dynamically. It contains the details for adding the new
-//     workload and the update mask to add only the new workload.
-// - CreateRequestForCompleteState returns a request for querying the
-//     state of the dynamic_nginx workload.
+template <typename Range>
+std::string join(const Range& rep) {
+    /* Used to return a string representation of an array of strings */
+    std::ostringstream os;
+    bool first = true;
+    for (const auto& s : rep) {
+        if (!first) os << ", ";
+        os << s;
+        first = false;
+    }
+    return os.str();
+}
+
+
 control_api::ToAnkaios CreateHelloMessage() {
+    /* Create hello message for connection */
     control_api::Hello* hello{new control_api::Hello};
     hello->set_protocolversion(PROTOCOL_VERSION);
 
@@ -94,6 +79,7 @@ control_api::ToAnkaios CreateHelloMessage() {
 }
 
 control_api::ToAnkaios CreateRequestToAddNewWorkload() {
+    /* Return request for adding a new workload. */
     ank_base::Workload new_workload;
     new_workload.set_agent("agent_A");
     new_workload.set_runtime("podman");
@@ -124,6 +110,7 @@ control_api::ToAnkaios CreateRequestToAddNewWorkload() {
 }
 
 control_api::ToAnkaios CreateRequestForCompleteState() {
+    /* Return request for getting the complete state */
     ank_base::CompleteStateRequest* complete_state_request{new ank_base::CompleteStateRequest};
     complete_state_request->add_fieldmask("workloadStates.agent_A.dynamic_nginx");
 
@@ -136,18 +123,9 @@ control_api::ToAnkaios CreateRequestForCompleteState() {
     return to_ankaios;
 }
 
-// =======================================================================
-// Ankaios control interface methods
-// =======================================================================
-// - ReadProtobufData reads the protobuf message from the control interface
-//     input fifo.
-// - HandleResponse processes the response from Ankaios. It checks the type
-//     of the response and handles it accordingly.
-// - ReadFromControlInterface continuously reads from the control interface
-//     input fifo and sends the response to be handled.
-// - WriteToControlInterface writes a ToAnkaios message to the control
-//     interface output fifo.
-std::optional<control_api::FromAnkaios> ReadProtobufData(google::protobuf::io::IstreamInputStream* stream) {
+
+std::optional<control_api::FromAnkaios> ReadFromControlInterface(google::protobuf::io::IstreamInputStream* stream) {
+    /* Reads from the control interface input fifo and returns the response */
     control_api::FromAnkaios message;
     bool clean_eof = false;
 
@@ -158,85 +136,6 @@ std::optional<control_api::FromAnkaios> ReadProtobufData(google::protobuf::io::I
     return message;
 }
 
-void HandleResponse(const control_api::FromAnkaios& from_ankaios) {
-    // Check if the connection has been established or not
-    if (!CONNECTED.load()) {
-        if (from_ankaios.has_controlinterfaceaccepted()) {
-            logging::Log(std::cout, "Received Control interface accepted response.");
-            CONNECTED.store(true);
-        }
-        else if (from_ankaios.has_connectionclosed()) {
-            logging::Log(std::cout, "Received Connection Closed response. Exiting..");
-            CONNECTION_CLOSED.store(true);
-        }
-        else {
-            logging::Log(std::cout, "Received unexpected response before connection established. Skipping.");
-        }
-    }
-    // If the connection is established, handle the response accordingly
-    else {
-        if (from_ankaios.has_response()) {
-            const auto request_id = from_ankaios.response().requestid();
-            if (request_id == UPDATE_STATE_REQUEST_ID) {
-                // Join function to convert repeated field to a comma-separated string
-                auto join = [](const auto& rep) {
-                    std::ostringstream os;
-                    bool first = true;
-                    for (const auto& s : rep) {
-                        if (!first) os << ", ";
-                        os << s;
-                        first = false;
-                    }
-                    return os.str();
-                };
-
-                auto added_workloads = join(from_ankaios.response().updatestatesuccess().addedworkloads());
-                auto deleted_workloads = join(from_ankaios.response().updatestatesuccess().deletedworkloads());
-                logging::Log(std::cout, "Receiving Response for the UpdateStateRequest:\nadded workloads: ", added_workloads, "\ndeleted workloads: ", deleted_workloads);
-            }
-            else if (request_id == COMPLETE_STATE_REQUEST_ID) {
-                logging::Log(std::cout,
-                    "Receiving Response for the CompleteStateRequest:\n",
-                    from_ankaios.DebugString()
-                );
-            }
-            else {
-                logging::Log(std::cout, "RequestId does not match. Skipping messages from requestId: ", request_id);
-            }
-        }
-        else if (from_ankaios.has_connectionclosed()) {
-            logging::Log(std::cout, "Received Connection Closed response. Exiting..");
-            CONNECTION_CLOSED.store(true);
-            CONNECTED.store(false);
-        }
-        else {
-            logging::Log(std::cout, "Received unknown message type. Skipping message.");
-        }
-    }
-}
-
-void ReadFromControlInterface(std::string input_fifo) {
-    // Open the input fifo for reading
-    std::ifstream input_stream{input_fifo, std::ios::in | std::ios::binary};
-
-    if (input_stream.fail()) {
-        logging::Log(std::cerr, "Error: could not open input fifo.");
-        return;
-    }
-
-    const int BLOCK_SIZE = 1; // disable blocking I/O by setting block_size to 1 byte instead of default value
-    google::protobuf::io::IstreamInputStream buffered_stream{&input_stream, BLOCK_SIZE};
-
-    while (!CONNECTION_CLOSED.load()) {
-        if (auto from_ankaios = ReadProtobufData(&buffered_stream)) {
-            HandleResponse(*from_ankaios);
-        } else {
-            logging::Log(std::cerr, "Error: Invalid response, parsing error.");
-            continue;
-        }
-    };
-}
-
 
 void WriteToControlInterface(std::ofstream& output_stream, const control_api::ToAnkaios& message) {
     // write length-delimited protobuf message into output fifo
@@ -244,9 +143,7 @@ void WriteToControlInterface(std::ofstream& output_stream, const control_api::To
     output_stream.flush();
 }
 
-// =======================================================================
-// Main
-// =======================================================================
+
 int main() {
     // Check if the control interface fifo files exist
     const auto input_fifo = ANKAIOS_CONTROL_INTERFACE_BASE_PATH + "/input";
@@ -256,13 +153,10 @@ int main() {
         return 1;
     }
 
-    // Start the reading thread
-    std::thread read_thread{ReadFromControlInterface, input_fifo};
-
     // Open file for writing to the control interface
     std::ofstream output_stream{output_fifo, std::ios::app | std::ios::binary};
     if (output_stream.fail()) {
-        logging::Log(std::cerr, "Error: could not open file ", output_fifo);
+        logging::Log(std::cerr, "Error: could not open output fifo.");
         return 2;
     }
 
@@ -270,28 +164,52 @@ int main() {
     const auto hello_message = CreateHelloMessage();
     logging::Log(std::cout, "Sending initial Hello message to establish connection...");
     WriteToControlInterface(output_stream, hello_message);
-    std::this_thread::sleep_for(std::chrono::seconds(1)); // Give some time for the connection to be established
-    if (!CONNECTED.load()) {
-        logging::Log(std::cerr, "Connection to Ankaios not established.");
+
+    // Open the input fifo for reading
+    std::ifstream input_stream{input_fifo, std::ios::in | std::ios::binary};
+    if (input_stream.fail()) {
+        logging::Log(std::cerr, "Error: could not open input fifo.");
         return 3;
     }
+
+    const int BLOCK_SIZE = 1; // disable blocking I/O by setting block_size to 1 byte instead of default value
+    google::protobuf::io::IstreamInputStream buffered_stream{&input_stream, BLOCK_SIZE};
+
+    // Check for the response of the hello message
+    auto response = ReadFromControlInterface(&buffered_stream);
+    assert(response);
+    assert(response->has_controlinterfaceaccepted());
 
     // Send the request to add the dynamic_nginx workload
     const auto request_to_add_workload = CreateRequestToAddNewWorkload();
     logging::Log(std::cout, "Requesting to add the dynamic_nginx workload...");
     WriteToControlInterface(output_stream, request_to_add_workload);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    response = ReadFromControlInterface(&buffered_stream);
+    assert(response);
+    assert(response->has_response());
+    assert(response->response().has_updatestatesuccess());
+    auto added_workloads = join(response->response().updatestatesuccess().addedworkloads());
+    auto deleted_workloads = join(response->response().updatestatesuccess().deletedworkloads());
+    logging::Log(std::cout, "Receiving Response for the UpdateStateRequest:\nadded workloads: ", added_workloads, "\ndeleted workloads: ", deleted_workloads);
 
-    while (CONNECTED.load()) {
+    while (input_stream.is_open() && output_stream.is_open()) {
         // Send the request for the complete state
         const auto request_for_complete_state = CreateRequestForCompleteState();
         logging::Log(std::cout, "Requesting complete state of the dynamic_nginx workload...");
         WriteToControlInterface(output_stream, request_for_complete_state);
+        response = ReadFromControlInterface(&buffered_stream);
+        assert(response);
+        assert(response->has_response());
+        assert(response->response().has_completestate());
+        logging::Log(std::cout,
+            "Receiving Response for the CompleteStateRequest:\n",
+            response->DebugString()
+        );
         std::this_thread::sleep_for(std::chrono::seconds(WAITING_TIME_IN_SEC));
     }
 
-    // Wait for the reading thread to finish
-    read_thread.join();
+    output_stream.close();
+    input_stream.close();
 
     return 0;
 }

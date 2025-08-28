@@ -12,42 +12,25 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// ======================================================================
-// Imports
-// ======================================================================
-// - protobufjs for handling protobuf messages
 const protobuf = require('protobufjs');
 const fs = require('fs');
 const util = require('util');
+const assert = require('assert');
 
-// =======================================================================
-// Variables - general
-// =======================================================================
-// - ANKAIOS_CONTROL_INTERFACE_BASE_PATH is the path to the input and output
-//     FIFO files of the control interface.
-// - WAITING_TIME_IN_SEC represents the default waiting time.
-// - UPDATE_STATE_REQUEST_ID is the request ID for the update state request.
-// - COMPLETE_STATE_REQUEST_ID is the request ID for the complete state request.
-// - PROTOCOL_VERSION is the version of Ankaios, which for this example
-//     is set to the value of the environment variable 'ANKAIOS_VERSION'.
-// - CONNECTED is a flag to check the connection is established.
-// - CONNECTION_CLOSED is a flag to check if Ankaios closed the connection.
+
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH = '/run/ankaios/control_interface';
 const WAITING_TIME_IN_SEC = 5;
-const UPDATE_STATE_REQUEST_ID = "dynamic_nginx@12345";
-const COMPLETE_STATE_REQUEST_ID = "dynamic_nginx@67890";
+const TIMEOUT_IN_SEC = 1;
+const UPDATE_STATE_REQUEST_ID = "RWNsaXBzZSBBbmthaW9z";
+const COMPLETE_STATE_REQUEST_ID = "QW5rYWlvcyBpcyB0aGUgYmVzdA==";
 const PROTOCOL_VERSION = process.env.ANKAIOS_VERSION;
-let CONNECTED = false;
-let CONNECTION_CLOSED = false;
 
 // to_ankaios and from_ankaios are created here
 // to avoid redefining them in every function.
 let to_ankaios;
 let from_ankaios;
 
-// =======================================================================
-// Setup logger
-// =======================================================================
+
 function logInfo(message) {
     console.log(`[${new Date().toISOString()}] ${message}`);
 }
@@ -56,22 +39,9 @@ function logError(message) {
     console.error(`[${new Date().toISOString()}] ${message}`);
 }
 
-function logWarn(message) {
-    console.warn(`[${new Date().toISOString()}] ${message}`);
-}
 
-// =======================================================================
-// Functions for creating protobuf messages
-// =======================================================================
-// - createHelloMessage returns the initial required message to establish
-//     a connection with Ankaios.
-// - createRequestToAddNewWorkload returns the message used to update
-//     the state of the cluster. In this example, it is used to add a new
-//     workload dynamically. It contains the details for adding the new
-//     workload and the update mask to add only the new workload.
-// - createRequestForCompleteState returns a request for querying the
-//     state of the dynamic_nginx workload.
 function createHelloMessage(api_proto) {
+    /* Create hello message for connection */
     to_ankaios = api_proto.lookupType("control_api.ToAnkaios");
 
     let payload = {
@@ -90,6 +60,7 @@ function createHelloMessage(api_proto) {
 
 
 function createRequestToAddNewWorkload(api_proto) {
+    /* Return request for adding a new workload. */
     to_ankaios = api_proto.lookupType("control_api.ToAnkaios");
     let restart_enum = api_proto.lookupEnum("ank_base.RestartPolicy");
     let payload = {
@@ -125,7 +96,9 @@ function createRequestToAddNewWorkload(api_proto) {
     return to_ankaios.create(payload);
 }
 
+
 function createRequestForCompleteState(api_proto) {
+    /* Return request for getting the complete state */
     to_ankaios = api_proto.lookupType("control_api.ToAnkaios");
     let payload = {
         request: {
@@ -142,78 +115,60 @@ function createRequestForCompleteState(api_proto) {
     return to_ankaios.create(payload);
 }
 
-// =======================================================================
-// Ankaios control interface methods
-// =======================================================================
-// - decodeProtobufData reads the protobuf message from the control interface
-//     input fifo.
-// - readFromControlInterface continuously reads from the control interface
-//     input fifo and sends the response to be handled.
-// - handleResponse processes the response from Ankaios. It checks the type
-//     of the response and handles it accordingly.
-// - writeToControlInterface writes a ToAnkaios message to the control
-//     interface output fifo.
+
 function decodeProtobufData(api_proto, data) {
+    /* Decode the protobuf message received from Ankaios. */
     from_ankaios = api_proto.lookupType("control_api.FromAnkaios");
     const decoded_message = from_ankaios.decodeDelimited(data);
     return decoded_message;
 }
 
-function readFromControlInterface(input_fifo_path, api_proto) {
+
+function readFromControlInterface(input_fifo_path, api_proto, { timeout_sec = 1 } = {}) {
+    /* Read a message from Ankaios, with a timeout. */
     const pipe_handle = fs.createReadStream(input_fifo_path);
-    pipe_handle.on('data', data => {
+
+    return new Promise((resolve, reject) => {
+        const cleanup = () => {
+            clearTimeout(timer);
+            pipe_handle.removeAllListeners();
+            pipe_handle.destroy();
+        };
+
+        const timer = setTimeout(() => {
+            cleanup();
+            reject(new Error(`Error while reading from control interface: timeout while waiting for data.`));
+        }, timeout_sec * 1000);
+
+        pipe_handle.once('data', (data) => {
         try {
-            const decoded_protobuf = decodeProtobufData(api_proto, data);
-            handleResponse(decoded_protobuf);
+            const decoded = decodeProtobufData(api_proto, data);
+            cleanup();
+            resolve(decoded);
         } catch (e) {
-            logError(`Error while reading from control interface: ` + e.toString());
+            cleanup();
+            reject(new Error(`Error while reading from control interface: ` + e.toString()));
         }
+        });
+
+        pipe_handle.once('error', (err) => {
+            cleanup();
+            reject(new Error(`Error while reading from control interface: ` + err.toString()));
+        });
+
+        pipe_handle.once('end', () => {
+            cleanup();
+            reject(new Error('Error while reading from control interface: stream ended unexpectedly.'));
+        });
     });
 }
 
-function handleResponse(decoded_message) {
-    // Check if the connection has been established or not
-    if (!CONNECTED) {
-        if (decoded_message.controlInterfaceAccepted) {
-            CONNECTED = true;
-            logInfo(`Received Control interface accepted response.`);
-        }
-        else if (decoded_message.connectionClosed) {
-            logError(`Received Connection Closed response. Exiting..`);
-            CONNECTION_CLOSED = true;
-        }
-        else {
-            logWarn(`Received unexpected response before connection established. Skipping.`);
-        }
-        return;
-    }
-    // If the connection is established, handle the response accordingly
-    else {
-        if (decoded_message.response) {
-            let request_id = decoded_message.response.requestId;
-            if (request_id === UPDATE_STATE_REQUEST_ID) {
-                // Get the list out of the repeated String fields
-                let added_workloads = decoded_message.response.UpdateStateSuccess.addedWorkloads.join(', ');
-                let deleted_workloads = decoded_message.response.UpdateStateSuccess.deletedWorkloads.join(', ');
-                logInfo('Receiving Response for the UpdateStateRequest:\nadded workloads: ' + added_workloads + '\ndeleted workloads: ' + deleted_workloads);
-            } else if (request_id === COMPLETE_STATE_REQUEST_ID) {
-                logInfo(`Receiving Response for the CompleteStateRequest:\n` + util.inspect(decoded_message.toJSON(), { depth: null }));
-            } else {
-                logInfo(`RequestId does not match. Skipping messages from requestId: ${request_id}`);
-            }
-        } else if (decoded_message.connectionClosed) {
-            logInfo(`Received Connection Closed response. Exiting..`);
-            CONNECTION_CLOSED = true;
-            CONNECTED = false;
-        } else {
-            logWarn(`Received unknown message type. Skipping message.`);
-        }
-    }
-}
 
 function writeToControlInterface(api_proto, fifo_path, message) {
+    /* Encode and write message to Ankaios
+     * Use length-delimited encoding.
+     */
     to_ankaios = api_proto.lookupType("control_api.ToAnkaios");
-    // use length-delimited encoding!!!
     let buffer = to_ankaios.encodeDelimited(message).finish();
 
     fs.writeFile(fifo_path, buffer, { flag: 'a+' }, err => {
@@ -223,9 +178,7 @@ function writeToControlInterface(api_proto, fifo_path, message) {
     });
 }
 
-// =======================================================================
-// Main
-// =======================================================================
+
 async function main() {
     // Check that the control interface fifo files exist
     const input_fifo_path = ANKAIOS_CONTROL_INTERFACE_BASE_PATH + '/input';
@@ -235,39 +188,48 @@ async function main() {
         process.exit(1);
     }
 
+    // Response variable to hold the decoded protobuf message
+    let response;
+
     // Load the protobuf definition
     protobuf.load("/usr/local/lib/ankaios/control_api.proto", async function (err, api_proto) {
         if (err) throw err;
 
-        // Start reading from the control interface input fifo
-        readFromControlInterface(input_fifo_path, api_proto);
-
-        // Send the initial Hello message to initialize the session
-        const hello_message = createHelloMessage(api_proto);
         logInfo(`Sending initial Hello message to establish connection...`);
+        const hello_message = createHelloMessage(api_proto);
         writeToControlInterface(api_proto, output_fifo_path, hello_message);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Give some time for the connection to be established
-        if (!CONNECTED) {
+        response = await readFromControlInterface(input_fifo_path, api_proto, { timeout_sec: TIMEOUT_IN_SEC });
+        assert(response.controlInterfaceAccepted, 'Response should have been ControlInterfaceAccepted');
+        if (!response.controlInterfaceAccepted) {
             logError(`Connection to Ankaios not established.`);
             process.exit(1);
         }
 
-        // Send request to add the new workload dynamic_nginx to Ankaios Server
-        const update_workload_request = createRequestToAddNewWorkload(api_proto);
         logInfo(`Requesting to add the dynamic_nginx workload...`);
+        const update_workload_request = createRequestToAddNewWorkload(api_proto);
         writeToControlInterface(api_proto, output_fifo_path, update_workload_request);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Give some time for the request to be processed
+        response = await readFromControlInterface(input_fifo_path, api_proto, { timeout_sec: TIMEOUT_IN_SEC });
+        assert(response.response, 'Response should contain a response field');
+        assert(response.response.UpdateStateSuccess, 'Response should be of type UpdateStateSuccess');
+        assert(response.response.requestId === UPDATE_STATE_REQUEST_ID, `Response requestId should be ${UPDATE_STATE_REQUEST_ID}`);
+        let added_workloads = response.response.UpdateStateSuccess.addedWorkloads.join(', ');
+        let deleted_workloads = response.response.UpdateStateSuccess.deletedWorkloads.join(', ');
+        logInfo('Receiving Response for the UpdateStateRequest:\nadded workloads: ' + added_workloads + '\ndeleted workloads: ' + deleted_workloads);
 
         const sendRequestForCompleteState = async () => {
-            // Send the request for the complete state
-            const complete_state_request = createRequestForCompleteState(api_proto);
             logInfo(`Requesting complete state of the dynamic_nginx workload...`);
+            const complete_state_request = createRequestForCompleteState(api_proto);
             writeToControlInterface(api_proto, output_fifo_path, complete_state_request);
+            response = await readFromControlInterface(input_fifo_path, api_proto, { timeout_sec: TIMEOUT_IN_SEC });
+            assert(response.response, 'Response should contain a response field');
+            assert(response.response.completeState, 'Response should be of type CompleteState');
+            assert(response.response.requestId === COMPLETE_STATE_REQUEST_ID, `Response requestId should be ${COMPLETE_STATE_REQUEST_ID}`);
+            logInfo(`Receiving Response for the CompleteStateRequest:\n` + util.inspect(response.toJSON(), { depth: null }));
         }
 
-        // setInterval(sendRequestForCompleteState, WAITING_TIME_IN_SEC * 1000);
-        sendRequestForCompleteState();
+        setInterval(sendRequestForCompleteState, WAITING_TIME_IN_SEC * 1000);
     });
 }
+
 
 main();
