@@ -1,6 +1,6 @@
 apiVersion: v0.1
 workloads:
-  hello-k8s:
+  simple-kube:
     runtime: podman-kube
     agent: agent_A
     restartPolicy: NEVER
@@ -12,11 +12,10 @@ workloads:
         apiVersion: v1
         kind: Pod
         metadata:
-          name: hello-pod
+          name: simple-pod
         spec:
+          restartPolicy: Never
           containers:
-          - name: hello-container
+          - name: simple-container
             image: ghcr.io/eclipse-ankaios/tests/alpine:latest
-            command:
-            - sleep
-            - 50000
+            command: ["sleep", "30"]

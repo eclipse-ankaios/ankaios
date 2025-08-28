@@ -236,9 +236,18 @@ impl PodmanKubeRuntime {
         manifest: &mut Value,
         workload_spec: &WorkloadSpec,
     ) -> Result<(), RuntimeError> {
-        let volumes = manifest
+        let spec_mapping = manifest
             .get_mut("spec")
-            .and_then(|s| s.get_mut("volumes"))
+            .and_then(|s| s.as_mapping_mut())
+            .ok_or_else(|| RuntimeError::Unsupported("Pod manifest missing spec".to_string()))?;
+
+        let volumes_key = Value::from("volumes");
+        if !spec_mapping.contains_key(&volumes_key) {
+            spec_mapping.insert(volumes_key.clone(), Value::Sequence(Vec::new()));
+        }
+
+        let volumes = spec_mapping
+            .get_mut(&volumes_key)
             .and_then(|v| v.as_sequence_mut())
             .ok_or_else(|| {
                 RuntimeError::Unsupported("Pod manifest missing spec.volumes".to_string())
