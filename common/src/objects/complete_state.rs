@@ -28,6 +28,15 @@ pub struct CompleteState {
     pub agents: AgentMap,
 }
 
+impl From<CompleteState> for ank_base::CompleteStateResponse {
+    fn from(item: CompleteState) -> Self {
+        Self {
+            complete_state: Some(item.into()),
+            ..Default::default()
+        }
+    }
+}
+
 impl From<CompleteState> for ank_base::CompleteState {
     fn from(item: CompleteState) -> ank_base::CompleteState {
         ank_base::CompleteState {

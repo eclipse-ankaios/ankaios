@@ -2270,11 +2270,11 @@ mod tests {
                 .build();
 
         let request_id: String = REQUEST_ID.to_string();
-        let complete_state = ank_base::CompleteState::default();
+        let complete_state_response = ank_base::CompleteStateResponse::default();
         let expected_response = ank_base::Response {
             request_id,
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                complete_state.clone(),
+                complete_state_response.clone(),
             )),
         };
         let mut mock_workload = MockWorkload::default();
@@ -2292,7 +2292,7 @@ mod tests {
             .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                    complete_state,
+                    complete_state_response,
                 )),
             })
             .await;
@@ -2386,7 +2386,12 @@ mod tests {
         });
         let expected_response = ank_base::Response {
             request_id,
-            response_content: Some(ResponseContent::CompleteState(complete_state)),
+            response_content: Some(ResponseContent::CompleteState(
+                ank_base::CompleteStateResponse {
+                    complete_state: Some(complete_state),
+                    ..Default::default()
+                },
+            )),
         };
         let mut mock_workload = MockWorkload::default();
         mock_workload

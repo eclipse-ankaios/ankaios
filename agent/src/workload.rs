@@ -655,7 +655,7 @@ mod tests {
 
         assert!(matches!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(FromServer::Response(Response{request_id: _, response_content: Some(ResponseContent::CompleteState(complete_state))})))
+            Ok(Some(FromServer::Response(Response{request_id: _, response_content: Some(ResponseContent::CompleteState(ank_base::CompleteStateResponse{complete_state: Some(complete_state), ..}))})))
         if ank_base::CompleteState::from(expected_complete_state) == complete_state));
     }
 

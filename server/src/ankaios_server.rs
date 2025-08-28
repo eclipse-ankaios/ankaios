@@ -1453,7 +1453,11 @@ mod tests {
             .expect_get_complete_state_by_field_mask()
             .with(
                 mockall::predicate::function(|request_complete_state| {
-                    request_complete_state == &CompleteStateRequest { field_mask: vec![] }
+                    request_complete_state
+                        == &CompleteStateRequest {
+                            field_mask: vec![],
+                            subscribe: false,
+                        }
                 }),
                 mockall::predicate::always(),
             )
@@ -1467,7 +1471,10 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id.clone(),
-                CompleteStateRequest { field_mask: vec![] },
+                CompleteStateRequest {
+                    field_mask: vec![],
+                    subscribe: false,
+                },
             )
             .await;
         assert!(request_complete_state_result.is_ok());
@@ -1479,7 +1486,10 @@ mod tests {
             common::from_server_interface::FromServer::Response(ank_base::Response {
                 request_id,
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                    current_complete_state
+                    ank_base::CompleteStateResponse {
+                        complete_state: Some(current_complete_state),
+                        ..Default::default()
+                    }
                 ))
             })
         );
@@ -1505,7 +1515,11 @@ mod tests {
             .expect_get_complete_state_by_field_mask()
             .with(
                 mockall::predicate::function(|request_complete_state| {
-                    request_complete_state == &CompleteStateRequest { field_mask: vec![] }
+                    request_complete_state
+                        == &CompleteStateRequest {
+                            field_mask: vec![],
+                            subscribe: false,
+                        }
                 }),
                 mockall::predicate::always(),
             )
@@ -1520,7 +1534,10 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id.clone(),
-                CompleteStateRequest { field_mask: vec![] },
+                CompleteStateRequest {
+                    field_mask: vec![],
+                    subscribe: false,
+                },
             )
             .await;
         assert!(request_complete_state_result.is_ok());
@@ -1536,7 +1553,10 @@ mod tests {
             common::from_server_interface::FromServer::Response(ank_base::Response {
                 request_id,
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                    expected_complete_state
+                    ank_base::CompleteStateResponse {
+                        complete_state: Some(expected_complete_state),
+                        ..Default::default()
+                    }
                 ))
             })
         );
