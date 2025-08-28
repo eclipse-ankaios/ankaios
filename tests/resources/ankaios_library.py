@@ -54,10 +54,12 @@ if FORCE_TRACE:
 def run_command(command: str, timeout: float=3):
     try:
         return subprocess.run(command, timeout=timeout, shell=True, executable=EXECUTABLE, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Command '{command}' failed with return code {e.returncode}. Error: {e.stderr.strip()}")
+        return e
     except Exception as e:
         logger.error(f"{e}")
         return None
-
 
 def table_to_list(raw: str) -> list:
     raw = raw.strip()
@@ -215,6 +217,7 @@ def get_volume_name_by_workload_name_from_podman(workload_name: str) -> str:
 def get_container_id_and_name_by_workload_name_from_runtime(runtime_cli: str, workload_name: str) -> tuple[str, str]:
     res = run_command('{} ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}{}{}.*'\
                       .format(runtime_cli, CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX))
+    assert res.returncode == 0, f"Command '{runtime_cli} ps' failed with return code {res.returncode}. Error: {res.stderr.strip()}"
     raw = res.stdout.strip()
     raw_wln = raw.split('\n')
     container_ids_and_names = list(map(lambda x: x.split(' '), raw_wln)) # 2-dim [[id,name],[id,name],...]
