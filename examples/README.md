@@ -19,10 +19,20 @@ Every subfolder of the control interface examples represents one for a specific 
 
 ## Other examples
 
-Besides the control interface examples, there are custom ones added (and the list hopefully will grow):
+### Python SDK examples
 
-- python_sdk_logging: example uses the [Python SDK](https://pypi.org/project/ankaios-sdk/) to read the logs of another workload.
-- sleepy: a simple workload that sleeps indefinitely.
+This examples use the [Python SDK](https://pypi.org/project/ankaios-sdk/) to connect to the Ankaios cluster. They are as follow:
+
+- python_sdk_hello: The basic functionality of starting a workload, waiting for it to reach a certain state and then deleting it.
+- python_sdk_interactive: example starts a container that sleeps so that the user can connect and manually run python commands.
+- python_sdk_logging: example reads the logs of another workload.
+
+### Rust SDK examples
+
+This examples use the [Rust SDK](https://crates.io/crates/ankaios_sdk) to connect to the Ankaios cluster. They are as follow:
+
+- rust_sdk_hello: The basic functionality of starting a workload, waiting for it to reach a certain state and then deleting it.
+- rust_sdk_logging: example reads the logs of another workload.
 
 ## How to run the examples?
 

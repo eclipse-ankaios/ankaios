@@ -13,10 +13,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::{
-    request::RequestContent, CompleteState, CompleteStateRequest, Dependencies, Request,
-    RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload, WorkloadMap,
+    request::RequestContent, response::ResponseContent, CompleteState, CompleteStateRequest,
+    Dependencies, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
+    WorkloadMap,
 };
-
 use api::control_api::{
     from_ankaios::FromAnkaiosEnum, to_ankaios::ToAnkaiosEnum, FromAnkaios, Hello, ToAnkaios,
 };
@@ -27,7 +27,7 @@ use std::{
     fs::File,
     io,
     io::{Read, Write},
-    path::Path,
+    path::{Path, PathBuf},
     process::exit,
     time::Duration,
 };
@@ -35,7 +35,10 @@ use std::{
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 const MAX_VARINT_SIZE: usize = 19;
 const WAITING_TIME_IN_SEC: u64 = 5;
-const REQUEST_ID: &str = "dynamic_nginx@rust_control_interface";
+const TIMEOUT_IN_SEC: u64 = 1;
+const UPDATE_STATE_REQUEST_ID: &str = "RWNsaXBzZSBBbmthaW9z";
+const COMPLETE_STATE_REQUEST_ID: &str = "QW5rYWlvcyBpcyB0aGUgYmVzdA==";
+const PROTOCOL_VERSION: &str = env!("ANKAIOS_VERSION");
 
 mod logging {
     pub fn log(msg: &str) {
@@ -47,19 +50,17 @@ mod logging {
     }
 }
 
-/// Create a Hello message to initialize the session
 fn create_hello_message() -> ToAnkaios {
+    /* Create hello message for connection */
     ToAnkaios {
         to_ankaios_enum: Some(ToAnkaiosEnum::Hello(Hello {
-            protocol_version: env!("ANKAIOS_VERSION").to_string(),
+            protocol_version: PROTOCOL_VERSION.to_string(),
         })),
     }
 }
 
-/// Create the Request containing an UpdateStateRequest
-/// that contains the details for adding the new workload and
-/// the update mask to add only the new workload.
 fn create_request_to_add_new_workload() -> ToAnkaios {
+    /* Return request for adding a new workload. */
     let new_workloads = Some(WorkloadMap {
         workloads: HashMap::from([(
             "dynamic_nginx".to_string(),
@@ -87,7 +88,7 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
 
     ToAnkaios {
         to_ankaios_enum: Some(ToAnkaiosEnum::Request(Request {
-            request_id: REQUEST_ID.to_string(),
+            request_id: UPDATE_STATE_REQUEST_ID.to_string(),
             request_content: Some(RequestContent::UpdateStateRequest(Box::new(
                 UpdateStateRequest {
                     new_state: Some(CompleteState {
@@ -105,12 +106,11 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
     }
 }
 
-/// Create a Request to request the CompleteState
-/// for querying the workload states.
 fn create_request_for_complete_state() -> ToAnkaios {
+    /* Return request for getting the complete state */
     ToAnkaios {
         to_ankaios_enum: Some(ToAnkaiosEnum::Request(Request {
-            request_id: REQUEST_ID.to_string(),
+            request_id: COMPLETE_STATE_REQUEST_ID.to_string(),
             request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![String::from("workloadStates.agent_A.dynamic_nginx")],
             })),
@@ -133,6 +133,7 @@ fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::Error>
 }
 
 fn read_protobuf_data(file: &mut File) -> Result<Box<[u8]>, io::Error> {
+    /* Read protobuf data from the fifo pipe. */
     let varint_data = read_varint_data(file)?;
     let mut varint_data = Box::new(&varint_data[..]);
 
@@ -144,110 +145,172 @@ fn read_protobuf_data(file: &mut File) -> Result<Box<[u8]>, io::Error> {
     Ok(buf.into_boxed_slice())
 }
 
-/// Reads from the control interface input fifo and prints the workload states.
-fn read_from_control_interface() {
-    let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
-    let ex_req_fifo = pipes_location.join("input");
-
-    let mut ex_req = File::open(&ex_req_fifo).unwrap_or_else(|err| {
-        logging::log(&format!(
-            "Error: cannot open '{}': '{}'",
-            ex_req_fifo.to_str().unwrap(),
-            err
-        ));
-        exit(1);
-    });
-
-    loop {
-        if let Ok(binary) = read_protobuf_data(&mut ex_req) {
-            match FromAnkaios::decode(&mut Box::new(binary.as_ref())) {
-                Ok(from_ankaios) => match &from_ankaios.from_ankaios_enum {
-                    Some(FromAnkaiosEnum::Response(response)) => {
-                        let request_id: &String = &response.request_id;
-                        if request_id == REQUEST_ID {
-                            logging::log(&format!(
-                                    "Receiving Response containing the workload states of the current state:\n{:#?}",
-                                    from_ankaios
-                                ));
-                        } else {
-                            logging::log(&format!(
-                                "RequestId does not match. Skipping messages from requestId: {}",
-                                request_id
-                            ));
-                        }
-                    }
-                    Some(FromAnkaiosEnum::ControlInterfaceAccepted(_)) => {
-                        logging::log("Received Control Interface Accepted response.");
-                    }
-                    Some(FromAnkaiosEnum::ConnectionClosed(_)) => {
-                        logging::log("Received Connection Closed response. Exiting..");
-                        break;
-                    }
-                    None => {
-                        logging::log("No message type found in FromAnkaiosEnum. Skipping.");
-                    }
-                },
-                Err(err) => logging::log(&format!("Invalid response, parsing error: '{}'", err)),
+fn read_from_control_interface(pipe_handle: &mut File) -> Result<FromAnkaios, ()> {
+    /* Read and return one message from the input pipe. */
+    match read_protobuf_data(pipe_handle) {
+        Ok(binary) => match FromAnkaios::decode(&mut Box::new(binary.as_ref())) {
+            Ok(from_ankaios) => Ok(from_ankaios),
+            Err(err) => {
+                logging::log(&format!("Invalid response, parsing error: '{}'", err));
+                Err(())
             }
+        },
+        Err(err) => {
+            logging::log(&format!("Error reading protobuf data: '{}'", err));
+            Err(())
         }
     }
 }
 
-/// Writes a Request into the control interface output fifo
-// to add the new workload dynamically and every x sec according to WAITING_TIME_IN_SEC
-// another Request to request the workload states.
-fn write_to_control_interface() {
-    let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
-    let sc_req_fifo = pipes_location.join("output");
+// fn handle_response(
+//     from_ankaios: FromAnkaios,
+//     connected: std::sync::Arc<std::sync::Mutex<bool>>,
+//     connection_closed: std::sync::Arc<std::sync::Mutex<bool>>,
+// ) {
+//     // Check if the connection has been established or not
+//     if !*connected.lock().unwrap() {
+//         match &from_ankaios.from_ankaios_enum {
+//             Some(FromAnkaiosEnum::ControlInterfaceAccepted(_)) => {
+//                 logging::log("Received Control interface accepted response.");
+//                 *connected.lock().unwrap() = true;
+//             }
+//             Some(FromAnkaiosEnum::ConnectionClosed(_)) => {
+//                 logging::log("Received Connection Closed response. Exiting..");
+//                 *connection_closed.lock().unwrap() = true;
+//             }
+//             _ => {
+//                 logging::log(
+//                     "Received unexpected response before connection established. Skipping.",
+//                 );
+//             }
+//         }
+//     }
+//     // If the connection is established, handle the response accordingly
+//     else {
+//         match &from_ankaios.from_ankaios_enum {
+//             Some(FromAnkaiosEnum::Response(response)) => {
+//                 let request_id: &String = &response.request_id;
+//                 if request_id == UPDATE_STATE_REQUEST_ID {
+//                     if let ResponseContent::UpdateStateSuccess(update_state_success) =
+//                         response.response_content.clone().unwrap()
+//                     {
+//                         let added_workloads = &update_state_success.added_workloads.clone();
+//                         let deleted_workloads = &update_state_success.deleted_workloads.clone();
+//                         logging::log(&format!(
+//                             "Receiving Response for the UpdateStateRequest:\nadded workloads: {:#?}, deleted workloads: {:#?}",
+//                             added_workloads, deleted_workloads
+//                         ));
+//                     } else {
+//                         logging::log("Received UpdateStateRequest response, but no content found.");
+//                     }
+//                 } else if request_id == COMPLETE_STATE_REQUEST_ID {
+//                     logging::log(&format!(
+//                         "Receiving Response for the CompleteStateRequest:\n{:#?}",
+//                         from_ankaios
+//                     ));
+//                 } else {
+//                     logging::log(&format!(
+//                         "RequestId does not match. Skipping messages from requestId: {}",
+//                         request_id
+//                     ));
+//                 }
+//             }
+//             Some(FromAnkaiosEnum::ConnectionClosed(_)) => {
+//                 logging::log("Received Connection Closed response. Exiting..");
+//                 *connection_closed.lock().unwrap() = true;
+//                 *connected.lock().unwrap() = false;
+//             }
+//             _ => {
+//                 logging::log("Received unknown message type. Skipping message.");
+//             }
+//         }
+//     }
+// }
 
-    let mut sc_req = File::create(&sc_req_fifo).unwrap_or_else(|err| {
+fn write_to_control_interface(file_handle: &mut File, message: ToAnkaios) {
+    let encoded_message = message.encode_length_delimited_to_vec();
+    file_handle
+        .write_all(&encoded_message)
+        .unwrap_or_else(|err| {
+            logging::log(&format!("Error writing to control interface: '{}'", err));
+            exit(1);
+        });
+}
+
+fn main() {
+    // Check if the control interface fifo files exist
+    let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
+    let input_pipe = pipes_location.join("input");
+    let output_pipe = pipes_location.join("output");
+    if !input_pipe.exists() || !output_pipe.exists() {
+        logging::log("Error: Control interface FIFO files do not exist. Exiting..");
+        exit(1);
+    }
+
+    // Open file for writing to the control interface
+    let mut output_file = File::create(&output_pipe).unwrap_or_else(|err| {
         logging::log(&format!(
             "Error: cannot create '{}': '{}'",
-            sc_req_fifo.to_str().unwrap(),
+            output_pipe.to_str().unwrap(),
             err
         ));
         exit(1);
     });
 
-    let protobuf_hello_message = create_hello_message();
-    logging::log(
-        format!(
-            "Sending initial Hello message:\n{:#?}",
-            protobuf_hello_message
-        )
-        .as_str(),
-    );
-    sc_req
-        .write_all(&protobuf_hello_message.encode_length_delimited_to_vec())
-        .unwrap();
+    // Send hello message to establish the connection
+    logging::log("Sending initial Hello message to establish connection...");
+    let hello_message = create_hello_message();
+    write_to_control_interface(&mut output_file, hello_message);
 
-    let protobuf_update_workload_request = create_request_to_add_new_workload();
+    // Open file for reading from the control interface
+    let mut input_file = File::open(&input_pipe).unwrap_or_else(|err| {
+        logging::log(&format!(
+            "Error: cannot open '{}': '{}'",
+            input_pipe.to_str().unwrap(),
+            err
+        ));
+        exit(1);
+    });
 
-    logging::log(format!("Sending Request containing details for adding the dynamic workload \"dynamic_nginx\":\n{:#?}", protobuf_update_workload_request).as_str());
+    // Read the response for the hello message
+    let response = read_from_control_interface(&mut input_file);
+    assert!(response.is_ok());
+    assert!(matches!(
+        response.unwrap().from_ankaios_enum,
+        Some(FromAnkaiosEnum::ControlInterfaceAccepted(_))
+    ));
 
-    sc_req
-        .write_all(&protobuf_update_workload_request.encode_length_delimited_to_vec())
-        .unwrap();
+    logging::log("Requesting to add the dynamic_nginx workload...");
+    let update_workload_request = create_request_to_add_new_workload();
+    write_to_control_interface(&mut output_file, update_workload_request);
 
-    let protobuf_request_complete_state_request = create_request_for_complete_state();
+    let response = read_from_control_interface(&mut input_file);
+    assert!(response.is_ok());
+    assert!(matches!(
+        response.unwrap().from_ankaios_enum,
+        Some(FromAnkaiosEnum::Response(_))
+    ));
+    // TODO: assert it has UpdateStateSuccess field and correct request ID
+
+    // TODO add print for added and deleted workloads (example in handle_response function)
+
     loop {
-        logging::log(
-            format!(
-                "Sending Request containing details for requesting all workload states:\n{:#?}",
-                protobuf_request_complete_state_request
-            )
-            .as_str(),
-        );
-        sc_req
-            .write_all(&protobuf_request_complete_state_request.encode_length_delimited_to_vec())
-            .unwrap();
+        logging::log("Requesting complete state of the dynamic_nginx workload...");
+        let complete_state_request = create_request_for_complete_state();
+        write_to_control_interface(&mut output_file, complete_state_request);
+
+        let response = read_from_control_interface(&mut input_file);
+        assert!(response.is_ok());
+        assert!(matches!(
+            response.unwrap().from_ankaios_enum,
+            Some(FromAnkaiosEnum::Response(_))
+        ));
+        // TODO: assert it has CompleteState field and correct request ID
+        logging::log(&format!(
+            "Receiving Response for the CompleteStateRequest:\n{:#?}",
+            response.clone().unwrap()
+        ));
 
         std::thread::sleep(Duration::from_secs(WAITING_TIME_IN_SEC));
     }
-}
-
-fn main() {
-    let handle = std::thread::spawn(read_from_control_interface);
-    write_to_control_interface();
-    handle.join().unwrap();
 }
