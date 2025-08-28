@@ -15,6 +15,9 @@ concurrency:
   group: "documentation-${{ github.head_ref || github.ref }}"
   cancel-in-progress: true
 
+env:
+  ENABLED_HTMLPROOFER: false
+
 jobs:
   documentation_changes:
     name: Check if documentation has changed
