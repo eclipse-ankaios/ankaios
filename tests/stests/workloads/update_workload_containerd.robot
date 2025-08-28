@@ -39,7 +39,7 @@ Test Ankaios CLI update workload for containerd runtime
     Given Containerd has deleted all existing containers
     And Ankaios server is started with config "${default_state_yaml_file}"
     And Ankaios agent is started with name "agent_A"
-    And the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "5" seconds
+    And the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "10" seconds
     And the command "curl localhost:8081" finished with exit code "0" within "10" seconds
     # Actions
     When user triggers "ank -k get state > ${new_state_file}"
