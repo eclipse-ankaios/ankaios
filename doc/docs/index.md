@@ -21,8 +21,8 @@ Eclipse Ankaios provides workload and container orchestration for automotive
 High Performance Computing Platforms (HPCs). While it can be used for various
 fields of applications, it is developed from scratch for automotive use cases
 and provides a slim, yet powerful solution to manage containerized applications.
-It supports various container runtimes with Podman as the first one, but other
-container runtimes and even native applications can be supported. Eclipse
+It supports various container runtimes like Podman and Containerd, but support for other
+container runtimes and even native applications can be added easily. Eclipse
 Ankaios is independent of existing communication frameworks like SOME/IP, DDS,
 or REST API.
 
