@@ -139,7 +139,7 @@ Test Ankaios Podman stops retries after reaching the retry attempt limit
 
 !!! warning
     The system tests will delete all Podman containers, pods and volume.
-    We recomment to only execute the system tests in the dev container.
+    We recommend to only execute the system tests in the dev container.
 
 A shell script is provided for the easy execution of the system tests. The script does the following:
 

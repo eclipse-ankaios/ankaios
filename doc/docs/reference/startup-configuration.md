@@ -12,11 +12,11 @@ The startup manifest is composed of a list of workload specifications within the
 A workload specification must contain the following information:
 
 * `workload name`_(via field key)_, specify the workload name to identify the workload in the Ankaios system.
-* `runtime`, specify the type of the runtime. Currently supported values are `podman` and `podman-kube`.
+* `runtime`, specify the type of the runtime. Currently supported values are `podman`, `containerd` and `podman-kube`.
 * `agent`, specify the name of the owning agent which is going to execute the workload. Supports templated strings.
 * `restartPolicy`, specify how the workload should be restarted upon exiting.
 * `tags`, specify a list of `key` `value`  pairs.
-* `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) is used. Supports templated strings.
+* `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) and for `containerd` the [ContainerdRuntimeConfig](#containerdruntimeconfig) is used. Supports templated strings.
 * `configs`: assign configuration items defined in the state's `configs` field to the workload
 * `files`: map workload files to a workload, see [here](../usage/manifest/workload-files.md) for details
 * `controlInterfaceAccess`, specify the access rights of the workload for the control interface.
@@ -81,6 +81,32 @@ it would translate to the following runtime configuration:
 
 ```yaml
 generalOptions: ["--events-backend", "file"]
+image: docker.io/alpine:latest
+commandOptions: ["--env", "VAR=able"]
+commandArgs: ["echo", "Hello!"]
+```
+
+### ContainerdRuntimeConfig
+
+The runtime configuration for the `containerd` runtime is specified as follows:
+
+```yaml
+generalOptions: [<comma>, <separated>, <options>]
+image: <registry>/<image name>:<version>
+commandOptions: [<comma>, <separated>, <options>]
+commandArgs: [<comma>, <separated>, <arguments>]
+```
+
+where each attribute is passed directly to `nerdctl run`.
+
+If we take as an example the `podman run` command:
+
+```nerdctl --snapshotter native run --env VAR=able docker.io/alpine:latest echo Hello!```
+
+it would translate to the following runtime configuration:
+
+```yaml
+generalOptions: ["--snapshotter", "native"]
 image: docker.io/alpine:latest
 commandOptions: ["--env", "VAR=able"]
 commandArgs: ["echo", "Hello!"]
