@@ -4,7 +4,7 @@
 
 The complete state data structure [CompleteState](./_ankaios.proto.md#completestate) is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the `desiredState` which describes the state of the Ankaios system the user wants to have, the `workloadStates` which gives the information about the execution state of all the workloads and the `agents` field containing the names of the Ankaios agents that are currently connected to the Ankaios server. By using of [CompleteState](./_ankaios.proto.md#completestate) in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.
 
-Example: `ank -k get state` returns the complete state of Ankaios system:
+Example: `ank -k get state` returns the complete state of Ankaios system with runtimes `podman`, `containerd` and `podman-kube`:
 
 !!! Note
 
@@ -61,7 +61,7 @@ desiredState:
         value: Ankaios team
       dependencies: {}
       restartPolicy: ALWAYS
-      runtime: podman
+      runtime: containerd
       runtimeConfig: |
         image: alpine:latest
         commandOptions: [ "--entrypoint", "/bin/sh" ]
