@@ -66,6 +66,22 @@ Test Ankaios workload restart after update with a Control Interface access
     Then the mount point for the control interface has been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~agent-control-interface-created-for-eligible-workloads~1]
+Test Ankaios Containerd workload restart after update with a Control Interface access
+    [Setup]           Run Keywords    Setup Ankaios
+    [Tags]    containerd_ci
+
+    # Preconditions
+    Given Ankaios server is started with config "${CONFIGS_DIR}/simple_containerd.yaml"
+    And Ankaios agent is started with name "${agent_name}"
+    And all workloads of agent "{agent_name}" have an initial execution state
+    And the mount point for the control interface has not been generated for ${agent_name}
+    # Actions
+    When user triggers "ank apply ${CONFIGS_DIR}/simple_with_control_containerd.yaml"
+    # Asserts
+    Then the mount point for the control interface has been generated for ${agent_name}
+    [Teardown]    Clean up Ankaios
+
 # [stest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
 Test Control Interface closes connection when initial hello missing
     [Setup]           Run Keywords    Setup Ankaios for Control Interface test
