@@ -191,12 +191,14 @@ impl From<ank_base::LogsCancelRequest> for LogsCancelRequest {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompleteStateRequest {
     pub field_mask: Vec<String>,
+    pub subscribe: bool,
 }
 
 impl From<CompleteStateRequest> for ank_base::CompleteStateRequest {
     fn from(item: CompleteStateRequest) -> Self {
         ank_base::CompleteStateRequest {
             field_mask: item.field_mask,
+            subscribe: item.subscribe,
         }
     }
 }
@@ -205,6 +207,7 @@ impl From<ank_base::CompleteStateRequest> for CompleteStateRequest {
     fn from(item: ank_base::CompleteStateRequest) -> Self {
         CompleteStateRequest {
             field_mask: item.field_mask,
+            subscribe: item.subscribe,
         }
     }
 }
@@ -309,6 +312,7 @@ mod tests {
                 request_content: $expression::RequestContent::CompleteStateRequest(
                     $expression::CompleteStateRequest {
                         field_mask: vec![FIELD_1.into(), FIELD_2.into()],
+                        subscribe: false,
                     },
                 )
                 .into(),
@@ -781,6 +785,7 @@ mod tests {
             request_content: ankaios::RequestContent::CompleteStateRequest(
                 ankaios::CompleteStateRequest {
                     field_mask: vec!["1".to_string(), "2".to_string()],
+                    subscribe: false,
                 },
             ),
         };

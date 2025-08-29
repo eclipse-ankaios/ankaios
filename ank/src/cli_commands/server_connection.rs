@@ -108,6 +108,7 @@ impl ServerConnection {
                 request_id.to_owned(),
                 CompleteStateRequest {
                     field_mask: object_field_mask.to_vec(),
+                    subscribe: false,
                 },
             )
             .await
@@ -734,12 +735,13 @@ mod tests {
             REQUEST,
             RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![FIELD_MASK.into()],
+                subscribe: false,
             }),
         );
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
+            ank_base::response::ResponseContent::CompleteState(ank_base::CompleteStateResponse {
+                complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
                     WORKLOAD_NAME_1,
                     ank_base::Workload {
                         agent: Some(AGENT_A.to_string()),
@@ -760,8 +762,9 @@ mod tests {
                         }),
                         files: Some(generate_test_proto_workload_files()),
                     },
-                )]),
-            ),
+                )])),
+                ..Default::default()
+            }),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -819,6 +822,7 @@ mod tests {
             REQUEST,
             RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![FIELD_MASK.into()],
+                subscribe: false,
             }),
         );
         let (_checker, mut server_connection) = sim.create_server_connection();
@@ -835,28 +839,31 @@ mod tests {
         let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
-                    WORKLOAD_NAME_2,
-                    ank_base::Workload {
-                        agent: Some(AGENT_A.to_string()),
-                        runtime: Some(RUNTIME.to_string()),
-                        tags: Some(ank_base::Tags { tags: vec![] }),
-                        dependencies: Some(ank_base::Dependencies {
-                            dependencies: HashMap::new(),
-                        }),
-                        restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                        runtime_config: Some("".to_string()),
-                        control_interface_access: None,
-                        configs: Some(ank_base::ConfigMappings {
-                            configs: [
-                                ("ref1".into(), "config_1".into()),
-                                ("ref2".into(), "config_2".into()),
-                            ]
-                            .into(),
-                        }),
-                        files: Some(generate_test_proto_workload_files()),
-                    },
-                )]),
+                ank_base::CompleteStateResponse {
+                    complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
+                        WORKLOAD_NAME_2,
+                        ank_base::Workload {
+                            agent: Some(AGENT_A.to_string()),
+                            runtime: Some(RUNTIME.to_string()),
+                            tags: Some(ank_base::Tags { tags: vec![] }),
+                            dependencies: Some(ank_base::Dependencies {
+                                dependencies: HashMap::new(),
+                            }),
+                            restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                            runtime_config: Some("".to_string()),
+                            control_interface_access: None,
+                            configs: Some(ank_base::ConfigMappings {
+                                configs: [
+                                    ("ref1".into(), "config_1".into()),
+                                    ("ref2".into(), "config_2".into()),
+                                ]
+                                .into(),
+                            }),
+                            files: Some(generate_test_proto_workload_files()),
+                        },
+                    )])),
+                    ..Default::default()
+                },
             )),
         });
 
@@ -865,13 +872,14 @@ mod tests {
             REQUEST,
             RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![FIELD_MASK.into()],
+                subscribe: false,
             }),
         );
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
+            ank_base::response::ResponseContent::CompleteState(ank_base::CompleteStateResponse {
+                complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
                     WORKLOAD_NAME_1,
                     ank_base::Workload {
                         agent: Some(AGENT_A.to_string()),
@@ -892,8 +900,9 @@ mod tests {
                         }),
                         files: Some(generate_test_proto_workload_files()),
                     },
-                )]),
-            ),
+                )])),
+                ..Default::default()
+            }),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -946,13 +955,14 @@ mod tests {
             REQUEST,
             RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![FIELD_MASK.into()],
+                subscribe: false,
             }),
         );
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
+            ank_base::response::ResponseContent::CompleteState(ank_base::CompleteStateResponse {
+                complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
                     WORKLOAD_NAME_1,
                     ank_base::Workload {
                         agent: Some(AGENT_A.to_string()),
@@ -973,8 +983,9 @@ mod tests {
                         }),
                         files: Some(generate_test_proto_workload_files()),
                     },
-                )]),
-            ),
+                )])),
+                ..Default::default()
+            }),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -1138,28 +1149,31 @@ mod tests {
         let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
-                    WORKLOAD_NAME_2,
-                    ank_base::Workload {
-                        agent: Some(AGENT_A.to_string()),
-                        runtime: Some(RUNTIME.to_string()),
-                        tags: Some(ank_base::Tags { tags: vec![] }),
-                        dependencies: Some(ank_base::Dependencies {
-                            dependencies: HashMap::new(),
-                        }),
-                        restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                        runtime_config: Some("".to_string()),
-                        control_interface_access: None,
-                        configs: Some(ank_base::ConfigMappings {
-                            configs: [
-                                ("ref1".into(), "config_1".into()),
-                                ("ref2".into(), "config_2".into()),
-                            ]
-                            .into(),
-                        }),
-                        files: Some(generate_test_proto_workload_files()),
-                    },
-                )]),
+                ank_base::CompleteStateResponse {
+                    complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
+                        WORKLOAD_NAME_2,
+                        ank_base::Workload {
+                            agent: Some(AGENT_A.to_string()),
+                            runtime: Some(RUNTIME.to_string()),
+                            tags: Some(ank_base::Tags { tags: vec![] }),
+                            dependencies: Some(ank_base::Dependencies {
+                                dependencies: HashMap::new(),
+                            }),
+                            restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                            runtime_config: Some("".to_string()),
+                            control_interface_access: None,
+                            configs: Some(ank_base::ConfigMappings {
+                                configs: [
+                                    ("ref1".into(), "config_1".into()),
+                                    ("ref2".into(), "config_2".into()),
+                                ]
+                                .into(),
+                            }),
+                            files: Some(generate_test_proto_workload_files()),
+                        },
+                    )])),
+                    ..Default::default()
+                },
             )),
         });
 

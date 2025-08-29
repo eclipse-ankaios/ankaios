@@ -343,7 +343,10 @@ mod test {
         let complete_state_request = Request {
             request_id: "".into(),
             request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest { field_mask: vec![] },
+                CompleteStateRequest {
+                    field_mask: vec![],
+                    subscribe: false,
+                },
             ),
         };
         let update_state_request = Request {
@@ -383,6 +386,7 @@ mod test {
             request_content: common::commands::RequestContent::CompleteStateRequest(
                 CompleteStateRequest {
                     field_mask: vec![MATCHING_PATH.into()],
+                    subscribe: false,
                 },
             ),
         };
@@ -466,6 +470,7 @@ mod test {
             request_content: common::commands::RequestContent::CompleteStateRequest(
                 CompleteStateRequest {
                     field_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
+                    subscribe: false,
                 },
             ),
         };
@@ -494,6 +499,7 @@ mod test {
             request_content: common::commands::RequestContent::CompleteStateRequest(
                 CompleteStateRequest {
                     field_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
+                    subscribe: false,
                 },
             ),
         };

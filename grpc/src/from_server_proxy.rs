@@ -831,8 +831,10 @@ mod tests {
             result.from_server_enum,
             Some(FromServerEnum::Response(ank_base::Response {
                 request_id,
-                response_content: Some(ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState{
-                    desired_state: Some(desired_state), ..}))
+                response_content: Some(ank_base::response::ResponseContent::CompleteState(ank_base::CompleteStateResponse{ complete_state: Some(ank_base::CompleteState{
+                    desired_state: Some(desired_state), ..}), ..}
+
+                    ))
 
             })) if request_id == my_request_id
             && desired_state == test_complete_state.desired_state.unwrap()
@@ -980,7 +982,10 @@ mod tests {
         let proto_response = ank_base::Response {
             request_id: my_request_id.clone(),
             response_content: Some(response::ResponseContent::CompleteState(
-                proto_complete_state,
+                ank_base::CompleteStateResponse {
+                    complete_state: Some(proto_complete_state),
+                    ..Default::default()
+                },
             )),
         };
 
@@ -1010,7 +1015,7 @@ mod tests {
             common::from_server_interface::FromServer::Response(ank_base::Response {
                 request_id,
                 response_content: Some(response::ResponseContent::CompleteState(
-                    complete_state
+                    ank_base::CompleteStateResponse{ complete_state: Some(complete_state), ..}
                 ))
             }) if request_id == my_request_id &&
             complete_state.desired_state == expected_test_complete_state.desired_state &&
