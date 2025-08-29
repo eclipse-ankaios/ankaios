@@ -101,13 +101,14 @@ WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO
 nginx           agent_A   podman    Running(Ok)
 ```
 
-Ankaios also supports adding and removing workloads dynamically.
+Ankaios also supports adding and removing workloads dynamically. The following command assumes that the `containerd` runtime is installed according to the [installation instructions](installation.md).
+
 To add another workload call:
 
 ```shell
 ank -k run workload \
 helloworld \
---runtime podman \
+--runtime containerd \
 --agent agent_A \
 --config 'image: docker.io/busybox:1.36
 commandOptions: [ "-e", "MESSAGE=Hello World"]
@@ -115,8 +116,14 @@ commandArgs: [ "sh", "-c", "echo $MESSAGE"]'
 ```
 
 We can check the state again with `ank -k get state` and see, that the workload
-`helloworld` has been added to `desiredState.workloads` and the execution
-state is available in `workloadStates`.
+`helloworld` with runtime `containerd` has been added to `desiredState.workloads` and the execution
+state is available in `workloadStates`:
+
+```text
+WORKLOAD NAME   AGENT     RUNTIME      EXECUTION STATE   ADDITIONAL INFO
+helloworld      agent_A   containerd   Succeeded(Ok)
+nginx           agent_A   podman       Running(Ok)
+```
 
 As the workload had a one time job its state is `Succeeded(Ok)` and we can
 delete it from the state again with:

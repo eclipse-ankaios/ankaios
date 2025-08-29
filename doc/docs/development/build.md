@@ -2,7 +2,7 @@
 
 ## Dev container
 
-The repo provides a Visual Studio Code [dev container](https://code.visualstudio.com/docs/devcontainers/containers) which includes all necessary tools to build all components and the documentation. It also contains Podman, which is needed to run the system tests for Ankaios. In case you want to extend the dev container see [extending the dev container](extending-dev-container.md).
+The repo provides a Visual Studio Code [dev container](https://code.visualstudio.com/docs/devcontainers/containers) which includes all necessary tools to build all components and the documentation. It also contains the supported container runtimes, which are needed to run the system tests for Ankaios. In case you want to extend the dev container see [extending the dev container](extending-dev-container.md).
 
 ### Prerequisites
 

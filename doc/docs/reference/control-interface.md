@@ -5,7 +5,7 @@ The [control interface](./control-interface.md) allows the [workload](glossary.m
 !!! note
 
     The control interface is currently only available for workloads using the
-    `podman` runtime and not for the `podman-kube` runtime.
+    `podman` and `containerd` runtime and not for the `podman-kube` runtime.
 
 ## Overview
 
