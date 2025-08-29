@@ -68,6 +68,7 @@ Clean up Ankaios
     Clean up Containerd
     ${ANKAIOS_TEMP}=    Get Environment Variable    ANKAIOS_TEMP
     Run Command    rm -rf ${ANKAIOS_TEMP}    timeout=20
+    Run Command    rm -rf ${ANKAIOS_TMP_FOLDER}
     Set Variable    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    {}
     Set Variable    ${ANKAIOS_WORKLOAD_NAME_TO_PODMAN_ID_MAPPING}    {}
     Remove Environment Variable    ANKSERVER_CA_PEM
