@@ -69,7 +69,6 @@ Test Ankaios workload restart after update with a Control Interface access
 # [stest->swdd~agent-control-interface-created-for-eligible-workloads~1]
 Test Ankaios Containerd workload restart after update with a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
-    [Tags]    containerd_ci
 
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple_containerd.yaml"
