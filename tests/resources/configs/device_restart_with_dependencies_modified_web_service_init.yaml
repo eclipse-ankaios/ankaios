@@ -19,7 +19,7 @@ workloads:
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
       commandArgs: [ "1" ]
   web_service:
-    runtime: podman
+    runtime: containerd
     agent: agent_B
     restartPolicy: NEVER
     dependencies:

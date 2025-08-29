@@ -1,6 +1,6 @@
 apiVersion: v0.1
 workloads:
-  workload_with_mounted_text_file:
+  podman_workload_with_mounted_text_file:
     agent: agent_A
     runtime: podman
     configs:
@@ -11,9 +11,32 @@ workloads:
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: [ "-p", "8087:80" ]
-  workload_with_mounted_binary_file:
+  podman_workload_with_mounted_binary_file:
     agent: agent_A
     runtime: podman
+    configs:
+      bin_data: bin_data
+    files:
+      - mountPoint: "/hello"
+        binaryData: "{{bin_data}}"
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "cat /hello" ]
+  containerd_workload_with_mounted_text_file:
+    agent: agent_A
+    runtime: containerd
+    configs:
+      nginx_conf: web_server_config
+    files:
+      - mountPoint: "/etc/nginx/nginx.conf"
+        data: "{{nginx_conf}}"
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
+      commandOptions: [ "-p", "8088:80" ]
+  containerd_workload_with_mounted_binary_file:
+    agent: agent_A
+    runtime: containerd
     configs:
       bin_data: bin_data
     files:

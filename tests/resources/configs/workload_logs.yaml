@@ -9,7 +9,7 @@ workloads:
       commandOptions: [ "--entrypoint", "/bin/sh" ]
       commandArgs: [ "-c", "echo -e '1\n2\n3\n4\n5'" ]
   count_to_three:
-    runtime: podman
+    runtime: containerd
     restartPolicy: NEVER
     agent: agent_B
     runtimeConfig: |

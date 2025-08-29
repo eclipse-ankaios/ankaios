@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.5
     steps:
       - uses: actions/checkout@v4.1.1
       - name: Vendor all dependencies locally
@@ -37,7 +37,7 @@ jobs:
     needs: vendor
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.5
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
@@ -73,7 +73,7 @@ jobs:
     needs: vendor
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.5
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
@@ -118,7 +118,7 @@ jobs:
     needs: vendor
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.5
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
@@ -141,7 +141,7 @@ jobs:
     needs: vendor
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.5
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
@@ -177,7 +177,7 @@ jobs:
     needs: vendor
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.5
       options: --user root
     steps:
       - uses: actions/checkout@v4.1.1
@@ -209,7 +209,7 @@ jobs:
     needs: vendor
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.5
       options: --user root
     steps:
       - uses: actions/checkout@v4.1.1
