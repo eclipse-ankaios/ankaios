@@ -24,6 +24,7 @@ Ankaios supports multiple container runtimes. Depending on which runtime is to b
 
 ### Podman
 
+For using the Ankaios `podman` and `podman-kube` runtimes,
 [Podman](https://podman.io) needs to be installed as this is used as
 container runtime
 (see [Podman installation instructions](https://podman.io/docs/installation)).
