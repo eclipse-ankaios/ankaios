@@ -26,16 +26,16 @@ group is reopened on next write upon failure
     agent -> output: open output pipe
 end
 
-workload -> input++: hello
-input -> ci_task--: hello
+workload -> input++: Hello
+input -> ci_task--: Hello
 
 ... check protocol compatibility and prepare response ...
 
 group writing the "hello" is retried until the workload "waits for input data"
 workload -> output ++: wait for input data
-    agent -> output++: hello
+    agent -> output++: ControlInterfaceAccepted
 end
-output -> workload--: hello
+output -> workload--: ControlInterfaceAccepted
 
 ...
 
