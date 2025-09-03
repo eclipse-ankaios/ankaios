@@ -103,7 +103,7 @@ impl RuntimeStateGetter<ContainerdWorkloadId> for ContainerdStateGetter {
 }
 
 impl ContainerdRuntime {
-    async fn workload_instance_names_to_workload_states(
+    async fn sample_workload_states(
         &self,
         workload_instance_names: &Vec<WorkloadInstanceName>,
     ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
@@ -152,8 +152,7 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
             .filter_map(|x| x.as_str().try_into().ok())
             .collect();
 
-        self.workload_instance_names_to_workload_states(&workload_instance_names)
-            .await
+        self.sample_workload_states(&workload_instance_names).await
     }
 
     // [impl->swdd~containerd-create-workload-runs-workload~1]
