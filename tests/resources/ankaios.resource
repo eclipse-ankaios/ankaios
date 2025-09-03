@@ -796,6 +796,33 @@ the cli log collection shall output "${total_log_lines}" log lines in total in t
         Should Be True    ${len_splitted_log_line} >= 2    msg=Log line does not have the expected format: ${log_line}
     END
 
+the workload state of workload "${workload_name}" shall contain an additional info signaling retries within "${timeout}" seconds
+    ${start_time}=    Get Time Secs
+    WHILE    True
+        ${current_secs}=    Get Time Secs
+        ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+        IF    ${elapsed_secs} >= ${timeout}    BREAK
+        ${res}=    Run Process   %{ANK_BIN_DIR}${/}ank get workloads    timeout=10    shell=True
+        IF     ${res.rc} != 0
+            Sleep    0.2s
+            CONTINUE
+        END
+        ${result_list}=    Table To List    ${res.stdout}
+        ${result_dict}=    Table To Dict    ${result_list}    WORKLOAD NAME
+        Log    ${result_dict}
+        ${workload_state}=    Get From Dictionary    ${result_dict}    ${workload_name}
+        ${additional_info}=    Get From Dictionary    ${workload_state}    ADDITIONAL INFO
+        IF    "Retry " in $additional_info
+            BREAK
+        END
+
+        Sleep    0.2s
+    END
+    # ${workload_state}=    Get From Dictionary    ${result_dict}    ${workload_name}
+    # Should Contain Key    ${workload_state}    additionalInfo
+    # ${additional_info}=    Get From Dictionary    ${workload_state}    additionalInfo
+    # Should Contain    ${additional_info}    retries
+
 # ALIASES
 
 the command "${cli_command}" finished with exit code "${exit_code}"
