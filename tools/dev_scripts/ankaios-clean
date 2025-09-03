@@ -7,11 +7,13 @@ pkill ank-server
 echo "done."
 
 # Cleanup podman
-echo "Cleaning up podman ..."
-podman stop -a >/dev/null 2>&1
-podman rm -a >/dev/null 2>&1
-podman volume rm -a >/dev/null 2>&1
-echo "done."
+if which podman > /dev/null; then
+    echo "Cleaning up podman ..."
+    podman stop -a >/dev/null 2>&1
+    podman rm -a >/dev/null 2>&1
+    podman volume rm -a >/dev/null 2>&1
+    echo "done."
+fi
 
 if pgrep -x "containerd" > /dev/null; then
     echo "Cleaning up containerd ..."
