@@ -21,3 +21,6 @@ __pycache__
 
 # Vgarant
 **/.vagrant
+
+# nohup devcontainer postStartCommand
+nohup.out

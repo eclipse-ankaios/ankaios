@@ -7,7 +7,7 @@
     },
     "mounts": [],
     "runArgs": ["--privileged"],
-    "postStartCommand": "sudo /workspaces/ankaios/tools/start-containerd.sh",
+    "postStartCommand": "nohup /workspaces/ankaios/tools/start-containerd.sh",
     "customizations": {
         "vscode": {
             // Set *default* container specific settings.json values on container create.
