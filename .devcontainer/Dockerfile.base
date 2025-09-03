@@ -99,7 +99,9 @@ RUN mkdir -p -m 2777 $RUSTUP_HOME \
        sh -s -- -y --default-toolchain 1.88 --target x86_64-unknown-linux-musl --target aarch64-unknown-linux-musl --no-modify-path \
     && chmod -R ag+w $RUSTUP_HOME $CARGO_HOME
 
+# required for Podman
 VOLUME /var/lib/containers
+# required for containerd 
 VOLUME /var/lib/containerd
 
 COPY containers.conf /etc/containers/containers.conf
