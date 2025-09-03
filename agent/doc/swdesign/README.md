@@ -2972,10 +2972,6 @@ Status: approved
 
 The NerdctlCli container state cache shall store the state of all containerd containers.
 
-Rationale:
-Calling nerdctl for each workload to get its current state uses unnecessary system resources.
-Using this cache only two nerdctl calls (`nerdctl ps` and `nerdctl inspect`) are needed to get the states of all containerd workloads. Since the state data returned by `nerdctl ps` is not machine-friendly, the inspect call is needed to get the state data about the containers.
-
 Tags:
 - NerdctlCli
 
@@ -3007,6 +3003,10 @@ and the cache is empty or the content is older than a second, the NerdctlCli sha
 
 * request Containerd for the current container states by using the `nerdctl` cli
 * refresh the NerdctlCli container state cache with the result before returning the requested states.
+
+Rationale:
+Calling nerdctl for each workload to get its current state uses unnecessary system resources.
+Using this cache only two nerdctl calls (`nerdctl ps` and `nerdctl inspect`) are needed to get the states of all containerd workloads. Since the state data returned by `nerdctl ps` is not machine-friendly, the inspect call is needed to get the state data about the containers.
 
 Tags:
 - NerdctlCli
