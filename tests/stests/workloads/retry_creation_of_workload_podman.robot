@@ -25,7 +25,6 @@ ${new_state_yaml_file}
 # [stest->swdd~agent-workload-control-loop-executes-retry~1]
 Test Ankaios Podman retry creation of a workload on creation failure
     [Setup]    Run Keywords    Setup Ankaios
-    [Tags]    run_only
 
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
@@ -42,7 +41,6 @@ Test Ankaios Podman retry creation of a workload on creation failure
 Test Ankaios Podman retry creation of a workload on creation failure intercepted by update
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_wrong_image_name.yaml
-    [Tags]    run_only
 
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
@@ -65,7 +63,6 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
 Test Ankaios Podman retry creation of a workload on creation failure intercepted by delete
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_wrong_image_name.yaml
-    [Tags]    run_only
 
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
