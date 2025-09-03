@@ -62,9 +62,9 @@ echo done.
 
 if pgrep -x "containerd" > /dev/null
 then
-    echo "Containerd is already running. No need to start again."
+    echo "containerd is already running. No need to start again."
 else
-    echo "Containerd is not running. Starting it for system tests."
+    echo "containerd is not running. Starting it for system tests."
     $script_dir/start-containerd.sh $target_dir/containerd.log
 fi
 

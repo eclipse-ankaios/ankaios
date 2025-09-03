@@ -146,9 +146,9 @@ The PodmanKubeRuntime connector implements the runtime connector trait for 'podm
 
 ### ContainerdRuntime connector
 
-The ContainerdRuntime connector implements the runtime connector trait for 'nerdctl' operating with the containerd daemon. It serves as glue between Ankaios and the Containerd container engine for running Containerd containers.
+The ContainerdRuntime connector implements the runtime connector trait for 'nerdctl' operating with the containerd daemon. It serves as glue between Ankaios and the containerd container engine for running containerd containers.
 
-The ContainerdRuntime also implements the runtime state getter trait for Containerd to enable getting workload states.
+The ContainerdRuntime also implements the runtime state getter trait for containerd to enable getting workload states.
 
 ### GenericPollingStateChecker
 
@@ -505,12 +505,12 @@ Needs:
 - impl
 - stest
 
-#### Agent supports Containerd
+#### Agent supports containerd
 `swdd~agent-supports-containerd~1`
 
 Status: approved
 
-The Agent shall support Containerd for creating containers as a build-in runtime connector named "containerd".
+The Agent shall support containerd for creating containers as a build-in runtime connector named "containerd".
 
 Comment:
 For operating with containerd, the `nerdctl` cli is used.
@@ -2508,7 +2508,7 @@ Needs:
 
 #### Containerd runtime connector
 
-This section describes features specific to the containerd runtime connector which can run containerized workloads using the [Containerd](https://containerd.io/) container engine. The containerd runtime connector uses the [nerdctl](https://github.com/containerd/nerdctl) CLI to operate with the Containerd daemon.
+This section describes features specific to the containerd runtime connector which can run containerized workloads using the [containerd](https://containerd.io/) container engine. The containerd runtime connector uses the [nerdctl](https://github.com/containerd/nerdctl) CLI to operate with the containerd daemon.
 
 ##### Containerd runtime connector implements the runtime connector trait
 `swdd~containerd-implements-runtime-connector~1`
@@ -2966,11 +2966,11 @@ Needs:
 
 Status: approved
 
-The NerdctlCli container state cache shall store the state of all Containerd containers.
+The NerdctlCli container state cache shall store the state of all containerd containers.
 
 Rationale:
 Calling nerdctl for each workload to get its current state uses unnecessary system resources.
-Using this cache only two nerdctl calls (`nerdctl ps` and `nerdctl inspect`) are needed to get the states of all Containerd workloads. Since the state data returned by `nerdctl ps` is not machine-friendly, the inspect call is needed to get the state data about the containers.
+Using this cache only two nerdctl calls (`nerdctl ps` and `nerdctl inspect`) are needed to get the states of all containerd workloads. Since the state data returned by `nerdctl ps` is not machine-friendly, the inspect call is needed to get the state data about the containers.
 
 Tags:
 - NerdctlCli
@@ -3335,16 +3335,16 @@ Needs:
 - impl
 - utest
 
-##### ContainerdStateGetter reset Containerd container state cache
+##### ContainerdStateGetter reset containerd container state cache
 `swdd~containerd-state-getter-reset-cache~1`
 
 Status: approved
 
-When the `ContainerdStateGetter` is created for a new workload, the `ContainerdStateGetter` shall reset the Containerd container state cache.
+When the `ContainerdStateGetter` is created for a new workload, the `ContainerdStateGetter` shall reset the containerd container state cache.
 
 Rationale:
 After a new workload is created,
-the Containerd container state cache will not contain containers of this workload,
+the containerd container state cache will not contain containers of this workload,
 the `ContainerdStateGetter` will return `removed` and
 the `GenericPollingStateChecker` will stop updating the state of this workload.
 

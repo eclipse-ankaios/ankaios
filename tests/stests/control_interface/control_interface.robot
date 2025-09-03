@@ -67,7 +67,7 @@ Test Ankaios workload restart after update with a Control Interface access
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-control-interface-created-for-eligible-workloads~1]
-Test Ankaios Containerd workload restart after update with a Control Interface access
+Test Ankaios containerd workload restart after update with a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 
     # Preconditions

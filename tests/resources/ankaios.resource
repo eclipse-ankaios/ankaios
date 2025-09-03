@@ -65,7 +65,7 @@ Setup Ankaios
 Clean up Ankaios
     Terminate All Processes    kill=True
     Clean up Podman
-    Clean up Containerd
+    Clean up containerd
     ${ANKAIOS_TEMP}=    Get Environment Variable    ANKAIOS_TEMP
     Run Command    rm -rf ${ANKAIOS_TEMP}    timeout=20
     Run Command    rm -rf ${ANKAIOS_TMP_FOLDER}
@@ -90,9 +90,9 @@ Clean up Podman
     Podman has deleted all existing pods
     Podman has deleted all existing volumes
 
-Clean up Containerd
-    Log    Clean up Containerd
-    Containerd has deleted all existing containers
+Clean up containerd
+    Log    Clean up containerd
+    containerd has deleted all existing containers
 
 Setup MTLS
     [Arguments]    ${enabled}
@@ -329,11 +329,11 @@ Podman has deleted all existing volumes
 Podman has terminated all existing containers
     Run Process    podman    stop    --all    timeout=20    shell=True
 
-Containerd has deleted all existing containers
+containerd has deleted all existing containers
     Run Process    nerdctl    stop    --time    2    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True
     Run Process    nerdctl    rm    --force    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True
 
-Containerd has terminated all existing containers
+containerd has terminated all existing containers
     Run Process    nerdctl    stop    $(nerdctl    ps    --all    --quiet    --no-trunc)    timeout=20    shell=True
 
 all workloads of agent "${agent_name}" have an initial execution state

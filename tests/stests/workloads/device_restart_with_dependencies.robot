@@ -33,7 +33,7 @@ Test Ankaios restarts exited workloads on device restart with considering inter-
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Containerd has deleted all existing containers
+    And containerd has deleted all existing containers
     # Actions
     When Ankaios server is started with config "${CONFIGS_DIR}/device_restart_with_dependencies.yaml"
     And Ankaios agent is started with name "agent_A"
@@ -46,7 +46,7 @@ Test Ankaios restarts exited workloads on device restart with considering inter-
     And Ankaios agent with name "agent_A" is terminated
     And Ankaios agent with name "agent_B" is terminated
     And Podman has terminated all existing containers
-    And Containerd has terminated all existing containers
+    And containerd has terminated all existing containers
     # Restart of Ankaios on full device restart
     And Ankaios server is started with config "${CONFIGS_DIR}/device_restart_with_dependencies_modified_web_service_init.yaml"
     And Ankaios agent is started with name "agent_B"

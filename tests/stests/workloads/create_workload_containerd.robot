@@ -15,7 +15,7 @@
 
 
 *** Settings ***
-Documentation       Tests to verify that Ankaios can create Containerd workloads.
+Documentation       Tests to verify that Ankaios can create containerd workloads.
 
 Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
@@ -25,12 +25,12 @@ Resource            ../../resources/variables.resource
 
 # [stest->swdd~agent-supports-containerd~1]
 # [stest->swdd~containerd-create-workload-runs-workload~1]
-Test Ankaios Containerd create workloads
+Test Ankaios containerd create workloads
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
-    Given Containerd has deleted all existing containers
+    Given containerd has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default_containerd.yaml"
     # Actions
     When Ankaios agent is started with name "agent_B"
@@ -46,12 +46,12 @@ Test Ankaios Containerd create workloads
 
 # [stest->swdd~agent-supports-containerd~1]
 # [stest->swdd~containerd-create-workload-sets-optionally-container-name~1]
-Test Ankaios Containerd create a container with custom name
+Test Ankaios containerd create a container with custom name
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
-    Given Containerd has deleted all existing containers
+    Given containerd has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/create_workload_custom_name_containerd.yaml"
     # Actions
     When Ankaios agent is started with name "agent_A"

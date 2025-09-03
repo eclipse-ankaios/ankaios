@@ -28,14 +28,14 @@ ${new_state_yaml_file}          ${EMPTY}
 
 *** Test Cases ***
 # [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
-Test Ankaios Containerd restarts workloads with restart policy ALWAYS.
+Test Ankaios containerd restarts workloads with restart policy ALWAYS.
     [Documentation]    Restart workloads with restart policy set to ALWAYS and
     ...                ignores workloads with restart policy set to NEVER.
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
-    Given Containerd has deleted all existing containers
+    Given containerd has deleted all existing containers
     # Actions
     When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies_containerd.yaml"
     And Ankaios agent is started with name "agent_A"
@@ -51,13 +51,13 @@ Test Ankaios Containerd restarts workloads with restart policy ALWAYS.
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
-Test Ankaios Containerd restarts workloads with restart policy ON_FAILURE.
+Test Ankaios containerd restarts workloads with restart policy ON_FAILURE.
     [Documentation]    Restart workloads with restart policy set to ON_FAILURE
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
-    Given Containerd has deleted all existing containers
+    Given containerd has deleted all existing containers
     # Actions
     When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies_containerd.yaml"
     And Ankaios agent is started with name "agent_A"

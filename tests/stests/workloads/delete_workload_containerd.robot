@@ -15,7 +15,7 @@
 
 
 *** Settings ***
-Documentation       Tests to verify that Ankaios can delete Containerd workloads.
+Documentation       Tests to verify that Ankaios can delete containerd workloads.
 
 Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
@@ -25,12 +25,12 @@ Resource            ../../resources/variables.resource
 
 # [stest->swdd~agent-supports-containerd~1]
 # [stest->swdd~containerd-delete-workload-stops-and-removes-workload~1]
-Test Ankaios Containerd remove workloads
+Test Ankaios containerd remove workloads
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
-    Given Containerd has deleted all existing containers
+    Given containerd has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/default_containerd.yaml"
     And Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
