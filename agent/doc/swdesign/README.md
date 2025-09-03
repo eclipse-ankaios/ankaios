@@ -150,6 +150,10 @@ The ContainerdRuntime connector implements the runtime connector trait for 'nerd
 
 The ContainerdRuntime also implements the runtime state getter trait for containerd to enable getting workload states.
 
+### NerdctlCli
+
+The `NerdctlCli` is providing helper functions for instrumenting the `nerdctl` CLI which provides access to containerd for the `ContainerdRuntime`.
+
 ### GenericPollingStateChecker
 
 The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implements the state checker trait) that can be used by a runtime connector to make polling requests for workload state as predefined intervals.
@@ -2535,6 +2539,7 @@ The containerd runtime connector shall use the `nerdctl` CLI to operate with the
 
 Rationale:
 The `nerdctl` CLI has a built-in implementation for managing networks, file mounts and more for interacting with containers.
+Containerd also supports the Kubernetes CRI interface and provides its own API, but using `nerdctl` is a more straight forward way to add support for this runtime.
 
 Tags:
 - ContainerdRuntimeConnector
@@ -2562,7 +2567,7 @@ Needs:
 
 Status: approved
 
-When the containerd runtime connector is called to return list of existing workloads,
+When the containerd runtime connector is called to return a list of existing workloads,
 the containerd runtime connector shall use the label `agent` stored in the workloads.
 
 Tags:
@@ -2577,7 +2582,7 @@ Needs:
 
 Status: approved
 
-When the containerd runtime connector is called to create a workload and no existing workload id is provided, the containerd runtime connector shall:
+When the containerd runtime connector is called to create a workload and no existing workload ID is provided, the containerd runtime connector shall:
 
 * pull the workload image specified in the runtime configuration if the image is not already available locally
 * create the container
@@ -2597,7 +2602,7 @@ Needs:
 
 Status: approved
 
-When the containerd runtime connector is called to create a workload and an existing workload id is provided, the containerd runtime connector shall:
+When the containerd runtime connector is called to create a workload and an existing workload ID is provided, the containerd runtime connector shall:
 
 * start the existing container
 * start a `GenericPollingStateChecker` to check the workload state
@@ -2618,7 +2623,7 @@ Needs:
 
 Status: approved
 
-When the containerd runtime connector is called to create a workload and the action is successfully processed by the containerd runtime connector, the containerd runtime connector shall return the workload id.
+When the containerd runtime connector is called to create a workload and the action is successfully processed by the containerd runtime connector, the containerd runtime connector shall return the workload ID.
 
 Tags:
 - ContainerdRuntimeConnector
@@ -2632,8 +2637,8 @@ Needs:
 
 Status: approved
 
-When the containerd runtime connector is called to create workload and the creation fails,
-the containerd runtime connector shall delete failed container.
+When the containerd runtime connector is called to create a workload and the creation fails,
+the containerd runtime connector shall delete the failed container.
 
 Rationale:
 If the user tries to update the failed workload and the update is successful (new container is created and started),
@@ -2651,10 +2656,13 @@ Needs:
 
 Status: approved
 
-When the containerd runtime connector is called without an existing workload id to create a new workload, the containerd runtime connector shall create following labels in the workload:
+When the containerd runtime connector is called without an existing workload ID to create a new workload, the containerd runtime connector shall create the container with the following labels:
 
-* `name` as the key and workload execution name as the value
+* `name` as the key and workload instance name (workload ID) as the value
 * `agent` as the key and the agent name where the workload is being created as the value
+
+Rationale:
+The agent label is required to properly assign Ankaios workloads to to the correct agent if existing workloads are reused at the startup of the agent and more than one agent is running on the same host.
 
 Tags:
 - ContainerdRuntimeConnector
@@ -2668,7 +2676,7 @@ Needs:
 
 Status: approved
 
-When the containerd runtime connector is called without an existing workload id to create a new workload and the workload name is not set in the runtime configuration, the containerd runtime connector shall set the workload execution name as the workload name.
+When the containerd runtime connector is called without an existing workload ID to create a new workload and the workload name is not set in the runtime configuration, the containerd runtime connector shall set the workload execution name as the workload name.
 
 Tags:
 - ContainerdRuntimeConnector
@@ -2683,7 +2691,7 @@ Needs:
 
 Status: approved
 
-When the containerd runtime connector is called to create a workload and the optional Control Interface pipes path is provided, the containerd runtime connector shall mount the Control Interface pipes into the container in the file path `/run/ankaios/control_interface`.
+When the containerd runtime connector is called to create a workload and the optional host Control Interface pipes path is provided, the containerd runtime connector shall mount the Control Interface pipes into the container in the file path `/run/ankaios/control_interface`.
 
 Tags:
 - ControlInterface
@@ -2713,7 +2721,7 @@ Needs:
 
 Status: approved
 
-When the containerd runtime connector is called to get workload id, the containerd runtime connector shall use the label `name` stored in the workload.
+When the containerd runtime connector is called to get the workload ID, the containerd runtime connector shall use the label `name` written in the container.
 
 Tags:
 - ContainerdRuntimeConnector
@@ -2760,9 +2768,7 @@ Needs:
 
 Status: approved
 
-The NerdctlCli shall provide functionality to list workloads by label that:
-* executes `nerdctl ps` with filtering all existing containers for the provided label key-value pair
-* returns a collection of the filtered container ids
+The NerdctlCli shall provide functionality to list container IDs by label.
 
 Rationale:
 The containerd runtime connector requires the nerdctl cli as interface to operate with the containerd daemon.
@@ -2779,9 +2785,7 @@ Needs:
 
 Status: approved
 
-The NerdctlCli shall provide functionality to list workload names by label that:
-* executes `nerdctl ps` with filtering all existing containers for the provided label key-value pair
-* returns a collection of the filtered workload names from the labels
+The NerdctlCli shall provide functionality to list workload instance names (workload IDs) by label.
 
 Rationale:
 The containerd runtime connector requires the nerdctl cli as interface to operate with the containerd daemon.
@@ -3364,7 +3368,7 @@ When the `ContainerdStateGetter` is called to get the current state of a workloa
 and the `ContainerdStateGetter` gets no state for this workload, the `ContainerdStateGetter` shall return the state `lost`.
 
 Rationale:
-This happens when the container has been removed and the Agent meanwhile triggers status check of the workload.
+This happens when the container has been removed by somebody without using Ankaios.
 
 Tags:
 - ContainerdRuntimeConnector
