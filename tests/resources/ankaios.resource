@@ -566,6 +566,7 @@ the container of workload "${workload_name}" shall have a different id but same 
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         IF    ${elapsed_secs} >= 20    BREAK
         ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Runtime    ${runtime_cli_name}    ${workload_name}
+        Sleep    0.2s
         IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
             CONTINUE
         END
@@ -588,6 +589,7 @@ the container of workload "${workload_name}" shall have a different id on the po
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         IF    ${elapsed_secs} >= 20    BREAK
         ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Runtime    "podman"    ${workload_name}
+        Sleep    0.2s
         IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
             CONTINUE
         END
@@ -611,6 +613,7 @@ the container of workload "${workload_name}" shall have the same id and same con
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         IF    ${elapsed_secs} >= 20    BREAK
         ${current_workload_id}    ${current_ankaios_instance_name}    Get Container Id And Name By Workload Name From Runtime    ${runtime_cli_name}    ${workload_name}
+        Sleep    0.2s
         IF    '${current_workload_id}' == '' or '${current_ankaios_instance_name}' == ''
             CONTINUE
         END
