@@ -594,6 +594,7 @@ mod tests {
         assert!(res.is_err_and(|x| { x == RuntimeError::Create("nerdctl run failed".into()) }))
     }
 
+    // [utest->swdd~containerd-create-workload-deletes-failed-container~1]
     #[tokio::test]
     async fn utest_create_workload_run_failed_cleanup_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
