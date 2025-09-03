@@ -166,18 +166,8 @@ impl NerdctlCli {
         key: &str,
         value: &str,
     ) -> Result<Vec<String>, String> {
-        log::debug!("Listing workload ids for: {key}='{value}'",);
-        let output = CliCommand::new(NERDCTL_CMD)
-            .args(&[
-                "ps",
-                "--all",
-                "--no-trunc",
-                "--filter",
-                &format!("label={key}={value}"),
-                "--format=json",
-            ])
-            .exec()
-            .await?;
+        log::trace!("Listing workload ids for: {key}='{value}'",);
+        let output = Self::filter_container_ids_by_label(key, value).await?;
 
         let mut container_ids = Vec::new();
         for line in output.lines().filter(|l| !l.trim().is_empty()) {
@@ -195,17 +185,7 @@ impl NerdctlCli {
         value: &str,
     ) -> Result<Vec<String>, String> {
         log::trace!("Listing workload names for: '{key}'='{value}'",);
-        let output = CliCommand::new(NERDCTL_CMD)
-            .args(&[
-                "ps",
-                "--all",
-                "--no-trunc",
-                "--filter",
-                &format!("label={key}={value}"),
-                "--format=json",
-            ])
-            .exec()
-            .await?;
+        let output = Self::filter_container_ids_by_label(key, value).await?;
 
         let mut names = Vec::new();
         for line in output.lines().filter(|l| !l.trim().is_empty()) {
@@ -328,6 +308,20 @@ impl NerdctlCli {
         Ok(all_containers_states
             .get(workload_id)
             .map(ToOwned::to_owned))
+    }
+
+    async fn filter_container_ids_by_label(key: &str, value: &str) -> Result<String, String> {
+        CliCommand::new(NERDCTL_CMD)
+            .args(&[
+                "ps",
+                "--all",
+                "--no-trunc",
+                "--filter",
+                &format!("label={key}={value}"),
+                "--format=json",
+            ])
+            .exec()
+            .await
     }
 
     async fn list_states_internal() -> Result<Vec<NerdctlContainerInfo>, String> {
