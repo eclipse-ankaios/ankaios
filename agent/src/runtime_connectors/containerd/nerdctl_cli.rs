@@ -186,8 +186,6 @@ impl NerdctlCli {
             container_ids.push(container_id.id);
         }
 
-        log::trace!("Parsed container ids: {container_ids:?}");
-
         Ok(container_ids)
     }
 
