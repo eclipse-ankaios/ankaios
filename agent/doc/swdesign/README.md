@@ -3347,7 +3347,7 @@ Status: approved
 When the `ContainerdStateGetter` is created for a new workload, the `ContainerdStateGetter` shall reset the containerd container state cache.
 
 Rationale:
-After a new workload is created,
+If the cache is not reset, after a new workload is created,
 the containerd container state cache will not contain containers of this workload,
 the `ContainerdStateGetter` will return `removed` and
 the `GenericPollingStateChecker` will stop updating the state of this workload.
