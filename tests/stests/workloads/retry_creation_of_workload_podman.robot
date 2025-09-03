@@ -73,6 +73,6 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
     # Actions
     When user triggers "ank -k delete workload hello1"
     # Asserts
-    Then containerd shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
+    Then podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
     And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
