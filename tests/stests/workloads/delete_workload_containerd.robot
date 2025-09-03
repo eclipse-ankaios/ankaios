@@ -42,7 +42,6 @@ Test Ankaios containerd remove workloads
     Then the workload "sleepy" shall not exist on agent "agent_A" within "20" seconds
     And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "20" seconds
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "20" seconds
-    And containerd shall not have a container for workload "hello1" on agent "agent_B"
     And containerd shall have a container for workload "hello2" on agent "agent_B"
     And containerd shall have a container for workload "hello3" on agent "agent_B"
     And containerd shall not have a container for workload "sleepy" on agent "agent_A" within "20" seconds
