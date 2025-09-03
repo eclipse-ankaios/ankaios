@@ -8,4 +8,4 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: invalid-image
+      image: image_typo:latest

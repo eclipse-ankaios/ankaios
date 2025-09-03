@@ -22,3 +22,5 @@ __pycache__
 # Vgarant
 **/.vagrant
 
+# ignore nohup file for postStartCommand
+nohup.out
