@@ -773,7 +773,7 @@ mod tests {
                     common::commands::RequestContent::CompleteStateRequest(
                         common::commands::CompleteStateRequest { field_mask, subscribe },
                     ),
-            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask && subscribe == false)
+            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask && !subscribe)
         );
     }
 
@@ -810,7 +810,7 @@ mod tests {
                     ank_base::CompleteStateRequest { field_mask, subscribe },
                 )),
         }))
-        if request_id == REQUEST_ID && field_mask == vec![] as Vec<String> && subscribe == false));
+        if request_id == REQUEST_ID && field_mask == vec![] as Vec<String> && !subscribe));
     }
 
     #[tokio::test]
