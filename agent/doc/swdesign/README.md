@@ -510,7 +510,7 @@ Needs:
 
 Status: approved
 
-The Agent shall support containerd for creating containers as a build-in runtime connector named "containerd".
+The agent shall support containerd for creating containers as a build-in runtime connector named "containerd".
 
 Comment:
 For operating with containerd, the `nerdctl` cli is used.
@@ -2228,7 +2228,7 @@ Needs:
 
 Status: approved
 
-When the podman runtime connector is called to delete a workload, the podman runtime connector shall shall first stop the workload followed by deleting it.
+When the Podman runtime connector is called to delete a workload, the Podman runtime connector shall shall first stop the workload followed by deleting it.
 
 Tags:
 - PodmanRuntimeConnector
