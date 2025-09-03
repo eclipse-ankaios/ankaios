@@ -23,12 +23,12 @@ ${new_state_yaml_file}
 
 # [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
 # [stest->swdd~agent-workload-control-loop-executes-retry~1]
-Test Ankaios Containerd retry creation of a workload on creation failure
+Test Ankaios containerd retry creation of a workload on creation failure
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
-    Given Containerd has deleted all existing containers
+    Given containerd has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/containerd_invalid_image.yaml"
     And Ankaios agent is started with name "agent_A"
     # Asserts
@@ -38,13 +38,13 @@ Test Ankaios Containerd retry creation of a workload on creation failure
 # [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
 # [stest->swdd~agent-workload-control-loop-executes-retry~1]
 # [stest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
-Test Ankaios Containerd retry creation of a workload on creation failure intercepted by update
+Test Ankaios containerd retry creation of a workload on creation failure intercepted by update
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_containerd_invalid_image.yaml
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
-    Given Containerd has deleted all existing containers
+    Given containerd has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/containerd_invalid_image.yaml"
     And Ankaios agent is started with name "agent_A"
     And the workload state of workload "invalid_image_workload" shall contain an additional info signaling retries within "5" seconds
@@ -60,12 +60,12 @@ Test Ankaios Containerd retry creation of a workload on creation failure interce
 # [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
 # [stest->swdd~agent-workload-control-loop-executes-retry~1]
 # [stest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
-Test Ankaios Containerd retry creation of a workload on creation failure intercepted by delete
+Test Ankaios containerd retry creation of a workload on creation failure intercepted by delete
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
     # This test assumes that all containers in the containerd have been created with this test -> clean it up first
-    Given Containerd has deleted all existing containers
+    Given containerd has deleted all existing containers
     And Ankaios server is started with config "${CONFIGS_DIR}/containerd_invalid_image.yaml"
     And Ankaios agent is started with name "agent_A"
     And the workload state of workload "invalid_image_workload" shall contain an additional info signaling retries within "5" seconds
