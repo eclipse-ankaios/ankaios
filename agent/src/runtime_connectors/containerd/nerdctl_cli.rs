@@ -162,7 +162,10 @@ impl NerdctlCli {
     }
 
     // [impl->swdd~containerd-nerdctlcli-lists-workloads-by-label~1]
-    pub async fn list_workload_ids_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
+    pub async fn list_container_ids_by_label(
+        key: &str,
+        value: &str,
+    ) -> Result<Vec<String>, String> {
         log::debug!("Listing workload ids for: {key}='{value}'",);
         let output = CliCommand::new(NERDCTL_CMD)
             .args(&[
@@ -493,7 +496,7 @@ mod tests {
                 .to_json())),
         );
 
-        let res = NerdctlCli::list_workload_ids_by_label("name", "test_agent").await;
+        let res = NerdctlCli::list_container_ids_by_label("name", "test_agent").await;
         assert_eq!(res, Ok(vec!["result1".to_owned(), "result2".to_owned()]));
     }
 
@@ -517,7 +520,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = NerdctlCli::list_workload_ids_by_label("name", "test_agent").await;
+        let res = NerdctlCli::list_container_ids_by_label("name", "test_agent").await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -541,7 +544,7 @@ mod tests {
                 .exec_returns(Ok("non-json response from nerdctl".into())),
         );
 
-        let res = NerdctlCli::list_workload_ids_by_label("name", "test_agent").await;
+        let res = NerdctlCli::list_container_ids_by_label("name", "test_agent").await;
         assert!(matches!(res, Err(msg) if msg.contains("Could not parse nerdctl output")));
     }
 
