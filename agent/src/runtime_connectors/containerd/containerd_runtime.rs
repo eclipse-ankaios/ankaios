@@ -786,6 +786,7 @@ mod tests {
         assert_eq!(res, Ok(()));
     }
 
+    // [utest->swdd~containerd-delete-workload-stops-and-removes-workload~1]
     #[tokio::test]
     async fn utest_delete_workload_fails() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
