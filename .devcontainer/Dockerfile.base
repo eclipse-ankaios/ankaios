@@ -54,7 +54,9 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     fuse3 \
     fuse-overlayfs \
     slirp4netns \
+    # container engines
     podman \
+    containerd \
     # TLS
     musl-tools \
     # Cleanup
@@ -63,6 +65,10 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 # Workaround for podman not being able to stop containers, see https://bugs.launchpad.net/ubuntu/noble/+source/libpod/+bug/2040483
 RUN mkdir -p /etc/containers/containers.conf.d \
     && printf '[CONTAINERS]\napparmor_profile=""\n' > /etc/containers/containers.conf.d/disable-apparmor.conf
+
+# Install nerdctl compatible to containerd v1.7
+RUN curl -Ls https://github.com/containerd/nerdctl/releases/download/v2.1.3/nerdctl-2.1.3-linux-${TARGETARCH}.tar.gz | sudo tar Cxzvvf /usr/local/bin - \
+    && chmod +s /usr/local/bin/nerdctl
 
 # User management
 RUN (userdel -r ubuntu || true) \
@@ -93,7 +99,10 @@ RUN mkdir -p -m 2777 $RUSTUP_HOME \
        sh -s -- -y --default-toolchain 1.88 --target x86_64-unknown-linux-musl --target aarch64-unknown-linux-musl --no-modify-path \
     && chmod -R ag+w $RUSTUP_HOME $CARGO_HOME
 
+# required for Podman
 VOLUME /var/lib/containers
+# required for containerd 
+VOLUME /var/lib/containerd
 
 COPY containers.conf /etc/containers/containers.conf
 RUN chmod 644 /etc/containers/containers.conf

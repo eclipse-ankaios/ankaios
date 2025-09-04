@@ -74,7 +74,7 @@ impl FromStr for PodmanKubeWorkloadId {
 }
 
 impl PodmanKubeRuntime {
-    async fn workload_instance_names_to_workload_states(
+    async fn sample_workload_states(
         &self,
         workload_instance_names: &Vec<WorkloadInstanceName>,
     ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
@@ -135,8 +135,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
                 })
                 .collect();
 
-        self.workload_instance_names_to_workload_states(&workload_instance_names)
-            .await
+        self.sample_workload_states(&workload_instance_names).await
     }
 
     async fn create_workload(

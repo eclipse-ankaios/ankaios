@@ -15,6 +15,9 @@ concurrency:
   group: "documentation-${{ github.head_ref || github.ref }}"
   cancel-in-progress: true
 
+env:
+  ENABLED_HTMLPROOFER: false
+
 jobs:
   documentation_changes:
     name: Check if documentation has changed
@@ -39,7 +42,7 @@ jobs:
     if: ${{ needs.documentation_changes.outputs.documentation == 'true' || github.ref_name == 'main' || github.ref_type == 'tag' }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.5
     steps:
       - uses: actions/checkout@v4.1.1
       - name: Prepare commit to branch gh-pages

@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2025 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -25,8 +25,8 @@ use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
         ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
-        generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher,
-        podman_cli::PodmanStartConfig, runtime_connector::LogRequestOptions,
+        containerd::nerdctl_cli::NerdctlStartConfig, generic_log_fetcher::GenericLogFetcher,
+        log_fetcher::LogFetcher, runtime_connector::LogRequestOptions,
     },
     workload_state::WorkloadStateSender,
 };
@@ -34,48 +34,48 @@ use crate::{
 #[cfg(test)]
 use mockall_double::double;
 
-// [impl->swdd~podman-uses-podman-cli~1]
+// [impl->swdd~containerd-uses-nerdctl-cli~1]
 #[cfg_attr(test, double)]
-use crate::runtime_connectors::podman_cli::PodmanCli;
+use crate::runtime_connectors::containerd::nerdctl_cli::NerdctlCli;
 
-use super::podman_runtime_config::PodmanRuntimeConfig;
+use super::containerd_runtime_config::ContainerdRuntimeConfig;
 
-pub const PODMAN_RUNTIME_NAME: &str = "podman";
-
-#[derive(Debug, Clone)]
-pub struct PodmanRuntime {}
+pub const CONTAINERD_RUNTIME_NAME: &str = "containerd";
 
 #[derive(Debug, Clone)]
-pub struct PodmanStateGetter {}
+pub struct ContainerdRuntime {}
+
+#[derive(Debug, Clone)]
+pub struct ContainerdStateGetter {}
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct PodmanWorkloadId {
+pub struct ContainerdWorkloadId {
     pub id: String,
 }
 
-impl Display for PodmanWorkloadId {
+impl Display for ContainerdWorkloadId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.id.to_owned())
     }
 }
 
-impl FromStr for PodmanWorkloadId {
+impl FromStr for ContainerdWorkloadId {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(PodmanWorkloadId { id: s.to_string() })
+        Ok(ContainerdWorkloadId { id: s.to_string() })
     }
 }
 
 #[async_trait]
-// [impl->swdd~podman-implements-runtime-state-getter~1]
-impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
-    async fn get_state(&self, workload_id: &PodmanWorkloadId) -> ExecutionState {
+// [impl->swdd~containerd-implements-runtime-state-getter~1]
+impl RuntimeStateGetter<ContainerdWorkloadId> for ContainerdStateGetter {
+    async fn get_state(&self, workload_id: &ContainerdWorkloadId) -> ExecutionState {
         log::trace!("Getting the state for the workload '{}'", workload_id.id);
 
-        // [impl->swdd~podman-state-getter-returns-unknown-state~1]
-        // [impl->swdd~podman-state-getter-uses-podmancli~1]
-        // [impl->swdd~podman-state-getter-returns-lost-state~1]
-        let exec_state = match PodmanCli::list_states_by_id(workload_id.id.as_str()).await {
+        // [impl->swdd~containerd-state-getter-returns-unknown-state~1]
+        // [impl->swdd~containerd-state-getter-uses-nerdctlcli~1]
+        // [impl->swdd~containerd-state-getter-returns-lost-state~1]
+        let exec_state = match NerdctlCli::list_states_by_id(workload_id.id.as_str()).await {
             Ok(state) => {
                 if let Some(state) = state {
                     state
@@ -89,7 +89,7 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
                     workload_id.id,
                     err
                 );
-                ExecutionState::unknown("Error getting state from Podman.")
+                ExecutionState::unknown("Error getting state from Nerdctl.")
             }
         };
 
@@ -102,7 +102,7 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
     }
 }
 
-impl PodmanRuntime {
+impl ContainerdRuntime {
     async fn sample_workload_states(
         &self,
         workload_instance_names: &Vec<WorkloadInstanceName>,
@@ -110,7 +110,7 @@ impl PodmanRuntime {
         let mut workload_states = Vec::<ReusableWorkloadState>::default();
         for instance_name in workload_instance_names {
             let workload_id = &self.get_workload_id(instance_name).await?.id;
-            match PodmanCli::list_states_by_id(workload_id).await {
+            match NerdctlCli::list_states_by_id(workload_id).await {
                 Ok(Some(execution_state)) => workload_states.push(ReusableWorkloadState::new(
                     instance_name.clone(),
                     execution_state,
@@ -129,19 +129,19 @@ impl PodmanRuntime {
 }
 
 #[async_trait]
-// [impl->swdd~podman-implements-runtime-connector~1]
-impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
-    // [impl->swdd~podman-name-returns-podman~1]
+// [impl->swdd~containerd-implements-runtime-connector~1]
+impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for ContainerdRuntime {
+    // [impl->swdd~containerd-name-returns-containerd~1]
     fn name(&self) -> String {
-        PODMAN_RUNTIME_NAME.to_string()
+        CONTAINERD_RUNTIME_NAME.to_string()
     }
 
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
-        // [impl->swdd~podman-list-of-existing-workloads-uses-labels~1]
-        let res = PodmanCli::list_workload_names_by_label("agent", agent_name.get())
+        // [impl->swdd~containerd-list-of-existing-workloads-uses-labels~1]
+        let res = NerdctlCli::list_workload_names_by_label("agent", agent_name.get())
             .await
             .map_err(|err| RuntimeError::List(err.to_string()))?;
 
@@ -155,30 +155,30 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         self.sample_workload_states(&workload_instance_names).await
     }
 
-    // [impl->swdd~podman-create-workload-runs-workload~2]
-    // [impl->swdd~podman-create-workload-starts-existing-workload~1]
+    // [impl->swdd~containerd-create-workload-runs-workload~1]
+    // [impl->swdd~containerd-create-workload-starts-existing-workload~1]
     async fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
-        reusable_workload_id: Option<PodmanWorkloadId>,
+        reusable_workload_id: Option<ContainerdWorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
-    ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
+    ) -> Result<(ContainerdWorkloadId, GenericPollingStateChecker), RuntimeError> {
         let workload_cfg =
-            PodmanRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Unsupported)?;
+            ContainerdRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Unsupported)?;
 
         let cli_result = match reusable_workload_id {
             Some(workload_id) => {
-                let start_config = PodmanStartConfig {
+                let start_config = NerdctlStartConfig {
                     general_options: workload_cfg.general_options,
                     container_id: workload_id.id,
                 };
-                PodmanCli::podman_start(start_config, &workload_spec.instance_name.to_string())
+                NerdctlCli::nerdctl_start(start_config, &workload_spec.instance_name.to_string())
                     .await
             }
             None => {
-                PodmanCli::podman_run(
+                NerdctlCli::nerdctl_run(
                     workload_cfg.into(),
                     &workload_spec.instance_name.to_string(),
                     workload_spec.instance_name.agent_name(),
@@ -197,18 +197,18 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
                     workload_id
                 );
 
-                let podman_workload_id = PodmanWorkloadId { id: workload_id };
+                let nerdctl_workload_id = ContainerdWorkloadId { id: workload_id };
                 let state_checker = self
-                    .start_checker(&podman_workload_id, workload_spec, update_state_tx)
+                    .start_checker(&nerdctl_workload_id, workload_spec, update_state_tx)
                     .await?;
 
-                // [impl->swdd~podman-create-workload-returns-workload-id~1]
-                Ok((podman_workload_id, state_checker))
+                // [impl->swdd~containerd-create-workload-returns-workload-id~1]
+                Ok((nerdctl_workload_id, state_checker))
             }
             Err(err) => {
-                // [impl->swdd~podman-create-workload-deletes-failed-container~1]
+                // [impl->swdd~containerd-create-workload-deletes-failed-container~1]
                 log::debug!("Creating/starting container failed, cleaning up. Error: '{err}'");
-                match PodmanCli::remove_workloads_by_id(&workload_spec.instance_name.to_string())
+                match NerdctlCli::remove_workloads_by_id(&workload_spec.instance_name.to_string())
                     .await
                 {
                     Ok(()) => log::debug!("The broken container has been deleted successfully"),
@@ -226,18 +226,19 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
     async fn get_workload_id(
         &self,
         instance_name: &WorkloadInstanceName,
-    ) -> Result<PodmanWorkloadId, RuntimeError> {
-        // [impl->swdd~podman-get-workload-id-uses-label~1]
+    ) -> Result<ContainerdWorkloadId, RuntimeError> {
+        // [impl->swdd~containerd-get-workload-id-uses-label~1]
         let res =
-            PodmanCli::list_container_ids_by_label("name", instance_name.to_string().as_str())
+            NerdctlCli::list_container_ids_by_label("name", instance_name.to_string().as_str())
                 .await
                 .map_err(|err| RuntimeError::List(err.to_string()))?;
 
         const LENGTH_FOR_VALID_ID: usize = 1;
+
         if LENGTH_FOR_VALID_ID == res.len() {
             let id = res.first().unwrap_or_unreachable();
             log::debug!("Found an id for workload '{instance_name}': '{id}'");
-            Ok(PodmanWorkloadId { id: id.to_string() })
+            Ok(ContainerdWorkloadId { id: id.to_string() })
         } else {
             log::warn!("get_workload_id returned unexpected number of workloads {res:?}");
             Err(RuntimeError::List(
@@ -246,15 +247,15 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         }
     }
 
-    // [impl->swdd~podman-start-checker-starts-podman-state-checker~1]
+    // [impl->swdd~containerd-start-checker-starts-containerd-state-checker~1]
     async fn start_checker(
         &self,
-        workload_id: &PodmanWorkloadId,
+        workload_id: &ContainerdWorkloadId,
         workload_spec: WorkloadSpec,
         update_state_tx: WorkloadStateSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
-        // [impl->swdd~podman-state-getter-reset-cache~1]
-        PodmanCli::reset_ps_cache().await;
+        // [impl->swdd~containerd-state-getter-reset-cache~1]
+        NerdctlCli::reset_ps_cache().await;
 
         log::debug!(
             "Starting the checker for the workload '{}' with internal id '{}'",
@@ -265,26 +266,29 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
             &workload_spec,
             workload_id.clone(),
             update_state_tx,
-            PodmanStateGetter {},
+            ContainerdStateGetter {},
         );
         Ok(checker)
     }
 
     fn get_log_fetcher(
         &self,
-        workload_id: PodmanWorkloadId,
+        workload_id: ContainerdWorkloadId,
         options: &LogRequestOptions,
     ) -> Result<Box<dyn LogFetcher + Send>, RuntimeError> {
-        let podman_log_fetcher =
-            super::podman_log_fetcher::PodmanLogFetcher::new(&workload_id, options);
-        let log_fetcher = GenericLogFetcher::new(podman_log_fetcher);
+        let nerdctl_log_fetcher =
+            super::containerd_log_fetcher::ContainerdLogFetcher::new(&workload_id, options);
+        let log_fetcher = GenericLogFetcher::new(nerdctl_log_fetcher);
         Ok(Box::new(log_fetcher))
     }
 
-    // [impl->swdd~podman-delete-workload-stops-and-removes-workload~1]
-    async fn delete_workload(&self, workload_id: &PodmanWorkloadId) -> Result<(), RuntimeError> {
+    // [impl->swdd~containerd-delete-workload-stops-and-removes-workload~1]
+    async fn delete_workload(
+        &self,
+        workload_id: &ContainerdWorkloadId,
+    ) -> Result<(), RuntimeError> {
         log::debug!("Deleting workload with id '{}'", workload_id.id);
-        PodmanCli::remove_workloads_by_id(&workload_id.id)
+        NerdctlCli::remove_workloads_by_id(&workload_id.id)
             .await
             .map_err(|err| RuntimeError::Delete(err.to_string()))
     }
@@ -309,9 +313,10 @@ mod tests {
     };
     use mockall::Sequence;
 
-    use super::PodmanCli;
-    use super::PodmanRuntime;
-    use super::{PODMAN_RUNTIME_NAME, PodmanStateGetter, PodmanWorkloadId};
+    use super::ContainerdRuntime;
+    use super::NerdctlCli;
+    use super::{CONTAINERD_RUNTIME_NAME, ContainerdStateGetter, ContainerdWorkloadId};
+    use crate::runtime_connectors::LogRequestOptions;
     use crate::runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
@@ -320,20 +325,20 @@ mod tests {
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
 
-    // [utest->swdd~podman-name-returns-podman~1]
+    // [utest->swdd~containerd-name-returns-containerd~1]
     #[test]
-    fn utest_name_podman() {
-        let podman_runtime = PodmanRuntime {};
-        assert_eq!(podman_runtime.name(), "podman".to_string());
+    fn utest_name_containerd() {
+        let containerd_runtime = ContainerdRuntime {};
+        assert_eq!(containerd_runtime.name(), "containerd".to_string());
     }
 
-    // [utest->swdd~podman-list-of-existing-workloads-uses-labels~1]
+    // [utest->swdd~containerd-list-of-existing-workloads-uses-labels~1]
     #[tokio::test]
     async fn utest_get_reusable_workloads_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let list_workload_names_by_label_context =
-            PodmanCli::list_workload_names_by_label_context();
+            NerdctlCli::list_workload_names_by_label_context();
         list_workload_names_by_label_context
             .expect()
             .return_const(Ok(vec![
@@ -342,24 +347,24 @@ mod tests {
                 "container2.hash.dummy_agent".to_string(),
             ]));
 
-        let list_container_ids_by_label_context = PodmanCli::list_container_ids_by_label_context();
+        let list_container_ids_by_label_context = NerdctlCli::list_container_ids_by_label_context();
         list_container_ids_by_label_context
             .expect()
             .return_const(Ok(vec!["container1.hash.dummy_agent".to_string()]));
 
-        let list_states_by_id_context = PodmanCli::list_states_by_id_context();
+        let list_states_by_id_context = NerdctlCli::list_states_by_id_context();
         list_states_by_id_context
             .expect()
             .return_const(Ok(Some(ExecutionState::initial())));
 
-        let list_states_by_id_context = PodmanCli::list_states_by_id_context();
+        let list_states_by_id_context = NerdctlCli::list_states_by_id_context();
         list_states_by_id_context
             .expect()
             .return_const(Ok(Some(ExecutionState::initial())));
 
-        let podman_runtime = PodmanRuntime {};
+        let containerd_runtime = ContainerdRuntime {};
         let agent_name = AgentName::from("dummy_agent");
-        let res = podman_runtime
+        let res = containerd_runtime
             .get_reusable_workloads(&agent_name)
             .await
             .unwrap();
@@ -379,12 +384,12 @@ mod tests {
     async fn utest_get_reusable_running_workloads_empty_list() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_workload_names_by_label_context();
+        let context = NerdctlCli::list_workload_names_by_label_context();
         context.expect().return_const(Ok(Vec::new()));
 
-        let podman_runtime = PodmanRuntime {};
+        let containerd_runtime = ContainerdRuntime {};
         let agent_name = AgentName::from("different_agent");
-        let res = podman_runtime
+        let res = containerd_runtime
             .get_reusable_workloads(&agent_name)
             .await
             .unwrap();
@@ -396,42 +401,42 @@ mod tests {
     async fn utest_get_reusable_running_workloads_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_workload_names_by_label_context();
+        let context = NerdctlCli::list_workload_names_by_label_context();
         context
             .expect()
             .return_const(Err("Simulated error".to_string()));
 
-        let podman_runtime = PodmanRuntime {};
+        let containerd_runtime = ContainerdRuntime {};
         let agent_name = AgentName::from("dummy_agent");
 
         assert_eq!(
-            podman_runtime.get_reusable_workloads(&agent_name).await,
+            containerd_runtime.get_reusable_workloads(&agent_name).await,
             Err(crate::runtime_connectors::RuntimeError::List(
                 "Simulated error".into()
             ))
         );
     }
 
-    // [utest->swdd~podman-create-workload-runs-workload~2]
+    // [utest->swdd~containerd-create-workload-runs-workload~1]
     #[tokio::test]
     async fn utest_create_workload_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let run_context = PodmanCli::podman_run_context();
+        let run_context = NerdctlCli::nerdctl_run_context();
         run_context.expect().return_const(Ok("test_id".into()));
 
-        let resest_cache_context = PodmanCli::reset_ps_cache_context();
+        let resest_cache_context = NerdctlCli::reset_ps_cache_context();
         resest_cache_context.expect().return_const(());
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
+            CONTAINERD_RUNTIME_NAME.to_string(),
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let podman_runtime = PodmanRuntime {};
-        let res = podman_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
                 None,
@@ -443,37 +448,37 @@ mod tests {
 
         let (workload_id, _checker) = res.unwrap();
 
-        // [utest->swdd~podman-create-workload-returns-workload-id~1]
+        // [utest->swdd~containerd-create-workload-returns-workload-id~1]
         assert_eq!(workload_id.id, "test_id".to_string());
     }
 
-    // [utest->swdd~podman-create-workload-starts-existing-workload~1]
+    // [utest->swdd~containerd-create-workload-starts-existing-workload~1]
     #[tokio::test]
     async fn utest_create_workload_with_existing_workload_id_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let reusable_workload_id = "test_id";
 
-        let start_context = PodmanCli::podman_start_context();
+        let start_context = NerdctlCli::nerdctl_start_context();
         start_context
             .expect()
             .returning(|start_config, _| Ok(start_config.container_id));
 
-        let resest_cache_context = PodmanCli::reset_ps_cache_context();
+        let resest_cache_context = NerdctlCli::reset_ps_cache_context();
         resest_cache_context.expect().return_const(());
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
+            CONTAINERD_RUNTIME_NAME.to_string(),
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let podman_runtime = PodmanRuntime {};
-        let res = podman_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
-                Some(PodmanWorkloadId::from_str(reusable_workload_id).unwrap()),
+                Some(ContainerdWorkloadId::from_str(reusable_workload_id).unwrap()),
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
                 Default::default(),
@@ -482,28 +487,28 @@ mod tests {
 
         let (workload_id, _checker) = res.unwrap();
 
-        // [utest->swdd~podman-create-workload-returns-workload-id~1]
+        // [utest->swdd~containerd-create-workload-returns-workload-id~1]
         assert_eq!(workload_id.id, reusable_workload_id);
     }
 
-    // [utest->swdd~podman-state-getter-reset-cache~1]
+    // [utest->swdd~containerd-state-getter-reset-cache~1]
     #[tokio::test]
     async fn utest_state_getter_resets_cache() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let run_context = PodmanCli::podman_run_context();
+        let run_context = NerdctlCli::nerdctl_run_context();
         run_context.expect().return_const(Ok("test_id".into()));
 
         let mut seq = Sequence::new();
 
-        let resest_cache_context = PodmanCli::reset_ps_cache_context();
+        let resest_cache_context = NerdctlCli::reset_ps_cache_context();
         resest_cache_context
             .expect()
             .once()
             .return_const(())
             .in_sequence(&mut seq);
 
-        let list_states_context = PodmanCli::list_states_by_id_context();
+        let list_states_context = NerdctlCli::list_states_by_id_context();
         list_states_context
             .expect()
             .once()
@@ -513,12 +518,12 @@ mod tests {
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
+            CONTAINERD_RUNTIME_NAME.to_string(),
         );
         let (state_change_tx, mut state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let podman_runtime = PodmanRuntime {};
-        let res = podman_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
                 None,
@@ -533,19 +538,19 @@ mod tests {
         state_change_rx.recv().await;
     }
 
-    // [utest->swdd~podman-state-getter-uses-podmancli~1]
+    // [utest->swdd~containerd-state-getter-uses-nerdctlcli~1]
     #[tokio::test]
-    async fn utest_state_getter_uses_podman_cli() {
+    async fn utest_state_getter_uses_nerdctl_cli() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let list_states_context = PodmanCli::list_states_by_id_context();
+        let list_states_context = NerdctlCli::list_states_by_id_context();
         list_states_context
             .expect()
             .return_const(Ok(Some(ExecutionState::running())));
 
-        let state_getter = PodmanStateGetter {};
+        let state_getter = ContainerdStateGetter {};
         let execution_state = state_getter
-            .get_state(&PodmanWorkloadId {
+            .get_state(&ContainerdWorkloadId {
                 id: "test_workload_id".into(),
             })
             .await;
@@ -553,29 +558,29 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::running());
     }
 
-    // [utest->swdd~podman-create-workload-deletes-failed-container~1]
+    // [utest->swdd~containerd-create-workload-deletes-failed-container~1]
     #[tokio::test]
     async fn utest_create_workload_run_failed_cleanup_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let run_context = PodmanCli::podman_run_context();
+        let run_context = NerdctlCli::nerdctl_run_context();
         run_context
             .expect()
-            .return_const(Err("podman run failed".into()));
+            .return_const(Err("nerdctl run failed".into()));
 
         // Workload creation fails, but deleting the broken container succeeded
-        let delete_context = PodmanCli::remove_workloads_by_id_context();
+        let delete_context = NerdctlCli::remove_workloads_by_id_context();
         delete_context.expect().return_const(Ok(()));
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
+            CONTAINERD_RUNTIME_NAME.to_string(),
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let podman_runtime = PodmanRuntime {};
-        let res = podman_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
                 None,
@@ -585,20 +590,21 @@ mod tests {
             )
             .await;
 
-        assert!(res.is_err_and(|x| { x == RuntimeError::Create("podman run failed".into()) }))
+        assert!(res.is_err_and(|x| { x == RuntimeError::Create("nerdctl run failed".into()) }))
     }
 
+    // [utest->swdd~containerd-create-workload-deletes-failed-container~1]
     #[tokio::test]
     async fn utest_create_workload_run_failed_cleanup_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let run_context = PodmanCli::podman_run_context();
+        let run_context = NerdctlCli::nerdctl_run_context();
         run_context
             .expect()
-            .return_const(Err("podman run failed".into()));
+            .return_const(Err("nerdctl run failed".into()));
 
         // Workload creation fails, deleting the broken container failed
-        let delete_context = PodmanCli::remove_workloads_by_id_context();
+        let delete_context = NerdctlCli::remove_workloads_by_id_context();
         delete_context
             .expect()
             .return_const(Err("simulated error".into()));
@@ -606,12 +612,12 @@ mod tests {
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
+            CONTAINERD_RUNTIME_NAME.to_string(),
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let podman_runtime = PodmanRuntime {};
-        let res = podman_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
                 None,
@@ -621,7 +627,7 @@ mod tests {
             )
             .await;
 
-        assert!(res.is_err_and(|x| { x == RuntimeError::Create("podman run failed".into()) }))
+        assert!(res.is_err_and(|x| { x == RuntimeError::Create("nerdctl run failed".into()) }))
     }
 
     #[tokio::test]
@@ -631,14 +637,14 @@ mod tests {
         let mut workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
+            CONTAINERD_RUNTIME_NAME.to_string(),
         );
         workload_spec.runtime_config = "broken runtime config".to_string();
 
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
-        let podman_runtime = PodmanRuntime {};
-        let res = podman_runtime
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime
             .create_workload(
                 workload_spec,
                 None,
@@ -651,24 +657,24 @@ mod tests {
         assert!(res.is_err());
     }
 
-    // [utest->swdd~podman-get-workload-id-uses-label~1]
+    // [utest->swdd~containerd-get-workload-id-uses-label~1]
     #[tokio::test]
     async fn utest_get_workload_id_workload_found() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_container_ids_by_label_context();
+        let context = NerdctlCli::list_container_ids_by_label_context();
         context
             .expect()
             .return_const(Ok(vec!["test_workload_id".to_string()]));
 
         let workload_name = "container1.hash.dummy_agent".try_into().unwrap();
 
-        let podman_runtime = PodmanRuntime {};
-        let res = podman_runtime.get_workload_id(&workload_name).await;
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.get_workload_id(&workload_name).await;
 
         assert_eq!(
             res,
-            Ok(PodmanWorkloadId {
+            Ok(ContainerdWorkloadId {
                 id: "test_workload_id".into()
             })
         )
@@ -678,13 +684,13 @@ mod tests {
     async fn utest_get_workload_id_no_workload_found() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_container_ids_by_label_context();
+        let context = NerdctlCli::list_container_ids_by_label_context();
         context.expect().return_const(Ok(Vec::new()));
 
         let workload_name = "container1.hash.dummy_agent".try_into().unwrap();
 
-        let podman_runtime = PodmanRuntime {};
-        let res = podman_runtime.get_workload_id(&workload_name).await;
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.get_workload_id(&workload_name).await;
 
         assert_eq!(
             res,
@@ -698,100 +704,121 @@ mod tests {
     async fn utest_get_workload_id_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_container_ids_by_label_context();
+        let context = NerdctlCli::list_container_ids_by_label_context();
         context.expect().return_const(Err("simulated error".into()));
 
         let workload_name = "container1.hash.dummy_agent".try_into().unwrap();
 
-        let podman_runtime = PodmanRuntime {};
-        let res = podman_runtime.get_workload_id(&workload_name).await;
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.get_workload_id(&workload_name).await;
 
         assert_eq!(res, Err(RuntimeError::List("simulated error".to_owned())))
     }
 
-    // [utest->podman-state-getter-uses-podmancli~1]
+    // [utest->nerdctl-state-getter-uses-nerdctlcli~1]
     #[tokio::test]
     async fn utest_get_state_returns_state() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_states_by_id_context();
+        let context = NerdctlCli::list_states_by_id_context();
         context
             .expect()
             .return_const(Ok(Some(ExecutionState::running())));
 
-        let workload_id = PodmanWorkloadId {
+        let workload_id = ContainerdWorkloadId {
             id: "test_id".into(),
         };
-        let checker = PodmanStateGetter {};
+        let checker = ContainerdStateGetter {};
         let res = checker.get_state(&workload_id).await;
         assert_eq!(res, ExecutionState::running());
     }
 
-    // [utest->swdd~podman-state-getter-returns-lost-state~1]
+    // [utest->swdd~containerd-state-getter-returns-lost-state~1]
     #[tokio::test]
     async fn utest_get_state_returns_lost_on_missing_state() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_states_by_id_context();
+        let context = NerdctlCli::list_states_by_id_context();
         context.expect().return_const(Ok(None));
 
-        let workload_id = PodmanWorkloadId {
+        let workload_id = ContainerdWorkloadId {
             id: "test_id".into(),
         };
-        let checker = PodmanStateGetter {};
+        let checker = ContainerdStateGetter {};
         let res = checker.get_state(&workload_id).await;
         assert_eq!(res, ExecutionState::lost())
     }
 
-    // [utest->swdd~podman-state-getter-returns-unknown-state~1]
+    // [utest->swdd~containerd-state-getter-returns-unknown-state~1]
     #[tokio::test]
     async fn utest_get_state_returns_error() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_states_by_id_context();
+        let context = NerdctlCli::list_states_by_id_context();
         context.expect().return_const(Err("simulated error".into()));
 
-        let workload_id = PodmanWorkloadId {
+        let workload_id = ContainerdWorkloadId {
             id: "test_id".into(),
         };
-        let checker = PodmanStateGetter {};
+        let checker = ContainerdStateGetter {};
         let res = checker.get_state(&workload_id).await;
         assert_eq!(
             res,
-            ExecutionState::unknown("Error getting state from Podman.")
+            ExecutionState::unknown("Error getting state from Nerdctl.")
         );
     }
 
-    // [utest->swdd~podman-delete-workload-stops-and-removes-workload~1]
+    // [utest->swdd~containerd-delete-workload-stops-and-removes-workload~1]
     #[tokio::test]
     async fn utest_delete_workload_succeeds() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::remove_workloads_by_id_context();
+        let context = NerdctlCli::remove_workloads_by_id_context();
         context.expect().return_const(Ok(()));
 
-        let workload_id = PodmanWorkloadId {
+        let workload_id = ContainerdWorkloadId {
             id: "test_id".into(),
         };
 
-        let podman_runtime = PodmanRuntime {};
-        let res = podman_runtime.delete_workload(&workload_id).await;
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.delete_workload(&workload_id).await;
         assert_eq!(res, Ok(()));
     }
 
+    // [utest->swdd~containerd-delete-workload-stops-and-removes-workload~1]
     #[tokio::test]
     async fn utest_delete_workload_fails() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::remove_workloads_by_id_context();
+        let context = NerdctlCli::remove_workloads_by_id_context();
         context.expect().return_const(Err("simulated error".into()));
 
-        let workload_id = PodmanWorkloadId {
+        let workload_id = ContainerdWorkloadId {
             id: "test_id".into(),
         };
 
-        let podman_runtime = PodmanRuntime {};
-        let res = podman_runtime.delete_workload(&workload_id).await;
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.delete_workload(&workload_id).await;
         assert_eq!(res, Err(RuntimeError::Delete("simulated error".into())));
+    }
+
+    #[tokio::test]
+    async fn utest_get_log_fetcher() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let workload_id = ContainerdWorkloadId {
+            id: "test_id".into(),
+        };
+
+        let log_request = LogRequestOptions {
+            follow: false,
+            since: None,
+            until: None,
+            tail: None,
+        };
+
+        let containerd_runtime = ContainerdRuntime {};
+        let res = containerd_runtime.get_log_fetcher(workload_id, &log_request);
+        assert!(res.is_ok());
     }
 }
