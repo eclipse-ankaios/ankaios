@@ -215,8 +215,12 @@ def get_volume_name_by_workload_name_from_podman(workload_name: str) -> str:
 
 
 def get_container_id_and_name_by_workload_name_from_runtime(runtime_cli: str, workload_name: str) -> tuple[str, str]:
-    res = run_command('{} ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}{}{}.*'\
-                      .format(runtime_cli, CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX))
+    command_str = '{} ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}{}{}.*'\
+                  .format(runtime_cli, CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX)
+    res = run_command(command_str)
+    if res.returncode != 0:
+        logger.warning(f"Command '{runtime_cli} ps' failed with return code {res.returncode}. Error: '{res.stderr.strip()}' Retrying operation... ")
+        res = run_command(command_str)
     assert res.returncode == 0, f"Command '{runtime_cli} ps' failed with return code {res.returncode}. Error: {res.stderr.strip()}"
     raw = res.stdout.strip()
     raw_wln = raw.split('\n')
