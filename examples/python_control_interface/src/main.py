@@ -70,7 +70,7 @@ PROTO_UPDATE_STATE_REQUEST = control_api.ToAnkaios(
     )
 )
 
-PROTO_COMPLETE_STATE_REQUEST = control_api.ToAnkaios(
+PROTO_WORKLOAD_STATE_REQUEST = control_api.ToAnkaios(
     request=ank_base.Request(
         completeStateRequest=ank_base.CompleteStateRequest(
             fieldMask=["workloadStates.agent_A.dynamic_nginx"]
@@ -138,6 +138,7 @@ if __name__ == '__main__':
     input_file = open(f"{ANKAIOS_CONTROL_INTERFACE_BASE_PATH}/input", "rb")
     response = read_from_control_interface(input_file)
     assert response.HasField("controlInterfaceAccepted"), "Response should have been ControlInterfaceAccepted"
+    logger.info(f"Receiving answer to the initial Hello:\n{response}" )
 
     logger.info("Requesting to add the dynamic_nginx workload...")
     write_to_control_interface(output_file, PROTO_UPDATE_STATE_REQUEST)
@@ -145,19 +146,16 @@ if __name__ == '__main__':
     assert response.HasField("response"), "Response should contain a response field"
     assert response.response.HasField("UpdateStateSuccess"), "Response should be of type UpdateStateSuccess"
     assert response.response.requestId == UPDATE_STATE_REQUEST_ID, f"Response requestId should be {UPDATE_STATE_REQUEST_ID}"
-    added_workloads = response.response.UpdateStateSuccess.addedWorkloads
-    deleted_workloads = response.response.UpdateStateSuccess.deletedWorkloads
-    logger.info("Received Response for the UpdateStateRequest:\n"
-                f"added workloads: {added_workloads}, deleted workloads: {deleted_workloads}")
+    logger.info(f"Received response for the UpdateStateRequest:\n{response}")
 
     while not output_file.closed and not input_file.closed:
-        logger.info("Requesting complete state of the dynamic_nginx workload...")
-        write_to_control_interface(output_file, PROTO_COMPLETE_STATE_REQUEST)
+        logger.info("Requesting workload state of the dynamic_nginx workload...")
+        write_to_control_interface(output_file, PROTO_WORKLOAD_STATE_REQUEST)
         response = read_from_control_interface(input_file)
         assert response.HasField("response"), "Response should contain a response field"
         assert response.response.HasField("completeState"), "Response should be of type CompleteState"
         assert response.response.requestId == COMPLETE_STATE_REQUEST_ID, f"Response requestId should be {COMPLETE_STATE_REQUEST_ID}"
-        logger.info(f"Received Response for the CompleteStateRequest: \n{response.response.completeState}")
+        logger.info(f"Receiving response for the CompleteStateRequest with filter 'workloadStates.agent_A.dynamic_nginx':\n{response}")
         time.sleep(WAITING_TIME_IN_SEC)
 
     # CLose the file handles

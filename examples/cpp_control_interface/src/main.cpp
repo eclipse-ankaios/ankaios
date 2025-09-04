@@ -109,7 +109,7 @@ control_api::ToAnkaios CreateRequestToAddNewWorkload() {
     return to_ankaios;
 }
 
-control_api::ToAnkaios CreateRequestForCompleteState() {
+control_api::ToAnkaios CreateRequestForWorkloadState() {
     /* Return request for getting the complete state */
     ank_base::CompleteStateRequest* complete_state_request{new ank_base::CompleteStateRequest};
     complete_state_request->add_fieldmask("workloadStates.agent_A.dynamic_nginx");
@@ -179,6 +179,8 @@ int main() {
     auto response = ReadFromControlInterface(&buffered_stream);
     assert(response);
     assert(response->has_controlinterfaceaccepted());
+    logging::Log(std::cout, "Receiving answer to the initial Hello:\n",
+        response->DebugString());
 
     // Send the request to add the dynamic_nginx workload
     const auto request_to_add_workload = CreateRequestToAddNewWorkload();
@@ -188,21 +190,20 @@ int main() {
     assert(response);
     assert(response->has_response());
     assert(response->response().has_updatestatesuccess());
-    auto added_workloads = join(response->response().updatestatesuccess().addedworkloads());
-    auto deleted_workloads = join(response->response().updatestatesuccess().deletedworkloads());
-    logging::Log(std::cout, "Receiving Response for the UpdateStateRequest:\nadded workloads: ", added_workloads, "\ndeleted workloads: ", deleted_workloads);
+    logging::Log(std::cout, "Receiving response for the UpdateStateRequest:\n",
+        response->DebugString());
 
     while (input_stream.is_open() && output_stream.is_open()) {
         // Send the request for the complete state
-        const auto request_for_complete_state = CreateRequestForCompleteState();
-        logging::Log(std::cout, "Requesting complete state of the dynamic_nginx workload...");
+        const auto request_for_complete_state = CreateRequestForWorkloadState();
+        logging::Log(std::cout, "Requesting workload state of the dynamic_nginx workload...");
         WriteToControlInterface(output_stream, request_for_complete_state);
         response = ReadFromControlInterface(&buffered_stream);
         assert(response);
         assert(response->has_response());
         assert(response->response().has_completestate());
         logging::Log(std::cout,
-            "Receiving Response for the CompleteStateRequest:\n",
+            "Receiving response for the CompleteStateRequest with filter 'workloadStates.agent_A.dynamic_nginx':\n",
             response->DebugString()
         );
         std::this_thread::sleep_for(std::chrono::seconds(WAITING_TIME_IN_SEC));

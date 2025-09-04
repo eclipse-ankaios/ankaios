@@ -27,7 +27,7 @@ use std::{
     fs::File,
     io,
     io::{Read, Write},
-    path::{Path, PathBuf},
+    path::Path,
     process::exit,
     time::Duration,
 };
@@ -35,7 +35,6 @@ use std::{
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 const MAX_VARINT_SIZE: usize = 19;
 const WAITING_TIME_IN_SEC: u64 = 5;
-const TIMEOUT_IN_SEC: u64 = 1;
 const UPDATE_STATE_REQUEST_ID: &str = "RWNsaXBzZSBBbmthaW9z";
 const COMPLETE_STATE_REQUEST_ID: &str = "QW5rYWlvcyBpcyB0aGUgYmVzdA==";
 const PROTOCOL_VERSION: &str = env!("ANKAIOS_VERSION");
@@ -106,7 +105,7 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
     }
 }
 
-fn create_request_for_complete_state() -> ToAnkaios {
+fn create_request_for_workload_state() -> ToAnkaios {
     /* Return request for getting the complete state */
     ToAnkaios {
         to_ankaios_enum: Some(ToAnkaiosEnum::Request(Request {
@@ -162,71 +161,6 @@ fn read_from_control_interface(pipe_handle: &mut File) -> Result<FromAnkaios, ()
     }
 }
 
-// fn handle_response(
-//     from_ankaios: FromAnkaios,
-//     connected: std::sync::Arc<std::sync::Mutex<bool>>,
-//     connection_closed: std::sync::Arc<std::sync::Mutex<bool>>,
-// ) {
-//     // Check if the connection has been established or not
-//     if !*connected.lock().unwrap() {
-//         match &from_ankaios.from_ankaios_enum {
-//             Some(FromAnkaiosEnum::ControlInterfaceAccepted(_)) => {
-//                 logging::log("Received Control interface accepted response.");
-//                 *connected.lock().unwrap() = true;
-//             }
-//             Some(FromAnkaiosEnum::ConnectionClosed(_)) => {
-//                 logging::log("Received Connection Closed response. Exiting..");
-//                 *connection_closed.lock().unwrap() = true;
-//             }
-//             _ => {
-//                 logging::log(
-//                     "Received unexpected response before connection established. Skipping.",
-//                 );
-//             }
-//         }
-//     }
-//     // If the connection is established, handle the response accordingly
-//     else {
-//         match &from_ankaios.from_ankaios_enum {
-//             Some(FromAnkaiosEnum::Response(response)) => {
-//                 let request_id: &String = &response.request_id;
-//                 if request_id == UPDATE_STATE_REQUEST_ID {
-//                     if let ResponseContent::UpdateStateSuccess(update_state_success) =
-//                         response.response_content.clone().unwrap()
-//                     {
-//                         let added_workloads = &update_state_success.added_workloads.clone();
-//                         let deleted_workloads = &update_state_success.deleted_workloads.clone();
-//                         logging::log(&format!(
-//                             "Receiving Response for the UpdateStateRequest:\nadded workloads: {:#?}, deleted workloads: {:#?}",
-//                             added_workloads, deleted_workloads
-//                         ));
-//                     } else {
-//                         logging::log("Received UpdateStateRequest response, but no content found.");
-//                     }
-//                 } else if request_id == COMPLETE_STATE_REQUEST_ID {
-//                     logging::log(&format!(
-//                         "Receiving Response for the CompleteStateRequest:\n{:#?}",
-//                         from_ankaios
-//                     ));
-//                 } else {
-//                     logging::log(&format!(
-//                         "RequestId does not match. Skipping messages from requestId: {}",
-//                         request_id
-//                     ));
-//                 }
-//             }
-//             Some(FromAnkaiosEnum::ConnectionClosed(_)) => {
-//                 logging::log("Received Connection Closed response. Exiting..");
-//                 *connection_closed.lock().unwrap() = true;
-//                 *connected.lock().unwrap() = false;
-//             }
-//             _ => {
-//                 logging::log("Received unknown message type. Skipping message.");
-//             }
-//         }
-//     }
-// }
-
 fn write_to_control_interface(file_handle: &mut File, message: ToAnkaios) {
     let encoded_message = message.encode_length_delimited_to_vec();
     file_handle
@@ -275,9 +209,14 @@ fn main() {
     // Read the response for the hello message
     let response = read_from_control_interface(&mut input_file);
     assert!(response.is_ok());
-    assert!(matches!(
-        response.unwrap().from_ankaios_enum,
-        Some(FromAnkaiosEnum::ControlInterfaceAccepted(_))
+    let Some(FromAnkaiosEnum::ControlInterfaceAccepted(response)) =
+        response.unwrap().from_ankaios_enum
+    else {
+        panic!("No ControlInterfaceAccepted received.")
+    };
+    logging::log(&format!(
+        "Receiving answer to the initial Hello:\n{:#?}",
+        response
     ));
 
     logging::log("Requesting to add the dynamic_nginx workload...");
@@ -286,31 +225,42 @@ fn main() {
 
     let response = read_from_control_interface(&mut input_file);
     assert!(response.is_ok());
-    assert!(matches!(
-        response.unwrap().from_ankaios_enum,
-        Some(FromAnkaiosEnum::Response(_))
+    let Some(FromAnkaiosEnum::Response(response)) = response.unwrap().from_ankaios_enum else {
+        panic!("No response received.")
+    };
+    assert!(
+        matches!(
+            response.response_content,
+            Some(ResponseContent::UpdateStateSuccess(_))
+        ),
+        "No UpdateStateSuccess received"
+    );
+    logging::log(&format!(
+        "Receiving response for the UpdateStateRequest:\n{:#?}",
+        response
     ));
-    // TODO: assert it has UpdateStateSuccess field and correct request ID
-
-    // TODO add print for added and deleted workloads (example in handle_response function)
 
     loop {
-        logging::log("Requesting complete state of the dynamic_nginx workload...");
-        let complete_state_request = create_request_for_complete_state();
+        logging::log("Requesting workload state of the dynamic_nginx workload...");
+        let complete_state_request = create_request_for_workload_state();
         write_to_control_interface(&mut output_file, complete_state_request);
 
         let response = read_from_control_interface(&mut input_file);
         assert!(response.is_ok());
-        assert!(matches!(
-            response.unwrap().from_ankaios_enum,
-            Some(FromAnkaiosEnum::Response(_))
-        ));
-        // TODO: assert it has CompleteState field and correct request ID
+        let Some(FromAnkaiosEnum::Response(response)) = response.unwrap().from_ankaios_enum else {
+            panic!("No response received.")
+        };
+        assert!(
+            matches!(
+                response.response_content,
+                Some(ResponseContent::CompleteState(_))
+            ),
+            "No CompleteState received"
+        );
         logging::log(&format!(
-            "Receiving Response for the CompleteStateRequest:\n{:#?}",
-            response.clone().unwrap()
+            "Receiving response for the CompleteStateRequest with filter 'workloadStates.agent_A.dynamic_nginx':\n{:#?}",
+            response
         ));
-
         std::thread::sleep(Duration::from_secs(WAITING_TIME_IN_SEC));
     }
 }

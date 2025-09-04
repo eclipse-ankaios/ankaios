@@ -97,7 +97,7 @@ function createRequestToAddNewWorkload(api_proto) {
 }
 
 
-function createRequestForCompleteState(api_proto) {
+function createRequestForWorkloadState(api_proto) {
     /* Return request for getting the complete state */
     to_ankaios = api_proto.lookupType("control_api.ToAnkaios");
     let payload = {
@@ -204,6 +204,7 @@ async function main() {
             logError(`Connection to Ankaios not established.`);
             process.exit(1);
         }
+        logInfo('Receiving answer to the initial Hello:\n' + JSON.stringify(response.toJSON(), null, 2));
 
         logInfo(`Requesting to add the dynamic_nginx workload...`);
         const update_workload_request = createRequestToAddNewWorkload(api_proto);
@@ -212,19 +213,17 @@ async function main() {
         assert(response.response, 'Response should contain a response field');
         assert(response.response.UpdateStateSuccess, 'Response should be of type UpdateStateSuccess');
         assert(response.response.requestId === UPDATE_STATE_REQUEST_ID, `Response requestId should be ${UPDATE_STATE_REQUEST_ID}`);
-        let added_workloads = response.response.UpdateStateSuccess.addedWorkloads.join(', ');
-        let deleted_workloads = response.response.UpdateStateSuccess.deletedWorkloads.join(', ');
-        logInfo('Receiving Response for the UpdateStateRequest:\nadded workloads: ' + added_workloads + '\ndeleted workloads: ' + deleted_workloads);
+        logInfo('Receiving response for the UpdateStateRequest:\n' + JSON.stringify(response.toJSON(), null, 2));
 
         const sendRequestForCompleteState = async () => {
-            logInfo(`Requesting complete state of the dynamic_nginx workload...`);
-            const complete_state_request = createRequestForCompleteState(api_proto);
+            logInfo(`Requesting workload state of the dynamic_nginx workload...`);
+            const complete_state_request = createRequestForWorkloadState(api_proto);
             writeToControlInterface(api_proto, output_fifo_path, complete_state_request);
             response = await readFromControlInterface(input_fifo_path, api_proto, { timeout_sec: TIMEOUT_IN_SEC });
             assert(response.response, 'Response should contain a response field');
             assert(response.response.completeState, 'Response should be of type CompleteState');
             assert(response.response.requestId === COMPLETE_STATE_REQUEST_ID, `Response requestId should be ${COMPLETE_STATE_REQUEST_ID}`);
-            logInfo(`Receiving Response for the CompleteStateRequest:\n` + util.inspect(response.toJSON(), { depth: null }));
+            logInfo(`Receiving response for the CompleteStateRequest with filter 'workloadStates.agent_A.dynamic_nginx':\n` + JSON.stringify(response.toJSON(), null, 2));
         }
 
         setInterval(sendRequestForCompleteState, WAITING_TIME_IN_SEC * 1000);
