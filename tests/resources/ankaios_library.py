@@ -54,10 +54,12 @@ if FORCE_TRACE:
 def run_command(command: str, timeout: float=3):
     try:
         return subprocess.run(command, timeout=timeout, shell=True, executable=EXECUTABLE, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Command '{command}' failed with return code {e.returncode}. Error: {e.stderr.strip()}")
+        return e
     except Exception as e:
         logger.error(f"{e}")
         return None
-
 
 def table_to_list(raw: str) -> list:
     raw = raw.strip()
@@ -156,6 +158,14 @@ def json_to_dict(raw: str) -> dict:
     json_data = json.loads(raw)
     return json_data
 
+def convert_runtime_name_to_cli_process_name(container_engine_name: str) -> str:
+    """Converts the containerd container engine name to the internally used nerdctl name.
+    """
+    container_engine_name = container_engine_name.lower()
+    if container_engine_name == "containerd":
+        return "nerdctl"
+    else:
+        return container_engine_name
 
 ###############################################################################
 ## Ankaios utils
@@ -178,8 +188,8 @@ def remove_hash_from_workload_name(wn_hash_an_string: str) -> str:
     return items[0]
 
 
-def get_workload_names_from_podman() -> list:
-    res = run_command('podman ps -a --format "{{.Names}}"')
+def get_workload_names_from_runtime(runtime_cli: str) -> list:
+    res = run_command(f'{runtime_cli} ps --all --format "{{{{.Names}}}}"')
     raw = res.stdout.strip()
     raw_wln = raw.split('\n')
     workload_names = list(map(remove_hash_from_workload_name, raw_wln))
@@ -204,9 +214,10 @@ def get_volume_name_by_workload_name_from_podman(workload_name: str) -> str:
     return volume_name
 
 
-def get_container_id_and_name_by_workload_name_from_podman(workload_name: str) -> tuple[str, str]:
-    res = run_command('podman ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}{}{}.*'\
-                      .format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX))
+def get_container_id_and_name_by_workload_name_from_runtime(runtime_cli: str, workload_name: str) -> tuple[str, str]:
+    res = run_command('{} ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}{}{}.*'\
+                      .format(runtime_cli, CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX))
+    assert res.returncode == 0, f"Command '{runtime_cli} ps' failed with return code {res.returncode}. Error: {res.stderr.strip()}"
     raw = res.stdout.strip()
     raw_wln = raw.split('\n')
     container_ids_and_names = list(map(lambda x: x.split(' '), raw_wln)) # 2-dim [[id,name],[id,name],...]
@@ -230,8 +241,8 @@ def get_container_id_and_name_by_workload_name_from_podman(workload_name: str) -
     return container_id, container_name
 
 
-def get_workload_instance_name_by_workload_name_from_podman(workload_name: str) -> str:
-    return get_container_id_and_name_by_workload_name_from_podman(workload_name)[1]
+def get_workload_instance_name_by_workload_name_from_podman(runtime_cli: str, workload_name: str) -> str:
+    return get_container_id_and_name_by_workload_name_from_runtime(runtime_cli, workload_name)[1]
 
 
 def get_pod_id_by_pod_name_from_podman(pod_name: str) -> str:
@@ -264,6 +275,7 @@ def wait_for_initial_execution_state(command: str, agent_name: str, timeout: flo
             logger.trace(run_command("ps aux | grep ank").stdout)
             logger.trace(run_command("podman ps -a").stdout)
             res = run_command(command)
+            logger.trace(res)
             table = table_to_list(res.stdout if res else "")
             logger.trace(table)
         return list()

@@ -1,7 +1,7 @@
 desiredState:
   apiVersion: v0.1
   workloads:
-    workload_with_mounted_text_file:
+    podman_workload_with_mounted_text_file:
       agent: agent_A
       tags: []
       dependencies: {}
@@ -15,7 +15,7 @@ desiredState:
       files:
       - mountPoint: /etc/nginx/nginx.conf
         data: '{{nginx_conf}}'
-    workload_with_mounted_binary_file:
+    podman_workload_with_mounted_binary_file:
       agent: agent_A
       tags: []
       dependencies: {}
