@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Elektrobit Automotive GmbH
+# Copyright (c) 2025 Elektrobit Automotive GmbH
 #
 # This program and the accompanying materials are made available under the
 # terms of the Apache License, Version 2.0 which is available at
@@ -28,40 +28,42 @@ ${new_state_yaml_file}          ${EMPTY}
 
 *** Test Cases ***
 # [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
-Test Ankaios restarts workloads with restart policy ALWAYS.
+Test Ankaios containerd restarts workloads with restart policy ALWAYS.
     [Documentation]    Restart workloads with restart policy set to ALWAYS and
     ...                ignores workloads with restart policy set to NEVER.
     [Setup]    Run Keywords    Setup Ankaios
+
     # Preconditions
-    # This test assumes that all containers in the podman have been created with this test -> clean it up first
-    Given Podman has deleted all existing containers
+    # This test assumes that all containers in the containerd have been created with this test -> clean it up first
+    Given containerd has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
+    When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies_containerd.yaml"
     And Ankaios agent is started with name "agent_A"
-    And podman has assigned a container id for workload "restarted_always" on agent "agent_A"
-    And podman has assigned a container id for workload "restarted_never" on agent "agent_A"
-    And podman has assigned a container id for workload "default_restarted_never" on agent "agent_A"
+    And containerd has assigned a container id for workload "restarted_always" on agent "agent_A"
+    And containerd has assigned a container id for workload "restarted_never" on agent "agent_A"
+    And containerd has assigned a container id for workload "default_restarted_never" on agent "agent_A"
     # Asserts
     # Due to polling, the use of execution states to detect a restart results in unstable tests because it is very fast switching.
-    Then the container of workload "restarted_always" shall have a different id but same configuration on the podman runtime
+    Then the container of workload "restarted_always" shall have a different id but same configuration on the containerd runtime
     And the workload "restarted_always" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     And the workload "default_restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
-Test Ankaios restarts workloads with restart policy ON_FAILURE.
+Test Ankaios containerd restarts workloads with restart policy ON_FAILURE.
     [Documentation]    Restart workloads with restart policy set to ON_FAILURE
     [Setup]    Run Keywords    Setup Ankaios
+
     # Preconditions
-    # This test assumes that all containers in the podman have been created with this test -> clean it up first
-    Given Podman has deleted all existing containers
+    # This test assumes that all containers in the containerd have been created with this test -> clean it up first
+    Given containerd has deleted all existing containers
     # Actions
-    When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
+    When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies_containerd.yaml"
     And Ankaios agent is started with name "agent_A"
-    And podman has assigned a container id for workload "restarted_on_failure" on agent "agent_A"
+    And containerd has assigned a container id for workload "restarted_on_failure" on agent "agent_A"
     # Asserts
     # Due to polling, the use of execution states to detect a restart results in unstable tests because it is very fast switching.
-    Then the container of workload "restarted_on_failure" shall have a different id but same configuration on the podman runtime
+    Then the container of workload "restarted_on_failure" shall have a different id but same configuration on the containerd runtime
     And the workload "restarted_on_failure" shall have the execution state "Running(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios

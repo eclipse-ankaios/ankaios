@@ -253,7 +253,10 @@ impl PodmanCli {
         Ok(())
     }
 
-    pub async fn list_workload_ids_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
+    pub async fn list_container_ids_by_label(
+        key: &str,
+        value: &str,
+    ) -> Result<Vec<String>, String> {
         log::debug!("Listing workload ids for: {key}='{value}'",);
         let output = CliCommand::new(PODMAN_CMD)
             .args(&[
@@ -872,7 +875,7 @@ mod tests {
                 .to_json())),
         );
 
-        let res = PodmanCli::list_workload_ids_by_label("name", "test_agent").await;
+        let res = PodmanCli::list_container_ids_by_label("name", "test_agent").await;
         assert!(matches!(res, Ok(res) if res == vec!["result1", "result2"]));
     }
 
@@ -894,7 +897,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = PodmanCli::list_workload_ids_by_label("name", "test_agent").await;
+        let res = PodmanCli::list_container_ids_by_label("name", "test_agent").await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -916,7 +919,7 @@ mod tests {
                 .exec_returns(Ok("non-json response from podman".into())),
         );
 
-        let res = PodmanCli::list_workload_ids_by_label("name", "test_agent").await;
+        let res = PodmanCli::list_container_ids_by_label("name", "test_agent").await;
         assert!(matches!(res, Err(msg) if msg.contains("Could not parse podman output")));
     }
 

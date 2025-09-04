@@ -34,14 +34,14 @@ workload_task -> output ++: wait for input data
 activate workload_task
 
 
-workload -> input++: hello
+workload -> input++: Hello
 
-input -> ci_task--: hello
+input -> ci_task--: Hello
 
 ... check protocol compatibility and prepare response ...
 
-agent -> output++: hello
-output -> workload_task--: hello
+agent -> output++: ControlInterfaceAccepted
+output -> workload_task--: ControlInterfaceAccepted
 
 ...
 

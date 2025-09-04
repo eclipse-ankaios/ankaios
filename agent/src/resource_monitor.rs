@@ -30,6 +30,7 @@ pub struct ResourceMonitor {
 }
 
 #[cfg_attr(test, automock)]
+// [impl->swdd~agent-provides-resource-metrics~1]
 impl ResourceMonitor {
     pub fn new() -> Self {
         let refresh_kind = RefreshKind::nothing()
@@ -60,6 +61,7 @@ impl ResourceMonitor {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
+// [utest->swdd~agent-provides-resource-metrics~1]
 mod tests {
 
     pub struct MockSystem {
