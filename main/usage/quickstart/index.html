@@ -1712,22 +1712,26 @@ use the Ankaios CLI to check the current state:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>nginx           agent_A   podman    Running(Ok)
 </code></pre></div>
-<p>Ankaios also supports adding and removing workloads dynamically.
-To add another workload call:</p>
+<p>Ankaios also supports adding and removing workloads dynamically. The following command assumes that the <code>containerd</code> runtime is installed according to the <a href="../installation/">installation instructions</a>.</p>
+<p>To add another workload call:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>run<span class="w"> </span>workload<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>helloworld<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>--runtime<span class="w"> </span>podman<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>--runtime<span class="w"> </span>containerd<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>--agent<span class="w"> </span>agent_A<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>--config<span class="w"> </span><span class="s1">&#39;image: docker.io/busybox:1.36</span>
 <a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="s1">commandOptions: [ &quot;-e&quot;, &quot;MESSAGE=Hello World&quot;]</span>
 <a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="s1">commandArgs: [ &quot;sh&quot;, &quot;-c&quot;, &quot;echo $MESSAGE&quot;]&#39;</span>
 </code></pre></div>
 <p>We can check the state again with <code>ank -k get state</code> and see, that the workload
-<code>helloworld</code> has been added to <code>desiredState.workloads</code> and the execution
-state is available in <code>workloadStates</code>.</p>
+<code>helloworld</code> with runtime <code>containerd</code> has been added to <code>desiredState.workloads</code> and the execution
+state is available in <code>workloadStates</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>WORKLOAD NAME   AGENT     RUNTIME      EXECUTION STATE   ADDITIONAL INFO
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>helloworld      agent_A   containerd   Succeeded(Ok)
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>nginx           agent_A   podman       Running(Ok)
+</code></pre></div>
 <p>As the workload had a one time job its state is <code>Succeeded(Ok)</code> and we can
 delete it from the state again with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>helloworld
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>helloworld
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>

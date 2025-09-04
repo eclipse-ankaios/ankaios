@@ -1709,7 +1709,7 @@
 <h1 id="working-with-completestate">Working with CompleteState<a class="headerlink" href="#working-with-completestate" title="Permanent link">&para;</a></h1>
 <h2 id="completestate">CompleteState<a class="headerlink" href="#completestate" title="Permanent link">&para;</a></h2>
 <p>The complete state data structure <a href="../_ankaios.proto/#completestate">CompleteState</a> is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the <code>desiredState</code> which describes the state of the Ankaios system the user wants to have, the <code>workloadStates</code> which gives the information about the execution state of all the workloads and the <code>agents</code> field containing the names of the Ankaios agents that are currently connected to the Ankaios server. By using of <a href="../_ankaios.proto/#completestate">CompleteState</a> in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.</p>
-<p>Example: <code>ank -k get state</code> returns the complete state of Ankaios system:</p>
+<p>Example: <code>ank -k get state</code> returns the complete state of Ankaios system with runtimes <code>podman</code>, <code>containerd</code> and <code>podman-kube</code>:</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The instructions assume the default installation without mutual TLS (mTLS) for communication. With <code>-k</code> or <code>--insecure</code> the <code>ank</code> CLI will connect without mTLS. Alternatively, set the environment variable <code>ANK_INSECURE=true</code> to avoid passing the argument to each <code>ank</code> CLI command. For an Ankaios setup with mTLS, see <a href="../../usage/mtls-setup/">here</a>.</p>
@@ -1764,7 +1764,7 @@
 <a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="w">        </span>value:<span class="w"> </span>Ankaios<span class="w"> </span>team
 <a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="w">      </span>dependencies:<span class="w"> </span><span class="o">{}</span>
 <a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="w">      </span>restartPolicy:<span class="w"> </span>ALWAYS
-<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="w">      </span>runtime:<span class="w"> </span>podman
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="w">      </span>runtime:<span class="w"> </span>containerd
 <a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a><span class="w">      </span>runtimeConfig:<span class="w"> </span><span class="p">|</span>
 <a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a><span class="w">        </span>image:<span class="w"> </span>alpine:latest
 <a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a><span class="w">        </span>commandOptions:<span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;--entrypoint&quot;</span>,<span class="w"> </span><span class="s2">&quot;/bin/sh&quot;</span><span class="w"> </span><span class="o">]</span>
