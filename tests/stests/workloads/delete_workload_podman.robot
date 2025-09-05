@@ -15,7 +15,7 @@
 
 
 *** Settings ***
-Documentation       Tests to verify that Ankaios can create Podman workloads.
+Documentation       Tests to verify that Ankaios can delete Podman workloads.
 
 Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource

@@ -132,3 +132,7 @@ vendor: _dist
     #       items mentioned after it. So we can include .cargo/config.toml
     #       while excluding the rest of the folder.
     tar -czf ${SOURCE_ARCHIVE} --transform "s,^,${SOURCE_ARCHIVE_BASE}/," .cargo/config.toml {{vendor_dir}} --exclude=.cargo --exclude-vcs --exclude-vcs-ignores .
+
+# Generate and serve documentation
+serve-docs:
+    ./tools/generate_docs.sh serve

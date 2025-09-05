@@ -1,43 +1,71 @@
+// Copyright (c) 2023 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 const protobuf = require('protobufjs');
 const fs = require('fs');
-const util = require('util')
+const util = require('util');
+const assert = require('assert');
 
+
+const ANKAIOS_CONTROL_INTERFACE_BASE_PATH = '/run/ankaios/control_interface';
 const WAITING_TIME_IN_SEC = 5;
-const REQUEST_ID = "dynamic_nginx@nodejs_control_interface"
+const TIMEOUT_IN_SEC = 1;
+const UPDATE_STATE_REQUEST_ID = "RWNsaXBzZSBBbmthaW9z";
+const COMPLETE_STATE_REQUEST_ID = "QW5rYWlvcyBpcyB0aGUgYmVzdA==";
+const PROTOCOL_VERSION = process.env.ANKAIOS_VERSION;
 
-let ToAnkaios;
-let FromAnkaios;
+// to_ankaios and from_ankaios are created here
+// to avoid redefining them in every function.
+let to_ankaios;
+let from_ankaios;
 
-function create_hello_message(root) {
-    /* Create a Hello message to initialize the session. */
 
-    ToAnkaios = root.lookupType("control_api.ToAnkaios");
+function logInfo(message) {
+    console.log(`[${new Date().toISOString()}] ${message}`);
+}
+
+function logError(message) {
+    console.error(`[${new Date().toISOString()}] ${message}`);
+}
+
+
+function createHelloMessage(api_proto) {
+    /* Create hello message for connection */
+    to_ankaios = api_proto.lookupType("control_api.ToAnkaios");
 
     let payload = {
         hello: {
-            protocolVersion: process.env.ANKAIOS_VERSION,
+            protocolVersion: PROTOCOL_VERSION,
         }
     }
 
-    const errMsg = ToAnkaios.verify(payload);
+    const errMsg = to_ankaios.verify(payload);
     if (errMsg) {
         throw Error(errMsg);
     }
 
-    return ToAnkaios.create(payload);
+    return to_ankaios.create(payload);
 }
 
 
-function create_request_to_add_new_workload(root) {
-    /* Create the Request containing an UpdateStateRequest
-    that contains the details for adding the new workload and
-    the update mask to add only the new workload. */
-
-    ToAnkaios = root.lookupType("control_api.ToAnkaios");
-    RestartEnum = root.lookupEnum("ank_base.RestartPolicy")
+function createRequestToAddNewWorkload(api_proto) {
+    /* Return request for adding a new workload. */
+    to_ankaios = api_proto.lookupType("control_api.ToAnkaios");
+    let restart_enum = api_proto.lookupEnum("ank_base.RestartPolicy");
     let payload = {
         request: {
-            requestId: REQUEST_ID,
+            requestId: UPDATE_STATE_REQUEST_ID,
             updateStateRequest: {
                 newState: {
                     desiredState: {
@@ -47,7 +75,7 @@ function create_request_to_add_new_workload(root) {
                                 dynamic_nginx: {
                                     agent: "agent_A",
                                     runtime: "podman",
-                                    restartPolicy: RestartEnum.NEVER,
+                                    restartPolicy: restart_enum.NEVER,
                                     runtimeConfig: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
                                 }
                             }
@@ -60,109 +88,147 @@ function create_request_to_add_new_workload(root) {
             }
         }
     };
-    const errMsg = ToAnkaios.verify(payload);
+    const errMsg = to_ankaios.verify(payload);
     if (errMsg) {
         throw Error(errMsg);
     }
 
-    return ToAnkaios.create(payload);
+    return to_ankaios.create(payload);
 }
 
-function create_request_for_complete_state(root) {
-    /* Create a Request to request the CompleteState
-    for querying the workload states. */
 
-    ToAnkaios = root.lookupType("control_api.ToAnkaios");
+function createRequestForWorkloadState(api_proto) {
+    /* Return request for getting the complete state */
+    to_ankaios = api_proto.lookupType("control_api.ToAnkaios");
     let payload = {
         request: {
-            requestId: REQUEST_ID,
+            requestId: COMPLETE_STATE_REQUEST_ID,
             completeStateRequest: {
                 fieldMask: ["workloadStates.agent_A.dynamic_nginx"]
             }
         }
     };
-    if (ToAnkaios.verify(payload)) {
+    if (to_ankaios.verify(payload)) {
         throw Error(errMsg);
     }
 
-    return ToAnkaios.create(payload);
+    return to_ankaios.create(payload);
 }
 
-function decode_from_server_response_message(root, data) {
-    FromAnkaios = root.lookupType("control_api.FromAnkaios");
-    const decoded_message = FromAnkaios.decodeDelimited(data);
 
-    if (decoded_message.response) {
-        let requestId = decoded_message.response.requestId;
-        if (requestId === REQUEST_ID) {
-            console.log(`[${new Date().toISOString()}] Receiving Response containing the workload states of the current state:\nFromAnkaios `, util.inspect(decoded_message.toJSON(), { depth: null }));
-        } else {
-            console.log(`RequestId does not match. Skipping messages from requestId: ${requestId}`);
-        }
-    } else if (decoded_message.controlInterfaceAccepted) {
-        console.log(`[${new Date().toISOString()}] Received Control Interface Accepted response.\n`);
-    } else if (decoded_message.connectionClosed) {
-        console.log(`[${new Date().toISOString()}] Received Connection Closed response. Exiting..\n`);
-        process.exit(0);
-    } else {
-        console.log(`[${new Date().toISOString()}] Received unknown message type. Skipping message.\n`);
-    }
+function decodeProtobufData(api_proto, data) {
+    /* Decode the protobuf message received from Ankaios. */
+    from_ankaios = api_proto.lookupType("control_api.FromAnkaios");
+    const decoded_message = from_ankaios.decodeDelimited(data);
+    return decoded_message;
 }
 
-function read_from_control_interface(root, decode_func) {
-    // Reads from the control interface input fifo and prints the workload states.
-    const ci_input_path = '/run/ankaios/control_interface/input';
-    const fifo = fs.createReadStream(ci_input_path);
-    fifo.on('data', data => {
+
+function readFromControlInterface(input_fifo_path, api_proto, { timeout_sec = 1 } = {}) {
+    /* Read a message from Ankaios, with a timeout. */
+    const pipe_handle = fs.createReadStream(input_fifo_path);
+
+    return new Promise((resolve, reject) => {
+        const cleanup = () => {
+            clearTimeout(timer);
+            pipe_handle.removeAllListeners();
+            pipe_handle.destroy();
+        };
+
+        const timer = setTimeout(() => {
+            cleanup();
+            reject(new Error(`Error while reading from control interface: timeout while waiting for data.`));
+        }, timeout_sec * 1000);
+
+        pipe_handle.once('data', (data) => {
         try {
-            decode_func(root, data)
+            const decoded = decodeProtobufData(api_proto, data);
+            cleanup();
+            resolve(decoded);
         } catch (e) {
-            console.error(`Invalid response, parsing error: `, e.toString());
+            cleanup();
+            reject(new Error(`Error while reading from control interface: ` + e.toString()));
         }
+        });
+
+        pipe_handle.once('error', (err) => {
+            cleanup();
+            reject(new Error(`Error while reading from control interface: ` + err.toString()));
+        });
+
+        pipe_handle.once('end', () => {
+            cleanup();
+            reject(new Error('Error while reading from control interface: stream ended unexpectedly.'));
+        });
     });
 }
 
-function write_to_control_interface(root, message) {
-    /* Writes a Request into the control interface output fifo
-    to add the new workload dynamically and every x sec according to WAITING_TIME_IN_SEC
-    another Request to request the workload states. */
 
-    ToAnkaios = root.lookupType("control_api.ToAnkaios");
-    let buffer = ToAnkaios.encodeDelimited(message).finish(); // use length-delimited encoding!!!
+function writeToControlInterface(api_proto, fifo_path, message) {
+    /* Encode and write message to Ankaios
+     * Use length-delimited encoding.
+     */
+    to_ankaios = api_proto.lookupType("control_api.ToAnkaios");
+    let buffer = to_ankaios.encodeDelimited(message).finish();
 
-    const ci_output_path = '/run/ankaios/control_interface/output';
-    fs.writeFile(ci_output_path, buffer, { flag: 'a+' }, err => {
+    fs.writeFile(fifo_path, buffer, { flag: 'a+' }, err => {
         if (err) {
-            console.error(err);
+            logError(err);
         }
     });
 }
+
 
 async function main() {
-    protobuf.load("/usr/local/lib/ankaios/control_api.proto", async function (err, root) {
+    // Check that the control interface fifo files exist
+    const input_fifo_path = ANKAIOS_CONTROL_INTERFACE_BASE_PATH + '/input';
+    const output_fifo_path = ANKAIOS_CONTROL_INTERFACE_BASE_PATH + '/output';
+    if (!fs.existsSync(input_fifo_path) || !fs.existsSync(output_fifo_path)) {
+        logError(`Error: Control interface FIFO files do not exist. Exiting..`);
+        process.exit(1);
+    }
+
+    // Response variable to hold the decoded protobuf message
+    let response;
+
+    // Load the protobuf definition
+    protobuf.load("/usr/local/lib/ankaios/control_api.proto", async function (err, api_proto) {
         if (err) throw err;
 
-        read_from_control_interface(root, decode_from_server_response_message);
+        logInfo(`Sending initial Hello message to establish connection...`);
+        const hello_message = createHelloMessage(api_proto);
+        writeToControlInterface(api_proto, output_fifo_path, hello_message);
+        response = await readFromControlInterface(input_fifo_path, api_proto, { timeout_sec: TIMEOUT_IN_SEC });
+        assert(response.controlInterfaceAccepted, 'Response should have been ControlInterfaceAccepted');
+        if (!response.controlInterfaceAccepted) {
+            logError(`Connection to Ankaios not established.`);
+            process.exit(1);
+        }
+        logInfo('Receiving answer to the initial Hello:\n' + JSON.stringify(response.toJSON(), null, 2));
 
-        // Send the initial Hello message to initialize the session
-        const hello = create_hello_message(root);
-        console.log(`[${new Date().toISOString()}] Sending initial Hello message:\n`, util.inspect(hello.toJSON(), { depth: null }));
-        write_to_control_interface(root, hello);
+        logInfo(`Requesting to add the dynamic_nginx workload...`);
+        const update_workload_request = createRequestToAddNewWorkload(api_proto);
+        writeToControlInterface(api_proto, output_fifo_path, update_workload_request);
+        response = await readFromControlInterface(input_fifo_path, api_proto, { timeout_sec: TIMEOUT_IN_SEC });
+        assert(response.response, 'Response should contain a response field');
+        assert(response.response.UpdateStateSuccess, 'Response should be of type UpdateStateSuccess');
+        assert(response.response.requestId === UPDATE_STATE_REQUEST_ID, `Response requestId should be ${UPDATE_STATE_REQUEST_ID}`);
+        logInfo('Receiving response for the UpdateStateRequest:\n' + JSON.stringify(response.toJSON(), null, 2));
 
-        // Send request to add the new workload dynamic_nginx to Ankaios Server
-        const message = create_request_to_add_new_workload(root);
-        console.log(`[${new Date().toISOString()}] Sending Request containing details for adding the dynamic workload "dynamic_nginx":\nToAnkaios `, util.inspect(message.toJSON(), { depth: null }));
-        write_to_control_interface(root, message);
-
-        const send_request_for_complete_state = async () => {
-            // Send the request to request the complete state containing the workload states to Ankaios Server
-            const message = create_request_for_complete_state(root);
-            console.log(`[${new Date().toISOString()}] Sending Request containing details for requesting all workload states:\nToAnkaios `, util.inspect(message.toJSON(), { depth: null }));
-            write_to_control_interface(root, message);
+        const sendRequestForCompleteState = async () => {
+            logInfo(`Requesting workload state of the dynamic_nginx workload...`);
+            const complete_state_request = createRequestForWorkloadState(api_proto);
+            writeToControlInterface(api_proto, output_fifo_path, complete_state_request);
+            response = await readFromControlInterface(input_fifo_path, api_proto, { timeout_sec: TIMEOUT_IN_SEC });
+            assert(response.response, 'Response should contain a response field');
+            assert(response.response.completeState, 'Response should be of type CompleteState');
+            assert(response.response.requestId === COMPLETE_STATE_REQUEST_ID, `Response requestId should be ${COMPLETE_STATE_REQUEST_ID}`);
+            logInfo(`Receiving response for the CompleteStateRequest with filter 'workloadStates.agent_A.dynamic_nginx':\n` + JSON.stringify(response.toJSON(), null, 2));
         }
 
-        setInterval(send_request_for_complete_state, WAITING_TIME_IN_SEC * 1000); // send the request for the complete state every x secs according to WAITING_TIME.
+        setInterval(sendRequestForCompleteState, WAITING_TIME_IN_SEC * 1000);
     });
 }
+
 
 main();

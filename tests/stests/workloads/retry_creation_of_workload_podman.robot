@@ -17,7 +17,6 @@ Resource    ../../resources/ankaios.resource
 Resource    ../../resources/variables.resource
 
 *** Variables ***
-${default_state_yaml_file}
 ${new_state_yaml_file}
 
 *** Test Cases ***
@@ -26,21 +25,14 @@ ${new_state_yaml_file}
 # [stest->swdd~agent-workload-control-loop-executes-retry~1]
 Test Ankaios Podman retry creation of a workload on creation failure
     [Setup]    Run Keywords    Setup Ankaios
-    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_alpine_sleep.yaml
+
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/podman_alpine_sleep.yaml"
+    And Ankaios server is started with config "${CONFIGS_DIR}/podman_wrong_image_name.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
-    # Actions
-    When user triggers "ank -k get state > ${new_state_yaml_file}"
-    And user triggers "ank -k delete workload hello1"
-    And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
-    And podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
-    And user triggers "ank -k set state desiredState.workloads.hello1 ${new_state_yaml_file}"
     # Asserts
-    Then the workload "hello1" shall have the execution state "Running(Ok)" from agent "agent_A" within "20" seconds
+    Then the workload state of workload "hello1" shall contain an additional info signaling retries within "5" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
@@ -48,20 +40,18 @@ Test Ankaios Podman retry creation of a workload on creation failure
 # [stest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
 Test Ankaios Podman retry creation of a workload on creation failure intercepted by update
     [Setup]    Run Keywords    Setup Ankaios
-    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_alpine_sleep.yaml
+    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_wrong_image_name.yaml
+
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/podman_alpine_sleep.yaml"
+    And Ankaios server is started with config "${CONFIGS_DIR}/podman_wrong_image_name.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload state of workload "hello1" shall contain an additional info signaling retries within "5" seconds
     # Actions
     When user triggers "ank -k get state > ${new_state_yaml_file}"
-    And user triggers "ank -k delete workload hello1"
-    And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
-    And podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
     And user triggers "ank -k set state ${new_state_yaml_file} desiredState.workloads.hello1"
-    And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.hello1.runtimeConfig.commandArgs=['3']"
+    And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.hello1.runtimeConfig.image=ghcr.io/eclipse-ankaios/tests/alpine:latest"
     And user triggers "ank -k set state desiredState.workloads.hello1 ${new_state_yaml_file}"
     # Asserts
     Then the workload "hello1" shall have the execution state "Succeeded(Ok)" from agent "agent_A" within "20" seconds
@@ -72,21 +62,16 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
 # [stest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~2]
 Test Ankaios Podman retry creation of a workload on creation failure intercepted by delete
     [Setup]    Run Keywords    Setup Ankaios
-    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_alpine_sleep.yaml
+    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_wrong_image_name.yaml
+
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/podman_alpine_sleep.yaml"
+    And Ankaios server is started with config "${CONFIGS_DIR}/podman_wrong_image_name.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload state of workload "hello1" shall contain an additional info signaling retries within "5" seconds
     # Actions
-    When user triggers "ank -k get state > ${new_state_yaml_file}"
-    And user triggers "ank -k delete workload hello1"
-    And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
-    And podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
-    And user triggers "ank -k set state desiredState.workloads.hello1 ${new_state_yaml_file}"
-    And the user waits "1" seconds
-    And user triggers "ank -k delete workload hello1"
+    When user triggers "ank -k delete workload hello1"
     # Asserts
     Then podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
     And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds

@@ -12,7 +12,7 @@ The base an which a workload can be started. For OCI container this is a contain
 
 ## Workload
 
-A functionality that the Ankaios orchestrator can manage (e.g. start, stop). A workload could be packed inside an OCI [container](#container) (e.g. [Podman container](#podman-container)) or could also be just a native program ([native workload](#native-workload)). Ankaios is build to be extensible for different workload types by adding support for other [runtimes](#runtime).
+A functionality that the Ankaios orchestrator can manage (e.g. start, stop). A workload could be packed inside an OCI [container](#container) (e.g. [Podman container](#podman-container) or [Containerd container](#containerd-container)) or could also be just a native program ([native workload](#native-workload)). Ankaios is build to be extensible for different workload types by adding support for other [runtimes](#runtime).
 
 ## Container
 
@@ -21,6 +21,10 @@ A container is a lightweight, standalone, executable software package that inclu
 ## Podman container
 
 A Podman container refers to a [container](#container) managed by [Podman](https://docs.podman.io/en/latest/), which is an open-source container engine similar to Docker. [Podman](https://docs.podman.io/en/latest/) aims to provide a simple and secure container management solution for developers and system administrators.
+
+## Containerd container
+
+A Containerd container refers to a [container](#container) managed by [Containerd](https://github.com/containerd/containerd), which is an open-source daemon-based container engine.
 
 ## Native workload
 

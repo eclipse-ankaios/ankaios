@@ -103,7 +103,7 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
 }
 
 impl PodmanRuntime {
-    async fn workload_instance_names_to_workload_states(
+    async fn sample_workload_states(
         &self,
         workload_instance_names: &Vec<WorkloadInstanceName>,
     ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
@@ -152,8 +152,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
             .filter_map(|x| x.as_str().try_into().ok())
             .collect();
 
-        self.workload_instance_names_to_workload_states(&workload_instance_names)
-            .await
+        self.sample_workload_states(&workload_instance_names).await
     }
 
     // [impl->swdd~podman-create-workload-runs-workload~2]
@@ -229,11 +228,13 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         instance_name: &WorkloadInstanceName,
     ) -> Result<PodmanWorkloadId, RuntimeError> {
         // [impl->swdd~podman-get-workload-id-uses-label~1]
-        let res = PodmanCli::list_workload_ids_by_label("name", instance_name.to_string().as_str())
-            .await
-            .map_err(|err| RuntimeError::List(err.to_string()))?;
+        let res =
+            PodmanCli::list_container_ids_by_label("name", instance_name.to_string().as_str())
+                .await
+                .map_err(|err| RuntimeError::List(err.to_string()))?;
 
-        if 1 == res.len() {
+        const LENGTH_FOR_VALID_ID: usize = 1;
+        if LENGTH_FOR_VALID_ID == res.len() {
             let id = res.first().unwrap_or_unreachable();
             log::debug!("Found an id for workload '{instance_name}': '{id}'");
             Ok(PodmanWorkloadId { id: id.to_string() })
@@ -341,8 +342,8 @@ mod tests {
                 "container2.hash.dummy_agent".to_string(),
             ]));
 
-        let list_workload_ids_by_label_context = PodmanCli::list_workload_ids_by_label_context();
-        list_workload_ids_by_label_context
+        let list_container_ids_by_label_context = PodmanCli::list_container_ids_by_label_context();
+        list_container_ids_by_label_context
             .expect()
             .return_const(Ok(vec!["container1.hash.dummy_agent".to_string()]));
 
@@ -655,7 +656,7 @@ mod tests {
     async fn utest_get_workload_id_workload_found() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_workload_ids_by_label_context();
+        let context = PodmanCli::list_container_ids_by_label_context();
         context
             .expect()
             .return_const(Ok(vec!["test_workload_id".to_string()]));
@@ -677,7 +678,7 @@ mod tests {
     async fn utest_get_workload_id_no_workload_found() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_workload_ids_by_label_context();
+        let context = PodmanCli::list_container_ids_by_label_context();
         context.expect().return_const(Ok(Vec::new()));
 
         let workload_name = "container1.hash.dummy_agent".try_into().unwrap();
@@ -697,7 +698,7 @@ mod tests {
     async fn utest_get_workload_id_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_workload_ids_by_label_context();
+        let context = PodmanCli::list_container_ids_by_label_context();
         context.expect().return_const(Err("simulated error".into()));
 
         let workload_name = "container1.hash.dummy_agent".try_into().unwrap();

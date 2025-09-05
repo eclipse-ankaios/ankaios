@@ -18,6 +18,13 @@ The minimum system requirements are (tested with [EB corbos Linux – built on U
 | CPU      | 1 core  |
 | RAM      | 256 MB  |
 
+## Container runtime
+
+Ankaios supports multiple container runtimes. Depending on which runtime is to be used, only certain container runtimes or all supported runtimes can be installed using the following instructions.
+
+### Podman
+
+For using the Ankaios `podman` and `podman-kube` runtimes,
 [Podman](https://podman.io) needs to be installed as this is used as
 container runtime
 (see [Podman installation instructions](https://podman.io/docs/installation)).
@@ -33,6 +40,15 @@ For using the `podman` runtime, Podman version 3.4.2 is sufficient but the
     mkdir -p /etc/containers/containers.conf.d
     printf '[CONTAINERS]\napparmor_profile=""\n' > /etc/containers/containers.conf.d/disable-apparmor.conf
     ```
+
+### Containerd
+
+For using the Ankaios `containerd` runtime, follow the [containerd installation instructions](https://github.com/containerd/containerd/blob/main/docs/getting-started.md#installing-containerd) to install the containerd daemon.
+
+Ankaios uses the `nerdctl` command-line interface (CLI) to manage containers with the containerd runtime. Install a compatible version of the `nerdctl` CLI for the containerd runtime, or install the full `nerdctl` package, including dependencies such as containerd, runc, and CNI. Note that if you are not using the version distributed by your package manager, you must check the platform compatibility of containerd. Download and install the `nerdctl` package from the [official nerdctl releases](https://github.com/containerd/nerdctl/releases).
+
+!!! note
+    AppArmor shall be disabled on Ubuntu 24.04 in the same way as for the Podman runtime mentioned above.
 
 ## Installation methods
 
