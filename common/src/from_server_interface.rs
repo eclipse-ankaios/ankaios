@@ -163,9 +163,14 @@ impl FromServerInterface for FromServerSender {
         Ok(self
             .send(FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: ank_base::response::ResponseContent::CompleteState(
-                    complete_state,
-                )
+                response_content: ank_base::response::ResponseContent::CompleteState(Box::new(
+                    ank_base::CompleteStateResponse {
+                        complete_state: Some(complete_state),
+                        added_fields: vec![],
+                        updated_fields: vec![],
+                        removed_fields: vec![],
+                    },
+                ))
                 .into(),
             }))
             .await?)
@@ -305,6 +310,8 @@ impl FromServerInterface for FromServerSender {
 
 #[cfg(test)]
 mod tests {
+    use api::ank_base::CompleteStateResponse;
+
     use super::ank_base;
     use crate::{
         commands,
@@ -391,7 +398,12 @@ mod tests {
             FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.to_string(),
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                    complete_state
+                    Box::new(CompleteStateResponse {
+                        complete_state: Some(complete_state.clone()),
+                        added_fields: vec![],
+                        updated_fields: vec![],
+                        removed_fields: vec![],
+                    })
                 )),
             })
         )

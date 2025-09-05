@@ -371,6 +371,7 @@ mod tests {
             generate_test_workload_spec_with_control_interface_access,
             generate_test_workload_spec_with_param,
         },
+        state_manipulation::FieldDifference,
         test_utils::{self, generate_test_complete_state},
     };
     use mockall::predicate;
@@ -430,7 +431,10 @@ mod tests {
             ..Default::default()
         };
 
-        let request_complete_state = CompleteStateRequest { field_mask: vec![] };
+        let request_complete_state = CompleteStateRequest {
+            field_mask: vec![],
+            subscribe: false,
+        };
 
         let mut workload_state_db = WorkloadStatesMap::default();
         workload_state_db.process_new_states(server_state.state.workload_states.clone().into());
@@ -463,6 +467,7 @@ mod tests {
                 "workloads.invalidMask".to_string(), // invalid not existing workload
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
             ],
+            subscribe: false,
         };
 
         let mut workload_state_map = WorkloadStatesMap::default();
@@ -516,6 +521,7 @@ mod tests {
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
                 format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
             ],
+            subscribe: false,
         };
 
         let mut workload_state_map = WorkloadStatesMap::default();
@@ -1654,6 +1660,40 @@ mod tests {
 
         assert!(server_state.contains_connected_agent(AGENT_A));
         assert!(!server_state.contains_connected_agent(AGENT_B));
+    }
+
+    #[test]
+    fn utest_generate_masks_of_changed_fields() {
+        use common::state_manipulation::Object;
+        let mut old_complete_state = generate_test_old_state();
+        old_complete_state
+            .desired_state
+            .workloads
+            .get_mut(WORKLOAD_NAME_1)
+            .unwrap()
+            .tags
+            .clear();
+        let new_complete_state = generate_test_update_state();
+        let old_state: Object = old_complete_state.clone().try_into().unwrap();
+        let mut update_state: Object = new_complete_state.clone().try_into().unwrap();
+
+        let mut changed_fields = old_state.diff(&mut update_state);
+        changed_fields.sort();
+
+        let expected_changed_fields = vec![
+            FieldDifference::Added("desiredState.workloads.workload_1.tags".to_owned()),
+            FieldDifference::Added("desiredState.workloads.workload_4".to_owned()),
+            FieldDifference::Added("workloadStates.agent_A.workload_4".to_owned()),
+            FieldDifference::Added("workloadStates.agent_B.workload_1".to_owned()),
+            FieldDifference::Removed("desiredState.workloads.workload_2".to_owned()),
+            FieldDifference::Removed("workloadStates.agent_A.workload_1".to_owned()),
+            FieldDifference::Removed("workloadStates.agent_A.workload_2".to_owned()),
+            FieldDifference::Changed("desiredState.workloads.workload_1.agent".to_owned()),
+            FieldDifference::Changed("desiredState.workloads.workload_1.runtime".to_owned()),
+            FieldDifference::Changed("desiredState.workloads.workload_3.runtime".to_owned()),
+        ];
+
+        assert_eq!(changed_fields, expected_changed_fields);
     }
 
     fn generate_test_old_state() -> CompleteState {
