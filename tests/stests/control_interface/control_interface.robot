@@ -96,6 +96,7 @@ Test server started with empty Control Interface access field mask fails
     Then the last command finished with exit code "1"
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~podman-kube-create-workload-mounts-fifo-files~1]
 Test Ankaios podman-kube workload restart after update without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
     [Tags]    control_interface_access_podman_kube
@@ -111,6 +112,7 @@ Test Ankaios podman-kube workload restart after update without a Control Interfa
     And the pod "simple-pod" of workload "simple-kube" shall have a different id but same configuration on the podman kube runtime
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~podman-kube-create-workload-mounts-fifo-files~1]
 Test Ankaios podman-kube workload restart after update with a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
@@ -123,4 +125,22 @@ Test Ankaios podman-kube workload restart after update with a Control Interface 
     # Asserts
     Then the mount point for the control interface has been generated for ${agent_name}
     And the pod "simple-pod" of workload "simple-kube" shall have a different id but same configuration on the podman kube runtime
+    [Teardown]    Clean up Ankaios
+
+# [stest->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+# [stest->swdd~podman-kube-limits-control-interface-to-target-container~1]
+Test target path from control interface access is limited to the designated pod and container
+    [Setup]           Run Keywords    Setup Ankaios
+    # Preconditions
+    And Ankaios server is started with config "${CONFIGS_DIR}/multi_container_podman_kube.yaml"
+    And Ankaios agent is started with name "${agent_name}"
+    And all workloads of agent "${agent_name}" have an initial execution state
+    And the mount point for the control interface has been generated for ${agent_name}
+    # Actions
+    # Attempt to write to control interface from a different pod/container
+    ${write_result}=    Run Process    podman     exec     pod_B-container_B     sh     -c "echo 'write' > /ankaios/control_interface"
+    Should Not Be Equal As Integers    ${write_result.rc}    0
+    # Attempt to read from control interface from a different pod/container
+    ${read_result}=    Run Process    podman     exec     pod_B-container_B     sh     -c "cat /run/ankaios/control_interface"
+    Should Not Be Equal As Integers    ${read_result.rc}    0
     [Teardown]    Clean up Ankaios

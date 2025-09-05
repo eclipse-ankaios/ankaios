@@ -499,6 +499,87 @@ Needs:
 - impl
 - stest
 
+#### Podman-kube create workload optionally mounts Control Interface pipes
+`swdd~podman-kube-create-workload-mounts-fifo-files~1`
+
+Status: approved
+
+When the podman-kube runtime connector is called to create a workload and the RuntimeFacade requests to mount the Control Interface pipes,
+the podman-kube runtime connector shall inject the Control Interface volume and volume mount into the Kubernetes manifest according to the specified target path.
+
+Comment:
+The target path specifies the pod and container where the Control Interface should be mounted using the format "podName/containerName".
+
+Tags:
+- ControlInterface
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Podman-kube injects Control Interface volume into manifest
+`swdd~podman-kube-injects-control-interface-volume~1`
+
+Status: approved
+
+When the podman-kube runtime connector injects the Control Interface into a workload manifest,
+the podman-kube runtime connector shall add a hostPath volume named "control-interface-volume" to the manifest that points to the workload's control interface directory.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+#### Podman-kube injects Control Interface volume mount into target container
+`swdd~podman-kube-injects-control-interface-volume-mount~1`
+
+Status: approved
+
+When the podman-kube runtime connector injects the Control Interface into a workload manifest,
+the podman-kube runtime connector shall add a volume mount for "control-interface-volume" to the specified target container at the mount path "/run/ankaios/control_interface".
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+#### Podman-kube validates target path format
+`swdd~podman-kube-validates-target-path-format~1`
+
+Status: approved
+
+When the podman-kube runtime connector processes a workload with Control Interface access,
+the podman-kube runtime connector shall validate that the target path is specified in the format "podName/containerName" and reject the workload if the format is invalid.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+#### Podman-kube limits Control Interface mount to specified container
+`swdd~podman-kube-limits-control-interface-to-target-container~1`
+
+Status: approved
+
+When the podman-kube runtime connector injects the Control Interface into a workload manifest,
+the podman-kube runtime connector shall only add the volume mount to the container specified in the target path, ensuring that other containers in the same or different pods cannot access the Control Interface.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
 ### Handling UpdateWorkload commands from the Ankaios Server
 
 The following diagram show the general steps the Ankaios Agent takes when receiving an UpdateWorkload command:
