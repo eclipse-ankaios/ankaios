@@ -89,7 +89,7 @@ workloads:
           restartPolicy: Never
           containers:
           - name: nginx-container
-            image: ghcr.io/nginx:latest
+            image: nginx:latest
             ports:
             - containerPort: 80
               hostPort: 8080
