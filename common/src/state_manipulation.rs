@@ -16,5 +16,5 @@ mod object;
 mod path;
 
 pub use object::get_paths_from_yaml_node;
-pub use object::Object;
+pub use object::{FieldDifference, Object};
 pub use path::Path;

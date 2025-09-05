@@ -16,10 +16,10 @@ use std::collections::HashSet;
 
 use super::Path;
 use crate::objects as ankaios;
-use api::ank_base as proto;
+use api::ank_base::{self as proto};
 use serde_yaml::{
     Mapping, Value, from_value,
-    mapping::{Entry::Occupied, Entry::Vacant},
+    mapping::Entry::{Occupied, Vacant},
     to_value,
 };
 
@@ -208,6 +208,16 @@ impl From<&Object> for Vec<Path> {
         get_paths_from_yaml_node(&value.data, true)
     }
 }
+
+type FieldMask = String; // e.g. desiredState.workloads.workload_1.agent
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FieldDifference {
+    Added(FieldMask),
+    Removed(FieldMask),
+    Changed(FieldMask),
+}
+
 impl Object {
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
@@ -229,13 +239,13 @@ impl Object {
         Ok(())
     }
 
-    pub fn remove(&mut self, path: &Path) -> Result<(), String> {
+    pub fn remove(&mut self, path: &Path) -> Result<Option<serde_yaml::Value>, String> {
         let (path_head, path_last) = path.split_last()?;
 
-        self.get_as_mapping(&path_head)
+        Ok(self
+            .get_as_mapping(&path_head)
             .ok_or_else(|| format!("{path_head:?} is not mapping"))?
-            .remove(Value::String(path_last));
-        Ok(())
+            .remove(Value::String(path_last)))
     }
 
     fn get_as_mapping(&mut self, path: &Path) -> Option<&mut Mapping> {
@@ -280,6 +290,136 @@ impl Object {
 
     pub fn check_if_provided_path_exists(&self, path: &Path) -> bool {
         self.get(path).is_some()
+    }
+
+    pub fn diff(&self, other: &mut Object) -> Vec<FieldDifference> {
+        use std::collections::VecDeque;
+        let mut diffs: Vec<FieldDifference> = Vec::new();
+        let mut self_nodes_to_visit = VecDeque::new();
+        if let Value::Mapping(mapping) = &self.data {
+            self_nodes_to_visit.push_back(mapping.iter());
+        }
+
+        let mut current_path = Vec::new();
+        while let Some(self_current) = self_nodes_to_visit.front_mut() {
+            if let Some((key, value)) = self_current.next() {
+                let Value::String(current_key) = key else {
+                    std::unreachable!("Key is not a string");
+                };
+
+                current_path.push(current_key.clone());
+
+                match value {
+                    Value::Mapping(next_item) => {
+                        let joined_current_path = current_path.join(".");
+                        if other
+                            .get(&Path::from(joined_current_path.as_str()))
+                            .is_none()
+                        {
+                            diffs.push(FieldDifference::Removed(joined_current_path));
+                            current_path.pop();
+                        } else {
+                            self_nodes_to_visit.push_front(next_item.iter());
+                        }
+                    }
+                    _ => {
+                        let joined_current_path = current_path.join(".");
+                        // println!("Joined current path: {joined_current_path}");
+                        if let Some(other_value) = other
+                            .remove(&Path::from(joined_current_path.as_str()))
+                            .unwrap()
+                        {
+                            // if *value != other_value {
+                            //     diffs.push(FieldDifference::Changed(joined_current_path));
+                            // }
+                            match *value {
+                                Value::Mapping(ref mapping) => {
+                                    if *value != other_value {
+                                        if mapping.is_empty() {
+                                            diffs.push(FieldDifference::Added(joined_current_path));
+                                        } else {
+                                            diffs.push(FieldDifference::Changed(
+                                                joined_current_path,
+                                            ));
+                                        }
+                                    }
+                                }
+                                Value::Sequence(ref sequence) => {
+                                    if *value != other_value {
+                                        if sequence.is_empty() {
+                                            diffs.push(FieldDifference::Added(joined_current_path));
+                                        } else {
+                                            diffs.push(FieldDifference::Changed(
+                                                joined_current_path,
+                                            ));
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    if *value != other_value {
+                                        diffs.push(FieldDifference::Changed(joined_current_path));
+                                    }
+                                }
+                            }
+                        } else {
+                            diffs.push(FieldDifference::Removed(joined_current_path));
+                        }
+                        current_path.pop();
+                    }
+                }
+            } else {
+                self_nodes_to_visit.pop_front();
+                current_path.pop();
+            }
+        }
+
+        current_path.clear();
+
+        let mut other_nodes_to_visit = VecDeque::new();
+        if let Value::Mapping(mapping) = &other.data {
+            other_nodes_to_visit.push_back(mapping.iter());
+        }
+
+        while let Some(other_current) = other_nodes_to_visit.front_mut() {
+            if let Some((key, value)) = other_current.next() {
+                let Value::String(current_key) = key else {
+                    std::unreachable!("Key is not a string");
+                };
+
+                current_path.push(current_key.clone());
+
+                match value {
+                    Value::Mapping(next_item) => {
+                        let joined_current_path = current_path.join(".");
+                        if self
+                            .get(&Path::from(joined_current_path.as_str()))
+                            .is_none()
+                        {
+                            diffs.push(FieldDifference::Added(joined_current_path));
+                            current_path.pop();
+                        } else {
+                            other_nodes_to_visit.push_front(next_item.iter());
+                        }
+                    }
+                    _ => {
+                        let joined_current_path = current_path.join(".");
+                        // if self
+                        //     .get(&Path::from(joined_current_path.as_str()))
+                        //     .is_none()
+                        // {
+                        //     diffs.push(StateDifference::Added(joined_current_path));
+                        // }
+                        diffs.push(FieldDifference::Added(joined_current_path));
+                        current_path.pop();
+                    }
+                }
+            } else {
+                other_nodes_to_visit.pop_front();
+                current_path.pop();
+            }
+        }
+
+        diffs
     }
 }
 
