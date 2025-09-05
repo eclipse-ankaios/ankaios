@@ -24,12 +24,12 @@ workloads:
           restartPolicy: Never
           containers:
           - name: looper
-            image: alpine:latest
+            image: ghcr.io/eclipse-ankaios/tests/alpine:latest
             command:
             - sleep
             - "50000"
           - name: greater
-            image: alpine:latest
+            image: ghcr.io/eclipse-ankaios/tests/alpine:latest
             command:
             - echo
             - "Hello from a container in a pod"
@@ -89,7 +89,7 @@ workloads:
           restartPolicy: Never
           containers:
           - name: nginx-container
-            image: nginx:latest
+            image: ghcr.io/eclipse-ankaios/tests/nginx:latest
             ports:
             - containerPort: 80
               hostPort: 8080
