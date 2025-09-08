@@ -209,7 +209,7 @@ impl From<&Object> for Vec<Path> {
     }
 }
 
-type FieldMask = String; // e.g. desiredState.workloads.workload_1.agent
+type FieldMask = Vec<String>; // e.g. ["desiredState", "workloads", "workload_1", "agent"]
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FieldDifference {
@@ -292,7 +292,7 @@ impl Object {
         self.get(path).is_some()
     }
 
-    pub fn diff(&self, other: &mut Object) -> Vec<FieldDifference> {
+    pub fn calculate_state_differences(&self, other: &mut Object) -> Vec<FieldDifference> {
         use std::collections::VecDeque;
         let mut diffs: Vec<FieldDifference> = Vec::new();
         let mut self_nodes_to_visit = VecDeque::new();
@@ -316,7 +316,7 @@ impl Object {
                             .get(&Path::from(joined_current_path.as_str()))
                             .is_none()
                         {
-                            diffs.push(FieldDifference::Removed(joined_current_path));
+                            diffs.push(FieldDifference::Removed(current_path.clone()));
                             current_path.pop();
                         } else {
                             self_nodes_to_visit.push_front(next_item.iter());
@@ -324,22 +324,19 @@ impl Object {
                     }
                     _ => {
                         let joined_current_path = current_path.join(".");
-                        // println!("Joined current path: {joined_current_path}");
                         if let Some(other_value) = other
                             .remove(&Path::from(joined_current_path.as_str()))
                             .unwrap()
                         {
-                            // if *value != other_value {
-                            //     diffs.push(FieldDifference::Changed(joined_current_path));
-                            // }
                             match *value {
                                 Value::Mapping(ref mapping) => {
                                     if *value != other_value {
                                         if mapping.is_empty() {
-                                            diffs.push(FieldDifference::Added(joined_current_path));
+                                            diffs
+                                                .push(FieldDifference::Added(current_path.clone()));
                                         } else {
                                             diffs.push(FieldDifference::Changed(
-                                                joined_current_path,
+                                                current_path.clone(),
                                             ));
                                         }
                                     }
@@ -347,22 +344,23 @@ impl Object {
                                 Value::Sequence(ref sequence) => {
                                     if *value != other_value {
                                         if sequence.is_empty() {
-                                            diffs.push(FieldDifference::Added(joined_current_path));
+                                            diffs
+                                                .push(FieldDifference::Added(current_path.clone()));
                                         } else {
                                             diffs.push(FieldDifference::Changed(
-                                                joined_current_path,
+                                                current_path.clone(),
                                             ));
                                         }
                                     }
                                 }
                                 _ => {
                                     if *value != other_value {
-                                        diffs.push(FieldDifference::Changed(joined_current_path));
+                                        diffs.push(FieldDifference::Changed(current_path.clone()));
                                     }
                                 }
                             }
                         } else {
-                            diffs.push(FieldDifference::Removed(joined_current_path));
+                            diffs.push(FieldDifference::Removed(current_path.clone()));
                         }
                         current_path.pop();
                     }
@@ -395,21 +393,14 @@ impl Object {
                             .get(&Path::from(joined_current_path.as_str()))
                             .is_none()
                         {
-                            diffs.push(FieldDifference::Added(joined_current_path));
+                            diffs.push(FieldDifference::Added(current_path.clone()));
                             current_path.pop();
                         } else {
                             other_nodes_to_visit.push_front(next_item.iter());
                         }
                     }
                     _ => {
-                        let joined_current_path = current_path.join(".");
-                        // if self
-                        //     .get(&Path::from(joined_current_path.as_str()))
-                        //     .is_none()
-                        // {
-                        //     diffs.push(StateDifference::Added(joined_current_path));
-                        // }
-                        diffs.push(FieldDifference::Added(joined_current_path));
+                        diffs.push(FieldDifference::Added(current_path.clone()));
                         current_path.pop();
                     }
                 }
