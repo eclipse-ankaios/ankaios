@@ -1672,20 +1672,64 @@ mod tests {
         let old_state: Object = old_complete_state.clone().try_into().unwrap();
         let mut update_state: Object = new_complete_state.clone().try_into().unwrap();
 
-        let mut changed_fields = old_state.diff(&mut update_state);
+        let mut changed_fields = old_state.calculate_state_differences(&mut update_state);
         changed_fields.sort();
 
         let expected_changed_fields = vec![
-            FieldDifference::Added("desiredState.workloads.workload_1.tags".to_owned()),
-            FieldDifference::Added("desiredState.workloads.workload_4".to_owned()),
-            FieldDifference::Added("workloadStates.agent_A.workload_4".to_owned()),
-            FieldDifference::Added("workloadStates.agent_B.workload_1".to_owned()),
-            FieldDifference::Removed("desiredState.workloads.workload_2".to_owned()),
-            FieldDifference::Removed("workloadStates.agent_A.workload_1".to_owned()),
-            FieldDifference::Removed("workloadStates.agent_A.workload_2".to_owned()),
-            FieldDifference::Changed("desiredState.workloads.workload_1.agent".to_owned()),
-            FieldDifference::Changed("desiredState.workloads.workload_1.runtime".to_owned()),
-            FieldDifference::Changed("desiredState.workloads.workload_3.runtime".to_owned()),
+            FieldDifference::Added(vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                "workload_1".to_owned(),
+                "tags".to_owned(),
+            ]),
+            FieldDifference::Added(vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                "workload_4".to_owned(),
+            ]),
+            FieldDifference::Added(vec![
+                "workloadStates".to_owned(),
+                "agent_A".to_owned(),
+                "workload_4".to_owned(),
+            ]),
+            FieldDifference::Added(vec![
+                "workloadStates".to_owned(),
+                "agent_B".to_owned(),
+                "workload_1".to_owned(),
+            ]),
+            FieldDifference::Removed(vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                "workload_2".to_owned(),
+            ]),
+            FieldDifference::Removed(vec![
+                "workloadStates".to_owned(),
+                "agent_A".to_owned(),
+                "workload_1".to_owned(),
+            ]),
+            FieldDifference::Removed(vec![
+                "workloadStates".to_owned(),
+                "agent_A".to_owned(),
+                "workload_2".to_owned(),
+            ]),
+            FieldDifference::Changed(vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                "workload_1".to_owned(),
+                "agent".to_owned(),
+            ]),
+            FieldDifference::Changed(vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                "workload_1".to_owned(),
+                "runtime".to_owned(),
+            ]),
+            FieldDifference::Changed(vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                "workload_3".to_owned(),
+                "runtime".to_owned(),
+            ]),
         ];
 
         assert_eq!(changed_fields, expected_changed_fields);
