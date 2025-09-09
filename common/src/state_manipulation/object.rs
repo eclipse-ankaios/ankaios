@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use super::Path;
 use crate::objects as ankaios;
@@ -293,7 +293,6 @@ impl Object {
     }
 
     pub fn calculate_state_differences(&self, other: &mut Object) -> Vec<FieldDifference> {
-        use std::collections::VecDeque;
         let mut diffs: Vec<FieldDifference> = Vec::new();
         let mut self_nodes_to_visit = VecDeque::new();
         if let Value::Mapping(mapping) = &self.data {
