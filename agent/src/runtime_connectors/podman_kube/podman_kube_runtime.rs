@@ -12,7 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
+use common::{
+    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
+    std_extensions::UnreachableResult,
+};
 use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
@@ -94,25 +97,26 @@ impl PodmanKubeRuntime {
         Ok(workload_states)
     }
 
-    fn process_manifests_with_control_interface(
-        manifest_str: &str,
+    // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+    fn enrich_manifest_with_control_interface(
+        workload_config: &mut PodmanKubeRuntimeConfig,
         workload_spec: &WorkloadSpec,
         target_pod: Option<&str>,
         target_container: Option<&str>,
-    ) -> Result<String, RuntimeError> {
-        // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
-        if (!workload_spec.needs_control_interface())
+    ) -> Result<(), RuntimeError> {
+        if !workload_spec.needs_control_interface()
             || target_pod.is_none()
             || target_container.is_none()
         {
-            return Ok(manifest_str.to_string());
+            return Ok(());
         }
 
-        let manifests = Self::parse_yaml_manifests(manifest_str)?;
+        let manifests = Self::parse_yaml_manifests(&workload_config.manifest)?;
         let processed_manifests =
             Self::process_manifest_list(manifests, workload_spec, target_pod, target_container)?;
 
-        Ok(processed_manifests.join("---\n"))
+        workload_config.manifest = processed_manifests.join("---\n");
+        Ok(())
     }
 
     fn parse_yaml_manifests(manifest_str: &str) -> Result<Vec<Value>, RuntimeError> {
@@ -145,11 +149,11 @@ impl PodmanKubeRuntime {
             .collect()
     }
 
+    // [impl->swdd~podman-kube-validates-target-path-format~1]
     fn should_inject_control_interface(
         manifest: &Value,
         target_pod: Option<&str>,
     ) -> Result<bool, RuntimeError> {
-        // [impl->swdd~podman-kube-validates-target-path-format~1]
         let Some(target_pod_name) = target_pod else {
             return Ok(false);
         };
@@ -176,14 +180,14 @@ impl PodmanKubeRuntime {
         Ok(pod_name == target_pod_name)
     }
 
+    // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+    // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
+    // [impl->swdd~podman-kube-limits-control-interface-to-target-container~1]
     fn inject_control_interface(
         manifest: &mut Value,
         workload_spec: &WorkloadSpec,
         target_container: Option<&str>,
     ) -> Result<(), RuntimeError> {
-        // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
-        // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
-        // [impl->swdd~podman-kube-limits-control-interface-to-target-container~1]
         if let Some(container_name) = target_container {
             Self::inject_volume_mount(manifest, container_name)?;
         }
@@ -191,12 +195,12 @@ impl PodmanKubeRuntime {
         Ok(())
     }
 
+    // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
+    // [impl->swdd~podman-kube-limits-control-interface-to-target-container~1]
     fn inject_volume_mount(
         manifest: &mut Value,
         target_container_name: &str,
     ) -> Result<(), RuntimeError> {
-        // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
-        // [impl->swdd~podman-kube-limits-control-interface-to-target-container~1]
         let containers = manifest
             .get_mut("spec")
             .and_then(|s| s.get_mut("containers"))
@@ -223,9 +227,8 @@ impl PodmanKubeRuntime {
         Ok(())
     }
 
+    // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
     fn add_control_interface_mount(container: &mut Value) {
-        // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
-        // Get or create volumeMounts array
         let container_mapping = container.as_mapping_mut().unwrap();
         let vol_mounts_key = Value::from("volumeMounts");
 
@@ -249,12 +252,12 @@ impl PodmanKubeRuntime {
     }
 
     // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+    // [impl->swdd~podman-kube-injects-control-interface-volume~1]
+    // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
     fn inject_control_volume(
         manifest: &mut Value,
         workload_spec: &WorkloadSpec,
     ) -> Result<(), RuntimeError> {
-        // [impl->swdd~podman-kube-injects-control-interface-volume~1]
-        // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
         let spec_mapping = manifest
             .get_mut("spec")
             .and_then(|s| s.as_mapping_mut())
@@ -277,9 +280,9 @@ impl PodmanKubeRuntime {
         Ok(())
     }
 
+    // [impl->swdd~podman-kube-injects-control-interface-volume~1]
+    // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
     fn create_control_interface_volume(workload_spec: &WorkloadSpec) -> Value {
-        // [impl->swdd~podman-kube-injects-control-interface-volume~1]
-        // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
         let mut host_path = Mapping::new();
         let path = format!(
             "/tmp/ankaios/{}_io/{}.{}/control_interface/",
@@ -301,6 +304,20 @@ impl PodmanKubeRuntime {
     fn serialize_yaml_manifest(manifest: &Value) -> Result<String, RuntimeError> {
         serde_yaml::to_string(manifest)
             .map_err(|e| RuntimeError::Unsupported(format!("Failed to serialize manifest: {e}")))
+    }
+
+    fn get_target_pod_and_container(
+        control_interface_target_container: &Option<String>,
+    ) -> (Option<String>, Option<String>) {
+        let Some(target_path) = control_interface_target_container else {
+            return (None, None);
+        };
+
+        let composite_parts: Vec<String> = target_path.split('/').map(|s| s.to_owned()).collect();
+        (
+            composite_parts.first().cloned(),
+            composite_parts.get(1).cloned(),
+        )
     }
 }
 
@@ -368,24 +385,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             ));
         }
 
-        if workload_spec.needs_control_interface() {
-            if let Some(target_path) = workload_spec.clone().control_interface_access.target_path {
-                // [impl->swdd~podman-kube-validates-target-path-format~1]
-                let composite_parts: Vec<String> =
-                    target_path.split('/').map(|s| s.to_owned()).collect();
-
-                target_pod = composite_parts.first().cloned();
-                target_container = composite_parts.get(1).cloned();
-            } else {
-                target_pod = None;
-                target_container = None;
-            }
-        } else {
-            target_pod = None;
-            target_container = None;
-        }
-
-        let workload_config =
+        let mut workload_config =
             PodmanKubeRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Unsupported)?;
 
         // [impl->swdd~podman-kube-create-workload-creates-config-volume~1]
@@ -403,18 +403,25 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             )
         });
 
-        let new_manifest = Self::process_manifests_with_control_interface(
-            &workload_config.manifest,
-            &workload_spec,
-            target_pod.as_deref(),
-            target_container.as_deref(),
-        )?;
+        if workload_spec.needs_control_interface() {
+            // [impl->swdd~podman-kube-validates-target-path-format~1]
+            (target_pod, target_container) = Self::get_target_pod_and_container(
+                &workload_config.control_interface_target_container,
+            );
+
+            Self::enrich_manifest_with_control_interface(
+                &mut workload_config,
+                &workload_spec,
+                target_pod.as_deref(),
+                target_container.as_deref(),
+            )?;
+        }
 
         // [impl->swdd~podman-kube-create-workload-apply-manifest~1]
         let created_pods = PodmanCli::play_kube(
             &workload_config.general_options,
             &workload_config.play_options,
-            new_manifest.as_bytes(),
+            workload_config.manifest.as_bytes(),
         )
         .await
         .map_err(RuntimeError::Create)?;
