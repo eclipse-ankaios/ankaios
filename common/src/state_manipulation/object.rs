@@ -804,7 +804,6 @@ mod tests {
                             .entry(
                                 "controlInterfaceAccess",
                                 Mapping::default()
-                                    .entry("targetPath", Value::Null)
                                     .entry("allowRules", vec![] as Vec<Value>)
                                     .entry("denyRules", vec![] as Vec<Value>),
                             )

@@ -365,7 +365,6 @@ message Error {
 message ControlInterfaceAccess {
   repeated AccessRightsRule allowRules = 1; // Rules allow the access
   repeated AccessRightsRule denyRules = 2; // Rules denying the access
-  optional string targetPath = 3; // Runtime specific path defining which part of the workload gets access to the control interface.
 }
 
 /**

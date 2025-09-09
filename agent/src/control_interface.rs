@@ -289,7 +289,6 @@ mod tests {
         );
         workload_spec_with_target_path.control_interface_access =
             common::objects::ControlInterfaceAccess {
-                target_path: Some("nginx-pod/nginx-container".to_string()),
                 allow_rules: vec![],
                 deny_rules: vec![],
             };
@@ -305,12 +304,6 @@ mod tests {
                 .control_interface_access
                 .deny_rules
                 .is_empty()
-        );
-        assert!(
-            workload_spec_with_target_path
-                .control_interface_access
-                .target_path
-                .is_some()
         );
     }
 
@@ -352,7 +345,6 @@ mod tests {
 
         workload_spec_with_access_rules.control_interface_access =
             common::objects::ControlInterfaceAccess {
-                target_path: Some("nginx-pod/nginx-container".to_string()),
                 allow_rules: vec![common::objects::AccessRightsRule::StateRule(
                     common::objects::StateRule {
                         operation: common::objects::ReadWriteEnum::ReadWrite,
@@ -379,13 +371,6 @@ mod tests {
                 .control_interface_access
                 .allow_rules
                 .is_empty()
-        );
-
-        assert!(
-            workload_spec_with_access_rules
-                .control_interface_access
-                .target_path
-                .is_some()
         );
     }
 }
