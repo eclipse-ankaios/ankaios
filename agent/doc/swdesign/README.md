@@ -1945,11 +1945,16 @@ Needs:
 - utest
 
 #### WorkloadFilesCreator decodes base64 to binary
-`swdd~workload-files-creator-decodes-base64-to-binary~1`
+`swdd~workload-files-creator-decodes-base64-to-binary~2`
 
 Status: approved
 
-When the WorkloadFilesCreator is requested to write a workload file with content type binary, the WorkloadFilesCreator shall decode the base64 content to a collection of bytes which is written to the file.
+When the WorkloadFilesCreator is requested to write a workload file with content type binary, the WorkloadFilesCreator shall:
+* remove all newlines and whitespaces in case the base64 content is wrapped
+* decode the base64 content to a collection of bytes which is written to the file.
+
+Rationale:
+Base64 encoding tools may encode with wrapping the base64 content at a certain amount of characters.
 
 Tags:
 - WorkloadFilesCreator
