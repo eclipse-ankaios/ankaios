@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tonic_build::configure()
+    tonic_prost_build::configure()
         .build_server(true)
         .boxed("Request.RequestContent.updateStateRequest")
         .boxed("FromAnkaios.FromAnkaiosEnum.response")
@@ -55,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
         )
         .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]")
-        .compile(&["proto/control_api.proto"], &["proto"])
+        .compile_protos(&["proto/control_api.proto"], &["proto"])
         .unwrap();
     Ok(())
 }

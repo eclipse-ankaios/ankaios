@@ -18,7 +18,7 @@ use common::{check_version_compatibility, to_server_interface};
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 
-use tonic::codegen::futures_core::Stream;
+use futures_core::Stream;
 use tonic::{Request, Response, Status};
 
 use crate::agent_senders_map::AgentSendersMap;
