@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use base64::{engine::general_purpose, Engine};
+use base64::{Engine, engine::general_purpose};
 use common::objects::{Base64Data, Data, File, FileContent};
 use std::{
     collections::HashMap,
     fmt,
-    path::{Path, PathBuf, MAIN_SEPARATOR_STR},
+    path::{MAIN_SEPARATOR_STR, Path, PathBuf},
 };
 
 use super::WorkloadFilesBasePath;
@@ -170,7 +170,12 @@ impl WorkloadFilesCreator {
             FileContent::BinaryData(Base64Data {
                 base64_data: binary_data,
             }) => {
-                // [impl->swdd~workload-files-creator-decodes-base64-to-binary~1]
+                // [impl->swdd~workload-files-creator-decodes-base64-to-binary~2]
+                let binary_data = binary_data
+                    .lines()
+                    .map(|line| line.trim())
+                    .collect::<String>();
+
                 let binary = general_purpose::STANDARD
                     .decode(binary_data)
                     .map_err(|err| {
@@ -209,7 +214,7 @@ mod tests {
 
     use super::{Base64Data, Data, File, FileContent, WorkloadFileHostPath, WorkloadFilesCreator};
 
-    use crate::io_utils::{mock_filesystem, mock_filesystem_async, FileSystemError};
+    use crate::io_utils::{FileSystemError, mock_filesystem, mock_filesystem_async};
 
     use std::{
         collections::HashMap,
@@ -221,7 +226,7 @@ mod tests {
     const TEST_WORKLOAD_FILE_DATA: &str = "some config";
 
     // [utest->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
-    // [utest->swdd~workload-files-creator-decodes-base64-to-binary~1]
+    // [utest->swdd~workload-files-creator-decodes-base64-to-binary~2]
     #[tokio::test]
     async fn utest_workload_files_creator_create_files() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -284,6 +289,55 @@ mod tests {
             (text_host_file_path, PathBuf::from("/some/path/test.conf")),
             (binary_file_path, PathBuf::from("/hello")),
         ]);
+        assert_eq!(
+            Ok(expected_host_file_paths),
+            WorkloadFilesCreator::create_files(&workload_files_path, &workload_files).await
+        );
+    }
+
+    // [utest->swdd~workload-files-creator-decodes-base64-to-binary~2]
+    #[tokio::test]
+    async fn utest_workload_files_creator_create_files_decode_wrapped_base64_input() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let wrapped_base64_input = r#"
+            VGhpcyBwaWVjZSBvZiB0ZXh0IGlzIHdyYXBwZWQgaW50byBtdWx0aXBsZSBsaW5lcyBhZnRlciBk
+            ZWNvZGluZyB0byBiYXNlNjQu
+        "#;
+
+        let workload_files_path = generate_test_workload_files_path();
+
+        let mock_make_dir_context = mock_filesystem::make_dir_context();
+
+        mock_make_dir_context.expect().once().returning(|_| Ok(()));
+
+        let binary_file_path = workload_files_path.join("binary");
+        let mock_write_file_context = mock_filesystem_async::write_file_context();
+
+        let expected_decoded_base64 =
+            "This piece of text is wrapped into multiple lines after decoding to base64.";
+
+        mock_write_file_context
+            .expect()
+            .once()
+            .with(
+                predicate::eq(binary_file_path.clone()),
+                predicate::eq(expected_decoded_base64.to_owned().as_bytes().to_vec()),
+            )
+            .returning(|_, _: Vec<u8>| Ok(()));
+
+        let expected_host_file_paths =
+            HashMap::from([(binary_file_path, PathBuf::from("/binary"))]);
+
+        let workload_files = [File {
+            mount_point: "/binary".to_string(),
+            file_content: FileContent::BinaryData(Base64Data {
+                base64_data: wrapped_base64_input.to_string(),
+            }),
+        }];
+
         assert_eq!(
             Ok(expected_host_file_paths),
             WorkloadFilesCreator::create_files(&workload_files_path, &workload_files).await
@@ -461,7 +515,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~workload-files-creator-decodes-base64-to-binary~1]
+    // [utest->swdd~workload-files-creator-decodes-base64-to-binary~2]
     #[tokio::test]
     async fn utest_workload_files_creator_write_file_base64_decode_error() {
         let result = WorkloadFilesCreator::write_file(
