@@ -1950,7 +1950,7 @@ Needs:
 Status: approved
 
 When the WorkloadFilesCreator is requested to write a workload file with content type binary, the WorkloadFilesCreator shall:
-* remove all newlines and whitespaces in case of the base64 content is wrapped
+* remove all newlines and whitespaces in case the base64 content is wrapped
 * decode the base64 content to a collection of bytes which is written to the file.
 
 Rationale:
