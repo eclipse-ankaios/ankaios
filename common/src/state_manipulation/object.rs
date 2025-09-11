@@ -305,12 +305,12 @@ impl Object {
         diffs
     }
 
-    /// Determine the changed and removed fields between self and other using a depth-first search (DFS) algorithm.
+    /// Determine the changed and removed fields (and added sequences) between self and other using a depth-first search (DFS) algorithm.
     /// For optimization purposes, the other object is modified during the comparison to remove already compared fields.
     ///
     /// ## Arguments
     ///
-    /// - `other`: The [Object] containing the new state to compare against the current state.
+    /// - `new_state_object`: The [Object] containing the new state to compare against the current state.
     ///
     /// ## Returns
     ///
@@ -391,7 +391,7 @@ impl Object {
     ///
     /// ## Arguments
     ///
-    /// - `other`: The [Object] containing the new state to compare against the current state.
+    /// - `new_state_object`: The [Object] containing the new state to compare against the current state.
     ///
     /// ## Returns
     ///
