@@ -293,16 +293,16 @@ impl Object {
     }
 
     pub fn calculate_state_differences(&self, other: &mut Object) -> Vec<FieldDifference> {
-        let mut diffs: Vec<FieldDifference> = Vec::new();
+        let mut total_state_difference: Vec<FieldDifference> = Vec::new();
 
         let changed_and_removed_differences =
             self.determine_changed_and_removed_fields_with_dfs(other);
-        diffs.extend(changed_and_removed_differences);
+        total_state_difference.extend(changed_and_removed_differences);
 
         let added_differences = self.determine_added_fields_with_dfs(other);
-        diffs.extend(added_differences);
+        total_state_difference.extend(added_differences);
 
-        diffs
+        total_state_difference
     }
 
     /// Determine the changed and removed fields (and added sequences) between self and other using a depth-first search (DFS) algorithm.
