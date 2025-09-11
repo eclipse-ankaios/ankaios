@@ -39,6 +39,7 @@ mod get_state;
 mod get_workloads;
 mod run_workload;
 mod set_state;
+mod dry_run_plan;
 
 use common::{
     communications_error::CommunicationMiddlewareError,
@@ -244,7 +245,7 @@ impl CliCommands {
 
         let update_state_success = self
             .server_connection
-            .update_state(new_state, update_mask)
+            .update_state(new_state, update_mask, false)
             .await?;
 
         output_debug!("Got update success: {:?}", update_state_success);
