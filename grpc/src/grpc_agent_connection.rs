@@ -13,7 +13,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::pin::Pin;
-use std::sync::Arc;
 
 use common::check_version_compatibility;
 use common::std_extensions::GracefulExitResult;
@@ -50,7 +49,7 @@ impl GRPCAgentConnection {
     }
 }
 
-fn has_multiple_peer_certs(peer_certs: &Arc<Vec<CertificateDer>>) -> bool {
+fn has_multiple_peer_certs(peer_certs: &[CertificateDer]) -> bool {
     peer_certs.len() > 1
 }
 
