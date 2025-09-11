@@ -518,7 +518,7 @@ mod tests {
         assert_eq!(
             forward_result.unwrap_err().to_string(),
             String::from(
-                "Connection interrupted: 'status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }'"
+                "Connection interrupted: 'status: 'Unknown error', self: \"test\"'"
             )
         );
 
