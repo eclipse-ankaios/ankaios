@@ -15,10 +15,7 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .build_server(true)
-        .compile(
-            &["proto/grpc_api.proto"],
-            &["proto", "../api/proto"],
-        )
+        .compile(&["proto/grpc_api.proto"], &["proto", "../api/proto"])
         .unwrap();
     Ok(())
 }

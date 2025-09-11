@@ -12,14 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use super::Path;
 use crate::objects as ankaios;
-use api::ank_base as proto;
+use api::ank_base::{self as proto};
 use serde_yaml::{
     Mapping, Value, from_value,
-    mapping::{Entry::Occupied, Entry::Vacant},
+    mapping::Entry::{Occupied, Vacant},
     to_value,
 };
 
@@ -208,6 +208,16 @@ impl From<&Object> for Vec<Path> {
         get_paths_from_yaml_node(&value.data, true)
     }
 }
+
+type FieldMask = Vec<String>; // e.g. ["desiredState", "workloads", "workload_1", "agent"]
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FieldDifference {
+    Added(FieldMask),
+    Removed(FieldMask),
+    Updated(FieldMask),
+}
+
 impl Object {
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
@@ -229,13 +239,13 @@ impl Object {
         Ok(())
     }
 
-    pub fn remove(&mut self, path: &Path) -> Result<(), String> {
+    pub fn remove(&mut self, path: &Path) -> Result<Option<serde_yaml::Value>, String> {
         let (path_head, path_last) = path.split_last()?;
 
-        self.get_as_mapping(&path_head)
+        Ok(self
+            .get_as_mapping(&path_head)
             .ok_or_else(|| format!("{path_head:?} is not mapping"))?
-            .remove(Value::String(path_last));
-        Ok(())
+            .remove(Value::String(path_last)))
     }
 
     fn get_as_mapping(&mut self, path: &Path) -> Option<&mut Mapping> {
@@ -281,6 +291,153 @@ impl Object {
     pub fn check_if_provided_path_exists(&self, path: &Path) -> bool {
         self.get(path).is_some()
     }
+
+    pub fn calculate_state_differences(&self, other: &mut Object) -> Vec<FieldDifference> {
+        let mut total_state_difference: Vec<FieldDifference> = Vec::new();
+
+        let changed_and_removed_differences =
+            self.determine_changed_and_removed_fields_with_dfs(other);
+        total_state_difference.extend(changed_and_removed_differences);
+
+        let added_differences = self.determine_added_fields_with_dfs(other);
+        total_state_difference.extend(added_differences);
+
+        total_state_difference
+    }
+
+    /// Determine the changed and removed fields (and added sequences) between self and other using a depth-first search (DFS) algorithm.
+    /// For optimization purposes, the other object is modified during the comparison to remove already compared fields.
+    ///
+    /// ## Arguments
+    ///
+    /// - `new_state_object`: The [Object] containing the new state to compare against the current state.
+    ///
+    /// ## Returns
+    ///
+    /// - a [Vec<`FieldDifference`>] containing the added, removed and updated fields and the corresponding field mask. A change from empty sequence to non-empty sequence is considered as added field.
+    ///
+    fn determine_changed_and_removed_fields_with_dfs(
+        &self,
+        new_state_object: &mut Object,
+    ) -> Vec<FieldDifference> {
+        let mut self_nodes_to_visit = VecDeque::new();
+        if let Value::Mapping(mapping) = &self.data {
+            self_nodes_to_visit.push_back(mapping.iter());
+        }
+
+        let mut diffs: Vec<FieldDifference> = Vec::new();
+        let mut current_path = Vec::new();
+        while let Some(self_current) = self_nodes_to_visit.front_mut() {
+            if let Some((key, value)) = self_current.next() {
+                let Value::String(current_key) = key else {
+                    std::unreachable!("Key is not a string");
+                };
+
+                current_path.push(current_key.clone());
+
+                match value {
+                    Value::Mapping(next_item) => {
+                        let joined_current_path = current_path.join(".");
+                        if new_state_object
+                            .get(&Path::from(joined_current_path.as_str()))
+                            .is_none()
+                        {
+                            diffs.push(FieldDifference::Removed(current_path.clone()));
+                            current_path.pop();
+                        } else {
+                            self_nodes_to_visit.push_front(next_item.iter());
+                        }
+                    }
+                    _ => {
+                        let joined_current_path = current_path.join(".");
+                        if let Some(other_value) = new_state_object
+                            .remove(&Path::from(joined_current_path.as_str()))
+                            .unwrap()
+                        {
+                            match *value {
+                                Value::Sequence(ref sequence) => {
+                                    if *value != other_value {
+                                        if sequence.is_empty() {
+                                            diffs
+                                                .push(FieldDifference::Added(current_path.clone()));
+                                        } else {
+                                            diffs.push(FieldDifference::Updated(
+                                                current_path.clone(),
+                                            ));
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    if *value != other_value {
+                                        diffs.push(FieldDifference::Updated(current_path.clone()));
+                                    }
+                                }
+                            }
+                        } else {
+                            diffs.push(FieldDifference::Removed(current_path.clone()));
+                        }
+                        current_path.pop();
+                    }
+                }
+            } else {
+                self_nodes_to_visit.pop_front();
+                current_path.pop();
+            }
+        }
+        diffs
+    }
+
+    /// Determine the added fields between self and other using a depth-first search (DFS) algorithm.
+    ///
+    /// ## Arguments
+    ///
+    /// - `new_state_object`: The [Object] containing the new state to compare against the current state.
+    ///
+    /// ## Returns
+    ///
+    /// - a [Vec<`FieldDifference`>] containing added fields and the corresponding field mask.
+    ///
+    fn determine_added_fields_with_dfs(&self, new_state_object: &Object) -> Vec<FieldDifference> {
+        let mut other_nodes_to_visit = VecDeque::new();
+        if let Value::Mapping(mapping) = &new_state_object.data {
+            other_nodes_to_visit.push_back(mapping.iter());
+        }
+
+        let mut diffs: Vec<FieldDifference> = Vec::new();
+        let mut current_path = Vec::new();
+        while let Some(other_current) = other_nodes_to_visit.front_mut() {
+            if let Some((key, value)) = other_current.next() {
+                let Value::String(current_key) = key else {
+                    std::unreachable!("Key is not a string");
+                };
+
+                current_path.push(current_key.clone());
+
+                match value {
+                    Value::Mapping(next_item) => {
+                        let joined_current_path = current_path.join(".");
+                        if self
+                            .get(&Path::from(joined_current_path.as_str()))
+                            .is_none()
+                        {
+                            diffs.push(FieldDifference::Added(current_path.clone()));
+                            current_path.pop();
+                        } else {
+                            other_nodes_to_visit.push_front(next_item.iter());
+                        }
+                    }
+                    _ => {
+                        diffs.push(FieldDifference::Added(current_path.clone()));
+                        current_path.pop();
+                    }
+                }
+            } else {
+                other_nodes_to_visit.pop_front();
+                current_path.pop();
+            }
+        }
+        diffs
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -299,11 +456,12 @@ mod tests {
             generate_test_rendered_workload_files, generate_test_workload_spec_with_rendered_files,
             generate_test_workload_states_map_with_data,
         },
+        state_manipulation::object::tests::object::Mapping,
         test_utils::generate_test_state_from_workloads,
     };
     use serde_yaml::Value;
 
-    use super::Object;
+    use super::{FieldDifference, Object};
     #[test]
     fn utest_object_from_state() {
         let state: State = generate_test_state_from_workloads(vec![
@@ -737,6 +895,510 @@ mod tests {
         let expected_set: HashSet<_> = expected.iter().collect();
 
         assert_eq!(actual_set, expected_set)
+    }
+
+    #[test]
+    fn utest_calculate_state_differences_removed_sequence() {
+        let old_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config")
+                                .entry(
+                                    "files",
+                                    vec![
+                                        Mapping::default()
+                                            .entry("mountPoint", "/config/config.json")
+                                            .entry("data", "some data")
+                                            .into(),
+                                    ] as Vec<Value>,
+                                ),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+
+        let mut new_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config"),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+
+        let expected_changed_fields = vec![FieldDifference::Removed(vec![
+            "desiredState".to_owned(),
+            "workloads".to_owned(),
+            "workload_1".to_owned(),
+            "files".to_owned(),
+        ])];
+
+        assert_eq!(changed_fields, expected_changed_fields);
+    }
+
+    #[test]
+    fn utest_calculate_state_differences_removed_mapping_entry() {
+        let old_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config"),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+        let mut new_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry("workloads", Mapping::default()),
+                )
+                .into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+
+        let expected_changed_fields = vec![FieldDifference::Removed(vec![
+            "desiredState".to_owned(),
+            "workloads".to_owned(),
+            "workload_1".to_owned(),
+        ])];
+
+        assert_eq!(changed_fields, expected_changed_fields);
+    }
+
+    #[test]
+    fn utest_calculate_state_differences_removed_leaf_mapping_entry() {
+        let old_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config")
+                                .entry("restartPolicy", "NEVER"),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+        let mut new_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config"),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+
+        let expected_changed_fields = vec![FieldDifference::Removed(vec![
+            "desiredState".to_owned(),
+            "workloads".to_owned(),
+            "workload_1".to_owned(),
+            "restartPolicy".to_owned(),
+        ])];
+
+        assert_eq!(changed_fields, expected_changed_fields);
+    }
+
+    #[test]
+    fn utest_calculate_state_differences_from_empty_to_filled_mapping_as_added() {
+        let old_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry("workloads", Mapping::default()),
+                )
+                .into(),
+        };
+
+        let mut new_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config"),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+
+        let expected_changed_fields = vec![FieldDifference::Added(vec![
+            "desiredState".to_owned(),
+            "workloads".to_owned(),
+            "workload_1".to_owned(),
+        ])];
+
+        assert_eq!(changed_fields, expected_changed_fields);
+    }
+
+    #[test]
+    fn utest_calculate_state_differences_added_mapping_new_entry() {
+        let old_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config")
+                                .entry("configs", Mapping::default()),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+        let mut new_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config")
+                                .entry("configs", Mapping::default().entry("config_1", "ref_1")),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+
+        let expected_changed_fields = vec![FieldDifference::Added(vec![
+            "desiredState".to_owned(),
+            "workloads".to_owned(),
+            "workload_1".to_owned(),
+            "configs".to_owned(),
+            "config_1".to_owned(),
+        ])];
+
+        assert_eq!(changed_fields, expected_changed_fields);
+    }
+
+    #[test]
+    fn utest_calculate_state_differences_changed_mapping() {
+        let old_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config"),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+        let mut new_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "changed runtime config"),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+
+        let expected_changed_fields = vec![FieldDifference::Updated(vec![
+            "desiredState".to_owned(),
+            "workloads".to_owned(),
+            "workload_1".to_owned(),
+            "runtimeConfig".to_owned(),
+        ])];
+
+        assert_eq!(changed_fields, expected_changed_fields);
+    }
+
+    #[test]
+    fn utest_calculate_state_differences_from_empty_to_filled_sequence_as_added() {
+        let old_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config")
+                                .entry("files", Vec::<Value>::default()),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+        let mut new_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config")
+                                .entry(
+                                    "files",
+                                    vec![
+                                        Mapping::default()
+                                            .entry("mountPoint", "/config/config.json")
+                                            .entry("data", "file data")
+                                            .into(),
+                                    ] as Vec<Value>,
+                                ),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+
+        let expected_changed_fields = vec![FieldDifference::Added(vec![
+            "desiredState".to_owned(),
+            "workloads".to_owned(),
+            "workload_1".to_owned(),
+            "files".to_owned(),
+        ])];
+
+        assert_eq!(changed_fields, expected_changed_fields);
+    }
+
+    #[test]
+    fn utest_calculate_state_differences_changed_sequence_new_entry() {
+        let old_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config")
+                                .entry(
+                                    "files",
+                                    vec![
+                                        Mapping::default()
+                                            .entry("mountPoint", "/config/config_1.json")
+                                            .entry("data", "file data")
+                                            .into(),
+                                    ] as Vec<Value>,
+                                ),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+        let mut new_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config")
+                                .entry(
+                                    "files",
+                                    vec![
+                                        Mapping::default()
+                                            .entry("mountPoint", "/config/config_1.json")
+                                            .entry("data", "file data")
+                                            .into(),
+                                        Mapping::default()
+                                            .entry("mountPoint", "/config/config_2.json")
+                                            .entry("data", "file data")
+                                            .into(),
+                                    ] as Vec<Value>,
+                                ),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+
+        let expected_changed_fields = vec![FieldDifference::Updated(vec![
+            "desiredState".to_owned(),
+            "workloads".to_owned(),
+            "workload_1".to_owned(),
+            "files".to_owned(),
+        ])];
+
+        assert_eq!(changed_fields, expected_changed_fields);
+    }
+
+    #[test]
+    fn utest_calculate_state_differences_changed_sequence() {
+        let old_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config")
+                                .entry(
+                                    "files",
+                                    vec![
+                                        Mapping::default()
+                                            .entry("mountPoint", "/config/config.json")
+                                            .entry("data", "file data")
+                                            .into(),
+                                    ] as Vec<Value>,
+                                ),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+        let mut new_state = Object {
+            data: Mapping::default()
+                .entry("apiVersion", "v0.1")
+                .entry(
+                    "desiredState",
+                    Mapping::default().entry(
+                        "workloads",
+                        Mapping::default().entry(
+                            "workload_1",
+                            Mapping::default()
+                                .entry("agent", "agent_A")
+                                .entry("runtime", "runtime_1")
+                                .entry("runtimeConfig", "some runtime config")
+                                .entry(
+                                    "files",
+                                    vec![
+                                        Mapping::default()
+                                            .entry("mountPoint", "/config/config.json")
+                                            .entry("data", "updated file data")
+                                            .into(),
+                                    ] as Vec<Value>,
+                                ),
+                        ),
+                    ),
+                )
+                .into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+
+        let expected_changed_fields = vec![FieldDifference::Updated(vec![
+            "desiredState".to_owned(),
+            "workloads".to_owned(),
+            "workload_1".to_owned(),
+            "files".to_owned(),
+        ])];
+
+        assert_eq!(changed_fields, expected_changed_fields);
     }
 
     mod object {

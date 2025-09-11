@@ -316,6 +316,13 @@ impl ServerState {
             UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{err}'"))
         })?;
 
+        let state_differences =
+            new_state.calculate_state_differences(&mut state_from_update.clone()); // TODO: I do not like this clone here!
+
+        if !state_differences.is_empty() {
+            log::debug!("Found '{}' state differences", state_differences.len());
+        }
+
         for field in update_mask {
             let field: Path = field.into();
             if let Some(field_from_update) = state_from_update.get(&field) {
@@ -430,7 +437,10 @@ mod tests {
             ..Default::default()
         };
 
-        let request_complete_state = CompleteStateRequest { field_mask: vec![] };
+        let request_complete_state = CompleteStateRequest {
+            field_mask: vec![],
+            subscribe: false,
+        };
 
         let mut workload_state_db = WorkloadStatesMap::default();
         workload_state_db.process_new_states(server_state.state.workload_states.clone().into());
@@ -463,6 +473,7 @@ mod tests {
                 "workloads.invalidMask".to_string(), // invalid not existing workload
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
             ],
+            subscribe: false,
         };
 
         let mut workload_state_map = WorkloadStatesMap::default();
@@ -516,6 +527,7 @@ mod tests {
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
                 format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
             ],
+            subscribe: false,
         };
 
         let mut workload_state_map = WorkloadStatesMap::default();
