@@ -211,7 +211,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>,
     ) {
         let (to_grpc_client, grpc_client_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
-        let url = format!("http://{server_addr}");
+        let url = format!("https://{server_addr}");
         let grpc_communications_client = match comm_type {
             CommunicationType::Cli => GRPCCommunicationsClient::new_cli_communication(
                 test_request_id.to_owned(),
@@ -247,7 +247,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
     ) {
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         //                                         _____________                                _________________
-        //                                        |             | -----grpc over http(s)--------> |    0.0.0.0:port |
+        //                                        |             | -----grpc over http(s)-----> |    0.0.0.0:port |
         //  test_case ------->to_grpc_client----->| grpc_client |                              |    grpc_server  |
         //                                        |_____________|                              |_________________|
         //                                                                                              |---to_server---> server_receiver

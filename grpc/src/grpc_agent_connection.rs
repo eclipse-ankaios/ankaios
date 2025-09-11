@@ -19,8 +19,8 @@ use common::std_extensions::GracefulExitResult;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 
-use tonic::codegen::futures_core::Stream;
-use tonic::transport::Certificate;
+use futures_core::Stream;
+use tonic::transport::CertificateDer;
 use tonic::{Request, Response, Status};
 use x509_parser::certificate::X509Certificate;
 use x509_parser::der_parser::asn1_rs::FromDer;
@@ -49,7 +49,7 @@ impl GRPCAgentConnection {
     }
 }
 
-fn has_multiple_peer_certs(peer_certs: &[Certificate]) -> bool {
+fn has_multiple_peer_certs(peer_certs: &[CertificateDer]) -> bool {
     peer_certs.len() > 1
 }
 
