@@ -137,7 +137,7 @@ message UpdateStateSuccess {
 
 /*** A message containing the complete state of the Ankaios system along with information about what has changed.
 * This is a response to the [CompleteStateRequest](#completestaterequest) message.
-* If this is the first response to a CompleteStateRequest,l the addedFields, updatedFields, and removedFields will all be empty.
+* If this is the first response to a CompleteStateRequest, the addedFields, updatedFields, and removedFields will all be empty.
 */
 message CompleteStateResponse {
     CompleteState completeState = 1; /// The complete state of the Ankaios system.
