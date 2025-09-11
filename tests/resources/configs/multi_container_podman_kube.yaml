@@ -5,7 +5,6 @@ workloads:
     agent: agent_A
     restartPolicy: NEVER
     controlInterfaceAccess:
-      targetPath: "pod_A/container_A"
       allowRules:
       - type: StateRule
         operation: Read
@@ -19,6 +18,8 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
+      targetPath: |
+        "pod_A/container_A"
       manifest: |
         apiVersion: v1
         kind: Pod
@@ -28,6 +29,9 @@ workloads:
           restartPolicy: Never
           containers:
           - name: container_A
+            image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+            command: ["sleep", "30"]
+          - name: container_A_sidecar
             image: ghcr.io/eclipse-ankaios/tests/alpine:latest
             command: ["sleep", "30"]
         ---
@@ -40,4 +44,3 @@ workloads:
           - name: container_B
             image: ghcr.io/eclipse-ankaios/tests/alpine:latest
             command: ["sleep", "30"]
-            

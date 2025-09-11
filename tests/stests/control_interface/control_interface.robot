@@ -155,7 +155,11 @@ Test target path from control interface access is limited to the designated pod 
     # Attempt to write to control interface from a different pod/container
     ${write_result}=    Run Process    podman     exec     pod_B-container_B     sh     -c "echo 'write' > /ankaios/control_interface"
     Should Not Be Equal As Integers    ${write_result.rc}    0
+    ${write_result}=    Run Process    podman     exec     pod_A-container_A_sidecar     sh     -c "echo 'write' > /ankaios/control_interface"
+    Should Not Be Equal As Integers    ${write_result.rc}    0
     # Attempt to read from control interface from a different pod/container
     ${read_result}=    Run Process    podman     exec     pod_B-container_B     sh     -c "cat /run/ankaios/control_interface"
+    Should Not Be Equal As Integers    ${read_result.rc}    0
+    ${read_result}=    Run Process    podman     exec     pod_A-container_A_sidecar     sh     -c "cat /run/ankaios/control_interface"
     Should Not Be Equal As Integers    ${read_result.rc}    0
     [Teardown]    Clean up Ankaios
