@@ -316,6 +316,13 @@ impl ServerState {
             UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{err}'"))
         })?;
 
+        let state_differences =
+            new_state.calculate_state_differences(&mut state_from_update.clone()); // TODO: I do not like this clone here!
+
+        if !state_differences.is_empty() {
+            log::debug!("Found '{}' state differences", state_differences.len());
+        }
+
         for field in update_mask {
             let field: Path = field.into();
             if let Some(field_from_update) = state_from_update.get(&field) {

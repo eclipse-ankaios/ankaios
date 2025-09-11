@@ -215,7 +215,7 @@ type FieldMask = Vec<String>; // e.g. ["desiredState", "workloads", "workload_1"
 pub enum FieldDifference {
     Added(FieldMask),
     Removed(FieldMask),
-    Changed(FieldMask),
+    Updated(FieldMask),
 }
 
 impl Object {
@@ -294,11 +294,38 @@ impl Object {
 
     pub fn calculate_state_differences(&self, other: &mut Object) -> Vec<FieldDifference> {
         let mut diffs: Vec<FieldDifference> = Vec::new();
+
+        let changed_and_removed_differences =
+            self.determine_changed_and_removed_fields_with_dfs(other);
+        diffs.extend(changed_and_removed_differences);
+
+        let added_differences = self.determine_added_fields_with_dfs(other);
+        diffs.extend(added_differences);
+
+        diffs
+    }
+
+    /// Determine the changed and removed fields between self and other using a depth-first search (DFS) algorithm.
+    /// For optimization purposes, the other object is modified during the comparison to remove already compared fields.
+    ///
+    /// ## Arguments
+    ///
+    /// - `other`: The [Object] containing the new state to compare against the current state.
+    ///
+    /// ## Returns
+    ///
+    /// - a [Vec<`FieldDifference`>] containing the added, removed and updated fields and the corresponding field mask. A change from empty sequence to non-empty sequence is considered as added field.
+    ///
+    fn determine_changed_and_removed_fields_with_dfs(
+        &self,
+        new_state_object: &mut Object,
+    ) -> Vec<FieldDifference> {
         let mut self_nodes_to_visit = VecDeque::new();
         if let Value::Mapping(mapping) = &self.data {
             self_nodes_to_visit.push_back(mapping.iter());
         }
 
+        let mut diffs: Vec<FieldDifference> = Vec::new();
         let mut current_path = Vec::new();
         while let Some(self_current) = self_nodes_to_visit.front_mut() {
             if let Some((key, value)) = self_current.next() {
@@ -311,7 +338,7 @@ impl Object {
                 match value {
                     Value::Mapping(next_item) => {
                         let joined_current_path = current_path.join(".");
-                        if other
+                        if new_state_object
                             .get(&Path::from(joined_current_path.as_str()))
                             .is_none()
                         {
@@ -323,7 +350,7 @@ impl Object {
                     }
                     _ => {
                         let joined_current_path = current_path.join(".");
-                        if let Some(other_value) = other
+                        if let Some(other_value) = new_state_object
                             .remove(&Path::from(joined_current_path.as_str()))
                             .unwrap()
                         {
@@ -334,7 +361,7 @@ impl Object {
                                             diffs
                                                 .push(FieldDifference::Added(current_path.clone()));
                                         } else {
-                                            diffs.push(FieldDifference::Changed(
+                                            diffs.push(FieldDifference::Updated(
                                                 current_path.clone(),
                                             ));
                                         }
@@ -342,7 +369,7 @@ impl Object {
                                 }
                                 _ => {
                                     if *value != other_value {
-                                        diffs.push(FieldDifference::Changed(current_path.clone()));
+                                        diffs.push(FieldDifference::Updated(current_path.clone()));
                                     }
                                 }
                             }
@@ -357,14 +384,27 @@ impl Object {
                 current_path.pop();
             }
         }
+        diffs
+    }
 
-        current_path.clear();
-
+    /// Determine the added fields between self and other using a depth-first search (DFS) algorithm.
+    ///
+    /// ## Arguments
+    ///
+    /// - `other`: The [Object] containing the new state to compare against the current state.
+    ///
+    /// ## Returns
+    ///
+    /// - a [Vec<`FieldDifference`>] containing added fields and the corresponding field mask.
+    ///
+    fn determine_added_fields_with_dfs(&self, new_state_object: &Object) -> Vec<FieldDifference> {
         let mut other_nodes_to_visit = VecDeque::new();
-        if let Value::Mapping(mapping) = &other.data {
+        if let Value::Mapping(mapping) = &new_state_object.data {
             other_nodes_to_visit.push_back(mapping.iter());
         }
 
+        let mut diffs: Vec<FieldDifference> = Vec::new();
+        let mut current_path = Vec::new();
         while let Some(other_current) = other_nodes_to_visit.front_mut() {
             if let Some((key, value)) = other_current.next() {
                 let Value::String(current_key) = key else {
@@ -396,7 +436,6 @@ impl Object {
                 current_path.pop();
             }
         }
-
         diffs
     }
 }
@@ -1149,7 +1188,7 @@ mod tests {
 
         let changed_fields = old_state.calculate_state_differences(&mut new_state);
 
-        let expected_changed_fields = vec![FieldDifference::Changed(vec![
+        let expected_changed_fields = vec![FieldDifference::Updated(vec![
             "desiredState".to_owned(),
             "workloads".to_owned(),
             "workload_1".to_owned(),
@@ -1283,7 +1322,7 @@ mod tests {
 
         let changed_fields = old_state.calculate_state_differences(&mut new_state);
 
-        let expected_changed_fields = vec![FieldDifference::Changed(vec![
+        let expected_changed_fields = vec![FieldDifference::Updated(vec![
             "desiredState".to_owned(),
             "workloads".to_owned(),
             "workload_1".to_owned(),
@@ -1352,7 +1391,7 @@ mod tests {
 
         let changed_fields = old_state.calculate_state_differences(&mut new_state);
 
-        let expected_changed_fields = vec![FieldDifference::Changed(vec![
+        let expected_changed_fields = vec![FieldDifference::Updated(vec![
             "desiredState".to_owned(),
             "workloads".to_owned(),
             "workload_1".to_owned(),
