@@ -353,6 +353,8 @@ impl Object {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use crate::{
         objects::{
             CompleteState, ExecutionState, State, generate_test_agent_map_from_specs,
@@ -733,6 +735,118 @@ mod tests {
     }
 
     #[test]
+    fn utest_object_expand_wildcards_with_no_wildcards() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expaned = data.expand_wildcards(&["A.a.age".into(), "B.b.name".into()]);
+
+        let x = expaned
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(x, HashSet::from(["A.a.age".into(), "B.b.name".into(),]));
+    }
+
+    #[test]
+    fn utest_object_expand_wildcards_with_one_wildcard() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expaned = data.expand_wildcards(&["A.*.age".into(), "B.*.name".into()]);
+
+        let x = expaned
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            HashSet::from([
+                "A.a.age".into(),
+                "A.b.age".into(),
+                "A.c.age".into(),
+                "B.a.name".into(),
+                "B.b.name".into(),
+                "B.c.name".into(),
+            ])
+        );
+    }
+
+    #[test]
+    fn utest_object_expand_wildcards_with_two_wildcard() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expaned = data.expand_wildcards(&["*.*.name".into()]);
+
+        let x = expaned
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            HashSet::from([
+                "A.a.name".into(),
+                "A.b.name".into(),
+                "A.c.name".into(),
+                "B.a.name".into(),
+                "B.b.name".into(),
+                "B.c.name".into(),
+            ])
+        );
+    }
+
+    #[test]
+    fn utest_object_expand_wildcards_with_two_wildcard_exclude_intermediate_missing() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expaned = data.expand_wildcards(&["*.a.*".into()]);
+
+        let x = expaned
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            HashSet::from(["A.a.name".into(), "A.a.age".into(), "B.a.name".into(),])
+        );
+    }
+
+    #[test]
+    fn utest_object_expand_wildcards_ignore_non_string_keys() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expanded = data.expand_wildcards(&["C.*.*".into()]);
+
+        let x = expanded
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            HashSet::from([
+                "C.d.a".into(),
+                "C.d.c".into(),
+                "C.23.0".into(),
+                "C.23.1".into(),
+                "C.23.2".into()
+            ])
+        );
+    }
+
+    #[test]
     fn utest_generate_paths_from_yaml_node_leaf_nodes_only() {
         let data: Value = object::generate_test_value_object();
 
@@ -900,6 +1014,40 @@ mod tests {
                 B: [bb1, bb2]
                 C: 666
                 42: true # integer as object key
+                "#,
+            )
+            .unwrap()
+        }
+
+        pub fn generate_test_value_object_for_wildcards() -> Value {
+            serde_yaml::from_str(
+                r#"
+                A:
+                    a:
+                        name: Anton
+                        age: 42
+                    b:
+                        name: Berta
+                        age: 36
+                    c:
+                        name: Caesar
+                        age: 12
+                B:
+                    a:
+                        name: Alpha
+                    b:
+                        name: Beta
+                    c:
+                        name: Charlie
+                C:
+                    d:
+                        a: b
+                        c: d
+                    32: "number as key"
+                    23:
+                    - one
+                    - two
+                    - three
                 "#,
             )
             .unwrap()
