@@ -375,12 +375,16 @@ impl Connection {
         let response = self.get_complete_state(get_state_command.field_mask)?;
 
         Ok(TestResultEnum::GetStateResult(match response {
-            ResponseContent::CompleteState(CompleteStateResponse {
-                complete_state: Some(complete_state),
-                ..
-            }) => TagSerializedResult::Ok(complete_state.desired_state),
-            response_content => TagSerializedResult::Err(format!(
-                "Received wrong response type. Expected CompleteState, received: '{response_content:?}'"
+            ResponseContent::CompleteState(complete_state) => {
+                match (complete_state).complete_state {
+                    Some(complete_state) => TagSerializedResult::Ok(complete_state.desired_state),
+                    None => TagSerializedResult::Err(
+                        "Received CompleteState response without complete_state field.".to_string(),
+                    ),
+                }
+            }
+            response => TagSerializedResult::Err(format!(
+                "Received wrong response type. Expected CompleteState, received: '{response:?}'"
             )),
         }))
     }
@@ -447,7 +451,16 @@ impl Connection {
         // Get the workload states to extract the workload instance names
         let workload_states_response = self.get_complete_state(vec!["workloadStates".into()])?;
         let workload_states = match workload_states_response {
-            ResponseContent::CompleteState(CompleteStateResponse{complete_state: Some(complete_state), ..}) => complete_state.workload_states,
+            ResponseContent::CompleteState(complete_state) => {
+                match *complete_state {
+                    CompleteStateResponse{complete_state: Some(complete_state), ..} => complete_state.workload_states,
+                    _ => {
+                        return Err(CommandError::GenericError(
+                            "Received CompleteState response without complete_state field.".into(),
+                        ))
+                    }
+                }
+            }
             response_content => {
                 return Err(CommandError::GenericError(format!(
                     "Received wrong response type. Expected CompleteState, received: '{response_content:?}'"

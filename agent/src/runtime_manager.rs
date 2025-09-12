@@ -2274,7 +2274,7 @@ mod tests {
         let expected_response = ank_base::Response {
             request_id,
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                complete_state_response.clone(),
+                Box::new(complete_state_response.clone()),
             )),
         };
         let mut mock_workload = MockWorkload::default();
@@ -2292,7 +2292,7 @@ mod tests {
             .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                    complete_state_response,
+                    Box::new(complete_state_response),
                 )),
             })
             .await;
@@ -2386,12 +2386,12 @@ mod tests {
         });
         let expected_response = ank_base::Response {
             request_id,
-            response_content: Some(ResponseContent::CompleteState(
+            response_content: Some(ResponseContent::CompleteState(Box::new(
                 ank_base::CompleteStateResponse {
                     complete_state: Some(complete_state),
                     ..Default::default()
                 },
-            )),
+            ))),
         };
         let mut mock_workload = MockWorkload::default();
         mock_workload
@@ -2411,14 +2411,14 @@ mod tests {
         runtime_manager
             .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: Some(ResponseContent::CompleteState(
+                response_content: Some(ResponseContent::CompleteState(Box::new(
                     generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                         AGENT_NAME.to_string(),
                         WORKLOAD_1_NAME.to_string(),
                         RUNTIME_NAME.to_string(),
                     )])
                     .into(),
-                )),
+                ))),
             })
             .await;
     }
@@ -2453,12 +2453,14 @@ mod tests {
             .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                    generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                        AGENT_NAME.to_string(),
-                        WORKLOAD_1_NAME.to_string(),
-                        RUNTIME_NAME.to_string(),
-                    )])
-                    .into(),
+                    Box::new(
+                        generate_test_complete_state(vec![generate_test_workload_spec_with_param(
+                            AGENT_NAME.to_string(),
+                            WORKLOAD_1_NAME.to_string(),
+                            RUNTIME_NAME.to_string(),
+                        )])
+                        .into(),
+                    ),
                 )),
             })
             .await;

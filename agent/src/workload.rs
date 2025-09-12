@@ -645,7 +645,7 @@ mod tests {
             .forward_response(ank_base::Response {
                 request_id: REQUEST_ID.to_owned(),
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                    complete_state.clone().into(),
+                    Box::new(complete_state.clone().into()),
                 )),
             })
             .await
@@ -655,8 +655,8 @@ mod tests {
 
         assert!(matches!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(FromServer::Response(Response{request_id: _, response_content: Some(ResponseContent::CompleteState(ank_base::CompleteStateResponse{complete_state: Some(complete_state), ..}))})))
-        if ank_base::CompleteState::from(expected_complete_state) == complete_state));
+            Ok(Some(FromServer::Response(Response{request_id: _, response_content: Some(ResponseContent::CompleteState(complete_state))})))
+        if Some(ank_base::CompleteState::from(expected_complete_state)) == complete_state.complete_state));
     }
 
     // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
@@ -689,7 +689,7 @@ mod tests {
                 .forward_response(ank_base::Response {
                     request_id: REQUEST_ID.to_owned(),
                     response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                        complete_state.clone().into(),
+                        Box::new(complete_state.clone().into()),
                     )),
                 })
                 .await,
@@ -715,7 +715,7 @@ mod tests {
                 .forward_response(ank_base::Response {
                     request_id: REQUEST_ID.to_owned(),
                     response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                        complete_state.clone().into(),
+                        Box::new(complete_state.clone().into()),
                     )),
                 })
                 .await,
