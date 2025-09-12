@@ -2273,7 +2273,7 @@ mod tests {
         let complete_state_response = ank_base::CompleteStateResponse::default();
         let expected_response = ank_base::Response {
             request_id,
-            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+            response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                 Box::new(complete_state_response.clone()),
             )),
         };
@@ -2291,7 +2291,7 @@ mod tests {
         runtime_manager
             .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                     Box::new(complete_state_response),
                 )),
             })
@@ -2386,7 +2386,7 @@ mod tests {
         });
         let expected_response = ank_base::Response {
             request_id,
-            response_content: Some(ResponseContent::CompleteState(Box::new(
+            response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
                 ank_base::CompleteStateResponse {
                     complete_state: Some(complete_state),
                     ..Default::default()
@@ -2411,7 +2411,7 @@ mod tests {
         runtime_manager
             .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: Some(ResponseContent::CompleteState(Box::new(
+                response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
                     generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                         AGENT_NAME.to_string(),
                         WORKLOAD_1_NAME.to_string(),
@@ -2452,7 +2452,7 @@ mod tests {
         runtime_manager
             .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                     Box::new(
                         generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                             AGENT_NAME.to_string(),

@@ -346,7 +346,7 @@ mod tests {
 
         let response = ank_base::Response {
             request_id: REQUEST_ID.into(),
-            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+            response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                 Default::default(),
             )),
         };

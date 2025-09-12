@@ -375,11 +375,11 @@ impl Connection {
         let response = self.get_complete_state(get_state_command.field_mask)?;
 
         Ok(TestResultEnum::GetStateResult(match response {
-            ResponseContent::CompleteState(complete_state) => {
+            ResponseContent::CompleteStateResponse(complete_state) => {
                 match (complete_state).complete_state {
                     Some(complete_state) => TagSerializedResult::Ok(complete_state.desired_state),
                     None => TagSerializedResult::Err(
-                        "Received CompleteState response without complete_state field.".to_string(),
+                        "Received CompleteStateResponse without complete_state field.".to_string(),
                     ),
                 }
             }
@@ -451,12 +451,12 @@ impl Connection {
         // Get the workload states to extract the workload instance names
         let workload_states_response = self.get_complete_state(vec!["workloadStates".into()])?;
         let workload_states = match workload_states_response {
-            ResponseContent::CompleteState(complete_state) => {
+            ResponseContent::CompleteStateResponse(complete_state) => {
                 match *complete_state {
                     CompleteStateResponse{complete_state: Some(complete_state), ..} => complete_state.workload_states,
                     _ => {
                         return Err(CommandError::GenericError(
-                            "Received CompleteState response without complete_state field.".into(),
+                            "Received CompleteStateResponse without complete_state field.".into(),
                         ))
                     }
                 }

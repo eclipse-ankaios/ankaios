@@ -644,7 +644,7 @@ mod tests {
         test_workload
             .forward_response(ank_base::Response {
                 request_id: REQUEST_ID.to_owned(),
-                response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                     Box::new(complete_state.clone().into()),
                 )),
             })
@@ -655,7 +655,7 @@ mod tests {
 
         assert!(matches!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(FromServer::Response(Response{request_id: _, response_content: Some(ResponseContent::CompleteState(complete_state))})))
+            Ok(Some(FromServer::Response(Response{request_id: _, response_content: Some(ResponseContent::CompleteStateResponse(complete_state))})))
         if Some(ank_base::CompleteState::from(expected_complete_state)) == complete_state.complete_state));
     }
 
@@ -688,9 +688,11 @@ mod tests {
             test_workload
                 .forward_response(ank_base::Response {
                     request_id: REQUEST_ID.to_owned(),
-                    response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                        Box::new(complete_state.clone().into()),
-                    )),
+                    response_content: Some(
+                        ank_base::response::ResponseContent::CompleteStateResponse(Box::new(
+                            complete_state.clone().into()
+                        ))
+                    ),
                 })
                 .await,
             Err(WorkloadError::CompleteState(_))
@@ -714,9 +716,11 @@ mod tests {
             test_workload
                 .forward_response(ank_base::Response {
                     request_id: REQUEST_ID.to_owned(),
-                    response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                        Box::new(complete_state.clone().into()),
-                    )),
+                    response_content: Some(
+                        ank_base::response::ResponseContent::CompleteStateResponse(Box::new(
+                            complete_state.clone().into()
+                        )),
+                    ),
                 })
                 .await,
             Err(WorkloadError::CompleteState(_))

@@ -38,7 +38,7 @@ message Response {
     string requestId = 1;
     oneof ResponseContent {
         Error error = 3;
-        CompleteStateResponse completeState = 4;
+        CompleteStateResponse completeStateResponse = 4;
         UpdateStateSuccess UpdateStateSuccess = 5;
         LogsRequestAccepted logsRequestAccepted = 6; /// A message containing the workload names for which the logs were successfully requested.
         LogEntriesResponse logEntriesResponse = 7; /// A message containing workload logs.

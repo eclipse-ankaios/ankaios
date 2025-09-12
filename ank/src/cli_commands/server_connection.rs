@@ -120,7 +120,7 @@ impl ServerConnection {
                     Some(FromServer::Response(ank_base::Response {
                         request_id: received_request_id,
                         response_content:
-                            Some(ank_base::response::ResponseContent::CompleteState(res)),
+                            Some(ank_base::response::ResponseContent::CompleteStateResponse(res)),
                     })) if received_request_id == request_id => {
                         output_debug!("Received from server: {res:?} ");
                         return Ok((*res).into());
@@ -740,7 +740,7 @@ mod tests {
         );
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(Box::new(
+            ank_base::response::ResponseContent::CompleteStateResponse(Box::new(
                 ank_base::CompleteStateResponse {
                     complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
                         WORKLOAD_NAME_1,
@@ -840,7 +840,7 @@ mod tests {
     async fn utest_get_complete_state_other_response_in_between() {
         let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
-            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+            response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                 Box::new(ank_base::CompleteStateResponse {
                     complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
                         WORKLOAD_NAME_2,
@@ -880,7 +880,7 @@ mod tests {
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(Box::new(
+            ank_base::response::ResponseContent::CompleteStateResponse(Box::new(
                 ank_base::CompleteStateResponse {
                     complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
                         WORKLOAD_NAME_1,
@@ -965,7 +965,7 @@ mod tests {
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(Box::new(
+            ank_base::response::ResponseContent::CompleteStateResponse(Box::new(
                 ank_base::CompleteStateResponse {
                     complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
                         WORKLOAD_NAME_1,
@@ -1154,7 +1154,7 @@ mod tests {
         };
         let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
-            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+            response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                 Box::new(ank_base::CompleteStateResponse {
                     complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
                         WORKLOAD_NAME_2,

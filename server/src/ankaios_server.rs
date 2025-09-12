@@ -1485,7 +1485,7 @@ mod tests {
             from_server_command,
             common::from_server_interface::FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                     Box::new(ank_base::CompleteStateResponse {
                         complete_state: Some(current_complete_state),
                         ..Default::default()
@@ -1552,7 +1552,7 @@ mod tests {
             from_server_command,
             common::from_server_interface::FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                     Box::new(ank_base::CompleteStateResponse {
                         complete_state: Some(expected_complete_state),
                         ..Default::default()

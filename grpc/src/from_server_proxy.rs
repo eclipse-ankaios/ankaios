@@ -831,7 +831,7 @@ mod tests {
             result.from_server_enum,
             Some(FromServerEnum::Response(ank_base::Response {
                 request_id,
-                response_content: Some(ank_base::response::ResponseContent::CompleteState(complete_state))
+                response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(complete_state))
 
             })) if request_id == my_request_id
             && matches!(
@@ -983,7 +983,7 @@ mod tests {
 
         let proto_response = ank_base::Response {
             request_id: my_request_id.clone(),
-            response_content: Some(response::ResponseContent::CompleteState(Box::new(
+            response_content: Some(response::ResponseContent::CompleteStateResponse(Box::new(
                 ank_base::CompleteStateResponse {
                     complete_state: Some(proto_complete_state),
                     ..Default::default()
@@ -1016,7 +1016,7 @@ mod tests {
             result,
             common::from_server_interface::FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: Some(response::ResponseContent::CompleteState(
+                response_content: Some(response::ResponseContent::CompleteStateResponse(
                     complete_state
                 ))
             }) if request_id == my_request_id
