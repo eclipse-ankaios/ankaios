@@ -149,6 +149,16 @@ pub struct FilteredWorkloadSpec {
     pub files: Option<Vec<File>>,
 }
 
+impl From<ank_base::CompleteStateResponse> for FilteredCompleteState {
+    fn from(value: ank_base::CompleteStateResponse) -> Self {
+        if let Some(complete_state) = value.complete_state {
+            complete_state.into()
+        } else {
+            FilteredCompleteState::default()
+        }
+    }
+}
+
 impl From<ank_base::CompleteState> for FilteredCompleteState {
     fn from(value: ank_base::CompleteState) -> Self {
         FilteredCompleteState {

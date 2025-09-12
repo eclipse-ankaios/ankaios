@@ -323,7 +323,10 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequest { field_mask: vec![] },
+                CompleteStateRequest {
+                    field_mask: vec![],
+                    subscribe: false,
+                },
             )
             .await;
 
@@ -338,10 +341,11 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
                 Request{
                     request_id,
                     request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
-                        field_mask
+                        field_mask,
+                        subscribe
                     })
                 }
-            ))) if request_id.contains(test_request_id) && field_mask.is_empty()
+            ))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe
         ));
     }
 
@@ -365,7 +369,10 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequest { field_mask: vec![] },
+                CompleteStateRequest {
+                    field_mask: vec![],
+                    subscribe: false,
+                },
             )
             .await;
 
@@ -380,10 +387,11 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
                 Request{
                     request_id,
                     request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
-                        field_mask
+                        field_mask,
+                        subscribe
                     })
                 }
-            ))) if request_id.contains(test_request_id) && field_mask.is_empty()
+            ))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe
         ));
     }
 
