@@ -102,7 +102,7 @@ Test workload with empty Control Interface access field mask rejected
     Then the last command finished with exit code "1"
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~server-desired-state-field-conventions~1]
+# [stest->swdd~podman-kube-mounts-control-interface~1]
 Test server started with empty Control Interface access field mask fails
     [Setup]           Run Keywords    Setup Ankaios
     # Actions
@@ -111,7 +111,7 @@ Test server started with empty Control Interface access field mask fails
     Then the last command finished with exit code "1"
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+# [stest->swdd~podman-kube-mounts-control-interface~1]
 Test Ankaios podman-kube workload restart after update without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
     [Tags]    control_interface_access_podman_kube
@@ -127,7 +127,7 @@ Test Ankaios podman-kube workload restart after update without a Control Interfa
     And the pod "simple-pod" of workload "simple-kube" shall have a different id but same configuration on the podman kube runtime
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+# [stest->swdd~podman-kube-mounts-control-interface~1]
 Test Ankaios podman-kube workload restart after update with a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
@@ -142,7 +142,7 @@ Test Ankaios podman-kube workload restart after update with a Control Interface 
     And the pod "simple-pod" of workload "simple-kube" shall have a different id but same configuration on the podman kube runtime
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+# [stest->swdd~podman-kube-mounts-control-interface~1]
 # [stest->swdd~podman-kube-limits-control-interface-to-target-container~1]
 Test target path from control interface access is limited to the designated pod and container
     [Setup]           Run Keywords    Setup Ankaios

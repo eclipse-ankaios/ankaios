@@ -509,13 +509,15 @@ Needs:
 - impl
 - stest
 
-#### Podman-kube create workload optionally mounts Control Interface pipes
-`swdd~podman-kube-create-workload-mounts-fifo-files~1`
+#### Podman-kube mounts control interface
+`swdd~podman-kube-mounts-control-interface~1`
 
 Status: approved
 
-When the podman-kube runtime connector is called to create a workload and the RuntimeFacade requests to mount the Control Interface pipes,
-the podman-kube runtime connector shall inject the Control Interface volume and volume mount into the Kubernetes manifest according to the specified target path.
+When the podman-kube runtime connector is called to create a workload and:
+* a Control Interface Access is defined
+* a Target Path is defined in the Podman Kube Runtime Config
+then the podman-kube runtime connector shall inject the Control Interface volume and volume mount into the Kubernetes manifest according to the specified target path.
 
 Comment:
 The target path specifies the pod and container where the Control Interface should be mounted using the format "podName/containerName".
@@ -2338,6 +2340,24 @@ No unit tests are required here as this is just a simple implementation of a tra
 
 Tags:
 - PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+
+##### Podman-kube runtime config
+`swdd~podman-kube-runtime-config~1`
+
+Status: approved
+
+The podman-kube runtime shall be configurable for:
+* general_options,
+* play_options,
+* down_options,
+* control_interface_target_container,
+* manifest.
+
+Tags:
+- PodmanKubeRuntimeConfig
 
 Needs:
 - impl

@@ -121,7 +121,7 @@ impl PodmanKubeRuntime {
         Ok(workload_states)
     }
 
-    // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+    // [impl->swdd~podman-kube-mounts-control-interface~1]
     fn enrich_manifest_with_control_interface(
         workload_config: &mut PodmanKubeRuntimeConfig,
         workload_spec: &WorkloadSpec,
@@ -205,13 +205,13 @@ impl PodmanKubeRuntime {
         Ok(pod_name == target_pod_name)
     }
 
-    // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+    // [impl->swdd~podman-kube-mounts-control-interface~1]
     // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
     // [impl->swdd~podman-kube-limits-control-interface-to-target-container~1]
     fn inject_control_interface(
         manifest: &mut Value,
         workload_spec: &WorkloadSpec,
-        container_name: &String,
+        container_name: &str,
     ) -> Result<(), RuntimeError> {
         Self::inject_volume_mount(manifest, container_name)?;
         Self::inject_control_volume(manifest, workload_spec)?;
@@ -274,9 +274,9 @@ impl PodmanKubeRuntime {
         vol_mounts.push(Value::Mapping(volume_mount));
     }
 
-    // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+    // [impl->swdd~podman-kube-mounts-control-interface~1]
     // [impl->swdd~podman-kube-injects-control-interface-volume~1]
-    // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+    // [impl->swdd~podman-kube-mounts-control-interface~1]
     fn inject_control_volume(
         manifest: &mut Value,
         workload_spec: &WorkloadSpec,
@@ -304,7 +304,7 @@ impl PodmanKubeRuntime {
     }
 
     // [impl->swdd~podman-kube-injects-control-interface-volume~1]
-    // [impl->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+    // [impl->swdd~podman-kube-mounts-control-interface~1]
     fn create_control_interface_volume(workload_spec: &WorkloadSpec) -> Value {
         let mut host_path = Mapping::new();
         let path = format!(
@@ -1557,7 +1557,7 @@ spec:
         assert!(matches!(target, Ok(None)));
     }
 
-    // [utest->swdd~podman-kube-create-workload-mounts-fifo-files~1]
+    // [utest->swdd~podman-kube-mounts-control-interface~1]
     #[test]
     fn utest_target_path_ignored_when_no_access_rules() {
         let manifest_str = r#"

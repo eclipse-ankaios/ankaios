@@ -16,6 +16,7 @@ use common::objects::WorkloadSpec;
 
 use super::podman_kube_runtime::PODMAN_KUBE_RUNTIME_NAME;
 
+// [impl->swdd~podman-kube-runtime-config~1]
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PodmanKubeRuntimeConfig {
