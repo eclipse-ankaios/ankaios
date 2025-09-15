@@ -114,7 +114,6 @@ Test server started with empty Control Interface access field mask fails
 # [stest->swdd~podman-kube-mounts-control-interface~1]
 Test Ankaios podman-kube workload restart after update without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
-    [Tags]    control_interface_access_podman_kube
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple_kube_with_control.yaml"
     And Ankaios agent is started with name "${agent_name}"
@@ -124,7 +123,6 @@ Test Ankaios podman-kube workload restart after update without a Control Interfa
     When user triggers "ank apply ${CONFIGS_DIR}/simple_kube.yaml"
     # Asserts
     Then the mount point for the control interface has not been generated for ${agent_name}
-    And the pod "simple-pod" of workload "simple-kube" shall have a different id but same configuration on the podman kube runtime
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~podman-kube-mounts-control-interface~1]

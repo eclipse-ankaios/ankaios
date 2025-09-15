@@ -5,7 +5,6 @@ workloads:
     agent: agent_A
     restartPolicy: NEVER
     controlInterfaceAccess:
-      targetPath: "simple-pod/simple-container"
       allowRules:
       - type: StateRule
         operation: Read
@@ -15,6 +14,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
+      controlInterfaceTargetContainer: simple-pod/simple-container
       manifest: |
         apiVersion: v1
         kind: Pod
