@@ -123,7 +123,7 @@ message CompleteStateRequest {
 message UpdateStateRequest {
     CompleteState newState = 1; /// The new state of the Ankaios system.
     repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'desiredState.workloads.nginx' to specify what to be updated.
-    bool dryRun = 3;
+    bool dryRun = 3; /// A boolean that indicates whether the state should be updated, or whether changes should be shown without actually executing them.
 }
 
 /**

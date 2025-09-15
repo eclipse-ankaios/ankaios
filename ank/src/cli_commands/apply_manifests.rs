@@ -190,7 +190,7 @@ impl CliCommands {
                         if added_workloads.is_empty() && deleted_workloads.is_empty() {
                             output!("Dry run: no changes.");
                         } else {
-                            let rows = build_dry_run_rows(&filter_masks, &added_workloads, &deleted_workloads);
+                            let rows = build_dry_run_rows(&added_workloads, &deleted_workloads);
                             let table = render_dry_run_table(&rows);
                             output!("{table}");
                         }

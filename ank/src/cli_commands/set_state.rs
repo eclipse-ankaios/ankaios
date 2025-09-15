@@ -147,7 +147,7 @@ impl CliCommands {
                 output!("Dry run: no changes.");
             } else {
                 let rows =
-                    build_dry_run_rows(&object_field_mask, &added_workloads, &deleted_workloads);
+                    build_dry_run_rows(&added_workloads, &deleted_workloads);
                 let table = render_dry_run_table(&rows);
                 output!("{table}");
             }
