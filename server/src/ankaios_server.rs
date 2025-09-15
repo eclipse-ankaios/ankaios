@@ -244,7 +244,7 @@ impl AnkaiosServer {
                     // [impl->swdd~server-provides-update-desired-state-interface~1]
                     common::commands::RequestContent::UpdateStateRequest(update_state_request) => {
                         log::debug!(
-                            "Received UpdateState. State '{:?}', update mask '{:?}', , dry run '{:?}'",
+                            "Received UpdateState. State '{:?}', update mask '{:?}', dry run '{:?}'",
                             update_state_request.state,
                             update_state_request.update_mask,
                             update_state_request.dry_run,

@@ -1,23 +1,21 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeSet};
 use tabled::Tabled;
 use super::cli_table::CliTable;
-use common::objects::WorkloadInstanceName;
+
 
 #[derive(Clone, Debug)]
 pub enum DryRunAction {
-    NoChange,
-    Create,
-    Recreate,
+    Add,
+    Update,
     Delete,
 }
 
 impl std::fmt::Display for DryRunAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            DryRunAction::NoChange => "no change",
-            DryRunAction::Create   => "create",
-            DryRunAction::Recreate => "recreate",
-            DryRunAction::Delete   => "delete",
+            DryRunAction::Add    => "added",
+            DryRunAction::Update => "updated",
+            DryRunAction::Delete => "deleted",
         };
         write!(f, "{s}")
     }
@@ -30,94 +28,55 @@ pub struct DryRunPlanRow {
     pub workload: String,
     #[tabled(rename = "ACTION")]
     pub action: String,
-    #[tabled(rename = "DETAILS")]
-    pub details: String,
 }
 
 impl DryRunPlanRow {
-    pub const DETAILS_POS: usize = 2;
+    pub const ACTION_POSITION: usize = 1;
 }
-
-pub fn workloads_from_masks(masks: &[String]) -> BTreeSet<String> {
-    const PREFIX: &str = "desiredState.workloads.";
-    masks.iter()
-        .filter_map(|m| m.strip_prefix(PREFIX))
-        .map(|rest| rest.split('.').next().unwrap_or(rest).to_string())
-        .collect()
-}
-
-pub fn counts_by_workload_agent(instance_names: &[String]) -> BTreeMap<(String, String), usize> {
-    let mut map: BTreeMap<(String, String), usize> = BTreeMap::new();
-    for s in instance_names {
-        if let Ok(win) = WorkloadInstanceName::try_from(s.clone()) {
-            let key = (win.workload_name().to_string(), win.agent_name().to_string());
-            *map.entry(key).or_default() += 1;
-        } else {
-            let wl = s.split('.').next().unwrap_or(s).to_string();
-            *map.entry((wl, String::from("-"))).or_default() += 1;
-        }
-    }
-    map
-}
-
 pub fn build_dry_run_rows(
-    filter_masks: &[String],
     added: &[String],
     deleted: &[String],
 ) -> Vec<DryRunPlanRow> {
-    let target_wls = workloads_from_masks(filter_masks);
-    let add_counts = counts_by_workload_agent(added);
-    let del_counts = counts_by_workload_agent(deleted);
+    let added_wls: BTreeSet<String> = added
+        .iter()
+        .map(|s| s.split('.').next().unwrap_or(s).to_string())
+        .collect();
 
-    let mut changed_keys: BTreeSet<(String, String)> =
-        add_counts.keys().cloned().collect();
-    changed_keys.extend(del_counts.keys().cloned());
+    let deleted_wls: BTreeSet<String> = deleted
+        .iter()
+        .map(|s| s.split('.').next().unwrap_or(s).to_string())
+        .collect();
 
-    let mut rows: Vec<DryRunPlanRow> = Vec::new();
+    let mut rows = vec![];
 
-    for (wl, agent) in changed_keys {
-        let added_count = *add_counts.get(&(wl.clone(), agent.clone())).unwrap_or(&0);
-        let deleted_count = *del_counts.get(&(wl.clone(), agent.clone())).unwrap_or(&0);
-
-        let action = match (added_count > 0, deleted_count > 0) {
-            (true,  true ) => DryRunAction::Recreate,
-            (true,  false) => DryRunAction::Create,
-            (false, true ) => DryRunAction::Delete,
-            (false, false) => DryRunAction::NoChange,
-        };
-
-        let details = match action {
-            DryRunAction::Recreate => format!("delete: {deleted_count}, create: {added_count}"),
-            DryRunAction::Create   => format!("instances: {added_count}"),
-            DryRunAction::Delete   => format!("instances: {deleted_count}"),
-            DryRunAction::NoChange => "-".into(),
-        };
-
+    for workload in added_wls.intersection(&deleted_wls) {
         rows.push(DryRunPlanRow {
-            workload: wl,
-            action: action.to_string(),
-            details,
+            workload: workload.clone(),
+            action: DryRunAction::Update.to_string(),
         });
     }
 
-    let changed_wls: BTreeSet<String> = rows.iter().map(|r| r.workload.clone()).collect();
-    for wl in target_wls {
-        if !changed_wls.contains(&wl) {
-            rows.push(DryRunPlanRow {
-                workload: wl,
-                action: DryRunAction::NoChange.to_string(),
-                details: "-".into(),
-            });
-        }
+    for workload in added_wls.difference(&deleted_wls) {
+        rows.push(DryRunPlanRow {
+            workload: workload.clone(),
+            action: DryRunAction::Add.to_string(),
+        });
     }
 
+    for workload in deleted_wls.difference(&added_wls) {
+        rows.push(DryRunPlanRow {
+            workload: workload.clone(),
+            action: DryRunAction::Delete.to_string(),
+        });
+    }
+
+    rows.sort_by(|a, b| a.workload.cmp(&b.workload));
     rows
 }
-
 
 pub fn render_dry_run_table(rows: &[DryRunPlanRow]) -> String {
     let refs: Vec<&DryRunPlanRow> = rows.iter().collect();
     CliTable::new(&refs)
-        .table_with_wrapped_column_to_remaining_terminal_width(DryRunPlanRow::DETAILS_POS)
+        .table_with_truncated_column_to_remaining_terminal_width(DryRunPlanRow::ACTION_POSITION)
         .unwrap_or_else(|_| CliTable::new(&refs).create_default_table())
 }

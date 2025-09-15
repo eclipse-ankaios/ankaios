@@ -119,7 +119,7 @@ type StateChangeCalculation = Result<
     (
         CompleteState,
         RenderedWorkloads,
-        Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>)>,
+        AddedDeletedWorkloads,
     ),
     UpdateStateError,
 >;
@@ -208,11 +208,16 @@ impl ServerState {
         let (new_templated_state, new_rendered_workloads, workload_changes) =
             self.calculate_state_changes(new_state, update_mask)?;
 
-        if let Some((added_workloads, deleted_workloads)) = workload_changes {
+        if let Some((added_workloads, mut deleted_workloads)) = workload_changes {
             // If there are changes, we commit them to the server's state.
 
             // [impl->swdd~server-state-stores-delete-condition~1]
             self.delete_graph.insert(&added_workloads);
+
+            self
+                .delete_graph
+                .apply_delete_conditions_to(&mut deleted_workloads);
+
 
             self.set_desired_state(new_templated_state.desired_state);
             self.rendered_workloads = new_rendered_workloads;
@@ -340,7 +345,7 @@ impl ServerState {
             extract_added_and_deleted_workloads(&self.rendered_workloads, &new_rendered_workloads);
 
         // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
-        if let Some((added_workloads, mut deleted_workloads)) = workload_changes {
+        if let Some((added_workloads, deleted_workloads)) = workload_changes {
             let start_nodes: Vec<&str> = added_workloads
                 .iter()
                 .filter_map(|w| {
@@ -360,12 +365,6 @@ impl ServerState {
                 ));
             }
 
-            let mut tmp_graph = DeleteGraph::default();
-            tmp_graph.insert(&added_workloads);
-
-            // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
-            tmp_graph.apply_delete_conditions_to(&mut deleted_workloads);
-
             Ok((
                 new_templated_state,
                 new_rendered_workloads,
@@ -380,7 +379,7 @@ impl ServerState {
         &self,
         new_state: CompleteState,
         update_mask: Vec<String>,
-    ) -> Result<Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>)>, UpdateStateError> {
+    ) -> Result<AddedDeletedWorkloads, UpdateStateError> {
         let (_, _, workload_changes) = self.calculate_state_changes(new_state, update_mask)?;
         Ok(workload_changes)
     }
