@@ -141,9 +141,16 @@ message UpdateStateSuccess {
 */
 message CompleteStateResponse {
     CompleteState completeState = 1; /// The complete state of the Ankaios system.
-    repeated string addedFields = 2; /// The fields that were added in the state compared to the previous state.
-    repeated string updatedFields = 3; /// The fields that were updated in the state compared to the previous state.
-    repeated string removedFields = 4; /// The fields that were removed in the state compared to the previous state.
+    AlteredFields alteredFields = 2; /// The fields that were added, updated, or removed in the state compared to the previous state.
+}
+
+/**
+* A message containing a list of fields that were added, updated, or removed in the state compared to the previous state.
+*/
+message AlteredFields {
+    repeated string addedFields = 1; /// The fields that were added in the state compared to the previous state.
+    repeated string updatedFields = 2; /// The fields that were updated in the state compared to the previous state.
+    repeated string removedFields = 3; /// The fields that were removed in the state compared to the previous state.
 }
 
 /**

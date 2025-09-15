@@ -166,9 +166,7 @@ impl FromServerInterface for FromServerSender {
                 response_content: ank_base::response::ResponseContent::CompleteStateResponse(
                     Box::new(ank_base::CompleteStateResponse {
                         complete_state: Some(complete_state),
-                        added_fields: vec![],
-                        updated_fields: vec![],
-                        removed_fields: vec![],
+                        altered_fields: Default::default(),
                     }),
                 )
                 .into(),
@@ -400,9 +398,7 @@ mod tests {
                 response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
                     Box::new(CompleteStateResponse {
                         complete_state: Some(complete_state.clone()),
-                        added_fields: vec![],
-                        updated_fields: vec![],
-                        removed_fields: vec![],
+                        altered_fields: Default::default(),
                     })
                 )),
             })
