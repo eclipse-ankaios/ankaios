@@ -83,7 +83,7 @@ impl ControlInterfaceTarget {
     pub fn from_podman_kube_runtime_config(
         config: &PodmanKubeRuntimeConfig,
     ) -> Result<Option<ControlInterfaceTarget>, RuntimeError> {
-        let Some(target_path) = &config.control_interface_target_container else {
+        let Some(target_path) = &config.control_interface_target else {
             return Ok(None);
         };
 
@@ -1485,7 +1485,7 @@ spec:
     image: test-image
 "#;
         let runtime_config = format!(
-            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTargetContainer: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
+            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
         );
         let workload_spec = generate_test_workload_spec_with_runtime_config(
             SAMPLE_AGENT.to_string(),
@@ -1515,7 +1515,7 @@ spec:
     image: test-image
 "#;
         let runtime_config = format!(
-            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTargetContainer: "test-pod-test-container", "manifest": {manifest_str:?}}}"#
+            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod-test-container", "manifest": {manifest_str:?}}}"#
         );
         let workload_spec = generate_test_workload_spec_with_runtime_config(
             SAMPLE_AGENT.to_string(),
@@ -1573,7 +1573,7 @@ spec:
   volumes: []
 "#;
         let runtime_config = format!(
-            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTargetContainer: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
+            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
         );
 
         let workload_spec = generate_test_workload_spec_with_runtime_config(
@@ -1764,7 +1764,7 @@ spec:
   volumes: []
 "#;
         let runtime_config = format!(
-            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTargetContainer: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
+            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
         );
 
         let mut workload_spec = generate_test_workload_spec_with_runtime_config(
@@ -2121,7 +2121,7 @@ spec:
   - port: 80
 "#;
         let runtime_config = format!(
-            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTargetContainer: "target-pod/target-container", "manifest": {manifest_str:?}}}"#
+            r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "target-pod/target-container", "manifest": {manifest_str:?}}}"#
         );
 
         let mut workload_spec = generate_test_workload_spec_with_runtime_config(
