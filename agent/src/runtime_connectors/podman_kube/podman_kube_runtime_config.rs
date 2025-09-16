@@ -26,7 +26,7 @@ pub struct PodmanKubeRuntimeConfig {
     pub play_options: Vec<String>,
     #[serde(default, alias = "downOptions")]
     pub down_options: Vec<String>,
-    pub control_interface_target_container: Option<String>,
+    pub control_interface_target: Option<String>,
     pub manifest: String,
 }
 

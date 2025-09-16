@@ -14,7 +14,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      controlInterfaceTargetContainer: simple-pod/simple-container
+      controlInterfaceTarget: simple-pod/simple-container
       manifest: |
         apiVersion: v1
         kind: Pod
