@@ -293,11 +293,7 @@ impl Object {
     }
 
     pub fn calculate_state_differences(&self, other: &mut Object) -> Vec<FieldDifference> {
-        let mut total_state_difference: Vec<FieldDifference> = Vec::new();
-
-        let changed_and_removed_differences =
-            self.determine_changed_and_removed_fields_with_dfs(other);
-        total_state_difference.extend(changed_and_removed_differences);
+        let mut total_state_difference = self.determine_changed_and_removed_fields_with_dfs(other);
 
         let added_differences = self.determine_added_fields_with_dfs(other);
         total_state_difference.extend(added_differences);
