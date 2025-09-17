@@ -207,7 +207,6 @@ impl PodmanKubeRuntime {
 
     // [impl->swdd~podman-kube-mounts-control-interface~1]
     // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    // [impl->swdd~podman-kube-limits-control-interface-to-target-container~1]
     fn inject_control_interface(
         manifest: &mut Value,
         workload_spec: &WorkloadSpec,
@@ -219,7 +218,6 @@ impl PodmanKubeRuntime {
     }
 
     // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
-    // [impl->swdd~podman-kube-limits-control-interface-to-target-container~1]
     fn inject_volume_mount(
         manifest: &mut Value,
         target_container_name: &str,
@@ -276,7 +274,6 @@ impl PodmanKubeRuntime {
 
     // [impl->swdd~podman-kube-mounts-control-interface~1]
     // [impl->swdd~podman-kube-injects-control-interface-volume~1]
-    // [impl->swdd~podman-kube-mounts-control-interface~1]
     fn inject_control_volume(
         manifest: &mut Value,
         workload_spec: &WorkloadSpec,
@@ -412,9 +409,6 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
 
         if workload_spec.needs_control_interface() {
             // [impl->swdd~podman-kube-validates-target-path-format~1]
-            // (target_pod, target_container) = Self::get_target_pod_and_container(
-            //     &workload_config.control_interface_target_container,
-            // );
             let control_interface_target =
                 ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)?;
 
@@ -1675,7 +1669,7 @@ metadata:
         assert!(!result.unwrap());
     }
 
-    // [utest->swdd~podman-kube-limits-control-interface-to-target-container~1]
+    // [utest->swdd~podman-kube-mounts-control-interface~1]
     #[test]
     fn utest_should_inject_control_interface_wrong_pod_name() {
         let manifest = serde_yaml::from_str::<Value>(
@@ -1694,7 +1688,7 @@ metadata:
         assert!(!result.unwrap());
     }
 
-    // [utest->swdd~podman-kube-limits-control-interface-to-target-container~1]
+    // [utest->swdd~podman-kube-mounts-control-interface~1]
     #[test]
     fn utest_should_inject_control_interface_matching_pod() {
         let manifest = serde_yaml::from_str::<Value>(
