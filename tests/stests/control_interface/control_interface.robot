@@ -141,7 +141,6 @@ Test Ankaios podman-kube workload restart after update with a Control Interface 
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~podman-kube-mounts-control-interface~1]
-# [stest->swdd~podman-kube-limits-control-interface-to-target-container~1]
 Test target path from control interface access is limited to the designated pod and container
     [Setup]           Run Keywords    Setup Ankaios
     # Preconditions
