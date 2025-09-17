@@ -316,8 +316,7 @@ impl ServerState {
             UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{err}'"))
         })?;
 
-        let state_differences =
-            new_state.calculate_state_differences(&mut state_from_update.clone()); // TODO: I do not like this clone here!
+        let state_differences = new_state.calculate_state_differences(&state_from_update);
 
         if !state_differences.is_empty() {
             log::debug!("Found '{}' state differences", state_differences.len());

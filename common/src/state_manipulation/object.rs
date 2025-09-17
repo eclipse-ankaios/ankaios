@@ -218,6 +218,12 @@ pub enum FieldDifference {
     Updated(FieldMask),
 }
 
+pub enum StackTask<'a> {
+    VisitPair(&'a Mapping, &'a Mapping),
+    PushPath(String),
+    PopPath,
+}
+
 impl Object {
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
@@ -292,147 +298,91 @@ impl Object {
         self.get(path).is_some()
     }
 
-    pub fn calculate_state_differences(&self, other: &mut Object) -> Vec<FieldDifference> {
-        let mut total_state_difference = self.determine_changed_and_removed_fields_with_dfs(other);
+    pub fn calculate_state_differences(&self, other: &Object) -> Vec<FieldDifference> {
+        let mut field_differences = Vec::new();
+        let mut nodes_to_visit = VecDeque::new();
 
-        let added_differences = self.determine_added_fields_with_dfs(other);
-        total_state_difference.extend(added_differences);
+        let Value::Mapping(current_mapping) = &self.data else {
+            return vec![];
+        };
 
-        total_state_difference
-    }
+        let Value::Mapping(other_mapping) = &other.data else {
+            return vec![];
+        };
 
-    /// Determine the changed and removed fields (and added sequences) between self and other using a depth-first search (DFS) algorithm.
-    /// For optimization purposes, the other object is modified during the comparison to remove already compared fields.
-    ///
-    /// ## Arguments
-    ///
-    /// - `new_state_object`: The [Object] containing the new state to compare against the current state.
-    ///
-    /// ## Returns
-    ///
-    /// - a [Vec<`FieldDifference`>] containing the added, removed and updated fields and the corresponding field mask. A change from empty sequence to non-empty sequence is considered as added field.
-    ///
-    fn determine_changed_and_removed_fields_with_dfs(
-        &self,
-        new_state_object: &mut Object,
-    ) -> Vec<FieldDifference> {
-        let mut self_nodes_to_visit = VecDeque::new();
-        if let Value::Mapping(mapping) = &self.data {
-            self_nodes_to_visit.push_back(mapping.iter());
-        }
-
-        let mut diffs: Vec<FieldDifference> = Vec::new();
+        nodes_to_visit.push_front(StackTask::VisitPair(current_mapping, other_mapping));
         let mut current_path = Vec::new();
-        while let Some(self_current) = self_nodes_to_visit.front_mut() {
-            if let Some((key, value)) = self_current.next() {
-                let Value::String(current_key) = key else {
-                    std::unreachable!("Key is not a string");
-                };
+        while let Some(task) = nodes_to_visit.pop_front() {
+            match task {
+                StackTask::VisitPair(current_node, other_node) => {
+                    let current_keys: HashSet<_> = current_node.keys().collect();
+                    let other_keys: HashSet<_> = other_node.keys().collect();
 
-                current_path.push(current_key.clone());
-
-                match value {
-                    Value::Mapping(next_item) => {
-                        let joined_current_path = current_path.join(".");
-                        if new_state_object
-                            .get(&Path::from(joined_current_path.as_str()))
-                            .is_none()
-                        {
-                            diffs.push(FieldDifference::Removed(current_path.clone()));
-                            current_path.pop();
-                        } else {
-                            self_nodes_to_visit.push_front(next_item.iter());
+                    for key in &other_keys {
+                        if !current_keys.contains(key) {
+                            let Value::String(key_str) = key else {
+                                continue;
+                            };
+                            let mut added_path = current_path.clone();
+                            added_path.push(key_str.clone());
+                            field_differences.push(FieldDifference::Added(added_path));
                         }
                     }
-                    _ => {
-                        let joined_current_path = current_path.join(".");
-                        if let Some(other_value) = new_state_object
-                            .remove(&Path::from(joined_current_path.as_str()))
-                            .unwrap()
-                        {
-                            match *value {
-                                Value::Sequence(ref sequence) => {
-                                    if *value != other_value {
-                                        if sequence.is_empty() {
-                                            diffs
-                                                .push(FieldDifference::Added(current_path.clone()));
-                                        } else {
-                                            diffs.push(FieldDifference::Updated(
-                                                current_path.clone(),
-                                            ));
-                                        }
+
+                    for key in &current_keys {
+                        if !other_keys.contains(key) {
+                            let Value::String(key_str) = key else {
+                                continue;
+                            };
+                            let mut removed_path = current_path.clone();
+                            removed_path.push(key_str.clone());
+                            field_differences.push(FieldDifference::Removed(removed_path));
+                        } else {
+                            let Value::String(key_str) = key else {
+                                continue;
+                            };
+
+                            let mut new_path = current_path.clone();
+                            new_path.push(key_str.clone());
+
+                            let current_value = &current_node[key];
+                            let other_value = &other_node[key];
+
+                            match (current_value, other_value) {
+                                (Value::Mapping(current_map), Value::Mapping(other_map)) => {
+                                    nodes_to_visit.push_front(StackTask::PopPath);
+                                    nodes_to_visit
+                                        .push_front(StackTask::VisitPair(current_map, other_map));
+                                    nodes_to_visit.push_front(StackTask::PushPath(key_str.clone()));
+                                }
+                                (Value::Sequence(current_seq), Value::Sequence(other_seq)) => {
+                                    if current_seq.is_empty() && !other_seq.is_empty() {
+                                        field_differences.push(FieldDifference::Added(new_path));
+                                    } else if current_seq != other_seq {
+                                        field_differences.push(FieldDifference::Updated(new_path));
                                     }
                                 }
                                 _ => {
-                                    if *value != other_value {
-                                        diffs.push(FieldDifference::Updated(current_path.clone()));
+                                    if current_value != other_value {
+                                        field_differences.push(FieldDifference::Updated(new_path));
                                     }
                                 }
                             }
-                        } else {
-                            diffs.push(FieldDifference::Removed(current_path.clone()));
-                        }
-                        current_path.pop();
-                    }
-                }
-            } else {
-                self_nodes_to_visit.pop_front();
-                current_path.pop();
-            }
-        }
-        diffs
-    }
-
-    /// Determine the added fields between self and other using a depth-first search (DFS) algorithm.
-    ///
-    /// ## Arguments
-    ///
-    /// - `new_state_object`: The [Object] containing the new state to compare against the current state.
-    ///
-    /// ## Returns
-    ///
-    /// - a [Vec<`FieldDifference`>] containing added fields and the corresponding field mask.
-    ///
-    fn determine_added_fields_with_dfs(&self, new_state_object: &Object) -> Vec<FieldDifference> {
-        let mut other_nodes_to_visit = VecDeque::new();
-        if let Value::Mapping(mapping) = &new_state_object.data {
-            other_nodes_to_visit.push_back(mapping.iter());
-        }
-
-        let mut diffs: Vec<FieldDifference> = Vec::new();
-        let mut current_path = Vec::new();
-        while let Some(other_current) = other_nodes_to_visit.front_mut() {
-            if let Some((key, value)) = other_current.next() {
-                let Value::String(current_key) = key else {
-                    std::unreachable!("Key is not a string");
-                };
-
-                current_path.push(current_key.clone());
-
-                match value {
-                    Value::Mapping(next_item) => {
-                        let joined_current_path = current_path.join(".");
-                        if self
-                            .get(&Path::from(joined_current_path.as_str()))
-                            .is_none()
-                        {
-                            diffs.push(FieldDifference::Added(current_path.clone()));
-                            current_path.pop();
-                        } else {
-                            other_nodes_to_visit.push_front(next_item.iter());
                         }
                     }
-                    _ => {
-                        diffs.push(FieldDifference::Added(current_path.clone()));
-                        current_path.pop();
-                    }
                 }
-            } else {
-                other_nodes_to_visit.pop_front();
-                current_path.pop();
+                StackTask::PushPath(key) => {
+                    current_path.push(key);
+                    continue;
+                }
+                StackTask::PopPath => {
+                    current_path.pop();
+                    continue;
+                }
             }
         }
-        diffs
+
+        field_differences
     }
 }
 
@@ -923,7 +873,7 @@ mod tests {
                 .into(),
         };
 
-        let mut new_state = Object {
+        let new_state = Object {
             data: Mapping::default()
                 .entry("apiVersion", "v0.1")
                 .entry(
@@ -942,7 +892,7 @@ mod tests {
                 .into(),
         };
 
-        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+        let changed_fields = old_state.calculate_state_differences(&new_state);
 
         let expected_changed_fields = vec![FieldDifference::Removed(vec![
             "desiredState".to_owned(),
@@ -974,7 +924,7 @@ mod tests {
                 )
                 .into(),
         };
-        let mut new_state = Object {
+        let new_state = Object {
             data: Mapping::default()
                 .entry("apiVersion", "v0.1")
                 .entry(
@@ -984,7 +934,7 @@ mod tests {
                 .into(),
         };
 
-        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+        let changed_fields = old_state.calculate_state_differences(&new_state);
 
         let expected_changed_fields = vec![FieldDifference::Removed(vec![
             "desiredState".to_owned(),
@@ -1016,7 +966,7 @@ mod tests {
                 )
                 .into(),
         };
-        let mut new_state = Object {
+        let new_state = Object {
             data: Mapping::default()
                 .entry("apiVersion", "v0.1")
                 .entry(
@@ -1035,7 +985,7 @@ mod tests {
                 .into(),
         };
 
-        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+        let changed_fields = old_state.calculate_state_differences(&new_state);
 
         let expected_changed_fields = vec![FieldDifference::Removed(vec![
             "desiredState".to_owned(),
@@ -1059,7 +1009,7 @@ mod tests {
                 .into(),
         };
 
-        let mut new_state = Object {
+        let new_state = Object {
             data: Mapping::default()
                 .entry("apiVersion", "v0.1")
                 .entry(
@@ -1078,7 +1028,7 @@ mod tests {
                 .into(),
         };
 
-        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+        let changed_fields = old_state.calculate_state_differences(&new_state);
 
         let expected_changed_fields = vec![FieldDifference::Added(vec![
             "desiredState".to_owned(),
@@ -1110,7 +1060,7 @@ mod tests {
                 )
                 .into(),
         };
-        let mut new_state = Object {
+        let new_state = Object {
             data: Mapping::default()
                 .entry("apiVersion", "v0.1")
                 .entry(
@@ -1130,7 +1080,7 @@ mod tests {
                 .into(),
         };
 
-        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+        let changed_fields = old_state.calculate_state_differences(&new_state);
 
         let expected_changed_fields = vec![FieldDifference::Added(vec![
             "desiredState".to_owned(),
@@ -1163,7 +1113,7 @@ mod tests {
                 )
                 .into(),
         };
-        let mut new_state = Object {
+        let new_state = Object {
             data: Mapping::default()
                 .entry("apiVersion", "v0.1")
                 .entry(
@@ -1182,7 +1132,7 @@ mod tests {
                 .into(),
         };
 
-        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+        let changed_fields = old_state.calculate_state_differences(&new_state);
 
         let expected_changed_fields = vec![FieldDifference::Updated(vec![
             "desiredState".to_owned(),
@@ -1215,7 +1165,7 @@ mod tests {
                 )
                 .into(),
         };
-        let mut new_state = Object {
+        let new_state = Object {
             data: Mapping::default()
                 .entry("apiVersion", "v0.1")
                 .entry(
@@ -1243,7 +1193,7 @@ mod tests {
                 .into(),
         };
 
-        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+        let changed_fields = old_state.calculate_state_differences(&new_state);
 
         let expected_changed_fields = vec![FieldDifference::Added(vec![
             "desiredState".to_owned(),
@@ -1284,7 +1234,7 @@ mod tests {
                 )
                 .into(),
         };
-        let mut new_state = Object {
+        let new_state = Object {
             data: Mapping::default()
                 .entry("apiVersion", "v0.1")
                 .entry(
@@ -1316,7 +1266,7 @@ mod tests {
                 .into(),
         };
 
-        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+        let changed_fields = old_state.calculate_state_differences(&new_state);
 
         let expected_changed_fields = vec![FieldDifference::Updated(vec![
             "desiredState".to_owned(),
@@ -1357,7 +1307,7 @@ mod tests {
                 )
                 .into(),
         };
-        let mut new_state = Object {
+        let new_state = Object {
             data: Mapping::default()
                 .entry("apiVersion", "v0.1")
                 .entry(
@@ -1385,7 +1335,7 @@ mod tests {
                 .into(),
         };
 
-        let changed_fields = old_state.calculate_state_differences(&mut new_state);
+        let changed_fields = old_state.calculate_state_differences(&new_state);
 
         let expected_changed_fields = vec![FieldDifference::Updated(vec![
             "desiredState".to_owned(),
