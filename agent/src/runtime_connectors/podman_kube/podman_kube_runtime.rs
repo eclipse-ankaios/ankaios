@@ -41,6 +41,9 @@ use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
 pub const PODMAN_KUBE_RUNTIME_NAME: &str = "podman-kube";
 const CONFIG_VOLUME_SUFFIX: &str = ".config";
 const PODS_VOLUME_SUFFIX: &str = ".pods";
+const TARGET_PATH_LENGTH: usize = 2;
+const POD_PATH_INDEX: usize = 0;
+const CONTAINER_PATH_INDEX: usize = 1;
 
 #[derive(Debug, Clone)]
 pub struct PodmanKubeRuntime {}
@@ -88,15 +91,15 @@ impl ControlInterfaceTarget {
         };
 
         let composite_parts: Vec<String> = target_path.split('/').map(|s| s.to_owned()).collect();
-        if composite_parts.len() != 2 {
+        if composite_parts.len() != TARGET_PATH_LENGTH {
             return Err(RuntimeError::Unsupported(format!(
                 "Invalid control interface target format: '{target_path}'. Expected format: '<pod_name>/<container_name>'"
             )));
         }
 
         Ok(Some(ControlInterfaceTarget {
-            pod: composite_parts[0].clone(),
-            container: composite_parts[1].clone(),
+            pod: composite_parts[POD_PATH_INDEX].clone(),
+            container: composite_parts[CONTAINER_PATH_INDEX].clone(),
         }))
     }
 }
@@ -125,20 +128,11 @@ impl PodmanKubeRuntime {
     fn enrich_manifest_with_control_interface(
         workload_config: &mut PodmanKubeRuntimeConfig,
         workload_spec: &WorkloadSpec,
-        control_interface_target: &Option<ControlInterfaceTarget>,
+        control_interface_target: &ControlInterfaceTarget,
     ) -> Result<(), RuntimeError> {
-        if !workload_spec.needs_control_interface() {
-            return Ok(());
-        };
-        let Some(ci_target) = control_interface_target else {
-            return Err(RuntimeError::Unsupported(
-                "Control interface target not specified in runtime config.".to_string(),
-            ));
-        };
-
         let manifests = Self::parse_yaml_manifests(&workload_config.manifest)?;
         let processed_manifests: Vec<String> =
-            Self::process_manifest_list(manifests, workload_spec, ci_target)?;
+            Self::process_manifest_list(manifests, workload_spec, control_interface_target)?;
 
         workload_config.manifest = processed_manifests.join("---\n");
         Ok(())
@@ -408,15 +402,19 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         });
 
         if workload_spec.needs_control_interface() {
-            // [impl->swdd~podman-kube-validates-target-path-format~1]
-            let control_interface_target =
-                ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)?;
-
-            Self::enrich_manifest_with_control_interface(
-                &mut workload_config,
-                &workload_spec,
-                &control_interface_target,
-            )?;
+            if let Some(control_interface_target) =
+                ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)?
+            {
+                Self::enrich_manifest_with_control_interface(
+                    &mut workload_config,
+                    &workload_spec,
+                    &control_interface_target,
+                )?;
+            } else {
+                return Err(RuntimeError::Unsupported(
+                    "Control interface target not specified in runtime config.".to_string(),
+                ));
+            }
         }
 
         // [impl->swdd~podman-kube-create-workload-apply-manifest~1]
@@ -1579,18 +1577,8 @@ spec:
 
         assert!(!workload_spec.needs_control_interface());
 
-        let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload_spec).unwrap();
-        let control_interface_target =
-            ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config).unwrap();
+        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload_spec).unwrap();
 
-        assert!(
-            PodmanKubeRuntime::enrich_manifest_with_control_interface(
-                &mut workload_config,
-                &workload_spec,
-                &control_interface_target,
-            )
-            .is_ok()
-        );
         assert_eq!(workload_config.manifest, manifest_str);
         assert!(
             !workload_config
@@ -1778,7 +1766,9 @@ spec:
 
         let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload_spec).unwrap();
         let control_interface_target =
-            ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config).unwrap();
+            ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)
+                .unwrap()
+                .unwrap();
 
         assert!(
             PodmanKubeRuntime::enrich_manifest_with_control_interface(
@@ -2135,7 +2125,9 @@ spec:
 
         let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload_spec).unwrap();
         let control_interface_target =
-            ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config).unwrap();
+            ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)
+                .unwrap()
+                .unwrap();
 
         assert!(
             PodmanKubeRuntime::enrich_manifest_with_control_interface(

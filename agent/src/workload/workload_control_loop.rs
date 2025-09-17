@@ -518,14 +518,6 @@ impl WorkloadControlLoop {
         )))
         .await;
 
-        if control_interface_path.is_none() {
-            let ci_path = ControlInterfacePath::from((
-                &control_loop_state.run_folder,
-                control_loop_state.instance_name(),
-            ));
-            Self::delete_folder(&ci_path).await;
-        }
-
         let new_workload_spec = if let Some(new_spec) = new_workload_spec {
             if !Self::is_same_workload(control_loop_state.instance_name(), &new_spec.instance_name)
             {
