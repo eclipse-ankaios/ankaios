@@ -268,6 +268,15 @@ impl ServerState {
             .remove_deleted_workloads_from_delete_graph(new_workload_states);
     }
 
+    pub fn update_dry_run(
+        &self,
+        new_state: CompleteState,
+        update_mask: Vec<String>,
+    ) -> Result<AddedDeletedWorkloads, UpdateStateError> {
+        let (_, _, workload_changes) = self.calculate_state_changes(new_state, update_mask)?;
+        Ok(workload_changes)
+    }
+
     fn generate_new_state(
         &self,
         updated_state: CompleteState,
@@ -373,15 +382,6 @@ impl ServerState {
         } else {
             Ok((new_templated_state, new_rendered_workloads, None))
         }
-    }
-
-    pub fn plan(
-        &self,
-        new_state: CompleteState,
-        update_mask: Vec<String>,
-    ) -> Result<AddedDeletedWorkloads, UpdateStateError> {
-        let (_, _, workload_changes) = self.calculate_state_changes(new_state, update_mask)?;
-        Ok(workload_changes)
     }
 }
 

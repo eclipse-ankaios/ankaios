@@ -269,7 +269,7 @@ impl AnkaiosServer {
                         }
 
                         if update_state_request.dry_run {
-                            let plan_result = self.server_state.plan(
+                            let plan_result = self.server_state.update_dry_run(
                                 update_state_request.state.clone(),
                                 update_state_request.update_mask.clone(),
                             );
