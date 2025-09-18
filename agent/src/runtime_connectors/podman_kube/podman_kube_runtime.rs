@@ -30,7 +30,9 @@ use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
         ReusableWorkloadState, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
-        generic_log_fetcher::GenericLogFetcher, log_fetcher::LogFetcher, podman_cli,
+        generic_log_fetcher::GenericLogFetcher,
+        log_fetcher::LogFetcher,
+        podman_cli::{self, API_PIPES_MOUNT_POINT},
         runtime_connector::LogRequestOptions,
     },
     workload_state::WorkloadStateSender,
@@ -258,10 +260,7 @@ impl PodmanKubeRuntime {
 
         let mut volume_mount = Mapping::new();
         volume_mount.insert(Value::from("name"), Value::from("control-interface-volume"));
-        volume_mount.insert(
-            Value::from("mountPath"),
-            Value::from("/run/ankaios/control_interface"),
-        );
+        volume_mount.insert(Value::from("mountPath"), Value::from(API_PIPES_MOUNT_POINT));
 
         vol_mounts.push(Value::Mapping(volume_mount));
     }
@@ -669,7 +668,9 @@ mod tests {
     use mockall::{lazy_static, predicate::eq};
 
     use super::PodmanCli;
-    use crate::runtime_connectors::podman_cli::__mock_MockPodmanCli as podman_cli_mock;
+    use crate::runtime_connectors::podman_cli::{
+        __mock_MockPodmanCli as podman_cli_mock, API_PIPES_MOUNT_POINT,
+    };
     use crate::runtime_connectors::podman_kube::podman_kube_runtime::ControlInterfaceTarget;
     use crate::runtime_connectors::podman_kube::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
     use crate::runtime_connectors::{RuntimeConnector, RuntimeError, podman_cli::ContainerState};
@@ -1819,10 +1820,7 @@ spec:
         let vol_mount_list = vol_mounts.as_sequence().unwrap();
         assert_eq!(vol_mount_list.len(), 1);
         assert_eq!(vol_mount_list[0]["name"], "control-interface-volume");
-        assert_eq!(
-            vol_mount_list[0]["mountPath"],
-            "/run/ankaios/control_interface"
-        );
+        assert_eq!(vol_mount_list[0]["mountPath"], API_PIPES_MOUNT_POINT);
 
         let other_vol_mounts = &manifest["spec"]["containers"][1]["volumeMounts"];
         assert_eq!(other_vol_mounts.as_sequence().unwrap().len(), 0);
@@ -1884,7 +1882,7 @@ volumeMounts:
         let vol_mounts = container["volumeMounts"].as_sequence().unwrap();
         assert_eq!(vol_mounts.len(), 2);
         assert_eq!(vol_mounts[1]["name"], "control-interface-volume");
-        assert_eq!(vol_mounts[1]["mountPath"], "/run/ankaios/control_interface");
+        assert_eq!(vol_mounts[1]["mountPath"], API_PIPES_MOUNT_POINT);
     }
 
     // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
@@ -1903,7 +1901,7 @@ image: test-image
         let vol_mounts = container["volumeMounts"].as_sequence().unwrap();
         assert_eq!(vol_mounts.len(), 1);
         assert_eq!(vol_mounts[0]["name"], "control-interface-volume");
-        assert_eq!(vol_mounts[0]["mountPath"], "/run/ankaios/control_interface");
+        assert_eq!(vol_mounts[0]["mountPath"], API_PIPES_MOUNT_POINT);
     }
 
     // [utest->swdd~podman-kube-injects-control-interface-volume~1]
