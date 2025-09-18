@@ -14,7 +14,6 @@
 
 use super::{CliCommands, InputSourcePair};
 use crate::cli_commands::State;
-use crate::cli_commands::dry_run_plan::{build_dry_run_rows, render_dry_run_table};
 use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
@@ -179,22 +178,7 @@ impl CliCommands {
                         .map_err(CliError::ExecutionError)?
                 {
                     if apply_args.dry_run {
-                        let dry_run_result = self
-                            .server_connection
-                            .update_state(complete_state_req_obj, filter_masks.clone(), true)
-                            .await?;
-
-                        let added_workloads = dry_run_result.added_workloads;
-                        let deleted_workloads = dry_run_result.deleted_workloads;
-
-                        if added_workloads.is_empty() && deleted_workloads.is_empty() {
-                            output!("Dry run: no changes.");
-                        } else {
-                            let rows = build_dry_run_rows(&added_workloads, &deleted_workloads);
-                            let table = render_dry_run_table(&rows);
-                            output!("{table}");
-                        }
-                        Ok(())
+                        self.execute_dry_run(complete_state_req_obj, filter_masks).await
                     } else {
                         // [impl->swdd~cli-apply-send-update-state~1]
                         self.update_state_and_wait_for_complete(

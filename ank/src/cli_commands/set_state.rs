@@ -23,9 +23,9 @@ fn read_file_to_string(file: String) -> std::io::Result<String> {
     std::fs::read_to_string(file)
 }
 use crate::{
-    cli_commands::dry_run_plan::{build_dry_run_rows, render_dry_run_table},
+
     cli_error::CliError,
-    output, output_debug,
+    output_debug,
 };
 #[cfg(test)]
 use tests::read_to_string_mock as read_file_to_string;
@@ -135,24 +135,8 @@ impl CliCommands {
             new_complete_state
         );
         if dry_run {
-            let dry_run_result = self
-                .server_connection
-                .update_state(new_complete_state, object_field_mask.clone(), true)
-                .await?;
-
-            let added_workloads = dry_run_result.added_workloads;
-            let deleted_workloads = dry_run_result.deleted_workloads;
-
-            if added_workloads.is_empty() && deleted_workloads.is_empty() {
-                output!("Dry run: no changes.");
-            } else {
-                let rows =
-                    build_dry_run_rows(&added_workloads, &deleted_workloads);
-                let table = render_dry_run_table(&rows);
-                output!("{table}");
-            }
-
-            return Ok(());
+            return self
+                .execute_dry_run(new_complete_state, object_field_mask).await;
         }
 
         // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
