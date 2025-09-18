@@ -220,8 +220,8 @@ pub enum FieldDifference {
 
 pub enum StackTask<'a> {
     VisitPair(&'a Mapping, &'a Mapping),
-    PushPath(String),
-    PopPath,
+    PushField(String),
+    PopField,
 }
 
 impl Object {
@@ -300,7 +300,7 @@ impl Object {
 
     pub fn calculate_state_differences(&self, other: &Object) -> Vec<FieldDifference> {
         let mut field_differences = Vec::new();
-        let mut nodes_to_visit = VecDeque::new();
+        let mut stack_tasks = VecDeque::new();
 
         let Value::Mapping(current_mapping) = &self.data else {
             return vec![];
@@ -310,9 +310,9 @@ impl Object {
             return vec![];
         };
 
-        nodes_to_visit.push_front(StackTask::VisitPair(current_mapping, other_mapping));
-        let mut current_path = Vec::new();
-        while let Some(task) = nodes_to_visit.pop_front() {
+        stack_tasks.push_front(StackTask::VisitPair(current_mapping, other_mapping));
+        let mut current_field_mask = Vec::new();
+        while let Some(task) = stack_tasks.pop_front() {
             match task {
                 StackTask::VisitPair(current_node, other_node) => {
                     let current_keys: HashSet<_> = current_node.keys().collect();
@@ -320,63 +320,71 @@ impl Object {
 
                     for key in &other_keys {
                         if !current_keys.contains(key) {
-                            let Value::String(key_str) = key else {
+                            let Value::String(added_key) = key else {
                                 continue;
                             };
-                            let mut added_path = current_path.clone();
-                            added_path.push(key_str.clone());
-                            field_differences.push(FieldDifference::Added(added_path));
+                            let mut added_field_mask = current_field_mask.clone();
+                            added_field_mask.push(added_key.clone());
+                            field_differences.push(FieldDifference::Added(added_field_mask));
                         }
                     }
 
                     for key in &current_keys {
                         if !other_keys.contains(key) {
-                            let Value::String(key_str) = key else {
+                            let Value::String(removed_key) = key else {
                                 continue;
                             };
-                            let mut removed_path = current_path.clone();
-                            removed_path.push(key_str.clone());
-                            field_differences.push(FieldDifference::Removed(removed_path));
+                            let mut removed_field_mask = current_field_mask.clone();
+                            removed_field_mask.push(removed_key.clone());
+                            field_differences.push(FieldDifference::Removed(removed_field_mask));
                         } else {
                             let Value::String(key_str) = key else {
                                 continue;
                             };
-
-                            let mut new_path = current_path.clone();
-                            new_path.push(key_str.clone());
 
                             let current_value = &current_node[key];
                             let other_value = &other_node[key];
 
                             match (current_value, other_value) {
                                 (Value::Mapping(current_map), Value::Mapping(other_map)) => {
-                                    nodes_to_visit.push_front(StackTask::PopPath);
-                                    nodes_to_visit
+                                    stack_tasks.push_front(StackTask::PopField);
+                                    stack_tasks
                                         .push_front(StackTask::VisitPair(current_map, other_map));
-                                    nodes_to_visit.push_front(StackTask::PushPath(key_str.clone()));
+                                    stack_tasks.push_front(StackTask::PushField(key_str.clone()));
                                 }
                                 (Value::Sequence(current_seq), Value::Sequence(other_seq)) => {
+                                    let mut added_or_updated_field_mask =
+                                        current_field_mask.clone();
+                                    added_or_updated_field_mask.push(key_str.clone());
+
                                     if current_seq.is_empty() && !other_seq.is_empty() {
-                                        field_differences.push(FieldDifference::Added(new_path));
+                                        field_differences.push(FieldDifference::Added(
+                                            added_or_updated_field_mask,
+                                        ));
                                     } else if current_seq != other_seq {
-                                        field_differences.push(FieldDifference::Updated(new_path));
+                                        field_differences.push(FieldDifference::Updated(
+                                            added_or_updated_field_mask,
+                                        ));
                                     }
                                 }
                                 _ => {
+                                    let mut updated_field_mask = current_field_mask.clone();
+                                    updated_field_mask.push(key_str.clone());
                                     if current_value != other_value {
-                                        field_differences.push(FieldDifference::Updated(new_path));
+                                        field_differences
+                                            .push(FieldDifference::Updated(updated_field_mask));
                                     }
                                 }
                             }
                         }
                     }
                 }
-                StackTask::PushPath(key) => {
-                    current_path.push(key);
+                StackTask::PushField(key) => {
+                    current_field_mask.push(key);
                     continue;
                 }
-                StackTask::PopPath => {
-                    current_path.pop();
+                StackTask::PopField => {
+                    current_field_mask.pop();
                     continue;
                 }
             }
