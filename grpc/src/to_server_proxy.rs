@@ -75,11 +75,12 @@ pub async fn forward_from_proto_to_ankaios(
                         let UpdateStateRequest {
                             new_state,
                             update_mask,
+                            dry_run
                         } = *update_state_request;
                         log::debug!("Received UpdateStateRequest from '{agent_name}'");
                         match new_state.unwrap_or_default().try_into() {
                             Ok(new_state) => {
-                                sink.update_state(request_id, new_state, update_mask)
+                                sink.update_state(request_id, new_state, update_mask, dry_run)
                                     .await?;
                             }
                             Err(error) => {
@@ -441,6 +442,7 @@ mod tests {
                 REQUEST_ID.to_owned(),
                 input_state.clone(),
                 update_mask.clone(),
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -601,6 +603,7 @@ mod tests {
                                 ank_base::UpdateStateRequest {
                                     new_state: Some(ankaios_state),
                                     update_mask: ankaios_update_mask.clone(),
+                                    dry_run: false,
                                 },
                             )),
                         ),
@@ -644,6 +647,7 @@ mod tests {
                                 ank_base::UpdateStateRequest {
                                     new_state: Some(ankaios_state.clone().into()),
                                     update_mask: ankaios_update_mask.clone(),
+                                    dry_run: false,
                                 },
                             )),
                         ),
