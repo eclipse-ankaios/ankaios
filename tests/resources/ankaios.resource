@@ -875,7 +875,9 @@ Verify Control Interface Access In Containers
         Log    Target container has access to control interface path
 
         # Verify it's a named pipe
-        ${result}=    Run Process    podman    exec    ${target_container}    test    -p    /run/ankaios/control_interface    shell=True
+        ${result}=    Run Process    podman    exec    ${target_container}    test    -p    /run/ankaios/control_interface/input    shell=True
+        Should Be Equal As Integers    ${result.rc}    0    msg=Control interface should be a named pipe in target container
+        ${result}=    Run Process    podman    exec    ${target_container}    test    -p    /run/ankaios/control_interface/output    shell=True
         Should Be Equal As Integers    ${result.rc}    0    msg=Control interface should be a named pipe in target container
 
         # Test non-target containers should NOT have access
