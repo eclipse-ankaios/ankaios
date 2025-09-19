@@ -30,8 +30,8 @@ use tokio::sync::Mutex;
 use crate::runtime_connectors::cli_command::CliCommand;
 
 const PODMAN_CMD: &str = "podman";
-const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
 const PODMAN_PS_CACHE_MAX_AGE: Duration = Duration::from_millis(1000);
+pub const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ContainerState {

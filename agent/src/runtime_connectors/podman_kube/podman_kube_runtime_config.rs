@@ -16,6 +16,7 @@ use common::objects::WorkloadSpec;
 
 use super::podman_kube_runtime::PODMAN_KUBE_RUNTIME_NAME;
 
+// [impl->swdd~podman-kube-runtime-config~1]
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PodmanKubeRuntimeConfig {
@@ -25,6 +26,7 @@ pub struct PodmanKubeRuntimeConfig {
     pub play_options: Vec<String>,
     #[serde(default, alias = "downOptions")]
     pub down_options: Vec<String>,
+    pub control_interface_target: Option<String>,
     pub manifest: String,
 }
 
