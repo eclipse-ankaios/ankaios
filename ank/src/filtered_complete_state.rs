@@ -130,7 +130,7 @@ pub struct FilteredWorkloadSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<Tag>>,
+    pub tags: Option<HashMap<String, String>>,
     #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependencies: Option<HashMap<String, AddCondition>>,
@@ -198,7 +198,11 @@ impl From<ank_base::Workload> for FilteredWorkloadSpec {
     fn from(value: ank_base::Workload) -> Self {
         FilteredWorkloadSpec {
             agent: value.agent,
-            tags: value.tags.map(|x| map_vec(x.tags)),
+            tags: value.tags.map(|x| {
+                x.tags
+                    .into_iter()
+                    .collect()
+            }),
             dependencies: value.dependencies.map(|x| {
                 x.dependencies
                     .into_iter()

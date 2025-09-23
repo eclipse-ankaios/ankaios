@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
+
 use common::objects::{CompleteState, StoredWorkloadSpec, Tag};
 
 use crate::{cli_error::CliError, output_debug};
@@ -27,13 +29,8 @@ impl CliCommands {
         runtime_name: String,
         runtime_config: String,
         agent_name: String,
-        tags_strings: Vec<(String, String)>,
+        tags: HashMap<String, String>,
     ) -> Result<(), CliError> {
-        let tags: Vec<Tag> = tags_strings
-            .into_iter()
-            .map(|(k, v)| Tag { key: k, value: v })
-            .collect();
-
         let new_workload = StoredWorkloadSpec {
             agent: agent_name,
             runtime: runtime_name,
@@ -79,7 +76,7 @@ mod tests {
     use mockall::predicate::eq;
 
     use crate::{
-        cli_commands::{server_connection::MockServerConnection, CliCommands},
+        cli_commands::{CliCommands, server_connection::MockServerConnection},
         filtered_complete_state::FilteredCompleteState,
     };
 
