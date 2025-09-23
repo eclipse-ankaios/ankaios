@@ -834,20 +834,8 @@ Identify Target Container For Control Interface
     ${non_target_containers}=    Create List
 
     FOR    ${container_name}    IN    @{container_names}
-        # Look for container names that might correspond to the target pattern
-        ${name_lower}=    Convert To Lower Case    ${container_name}
-        ${is_target}=    Set Variable    ${FALSE}
-
         # Check various possible naming patterns for the target container
-        IF    "pod-a" in "${name_lower}" and "container-a" in "${name_lower}" and "sidecar" not in "${name_lower}"
-            ${is_target}=    Set Variable    ${TRUE}
-        ELIF    "poda" in "${name_lower}" and "containera" in "${name_lower}" and "sidecar" not in "${name_lower}"
-            ${is_target}=    Set Variable    ${TRUE}
-        ELIF    "simple" in "${name_lower}" and ("pod-a" in "${name_lower}" or "poda" in "${name_lower}")
-            ${is_target}=    Set Variable    ${TRUE}
-        END
-
-        IF    ${is_target}
+        IF    "${pod_name}" in "${container_name}" and "${target_container_name}" in "${container_name}" and "sidecar" not in "${container_name}"
             ${target_container}=    Set Variable    ${container_name}
             Log    Identified target container: ${target_container}
         ELSE
@@ -866,7 +854,7 @@ Verify Control Interface Access In Containers
 
     IF    "${target_container}" == ""
         Log    Could not identify target container from naming patterns, but control interface was configured
-        RETURN
+        Fail    Could not identify target container for control interface access verification
     END
 
     # Test target container access to control interface
@@ -874,7 +862,7 @@ Verify Control Interface Access In Containers
     IF    ${result.rc} == 0
         Log    Target container has access to control interface path
 
-        # Verify it's a named pipe
+        # Verify it is a named pipe
         ${result}=    Run Process    podman    exec    ${target_container}    test    -p    /run/ankaios/control_interface/input    shell=True
         Should Be Equal As Integers    ${result.rc}    0    msg=Control interface should be a named pipe in target container
         ${result}=    Run Process    podman    exec    ${target_container}    test    -p    /run/ankaios/control_interface/output    shell=True
@@ -889,6 +877,7 @@ Verify Control Interface Access In Containers
         Log    Successfully verified control interface access is limited to target container
     ELSE
         Log    Target container exists but control interface not accessible (container may have exited)
+        Fail    Target container ${target_container} does not have access to control interface path
     END
 
 Verify Multi Container Control Interface Access

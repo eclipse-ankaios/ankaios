@@ -92,6 +92,8 @@ impl ControlInterfaceTarget {
             return Ok(None);
         };
 
+        log::trace!("Parsing control interface target path: '{target_path}'");
+
         let composite_parts: Vec<String> = target_path.split('/').map(|s| s.to_owned()).collect();
         if composite_parts.len() != TARGET_PATH_LENGTH {
             return Err(RuntimeError::Unsupported(format!(
@@ -132,6 +134,11 @@ impl PodmanKubeRuntime {
         workload_spec: &WorkloadSpec,
         control_interface_target: &ControlInterfaceTarget,
     ) -> Result<(), RuntimeError> {
+        log::trace!(
+            "Enriching manifest with control interface for workload '{}'",
+            workload_spec.instance_name
+        );
+
         let manifests = Self::parse_yaml_manifests(&workload_config.manifest)?;
         let processed_manifests: Vec<String> =
             Self::process_manifest_list(manifests, workload_spec, control_interface_target)?;
@@ -147,6 +154,9 @@ impl PodmanKubeRuntime {
             let manifest = Value::deserialize(manifest_result).map_err(|e| {
                 RuntimeError::Unsupported(format!("Failed to parse YAML manifest: {e}"))
             })?;
+
+            log::trace!("Parsed manifest: {manifest:#?}");
+
             manifests.push(manifest);
         }
 
@@ -158,6 +168,12 @@ impl PodmanKubeRuntime {
         workload_spec: &WorkloadSpec,
         control_interface_target: &ControlInterfaceTarget,
     ) -> Result<Vec<String>, RuntimeError> {
+        log::trace!(
+            "Processing {} manifests for workload '{}'",
+            manifests.len(),
+            workload_spec.instance_name
+        );
+
         manifests
             .into_iter()
             .map(|mut manifest| {
@@ -179,14 +195,18 @@ impl PodmanKubeRuntime {
         manifest: &Value,
         target_pod_name: &String,
     ) -> Result<bool, RuntimeError> {
+        log::trace!("Checking if manifest matches target pod name '{target_pod_name}'");
+
         let kind = manifest
             .get("kind")
             .and_then(|k| k.as_str())
             .ok_or_else(|| {
+                log::warn!("Manifest missing 'kind' field");
                 RuntimeError::Unsupported("Manifest missing 'kind' field".to_string())
             })?;
 
         if kind != "Pod" {
+            log::trace!("Skipping manifest with kind '{kind}'");
             return Ok(false);
         }
 
@@ -195,6 +215,7 @@ impl PodmanKubeRuntime {
             .and_then(|m| m.get("name"))
             .and_then(|n| n.as_str())
             .ok_or_else(|| {
+                log::warn!("Manifest missing metadata.name field");
                 RuntimeError::Unsupported("Pod manifest missing metadata.name".to_string())
             })?;
 
@@ -208,8 +229,14 @@ impl PodmanKubeRuntime {
         workload_spec: &WorkloadSpec,
         container_name: &str,
     ) -> Result<(), RuntimeError> {
+        log::debug!(
+            "Injecting control interface into manifest for workload '{}'",
+            workload_spec.instance_name
+        );
         Self::inject_volume_mount(manifest, container_name)?;
         Self::inject_control_volume(manifest, workload_spec)?;
+
+        log::trace!("Manifest after injecting control interface: {manifest:#?}");
         Ok(())
     }
 
@@ -401,6 +428,10 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         });
 
         if workload_spec.needs_control_interface() {
+            log::trace!(
+                "Workload '{}' needs control interface.",
+                workload_spec.instance_name
+            );
             if let Some(control_interface_target) =
                 ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)?
             {
