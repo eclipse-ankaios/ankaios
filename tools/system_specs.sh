@@ -78,20 +78,26 @@ IN_DEVCONTAINER="no"
 IN_WSL="no"
 WSL_VERSION=""
 
-# container heuristics
+# WSL detection
+if grep -i -q 'microsoft' /proc/version 2>/dev/null || [ -n "${WSL_DISTRO_NAME-}" ]; then
+  IN_WSL="yes"
+  # kernel string often contains microsoft-standard-WSL2
+  WSL_VERSION="$(uname -r | sed -n 's/.*\(microsoft[^ ]*\).*/\1/p')"
+fi
+
+# Container detection
+IN_CONTAINER="no"
 if [ -f "/.dockerenv" ] || [ -f "/run/.containerenv" ]; then
   IN_CONTAINER="yes"
-fi
-
-if have systemd-detect-virt; then
-  if systemd-detect-virt --quiet --container; then
-    IN_CONTAINER="yes"
-  fi
-fi
-
-# cgroup inspection (works even without systemd)
-if grep -E -q '(docker|podman|containerd|kubepods)' /proc/1/cgroup 2>/dev/null; then
+elif grep -E -q '(docker|libpod|containerd|kubepods)' /proc/1/cgroup 2>/dev/null; then
   IN_CONTAINER="yes"
+elif have systemd-detect-virt; then
+  if [ "$IN_WSL" != "yes" ]; then
+    # Require "container AND not vm" to avoid false positives
+    if systemd-detect-virt --quiet --container && ! systemd-detect-virt --quiet --vm; then
+      IN_CONTAINER="yes"
+    fi
+  fi
 fi
 
 # try to guess runtime (best-effort)
@@ -108,13 +114,6 @@ fi
 if [ -n "${CODESPACES-}" ]; then IN_DEVCONTAINER="yes"; fi
 # Typical devcontainer FS layout
 if [ -d "/workspaces" ] || [ -d "/workspace" ]; then IN_DEVCONTAINER="yes"; fi
-
-# WSL detection
-if grep -i -q 'microsoft' /proc/version 2>/dev/null || [ -n "${WSL_DISTRO_NAME-}" ]; then
-  IN_WSL="yes"
-  # kernel string often contains microsoft-standard-WSL2
-  WSL_VERSION="$(uname -r | sed -n 's/.*\(microsoft[^ ]*\).*/\1/p')"
-fi
 
 # cgroup mode
 CGROUP_MODE="unknown"
@@ -156,7 +155,7 @@ hr
 try_ver "Podman" podman
 try_ver "nerdctl" nerdctl
 try_ver "Docker CLI" docker
-try_ver "containerd" containerd "version"
+try_ver "containerd" containerd
 try_ver "crictl" crictl "version"
 try_ver "runc" runc
 try_ver "crun" crun
