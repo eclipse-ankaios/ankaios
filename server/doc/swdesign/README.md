@@ -741,6 +741,26 @@ Needs:
 - utest
 - itest
 
+#### Server calculates state differences for configured events
+`swdd~server-calculates-state-differences-for-events~1`
+
+Status: approved
+
+When the Ankaios Server gets the `ToServer` message `UpdateStateRequest`  and there is at least one subscriber for events, the Ankaios Server shall calculate the state differences between the current and the new state by determining the field masks for added, updated and deleted fields.
+
+Comment:
+A custom Depth-Search-First (DFS) implementation comparing the current and new state fields is used. A sequence and a value of a mapping is treated as a leaf value. An update from an empty sequence to a non-empty sequence is treated as an added field, the other way around as a removed field, otherwise as an updated field.
+
+Rationale:
+The determined field masks are forwarded to the subscriber.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+
 #### ServerState compares rendered workload configurations
 `swdd~server-state-compares-rendered-workloads~1`
 
