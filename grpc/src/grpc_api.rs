@@ -201,11 +201,11 @@ pub fn generate_test_failed_update_workload_state(
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{generate_test_proto_deleted_workload, AddedWorkload, DeletedWorkload};
+    use crate::{AddedWorkload, DeletedWorkload, generate_test_proto_deleted_workload};
 
     use api::ank_base::{self};
     use common::{
-        objects::{generate_test_rendered_workload_files, generate_test_workload_spec, ConfigHash},
+        objects::{ConfigHash, generate_test_rendered_workload_files, generate_test_workload_spec},
         test_utils::generate_test_deleted_workload,
     };
 

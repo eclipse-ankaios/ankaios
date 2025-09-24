@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 
-use common::objects::{CompleteState, StoredWorkloadSpec, Tag};
+use common::objects::{CompleteState, StoredWorkloadSpec};
 
 use crate::{cli_error::CliError, output_debug};
 

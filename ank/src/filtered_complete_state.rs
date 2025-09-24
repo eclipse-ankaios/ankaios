@@ -18,8 +18,7 @@ use api::ank_base;
 use common::{
     helpers::serialize_to_ordered_map,
     objects::{
-        AddCondition, ConfigItem, ControlInterfaceAccess, File, RestartPolicy, Tag,
-        WorkloadStatesMap,
+        AddCondition, ConfigItem, ControlInterfaceAccess, File, RestartPolicy, WorkloadStatesMap,
     },
 };
 use serde::{Deserialize, Serialize, Serializer};
@@ -185,13 +184,6 @@ impl From<ank_base::State> for FilteredState {
             }),
         }
     }
-}
-
-fn map_vec<T, F>(vec: Vec<T>) -> Vec<F>
-where
-    F: From<T>,
-{
-    vec.into_iter().map(Into::into).collect()
 }
 
 impl From<ank_base::Workload> for FilteredWorkloadSpec {

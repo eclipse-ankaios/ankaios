@@ -194,10 +194,7 @@ pub fn generate_test_stored_workload_spec_with_config(
         ]),
         restart_policy: RestartPolicy::Always,
         runtime: runtime_name.into(),
-        tags: vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }],
+        tags: HashMap::from([("key".into(), "value".into())]),
         runtime_config: runtime_config.into(),
         control_interface_access: Default::default(),
         configs: [

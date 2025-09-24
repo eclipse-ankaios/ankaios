@@ -331,10 +331,7 @@ pub fn generate_test_workload_spec_with_runtime_config(
         dependencies: generate_test_dependencies(),
         restart_policy: RestartPolicy::Always,
         runtime: runtime_name,
-        tags: vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }],
+        tags: HashMap::from([("key".into(), "value".into())]),
         runtime_config,
         control_interface_access: Default::default(),
         files: Default::default(),
