@@ -509,6 +509,73 @@ Needs:
 - impl
 - stest
 
+#### Podman-kube mounts control interface
+`swdd~podman-kube-mounts-control-interface~1`
+
+Status: approved
+
+When the podman-kube runtime connector is called to create a workload and:
+* a Control Interface Access is defined
+* a `controlInterfaceTarget` path is defined in the Podman Kube Runtime Config
+then the podman-kube runtime connector shall inject the Control Interface volume and volume mount into the Kubernetes manifest according to the specified target path.
+
+Comment:
+The target path specifies the pod and container where the Control Interface shall be mounted using the format "podName/containerName". Other container from the same or other pods shall not have access to the Control Interface.
+
+Tags:
+- ControlInterface
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Podman-kube injects Control Interface volume into manifest
+`swdd~podman-kube-injects-control-interface-volume~1`
+
+Status: approved
+
+When the podman-kube runtime connector injects the Control Interface into a workload manifest,
+the podman-kube runtime connector shall add a hostPath volume named "control-interface-volume" to the manifest that points to the workload's control interface directory.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+#### Podman-kube injects Control Interface volume mount into target container
+`swdd~podman-kube-injects-control-interface-volume-mount~1`
+
+Status: approved
+
+When the podman-kube runtime connector injects the Control Interface into a workload manifest,
+the podman-kube runtime connector shall add a volume mount for "control-interface-volume" to the specified target container at the mount path "/run/ankaios/control_interface".
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+#### Podman-kube validates target path format
+`swdd~podman-kube-validates-target-path-format~1`
+
+Status: approved
+
+When the podman-kube runtime connector processes a workload with Control Interface access,
+the podman-kube runtime connector shall validate that the target path is specified in the format "podName/containerName" and reject the workload if the format is invalid.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
 #### Agent supports containerd
 `swdd~agent-supports-containerd~1`
 
@@ -2263,6 +2330,24 @@ No unit tests are required here as this is just a simple implementation of a tra
 
 Tags:
 - PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+
+##### Podman-kube runtime config
+`swdd~podman-kube-runtime-config~1`
+
+Status: approved
+
+The podman-kube runtime shall be configurable for:
+* general_options,
+* play_options,
+* down_options,
+* control_interface_target_container,
+* manifest.
+
+Tags:
+- PodmanKubeRuntimeConfig
 
 Needs:
 - impl

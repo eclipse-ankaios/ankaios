@@ -1,0 +1,28 @@
+apiVersion: v0.1
+workloads:
+  simple-kube:
+    runtime: podman-kube
+    agent: agent_A
+    restartPolicy: NEVER
+    controlInterfaceAccess:
+      allowRules:
+      - type: StateRule
+        operation: Read
+        filterMask:
+        - desiredState
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      controlInterfaceTarget: simple-pod/simple-container
+      manifest: |
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: simple-pod
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: simple-container
+            image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+            command: ["sleep", "30"]
