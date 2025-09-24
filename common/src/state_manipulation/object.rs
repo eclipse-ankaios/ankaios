@@ -309,6 +309,7 @@ impl Object {
     /// - a [Vec<`FieldDifference`>] containing added, updated and removed fields and the corresponding field mask.
     ///
     pub fn calculate_state_differences(&self, other: &Object) -> Vec<FieldDifference> {
+        // [impl->swdd~server-calculates-state-differences-for-events~1]
         let mut field_differences = Vec::new();
         let mut stack_tasks = VecDeque::new();
 
@@ -861,6 +862,7 @@ mod tests {
         assert_eq!(actual_set, expected_set)
     }
 
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_no_differences_on_empty_states() {
         let old_state = Object {
@@ -875,6 +877,7 @@ mod tests {
         assert!(changed_fields.is_empty());
     }
 
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_no_differences_on_equal_states() {
         let old_state = Object {
@@ -887,6 +890,7 @@ mod tests {
         assert!(changed_fields.is_empty());
     }
 
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_added_mapping() {
         let old_state = Object {
@@ -918,6 +922,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_updated_mapping() {
         let old_state = Object {
@@ -948,6 +953,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_removed_mapping() {
         let old_state = Object {
@@ -975,6 +981,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_removed_nested_mapping() {
         let old_state = Object {
@@ -997,6 +1004,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_added_sequence() {
         let old_state = Object {
@@ -1022,6 +1030,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_updated_sequence() {
         let old_state = Object {
@@ -1055,6 +1064,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_removed_sequence() {
         let old_state = Object {
@@ -1080,6 +1090,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_data_is_not_mapping() {
         // owned data is not mapping
@@ -1105,6 +1116,7 @@ mod tests {
         assert!(changed_fields.is_empty());
     }
 
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_key_is_not_string() {
         let old_state = Object {
