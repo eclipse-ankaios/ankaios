@@ -912,8 +912,8 @@ mod tests {
         assert_eq!(
             changed_fields,
             vec![
-                FieldDifference::Added(vec!["key_1_1".to_string(), "key_2_2".to_string()]),
-                FieldDifference::Added(vec!["key_1_2".to_string()]),
+                FieldDifference::Added(vec!["key_1_1".to_owned(), "key_2_2".to_owned()]),
+                FieldDifference::Added(vec!["key_1_2".to_owned()]),
             ]
         );
     }
@@ -942,8 +942,8 @@ mod tests {
         assert_eq!(
             changed_fields,
             vec![FieldDifference::Updated(vec![
-                "key_1_1".to_string(),
-                "key_2_1".to_string()
+                "key_1_1".to_owned(),
+                "key_2_1".to_owned()
             ]),]
         );
     }
@@ -969,8 +969,8 @@ mod tests {
         assert_eq!(
             changed_fields,
             vec![FieldDifference::Removed(vec![
-                "key_1_1".to_string(),
-                "key_2_1".to_string()
+                "key_1_1".to_owned(),
+                "key_2_1".to_owned()
             ]),]
         );
     }
@@ -993,7 +993,7 @@ mod tests {
         let changed_fields = old_state.calculate_state_differences(&new_state);
         assert_eq!(
             changed_fields,
-            vec![FieldDifference::Removed(vec!["key_1_1".to_string(),]),]
+            vec![FieldDifference::Removed(vec!["key_1_1".to_owned(),]),]
         );
     }
 
@@ -1018,7 +1018,7 @@ mod tests {
 
         assert_eq!(
             changed_fields,
-            vec![FieldDifference::Added(vec!["key_1".to_string(),]),]
+            vec![FieldDifference::Added(vec!["key_1".to_owned(),]),]
         );
     }
 
@@ -1051,7 +1051,7 @@ mod tests {
 
         assert_eq!(
             changed_fields,
-            vec![FieldDifference::Updated(vec!["key_1".to_string(),]),]
+            vec![FieldDifference::Updated(vec!["key_1".to_owned(),]),]
         );
     }
 
@@ -1076,7 +1076,7 @@ mod tests {
 
         assert_eq!(
             changed_fields,
-            vec![FieldDifference::Removed(vec!["key_1".to_string(),]),]
+            vec![FieldDifference::Removed(vec!["key_1".to_owned(),]),]
         );
     }
 
