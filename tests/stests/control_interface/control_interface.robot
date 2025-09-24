@@ -150,7 +150,6 @@ Test target path from control interface access is limited to the designated pod 
     And the mount point for the control interface has been generated for ${agent_name}
     # Actions
     Sleep    5s
-    When user triggers "ank apply ${CONFIGS_DIR}/multi_container_podman_kube_with_control.yaml"
     # Asserts
     Then verify multi container control interface access    simple
     [Teardown]    Clean up Ankaios

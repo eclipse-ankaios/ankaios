@@ -858,7 +858,7 @@ Verify Control Interface Access In Containers
     END
 
     # Test target container access to control interface
-    ${result}=    Run Process    podman    exec    ${target_container}    test    -e    /run/ankaios/control_interface    shell=True
+    ${result}=    Run Process    podman    exec    ${target_container}    test    -d    /run/ankaios/control_interface    shell=True
     IF    ${result.rc} == 0
         Log    Target container has access to control interface path
 
