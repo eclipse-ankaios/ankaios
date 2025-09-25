@@ -45,7 +45,7 @@ The script is used to get system information useful to the Ankaios project. It c
 - Basic environment detection (container, WSL, cgroup mode)
 - OS, kernel, architecture
 - Versions of container runtimes and related tools
-- Hardware details (CPU, memory, disk, GPU)
+- Hardware details (CPU, memory, disk)
 It does not contain sensitive information like hostnames or IPs.
 EOF
 }
@@ -197,13 +197,6 @@ fi
 # Disk root
 if have df; then
   kv "Disk root (/)" "$(df -h / 2>/dev/null | awk 'NR==2 {print $2" total, " $4" free"}')"
-fi
-
-# GPU (optional)
-if have nvidia-smi; then
-  kv "NVIDIA GPU" "$(nvidia-smi --query-gpu=name,driver_version --format=csv,noheader 2>/dev/null | paste -sd '; ' -)"
-else
-  kv "NVIDIA GPU" "nvidia-smi not found"
 fi
 
 # cgroup quotas (useful in containers)
