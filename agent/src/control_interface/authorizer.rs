@@ -120,6 +120,7 @@ impl Authorizer {
             }
             // [impl->swdd~agent-authorizing-logs-cancel-always-allowed~1]
             common::commands::RequestContent::LogsCancelRequest => true,
+            common::commands::RequestContent::EventsCancelRequest => true,
         }
     }
 
@@ -345,7 +346,7 @@ mod test {
             request_content: common::commands::RequestContent::CompleteStateRequest(
                 CompleteStateRequest {
                     field_mask: vec![],
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             ),
         };
@@ -386,7 +387,7 @@ mod test {
             request_content: common::commands::RequestContent::CompleteStateRequest(
                 CompleteStateRequest {
                     field_mask: vec![MATCHING_PATH.into()],
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             ),
         };
@@ -470,7 +471,7 @@ mod test {
             request_content: common::commands::RequestContent::CompleteStateRequest(
                 CompleteStateRequest {
                     field_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             ),
         };
@@ -499,7 +500,7 @@ mod test {
             request_content: common::commands::RequestContent::CompleteStateRequest(
                 CompleteStateRequest {
                     field_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             ),
         };

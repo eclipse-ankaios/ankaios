@@ -83,6 +83,7 @@ pub enum RequestContent {
     UpdateStateRequest(Box<UpdateStateRequest>),
     LogsRequest(LogsRequest),
     LogsCancelRequest,
+    EventsCancelRequest,
 }
 
 impl From<RequestContent> for ank_base::request::RequestContent {
@@ -94,12 +95,17 @@ impl From<RequestContent> for ank_base::request::RequestContent {
             RequestContent::UpdateStateRequest(content) => {
                 ank_base::request::RequestContent::UpdateStateRequest(Box::new((*content).into()))
             }
-            // TODO: tests are missing for the next two cases
+            // TODO: tests are missing for the next three cases
             RequestContent::LogsRequest(logs_request) => {
                 ank_base::request::RequestContent::LogsRequest(logs_request.into())
             }
             RequestContent::LogsCancelRequest => {
                 ank_base::request::RequestContent::LogsCancelRequest(ank_base::LogsCancelRequest {})
+            }
+            RequestContent::EventsCancelRequest => {
+                ank_base::request::RequestContent::EventsCancelRequest(
+                    ank_base::EventsCancelRequest {},
+                )
             }
         }
     }
@@ -115,12 +121,15 @@ impl TryFrom<ank_base::request::RequestContent> for RequestContent {
             ank_base::request::RequestContent::CompleteStateRequest(value) => {
                 RequestContent::CompleteStateRequest(value.into())
             }
-            // TODO: tests are missing for the next two cases
+            // TODO: tests are missing for the next three cases
             ank_base::request::RequestContent::LogsRequest(logs_request) => {
                 RequestContent::LogsRequest(logs_request.into())
             }
             ank_base::request::RequestContent::LogsCancelRequest(_logs_stop_request) => {
                 RequestContent::LogsCancelRequest
+            }
+            ank_base::request::RequestContent::EventsCancelRequest(_events_cancel_request) => {
+                RequestContent::EventsCancelRequest
             }
         })
     }
@@ -189,16 +198,31 @@ impl From<ank_base::LogsCancelRequest> for LogsCancelRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EventsCancelRequest {}
+
+impl From<EventsCancelRequest> for ank_base::EventsCancelRequest {
+    fn from(_events_cancel_request: EventsCancelRequest) -> Self {
+        ank_base::EventsCancelRequest {}
+    }
+}
+
+impl From<ank_base::EventsCancelRequest> for EventsCancelRequest {
+    fn from(_events_cancel_request: ank_base::EventsCancelRequest) -> Self {
+        EventsCancelRequest {}
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompleteStateRequest {
     pub field_mask: Vec<String>,
-    pub subscribe: bool,
+    pub subscribe_for_events: bool,
 }
 
 impl From<CompleteStateRequest> for ank_base::CompleteStateRequest {
     fn from(item: CompleteStateRequest) -> Self {
         ank_base::CompleteStateRequest {
             field_mask: item.field_mask,
-            subscribe: item.subscribe,
+            subscribe_for_events: item.subscribe_for_events,
         }
     }
 }
@@ -207,7 +231,7 @@ impl From<ank_base::CompleteStateRequest> for CompleteStateRequest {
     fn from(item: ank_base::CompleteStateRequest) -> Self {
         CompleteStateRequest {
             field_mask: item.field_mask,
-            subscribe: item.subscribe,
+            subscribe_for_events: item.subscribe_for_events,
         }
     }
 }
@@ -312,7 +336,7 @@ mod tests {
                 request_content: $expression::RequestContent::CompleteStateRequest(
                     $expression::CompleteStateRequest {
                         field_mask: vec![FIELD_1.into(), FIELD_2.into()],
-                        subscribe: false,
+                        subscribe_for_events: false,
                     },
                 )
                 .into(),
@@ -785,7 +809,7 @@ mod tests {
             request_content: ankaios::RequestContent::CompleteStateRequest(
                 ankaios::CompleteStateRequest {
                     field_mask: vec!["1".to_string(), "2".to_string()],
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             ),
         };

@@ -27,6 +27,7 @@ message Request {
         CompleteStateRequest completeStateRequest = 3; /// A message to Ankaios server to request the complete state by the given request id and the optional field mask.
         LogsRequest logsRequest = 4; /// A message to Ankaios server to request workload logs.
         LogsCancelRequest logsCancelRequest = 5; /// A message to Ankaios server to stop the request for workload logs.
+        EventsCancelRequest eventsCancelRequest=6; /// A message to Ankaios server to stop a specific event campaign.
     }
 }
 
@@ -44,6 +45,7 @@ message Response {
         LogEntriesResponse logEntriesResponse = 7; /// A message containing workload logs.
         LogsStopResponse logsStopResponse = 8; /// A message containing the workload instance name indicating the stop of the log streaming.
         LogsCancelAccepted logsCancelAccepted = 9; /// A message indicating that the request for canceling the log collection was accepted. Please note that the actual stopping of the log collection campaign could take longer.
+        EventsCancelAccepted eventsCancelAccepted = 10; /// A message indicating that the request for canceling the event campaign was accepted. Please note that the actual stopping of the event campaign could take longer.
     }
 }
 
@@ -62,6 +64,12 @@ message LogsRequest {
 * A message stopping the streaming of logs requested via a request with the follow flag.
 */
 message LogsCancelRequest {
+}
+
+/**
+* A message stopping the event campaign previously started.
+*/
+message EventsCancelRequest {
 }
 
 /**
@@ -90,6 +98,13 @@ message LogsCancelAccepted {
 }
 
 /**
+* A message indicating that the request for canceling the event campaign was accepted.
+* Please note that the actual stopping of the event campaign could take longer so other event notifications could be delivered also after receiving this message.
+*/
+message EventsCancelAccepted {
+}
+
+/**
 * A message containing a single log entry.
 */
 message LogEntry {
@@ -112,7 +127,7 @@ enum AddCondition {
 */
 message CompleteStateRequest {
     repeated string fieldMask = 1; /// A list of symbolic field paths within the State message structure e.g. 'desiredState.workloads.nginx'.
-    bool subscribe = 2; /// If true, the server will send updates to the client whenever the state changes. The updates will contain only the fields specified in the fieldMask. If false, the server will send only one response.
+    bool subscribeForEvents = 2; /// If true, the server will send updates to the client whenever the state changes. The updates will contain only the fields specified in the fieldMask. If false, the server will send only one response.
 }
 
 /**
@@ -135,7 +150,7 @@ message UpdateStateSuccess {
 }
 
 
-/*** A message containing the complete state of the Ankaios system along with information about what has changed.
+/** A message containing the complete state of the Ankaios system along with information about what has changed.
 * This is a response to the [CompleteStateRequest](#completestaterequest) message.
 * If this is the first response to a CompleteStateRequest, the addedFields, updatedFields, and removedFields will all be empty.
 */

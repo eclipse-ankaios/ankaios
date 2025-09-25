@@ -90,6 +90,7 @@ pub trait ToServerInterface {
         request_id: String,
         logs_stop_response: ank_base::LogsStopResponse,
     ) -> Result<(), ToServerError>;
+    async fn event_cancel_request(&self, request_id: String) -> Result<(), ToServerError>;
     async fn goodbye(&self, connection_name: String) -> Result<(), ToServerError>;
     async fn stop(&self) -> Result<(), ToServerError>;
 }
@@ -201,6 +202,15 @@ impl ToServerInterface for ToServerSender {
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::LogsStopResponse(request_id, logs_stop_response))
+            .await?)
+    }
+
+    async fn event_cancel_request(&self, request_id: String) -> Result<(), ToServerError> {
+        Ok(self
+            .send(ToServer::Request(commands::Request {
+                request_id,
+                request_content: RequestContent::EventsCancelRequest,
+            }))
             .await?)
     }
 
@@ -366,7 +376,7 @@ mod tests {
 
         let complete_state_request = commands::CompleteStateRequest {
             field_mask: vec![FIELD_MASK.to_string()],
-            subscribe: false,
+            subscribe_for_events: false,
         };
         let request_content = RequestContent::CompleteStateRequest(complete_state_request.clone());
         assert!(

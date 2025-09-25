@@ -432,7 +432,7 @@ mod tests {
 
         let request_complete_state = CompleteStateRequest {
             field_mask: vec![],
-            subscribe: false,
+            subscribe_for_events: false,
         };
 
         let mut workload_state_db = WorkloadStatesMap::default();
@@ -466,7 +466,7 @@ mod tests {
                 "workloads.invalidMask".to_string(), // invalid not existing workload
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
             ],
-            subscribe: false,
+            subscribe_for_events: false,
         };
 
         let mut workload_state_map = WorkloadStatesMap::default();
@@ -520,7 +520,7 @@ mod tests {
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
                 format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
             ],
-            subscribe: false,
+            subscribe_for_events: false,
         };
 
         let mut workload_state_map = WorkloadStatesMap::default();

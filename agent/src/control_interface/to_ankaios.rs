@@ -94,7 +94,7 @@ mod tests {
                     request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
                         ank_base::CompleteStateRequest {
                             field_mask: vec![FIELD_1.into(), FIELD_2.into()],
-                            subscribe: false,
+                            subscribe_for_events: false,
                         },
                     )),
                 },
@@ -105,7 +105,7 @@ mod tests {
             request_id: REQUEST_ID.into(),
             request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![FIELD_1.into(), FIELD_2.into()],
-                subscribe: false,
+                subscribe_for_events: false,
             }),
         });
 

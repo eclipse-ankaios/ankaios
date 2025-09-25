@@ -350,7 +350,7 @@ impl Connection {
             request_content: common::commands::RequestContent::CompleteStateRequest(
                 common::commands::CompleteStateRequest {
                     field_mask,
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             ),
         };

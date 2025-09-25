@@ -325,7 +325,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
                 test_request_id.to_owned(),
                 CompleteStateRequest {
                     field_mask: vec![],
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             )
             .await;
@@ -342,10 +342,10 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
                     request_id,
                     request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
                         field_mask,
-                        subscribe
+                        subscribe_for_events
                     })
                 }
-            ))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe
+            ))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe_for_events
         ));
     }
 
@@ -371,7 +371,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
                 test_request_id.to_owned(),
                 CompleteStateRequest {
                     field_mask: vec![],
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             )
             .await;
@@ -388,10 +388,10 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
                     request_id,
                     request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
                         field_mask,
-                        subscribe
+                        subscribe_for_events
                     })
                 }
-            ))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe
+            ))) if request_id.contains(test_request_id) && field_mask.is_empty() && !subscribe_for_events
         ));
     }
 

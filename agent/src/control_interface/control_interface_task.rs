@@ -327,7 +327,7 @@ mod tests {
             request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
                 ank_base::CompleteStateRequest {
                     field_mask: vec![field_mask.into()],
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             )),
         };
@@ -560,7 +560,7 @@ mod tests {
                     request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
                         ank_base::CompleteStateRequest {
                             field_mask: vec![],
-                            subscribe: false,
+                            subscribe_for_events: false,
                         },
                     )),
                 },
@@ -657,7 +657,7 @@ mod tests {
             request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
                 ank_base::CompleteStateRequest {
                     field_mask: vec!["desiredState.workloads.nginx".to_string()],
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             )),
         };

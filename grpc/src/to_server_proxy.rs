@@ -91,14 +91,14 @@ pub async fn forward_from_proto_to_ankaios(
                     }
                     RequestContent::CompleteStateRequest(CompleteStateRequest {
                         field_mask,
-                        subscribe,
+                        subscribe_for_events,
                     }) => {
                         log::trace!("Received RequestCompleteState from '{agent_name}'");
                         sink.request_complete_state(
                             request_id,
                             ank_base::CompleteStateRequest {
                                 field_mask,
-                                subscribe,
+                                subscribe_for_events,
                             }
                             .into(),
                         )
@@ -111,6 +111,10 @@ pub async fn forward_from_proto_to_ankaios(
                     RequestContent::LogsCancelRequest(_logs_stop_request) => {
                         log::trace!("Received LogsCancelRequest from '{agent_name}'");
                         sink.logs_cancel_request(request_id).await?;
+                    }
+                    RequestContent::EventsCancelRequest(_event_cancel_request) => {
+                        log::trace!("Received EventsCancelRequest from '{agent_name}'");
+                        sink.event_cancel_request(request_id).await?;
                     }
                 }
             }
@@ -522,9 +526,7 @@ mod tests {
         assert!(forward_result.is_err());
         assert_eq!(
             forward_result.unwrap_err().to_string(),
-            String::from(
-                "Connection interrupted: 'status: 'Unknown error', self: \"test\"'"
-            )
+            String::from("Connection interrupted: 'status: 'Unknown error', self: \"test\"'")
         );
 
         // pick received from server message
@@ -743,7 +745,7 @@ mod tests {
                             ank_base::request::RequestContent::CompleteStateRequest(
                                 ank_base::CompleteStateRequest {
                                     field_mask: vec![],
-                                    subscribe: false,
+                                    subscribe_for_events: false,
                                 },
                             ),
                         ),
@@ -771,9 +773,9 @@ mod tests {
                 request_id,
                 request_content:
                     common::commands::RequestContent::CompleteStateRequest(
-                        common::commands::CompleteStateRequest { field_mask, subscribe },
+                        common::commands::CompleteStateRequest { field_mask, subscribe_for_events },
                     ),
-            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask && !subscribe)
+            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask && !subscribe_for_events)
         );
     }
 
@@ -784,7 +786,7 @@ mod tests {
 
         let request_complete_state = common::commands::CompleteStateRequest {
             field_mask: vec![],
-            subscribe: false,
+            subscribe_for_events: false,
         };
 
         let request_complete_state_result = server_tx
@@ -807,10 +809,10 @@ mod tests {
             request_id,
             request_content:
                 Some(ank_base::request::RequestContent::CompleteStateRequest(
-                    ank_base::CompleteStateRequest { field_mask, subscribe },
+                    ank_base::CompleteStateRequest { field_mask, subscribe_for_events },
                 )),
         }))
-        if request_id == REQUEST_ID && field_mask == vec![] as Vec<String> && !subscribe));
+        if request_id == REQUEST_ID && field_mask == vec![] as Vec<String> && !subscribe_for_events));
     }
 
     #[tokio::test]

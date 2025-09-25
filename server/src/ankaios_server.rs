@@ -387,6 +387,17 @@ impl AnkaiosServer {
                             .await
                             .unwrap_or_illegal_state();
                     }
+                    common::commands::RequestContent::EventsCancelRequest => {
+                        log::debug!("Got event cancel request with ID: {request_id}");
+
+                        // TODO
+                        // self.event_campaign_store.remove_event_request_id(&request_id);
+
+                        self.to_agents
+                            .event_cancel_request_accepted(request_id)
+                            .await
+                            .unwrap_or_illegal_state();
+                    }
                 },
                 ToServer::UpdateWorkloadState(method_obj) => {
                     log::debug!(
@@ -1456,7 +1467,7 @@ mod tests {
                     request_complete_state
                         == &CompleteStateRequest {
                             field_mask: vec![],
-                            subscribe: false,
+                            subscribe_for_events: false,
                         }
                 }),
                 mockall::predicate::always(),
@@ -1473,7 +1484,7 @@ mod tests {
                 request_id.clone(),
                 CompleteStateRequest {
                     field_mask: vec![],
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             )
             .await;
@@ -1518,7 +1529,7 @@ mod tests {
                     request_complete_state
                         == &CompleteStateRequest {
                             field_mask: vec![],
-                            subscribe: false,
+                            subscribe_for_events: false,
                         }
                 }),
                 mockall::predicate::always(),
@@ -1536,7 +1547,7 @@ mod tests {
                 request_id.clone(),
                 CompleteStateRequest {
                     field_mask: vec![],
-                    subscribe: false,
+                    subscribe_for_events: false,
                 },
             )
             .await;
