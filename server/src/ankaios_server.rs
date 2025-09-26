@@ -244,9 +244,10 @@ impl AnkaiosServer {
                     // [impl->swdd~server-provides-update-desired-state-interface~1]
                     common::commands::RequestContent::UpdateStateRequest(update_state_request) => {
                         log::debug!(
-                            "Received UpdateState. State '{:?}', update mask '{:?}'",
+                            "Received UpdateState. State '{:?}', update mask '{:?}', dry run '{:?}'",
                             update_state_request.state,
-                            update_state_request.update_mask
+                            update_state_request.update_mask,
+                            update_state_request.dry_run,
                         );
 
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
@@ -264,6 +265,46 @@ impl AnkaiosServer {
                                 .error(request_id, error_message)
                                 .await
                                 .unwrap_or_illegal_state();
+                            continue;
+                        }
+
+                        if update_state_request.dry_run {
+                            let plan_result = self.server_state.update_dry_run(
+                                update_state_request.state.clone(),
+                                update_state_request.update_mask.clone(),
+                            );
+
+                            match plan_result {
+                                Ok(Some((added, deleted))) => {
+                                    let added_names =
+                                        added.iter().map(|x| x.instance_name.to_string()).collect();
+                                    let deleted_names = deleted
+                                        .iter()
+                                        .map(|x| x.instance_name.to_string())
+                                        .collect();
+
+                                    self.to_agents
+                                        .update_state_success(
+                                            request_id,
+                                            added_names,
+                                            deleted_names,
+                                        )
+                                        .await
+                                        .unwrap_or_illegal_state();
+                                }
+                                Ok(None) => {
+                                    self.to_agents
+                                        .update_state_success(request_id, vec![], vec![])
+                                        .await
+                                        .unwrap_or_illegal_state();
+                                }
+                                Err(msg) => {
+                                    self.to_agents
+                                        .error(request_id, format!("Dry-run rejected: {msg}"))
+                                        .await
+                                        .unwrap_or_illegal_state();
+                                }
+                            }
                             continue;
                         }
 
@@ -742,7 +783,8 @@ mod tests {
                 .update_state(
                     REQUEST_ID_A.to_string(),
                     new_state.clone(),
-                    update_mask.clone()
+                    update_mask.clone(),
+                    false,
                 )
                 .await
                 .is_ok()
@@ -759,7 +801,12 @@ mod tests {
         // send the update with the new clean state again
         assert!(
             to_server
-                .update_state(REQUEST_ID_A.to_string(), fixed_state.clone(), update_mask)
+                .update_state(
+                    REQUEST_ID_A.to_string(),
+                    fixed_state.clone(),
+                    update_mask,
+                    false
+                )
                 .await
                 .is_ok()
         );
@@ -1080,7 +1127,7 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
+            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask, false)
             .await;
         assert!(update_state_result.is_ok());
 
@@ -1157,7 +1204,7 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
+            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask, false)
             .await;
         assert!(update_state_result.is_ok());
 
@@ -1224,7 +1271,7 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
+            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask, false)
             .await;
         assert!(update_state_result.is_ok());
 
@@ -1859,7 +1906,12 @@ mod tests {
         assert!(agent_hello2_result.is_ok());
 
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
+            .update_state(
+                REQUEST_ID_A.to_string(),
+                update_state,
+                update_mask.clone(),
+                false,
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -2026,7 +2078,12 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state.clone(), update_mask)
+            .update_state(
+                REQUEST_ID_A.to_string(),
+                update_state.clone(),
+                update_mask,
+                false,
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -2074,6 +2131,7 @@ mod tests {
                 REQUEST_ID_A.to_string(),
                 update_state_ankaios_no_version.clone(),
                 update_mask,
+                false,
             )
             .await;
         assert!(update_state_result.is_ok());
@@ -2185,7 +2243,12 @@ mod tests {
             .return_const(HashSet::new());
 
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
+            .update_state(
+                REQUEST_ID_A.to_string(),
+                update_state,
+                update_mask.clone(),
+                false,
+            )
             .await;
         assert!(update_state_result.is_ok());
 
@@ -2281,7 +2344,12 @@ mod tests {
             .return_const(HashSet::from([logs_request_id.to_owned()]));
 
         let update_state_result = to_server
-            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
+            .update_state(
+                REQUEST_ID_A.to_string(),
+                update_state,
+                update_mask.clone(),
+                false,
+            )
             .await;
         assert!(update_state_result.is_ok());
 
