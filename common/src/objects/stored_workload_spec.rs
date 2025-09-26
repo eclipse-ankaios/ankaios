@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::helpers::serialize_to_ordered_map;
 
 use super::{
-    AddCondition, RestartPolicy, Tag, WorkloadInstanceName, WorkloadSpec,
+    AddCondition, RestartPolicy, WorkloadInstanceName, WorkloadSpec,
     control_interface_access::ControlInterfaceAccess, file::File,
 };
 
@@ -32,7 +32,7 @@ pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
 pub struct StoredWorkloadSpec {
     pub agent: String,
     #[serde(default)]
-    pub tags: Vec<Tag>,
+    pub tags: HashMap<String, String>,
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
     #[serde(default)]
@@ -194,10 +194,7 @@ pub fn generate_test_stored_workload_spec_with_config(
         ]),
         restart_policy: RestartPolicy::Always,
         runtime: runtime_name.into(),
-        tags: vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }],
+        tags: HashMap::from([("key".into(), "value".into())]),
         runtime_config: runtime_config.into(),
         control_interface_access: Default::default(),
         configs: [

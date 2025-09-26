@@ -271,7 +271,7 @@ mod tests {
     mod ank_base {
         pub use api::ank_base::{
             CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, LogsCancelRequest,
-            LogsRequest, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
+            LogsRequest, Request, RestartPolicy, State, Tags, UpdateStateRequest, Workload,
             WorkloadInstanceName, WorkloadMap, request::RequestContent,
         };
     }
@@ -284,7 +284,7 @@ mod tests {
             },
             objects::{
                 Base64Data, CompleteState, Data, ExecutionState, File, FileContent, RestartPolicy,
-                State, StoredWorkloadSpec, Tag, WorkloadInstanceName, generate_test_agent_map,
+                State, StoredWorkloadSpec, WorkloadInstanceName, generate_test_agent_map,
                 generate_test_workload_states_map_with_data,
             },
         };

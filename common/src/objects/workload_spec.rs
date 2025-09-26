@@ -17,7 +17,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::helpers::serialize_to_ordered_map;
-use crate::objects::Tag;
 
 use super::ExecutionState;
 use super::WorkloadInstanceName;
@@ -93,7 +92,7 @@ fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadSpec {
     pub instance_name: WorkloadInstanceName,
-    pub tags: Vec<Tag>,
+    pub tags: HashMap<String, String>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
     pub restart_policy: RestartPolicy,
@@ -332,10 +331,7 @@ pub fn generate_test_workload_spec_with_runtime_config(
         dependencies: generate_test_dependencies(),
         restart_policy: RestartPolicy::Always,
         runtime: runtime_name,
-        tags: vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }],
+        tags: HashMap::from([("key".into(), "value".into())]),
         runtime_config,
         control_interface_access: Default::default(),
         files: Default::default(),
