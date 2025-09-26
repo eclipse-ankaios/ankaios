@@ -75,10 +75,10 @@ flowchart TD
 
 The [control interface](./control-interface.md) relies on [FIFO](https://en.wikipedia.org/wiki/Named_pipe) (also known as [named pipes](https://en.wikipedia.org/wiki/Named_pipe)) to enable a [workload](glossary.md#workload) to communicate with the Ankaios system. For that purpose, Ankaios creates a mount point for each [workload](glossary.md#workload) to store the FIFO files. At the mount point `/run/ankaios/control_interface/` the [workload](glossary.md#workload) developer can find the FIFO files `input` and `output` and use them for the communication with the Ankaios server. Ankaios uses its own communication protocol described in [protocol documentation](./_ankaios.proto.md#control_apiproto) as a [protobuf IDL](https://protobuf.com/docs/language-spec) which allows the client code to be generated in any programming language supported by the [protobuf compiler](https://protobuf.dev/reference/). The generated client code can then be integrated and used in a [workload](#communication-between-ankaios-and-workloads).
 
-In the case of workloads using `podman-kube` runtime, the FIFO files are mounted to the pod and container specified in the `controlInterfaceTarget` field of the workload specification in the startup manifest. The `controlInterfaceTarget` field must contain the following subfields:
+In the case of workloads using the `podman-kube` runtime, the FIFO files are mounted to the pod and container specified in the `controlInterfaceTarget` field of the workload specification in the startup manifest. The `controlInterfaceTarget` field must be a string in the format `<pod_name>/<container_name>`, where:
 
-- `pod_name`: The name of the pod where the workload is running.
-- `container_name`: The name of the container within the pod that will use the control interface.
+- `<pod_name>` is the name of the pod where the workload is running.
+- `<container_name>` is the name of the container within the pod that will use the control interface.
 
 ## Communication between Ankaios and workloads
 
