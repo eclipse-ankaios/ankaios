@@ -314,28 +314,17 @@ impl Object {
                 (path_element, remaining_path) = remaining_path.split_first().unwrap();
                 if path_element == WILDCARD_SYMBOL {
                     current_result_valid = false;
-                    match current_value {
-                        Value::Mapping(map) => {
-                            for (key, value) in map {
-                                let key = match key {
-                                    Value::String(s) => s.clone(),
-                                    Value::Number(n) if n.is_i64() || n.is_u64() => n.to_string(),
-                                    _ => continue,
-                                };
-                                // let Value::String(key) = key else { continue };
-                                let mut new_prefix = current_prefix.clone();
-                                new_prefix.push(key);
-                                to_do.push_front((new_prefix, value, remaining_path));
-                            }
+                    if let Value::Mapping(map) = current_value {
+                        for (key, value) in map {
+                            let key = match key {
+                                Value::String(s) => s.clone(),
+                                Value::Number(n) if n.is_i64() || n.is_u64() => n.to_string(),
+                                _ => continue,
+                            };
+                            let mut new_prefix = current_prefix.clone();
+                            new_prefix.push(key);
+                            to_do.push_front((new_prefix, value, remaining_path));
                         }
-                        Value::Sequence(seq) => {
-                            for (index, value) in seq.iter().enumerate() {
-                                let mut new_prefix = current_prefix.clone();
-                                new_prefix.push(index.to_string());
-                                to_do.push_front((new_prefix, value, remaining_path));
-                            }
-                        }
-                        _ => {}
                     }
 
                     break;
