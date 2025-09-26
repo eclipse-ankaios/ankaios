@@ -580,11 +580,16 @@ mod tests {
             .once()
             .return_const(());
 
+        let mut mock_resource_monitor = MockResourceMonitor::default();
+        mock_resource_monitor
+            .expect_sample_resource_usage()
+            .returning(|| (CpuUsage::new(50.0), FreeMemory { free_memory: 1024 }));
+
         let mock_resource_monitor_context = MockResourceMonitor::new_context();
         mock_resource_monitor_context
             .expect()
             .once()
-            .return_once(MockResourceMonitor::default);
+            .return_once(|| mock_resource_monitor);
 
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
