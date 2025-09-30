@@ -29,6 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[serde(try_from = \"serde_yaml::Value\")]",
         )
         .field_attribute("Workload.tags", "#[serde(flatten)]")
+        .field_attribute("Workload.files", "#[serde(flatten)]")
         .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")
         .field_attribute("WorkloadStatesMap.agentStateMap", "#[serde(flatten)]")
@@ -50,7 +51,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "ControlInterfaceAccess.denyRules",
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
         )
-        .field_attribute("Files.files", "#[serde(default)]")
         .field_attribute(
             "Files.files",
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",

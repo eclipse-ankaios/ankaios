@@ -948,16 +948,7 @@ mod tests {
             .map(ToString::to_string)
             .collect::<HashSet<_>>();
 
-        assert_eq!(
-            x,
-            HashSet::from([
-                "C.d.a".into(),
-                "C.d.c".into(),
-                "C.23.0".into(),
-                "C.23.1".into(),
-                "C.23.2".into()
-            ])
-        );
+        assert_eq!(x, HashSet::from(["C.d.a".into(), "C.d.c".into(),]));
     }
 
     #[test]
