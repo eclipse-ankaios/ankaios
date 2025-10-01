@@ -330,8 +330,8 @@ impl Object {
                     break;
                 } else {
                     current_prefix.push(path_element.clone());
-                    current_value = if let Some(x) = current_value.get(path_element) {
-                        x
+                    current_value = if let Some(next_element) = current_value.get(path_element) {
+                        next_element
                     } else {
                         current_result_valid = false;
                         break;
