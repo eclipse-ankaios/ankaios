@@ -858,14 +858,22 @@ mod tests {
             data: object::generate_test_value_object_for_wildcards(),
         };
 
-        let expaned = data.expand_wildcards(&["A.a.age".into(), "B.b.name".into()]);
+        let paths = ["A.a.age".into(), "B.b.name".into()];
 
-        let x = expaned
+        let expanded = data.expand_wildcards(&paths);
+
+        let x = expanded
             .iter()
             .map(ToString::to_string)
             .collect::<HashSet<_>>();
 
-        assert_eq!(x, HashSet::from(["A.a.age".into(), "B.b.name".into(),]));
+        assert_eq!(
+            x,
+            (paths
+                .iter()
+                .map(ToString::to_string)
+                .collect::<HashSet<_>>())
+        );
     }
 
     #[test]
@@ -874,9 +882,9 @@ mod tests {
             data: object::generate_test_value_object_for_wildcards(),
         };
 
-        let expaned = data.expand_wildcards(&["A.*.age".into(), "B.*.name".into()]);
+        let expanded = data.expand_wildcards(&["A.*.age".into(), "B.*.name".into()]);
 
-        let x = expaned
+        let x = expanded
             .iter()
             .map(ToString::to_string)
             .collect::<HashSet<_>>();
