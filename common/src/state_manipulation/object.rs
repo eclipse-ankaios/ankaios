@@ -343,11 +343,11 @@ impl Object {
                 }
             }
             if current_result_valid {
-                result.push(current_prefix);
+                result.push(current_prefix.into());
             }
         }
 
-        result.into_iter().map(|p| p.into()).collect()
+        result
     }
 
     pub fn check_if_provided_path_exists(&self, path: &Path) -> bool {
