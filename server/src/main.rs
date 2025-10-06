@@ -61,37 +61,37 @@ fn handle_sever_config(config_path: &Option<String>, default_path: &str) -> Serv
 }
 
 fn validate_tags_format_in_manifest(data: &str) -> Result<(), String> {
-    let yaml_value: serde_yaml::Value = serde_yaml::from_str(data)
-        .map_err(|e| format!("Failed to parse YAML: {e}"))?;
+    let yaml_value: serde_yaml::Value =
+        serde_yaml::from_str(data).map_err(|e| format!("Failed to parse YAML: {e}"))?;
 
     let api_version = yaml_value
         .get("apiVersion")
         .and_then(|v| v.as_str())
         .unwrap_or("");
 
-    if let Some(workloads) = yaml_value.get("workloads") {
-        if let Some(workloads_map) = workloads.as_mapping() {
-            for (workload_name, workload_spec) in workloads_map {
-                if let Some(tags) = workload_spec.get("tags") {
-                    let workload_name_str = workload_name.as_str().unwrap_or("unknown");
+    if let Some(workloads) = yaml_value.get("workloads")
+        && let Some(workloads_map) = workloads.as_mapping()
+    {
+        for (workload_name, workload_spec) in workloads_map {
+            if let Some(tags) = workload_spec.get("tags") {
+                let workload_name_str = workload_name.as_str().unwrap_or("unknown");
 
-                    match api_version {
-                        CURRENT_API_VERSION => {
-                            if !tags.is_mapping() {
-                                return Err(format!(
-                                    "For API version '{CURRENT_API_VERSION}', tags must be specified as a mapping (key-value pairs). Found tags as sequence in workload '{workload_name_str}'.",
-                                ));
-                            }
+                match api_version {
+                    CURRENT_API_VERSION => {
+                        if !tags.is_mapping() {
+                            return Err(format!(
+                                "For API version '{CURRENT_API_VERSION}', tags must be specified as a mapping (key-value pairs). Found tags as sequence in workload '{workload_name_str}'.",
+                            ));
                         }
-                        PREVIOUS_API_VERSION => {
-                            if !tags.is_sequence() {
-                                return Err(format!(
-                                    "For API version '{PREVIOUS_API_VERSION}', tags must be specified as a sequence (list of key-value entries). Found tags as mapping in workload '{workload_name_str}'.",
-                                ));
-                            }
-                        }
-                        _ => {}
                     }
+                    PREVIOUS_API_VERSION => {
+                        if !tags.is_sequence() {
+                            return Err(format!(
+                                "For API version '{PREVIOUS_API_VERSION}', tags must be specified as a sequence (list of key-value entries). Found tags as mapping in workload '{workload_name_str}'.",
+                            ));
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -291,7 +291,11 @@ workloads:
 "#;
         let result = validate_tags_format_in_manifest(manifest);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("tags must be specified as a mapping"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("tags must be specified as a mapping")
+        );
     }
 
     #[test]
@@ -329,7 +333,11 @@ workloads:
 "#;
         let result = validate_tags_format_in_manifest(manifest);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("tags must be specified as a sequence"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("tags must be specified as a sequence")
+        );
     }
 
     #[test]

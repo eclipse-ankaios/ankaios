@@ -76,13 +76,7 @@ impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
     fn try_from(value: ank_base::Workload) -> Result<Self, String> {
         Ok(StoredWorkloadSpec {
             agent: value.agent.ok_or("Missing field agent")?,
-            tags: value
-                .tags
-                .unwrap_or_default()
-                .tags
-                .into_iter()
-                .map(|x| x.into())
-                .collect(),
+            tags: value.tags.unwrap_or_default().tags.into_iter().collect(),
             dependencies: value
                 .dependencies
                 .unwrap_or_default()
@@ -124,7 +118,7 @@ impl From<StoredWorkloadSpec> for ank_base::Workload {
             runtime: workload.runtime.into(),
             runtime_config: workload.runtime_config.into(),
             tags: Some(ank_base::Tags {
-                tags: workload.tags.into_iter().map(Into::into).collect(),
+                tags: workload.tags.into_iter().collect(),
             }),
             control_interface_access: workload.control_interface_access.into(),
             configs: Some(ank_base::ConfigMappings {
