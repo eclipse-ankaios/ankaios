@@ -120,10 +120,13 @@ The runtime configuration for the `podman-kube` runtime is specified as follows:
 generalOptions: [<comma>, <separated>, <options>]
 playOptions: [<comma>, <separated>, <options>]
 downOptions: [<comma>, <separated>, <options>]
+controlInterfaceTarget: <pod_name>/<container_name>
 manifest: <string containing the K8s manifest>
 ```
 
 where each attribute is passed directly to `podman play kube`.
+
+The `controlInterfaceTarget` field is optional and specifies the target pod and container for the control interface. If not specified, the control interface will not be mounted for the workload.
 
 If we take as an example the `podman play kube` command:
 
