@@ -1884,6 +1884,11 @@
 
     s &lt;--&gt; a1 &lt;--&gt;|"/run/ankaios/control_interface/{input,output}"| w1 &amp; w2</code></pre>
 <p>The <a href="./">control interface</a> relies on <a href="https://en.wikipedia.org/wiki/Named_pipe">FIFO</a> (also known as <a href="https://en.wikipedia.org/wiki/Named_pipe">named pipes</a>) to enable a <a href="../glossary/#workload">workload</a> to communicate with the Ankaios system. For that purpose, Ankaios creates a mount point for each <a href="../glossary/#workload">workload</a> to store the FIFO files. At the mount point <code>/run/ankaios/control_interface/</code> the <a href="../glossary/#workload">workload</a> developer can find the FIFO files <code>input</code> and <code>output</code> and use them for the communication with the Ankaios server. Ankaios uses its own communication protocol described in <a href="../_ankaios.proto/#control_apiproto">protocol documentation</a> as a <a href="https://protobuf.com/docs/language-spec">protobuf IDL</a> which allows the client code to be generated in any programming language supported by the <a href="https://protobuf.dev/reference/">protobuf compiler</a>. The generated client code can then be integrated and used in a <a href="#communication-between-ankaios-and-workloads">workload</a>.</p>
+<p>In the case of workloads using the <code>podman-kube</code> runtime, the FIFO files are mounted to the pod and container specified in the <code>controlInterfaceTarget</code> field of the runtime config in the startup manifest. The <code>controlInterfaceTarget</code> field must be a string in the format <code>&lt;pod_name&gt;/&lt;container_name&gt;</code>, where:</p>
+<ul>
+<li><code>&lt;pod_name&gt;</code> is the name of the pod where the workload is running.</li>
+<li><code>&lt;container_name&gt;</code> is the name of the container within the pod that will use the control interface.</li>
+</ul>
 <h2 id="communication-between-ankaios-and-workloads">Communication between Ankaios and workloads<a class="headerlink" href="#communication-between-ankaios-and-workloads" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart TD
     proto("ankaios.proto")
