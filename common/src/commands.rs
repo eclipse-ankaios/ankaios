@@ -271,7 +271,7 @@ mod tests {
     mod ank_base {
         pub use api::ank_base::{
             CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, LogsCancelRequest,
-            LogsRequest, Request, RestartPolicy, State, Tags, UpdateStateRequest, Workload,
+            LogsRequest, Request, RestartPolicy, State, UpdateStateRequest, Workload,
             WorkloadInstanceName, WorkloadMap, request::RequestContent,
         };
     }
@@ -412,7 +412,7 @@ mod tests {
         (ankaios) => {
             ankaios::CompleteState {
                 desired_state: ankaios::State {
-                    api_version: "v0.1".into(),
+                    api_version: "v1".into(),
                     workloads: HashMap::from([("desired".into(), workload!(ankaios))]),
                     configs: HashMap::new(),
                 }
@@ -424,7 +424,7 @@ mod tests {
         (ank_base) => {
             ank_base::CompleteState {
                 desired_state: Some(ank_base::State {
-                    api_version: "v0.1".into(),
+                    api_version: "v1".into(),
                     workloads: Some(ank_base::WorkloadMap {
                         workloads: HashMap::from([("desired".to_string(), workload!(ank_base))]),
                     }),
@@ -444,11 +444,8 @@ mod tests {
                 restart_policy: Some(ank_base::RestartPolicy::Always.into()),
                 runtime: Some(RUNTIME.to_string()),
                 runtime_config: Some(RUNTIME_CONFIG.to_string()),
-                tags: Some(ank_base::Tags {
-                    tags: vec![ank_base::Tag {
-                        key: "key".into(),
-                        value: "value".into(),
-                    }],
+                tags: Some(api::ank_base::Tags {
+                    tags: HashMap::from([("key".into(), "value".into())]),
                 }),
                 control_interface_access: Default::default(),
                 configs: Some(ank_base::ConfigMappings {
@@ -464,10 +461,7 @@ mod tests {
         (ankaios) => {
             ankaios::StoredWorkloadSpec {
                 agent: AGENT_NAME.to_string(),
-                tags: vec![ankaios::Tag {
-                    key: "key".into(),
-                    value: "value".into(),
-                }],
+                tags: HashMap::from([("key".into(), "value".into())]),
                 dependencies: HashMap::new(),
                 restart_policy: ankaios::RestartPolicy::Always,
                 runtime: RUNTIME.to_string(),
@@ -560,7 +554,7 @@ mod tests {
         };
         proto_request_content.new_state = Some(ank_base::CompleteState {
             desired_state: Some(ank_base::State {
-                api_version: "v0.1".into(),
+                api_version: "v1".into(),
                 workloads: Some(ank_base::WorkloadMap {
                     workloads: HashMap::new(),
                 }),
@@ -602,7 +596,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .desired_state = Some(ank_base::State {
-            api_version: "v0.1".into(),
+            api_version: "v1".into(),
             workloads: Some(ank_base::WorkloadMap {
                 workloads: HashMap::new(),
             }),

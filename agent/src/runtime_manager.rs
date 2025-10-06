@@ -2338,10 +2338,7 @@ mod tests {
                                     ]),
                                 }),
                                 tags: Some(ank_base::Tags {
-                                    tags: vec![ank_base::Tag {
-                                        key: "key".to_string(),
-                                        value: "value".to_string(),
-                                    }],
+                                    tags: HashMap::from([("key".to_string(), "value".to_string())]),
                                 }),
                                 runtime: Some("runtime1".to_string()),
                                 runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()),

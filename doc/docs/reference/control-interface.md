@@ -184,7 +184,7 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
                 UpdateStateRequest {
                     new_state: Some(CompleteState {
                         desired_state: Some(State {
-                            api_version: "v0.1".into(),
+                            api_version: "v1".into(),
                             workloads: new_workloads,
                             ..Default::default()
                         }),

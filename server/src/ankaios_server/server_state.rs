@@ -553,7 +553,7 @@ mod tests {
                             .collect(),
                     }),
                     tags: Some(Tags {
-                        tags: w1.tags.into_iter().map(ank_base::Tag::from).collect(),
+                        tags: w1.tags.clone(),
                     }),
                     runtime: Some(w1.runtime.clone()),
                     runtime_config: Some(w1.runtime_config.clone()),
@@ -1194,34 +1194,6 @@ mod tests {
         server_state.update(update_state, update_mask).unwrap();
 
         assert_eq!(*expected, server_state.state);
-    }
-
-    // [utest->swdd~update-desired-state-with-update-mask~1]
-    #[test]
-    fn utest_server_state_update_state_remove_fails_from_non_map() {
-        let old_state = generate_test_old_state();
-        let update_state = generate_test_update_state();
-        let update_mask = vec!["desiredState.workloads.workload_2.tags.x".into()];
-
-        let mut delete_graph_mock = MockDeleteGraph::new();
-        delete_graph_mock.expect_insert().never();
-        delete_graph_mock
-            .expect_apply_delete_conditions_to()
-            .never();
-
-        let mut mock_config_renderer = MockConfigRenderer::new();
-        mock_config_renderer.expect_render_workloads().never();
-
-        let mut server_state = ServerState {
-            state: old_state.clone(),
-            rendered_workloads: generate_rendered_workloads_from_state(&old_state.desired_state),
-            delete_graph: delete_graph_mock,
-            config_renderer: mock_config_renderer,
-        };
-        let result = server_state.update(update_state, update_mask);
-
-        assert!(result.is_err());
-        assert_eq!(server_state.state, old_state);
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]

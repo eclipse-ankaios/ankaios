@@ -67,11 +67,13 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use api::ank_base::{self, UpdateStateSuccess};
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::FromServer,
-        objects::{self, CompleteState, ExecutionState, StoredWorkloadSpec, Tag, WorkloadState},
+        objects::{self, CompleteState, ExecutionState, StoredWorkloadSpec, WorkloadState},
     };
     use mockall::predicate::eq;
 
@@ -99,10 +101,7 @@ mod tests {
         let new_workload = StoredWorkloadSpec {
             agent: test_workload_agent.to_owned(),
             runtime: test_workload_runtime_name.clone(),
-            tags: vec![Tag {
-                key: "key".to_string(),
-                value: "value".to_string(),
-            }],
+            tags: HashMap::from([("key".to_string(), "value".to_string())]),
             runtime_config: test_workload_runtime_cfg.clone(),
             ..Default::default()
         };
@@ -170,7 +169,7 @@ mod tests {
                 test_workload_runtime_name,
                 test_workload_runtime_cfg,
                 test_workload_agent,
-                vec![("key".to_string(), "value".to_string())],
+                HashMap::from([("key".to_string(), "value".to_string())]),
             )
             .await;
         assert!(run_workload_result.is_ok());

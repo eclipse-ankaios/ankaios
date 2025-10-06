@@ -269,10 +269,7 @@ mod tests {
             restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: workload_spec.runtime_config.clone(),
-            tags: vec![ank_base::Tag {
-                key: "key".into(),
-                value: "value".into(),
-            }],
+            tags: HashMap::from([("key".into(), "value".into())]),
             control_interface_access: Default::default(),
             files: vec![
                 ank_base::File {
@@ -310,7 +307,7 @@ mod tests {
                 .agent_name("agent")
                 .workload_name("name")
                 .build(),
-            tags: vec![],
+            tags: HashMap::new(),
             runtime_config: String::from("some config"),
             control_interface_access: Default::default(),
             files: generate_test_rendered_workload_files(),
@@ -335,7 +332,7 @@ mod tests {
             restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
-            tags: vec![],
+            tags: HashMap::new(),
             control_interface_access: Default::default(),
             files: vec![
                 ank_base::File {
@@ -378,7 +375,7 @@ mod tests {
             restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
-            tags: vec![],
+            tags: HashMap::new(),
             control_interface_access: Default::default(),
             files: Default::default(),
         };

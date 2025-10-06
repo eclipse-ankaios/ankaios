@@ -22,7 +22,8 @@ use crate::objects::{STR_RE_CONFIG_REFERENCES, StoredWorkloadSpec};
 
 use api::ank_base;
 
-pub const CURRENT_API_VERSION: &str = "v0.1";
+pub const CURRENT_API_VERSION: &str = "v1";
+pub const PREVIOUS_API_VERSION: &str = "v0.1";
 
 // [impl->swdd~common-object-representation~1]
 // [impl->swdd~common-object-serialization~1]
@@ -94,14 +95,18 @@ impl TryFrom<ank_base::State> for State {
 
 impl State {
     pub fn verify_api_version(provided_state: &State) -> Result<(), String> {
-        if provided_state.api_version != CURRENT_API_VERSION {
-            Err(format!(
-                "Unsupported API version. Received '{}', expected '{}'",
-                provided_state.api_version,
-                State::default().api_version
-            ))
-        } else {
-            Ok(())
+        match provided_state.api_version.as_str() {
+            CURRENT_API_VERSION => Ok(()),
+            PREVIOUS_API_VERSION => {
+                log::warn!(
+                    "The provided state uses an old API version '{PREVIOUS_API_VERSION}'. \
+                     Please consider updating to the latest version '{CURRENT_API_VERSION}'."
+                );
+                Ok(())
+            }
+            version => Err(format!(
+                "Unsupported API version. Received '{version}', expected '{CURRENT_API_VERSION}'"
+            )),
         }
     }
 

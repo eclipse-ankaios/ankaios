@@ -173,8 +173,7 @@ mod tests {
           nginx:
             agent: agent_A
             tags:
-            - key: owner
-              value: Ankaios team
+                owner: Ankaios team
             dependencies: {}
             restartPolicy: ALWAYS
             runtime: podman

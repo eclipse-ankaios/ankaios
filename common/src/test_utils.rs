@@ -24,7 +24,7 @@ use crate::objects::{
 };
 
 const RUNTIME_NAME: &str = "runtime";
-const API_VERSION: &str = "v0.1";
+const API_VERSION: &str = "v1";
 const AGENT_NAME: &str = "agent";
 const WORKLOAD_1_NAME: &str = "workload_name_1";
 const WORKLOAD_2_NAME: &str = "workload_name_2";

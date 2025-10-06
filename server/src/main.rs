@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use common::objects::CompleteState;
 
 use common::communications_server::CommunicationsServer;
-use common::objects::State;
+use common::objects::{CURRENT_API_VERSION, PREVIOUS_API_VERSION, State};
 use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{AnkaiosServer, create_from_server_channel, create_to_server_channel};
@@ -60,6 +60,46 @@ fn handle_sever_config(config_path: &Option<String>, default_path: &str) -> Serv
     }
 }
 
+fn validate_tags_format_in_manifest(data: &str) -> Result<(), String> {
+    let yaml_value: serde_yaml::Value = serde_yaml::from_str(data)
+        .map_err(|e| format!("Failed to parse YAML: {e}"))?;
+
+    let api_version = yaml_value
+        .get("apiVersion")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    if let Some(workloads) = yaml_value.get("workloads") {
+        if let Some(workloads_map) = workloads.as_mapping() {
+            for (workload_name, workload_spec) in workloads_map {
+                if let Some(tags) = workload_spec.get("tags") {
+                    let workload_name_str = workload_name.as_str().unwrap_or("unknown");
+
+                    match api_version {
+                        CURRENT_API_VERSION => {
+                            if !tags.is_mapping() {
+                                return Err(format!(
+                                    "For API version '{CURRENT_API_VERSION}', tags must be specified as a mapping (key-value pairs). Found tags as sequence in workload '{workload_name_str}'.",
+                                ));
+                            }
+                        }
+                        PREVIOUS_API_VERSION => {
+                            if !tags.is_sequence() {
+                                return Err(format!(
+                                    "For API version '{PREVIOUS_API_VERSION}', tags must be specified as a sequence (list of key-value entries). Found tags as mapping in workload '{workload_name_str}'.",
+                                ));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
@@ -84,6 +124,10 @@ async fn main() {
         Some(config_path) => {
             let data =
                 fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");
+
+            validate_tags_format_in_manifest(&data)
+                .unwrap_or_exit("Invalid tags format in startup manifest");
+
             // [impl->swdd~server-state-in-memory~1]
             // [impl->swdd~server-loads-startup-state-file~3]
             let state: State = serde_yaml::from_str(&data)
@@ -154,6 +198,7 @@ async fn main() {
 mod tests {
     use crate::{
         ServerConfig, handle_sever_config, server_config::DEFAULT_SERVER_CONFIG_FILE_PATH,
+        validate_tags_format_in_manifest,
     };
     use std::{io::Write, net::SocketAddr};
     use tempfile::NamedTempFile;
@@ -209,5 +254,104 @@ mod tests {
         let server_config = handle_sever_config(&None, "/a/very/invalid/path/to/config/file");
 
         assert_eq!(server_config, ServerConfig::default());
+    }
+
+    #[test]
+    fn utest_validate_tags_format_current_api_version_with_mapping_ok() {
+        let manifest = r#"
+apiVersion: v1
+workloads:
+  nginx:
+    agent: agent_A
+    runtime: podman
+    tags:
+      owner: team_a
+      version: "1.0"
+    runtimeConfig: |
+      image: nginx:latest
+"#;
+        assert!(validate_tags_format_in_manifest(manifest).is_ok());
+    }
+
+    #[test]
+    fn utest_validate_tags_format_current_api_version_with_sequence_fails() {
+        let manifest = r#"
+apiVersion: v1
+workloads:
+  nginx:
+    agent: agent_A
+    runtime: podman
+    tags:
+      - key: owner
+        value: team_a
+      - key: version
+        value: "1.0"
+    runtimeConfig: |
+      image: nginx:latest
+"#;
+        let result = validate_tags_format_in_manifest(manifest);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("tags must be specified as a mapping"));
+    }
+
+    #[test]
+    fn utest_validate_tags_format_previous_api_version_with_sequence_ok() {
+        let manifest = r#"
+apiVersion: v0.1
+workloads:
+  nginx:
+    agent: agent_A
+    runtime: podman
+    tags:
+      - key: owner
+        value: team_a
+      - key: version
+        value: "1.0"
+    runtimeConfig: |
+      image: nginx:latest
+"#;
+        assert!(validate_tags_format_in_manifest(manifest).is_ok());
+    }
+
+    #[test]
+    fn utest_validate_tags_format_previous_api_version_with_mapping_fails() {
+        let manifest = r#"
+apiVersion: v0.1
+workloads:
+  nginx:
+    agent: agent_A
+    runtime: podman
+    tags:
+      owner: team_a
+      version: "1.0"
+    runtimeConfig: |
+      image: nginx:latest
+"#;
+        let result = validate_tags_format_in_manifest(manifest);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("tags must be specified as a sequence"));
+    }
+
+    #[test]
+    fn utest_validate_tags_format_no_tags_ok() {
+        let manifest = r#"
+apiVersion: v1
+workloads:
+  nginx:
+    agent: agent_A
+    runtime: podman
+    runtimeConfig: |
+      image: nginx:latest
+"#;
+        assert!(validate_tags_format_in_manifest(manifest).is_ok());
+    }
+
+    #[test]
+    fn utest_validate_tags_format_empty_workloads_ok() {
+        let manifest = r#"
+apiVersion: v1
+workloads: {}
+"#;
+        assert!(validate_tags_format_in_manifest(manifest).is_ok());
     }
 }

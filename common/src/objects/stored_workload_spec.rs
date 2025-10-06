@@ -31,7 +31,7 @@ pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
 #[serde(rename_all = "camelCase")]
 pub struct StoredWorkloadSpec {
     pub agent: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "tag_adapter_deserializer")]
     pub tags: HashMap<String, String>,
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
@@ -168,6 +168,38 @@ impl From<WorkloadSpec> for StoredWorkloadSpec {
             control_interface_access: value.control_interface_access,
             configs: Default::default(),
             files: value.files,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+enum MapOrVec<K: std::hash::Hash + Eq, V> {
+    Map(HashMap<K, V>),
+    Vec(Vec<MapEntry<K, V>>),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct MapEntry<K, V> {
+    key: K,
+    value: V,
+}
+
+fn tag_adapter_deserializer<'de, D, K, V>(deserializer: D) -> Result<HashMap<K, V>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    K: std::hash::Hash + Eq + Deserialize<'de>,
+    V: Deserialize<'de>,
+{
+    let map_or_vec = MapOrVec::<K, V>::deserialize(deserializer)?;
+    match map_or_vec {
+        MapOrVec::Map(m) => Ok(m),
+        MapOrVec::Vec(v) => {
+            let mut map = HashMap::new();
+            for entry in v {
+                map.insert(entry.key, entry.value);
+            }
+            Ok(map)
         }
     }
 }
