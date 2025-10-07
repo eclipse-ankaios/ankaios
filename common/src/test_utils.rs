@@ -18,13 +18,13 @@ use api::ank_base::{self, ConfigMappings, Dependencies, Tags, WorkloadMap};
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    generate_test_rendered_workload_files, generate_test_runtime_config,
-    generate_test_stored_workload_spec_with_config, ConfigItem, DeleteCondition, DeletedWorkload,
-    State, StoredWorkloadSpec, WorkloadInstanceName, WorkloadSpec,
+    ConfigItem, DeleteCondition, DeletedWorkload, State, StoredWorkloadSpec, WorkloadInstanceName,
+    WorkloadSpec, generate_test_rendered_workload_files, generate_test_runtime_config,
+    generate_test_stored_workload_spec_with_config,
 };
 
 const RUNTIME_NAME: &str = "runtime";
-const API_VERSION: &str = "v0.1";
+const API_VERSION: &str = "v1";
 const AGENT_NAME: &str = "agent";
 const WORKLOAD_1_NAME: &str = "workload_name_1";
 const WORKLOAD_2_NAME: &str = "workload_name_2";
@@ -75,8 +75,8 @@ pub fn generate_test_proto_complete_state(
 
 pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::objects::CompleteState {
     use crate::objects::{
-        generate_test_agent_map_from_specs, generate_test_workload_states_map_from_specs,
-        CompleteState,
+        CompleteState, generate_test_agent_map_from_specs,
+        generate_test_workload_states_map_from_specs,
     };
 
     let agents = generate_test_agent_map_from_specs(&workloads);
@@ -191,10 +191,7 @@ pub fn generate_test_proto_workload_with_param(
         runtime: Some(runtime_name.into()),
         runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string()),
-        tags: Some(Tags{tags:vec![ank_base::Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }]}),
+        tags: Some(Tags{tags: HashMap::from([("key".into(), "value".into())])}),
         control_interface_access: Default::default(),
         configs: Some(ConfigMappings{configs: [
             ("ref1".into(), "config_1".into()),
@@ -212,10 +209,7 @@ pub fn generate_test_proto_workload() -> ank_base::Workload {
         runtime: Some(String::from(RUNTIME_NAME)),
         runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string()),
-        tags: Some(Tags{tags:vec![ank_base::Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }]}),
+        tags: Some(Tags{tags: HashMap::from([("key".into(), "value".into())])}),
         control_interface_access: Default::default(),
         configs: Some(ConfigMappings{configs: [
             ("ref1".into(), "config_1".into()),

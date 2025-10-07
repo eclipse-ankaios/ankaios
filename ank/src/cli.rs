@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{error::Error, ffi::OsStr};
+use std::{collections::HashMap, error::Error, ffi::OsStr};
 
 use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueHint, command};
 
@@ -330,7 +330,7 @@ pub enum RunCommands {
         agent_name: String,
         ///Tags formatted as: "--tags key1=value1 --tags key2=value2"
         #[arg(long = "tags", value_parser = parse_key_val::<String, String>)]
-        tags: Vec<(String, String)>,
+        tags: HashMap<String, String>,
     },
 }
 
@@ -406,11 +406,11 @@ mod tests {
     static WORKLOAD_STATE: &str = r#"
         {
           "desiredState": {
-            "apiVersion": "v0.1",
+            "apiVersion": "v1",
             "workloads": {
               "databroker": {
                 "agent": "agent_A",
-                "tags": [],
+                "tags": {},
                 "dependencies": {},
                 "restartPolicy": "ALWAYS",
                 "runtime": "podman",
@@ -418,7 +418,7 @@ mod tests {
               },
               "speed-provider": {
                   "agent": "agent_A",
-                  "tags": [],
+                  "tags": {},
                   "dependencies": {
                   "databroker": "ADD_COND_RUNNING"
                   },
@@ -475,11 +475,11 @@ mod tests {
     static OBJECT_FIELD_MASK_STATE: &str = r#"
         {
           "desiredState": {
-            "apiVersion": "v0.1",
+            "apiVersion": "v1",
             "workloads": {
               "databroker": {
                 "agent": "agent_A",
-                "tags": [],
+                "tags": {},
                 "dependencies": {},
                 "restartPolicy": "ALWAYS",
                 "runtime": "podman",
@@ -487,7 +487,7 @@ mod tests {
               },
               "speed-provider": {
                 "agent": "agent_A",
-                "tags": [],
+                "tags": {},
                 "dependencies": {
                   "databroker": "ADD_COND_RUNNING"
                 },

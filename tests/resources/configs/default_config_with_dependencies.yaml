@@ -1,4 +1,4 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   workload_A:
     runtime: podman
@@ -7,8 +7,7 @@ workloads:
     dependencies:
       workload_B: ADD_COND_SUCCEEDED
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/sleepy:latest
   workload_B:
@@ -18,8 +17,7 @@ workloads:
     dependencies:
       workload_C: ADD_COND_SUCCEEDED
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]
@@ -28,8 +26,7 @@ workloads:
     agent: agent_A
     restartPolicy: NEVER
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]

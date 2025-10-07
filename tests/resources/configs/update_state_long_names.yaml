@@ -1,12 +1,11 @@
 desiredState:
-  apiVersion: v0.1
+  apiVersion: v1
   workloads:
     sleepy_workload_with_a_really_long_name_that_will_cause_test_failure:
       runtime: podman
       agent: agent_A
       restartPolicy: ALWAYS
       tags:
-        - key: owner
-          value: Ankaios team
+        owner: Ankaios team
       runtimeConfig: |
         image: ghcr.io/eclipse-ankaios/tests/sleepy:latest
