@@ -116,7 +116,7 @@ impl TryFrom<AddedWorkload> for objects::WorkloadSpec {
             restart_policy: workload.restart_policy.try_into()?,
             runtime: workload.runtime,
             instance_name: workload.instance_name.ok_or("No instance name")?.into(),
-            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            tags: workload.tags.into_iter().collect(),
             runtime_config: workload.runtime_config,
             control_interface_access: workload
                 .control_interface_access
@@ -144,7 +144,7 @@ impl From<objects::WorkloadSpec> for AddedWorkload {
             restart_policy: workload.restart_policy as i32,
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
-            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            tags: workload.tags.into_iter().collect(),
             files: workload.files.into_iter().map(Into::into).collect(),
             control_interface_access: workload.control_interface_access.into(),
         }
