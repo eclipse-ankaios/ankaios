@@ -15,7 +15,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use super::Path;
-use crate::objects as ankaios;
+use crate::{objects as ankaios, std_extensions::UnreachableOption};
 use api::ank_base::{self as proto};
 use serde_yaml::{
     Mapping, Value, from_value,
@@ -353,8 +353,8 @@ impl Object {
                                 continue;
                             };
 
-                            let current_value = &current_node[key];
-                            let other_value = &other_node[key];
+                            let current_value = current_node.get(key).unwrap_or_unreachable();
+                            let other_value = other_node.get(key).unwrap_or_unreachable();
 
                             match (current_value, other_value) {
                                 (Value::Mapping(current_map), Value::Mapping(other_map)) => {
