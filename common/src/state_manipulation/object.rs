@@ -300,7 +300,14 @@ impl Object {
     /// Expands wildcard paths into all concrete paths present in the object.
     ///
     /// For each input path, this method performs a depth-first search, replacing any wildcard segment (e.g., "*") with all available keys at that level.
-    /// Returns a vector containing every concrete path that matches the provided wildcard patterns.
+    /// ## Arguments
+    ///
+    /// - `path`: A slice of [`Path`] that may contain wildcards
+    ///
+    /// ## Returns
+    ///
+    /// - a [Vec<`Path`>] containing every concrete path that matches the provided wildcard patterns.
+    ///
     pub fn expand_wildcards(&self, path: &[Path]) -> Vec<Path> {
         let value = &self.data;
         let mut result = Vec::new();
