@@ -378,9 +378,9 @@ impl Object {
                                     }
                                 }
                                 _ => {
-                                    let mut updated_field_mask = current_field_mask.clone();
-                                    updated_field_mask.push(key_str.clone());
                                     if current_value != other_value {
+                                        let mut updated_field_mask = current_field_mask.clone();
+                                        updated_field_mask.push(key_str.clone());
                                         field_differences
                                             .push(FieldDifference::Updated(updated_field_mask));
                                     }
