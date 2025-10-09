@@ -1014,10 +1014,7 @@ mod tests {
 
         let new_state = Object {
             data: Mapping::default()
-                .entry(
-                    "key_1",
-                    vec![Mapping::default().entry("key_1_0", "value_1_0").into()] as Vec<Value>,
-                )
+                .entry("key_1", vec!["seq_value".to_owned()])
                 .into(),
         };
 
@@ -1034,10 +1031,7 @@ mod tests {
     fn utest_calculate_state_differences_updated_sequence() {
         let old_state = Object {
             data: Mapping::default()
-                .entry(
-                    "key_1",
-                    vec![Mapping::default().entry("key_1_0", "value_1_0").into()] as Vec<Value>,
-                )
+                .entry("key_1", vec!["seq_value_1".to_owned()])
                 .into(),
         };
 
@@ -1045,12 +1039,7 @@ mod tests {
             data: Mapping::default()
                 .entry(
                     "key_1",
-                    vec![
-                        Mapping::default()
-                            .entry("key_1_0", "value_1_0")
-                            .entry("key_1_1", "value_1_1")
-                            .into(),
-                    ] as Vec<Value>,
+                    vec!["seq_value_1".to_owned(), "seq_value_2".to_owned()],
                 )
                 .into(),
         };
@@ -1068,10 +1057,7 @@ mod tests {
     fn utest_calculate_state_differences_removed_sequence() {
         let old_state = Object {
             data: Mapping::default()
-                .entry(
-                    "key_1",
-                    vec![Mapping::default().entry("key_1_0", "value_1_0").into()] as Vec<Value>,
-                )
+                .entry("key_1", vec!["seq_value".to_owned()])
                 .into(),
         };
 
