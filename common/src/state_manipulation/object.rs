@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 
 use super::Path;
 use crate::{objects as ankaios, std_extensions::UnreachableOption};
@@ -311,7 +311,7 @@ impl Object {
     pub fn calculate_state_differences(&self, other: &Object) -> Vec<FieldDifference> {
         // [impl->swdd~server-calculates-state-differences-for-events~1]
         let mut field_differences = Vec::new();
-        let mut stack_tasks = VecDeque::new();
+        let mut stack_tasks = Vec::new();
 
         let Value::Mapping(current_mapping) = &self.data else {
             return vec![];
@@ -321,9 +321,9 @@ impl Object {
             return vec![];
         };
 
-        stack_tasks.push_front(StackTask::VisitPair(current_mapping, other_mapping));
+        stack_tasks.push(StackTask::VisitPair(current_mapping, other_mapping));
         let mut current_field_mask = Vec::new();
-        while let Some(task) = stack_tasks.pop_front() {
+        while let Some(task) = stack_tasks.pop() {
             match task {
                 StackTask::VisitPair(current_node, other_node) => {
                     let current_keys: HashSet<_> = current_node.keys().collect();
@@ -358,10 +358,9 @@ impl Object {
 
                             match (current_value, other_value) {
                                 (Value::Mapping(current_map), Value::Mapping(other_map)) => {
-                                    stack_tasks.push_front(StackTask::PopField);
-                                    stack_tasks
-                                        .push_front(StackTask::VisitPair(current_map, other_map));
-                                    stack_tasks.push_front(StackTask::PushField(key_str.clone()));
+                                    stack_tasks.push(StackTask::PopField);
+                                    stack_tasks.push(StackTask::VisitPair(current_map, other_map));
+                                    stack_tasks.push(StackTask::PushField(key_str.clone()));
                                 }
                                 (Value::Sequence(current_seq), Value::Sequence(other_seq)) => {
                                     let mut sequence_field_mask = current_field_mask.clone();

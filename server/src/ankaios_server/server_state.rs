@@ -300,7 +300,7 @@ impl ServerState {
 
     fn generate_new_state(
         &mut self,
-        updated_state: CompleteState,
+        mut updated_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<CompleteState, UpdateStateError> {
         // [impl->swdd~update-desired-state-empty-update-mask~1]
@@ -308,8 +308,12 @@ impl ServerState {
             return Ok(updated_state);
         }
 
+        let mut self_state = self.state.clone();
+        self_state.agents = common::objects::AgentMap::default();
+        updated_state.agents = common::objects::AgentMap::default();
+
         // [impl->swdd~update-desired-state-with-update-mask~1]
-        let mut new_state: Object = (&self.state).try_into().map_err(|err| {
+        let mut new_state: Object = self_state.try_into().map_err(|err| {
             UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{err}'"))
         })?;
         let state_from_update: Object = updated_state.try_into().map_err(|err| {
@@ -318,10 +322,12 @@ impl ServerState {
 
         // [impl->swdd~server-calculates-state-differences-for-events~1]
         // TODO! calculate state differences only when events are configured
-        let state_differences = new_state.calculate_state_differences(&state_from_update);
+        let mut state_differences = new_state.calculate_state_differences(&state_from_update);
 
         if !state_differences.is_empty() {
+            state_differences.sort();
             log::debug!("Found '{}' state differences", state_differences.len());
+            log::debug!("State differences: {state_differences:?}");
         }
 
         for field in update_mask {
