@@ -297,7 +297,8 @@ impl AnkaiosServer {
                             }
                         };
 
-                        let state_from_update: Object = match updated_desired_state.try_into() {
+                        let state_from_update: Object = match update_state_request.state.try_into()
+                        {
                             Ok(state) => state,
                             Err(err) => {
                                 let error_msg =
@@ -321,6 +322,8 @@ impl AnkaiosServer {
                             state_differences.sort();
                             log::debug!("State differences: '{state_differences:?}'");
                         }
+
+                        println!("State from update: {state_from_update:?}");
 
                         // [impl->swdd~update-desired-state-with-update-mask~1]
                         // [impl->swdd~update-desired-state-empty-update-mask~1]
@@ -678,13 +681,16 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
 
-        let current_state: Object = CompleteState::default().try_into().unwrap_or_unreachable();
+        let old_state = CompleteState::default();
+        let old_state_obj: Object = old_state.clone().try_into().unwrap_or_unreachable();
         let startup_state_obj: Object = startup_state.clone().try_into().unwrap_or_unreachable();
+
+        mock_server_state.expect_get_state().return_const(old_state);
 
         mock_server_state
             .expect_update()
             .with(
-                mockall::predicate::eq(current_state),
+                mockall::predicate::eq(old_state_obj),
                 mockall::predicate::eq(startup_state_obj),
                 mockall::predicate::eq(vec![]),
             )
@@ -767,8 +773,15 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         let mut seq = mockall::Sequence::new();
 
-        let current_state_obj: Object = CompleteState::default().try_into().unwrap_or_unreachable();
+        let current_state = CompleteState::default();
+        let current_state_obj: Object = current_state.clone().try_into().unwrap_or_unreachable();
         let new_state_obj: Object = new_state.clone().try_into().unwrap_or_unreachable();
+
+        mock_server_state
+            .expect_get_state()
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(current_state.clone());
 
         mock_server_state
             .expect_update()
@@ -787,6 +800,12 @@ mod tests {
         let deleted_workloads = vec![];
 
         let fixed_state_obj: Object = fixed_state.clone().try_into().unwrap_or_unreachable();
+
+        mock_server_state
+            .expect_get_state()
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(new_state.clone());
 
         mock_server_state
             .expect_update()
@@ -892,8 +911,16 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
-        let empty_default_state_obj: Object =
-            CompleteState::default().try_into().unwrap_or_unreachable();
+        let empty_default_state = CompleteState::default();
+        let empty_default_state_obj: Object = empty_default_state
+            .clone()
+            .try_into()
+            .unwrap_or_unreachable();
+
+        mock_server_state
+            .expect_get_state()
+            .return_const(empty_default_state.clone());
+
         let startup_state_obj: Object = startup_state.clone().try_into().unwrap_or_unreachable();
         mock_server_state
             .expect_update()
@@ -978,26 +1005,12 @@ mod tests {
             .in_sequence(&mut seq)
             .return_const(vec![w1.clone()]);
 
-        // mock_server_state
-        //     .expect_add_agent()
-        //     .with(predicate::eq(AGENT_A.to_owned()))
-        //     .once()
-        //     .in_sequence(&mut seq)
-        //     .return_const(());
-
         mock_server_state
             .expect_get_workloads_for_agent()
             .with(mockall::predicate::eq(AGENT_B.to_string()))
             .once()
             .in_sequence(&mut seq)
             .return_const(vec![w2.clone()]);
-
-        // mock_server_state
-        //     .expect_add_agent()
-        //     .with(predicate::eq(AGENT_B.to_owned()))
-        //     .once()
-        //     .in_sequence(&mut seq)
-        //     .return_const(());
 
         server.server_state = mock_server_state;
 
@@ -1138,10 +1151,14 @@ mod tests {
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
-        let empty_default_state_obj: Object =
-            CompleteState::default().try_into().unwrap_or_unreachable();
+        let old_state = CompleteState::default();
+        let empty_default_state_obj: Object = old_state.clone().try_into().unwrap_or_unreachable();
         let update_state_obj: Object = update_state.clone().try_into().unwrap_or_unreachable();
 
+        mock_server_state
+            .expect_get_state()
+            .once()
+            .return_const(old_state);
         mock_server_state
             .expect_update()
             .with(
@@ -1223,10 +1240,13 @@ mod tests {
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
-        let empty_default_state_obj: Object =
-            CompleteState::default().try_into().unwrap_or_unreachable();
+        let old_state = CompleteState::default();
+        let empty_default_state_obj: Object = old_state.clone().try_into().unwrap_or_unreachable();
         let update_state_obj: Object = update_state.clone().try_into().unwrap_or_unreachable();
-
+        mock_server_state
+            .expect_get_state()
+            .once()
+            .return_const(old_state);
         mock_server_state
             .expect_update()
             .with(
@@ -1293,9 +1313,16 @@ mod tests {
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
-        let empty_default_state_obj: Object =
-            CompleteState::default().try_into().unwrap_or_unreachable();
+        let old_state = CompleteState::default();
+        let empty_default_state_obj: Object = old_state.clone().try_into().unwrap_or_unreachable();
+
+        mock_server_state
+            .expect_get_state()
+            .once()
+            .return_const(old_state);
+
         let update_state_obj: Object = update_state.clone().try_into().unwrap_or_unreachable();
+        println!("utest update_state_obj: {update_state_obj:?}");
 
         mock_server_state
             .expect_update()
@@ -1873,6 +1900,16 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
+        let old_state = CompleteState {
+            desired_state: State {
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone().into())]
+                    .into_iter()
+                    .collect(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
         let w2 = generate_test_workload_spec_with_param(
             AGENT_B.to_owned(),
             WORKLOAD_NAME_2.to_owned(),
@@ -1906,19 +1943,11 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         let mut seq = mockall::Sequence::new();
         mock_server_state
-            .expect_contains_connected_agent()
-            .return_const(true);
-        mock_server_state
             .expect_get_workloads_for_agent()
             .with(mockall::predicate::eq(AGENT_A.to_string()))
             .once()
             .in_sequence(&mut seq)
             .return_const(vec![w1.clone()]);
-
-        mock_server_state
-            .expect_add_agent()
-            .times(2)
-            .return_const(());
 
         mock_server_state
             .expect_get_workloads_for_agent()
@@ -1928,9 +1957,18 @@ mod tests {
             .return_const(vec![w2.clone()]);
 
         mock_server_state
+            .expect_get_state()
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(old_state.clone());
+
+        mock_server_state
             .expect_update()
             .with(
-                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq::<Object>(old_state.try_into().unwrap_or_unreachable()),
+                mockall::predicate::eq::<Object>(
+                    update_state.clone().try_into().unwrap_or_unreachable(),
+                ),
                 mockall::predicate::eq(update_mask.clone()),
             )
             .once()
@@ -2241,6 +2279,23 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
+        let old_state = CompleteState {
+            desired_state: State {
+                workloads: HashMap::from([
+                    (
+                        WORKLOAD_NAME_1.to_owned(),
+                        workload_without_agent.clone().into(),
+                    ),
+                    (
+                        WORKLOAD_NAME_2.to_owned(),
+                        workload_with_agent.clone().into(),
+                    ),
+                ]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
         let update_state = CompleteState::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
 
@@ -2260,10 +2315,11 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
+
         mock_server_state
-            .expect_contains_connected_agent()
+            .expect_get_state()
             .once()
-            .return_const(false);
+            .return_const(old_state);
         mock_server_state
             .expect_update()
             .once()
@@ -2344,9 +2400,21 @@ mod tests {
         let mut server: AnkaiosServer = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
-            .expect_contains_connected_agent()
+            .expect_get_state()
             .once()
-            .return_const(false);
+            .return_const(CompleteState {
+                desired_state: State {
+                    workloads: HashMap::from([(
+                        log_collecting_workload
+                            .instance_name
+                            .workload_name()
+                            .to_owned(),
+                        log_collecting_workload.clone().into(),
+                    )]),
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
         mock_server_state
             .expect_update()
             .once()
@@ -2422,20 +2490,20 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
-        let mut mock_server_state = MockServerState::new();
-        mock_server_state
-            .expect_update_agent_resource_availability()
-            .with(mockall::predicate::eq(payload.clone()))
-            .return_const(());
-        server.server_state = mock_server_state;
+        server.agents.add_agent(AGENT_A.to_owned());
 
-        let agent_resource_result = to_server.agent_load_status(payload).await;
+        let agent_resource_result = to_server.agent_load_status(payload.clone()).await;
         assert!(agent_resource_result.is_ok());
 
         drop(to_server);
         let result = server.start(None).await;
-
         assert!(result.is_ok());
+
+        let mut expected_agent_map = common::objects::AgentMap::default();
+        expected_agent_map.add_agent(AGENT_A.to_owned());
+        expected_agent_map.update_agent_resource_availability(payload);
+
+        assert_eq!(server.agents, expected_agent_map);
     }
 
     // [utest->swdd~server-handles-not-started-deleted-workloads~1]
@@ -2447,11 +2515,6 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
-        let mut mock_server_state = MockServerState::new();
-        mock_server_state
-            .expect_contains_connected_agent()
-            .once()
-            .return_const(false);
 
         let workload = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -2459,7 +2522,6 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        server.server_state = mock_server_state;
         server.workload_states_map = generate_test_workload_states_map_with_data(
             workload.instance_name.agent_name(),
             workload.instance_name.workload_name(),
