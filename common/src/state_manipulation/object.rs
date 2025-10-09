@@ -892,21 +892,24 @@ mod tests {
     // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_added_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+        "#;
+
         let old_state = Object {
-            data: Mapping::default()
-                .entry("key_1_1", Mapping::default().entry("key_2_1", "value_2_1"))
-                .into(),
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
         };
+
+        let new_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+              key_2_2: value_2_2
+            key_1_2: {}
+        "#;
+
         let new_state = Object {
-            data: Mapping::default()
-                .entry(
-                    "key_1_1",
-                    Mapping::default()
-                        .entry("key_2_1", "value_2_1")
-                        .entry("key_2_2", "value_2_2"),
-                )
-                .entry("key_1_2", Mapping::default())
-                .into(),
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
         };
 
         let mut changed_fields = old_state.calculate_state_differences(&new_state);
@@ -924,21 +927,24 @@ mod tests {
     // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_updated_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+            key_1_2: {}
+        "#;
+
         let old_state = Object {
-            data: Mapping::default()
-                .entry("key_1_1", Mapping::default().entry("key_2_1", "value_2_1"))
-                .entry("key_1_2", Mapping::default())
-                .into(),
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
         };
 
+        let new_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1_updated
+            key_1_2: {}
+        "#;
+
         let new_state = Object {
-            data: Mapping::default()
-                .entry(
-                    "key_1_1",
-                    Mapping::default().entry("key_2_1", "value_2_1_updated"),
-                )
-                .entry("key_1_2", Mapping::default())
-                .into(),
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
         };
 
         let changed_fields = old_state.calculate_state_differences(&new_state);
@@ -955,18 +961,23 @@ mod tests {
     // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_removed_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+            key_1_2: {}
+        "#;
+
         let old_state = Object {
-            data: Mapping::default()
-                .entry("key_1_1", Mapping::default().entry("key_2_1", "value_2_1"))
-                .entry("key_1_2", Mapping::default())
-                .into(),
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
         };
 
+        let new_state_yaml = r#"
+            key_1_1: {}
+            key_1_2: {}
+        "#;
+
         let new_state = Object {
-            data: Mapping::default()
-                .entry("key_1_1", Mapping::default())
-                .entry("key_1_2", Mapping::default())
-                .into(),
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
         };
 
         let changed_fields = old_state.calculate_state_differences(&new_state);
@@ -983,17 +994,22 @@ mod tests {
     // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_removed_nested_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+            key_1_2: {}
+        "#;
+
         let old_state = Object {
-            data: Mapping::default()
-                .entry("key_1_1", Mapping::default().entry("key_2_1", "value_2_1"))
-                .entry("key_1_2", Mapping::default())
-                .into(),
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
         };
 
+        let new_state_yaml = r#"
+            key_1_2: {}
+        "#;
+
         let new_state = Object {
-            data: Mapping::default()
-                .entry("key_1_2", Mapping::default())
-                .into(),
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
         };
 
         let changed_fields = old_state.calculate_state_differences(&new_state);
@@ -1006,16 +1022,21 @@ mod tests {
     // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_added_sequence() {
+        let old_state_yaml = r#"
+            key_1: []
+        "#;
+
         let old_state = Object {
-            data: Mapping::default()
-                .entry("key_1", vec![] as Vec<Value>)
-                .into(),
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
         };
 
+        let new_state_yaml = r#"
+            key_1:
+              - seq_value
+        "#;
+
         let new_state = Object {
-            data: Mapping::default()
-                .entry("key_1", vec!["seq_value".to_owned()])
-                .into(),
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
         };
 
         let changed_fields = old_state.calculate_state_differences(&new_state);
@@ -1029,19 +1050,23 @@ mod tests {
     // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_updated_sequence() {
+        let old_state_yaml = r#"
+            key_1:
+              - seq_value_1
+        "#;
+
         let old_state = Object {
-            data: Mapping::default()
-                .entry("key_1", vec!["seq_value_1".to_owned()])
-                .into(),
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
         };
 
+        let new_state_yaml = r#"
+            key_1:
+              - seq_value_1
+              - seq_value_2
+        "#;
+
         let new_state = Object {
-            data: Mapping::default()
-                .entry(
-                    "key_1",
-                    vec!["seq_value_1".to_owned(), "seq_value_2".to_owned()],
-                )
-                .into(),
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
         };
 
         let changed_fields = old_state.calculate_state_differences(&new_state);
@@ -1055,16 +1080,21 @@ mod tests {
     // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_removed_sequence() {
+        let old_state_yaml = r#"
+            key_1:
+              - seq_value
+        "#;
+
         let old_state = Object {
-            data: Mapping::default()
-                .entry("key_1", vec!["seq_value".to_owned()])
-                .into(),
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
         };
 
+        let new_state_yaml = r#"
+            key_1: []
+        "#;
+
         let new_state = Object {
-            data: Mapping::default()
-                .entry("key_1", vec![] as Vec<Value>)
-                .into(),
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
         };
 
         let changed_fields = old_state.calculate_state_differences(&new_state);
@@ -1104,8 +1134,11 @@ mod tests {
     // [utest->swdd~server-calculates-state-differences-for-events~1]
     #[test]
     fn utest_calculate_state_differences_key_is_not_string() {
+        let old_state_yaml = r#"
+            0: value
+        "#;
         let old_state = Object {
-            data: Mapping::default().entry(0, "value").into(),
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
         };
 
         let new_state = Object {
