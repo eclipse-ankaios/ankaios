@@ -26,7 +26,7 @@ use common::objects::{
     WorkloadStatesMap,
 };
 
-use common::std_extensions::IllegalStateResult;
+use common::std_extensions::{IllegalStateResult, UnreachableResult};
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
 #[cfg_attr(test, mockall_double::double)]
@@ -34,6 +34,7 @@ use server_state::ServerState;
 
 use common::{
     from_server_interface::{FromServer, FromServerInterface},
+    state_manipulation::Object,
     to_server_interface::ToServer,
 };
 
@@ -52,6 +53,7 @@ pub fn create_from_server_channel(capacity: usize) -> FromServerChannel {
 #[cfg_attr(test, mockall_double::double)]
 use log_campaign_store::LogCampaignStore;
 
+use common::objects::AgentMap;
 use log_campaign_store::LogCollectorRequestId;
 
 use std::collections::HashSet;
@@ -63,6 +65,7 @@ pub struct AnkaiosServer {
     to_agents: FromServerSender,
     server_state: ServerState,
     workload_states_map: WorkloadStatesMap,
+    agents: AgentMap,
     log_campaign_store: LogCampaignStore,
 }
 
@@ -73,6 +76,7 @@ impl AnkaiosServer {
             to_agents,
             server_state: ServerState::default(),
             workload_states_map: WorkloadStatesMap::default(),
+            agents: AgentMap::default(),
             log_campaign_store: LogCampaignStore::default(),
         }
     }
@@ -81,7 +85,20 @@ impl AnkaiosServer {
         if let Some(state) = startup_state {
             State::verify_api_version(&state.desired_state)?;
 
-            match self.server_state.update(state, vec![]) {
+            let current_state = self
+                .server_state
+                .get_state()
+                .try_into()
+                .unwrap_or_unreachable();
+
+            let startup_state: Object = state
+                .try_into()
+                .map_err(|err| format!("Could not parse into CompleteState: '{err}'"))?;
+
+            match self
+                .server_state
+                .update(current_state, startup_state, vec![])
+            {
                 Ok(Some((added_workloads, deleted_workloads))) => {
                     // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
                     self.workload_states_map.initial_state(&added_workloads);
@@ -152,7 +169,7 @@ impl AnkaiosServer {
                         .unwrap_or_illegal_state();
 
                     // [impl->swdd~server-stores-newly-connected-agent~1]
-                    self.server_state.add_agent(agent_name);
+                    self.agents.add_agent(agent_name);
                 }
                 // [impl->swdd~server-receives-resource-availability~1]
                 ToServer::AgentLoadStatus(method_obj) => {
@@ -163,15 +180,14 @@ impl AnkaiosServer {
                         method_obj.free_memory.free_memory,
                     );
 
-                    self.server_state
-                        .update_agent_resource_availability(method_obj);
+                    self.agents.update_agent_resource_availability(method_obj);
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
                     let agent_name = method_obj.agent_name;
 
                     // [impl->swdd~server-removes-disconnected-agents-from-state~1]
-                    self.server_state.remove_agent(&agent_name);
+                    self.agents.remove_agent(&agent_name);
 
                     // [impl->swdd~server-set-workload-state-on-disconnect~1]
                     self.workload_states_map.agent_disconnected(&agent_name);
@@ -220,6 +236,7 @@ impl AnkaiosServer {
                         match self.server_state.get_complete_state_by_field_mask(
                             complete_state_request,
                             &self.workload_states_map,
+                            &self.agents,
                         ) {
                             Ok(complete_state) => self
                                 .to_agents
@@ -267,12 +284,51 @@ impl AnkaiosServer {
                             continue;
                         }
 
+                        let current_state: Object = match self.server_state.get_state().try_into() {
+                            Ok(state) => state,
+                            Err(err) => {
+                                let error_msg = format!("Failed to parse current state, '{err}'");
+                                log::error!("Update rejected: '{error_msg}'");
+                                self.to_agents
+                                    .error(request_id, error_msg)
+                                    .await
+                                    .unwrap_or_illegal_state();
+                                continue;
+                            }
+                        };
+
+                        let state_from_update: Object = match updated_desired_state.try_into() {
+                            Ok(state) => state,
+                            Err(err) => {
+                                let error_msg =
+                                    format!("Update rejected: Failed to parse new state, '{err}'");
+                                log::error!("Update rejected: '{error_msg}'");
+                                self.to_agents
+                                    .error(request_id, error_msg)
+                                    .await
+                                    .unwrap_or_illegal_state();
+                                continue;
+                            }
+                        };
+
+                        // [impl->swdd~server-calculates-state-differences-for-events~1]
+                        // TODO! calculate state differences only when events are configured
+                        let mut state_differences =
+                            current_state.calculate_state_differences(&state_from_update);
+
+                        if !state_differences.is_empty() {
+                            log::debug!("Found '{}' state differences", state_differences.len());
+                            state_differences.sort();
+                            log::debug!("State differences: '{state_differences:?}'");
+                        }
+
                         // [impl->swdd~update-desired-state-with-update-mask~1]
                         // [impl->swdd~update-desired-state-empty-update-mask~1]
-                        match self
-                            .server_state
-                            .update(update_state_request.state, update_state_request.update_mask)
-                        {
+                        match self.server_state.update(
+                            current_state,
+                            state_from_update,
+                            update_state_request.update_mask,
+                        ) {
                             Ok(Some((added_workloads, deleted_workloads))) => {
                                 log::info!(
                                     "The update has {} new or updated workloads, {} workloads to delete",
@@ -480,7 +536,7 @@ impl AnkaiosServer {
 
     fn deleted_workload_never_started_on_agent(&self, deleted_workload: &DeletedWorkload) -> bool {
         !self
-            .server_state
+            .agents
             .contains_connected_agent(deleted_workload.instance_name.agent_name())
             && self
                 .workload_states_map
@@ -573,15 +629,16 @@ mod tests {
         AgentLoadStatus, CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload,
         UpdateWorkloadState,
     };
-    use common::from_server_interface::FromServer;
     use common::objects::{
         CompleteState, CpuUsage, DeletedWorkload, ExecutionState, ExecutionStateEnum, FreeMemory,
         PendingSubstate, State, WorkloadInstanceName, WorkloadState,
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
         generate_test_workload_states_map_with_data,
     };
+    use common::std_extensions::UnreachableResult;
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
+    use common::{from_server_interface::FromServer, state_manipulation::Object};
     use mockall::predicate;
 
     const AGENT_A: &str = "agent_A";
@@ -620,10 +677,15 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
+
+        let current_state: Object = CompleteState::default().try_into().unwrap_or_unreachable();
+        let startup_state_obj: Object = startup_state.clone().try_into().unwrap_or_unreachable();
+
         mock_server_state
             .expect_update()
             .with(
-                mockall::predicate::eq(startup_state.clone()),
+                mockall::predicate::eq(current_state),
+                mockall::predicate::eq(startup_state_obj),
                 mockall::predicate::eq(vec![]),
             )
             .once()
@@ -704,10 +766,15 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         let mut seq = mockall::Sequence::new();
+
+        let current_state_obj: Object = CompleteState::default().try_into().unwrap_or_unreachable();
+        let new_state_obj: Object = new_state.clone().try_into().unwrap_or_unreachable();
+
         mock_server_state
             .expect_update()
             .with(
-                mockall::predicate::eq(new_state.clone()),
+                mockall::predicate::eq(current_state_obj),
+                mockall::predicate::eq(new_state_obj.clone()),
                 mockall::predicate::eq(update_mask.clone()),
             )
             .once()
@@ -719,10 +786,13 @@ mod tests {
         let added_workloads = vec![updated_workload.clone()];
         let deleted_workloads = vec![];
 
+        let fixed_state_obj: Object = fixed_state.clone().try_into().unwrap_or_unreachable();
+
         mock_server_state
             .expect_update()
             .with(
-                mockall::predicate::eq(fixed_state.clone()),
+                mockall::predicate::eq(new_state_obj),
+                mockall::predicate::eq(fixed_state_obj),
                 mockall::predicate::eq(update_mask.clone()),
             )
             .once()
@@ -822,10 +892,14 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
+        let empty_default_state_obj: Object =
+            CompleteState::default().try_into().unwrap_or_unreachable();
+        let startup_state_obj: Object = startup_state.clone().try_into().unwrap_or_unreachable();
         mock_server_state
             .expect_update()
             .with(
-                mockall::predicate::eq(startup_state.clone()),
+                mockall::predicate::eq(empty_default_state_obj),
+                mockall::predicate::eq(startup_state_obj),
                 mockall::predicate::eq(vec![]),
             )
             .once()
@@ -904,12 +978,12 @@ mod tests {
             .in_sequence(&mut seq)
             .return_const(vec![w1.clone()]);
 
-        mock_server_state
-            .expect_add_agent()
-            .with(predicate::eq(AGENT_A.to_owned()))
-            .once()
-            .in_sequence(&mut seq)
-            .return_const(());
+        // mock_server_state
+        //     .expect_add_agent()
+        //     .with(predicate::eq(AGENT_A.to_owned()))
+        //     .once()
+        //     .in_sequence(&mut seq)
+        //     .return_const(());
 
         mock_server_state
             .expect_get_workloads_for_agent()
@@ -918,12 +992,12 @@ mod tests {
             .in_sequence(&mut seq)
             .return_const(vec![w2.clone()]);
 
-        mock_server_state
-            .expect_add_agent()
-            .with(predicate::eq(AGENT_B.to_owned()))
-            .once()
-            .in_sequence(&mut seq)
-            .return_const(());
+        // mock_server_state
+        //     .expect_add_agent()
+        //     .with(predicate::eq(AGENT_B.to_owned()))
+        //     .once()
+        //     .in_sequence(&mut seq)
+        //     .return_const(());
 
         server.server_state = mock_server_state;
 
@@ -1064,10 +1138,15 @@ mod tests {
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
+        let empty_default_state_obj: Object =
+            CompleteState::default().try_into().unwrap_or_unreachable();
+        let update_state_obj: Object = update_state.clone().try_into().unwrap_or_unreachable();
+
         mock_server_state
             .expect_update()
             .with(
-                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq(empty_default_state_obj),
+                mockall::predicate::eq(update_state_obj),
                 mockall::predicate::eq(update_mask.clone()),
             )
             .once()
@@ -1144,10 +1223,15 @@ mod tests {
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
+        let empty_default_state_obj: Object =
+            CompleteState::default().try_into().unwrap_or_unreachable();
+        let update_state_obj: Object = update_state.clone().try_into().unwrap_or_unreachable();
+
         mock_server_state
             .expect_update()
             .with(
-                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq(empty_default_state_obj),
+                mockall::predicate::eq(update_state_obj),
                 mockall::predicate::eq(update_mask.clone()),
             )
             .once()
@@ -1209,10 +1293,15 @@ mod tests {
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
+        let empty_default_state_obj: Object =
+            CompleteState::default().try_into().unwrap_or_unreachable();
+        let update_state_obj: Object = update_state.clone().try_into().unwrap_or_unreachable();
+
         mock_server_state
             .expect_update()
             .with(
-                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq(empty_default_state_obj),
+                mockall::predicate::eq(update_state_obj),
                 mockall::predicate::eq(update_mask.clone()),
             )
             .once()
@@ -1456,6 +1545,7 @@ mod tests {
                     request_complete_state == &CompleteStateRequest { field_mask: vec![] }
                 }),
                 mockall::predicate::always(),
+                mockall::predicate::always(),
             )
             .once()
             .return_const(Ok(current_complete_state.clone()));
@@ -1507,6 +1597,7 @@ mod tests {
                 mockall::predicate::function(|request_complete_state| {
                     request_complete_state == &CompleteStateRequest { field_mask: vec![] }
                 }),
+                mockall::predicate::always(),
                 mockall::predicate::always(),
             )
             .once()
@@ -1571,11 +1662,11 @@ mod tests {
             .once()
             .return_const(());
 
-        mock_server_state
-            .expect_remove_agent()
-            .once()
-            .with(predicate::eq(AGENT_A))
-            .return_const(());
+        // mock_server_state
+        //     .expect_remove_agent()
+        //     .once()
+        //     .with(predicate::eq(AGENT_A))
+        //     .return_const(());
 
         server.server_state = mock_server_state;
 
@@ -1654,11 +1745,11 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         mock_server_state.expect_cleanup_state().never();
 
-        mock_server_state
-            .expect_remove_agent()
-            .once()
-            .with(predicate::eq(AGENT_A))
-            .return_const(());
+        // mock_server_state
+        //     .expect_remove_agent()
+        //     .once()
+        //     .with(predicate::eq(AGENT_A))
+        //     .return_const(());
 
         server.server_state = mock_server_state;
 
@@ -1701,6 +1792,7 @@ mod tests {
         let instance_name_2: WorkloadInstanceName = WORKLOAD_INSTANCE_NAME_2.try_into().unwrap();
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
         server
             .log_campaign_store
             .expect_remove_agent_log_campaign_entry()
@@ -1717,17 +1809,16 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         mock_server_state.expect_cleanup_state().never();
 
-        mock_server_state
-            .expect_remove_agent()
-            .once()
-            .with(predicate::eq(AGENT_A))
-            .return_const(());
+        // mock_server_state
+        //     .expect_remove_agent()
+        //     .once()
+        //     .with(predicate::eq(AGENT_A))
+        //     .return_const(());
 
         server.server_state = mock_server_state;
 
         let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
         assert!(agent_gone_result.is_ok());
-
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         let expected_logs_stop_responses = vec![
