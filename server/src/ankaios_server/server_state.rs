@@ -316,6 +316,15 @@ impl ServerState {
             UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{err}'"))
         })?;
 
+        // [impl->swdd~server-calculates-state-differences-for-events~1]
+        // TODO! calculate state differences only when events are configured
+        let state_differences = new_state.calculate_state_differences(&state_from_update);
+
+        if !state_differences.is_empty() {
+            log::debug!("Found '{}' state differences", state_differences.len());
+            log::debug!("State differences: {state_differences:?}");
+        }
+
         for field in update_mask {
             let field: Path = field.into();
             if let Some(field_from_update) = state_from_update.get(&field) {
