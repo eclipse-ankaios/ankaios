@@ -50,6 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[internal_field_attr(#[serde(flatten)])]",
         )
         .field_attribute("File.FileContent.data", "#[internal_enum_named]")
+        .field_attribute("File.FileContent.data", "#[internal_field_attr(#[serde(rename_all = \"camelCase\")])]")
         .field_attribute("File.FileContent.binaryData", "#[internal_enum_named]")
         .field_attribute("File.FileContent.binaryData", "#[internal_field_attr(#[serde(rename_all = \"camelCase\")])]")
         // End new derives for File and FileContent
