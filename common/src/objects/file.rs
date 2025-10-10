@@ -12,83 +12,85 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 use api::ank_base;
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct File {
-    pub mount_point: String,
-    #[serde(flatten)]
-    pub file_content: FileContent,
-}
+pub type File = ank_base::FileInternal;
+pub type FileContent = ank_base::file::FileContentInternal;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(untagged)]
-pub enum FileContent {
-    Data(Data),
-    BinaryData(Base64Data),
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+// #[serde(rename_all = "camelCase")]
+// pub struct File {
+//     pub mount_point: String,
+//     #[serde(flatten)]
+//     pub file_content: FileContent,
+// }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct Data {
-    pub data: String,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+// #[serde(untagged)]
+// pub enum FileContent {
+//     Data(Data),
+//     BinaryData(Base64Data),
+// }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct Base64Data {
-    #[serde(rename = "binaryData")]
-    pub base64_data: String,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+// #[serde(rename_all = "camelCase")]
+// pub struct Data {
+//     pub data: String,
+// }
 
-impl TryFrom<ank_base::File> for File {
-    type Error = String;
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+// #[serde(rename_all = "camelCase")]
+// pub struct Base64Data {
+//     #[serde(rename = "binaryData")]
+//     pub base64_data: String,
+// }
 
-    fn try_from(value: ank_base::File) -> Result<Self, String> {
-        Ok(File {
-            mount_point: value.mount_point,
-            file_content: match value.file_content {
-                Some(ank_base::file::FileContent::Data(data)) => FileContent::Data(Data { data }),
-                Some(ank_base::file::FileContent::BinaryData(binary_data)) => {
-                    FileContent::BinaryData(Base64Data {
-                        base64_data: binary_data,
-                    })
-                }
-                None => return Err("Missing field 'fileContent'".to_string()),
-            },
-        })
-    }
-}
+// impl TryFrom<ank_base::File> for File {
+//     type Error = String;
 
-impl From<File> for ank_base::File {
-    fn from(item: File) -> Self {
-        ank_base::File {
-            mount_point: item.mount_point,
-            file_content: match item.file_content {
-                FileContent::Data(data) => Some(ank_base::file::FileContent::Data(data.data)),
-                FileContent::BinaryData(data) => {
-                    Some(ank_base::file::FileContent::BinaryData(data.base64_data))
-                }
-            },
-        }
-    }
-}
+//     fn try_from(value: ank_base::File) -> Result<Self, String> {
+//         Ok(File {
+//             mount_point: value.mount_point,
+//             file_content: match value.file_content {
+//                 Some(ank_base::file::FileContent::Data(data)) => FileContent::Data(Data { data }),
+//                 Some(ank_base::file::FileContent::BinaryData(binary_data)) => {
+//                     FileContent::BinaryData(Base64Data {
+//                         base64_data: binary_data,
+//                     })
+//                 }
+//                 None => return Err("Missing field 'fileContent'".to_string()),
+//             },
+//         })
+//     }
+// }
+
+// impl From<File> for ank_base::File {
+//     fn from(item: File) -> Self {
+//         ank_base::File {
+//             mount_point: item.mount_point,
+//             file_content: match item.file_content {
+//                 FileContent::Data(data) => Some(ank_base::file::FileContent::Data(data.data)),
+//                 FileContent::BinaryData(data) => {
+//                     Some(ank_base::file::FileContent::BinaryData(data.base64_data))
+//                 }
+//             },
+//         }
+//     }
+// }
 
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_rendered_workload_files() -> Vec<File> {
     vec![
         File {
             mount_point: "/file.json".to_string(),
-            file_content: FileContent::Data(Data {
+            file_content: FileContent::Data {
                 data: "text data".into(),
-            }),
+            },
         },
         File {
             mount_point: "/binary_file".to_string(),
-            file_content: FileContent::BinaryData(Base64Data {
-                base64_data: "base64_data".into(),
-            }),
+            file_content: FileContent::BinaryData {
+                binary_data: "base64_data".into(),
+            },
         },
     ]
 }
@@ -103,7 +105,7 @@ pub fn generate_test_rendered_workload_files() -> Vec<File> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Base64Data, Data, File, FileContent};
+    use super::{File, FileContent};
     use api::ank_base;
 
     const MOUNT_POINT_1: &str = "/file.json";
@@ -127,9 +129,9 @@ mod tests {
         assert_eq!(ankaios_file.mount_point, MOUNT_POINT_1);
         assert_eq!(
             ankaios_file.file_content,
-            FileContent::Data(Data {
+            FileContent::Data {
                 data: TEXT_FILE_CONTENT.to_owned()
-            })
+            }
         );
     }
 
@@ -149,9 +151,9 @@ mod tests {
         assert_eq!(ankaios_file.mount_point, MOUNT_POINT_2);
         assert_eq!(
             ankaios_file.file_content,
-            FileContent::BinaryData(Base64Data {
-                base64_data: BASE64_FILE_CONTENT.to_owned()
-            })
+            FileContent::BinaryData {
+                binary_data: BASE64_FILE_CONTENT.to_owned()
+            }
         );
     }
 
@@ -164,16 +166,16 @@ mod tests {
 
         let result = File::try_from(proto_binary_file);
 
-        assert_eq!(result, Err("Missing field 'fileContent'".to_string()));
+        assert_eq!(result, Err("Missing field 'file_content'".to_string()));
     }
 
     #[test]
     fn utest_convert_text_file_to_proto() {
         let text_file = File {
             mount_point: MOUNT_POINT_1.to_owned(),
-            file_content: FileContent::Data(Data {
+            file_content: FileContent::Data {
                 data: TEXT_FILE_CONTENT.to_owned(),
-            }),
+            },
         };
 
         let file_as_proto = ank_base::File::from(text_file);
@@ -191,9 +193,9 @@ mod tests {
     fn utest_convert_binary_file_to_proto() {
         let binary_file = File {
             mount_point: MOUNT_POINT_2.to_owned(),
-            file_content: FileContent::BinaryData(Base64Data {
-                base64_data: BASE64_FILE_CONTENT.to_owned(),
-            }),
+            file_content: FileContent::BinaryData {
+                binary_data: BASE64_FILE_CONTENT.to_owned(),
+            },
         };
 
         let binary_file_as_proto = ank_base::File::from(binary_file);

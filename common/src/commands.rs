@@ -283,8 +283,8 @@ mod tests {
                 UpdateStateRequest,
             },
             objects::{
-                Base64Data, CompleteState, Data, ExecutionState, File, FileContent, RestartPolicy,
-                State, StoredWorkloadSpec, Tag, WorkloadInstanceName, generate_test_agent_map,
+                CompleteState, ExecutionState, File, FileContent, RestartPolicy, State,
+                StoredWorkloadSpec, Tag, WorkloadInstanceName, generate_test_agent_map,
                 generate_test_workload_states_map_with_data,
             },
         };
@@ -481,15 +481,15 @@ mod tests {
                 files: vec![
                     ankaios::File {
                         mount_point: "/file.json".to_string(),
-                        file_content: ankaios::FileContent::Data(ankaios::Data {
+                        file_content: ankaios::FileContent::Data {
                             data: "text data".into(),
-                        }),
+                        },
                     },
                     ankaios::File {
                         mount_point: "/binary_file".to_string(),
-                        file_content: ankaios::FileContent::BinaryData(ankaios::Base64Data {
-                            base64_data: "base64_data".into(),
-                        }),
+                        file_content: ankaios::FileContent::BinaryData {
+                            binary_data: "base64_data".into(),
+                        },
                     },
                 ],
             }
