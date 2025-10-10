@@ -27,6 +27,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "ank_base.ConfigItem",
             "#[serde(try_from = \"serde_yaml::Value\")]",
         )
+        // Start new derives for File and FileContent
+        .type_attribute("File", "#[derive(internal_derive_macros::Internal)]")
+        .type_attribute(
+            "File",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+        )
+        .type_attribute(
+            "File",
+            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
+        )
+        .type_attribute("FileContent", "#[derive(internal_derive_macros::Internal)]")
+        .type_attribute(
+            "FileContent",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+        )
+        .type_attribute("FileContent", "#[internal_type_attr(#[serde(untagged)])]")
+
+        .field_attribute("File.FileContent", "#[internal_mandatory]")
+        .field_attribute(
+            "File.FileContent",
+            "#[internal_field_attr(#[serde(flatten)])]",
+        )
+        .field_attribute("File.FileContent.data", "#[internal_enum_named]")
+        .field_attribute("File.FileContent.binaryData", "#[internal_enum_named]")
+        .field_attribute("File.FileContent.binaryData", "#[internal_field_attr(#[serde(rename_all = \"camelCase\")])]")
+        // End new derives for File and FileContent
         .field_attribute("Workload.tags", "#[serde(flatten)]")
         .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")

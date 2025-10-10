@@ -15,8 +15,7 @@
 use std::{collections::HashMap, fmt};
 
 use common::objects::{
-    Base64Data, ConfigItem, Data, File, FileContent, StoredWorkloadSpec, WorkloadInstanceName,
-    WorkloadSpec,
+    ConfigItem, File, FileContent, StoredWorkloadSpec, WorkloadInstanceName, WorkloadSpec,
 };
 use handlebars::{Handlebars, RenderError};
 
@@ -170,18 +169,18 @@ impl ConfigRenderer {
             let mut rendered_file = current_file.clone();
 
             rendered_file.file_content = match rendered_file.file_content {
-                FileContent::Data(data) => FileContent::Data(Data {
+                FileContent::Data { data } => FileContent::Data {
                     data: self
                         .template_engine
-                        .render_template(&data.data, &wl_config_map)
+                        .render_template(&data, &wl_config_map)
                         .map_err(ConfigRenderError::for_files(&rendered_file.mount_point))?,
-                }),
-                FileContent::BinaryData(bin_data) => FileContent::BinaryData(Base64Data {
-                    base64_data: self
+                },
+                FileContent::BinaryData { binary_data } => FileContent::BinaryData {
+                    binary_data: self
                         .template_engine
-                        .render_template(&bin_data.base64_data, &wl_config_map)
+                        .render_template(&binary_data, &wl_config_map)
                         .map_err(ConfigRenderError::for_files(&rendered_file.mount_point))?,
-                }),
+                },
             };
 
             rendered_files.push(rendered_file);
@@ -217,7 +216,7 @@ mod tests {
     use std::collections::HashMap;
 
     use common::objects::{
-        Base64Data, ConfigItem, Data, File, FileContent, generate_test_configs,
+        ConfigItem, File, FileContent, generate_test_configs,
         generate_test_rendered_workload_files, generate_test_stored_workload_spec_with_config,
         generate_test_stored_workload_spec_with_files,
         generate_test_workload_spec_with_rendered_files,
@@ -232,15 +231,15 @@ mod tests {
         vec![
             File {
                 mount_point: "/file.json".to_string(),
-                file_content: FileContent::Data(Data {
+                file_content: FileContent::Data {
                     data: "{{ref1.config_file}}".into(),
-                }),
+                },
             },
             File {
                 mount_point: "/binary_file".to_string(),
-                file_content: FileContent::BinaryData(Base64Data {
-                    base64_data: "{{ref1.binary_file}}".into(),
-                }),
+                file_content: FileContent::BinaryData {
+                    binary_data: "{{ref1.binary_file}}".into(),
+                },
             },
         ]
     }
@@ -318,9 +317,7 @@ mod tests {
             RUNTIME,
             vec![File {
                 mount_point: "/file.json".to_string(),
-                file_content: FileContent::Data(Data {
-                    data: "{{invalid_ref.file_content}}".into(),
-                }),
+                file_content: FileContent::Data{ data: "{{invalid_ref.file_content}}".into()},
             }],
         );
 
@@ -343,9 +340,7 @@ mod tests {
             RUNTIME,
             vec![File {
                 mount_point: "/binary_file".to_string(),
-                file_content: FileContent::BinaryData(Base64Data {
-                    base64_data: "{{invalid_ref.binary_data}}".into(),
-                }),
+                file_content: FileContent::BinaryData{ binary_data: "{{invalid_ref.binary_data}}".into()},
             }],
         );
 

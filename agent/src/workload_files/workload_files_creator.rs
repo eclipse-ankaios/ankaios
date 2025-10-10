@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use base64::{Engine, engine::general_purpose};
-use common::objects::{Base64Data, Data, File, FileContent};
+use common::objects::{File, FileContent};
 use std::{
     collections::HashMap,
     fmt,
@@ -164,12 +164,10 @@ impl WorkloadFilesCreator {
 
     async fn write_file(file_path: &Path, file: &File) -> Result<(), WorkloadFileCreationError> {
         let file_io_result = match &file.file_content {
-            FileContent::Data(Data { data }) => {
+            FileContent::Data { data } => {
                 filesystem_async::write_file(file_path, data.clone()).await
             }
-            FileContent::BinaryData(Base64Data {
-                base64_data: binary_data,
-            }) => {
+            FileContent::BinaryData { binary_data } => {
                 // [impl->swdd~workload-files-creator-decodes-base64-to-binary~2]
                 let binary_data = binary_data
                     .lines()
@@ -212,7 +210,7 @@ mod tests {
 
     use crate::workload_files::generate_test_workload_files_path;
 
-    use super::{Base64Data, Data, File, FileContent, WorkloadFileHostPath, WorkloadFilesCreator};
+    use super::{File, FileContent, WorkloadFileHostPath, WorkloadFilesCreator};
 
     use crate::io_utils::{FileSystemError, mock_filesystem, mock_filesystem_async};
 
@@ -238,16 +236,16 @@ mod tests {
             // Text based file
             File {
                 mount_point: "/some/path/test.conf".to_string(),
-                file_content: FileContent::Data(Data {
+                file_content: FileContent::Data {
                     data: TEST_WORKLOAD_FILE_DATA.to_owned(),
-                }),
+                },
             },
             // Binary file
             File {
                 mount_point: "/hello".to_string(),
-                file_content: FileContent::BinaryData(Base64Data {
-                    base64_data: TEST_BASE64_DATA.to_owned(), // "data" as base64
-                }),
+                file_content: FileContent::BinaryData {
+                    binary_data: TEST_BASE64_DATA.to_owned(), // "data" as base64
+                },
             },
         ];
 
@@ -333,9 +331,9 @@ mod tests {
 
         let workload_files = [File {
             mount_point: "/binary".to_string(),
-            file_content: FileContent::BinaryData(Base64Data {
-                base64_data: wrapped_base64_input.to_string(),
-            }),
+            file_content: FileContent::BinaryData {
+                binary_data: wrapped_base64_input.to_string(),
+            },
         }];
 
         assert_eq!(
@@ -354,9 +352,9 @@ mod tests {
         let workload_files_path = generate_test_workload_files_path();
         let workload_files = vec![File {
             mount_point: "/some/path/test.conf".to_string(),
-            file_content: FileContent::Data(Data {
+            file_content: FileContent::Data {
                 data: TEST_WORKLOAD_FILE_DATA.to_owned(),
-            }),
+            },
         }];
 
         let mock_make_dir_context = mock_filesystem::make_dir_context();
@@ -392,9 +390,9 @@ mod tests {
         let workload_files_path = generate_test_workload_files_path();
         let workload_files = vec![File {
             mount_point: "/some/path/test.conf".to_string(),
-            file_content: FileContent::Data(Data {
+            file_content: FileContent::Data {
                 data: TEST_WORKLOAD_FILE_DATA.to_owned(),
-            }),
+            },
         }];
 
         let mock_make_dir_context = mock_filesystem::make_dir_context();
@@ -437,9 +435,9 @@ mod tests {
         let workload_files_path = generate_test_workload_files_path();
         let workload_files = vec![File {
             mount_point: "/..".to_string(),
-            file_content: FileContent::Data(Data {
+            file_content: FileContent::Data {
                 data: TEST_WORKLOAD_FILE_DATA.to_owned(),
-            }),
+            },
         }];
 
         let mock_make_dir_context = mock_filesystem::make_dir_context();
@@ -522,9 +520,9 @@ mod tests {
             &PathBuf::from("/some/host/file/path/to/binary"),
             &File {
                 mount_point: "/binary".to_string(),
-                file_content: FileContent::BinaryData(Base64Data {
-                    base64_data: "/invalid/base64".to_string(),
-                }),
+                file_content: FileContent::BinaryData {
+                    binary_data: "/invalid/base64".to_string(),
+                },
             },
         )
         .await;
