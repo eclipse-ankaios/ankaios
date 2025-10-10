@@ -19,30 +19,28 @@ mod tests {
 
     #[test]
     fn it_works() {
-        /// Error type emitted when a mandatory field is missing.
-        #[derive(Debug)]
-        pub struct MissingFieldError {
-            pub field: &'static str,
-        }
-
         #[derive(Debug, Clone, Internal)]
         #[internal_derive(Debug)]
         struct Address {
-            #[mandatory]
+            #[internal_mandatory]
             street: Option<String>,
             additional: Option<String>,
             city: String,
             zip: String,
         }
 
-        #[add_field(name = "extra_item", ty = "Option<String>", attrs = "#[mandatory]")]
+        #[add_field(
+            name = "extra_item",
+            ty = "Option<String>",
+            attrs = "#[internal_mandatory]"
+        )]
         #[derive(Internal, Debug)]
         #[internal_derive(Debug)]
         struct Person {
-            #[mandatory]
+            #[internal_mandatory]
             name: Option<Vec<String>>,
             middle_name: Option<String>,
-            #[mandatory]
+            #[internal_mandatory]
             address: Option<Address>,
             second_address: Option<Address>,
         }
@@ -50,9 +48,10 @@ mod tests {
         #[derive(Internal)]
         #[internal_derive(Debug)]
         enum MyEnum {
+            #[internal_enum_named]
             A(String),
             // B{#[mandatory] bla: Option<Person>, val: i32},
-            C(#[mandatory] Option<Box<Person>>, Option<i32>, Vec<i32>),
+            C(Box<Person>, i32, Vec<i32>),
             D,
         }
 

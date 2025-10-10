@@ -22,7 +22,16 @@ pub fn add_field(attr: TokenStream, item: TokenStream) -> TokenStream {
     add_field::add_field(attr, item)
 }
 
-#[proc_macro_derive(Internal, attributes(mandatory, internal_derive))]
+#[proc_macro_derive(
+    Internal,
+    attributes(
+        internal_mandatory,
+        internal_enum_named,
+        internal_derive,
+        internal_type_attr,
+        internal_field_attr,
+    )
+)]
 pub fn derive_internal(input: TokenStream) -> TokenStream {
     derive_internal::derive_internal(input)
 }
