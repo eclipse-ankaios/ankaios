@@ -20,7 +20,7 @@ mod tests {
     #[test]
     fn it_works() {
         #[derive(Debug, Clone, Internal)]
-        #[internal_derive(Debug)]
+        #[internal_derive(Debug, Clone)]
         struct Address {
             #[internal_mandatory]
             street: Option<String>,
@@ -34,8 +34,8 @@ mod tests {
             ty = "Option<String>",
             attrs = "#[internal_mandatory]"
         )]
-        #[derive(Internal, Debug)]
-        #[internal_derive(Debug)]
+        #[derive(Internal, Debug, Clone)]
+        #[internal_derive(Debug, Clone)]
         struct Person {
             #[internal_mandatory]
             name: Option<Vec<String>>,
@@ -51,10 +51,15 @@ mod tests {
             #[internal_enum_named]
             A(String),
             // B{#[mandatory] bla: Option<Person>, val: i32},
-            C(Box<Person>, i32, Vec<i32>),
+            B(Person),
+            C(Box<Person>),
             D,
+            // E(Vec<Person>),
         }
 
+        /// Remove from here
+
+        /// to here
         let address = Address {
             street: Some("123 Main St".to_string()),
             additional: None,
@@ -74,8 +79,11 @@ mod tests {
             second_address: None,
         };
 
-        let person_spec: PersonInternal = person.try_into().unwrap();
+        let person_internal: PersonInternal = person.clone().try_into().unwrap();
 
-        println!("Person Spec: {person_spec:?}");
+        let _my_enum_internal_b = MyEnumInternal::B(person_internal.clone());
+        let _my_enum_internal_c = MyEnumInternal::C(Box::new(person_internal.clone()));
+
+        println!("Person Spec: {person_internal:?}");
     }
 }
