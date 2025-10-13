@@ -12,13 +12,12 @@ Example: `ank -k get state` returns the complete state of Ankaios system with ru
 
 ```bash
 desiredState:
-  apiVersion: v0.1
+  apiVersion: v1
   workloads:
     hello-pod:
       agent: agent_B
       tags:
-      - key: owner
-        value: Ankaios team
+        owner: Ankaios team
       dependencies: {}
       restartPolicy: NEVER
       runtime: podman-kube
@@ -45,8 +44,7 @@ desiredState:
     hello1:
       agent: agent_B
       tags:
-      - key: owner
-        value: Ankaios team
+        owner: Ankaios team
       dependencies: {}
       runtime: podman
       runtimeConfig: |
@@ -57,8 +55,7 @@ desiredState:
     hello2:
       agent: agent_B
       tags:
-      - key: owner
-        value: Ankaios team
+        owner: Ankaios team
       dependencies: {}
       restartPolicy: ALWAYS
       runtime: containerd
@@ -70,8 +67,7 @@ desiredState:
     nginx:
       agent: agent_A
       tags:
-      - key: owner
-        value: Ankaios team
+        owner: Ankaios team
       dependencies: {}
       restartPolicy: ON_FAILURE
       runtime: podman
@@ -118,13 +114,12 @@ The object field mask can be constructed using the field names of the [CompleteS
 
     ```yaml
     desiredState:
-      apiVersion: v0.1
+      apiVersion: v1
       workloads:
         nginx:
           agent: agent_A
           tags:
-          - key: owner
-            value: Ankaios team
+        owner: Ankaios team
           dependencies: {}
           restartPolicy: ALWAYS
           runtime: podman
@@ -138,7 +133,7 @@ The object field mask can be constructed using the field names of the [CompleteS
 
     ```yaml
     desiredState:
-      apiVersion: v0.1
+      apiVersion: v1
       workloads:
         nginx:
           runtimeConfig: |

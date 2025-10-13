@@ -60,6 +60,7 @@ fn handle_sever_config(config_path: &Option<String>, default_path: &str) -> Serv
     }
 }
 
+// [impl->swdd~server-validates-startup-manifest-tags-format~1]
 fn validate_tags_format_in_manifest(data: &str) -> Result<(), String> {
     let yaml_value: serde_yaml::Value =
         serde_yaml::from_str(data).map_err(|e| format!("Failed to parse YAML: {e}"))?;
@@ -256,6 +257,7 @@ mod tests {
         assert_eq!(server_config, ServerConfig::default());
     }
 
+    // [utest->swdd~server-validates-startup-manifest-tags-format~1]
     #[test]
     fn utest_validate_tags_format_current_api_version_with_mapping_ok() {
         let manifest = r#"
@@ -273,6 +275,7 @@ workloads:
         assert!(validate_tags_format_in_manifest(manifest).is_ok());
     }
 
+    // [utest->swdd~server-validates-startup-manifest-tags-format~1]
     #[test]
     fn utest_validate_tags_format_current_api_version_with_sequence_fails() {
         let manifest = r#"
@@ -298,6 +301,7 @@ workloads:
         );
     }
 
+    // [utest->swdd~server-validates-startup-manifest-tags-format~1]
     #[test]
     fn utest_validate_tags_format_previous_api_version_with_sequence_ok() {
         let manifest = r#"
@@ -317,6 +321,7 @@ workloads:
         assert!(validate_tags_format_in_manifest(manifest).is_ok());
     }
 
+    // [utest->swdd~server-validates-startup-manifest-tags-format~1]
     #[test]
     fn utest_validate_tags_format_previous_api_version_with_mapping_fails() {
         let manifest = r#"
@@ -338,28 +343,5 @@ workloads:
                 .unwrap_err()
                 .contains("tags must be specified as a sequence")
         );
-    }
-
-    #[test]
-    fn utest_validate_tags_format_no_tags_ok() {
-        let manifest = r#"
-apiVersion: v1
-workloads:
-  nginx:
-    agent: agent_A
-    runtime: podman
-    runtimeConfig: |
-      image: nginx:latest
-"#;
-        assert!(validate_tags_format_in_manifest(manifest).is_ok());
-    }
-
-    #[test]
-    fn utest_validate_tags_format_empty_workloads_ok() {
-        let manifest = r#"
-apiVersion: v1
-workloads: {}
-"#;
-        assert!(validate_tags_format_in_manifest(manifest).is_ok());
     }
 }

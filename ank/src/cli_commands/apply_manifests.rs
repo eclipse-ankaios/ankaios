@@ -31,6 +31,7 @@ const WORKLOAD_LEVEL: usize = 1;
 
 // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
 // [impl->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
+// [impl->swdd~cli-apply-manifest-accepts-api-version~1]
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
     let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
         .map_err(|err| format!("Invalid manifest data provided: {err}"))?;
@@ -38,23 +39,13 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
 
     let mut workload_paths: HashSet<Path> = HashSet::new();
     let obj_paths = Vec::<Path>::from(&obj);
-    // ceacanau' de copilot
     let mut detected_api_version: Option<&str> = None;
-    // end ceacanau' de copilot
 
     for path in &obj_paths {
         let parts = path.parts();
-        // if parts.len() > 1 {
-        //     let _ = &mut workload_paths.insert(Path::from(format!("{}.{}", parts[0], parts[1])));
-        // } else if parts.contains(&"apiVersion".to_string()) {
-        // ceacanau' de copilot
         if parts.contains(&"apiVersion".to_string()) {
-        // end ceacanau' de copilot
             let manifest_api_version = obj
-                // .get(&path)
-                // ceacanau' de copilot
                 .get(path)
-                // end ceacanau' de copilot
                 .and_then(|value| value.as_str())
                 .unwrap_or("Invalid manifest API version or format provided.");
             match manifest_api_version {
@@ -87,7 +78,6 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
                     if let Some(tags_value) = obj.get(&path) {
                         match api_version {
                             CURRENT_API_VERSION => {
-                                // For current API version, tags must be a mapping
                                 if !tags_value.is_mapping() {
                                     return Err(format!(
                                         "For API version '{CURRENT_API_VERSION}', tags must be specified as a mapping (key-value pairs). Found tags as sequence in workload '{}'.",
@@ -96,7 +86,6 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
                                 }
                             }
                             PREVIOUS_API_VERSION => {
-                                // For previous API version, tags must be a sequence
                                 if !tags_value.is_sequence() {
                                     return Err(format!(
                                         "For API version '{PREVIOUS_API_VERSION}', tags must be specified as a sequence (list of key-value entries). Found tags as mapping in workload '{}'.",
@@ -355,6 +344,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-apply-manifest-accepts-api-version~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_mapping_ok() {
         let manifest_content = io::Cursor::new(
@@ -378,6 +368,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-apply-manifest-accepts-api-version~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_sequence_fails() {
         let manifest_content = io::Cursor::new(
@@ -396,13 +387,18 @@ mod tests {
 
         let result = parse_manifest(&mut (
             "invalid_manifest_with_tags_sequence".to_string(),
-            Box::new(manifest_content)
+            Box::new(manifest_content),
         ));
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("tags must be specified as a mapping"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("tags must be specified as a mapping")
+        );
     }
-
+    
+    // [utest->swdd~cli-apply-manifest-accepts-api-version~1]
     #[test]
     fn utest_parse_manifest_previous_api_version_tags_as_sequence_ok() {
         let manifest_content = io::Cursor::new(
@@ -428,6 +424,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-apply-manifest-accepts-api-version~1]
     #[test]
     fn utest_parse_manifest_previous_api_version_tags_as_mapping_fails() {
         let manifest_content = io::Cursor::new(
@@ -444,11 +441,15 @@ mod tests {
 
         let result = parse_manifest(&mut (
             "invalid_manifest_with_tags_mapping_old_version".to_string(),
-            Box::new(manifest_content)
+            Box::new(manifest_content),
         ));
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("tags must be specified as a sequence"));
+        assert!(
+            result
+                .unwrap_err()
+                .contains("tags must be specified as a sequence")
+        );
     }
 
     #[test]
