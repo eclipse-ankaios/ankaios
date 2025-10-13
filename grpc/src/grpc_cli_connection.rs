@@ -64,7 +64,7 @@ impl CliConnection for GRPCCliConnection {
         >(common::CHANNEL_CAPACITY);
 
         let cli_connection_name = format!("cli-conn-{}", uuid::Uuid::new_v4());
-        log::debug!("Connection to CLI (name={}) open.", cli_connection_name);
+        log::debug!("Connection to CLI (name={cli_connection_name}) open.");
 
         let ankaios_tx = self.to_ankaios_server.clone();
         let cli_senders = self.cli_senders.clone();
