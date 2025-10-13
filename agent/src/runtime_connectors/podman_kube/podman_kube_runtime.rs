@@ -12,7 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
+use api::ank_base::WorkloadInstanceNameInternal;
+use common::objects::{AgentName, ExecutionState, WorkloadSpec};
 use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
@@ -55,7 +56,7 @@ pub struct PodmanKubeRuntime {}
 pub struct PodmanKubeWorkloadId {
     // Podman currently does not provide an Id for a created manifest
     // and one needs the complete manifest to tear down the deployed resources.
-    pub name: WorkloadInstanceName,
+    pub name: WorkloadInstanceNameInternal,
     pub pods: Option<Vec<String>>,
     pub manifest: String,
     pub down_options: Vec<String>,
@@ -111,7 +112,7 @@ impl ControlInterfaceTarget {
 impl PodmanKubeRuntime {
     async fn sample_workload_states(
         &self,
-        workload_instance_names: &Vec<WorkloadInstanceName>,
+        workload_instance_names: &Vec<WorkloadInstanceNameInternal>,
     ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
         let mut workload_states = Vec::<ReusableWorkloadState>::default();
         for instance_name in workload_instance_names {
@@ -365,7 +366,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             agent_name.get_filter_suffix(),
             CONFIG_VOLUME_SUFFIX
         );
-        let workload_instance_names: Vec<WorkloadInstanceName> =
+        let workload_instance_names: Vec<WorkloadInstanceNameInternal> =
             PodmanCli::list_volumes_by_name(&name_filter)
                 .await
                 .map_err(|err| {
@@ -377,7 +378,8 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
                 .map(|volume_name| {
                     volume_name[..volume_name.len().saturating_sub(CONFIG_VOLUME_SUFFIX.len())]
                         .to_string()
-                        .try_into() as Result<WorkloadInstanceName, String>
+                        .try_into()
+                        as Result<WorkloadInstanceNameInternal, String>
                 })
                 .filter_map(|x| match x {
                     Ok(value) => Some(value),
@@ -500,7 +502,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
     // [impl->swdd~podman-kube-get-workload-id-uses-volumes~1]
     async fn get_workload_id(
         &self,
-        instance_name: &WorkloadInstanceName,
+        instance_name: &WorkloadInstanceNameInternal,
     ) -> Result<PodmanKubeWorkloadId, RuntimeError> {
         let runtime_config =
             PodmanCli::read_data_from_volume(&(instance_name.to_string() + CONFIG_VOLUME_SUFFIX))
@@ -685,9 +687,9 @@ impl From<OrderedExecutionState> for ExecutionState {
 // [utest->swdd~agent-functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
+    use api::test_utils::generate_test_rendered_workload_files;
     use common::objects::{
-        generate_test_rendered_workload_files, generate_test_workload_spec_with_param,
-        generate_test_workload_spec_with_rendered_files,
+        generate_test_workload_spec_with_param, generate_test_workload_spec_with_rendered_files,
         generate_test_workload_spec_with_runtime_config,
     };
     use mockall::Sequence;
@@ -695,7 +697,8 @@ mod tests {
 
     use std::fmt::Display;
 
-    use common::objects::{ExecutionState, WorkloadInstanceName};
+    use api::ank_base::WorkloadInstanceNameInternal;
+    use common::objects::ExecutionState;
     use mockall::{lazy_static, predicate::eq};
 
     use super::PodmanCli;
@@ -720,8 +723,8 @@ mod tests {
     const SAMPLE_WORKLOAD_1: &str = "workload_1";
 
     lazy_static! {
-        pub static ref WORKLOAD_INSTANCE_NAME: WorkloadInstanceName =
-            WorkloadInstanceName::builder()
+        pub static ref WORKLOAD_INSTANCE_NAME: WorkloadInstanceNameInternal =
+            WorkloadInstanceNameInternal::builder()
                 .agent_name(SAMPLE_AGENT)
                 .workload_name(SAMPLE_WORKLOAD_1)
                 .config(&SAMPLE_RUNTIME_CONFIG.to_string())
@@ -790,7 +793,7 @@ mod tests {
             workloads
                 .iter()
                 .map(|x| x.workload_state.instance_name.clone())
-                .collect::<Vec<WorkloadInstanceName>>(),
+                .collect::<Vec<WorkloadInstanceNameInternal>>(),
             [
                 workload_instance_1.try_into().unwrap(),
                 workload_instance_2.try_into().unwrap()
@@ -844,7 +847,7 @@ mod tests {
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
         assert!(
-            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
+            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceNameInternal>>() == [workload_instance.try_into().unwrap()])
         );
     }
 
@@ -883,7 +886,7 @@ mod tests {
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
         assert!(
-            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
+            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceNameInternal>>() == [workload_instance.try_into().unwrap()])
         );
     }
 

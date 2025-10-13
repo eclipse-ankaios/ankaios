@@ -240,9 +240,10 @@ impl From<&ControlInterfaceAccess> for Authorizer {
 
 #[cfg(test)]
 mod test {
+    use api::ank_base::WorkloadInstanceNameInternal;
     use common::{
         commands::{CompleteStateRequest, LogsRequest, Request, UpdateStateRequest},
-        objects::{self, AccessRightsRule, ControlInterfaceAccess, WorkloadInstanceName},
+        objects::{self, AccessRightsRule, ControlInterfaceAccess},
     };
     use std::sync::Arc;
 
@@ -535,7 +536,7 @@ mod test {
         let request = Request {
             request_id: "".into(),
             request_content: common::commands::RequestContent::LogsRequest(LogsRequest {
-                workload_names: vec![WorkloadInstanceName::new("", WORKLOAD_NAME, "")],
+                workload_names: vec![WorkloadInstanceNameInternal::new("", WORKLOAD_NAME, "")],
                 follow: false,
                 tail: -1,
                 since: None,
@@ -574,7 +575,7 @@ mod test {
                 request_content: common::commands::RequestContent::LogsRequest(LogsRequest {
                     workload_names: workloads
                         .iter()
-                        .map(|name| WorkloadInstanceName::new("", *name, ""))
+                        .map(|name| WorkloadInstanceNameInternal::new("", *name, ""))
                         .collect(),
                     follow: false,
                     tail: -1,

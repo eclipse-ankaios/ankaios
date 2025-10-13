@@ -40,10 +40,11 @@ mod get_workloads;
 mod run_workload;
 mod set_state;
 
+use api::ank_base::WorkloadInstanceNameInternal;
 use common::{
     communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServer,
-    objects::{CompleteState, State, WorkloadInstanceName, WorkloadState, WorkloadStatesMap},
+    objects::{CompleteState, State, WorkloadState, WorkloadStatesMap},
 };
 
 use wait_list_display::WaitListDisplay;
@@ -106,17 +107,18 @@ pub fn get_input_sources(manifest_files: &[String]) -> Result<Vec<InputSourcePai
 pub type InputSourcePair = (String, Box<dyn std::io::Read + Send + Sync + 'static>);
 
 #[derive(Debug)]
-pub struct WorkloadInfos(Vec<(WorkloadInstanceName, WorkloadTableRow)>);
+pub struct WorkloadInfos(Vec<(WorkloadInstanceNameInternal, WorkloadTableRow)>);
 
 impl WorkloadInfos {
-    pub fn get_mut(&mut self) -> &mut Vec<(WorkloadInstanceName, WorkloadTableRow)> {
+    pub fn get_mut(&mut self) -> &mut Vec<(WorkloadInstanceNameInternal, WorkloadTableRow)> {
         &mut self.0
     }
 }
 
 impl IntoIterator for WorkloadInfos {
-    type Item = (WorkloadInstanceName, WorkloadTableRow);
-    type IntoIter = <Vec<(WorkloadInstanceName, WorkloadTableRow)> as IntoIterator>::IntoIter;
+    type Item = (WorkloadInstanceNameInternal, WorkloadTableRow);
+    type IntoIter =
+        <Vec<(WorkloadInstanceNameInternal, WorkloadTableRow)> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -239,7 +241,7 @@ impl CliCommands {
         /* to keep track of deleted not initially started workloads in the wait mode
         the current workloads before the update must be stored in an ordered map. Affects only user output.
         The updated state is created directly, independent of fetching the current workloads. */
-        let current_workload_infos: BTreeMap<WorkloadInstanceName, WorkloadTableRow> =
+        let current_workload_infos: BTreeMap<WorkloadInstanceNameInternal, WorkloadTableRow> =
             self.get_workloads().await?.into_iter().collect();
 
         let update_state_success = self
@@ -270,7 +272,7 @@ impl CliCommands {
     async fn wait_for_complete(
         &mut self,
         update_state_success: ParsedUpdateStateSuccess,
-        mut previous_workload_infos: BTreeMap<WorkloadInstanceName, WorkloadTableRow>,
+        mut previous_workload_infos: BTreeMap<WorkloadInstanceNameInternal, WorkloadTableRow>,
     ) -> Result<(), CliError> {
         output_debug!("updated state success: {:?}", update_state_success);
 

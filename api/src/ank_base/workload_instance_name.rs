@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2025 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -17,10 +17,26 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use api::ank_base;
-use serde::{Deserialize, Serialize};
+use crate::ank_base::WorkloadInstanceNameInternal;
+// use crate::ank_base::{WorkloadInstanceNameInternal, WorkloadInternal};
 
-use super::{StoredWorkloadSpec, WorkloadSpec};
+// This could be std::mem::variant_count::<WorkloadExecutionInstanceParts>(),
+// but the function is still in only nightly ...
+pub const INSTANCE_NAME_PARTS_COUNT: usize = 3;
+pub const INSTANCE_NAME_SEPARATOR: &str = ".";
+
+pub enum InstanceNameParts {
+    WorkloadName = 0,
+    ConfigHash = 1,
+    AgentName = 2,
+}
+
+#[derive(Default)]
+pub struct WorkloadInstanceNameBuilder {
+    agent_name: String,
+    workload_name: String,
+    hash: String,
+}
 
 pub trait ConfigHash {
     fn hash_config(&self) -> String;
@@ -32,68 +48,19 @@ impl ConfigHash for String {
     }
 }
 
-impl ConfigHash for WorkloadSpec {
-    fn hash_config(&self) -> String {
-        self.runtime_config.hash_config()
-    }
-}
+// impl ConfigHash for WorkloadInternal {
+//     fn hash_config(&self) -> String {
+//         self.runtime_config.as_ref().unwrap().hash_config()
+//     }
+// }
 
-pub enum InstanceNameParts {
-    WorkloadName = 0,
-    ConfigHash = 1,
-    AgentName = 2,
-}
-
-// This could be std::mem::variant_count::<WorkloadExecutionInstanceParts>(),
-// but the function is still in only nightly ...
-pub const INSTANCE_NAME_PARTS_COUNT: usize = 3;
-pub const INSTANCE_NAME_SEPARATOR: &str = ".";
-
-#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[serde(default, rename_all = "camelCase")]
-pub struct WorkloadInstanceName {
-    agent_name: String,
-    workload_name: String,
-    id: String,
-}
-
-impl From<(String, &StoredWorkloadSpec)> for WorkloadInstanceName {
-    fn from((workload_name, stored_spec): (String, &StoredWorkloadSpec)) -> Self {
-        WorkloadInstanceName {
-            workload_name,
-            agent_name: stored_spec.agent.clone(),
-            id: stored_spec.runtime_config.hash_config(),
-        }
-    }
-}
-
-impl From<ank_base::WorkloadInstanceName> for WorkloadInstanceName {
-    fn from(item: ank_base::WorkloadInstanceName) -> Self {
-        WorkloadInstanceName {
-            workload_name: item.workload_name,
-            agent_name: item.agent_name,
-            id: item.id,
-        }
-    }
-}
-
-impl From<WorkloadInstanceName> for ank_base::WorkloadInstanceName {
-    fn from(item: WorkloadInstanceName) -> Self {
-        ank_base::WorkloadInstanceName {
-            workload_name: item.workload_name,
-            agent_name: item.agent_name,
-            id: item.id,
-        }
-    }
-}
-
-impl WorkloadInstanceName {
+impl WorkloadInstanceNameInternal {
     pub fn new(
         agent_name: impl Into<String>,
         workload_name: impl Into<String>,
         id: impl Into<String>,
-    ) -> WorkloadInstanceName {
-        WorkloadInstanceName {
+    ) -> WorkloadInstanceNameInternal {
+        WorkloadInstanceNameInternal {
             workload_name: workload_name.into(),
             agent_name: agent_name.into(),
             id: id.into(),
@@ -118,10 +85,42 @@ impl WorkloadInstanceName {
             self.workload_name, INSTANCE_NAME_SEPARATOR, self.id
         ))
     }
+
+    pub fn builder() -> WorkloadInstanceNameBuilder {
+        WorkloadInstanceNameBuilder::default()
+    }
 }
 
-// [impl->swdd~common-workload-execution-instance-naming~1]
-impl Display for WorkloadInstanceName {
+impl TryFrom<String> for WorkloadInstanceNameInternal {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<&str> for WorkloadInstanceNameInternal {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let value_parts: Vec<&str> = value.split(INSTANCE_NAME_SEPARATOR).collect();
+        if value_parts.len() != INSTANCE_NAME_PARTS_COUNT {
+            return Err(format!(
+                "Could not convert '{}' to a WorkloadInstanceNameInternal, as it consist of {} instead of 3.",
+                value,
+                value_parts.len()
+            ));
+        }
+
+        Ok(WorkloadInstanceNameInternal {
+            workload_name: value_parts[InstanceNameParts::WorkloadName as usize].to_string(),
+            id: value_parts[InstanceNameParts::ConfigHash as usize].to_string(),
+            agent_name: value_parts[InstanceNameParts::AgentName as usize].to_string(),
+        })
+    }
+}
+
+impl Display for WorkloadInstanceNameInternal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -133,44 +132,6 @@ impl Display for WorkloadInstanceName {
             self.agent_name
         )
     }
-}
-
-impl TryFrom<String> for WorkloadInstanceName {
-    type Error = String;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        (*value).try_into()
-    }
-}
-
-impl TryFrom<&str> for WorkloadInstanceName {
-    type Error = String;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let value_parts: Vec<&str> = value.split(INSTANCE_NAME_SEPARATOR).collect();
-        if value_parts.len() != INSTANCE_NAME_PARTS_COUNT {
-            return Err(format!("Could not convert '{}' to a WorkloadInstanceName, as it consist of {} instead of 3.", value, value_parts.len()));
-        }
-
-        Ok(WorkloadInstanceName {
-            workload_name: value_parts[InstanceNameParts::WorkloadName as usize].to_string(),
-            id: value_parts[InstanceNameParts::ConfigHash as usize].to_string(),
-            agent_name: value_parts[InstanceNameParts::AgentName as usize].to_string(),
-        })
-    }
-}
-
-impl WorkloadInstanceName {
-    pub fn builder() -> WorkloadInstanceNameBuilder {
-        Default::default()
-    }
-}
-
-#[derive(Default)]
-pub struct WorkloadInstanceNameBuilder {
-    agent_name: String,
-    workload_name: String,
-    hash: String,
 }
 
 impl WorkloadInstanceNameBuilder {
@@ -194,8 +155,8 @@ impl WorkloadInstanceNameBuilder {
         self
     }
 
-    pub fn build(self) -> WorkloadInstanceName {
-        WorkloadInstanceName {
+    pub fn build(self) -> WorkloadInstanceNameInternal {
+        WorkloadInstanceNameInternal {
             agent_name: self.agent_name,
             workload_name: self.workload_name,
             id: self.hash,
@@ -212,8 +173,10 @@ impl WorkloadInstanceNameBuilder {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_instance_name(name: impl Into<String>) -> WorkloadInstanceName {
-    WorkloadInstanceName::builder()
+pub fn generate_test_workload_instance_name(
+    name: impl Into<String>,
+) -> WorkloadInstanceNameInternal {
+    WorkloadInstanceNameInternal::builder()
         .agent_name("agent_name")
         .workload_name(name)
         .config(&String::from("my cool config"))
@@ -222,7 +185,7 @@ pub fn generate_test_workload_instance_name(name: impl Into<String>) -> Workload
 
 #[cfg(test)]
 mod tests {
-    use super::WorkloadInstanceName;
+    use super::WorkloadInstanceNameInternal;
 
     const AGENT_NAME: &str = "agent";
     const WORKLOAD_NAME: &str = "workload";
@@ -232,7 +195,7 @@ mod tests {
     // [utest->swdd~common-workload-execution-instance-naming~1]
     #[test]
     fn utest_workload_execution_instance_name_builder() {
-        let name = WorkloadInstanceName::builder()
+        let name = WorkloadInstanceNameInternal::builder()
             .agent_name(AGENT_NAME)
             .workload_name(WORKLOAD_NAME)
             .config(&String::from(CONFIG))

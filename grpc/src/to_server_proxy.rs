@@ -515,9 +515,7 @@ mod tests {
         assert!(forward_result.is_err());
         assert_eq!(
             forward_result.unwrap_err().to_string(),
-            String::from(
-                "Connection interrupted: 'status: 'Unknown error', self: \"test\"'"
-            )
+            String::from("Connection interrupted: 'status: 'Unknown error', self: \"test\"'")
         );
 
         // pick received from server message
@@ -847,13 +845,13 @@ mod tests {
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
         let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
-        let expected_workload_names: Vec<common::objects::WorkloadInstanceName> = vec![
-            common::objects::WorkloadInstanceName::new(
+        let expected_workload_names: Vec<api::ank_base::WorkloadInstanceNameInternal> = vec![
+            api::ank_base::WorkloadInstanceNameInternal::new(
                 AGENT_A_NAME,
                 WORKLOAD_1_NAME,
                 WORKLOAD_ID_1,
             ),
-            common::objects::WorkloadInstanceName::new(
+            api::ank_base::WorkloadInstanceNameInternal::new(
                 AGENT_A_NAME,
                 WORKLOAD_2_NAME,
                 WORKLOAD_ID_2,

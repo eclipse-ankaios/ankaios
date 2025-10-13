@@ -75,11 +75,6 @@ pub use workload_spec::{
 mod tag;
 pub use tag::Tag;
 
-mod workload_instance_name;
-#[cfg(any(feature = "test_utils", test))]
-pub use workload_instance_name::generate_test_workload_instance_name;
-pub use workload_instance_name::{ConfigHash, WorkloadInstanceName, WorkloadInstanceNameBuilder};
-
 mod agent_name;
 pub use agent_name::AgentName;
 
@@ -94,8 +89,3 @@ mod config;
 pub use config::ConfigItem;
 #[cfg(any(feature = "test_utils", test))]
 pub use config::generate_test_configs;
-
-mod file;
-#[cfg(any(feature = "test_utils", test))]
-pub use file::generate_test_rendered_workload_files;
-pub use file::{File, FileContent};

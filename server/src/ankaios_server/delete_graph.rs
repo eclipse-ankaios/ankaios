@@ -82,10 +82,10 @@ impl DeleteGraph {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use super::{AddCondition, DeleteCondition, DeleteGraph};
+    use super::{super::WorkloadInstanceNameInternal, AddCondition, DeleteCondition, DeleteGraph};
     use common::objects::{
-        generate_test_workload_spec_with_param, generate_test_workload_state_with_agent,
-        DeletedWorkload, ExecutionState, WorkloadInstanceName,
+        DeletedWorkload, ExecutionState, generate_test_workload_spec_with_param,
+        generate_test_workload_state_with_agent,
     };
     use std::collections::HashMap;
 
@@ -238,19 +238,19 @@ mod tests {
             ]),
         };
 
-        let instance_name_wl2 = WorkloadInstanceName::builder()
+        let instance_name_wl2 = WorkloadInstanceNameInternal::builder()
             .agent_name(AGENT_A)
             .workload_name(WORKLOAD_NAME_2)
             .config(&String::from("some config"))
             .build();
 
-        let instance_name_wl4 = WorkloadInstanceName::builder()
+        let instance_name_wl4 = WorkloadInstanceNameInternal::builder()
             .agent_name(AGENT_A)
             .workload_name(WORKLOAD_NAME_4)
             .config(&String::from("some config"))
             .build();
 
-        let instance_name_wl5 = WorkloadInstanceName::builder()
+        let instance_name_wl5 = WorkloadInstanceNameInternal::builder()
             .agent_name(AGENT_A)
             .workload_name(WORKLOAD_NAME_5)
             .config(&String::from("some config"))

@@ -12,8 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+#[path = "build/internal_structs.rs"]
+mod internal_structs;
+use internal_structs::*;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tonic_prost_build::configure()
+    let mut builder = tonic_prost_build::configure()
         .build_server(true)
         .boxed("Request.RequestContent.updateStateRequest")
         .boxed("FromAnkaios.FromAnkaiosEnum.response")
@@ -27,33 +31,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "ank_base.ConfigItem",
             "#[serde(try_from = \"serde_yaml::Value\")]",
         )
-        // Start new derives for File and FileContent
-        .type_attribute("File", "#[derive(internal_derive_macros::Internal)]")
-        .type_attribute(
-            "File",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
-        )
-        .type_attribute(
-            "File",
-            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
-        )
-        .type_attribute("FileContent", "#[derive(internal_derive_macros::Internal)]")
-        .type_attribute(
-            "FileContent",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
-        )
-        .type_attribute("FileContent", "#[internal_type_attr(#[serde(untagged)])]")
-
-        .field_attribute("File.FileContent", "#[internal_mandatory]")
-        .field_attribute(
-            "File.FileContent",
-            "#[internal_field_attr(#[serde(flatten)])]",
-        )
-        .field_attribute("File.FileContent.data", "#[internal_enum_named]")
-        .field_attribute("File.FileContent.data", "#[internal_field_attr(#[serde(rename_all = \"camelCase\")])]")
-        .field_attribute("File.FileContent.binaryData", "#[internal_enum_named]")
-        .field_attribute("File.FileContent.binaryData", "#[internal_field_attr(#[serde(rename_all = \"camelCase\")])]")
-        // End new derives for File and FileContent
         .field_attribute("Workload.tags", "#[serde(flatten)]")
         .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")
@@ -81,7 +58,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "Files.files",
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
         )
-        .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]")
+        .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]");
+
+    builder = setup_internal_file(builder);
+    // builder = setup_internal_control_interface_access(builder);
+    // builder = setup_internal_workload(builder);
+    builder = setup_internal_workload_instance_name(builder);
+
+    builder
         .compile_protos(&["proto/control_api.proto"], &["proto"])
         .unwrap();
     Ok(())

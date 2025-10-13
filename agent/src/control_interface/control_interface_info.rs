@@ -13,19 +13,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::ControlInterfacePath;
-use common::{objects::WorkloadInstanceName, to_server_interface::ToServerSender};
+use api::ank_base::WorkloadInstanceNameInternal;
+use common::to_server_interface::ToServerSender;
 
 #[cfg(test)]
 use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::authorizer::Authorizer;
-#[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::ControlInterface;
+#[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::authorizer::Authorizer;
 
 pub struct ControlInterfaceInfo {
     control_interface_path: ControlInterfacePath,
-    workload_instance_name: WorkloadInstanceName,
+    workload_instance_name: WorkloadInstanceNameInternal,
     #[cfg_attr(test, allow(dead_code))]
     control_interface_to_server_sender: ToServerSender,
     authorizer: Authorizer,
@@ -36,7 +37,7 @@ impl ControlInterfaceInfo {
     pub fn new(
         control_interface_path: ControlInterfacePath,
         control_interface_to_server_sender: ToServerSender,
-        workload_instance_name: &WorkloadInstanceName,
+        workload_instance_name: &WorkloadInstanceNameInternal,
         authorizer: Authorizer,
     ) -> Self {
         Self {
@@ -56,7 +57,7 @@ impl ControlInterfaceInfo {
     }
 
     #[cfg_attr(test, allow(dead_code))]
-    pub fn get_instance_name(&self) -> &WorkloadInstanceName {
+    pub fn get_instance_name(&self) -> &WorkloadInstanceNameInternal {
         &self.workload_instance_name
     }
 
@@ -88,10 +89,11 @@ impl ControlInterfaceInfo {
 
 #[cfg(test)]
 mod tests {
-    use super::{ControlInterfaceInfo, ControlInterfacePath, WorkloadInstanceName};
+    use super::{ControlInterfaceInfo, ControlInterfacePath};
+    use api::ank_base::WorkloadInstanceNameInternal;
     use std::path::{Path, PathBuf};
 
-    use crate::control_interface::{authorizer::MockAuthorizer, MockControlInterface};
+    use crate::control_interface::{MockControlInterface, authorizer::MockAuthorizer};
 
     use common::to_server_interface::ToServer;
 
@@ -100,7 +102,7 @@ mod tests {
 
     #[test]
     fn utest_new() {
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
@@ -127,7 +129,7 @@ mod tests {
         let new_context_info = ControlInterfaceInfo::new(
             ControlInterfacePath::new(path.to_path_buf()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
-            &WorkloadInstanceName::builder()
+            &WorkloadInstanceNameInternal::builder()
                 .workload_name(WORKLOAD_1_NAME)
                 .build(),
             MockAuthorizer::default(),
@@ -145,7 +147,7 @@ mod tests {
         let new_context_info = ControlInterfaceInfo::new(
             ControlInterfacePath::new(PIPES_LOCATION.into()),
             to_server_sender.clone(),
-            &WorkloadInstanceName::builder()
+            &WorkloadInstanceNameInternal::builder()
                 .workload_name(WORKLOAD_1_NAME)
                 .build(),
             MockAuthorizer::default(),
@@ -158,7 +160,7 @@ mod tests {
     #[test]
     fn utest_has_same_configuration_true() {
         let run_folder = Path::new(PIPES_LOCATION);
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
         let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);
@@ -189,7 +191,7 @@ mod tests {
     // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_has_same_configuration_with_different_location_returns_false() {
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
@@ -213,7 +215,7 @@ mod tests {
     #[test]
     fn utest_has_same_configuration_with_different_authorizer_returns_false() {
         let run_folder = Path::new(PIPES_LOCATION);
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
         let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);

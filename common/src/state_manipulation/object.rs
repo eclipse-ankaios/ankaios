@@ -296,11 +296,12 @@ mod tests {
     use crate::{
         objects::{
             CompleteState, ExecutionState, State, generate_test_agent_map_from_specs,
-            generate_test_rendered_workload_files, generate_test_workload_spec_with_rendered_files,
+            generate_test_workload_spec_with_rendered_files,
             generate_test_workload_states_map_with_data,
         },
         test_utils::generate_test_state_from_workloads,
     };
+    use api::test_utils::generate_test_rendered_workload_files;
     use serde_yaml::Value;
 
     use super::Object;
@@ -746,7 +747,7 @@ mod tests {
 
         pub fn generate_test_complete_state() -> Mapping {
             let agent_name = "agent";
-            let config_hash: &dyn crate::objects::ConfigHash = &generate_test_runtime_config();
+            let config_hash: &dyn api::ank_base::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
                 .entry("desiredState", generate_test_state())
                 .entry(

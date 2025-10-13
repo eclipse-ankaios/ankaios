@@ -15,11 +15,11 @@
 use std::collections::HashMap;
 
 use api::ank_base;
+use api::ank_base::FileInternal;
 use common::{
     helpers::serialize_to_ordered_map,
     objects::{
-        AddCondition, ConfigItem, ControlInterfaceAccess, File, RestartPolicy, Tag,
-        WorkloadStatesMap,
+        AddCondition, ConfigItem, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap,
     },
 };
 use serde::{Deserialize, Serialize, Serializer};
@@ -146,7 +146,7 @@ pub struct FilteredWorkloadSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub configs: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub files: Option<Vec<File>>,
+    pub files: Option<Vec<FileInternal>>,
 }
 
 impl From<ank_base::CompleteState> for FilteredCompleteState {

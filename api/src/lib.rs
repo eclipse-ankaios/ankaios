@@ -13,7 +13,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod ank_base {
-
     // [impl->swdd~ank-base-provides-object-definitions~1]
     tonic::include_proto!("ank_base"); // The string specified here must match the proto package name
 
@@ -28,6 +27,13 @@ pub mod ank_base {
             }
         }
     }
+
+    pub(crate) mod workload_instance_name;
+    pub use workload_instance_name::{INSTANCE_NAME_SEPARATOR, ConfigHash, WorkloadInstanceNameBuilder};
+
+    #[path = "file.rs"]
+    pub(crate) mod file_internal; // Rename needed to avoid conflict with tonic generated module
+    pub use file::FileContentInternal;
 }
 
 pub mod control_api {
@@ -36,3 +42,9 @@ pub mod control_api {
 }
 
 mod convert;
+
+#[cfg(any(feature = "test_utils", test))]
+pub mod test_utils {
+    pub use crate::ank_base::file_internal::generate_test_rendered_workload_files;
+    pub use crate::ank_base::workload_instance_name::generate_test_workload_instance_name;
+}

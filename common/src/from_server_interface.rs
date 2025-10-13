@@ -306,11 +306,12 @@ impl FromServerInterface for FromServerSender {
 #[cfg(test)]
 mod tests {
     use super::ank_base;
+    use api::ank_base::WorkloadInstanceNameInternal;
     use crate::{
         commands,
         from_server_interface::{FromServer, FromServerInterface},
         objects::{
-            ExecutionState, WorkloadInstanceName, generate_test_workload_spec,
+            ExecutionState, generate_test_workload_spec,
             generate_test_workload_state,
         },
         test_utils::{generate_test_complete_state, generate_test_deleted_workload},
@@ -490,8 +491,8 @@ mod tests {
                 REQUEST_ID.into(),
                 commands::LogsRequest {
                     workload_names: vec![
-                        WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_NAME_1, "1"),
-                        WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_NAME_2, "2")
+                        WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_NAME_1, "1"),
+                        WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_NAME_2, "2")
                     ],
                     follow: true,
                     tail: 10,

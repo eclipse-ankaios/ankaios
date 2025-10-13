@@ -39,11 +39,9 @@ use crate::{
 };
 
 use api::ank_base;
+use api::ank_base::WorkloadInstanceNameInternal;
 
-use common::{
-    from_server_interface::FromServer,
-    objects::{WorkloadInstanceName, WorkloadSpec},
-};
+use common::{from_server_interface::FromServer, objects::WorkloadSpec};
 
 #[cfg(test)]
 use mockall::automock;
@@ -71,7 +69,7 @@ impl Display for WorkloadError {
 pub enum WorkloadCommand {
     Delete,
     Update(Option<Box<WorkloadSpec>>, Option<ControlInterfacePath>),
-    Retry(Box<WorkloadInstanceName>, RetryToken),
+    Retry(Box<WorkloadInstanceNameInternal>, RetryToken),
     Create,
     Resume,
     StartLogFetcher(LogRequestOptions, oneshot::Sender<Box<dyn LogFetcher>>),

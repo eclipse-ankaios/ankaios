@@ -12,12 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{HashMap, hash_map::Entry};
 
 use api::ank_base;
+use api::ank_base::WorkloadInstanceNameInternal;
 use serde::{Deserialize, Serialize};
 
-use super::{ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState};
+use super::{ExecutionState, WorkloadSpec, WorkloadState};
 
 type AgentName = String;
 type WorkloadName = String;
@@ -49,7 +50,9 @@ impl WorkloadStatesMap {
                     .iter()
                     .flat_map(|(wl_name, id_map)| {
                         id_map.iter().map(move |(wl_id, exec_state)| WorkloadState {
-                            instance_name: WorkloadInstanceName::new(agent_name, wl_name, wl_id),
+                            instance_name: WorkloadInstanceNameInternal::new(
+                                agent_name, wl_name, wl_id,
+                            ),
                             execution_state: exec_state.to_owned(),
                         })
                     })
@@ -72,7 +75,7 @@ impl WorkloadStatesMap {
                         id_state_map
                             .iter()
                             .map(move |(wl_id, exec_state)| WorkloadState {
-                                instance_name: WorkloadInstanceName::new(
+                                instance_name: WorkloadInstanceNameInternal::new(
                                     agent_name, wl_name, wl_id,
                                 ),
                                 execution_state: exec_state.to_owned(),
@@ -84,7 +87,7 @@ impl WorkloadStatesMap {
 
     pub fn get_workload_state_for_workload(
         &self,
-        instance_name: &WorkloadInstanceName,
+        instance_name: &WorkloadInstanceNameInternal,
     ) -> Option<&ExecutionState> {
         self.0
             .get(instance_name.agent_name())
@@ -117,7 +120,7 @@ impl WorkloadStatesMap {
         }
     }
 
-    pub fn remove(&mut self, instance_name: &WorkloadInstanceName) {
+    pub fn remove(&mut self, instance_name: &WorkloadInstanceNameInternal) {
         if let Some(agent_states) = self.0.get_mut(instance_name.agent_name()) {
             if let Some(workload_states) = agent_states.get_mut(instance_name.workload_name()) {
                 workload_states.remove(instance_name.id());
@@ -162,7 +165,7 @@ impl From<WorkloadStatesMap> for Vec<WorkloadState> {
                         id_state_map
                             .into_iter()
                             .map(move |(wl_id, exec_state)| WorkloadState {
-                                instance_name: WorkloadInstanceName::new(
+                                instance_name: WorkloadInstanceNameInternal::new(
                                     agent_name.clone(),
                                     wl_name.clone(),
                                     wl_id,
@@ -324,13 +327,13 @@ mod tests {
     use std::vec;
 
     use crate::objects::{
-        generate_test_workload_spec_with_runtime_config, generate_test_workload_state_with_agent,
-        WorkloadState,
+        WorkloadState, generate_test_workload_spec_with_runtime_config,
+        generate_test_workload_state_with_agent,
     };
 
     use crate::objects::ExecutionState;
 
-    use super::{generate_test_workload_states_map_from_workload_states, WorkloadStatesMap};
+    use super::{WorkloadStatesMap, generate_test_workload_states_map_from_workload_states};
 
     const AGENT_A: &str = "agent_A";
     const AGENT_B: &str = "agent_B";
@@ -642,8 +645,10 @@ mod tests {
             ExecutionState::running(),
         );
 
-        assert!(wls_db
-            .get_workload_state_for_workload(&wl_state.instance_name)
-            .is_none())
+        assert!(
+            wls_db
+                .get_workload_state_for_workload(&wl_state.instance_name)
+                .is_none()
+        )
     }
 }

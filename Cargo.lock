@@ -181,6 +181,7 @@ dependencies = [
  "prost",
  "serde",
  "serde_yaml",
+ "sha256",
  "tonic",
  "tonic-prost-build",
 ]

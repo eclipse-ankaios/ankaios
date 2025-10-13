@@ -19,11 +19,11 @@ mod log_campaign_store;
 mod server_state;
 
 use api::ank_base;
+use api::ank_base::WorkloadInstanceNameInternal;
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::objects::{
-    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadInstanceName, WorkloadState,
-    WorkloadStatesMap,
+    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap,
 };
 
 use common::std_extensions::IllegalStateResult;
@@ -532,7 +532,7 @@ impl AnkaiosServer {
     // [impl->swdd~server-handles-log-campaign-for-disconnected-agent~1]
     async fn send_log_stop_response_for_disconnected_agent(
         &mut self,
-        stopped_log_gatherings: Vec<(String, Vec<WorkloadInstanceName>)>,
+        stopped_log_gatherings: Vec<(String, Vec<WorkloadInstanceNameInternal>)>,
     ) {
         for (request_id, stopped_log_providers) in stopped_log_gatherings {
             for workload_instance_name in stopped_log_providers {
@@ -567,6 +567,7 @@ mod tests {
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
+    use super::WorkloadInstanceNameInternal;
     use super::ank_base;
     use api::ank_base::{LogsStopResponse, WorkloadMap};
     use common::commands::{
@@ -576,9 +577,8 @@ mod tests {
     use common::from_server_interface::FromServer;
     use common::objects::{
         CompleteState, CpuUsage, DeletedWorkload, ExecutionState, ExecutionStateEnum, FreeMemory,
-        PendingSubstate, State, WorkloadInstanceName, WorkloadState,
-        generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
-        generate_test_workload_states_map_with_data,
+        PendingSubstate, State, WorkloadState, generate_test_stored_workload_spec,
+        generate_test_workload_spec_with_param, generate_test_workload_states_map_with_data,
     };
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -1263,9 +1263,9 @@ mod tests {
         mock_server_state
             .expect_desired_state_contains_instance_name()
             .with(mockall::predicate::function(
-                |instance_name: &WorkloadInstanceName| {
+                |instance_name: &WorkloadInstanceNameInternal| {
                     instance_name
-                        == &WorkloadInstanceName::new(AGENT_A, WORKLOAD_NAME_1, INSTANCE_ID)
+                        == &WorkloadInstanceNameInternal::new(AGENT_A, WORKLOAD_NAME_1, INSTANCE_ID)
                 },
             ))
             .once()
@@ -1273,7 +1273,7 @@ mod tests {
 
         server.server_state = mock_server_state;
 
-        let log_providing_workloads = vec![WorkloadInstanceName::new(
+        let log_providing_workloads = vec![WorkloadInstanceNameInternal::new(
             AGENT_A,
             WORKLOAD_NAME_1,
             INSTANCE_ID,
@@ -1311,7 +1311,7 @@ mod tests {
             FromServer::LogsRequest(
                 REQUEST_ID_A.into(),
                 LogsRequest {
-                    workload_names: vec![WorkloadInstanceName::new(
+                    workload_names: vec![WorkloadInstanceNameInternal::new(
                         AGENT_A,
                         WORKLOAD_NAME_1,
                         INSTANCE_ID,
@@ -1361,7 +1361,7 @@ mod tests {
 
         mock_server_state
             .expect_desired_state_contains_instance_name()
-            .with(mockall::predicate::eq(WorkloadInstanceName::new(
+            .with(mockall::predicate::eq(WorkloadInstanceNameInternal::new(
                 AGENT_A,
                 WORKLOAD_NAME_1,
                 INSTANCE_ID,
@@ -1377,7 +1377,7 @@ mod tests {
             .never();
 
         let logs_request = LogsRequest {
-            workload_names: vec![WorkloadInstanceName::new(
+            workload_names: vec![WorkloadInstanceNameInternal::new(
                 AGENT_A,
                 WORKLOAD_NAME_1,
                 INSTANCE_ID,
@@ -1697,8 +1697,10 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let instance_name_1: WorkloadInstanceName = WORKLOAD_INSTANCE_NAME_1.try_into().unwrap();
-        let instance_name_2: WorkloadInstanceName = WORKLOAD_INSTANCE_NAME_2.try_into().unwrap();
+        let instance_name_1: WorkloadInstanceNameInternal =
+            WORKLOAD_INSTANCE_NAME_1.try_into().unwrap();
+        let instance_name_2: WorkloadInstanceNameInternal =
+            WORKLOAD_INSTANCE_NAME_2.try_into().unwrap();
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         server
@@ -1789,7 +1791,7 @@ mod tests {
         );
 
         let mut updated_w1 = w1.clone();
-        updated_w1.instance_name = WorkloadInstanceName::builder()
+        updated_w1.instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(w1.instance_name.workload_name())
             .agent_name(w1.instance_name.agent_name())
             .config(&String::from("changed"))

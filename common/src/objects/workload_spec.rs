@@ -19,10 +19,10 @@ use std::collections::HashMap;
 use crate::helpers::serialize_to_ordered_map;
 use crate::objects::Tag;
 
+use api::ank_base::{FileInternal, WorkloadInstanceNameInternal};
+
 use super::ExecutionState;
-use super::WorkloadInstanceName;
 use super::control_interface_access::ControlInterfaceAccess;
-use super::file::File;
 
 pub type WorkloadCollection = Vec<WorkloadSpec>;
 pub type DeletedWorkloadCollection = Vec<DeletedWorkload>;
@@ -35,7 +35,7 @@ pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
 // [impl->swdd~common-object-serialization~1]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeletedWorkload {
-    pub instance_name: WorkloadInstanceName,
+    pub instance_name: WorkloadInstanceNameInternal,
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, DeleteCondition>,
 }
@@ -92,14 +92,14 @@ fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadSpec {
-    pub instance_name: WorkloadInstanceName,
+    pub instance_name: WorkloadInstanceNameInternal,
     pub tags: Vec<Tag>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
     pub restart_policy: RestartPolicy,
     pub runtime: String,
     pub runtime_config: String,
-    pub files: Vec<File>,
+    pub files: Vec<FileInternal>,
     pub control_interface_access: ControlInterfaceAccess,
 }
 
@@ -321,7 +321,7 @@ pub fn generate_test_workload_spec_with_runtime_config(
     runtime_name: String,
     runtime_config: String,
 ) -> crate::objects::WorkloadSpec {
-    let instance_name = WorkloadInstanceName::builder()
+    let instance_name = WorkloadInstanceNameInternal::builder()
         .agent_name(agent_name)
         .workload_name(workload_name)
         .config(&runtime_config)
@@ -362,7 +362,7 @@ pub fn generate_test_workload_spec_with_rendered_files(
     agent_name: impl ToString,
     workload_name: impl ToString,
     runtime_name: impl ToString,
-    files: Vec<File>,
+    files: Vec<FileInternal>,
 ) -> WorkloadSpec {
     let mut workload_spec = generate_test_workload_spec_with_param(
         agent_name.to_string(),
@@ -405,6 +405,7 @@ pub fn generate_test_workload_spec_with_dependencies(
 mod tests {
     use crate::objects::*;
     use crate::test_utils::*;
+    use api::test_utils::generate_test_rendered_workload_files;
     const RUNTIME: &str = "runtime";
 
     #[test]

@@ -18,13 +18,11 @@ use std::{collections::HashMap, path::PathBuf};
 use crate::control_interface::authorizer::Authorizer;
 
 use api::ank_base;
+use api::ank_base::WorkloadInstanceNameInternal;
 
 use common::{
     commands::LogsRequest,
-    objects::{
-        AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec,
-        WorkloadState,
-    },
+    objects::{AgentName, DeletedWorkload, ExecutionState, WorkloadSpec, WorkloadState},
     request_id_prepending::detach_prefix_from_request_id,
     to_server_interface::ToServerSender,
 };
@@ -253,7 +251,7 @@ impl RuntimeManager {
                                 map.remove(workload_state.instance_name.workload_name())
                             })
                         {
-                            let new_instance_name: WorkloadInstanceName =
+                            let new_instance_name: WorkloadInstanceNameInternal =
                                 new_workload_spec.instance_name.clone();
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
@@ -390,7 +388,7 @@ impl RuntimeManager {
 
     fn is_resumable_workload(
         workload_state_existing_workload: &WorkloadState,
-        new_instance_name: &WorkloadInstanceName,
+        new_instance_name: &WorkloadInstanceNameInternal,
     ) -> bool {
         workload_state_existing_workload
             .execution_state
@@ -403,7 +401,7 @@ impl RuntimeManager {
     fn is_reusable_workload(
         workload_state_existing_workload: &WorkloadState,
         workload_id_existing_workload: &Option<String>,
-        new_instance_name: &WorkloadInstanceName,
+        new_instance_name: &WorkloadInstanceNameInternal,
     ) -> bool {
         workload_state_existing_workload
             .execution_state
@@ -627,7 +625,7 @@ impl RuntimeManager {
     pub async fn get_log_fetchers(
         &self,
         log_request: LogsRequest,
-    ) -> Vec<(WorkloadInstanceName, Box<dyn LogFetcher>)> {
+    ) -> Vec<(WorkloadInstanceNameInternal, Box<dyn LogFetcher>)> {
         let mut res = Vec::new();
         let log_request_options: LogRequestOptions = log_request.clone().into();
         for workload in log_request.workload_names {
@@ -665,7 +663,7 @@ impl RuntimeManager {
 mod tests {
     use super::{
         ControlInterfaceInfo, DeletedWorkload, ExecutionState, RuntimeFacade, RuntimeManager,
-        WorkloadInstanceName, WorkloadOperation, WorkloadSpec, ank_base,
+        WorkloadOperation, WorkloadSpec, ank_base,
     };
     use crate::control_interface::{
         MockControlInterface, authorizer::MockAuthorizer,
@@ -683,11 +681,10 @@ mod tests {
     use crate::workload_state::WorkloadStateReceiver;
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
     use ank_base::response::ResponseContent;
-    use api::ank_base::Files;
+    use api::ank_base::{Files, WorkloadInstanceNameBuilder, WorkloadInstanceNameInternal};
     use common::commands::LogsRequest;
     use common::objects::{
-        self, AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
-        generate_test_control_interface_access,
+        self, AddCondition, WorkloadState, generate_test_control_interface_access,
         generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
     };
@@ -1615,7 +1612,7 @@ mod tests {
         control_interface_mock.expect().never();
 
         // create workload with different config string to simulate a replace of a existing workload
-        let existing_workload_with_other_config = WorkloadInstanceName::builder()
+        let existing_workload_with_other_config = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .config(&String::from("different config"))
             .agent_name(AGENT_NAME)
@@ -2991,9 +2988,9 @@ mod tests {
         let res = runtime_manager
             .get_log_fetchers(LogsRequest {
                 workload_names: vec![
-                    WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID),
-                    WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_2_NAME, WORKLOAD_ID),
-                    WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_3_NAME, WORKLOAD_ID),
+                    WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID),
+                    WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_2_NAME, WORKLOAD_ID),
+                    WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_3_NAME, WORKLOAD_ID),
                 ],
                 follow: true,
                 tail: -1,
@@ -3005,7 +3002,7 @@ mod tests {
         assert_eq!(res.len(), 1);
         assert_eq!(
             &res[0].0,
-            &WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID)
+            &WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID)
         );
     }
 

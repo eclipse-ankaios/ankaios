@@ -14,9 +14,9 @@
 
 use std::{collections::HashMap, fmt};
 
-use common::objects::{
-    ConfigItem, File, FileContent, StoredWorkloadSpec, WorkloadInstanceName, WorkloadSpec,
-};
+use super::WorkloadInstanceNameInternal;
+use api::ank_base::{FileContentInternal, FileInternal};
+use common::objects::{ConfigItem, StoredWorkloadSpec, WorkloadSpec};
 use handlebars::{Handlebars, RenderError};
 
 pub type RenderedWorkloads = HashMap<String, WorkloadSpec>;
@@ -143,7 +143,7 @@ impl ConfigRenderer {
         let rendered_files = self.render_files_field(&workload.files, wl_config_map)?;
 
         Ok(WorkloadSpec {
-            instance_name: WorkloadInstanceName::builder()
+            instance_name: WorkloadInstanceNameInternal::builder()
                 .workload_name(workload_name)
                 .agent_name(rendered_agent_name)
                 .config(&rendered_runtime_config)
@@ -161,26 +161,28 @@ impl ConfigRenderer {
     // [impl->swdd~config-renderer-renders-workload-configuration~2]
     fn render_files_field(
         &self,
-        files: &[File],
+        files: &[FileInternal],
         wl_config_map: &HashMap<&String, &ConfigItem>,
-    ) -> Result<Vec<File>, ConfigRenderError> {
+    ) -> Result<Vec<FileInternal>, ConfigRenderError> {
         let mut rendered_files = Vec::new();
         for current_file in files {
             let mut rendered_file = current_file.clone();
 
             rendered_file.file_content = match rendered_file.file_content {
-                FileContent::Data { data } => FileContent::Data {
+                FileContentInternal::Data { data } => FileContentInternal::Data {
                     data: self
                         .template_engine
                         .render_template(&data, &wl_config_map)
                         .map_err(ConfigRenderError::for_files(&rendered_file.mount_point))?,
                 },
-                FileContent::BinaryData { binary_data } => FileContent::BinaryData {
-                    binary_data: self
-                        .template_engine
-                        .render_template(&binary_data, &wl_config_map)
-                        .map_err(ConfigRenderError::for_files(&rendered_file.mount_point))?,
-                },
+                FileContentInternal::BinaryData { binary_data } => {
+                    FileContentInternal::BinaryData {
+                        binary_data: self
+                            .template_engine
+                            .render_template(&binary_data, &wl_config_map)
+                            .map_err(ConfigRenderError::for_files(&rendered_file.mount_point))?,
+                    }
+                }
             };
 
             rendered_files.push(rendered_file);
@@ -188,7 +190,7 @@ impl ConfigRenderer {
         Ok(rendered_files)
     }
 
-    // fn render_file_content(self, file_content: &FileContent, wl_config_map: &HashMap<&String, &ConfigItem>) -> Result<FileContent, ConfigRenderError> {
+    // fn render_file_content(self, file_content: &FileContentInternal, wl_config_map: &HashMap<&String, &ConfigItem>) -> Result<FileContentInternal, ConfigRenderError> {
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -215,9 +217,10 @@ mod tests {
     use super::{ConfigRenderError, ConfigRenderer, RenderedWorkloads};
     use std::collections::HashMap;
 
+    use api::ank_base::{FileContentInternal, FileInternal};
+    use api::test_utils::generate_test_rendered_workload_files;
     use common::objects::{
-        ConfigItem, File, FileContent, generate_test_configs,
-        generate_test_rendered_workload_files, generate_test_stored_workload_spec_with_config,
+        ConfigItem, generate_test_configs, generate_test_stored_workload_spec_with_config,
         generate_test_stored_workload_spec_with_files,
         generate_test_workload_spec_with_rendered_files,
         generate_test_workload_spec_with_runtime_config,
@@ -227,17 +230,17 @@ mod tests {
     const AGENT_A: &str = "agent_A";
     const RUNTIME: &str = "runtime";
 
-    fn generate_test_templated_workload_files() -> Vec<File> {
+    fn generate_test_templated_workload_files() -> Vec<FileInternal> {
         vec![
-            File {
+            FileInternal {
                 mount_point: "/file.json".to_string(),
-                file_content: FileContent::Data {
+                file_content: FileContentInternal::Data {
                     data: "{{ref1.config_file}}".into(),
                 },
             },
-            File {
+            FileInternal {
                 mount_point: "/binary_file".to_string(),
-                file_content: FileContent::BinaryData {
+                file_content: FileContentInternal::BinaryData {
                     binary_data: "{{ref1.binary_file}}".into(),
                 },
             },
@@ -315,9 +318,11 @@ mod tests {
         let stored_workload = generate_test_stored_workload_spec_with_files(
             AGENT_A,
             RUNTIME,
-            vec![File {
+            vec![FileInternal {
                 mount_point: "/file.json".to_string(),
-                file_content: FileContent::Data{ data: "{{invalid_ref.file_content}}".into()},
+                file_content: FileContentInternal::Data {
+                    data: "{{invalid_ref.file_content}}".into(),
+                },
             }],
         );
 
@@ -338,9 +343,11 @@ mod tests {
         let stored_workload = generate_test_stored_workload_spec_with_files(
             AGENT_A,
             RUNTIME,
-            vec![File {
+            vec![FileInternal {
                 mount_point: "/binary_file".to_string(),
-                file_content: FileContent::BinaryData{ binary_data: "{{invalid_ref.binary_data}}".into()},
+                file_content: FileContentInternal::BinaryData {
+                    binary_data: "{{invalid_ref.binary_data}}".into(),
+                },
             }],
         );
 
