@@ -78,7 +78,7 @@ mod tests {
     use mockall::predicate::eq;
 
     use crate::{
-        cli_commands::{CliCommands, server_connection::MockServerConnection},
+        cli_commands::{server_connection::MockServerConnection, CliCommands},
         filtered_complete_state::FilteredCompleteState,
     };
 

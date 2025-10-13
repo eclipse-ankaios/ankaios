@@ -42,7 +42,7 @@ pub use stored_workload_spec::{
     generate_test_stored_workload_spec_with_files,
 };
 
-pub use stored_workload_spec::{STR_RE_CONFIG_REFERENCES, StoredWorkloadSpec};
+pub use stored_workload_spec::{StoredWorkloadSpec, STR_RE_CONFIG_REFERENCES};
 
 mod workload_state;
 pub use workload_state::{
