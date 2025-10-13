@@ -253,7 +253,7 @@ impl From<ank_base::AgentAttributes> for FilteredAgentAttributes {
 impl From<ank_base::CpuUsage> for FilteredCpuUsage {
     fn from(value: ank_base::CpuUsage) -> Self {
         FilteredCpuUsage {
-            cpu_usage: Some(value.cpu_usage),
+            cpu_usage: value.cpu_usage,
         }
     }
 }
@@ -261,7 +261,7 @@ impl From<ank_base::CpuUsage> for FilteredCpuUsage {
 impl From<ank_base::FreeMemory> for FilteredFreeMemory {
     fn from(value: ank_base::FreeMemory) -> Self {
         FilteredFreeMemory {
-            free_memory: Some(value.free_memory),
+            free_memory: value.free_memory,
         }
     }
 }

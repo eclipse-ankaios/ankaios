@@ -258,14 +258,14 @@ message AgentMap {
 * A message containing the CPU usage information of the agent.
 */
 message CpuUsage {
-    uint32 cpu_usage = 1; // expressed in percent, the formula for calculating: cpu_usage = (new_work_time - old_work_time) / (new_total_time - old_total_time) * 100
+    optional uint32 cpu_usage = 1; // expressed in percent, the formula for calculating: cpu_usage = (new_work_time - old_work_time) / (new_total_time - old_total_time) * 100
 }
 
 /**
 * A message containing the amount of free memory of the agent.
 */
 message FreeMemory {
-    uint64 free_memory = 1; // expressed in bytes
+    optional uint64 free_memory = 1; // expressed in bytes
 }
 
 /**

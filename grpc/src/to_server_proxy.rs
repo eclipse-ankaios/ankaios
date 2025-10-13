@@ -376,8 +376,12 @@ mod tests {
 
         let expected = ToServerEnum::AgentLoadStatus(grpc_api::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: Some(ank_base::CpuUsage { cpu_usage: 42 }),
-            free_memory: Some(ank_base::FreeMemory { free_memory: 42 }),
+            cpu_usage: Some(ank_base::CpuUsage {
+                cpu_usage: Some(42),
+            }),
+            free_memory: Some(ank_base::FreeMemory {
+                free_memory: Some(42),
+            }),
         });
 
         assert_eq!(result.to_server_enum, Some(expected));

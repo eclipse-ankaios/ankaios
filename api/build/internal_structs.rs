@@ -15,10 +15,12 @@
 use tonic_prost_build::Builder;
 
 /// This function is used to create and configure the following structs:
+/// - FilesInternal
 /// - FileInternal
 /// - FileContentInternal
 pub fn setup_internal_file(builder: Builder) -> Builder {
     builder
+        // .type_attribute("Files", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute("File", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "File",
@@ -53,9 +55,9 @@ pub fn setup_internal_file(builder: Builder) -> Builder {
 
 /// This function is used to create and configure the following structs:
 /// - WorkloadInternal
-#[allow(dead_code)]
 pub fn setup_internal_workload(builder: Builder) -> Builder {
-    builder.type_attribute("Workload", "#[derive(internal_derive_macros::Internal)]")
+    builder
+    // .type_attribute("Workload", "#[derive(internal_derive_macros::Internal)]")
 }
 
 /// This function is used to create and configure the following structs:
@@ -81,7 +83,6 @@ pub fn setup_internal_workload_instance_name(builder: Builder) -> Builder {
 /// - StateRuleInternal
 /// - ReadWriteEnumInternal
 /// - LogRuleInternal
-#[allow(dead_code)]
 pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
     builder
         // .type_attribute(
@@ -134,4 +135,58 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
             "LogRule",
             "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
+}
+
+/// This function is used to create and configure the following structs:
+/// - AgentMapInternal
+/// - AgentAttributesInternal
+/// - CpuUsageInternal
+/// - FreeMemoryInternal
+pub fn setup_internal_agent_map(builder: Builder) -> Builder {
+    builder
+        // .type_attribute("AgentMap", "#[derive(internal_derive_macros::Internal)]")
+        // .type_attribute(
+        //     "AgentMap",
+        //     "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+        // )
+        .type_attribute(
+            "AgentAttributes",
+            "#[derive(internal_derive_macros::Internal)]",
+        )
+        .type_attribute(
+            "AgentAttributes",
+            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+        )
+        .type_attribute("CpuUsage", "#[derive(internal_derive_macros::Internal)]")
+        .type_attribute(
+            "CpuUsage",
+            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+        )
+        .field_attribute("CpuUsage.cpu_usage", "#[internal_mandatory]")
+        .type_attribute("FreeMemory", "#[derive(internal_derive_macros::Internal)]")
+        .type_attribute(
+            "FreeMemory",
+            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+        )
+        .field_attribute("FreeMemory.free_memory", "#[internal_mandatory]")
+}
+
+/// This function is used to create and configure the following structs:
+/// - WorkloadStateInternal
+/// - ExecutionStateInternal
+/// - ExecutionStateEnumInternal
+pub fn setup_internal_workload_state(builder: Builder) -> Builder {
+    builder
+    // .type_attribute(
+    //     "WorkloadState",
+    //     "#[derive(internal_derive_macros::Internal)]",
+    // )
+    // .type_attribute(
+    //     "ExecutionState",
+    //     "#[derive(internal_derive_macros::Internal)]",
+    // )
+    // .type_attribute(
+    //     "ExecutionStateEnum",
+    //     "#[derive(internal_derive_macros::Internal)]",
+    // )
 }

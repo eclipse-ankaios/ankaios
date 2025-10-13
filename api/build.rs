@@ -61,9 +61,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]");
 
     builder = setup_internal_file(builder);
-    // builder = setup_internal_control_interface_access(builder);
-    // builder = setup_internal_workload(builder);
+    builder = setup_internal_control_interface_access(builder);
+    builder = setup_internal_workload(builder);
     builder = setup_internal_workload_instance_name(builder);
+    builder = setup_internal_agent_map(builder);
+    builder = setup_internal_workload_state(builder);
 
     builder
         .compile_protos(&["proto/control_api.proto"], &["proto"])

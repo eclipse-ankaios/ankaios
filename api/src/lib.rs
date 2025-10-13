@@ -34,6 +34,8 @@ pub mod ank_base {
     #[path = "file.rs"]
     pub(crate) mod file_internal; // Rename needed to avoid conflict with tonic generated module
     pub use file::FileContentInternal;
+
+    pub mod agent_map;
 }
 
 pub mod control_api {

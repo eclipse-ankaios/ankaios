@@ -14,7 +14,7 @@
 
 use api::ank_base;
 use serde::{Deserialize, Serialize};
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{HashMap, hash_map::Entry};
 
 use crate::commands;
 
@@ -76,7 +76,7 @@ impl AgentMap {
 impl From<CpuUsage> for ank_base::CpuUsage {
     fn from(item: CpuUsage) -> ank_base::CpuUsage {
         ank_base::CpuUsage {
-            cpu_usage: item.cpu_usage,
+            cpu_usage: Some(item.cpu_usage),
         }
     }
 }
@@ -84,7 +84,7 @@ impl From<CpuUsage> for ank_base::CpuUsage {
 impl From<ank_base::CpuUsage> for CpuUsage {
     fn from(item: ank_base::CpuUsage) -> Self {
         CpuUsage {
-            cpu_usage: item.cpu_usage,
+            cpu_usage: item.cpu_usage.unwrap_or_default(),
         }
     }
 }
@@ -92,7 +92,7 @@ impl From<ank_base::CpuUsage> for CpuUsage {
 impl From<FreeMemory> for ank_base::FreeMemory {
     fn from(item: FreeMemory) -> ank_base::FreeMemory {
         ank_base::FreeMemory {
-            free_memory: item.free_memory,
+            free_memory: Some(item.free_memory),
         }
     }
 }
@@ -100,7 +100,7 @@ impl From<FreeMemory> for ank_base::FreeMemory {
 impl From<ank_base::FreeMemory> for FreeMemory {
     fn from(item: ank_base::FreeMemory) -> Self {
         FreeMemory {
-            free_memory: item.free_memory,
+            free_memory: item.free_memory.unwrap_or_default(),
         }
     }
 }
@@ -109,10 +109,10 @@ impl From<AgentAttributes> for ank_base::AgentAttributes {
     fn from(item: AgentAttributes) -> ank_base::AgentAttributes {
         ank_base::AgentAttributes {
             cpu_usage: Some(ank_base::CpuUsage {
-                cpu_usage: item.cpu_usage.unwrap_or_default().cpu_usage,
+                cpu_usage: Some(item.cpu_usage.unwrap_or_default().cpu_usage),
             }),
             free_memory: Some(ank_base::FreeMemory {
-                free_memory: item.free_memory.unwrap_or_default().free_memory,
+                free_memory: Some(item.free_memory.unwrap_or_default().free_memory),
             }),
         }
     }
@@ -122,10 +122,18 @@ impl From<ank_base::AgentAttributes> for AgentAttributes {
     fn from(item: ank_base::AgentAttributes) -> Self {
         AgentAttributes {
             cpu_usage: Some(CpuUsage {
-                cpu_usage: item.cpu_usage.unwrap_or_default().cpu_usage,
+                cpu_usage: item
+                    .cpu_usage
+                    .unwrap_or_default()
+                    .cpu_usage
+                    .unwrap_or_default(),
             }),
             free_memory: Some(FreeMemory {
-                free_memory: item.free_memory.unwrap_or_default().free_memory,
+                free_memory: item
+                    .free_memory
+                    .unwrap_or_default()
+                    .free_memory
+                    .unwrap_or_default(),
             }),
         }
     }
