@@ -38,6 +38,7 @@ impl Path {
     }
 }
 
+// [impl->swdd~common-state-manipulation-path~1]
 impl From<&str> for Path {
     fn from(value: &str) -> Self {
         Path {
@@ -97,6 +98,7 @@ impl std::fmt::Display for Path {
 mod tests {
     use super::Path;
 
+    // [utest->swdd~common-state-manipulation-path~1]
     #[test]
     fn utest_path_from_string() {
         let path_string: String = "1.2.3".into();
@@ -119,6 +121,7 @@ mod tests {
         assert_eq!(actual, expected)
     }
 
+    // [utest->swdd~common-state-manipulation-path~1]
     #[test]
     fn utest_path_from_string_ref() {
         let path_string: String = "1.2.3".into();
@@ -141,6 +144,7 @@ mod tests {
         assert_eq!(actual, expected)
     }
 
+    // [utest->swdd~common-state-manipulation-path~1]
     #[test]
     fn utest_path_from_str() {
         let expected = Path {

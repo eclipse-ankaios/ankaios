@@ -209,6 +209,7 @@ impl From<&Object> for Vec<Path> {
     }
 }
 impl Object {
+    //[impl->swdd~common-state-manipulation-set~1]
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
         let mut current = self
@@ -219,6 +220,7 @@ impl Object {
         for path_part in path_head.parts() {
             let next = match current.entry(path_part.to_owned().into()) {
                 Occupied(value) => &mut *value.into_mut(),
+                //[impl->swdd~common-state-manipulation-set-add-missing-objects~1]
                 Vacant(value) => &mut *value.insert(Value::Mapping(Mapping::default())),
             };
 
@@ -229,6 +231,7 @@ impl Object {
         Ok(())
     }
 
+    //[impl->swdd~common-state-manipulation-remove~1]
     pub fn remove(&mut self, path: &Path) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
 
@@ -246,6 +249,7 @@ impl Object {
         }
     }
 
+    //[impl->swdd~common-state-manipulation-get~1]
     pub fn get(&self, path: &Path) -> Option<&Value> {
         let mut current_obj = &self.data;
         for p in path.parts() {
@@ -289,6 +293,7 @@ impl Object {
     ///
     /// - a [Vec<`Path`>] containing every concrete path that matches the provided wildcard patterns.
     ///
+    //[impl->swdd~common-state-manipulation-expand-wildcards~1]
     pub fn expand_wildcards(&self, path: &[Path]) -> Vec<Path> {
         let value = &self.data;
         let mut result = Vec::new();
@@ -464,6 +469,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_fails_on_empty() {
         let expected = Object {
@@ -479,6 +485,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_fails_as_base_not_mapping() {
         let expected = Object {
@@ -497,6 +504,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_fails_as_not_mapping() {
         let expected = Object {
@@ -512,6 +520,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_existing() {
         let mut expected = Object {
@@ -544,6 +553,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_new() {
         let mut expected = Object {
@@ -571,6 +581,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set-add-missing-objects~1]
     #[test]
     fn utest_object_set_in_new_mapping() {
         let mut expected = Object {
@@ -601,6 +612,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_existing() {
         let mut expected = Object {
@@ -625,6 +637,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_non_existing_end_of_path() {
         let expected = Object {
@@ -641,6 +654,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_non_existing_in_path() {
         let expected = Object {
@@ -657,6 +671,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_non_map_in_path() {
         let expected = Object {
@@ -673,6 +688,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_empty_path() {
         let expected = Object {
@@ -689,6 +705,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_existing() {
         let data = Object {
@@ -701,6 +718,7 @@ mod tests {
         assert_eq!(res.expect(""), &serde_yaml::Value::from("ALWAYS"));
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_non_existing() {
         let data = Object {
@@ -712,6 +730,7 @@ mod tests {
         assert!(res.is_none());
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_from_not_map() {
         let data = Object {
@@ -723,6 +742,7 @@ mod tests {
         assert!(res.is_none());
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_from_sequence() {
         let data = Object {
@@ -734,6 +754,7 @@ mod tests {
         assert!(res.is_some());
     }
 
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
     #[test]
     fn utest_object_expand_wildcards_with_no_wildcards() {
         let data = Object {
@@ -758,6 +779,7 @@ mod tests {
         );
     }
 
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
     #[test]
     fn utest_object_expand_wildcards_with_one_wildcard() {
         let data = Object {
@@ -784,6 +806,7 @@ mod tests {
         );
     }
 
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
     #[test]
     fn utest_object_expand_wildcards_with_two_wildcard() {
         let data = Object {
@@ -810,6 +833,7 @@ mod tests {
         );
     }
 
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
     #[test]
     fn utest_object_expand_wildcards_with_two_wildcard_exclude_intermediate_missing() {
         let data = Object {
@@ -829,6 +853,7 @@ mod tests {
         );
     }
 
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
     #[test]
     fn utest_object_expand_wildcards_ignore_non_string_keys() {
         let data = Object {
