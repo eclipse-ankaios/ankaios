@@ -569,16 +569,17 @@ mod tests {
 
     use super::WorkloadInstanceNameInternal;
     use super::ank_base;
-    use api::ank_base::{LogsStopResponse, WorkloadMap};
+    use api::ank_base::{
+        AgentLoadStatus, CpuUsageInternal, FreeMemoryInternal, LogsStopResponse, WorkloadMap,
+    };
     use common::commands::{
-        AgentLoadStatus, CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload,
-        UpdateWorkloadState,
+        CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
     use common::objects::{
-        CompleteState, CpuUsage, DeletedWorkload, ExecutionState, ExecutionStateEnum, FreeMemory,
-        PendingSubstate, State, WorkloadState, generate_test_stored_workload_spec,
-        generate_test_workload_spec_with_param, generate_test_workload_states_map_with_data,
+        CompleteState, DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
+        WorkloadState, generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
+        generate_test_workload_states_map_with_data,
     };
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -2323,8 +2324,8 @@ mod tests {
     async fn utest_server_receives_agent_status_load() {
         let payload = AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
-            cpu_usage: CpuUsage { cpu_usage: 42 },
-            free_memory: FreeMemory { free_memory: 42 },
+            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
+            free_memory: FreeMemoryInternal { free_memory: 42 },
         };
 
         let _ = env_logger::builder().is_test(true).try_init();

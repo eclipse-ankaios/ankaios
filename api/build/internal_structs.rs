@@ -18,9 +18,13 @@ use tonic_prost_build::Builder;
 /// - FilesInternal
 /// - FileInternal
 /// - FileContentInternal
-pub fn setup_internal_file(builder: Builder) -> Builder {
+pub fn setup_internal_files(builder: Builder) -> Builder {
     builder
         .type_attribute("Files", "#[derive(internal_derive_macros::Internal)]")
+        .type_attribute(
+            "Files",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+        )
         .type_attribute("File", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "File",
@@ -55,6 +59,9 @@ pub fn setup_internal_file(builder: Builder) -> Builder {
 
 /// This function is used to create and configure the following structs:
 /// - WorkloadInternal
+/// - DependenciesInternal
+/// - TagsInternal
+/// - TagInternal
 pub fn setup_internal_workload(builder: Builder) -> Builder {
     builder
     // .type_attribute("Workload", "#[derive(internal_derive_macros::Internal)]")
@@ -84,6 +91,7 @@ pub fn setup_internal_workload_instance_name(builder: Builder) -> Builder {
 /// - ReadWriteEnumInternal
 /// - LogRuleInternal
 pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
+    // TODO: Implement in code once the ControlInterfaceAccessInternal is done
     builder
         // .type_attribute(
         //     "ControlInterfaceAccess",
@@ -97,9 +105,66 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
         //     "AccessRightsRule",
         //     "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
         // )
+        // .field_attribute(
+        //     "AccessRightsRule.AccessRightsRuleEnum",
+        //     "#[internal_mandatory]",
+        // )
+        // .type_attribute(
+        //     "AccessRightsRuleEnum",
+        //     "#[derive(internal_derive_macros::Internal)]",
+        // )
         // .type_attribute(
         //     "AccessRightsRuleEnum",
         //     "#[internal_type_attr(#[serde(tag = \"type\")])]",
+        // )
+        // .type_attribute("StateRule", "#[derive(internal_derive_macros::Internal)]")
+        // .type_attribute(
+        //     "StateRule",
+        //     "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
+        // )
+        // .type_attribute(
+        //     "StateRule",
+        //     "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
+        // )
+        .type_attribute(
+            "ReadWriteEnum",
+            "#[derive(internal_derive_macros::Internal)]",
+        )
+        .type_attribute(
+            "ReadWriteEnum",
+            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
+        )
+        .type_attribute("LogRule", "#[derive(internal_derive_macros::Internal)]")
+        .type_attribute(
+            "LogRule",
+            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
+        )
+        .type_attribute(
+            "LogRule",
+            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
+        )
+}
+
+/// This function is used to create and configure the following structs:
+/// - ConfigMappingsInternal
+/// - ConfigMapInternal
+/// - ConfigItemInternal
+/// - ConfigItemEnumInternal
+/// - ConfigObjectInternal
+/// - ConfigArrayInternal
+pub fn setup_internal_configs(builder: Builder) -> Builder {
+    builder
+        // .type_attribute(
+        //     "ControlInterfaceAccess",
+        //     "#[derive(internal_derive_macros::Internal)]",
+        // )
+        // .type_attribute(
+        //     "AccessRightsRule",
+        //     "#[derive(internal_derive_macros::Internal)]",
+        // )
+        // .type_attribute(
+        //     "AccessRightsRule",
+        //     "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
         // )
         // .field_attribute(
         //     "AccessRightsRule.AccessRightsRuleEnum",
@@ -108,6 +173,10 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
         // .type_attribute(
         //     "AccessRightsRuleEnum",
         //     "#[derive(internal_derive_macros::Internal)]",
+        // )
+        // .type_attribute(
+        //     "AccessRightsRuleEnum",
+        //     "#[internal_type_attr(#[serde(tag = \"type\")])]",
         // )
         // .type_attribute("StateRule", "#[derive(internal_derive_macros::Internal)]")
         // .type_attribute(

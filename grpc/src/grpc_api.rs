@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base;
 use common::commands;
 use common::objects;
 use std::collections::HashMap;
@@ -36,18 +37,18 @@ impl CommanderHello {
     }
 }
 
-impl From<AgentLoadStatus> for commands::AgentLoadStatus {
+impl From<AgentLoadStatus> for ank_base::AgentLoadStatus {
     fn from(item: AgentLoadStatus) -> Self {
-        commands::AgentLoadStatus {
+        ank_base::AgentLoadStatus {
             agent_name: item.agent_name,
-            cpu_usage: item.cpu_usage.unwrap_or_default().into(),
-            free_memory: item.free_memory.unwrap_or_default().into(),
+            cpu_usage: item.cpu_usage.unwrap_or_default().try_into().unwrap(),
+            free_memory: item.free_memory.unwrap_or_default().try_into().unwrap(),
         }
     }
 }
 
-impl From<commands::AgentLoadStatus> for AgentLoadStatus {
-    fn from(item: commands::AgentLoadStatus) -> Self {
+impl From<ank_base::AgentLoadStatus> for AgentLoadStatus {
+    fn from(item: ank_base::AgentLoadStatus) -> Self {
         AgentLoadStatus {
             agent_name: item.agent_name,
             cpu_usage: Some(item.cpu_usage.into()),

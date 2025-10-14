@@ -17,6 +17,7 @@ use crate::{
     objects::CompleteState,
 };
 use api::ank_base;
+use api::ank_base::AgentLoadStatus;
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -25,7 +26,7 @@ use tokio::sync::mpsc::error::SendError;
 #[derive(Debug, PartialEq, Clone)]
 pub enum ToServer {
     AgentHello(commands::AgentHello),
-    AgentLoadStatus(commands::AgentLoadStatus),
+    AgentLoadStatus(AgentLoadStatus),
     AgentGone(commands::AgentGone),
     Request(commands::Request),
     UpdateWorkloadState(commands::UpdateWorkloadState),
@@ -54,10 +55,8 @@ impl fmt::Display for ToServerError {
 #[async_trait]
 pub trait ToServerInterface {
     async fn agent_hello(&self, agent_name: String) -> Result<(), ToServerError>;
-    async fn agent_load_status(
-        &self,
-        agent_resource: commands::AgentLoadStatus,
-    ) -> Result<(), ToServerError>;
+    async fn agent_load_status(&self, agent_resource: AgentLoadStatus)
+    -> Result<(), ToServerError>;
     async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError>;
     async fn update_state(
         &self,
@@ -107,7 +106,7 @@ impl ToServerInterface for ToServerSender {
 
     async fn agent_load_status(
         &self,
-        agent_load_status: commands::AgentLoadStatus,
+        agent_load_status: AgentLoadStatus,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::AgentLoadStatus(agent_load_status))
@@ -229,14 +228,14 @@ impl ToServerInterface for ToServerSender {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, LogEntriesResponse, LogEntry, WorkloadInstanceNameInternal};
+    use api::ank_base::{
+        self, AgentLoadStatus, CpuUsageInternal, FreeMemoryInternal, LogEntriesResponse, LogEntry,
+        WorkloadInstanceNameInternal,
+    };
 
     use crate::{
-        commands::{self, AgentLoadStatus, RequestContent},
-        objects::{
-            CpuUsage, ExecutionState, FreeMemory, generate_test_workload_spec,
-            generate_test_workload_state,
-        },
+        commands::{self, RequestContent},
+        objects::{ExecutionState, generate_test_workload_spec, generate_test_workload_state},
         test_utils::generate_test_complete_state,
         to_server_interface::{ToServer, ToServerInterface},
     };
@@ -248,8 +247,8 @@ mod tests {
     const AGENT_NAME: &str = "agent_A";
     const REQUEST_ID: &str = "emkw489ejf89ml";
     const FIELD_MASK: &str = "desiredState.bla_bla";
-    const CPU_USAGE: CpuUsage = CpuUsage { cpu_usage: 42 };
-    const FREE_MEMORY: FreeMemory = FreeMemory { free_memory: 42 };
+    const CPU_USAGE: CpuUsageInternal = CpuUsageInternal { cpu_usage: 42 };
+    const FREE_MEMORY: FreeMemoryInternal = FreeMemoryInternal { free_memory: 42 };
 
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]

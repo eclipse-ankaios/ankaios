@@ -295,13 +295,14 @@ impl Object {
 mod tests {
     use crate::{
         objects::{
-            CompleteState, ExecutionState, State, generate_test_agent_map_from_specs,
-            generate_test_workload_spec_with_rendered_files,
+            CompleteState, ExecutionState, State, generate_test_workload_spec_with_rendered_files,
             generate_test_workload_states_map_with_data,
         },
         test_utils::generate_test_state_from_workloads,
     };
-    use api::test_utils::generate_test_rendered_workload_files;
+    use api::test_utils::{
+        generate_test_agent_map_from_specs, generate_test_rendered_workload_files,
+    };
     use serde_yaml::Value;
 
     use super::Object;

@@ -14,8 +14,9 @@
 
 use super::config_renderer::RenderedWorkloads;
 use api::ank_base;
-use api::ank_base::WorkloadInstanceNameInternal;
-use common::commands;
+use api::ank_base::{
+    AgentAttributesInternal, CpuUsageInternal, FreeMemoryInternal, WorkloadInstanceNameInternal,
+};
 
 #[cfg_attr(test, mockall_double::double)]
 use super::config_renderer::ConfigRenderer;
@@ -23,9 +24,7 @@ use super::config_renderer::ConfigRenderer;
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-use common::objects::{
-    AgentAttributes, CpuUsage, FreeMemory, State, WorkloadState, WorkloadStatesMap,
-};
+use common::objects::{State, WorkloadState, WorkloadStatesMap};
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
@@ -265,9 +264,9 @@ impl ServerState {
         self.state
             .agents
             .entry(agent_name)
-            .or_insert(AgentAttributes {
-                cpu_usage: Some(CpuUsage::default()),
-                free_memory: Some(FreeMemory::default()),
+            .or_insert(AgentAttributesInternal {
+                cpu_usage: Some(CpuUsageInternal::default()),
+                free_memory: Some(FreeMemoryInternal::default()),
             });
     }
 
@@ -284,7 +283,7 @@ impl ServerState {
     // [impl->swdd~server-updates-resource-availability~1]
     pub fn update_agent_resource_availability(
         &mut self,
-        agent_load_status: commands::AgentLoadStatus,
+        agent_load_status: ank_base::AgentLoadStatus,
     ) {
         self.state
             .agents
@@ -361,13 +360,16 @@ impl ServerState {
 mod tests {
     use std::collections::HashMap;
 
-    use api::ank_base::{self, Dependencies, Tags};
+    use api::ank_base::{
+        self, AgentLoadStatus, AgentMapInternal, CpuUsageInternal, Dependencies,
+        FreeMemoryInternal, Tags,
+    };
+    use api::test_utils::generate_test_agent_map;
     use common::{
-        commands::{AgentLoadStatus, CompleteStateRequest},
+        commands::CompleteStateRequest,
         objects::{
-            AgentMap, CompleteState, ConfigItem, CpuUsage, DeletedWorkload, FreeMemory, State,
-            WorkloadSpec, WorkloadStatesMap, generate_test_agent_map, generate_test_configs,
-            generate_test_stored_workload_spec,
+            CompleteState, ConfigItem, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
+            generate_test_configs, generate_test_stored_workload_spec,
             generate_test_workload_spec_with_control_interface_access,
             generate_test_workload_spec_with_param,
         },
@@ -1570,8 +1572,8 @@ mod tests {
             state: generate_test_complete_state(vec![w1.clone()]),
             ..Default::default()
         };
-        let cpu_usage = CpuUsage { cpu_usage: 42 };
-        let free_memory = FreeMemory { free_memory: 42 };
+        let cpu_usage = CpuUsageInternal { cpu_usage: 42 };
+        let free_memory = FreeMemoryInternal { free_memory: 42 };
         server_state.update_agent_resource_availability(AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
             cpu_usage: cpu_usage.clone(),
@@ -1615,8 +1617,8 @@ mod tests {
         server_state.add_agent(AGENT_A.to_string());
         server_state.update_agent_resource_availability(AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
-            cpu_usage: CpuUsage { cpu_usage: 42 },
-            free_memory: FreeMemory { free_memory: 42 },
+            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
+            free_memory: FreeMemoryInternal { free_memory: 42 },
         });
 
         let expected_agent_map = generate_test_agent_map(AGENT_A);
@@ -1637,7 +1639,7 @@ mod tests {
 
         server_state.remove_agent(AGENT_A);
 
-        let expected_agent_map = AgentMap::default();
+        let expected_agent_map = AgentMapInternal::default();
         assert_eq!(server_state.state.agents, expected_agent_map);
     }
 

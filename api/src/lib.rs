@@ -29,13 +29,16 @@ pub mod ank_base {
     }
 
     pub(crate) mod workload_instance_name;
-    pub use workload_instance_name::{INSTANCE_NAME_SEPARATOR, ConfigHash, WorkloadInstanceNameBuilder};
+    pub use workload_instance_name::{
+        ConfigHash, INSTANCE_NAME_SEPARATOR, WorkloadInstanceNameBuilder,
+    };
 
     #[path = "file.rs"]
     pub(crate) mod file_internal; // Rename needed to avoid conflict with tonic generated module
     pub use file::FileContentInternal;
 
-    pub mod agent_map;
+    pub(crate) mod agent_map;
+    pub use agent_map::AgentLoadStatus;
 }
 
 pub mod control_api {
@@ -47,6 +50,9 @@ mod convert;
 
 #[cfg(any(feature = "test_utils", test))]
 pub mod test_utils {
+    pub use crate::ank_base::agent_map::{
+        generate_test_agent_map, generate_test_agent_map_from_specs,
+    };
     pub use crate::ank_base::file_internal::generate_test_rendered_workload_files;
     pub use crate::ank_base::workload_instance_name::generate_test_workload_instance_name;
 }

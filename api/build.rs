@@ -58,10 +58,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "Files.files",
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
         )
-        .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]")
-        .type_attribute("StateRule", "#[derive(internal_derive_macros::Internal)]");
+        .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]");
 
-    builder = setup_internal_file(builder);
+    builder = setup_internal_files(builder);
     builder = setup_internal_control_interface_access(builder);
     builder = setup_internal_workload(builder);
     builder = setup_internal_workload_instance_name(builder);

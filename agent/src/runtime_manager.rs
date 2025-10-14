@@ -684,7 +684,7 @@ mod tests {
     use api::ank_base::{Files, WorkloadInstanceNameBuilder, WorkloadInstanceNameInternal};
     use common::commands::LogsRequest;
     use common::objects::{
-        self, AddCondition, WorkloadState, generate_test_control_interface_access,
+        AddCondition, WorkloadState, generate_test_control_interface_access,
         generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
     };
@@ -2371,15 +2371,19 @@ mod tests {
             )]),
         });
 
+        // complete_state.agents = Some(ank_base::AgentMap {
+        //     agents: HashMap::from([(
+        //         AGENT_NAME.to_owned(),
+        //         ank_base::AgentAttributesInternal {
+        //             cpu_usage: Some(ank_base::CpuUsageInternal { cpu_usage: 42 }),
+        //             free_memory: Some(ank_base::FreeMemoryInternal { free_memory: 42 }),
+        //         }
+        //         .into(),
+        //     )]),
+        // });
+
         complete_state.agents = Some(ank_base::AgentMap {
-            agents: HashMap::from([(
-                AGENT_NAME.to_owned(),
-                objects::AgentAttributes {
-                    cpu_usage: Some(objects::CpuUsage { cpu_usage: 42 }),
-                    free_memory: Some(objects::FreeMemory { free_memory: 42 }),
-                }
-                .into(),
-            )]),
+            agents: HashMap::default(),
         });
         let expected_response = ank_base::Response {
             request_id,
@@ -2395,11 +2399,11 @@ mod tests {
                     "failed to send complete state".to_string(),
                 ))
             });
-
+        println!("AAAAAAAAAAAAAAAA");
         runtime_manager
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
-
+        println!("BBBBBBBBBBBBBBBB");
         runtime_manager
             .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),

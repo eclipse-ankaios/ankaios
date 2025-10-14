@@ -226,7 +226,7 @@ pub async fn forward_from_ankaios_to_proto(
                 grpc_tx
                     .send(grpc_api::ToServer {
                         to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentLoadStatus(
-                            common::commands::AgentLoadStatus {
+                            ank_base::AgentLoadStatus {
                                 agent_name: status.agent_name,
                                 cpu_usage: status.cpu_usage,
                                 free_memory: status.free_memory,
@@ -306,7 +306,6 @@ mod tests {
 
     use super::{GRPCStreaming, forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use async_trait::async_trait;
-    use common::objects::{CpuUsage, FreeMemory};
     use common::test_utils::generate_test_complete_state;
     use common::{
         objects::generate_test_workload_spec_with_param,
@@ -316,7 +315,8 @@ mod tests {
 
     use crate::grpc_api::{self, to_server::ToServerEnum};
     use api::ank_base::{
-        self, LogEntriesResponse, LogEntry, LogsStopResponse, WorkloadInstanceName,
+        self, CpuUsageInternal, FreeMemoryInternal, LogEntriesResponse, LogEntry, LogsStopResponse,
+        WorkloadInstanceName,
     };
 
     #[derive(Default, Clone)]
@@ -356,10 +356,10 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let agent_load_status = common::commands::AgentLoadStatus {
+        let agent_load_status = ank_base::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: CpuUsage { cpu_usage: 42 },
-            free_memory: FreeMemory { free_memory: 42 },
+            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
+            free_memory: FreeMemoryInternal { free_memory: 42 },
         };
 
         let agent_resource_result = server_tx.agent_load_status(agent_load_status.clone()).await;
@@ -390,10 +390,10 @@ mod tests {
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
-        let agent_load_status = common::commands::AgentLoadStatus {
+        let agent_load_status = ank_base::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: CpuUsage { cpu_usage: 42 },
-            free_memory: FreeMemory { free_memory: 42 },
+            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
+            free_memory: FreeMemoryInternal { free_memory: 42 },
         };
 
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);

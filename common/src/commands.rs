@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::objects::{CompleteState, CpuUsage, DeletedWorkload, FreeMemory, WorkloadSpec};
+use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec};
 use api::ank_base;
 use api::ank_base::WorkloadInstanceNameInternal;
 use serde::{Deserialize, Serialize};
@@ -20,13 +20,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentHello {
     pub agent_name: String,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct AgentLoadStatus {
-    pub agent_name: String,
-    pub cpu_usage: CpuUsage,
-    pub free_memory: FreeMemory,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -283,10 +276,11 @@ mod tests {
             },
             objects::{
                 CompleteState, ExecutionState, RestartPolicy, State, StoredWorkloadSpec, Tag,
-                generate_test_agent_map, generate_test_workload_states_map_with_data,
+                generate_test_workload_states_map_with_data,
             },
         };
         pub use api::ank_base::{FileContentInternal, FileInternal, WorkloadInstanceNameInternal};
+        pub use api::test_utils::generate_test_agent_map;
     }
 
     const REQUEST_ID: &str = "request_id";
@@ -518,7 +512,7 @@ mod tests {
     macro_rules! agent_map {
         (ankaios) => {{ ankaios::generate_test_agent_map(AGENT_NAME) }};
         (ank_base) => {
-            ankaios::generate_test_agent_map(AGENT_NAME).into()
+            Some(ankaios::generate_test_agent_map(AGENT_NAME).into())
         };
     }
 

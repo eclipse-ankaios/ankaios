@@ -12,13 +12,58 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::CpuUsageInternal;
+use crate::ank_base::{
+    AgentAttributesInternal, AgentMapInternal, CpuUsageInternal, FreeMemoryInternal,
+};
+use std::collections::{HashMap, hash_map::Entry};
+
+// Temporary struct until WorkloadInternal is implemented
+pub struct WorkloadInternal {
+    pub instance_name: crate::ank_base::WorkloadInstanceNameInternal,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct AgentLoadStatus {
+    pub agent_name: String,
+    pub cpu_usage: CpuUsageInternal,
+    pub free_memory: FreeMemoryInternal,
+}
 
 impl CpuUsageInternal {
     pub fn new(cpu_usage: f32) -> Self {
         Self {
             cpu_usage: cpu_usage.round() as u32,
         }
+    }
+}
+
+// [impl->swdd~agent-map-manages-agent-names-with-agent-attributes~2]
+impl AgentMapInternal {
+    pub fn new() -> AgentMapInternal {
+        AgentMapInternal {
+            agents: HashMap::new(),
+        }
+    }
+
+    pub fn entry(&mut self, key: String) -> Entry<'_, String, AgentAttributesInternal> {
+        self.agents.entry(key)
+    }
+
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.agents.contains_key(key)
+    }
+
+    pub fn remove(&mut self, key: &str) {
+        self.agents.remove(key);
+    }
+
+    pub fn update_resource_availability(&mut self, agent_load_status: AgentLoadStatus) {
+        self.agents
+            .entry(agent_load_status.agent_name)
+            .and_modify(|e| {
+                e.cpu_usage = Some(agent_load_status.cpu_usage);
+                e.free_memory = Some(agent_load_status.free_memory);
+            });
     }
 }
 
@@ -29,3 +74,31 @@ impl CpuUsageInternal {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMapInternal {
+    let mut agent_map = AgentMapInternal::new();
+    agent_map
+        .entry(agent_name.into())
+        .or_insert(AgentAttributesInternal {
+            cpu_usage: Some(CpuUsageInternal { cpu_usage: 42 }),
+            free_memory: Some(FreeMemoryInternal { free_memory: 42 }),
+        });
+    agent_map
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_agent_map_from_specs(workloads: &[WorkloadInternal]) -> AgentMapInternal {
+    workloads
+        .iter()
+        .fold(AgentMapInternal::new(), |mut agent_map, spec| {
+            let agent_name = spec.instance_name.agent_name();
+            agent_map
+                .entry(agent_name.to_owned())
+                .or_insert(AgentAttributesInternal {
+                    cpu_usage: Some(CpuUsageInternal { cpu_usage: 42 }),
+                    free_memory: Some(FreeMemoryInternal { free_memory: 42 }),
+                });
+            agent_map
+        })
+}
