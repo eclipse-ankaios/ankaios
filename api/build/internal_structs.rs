@@ -20,7 +20,7 @@ use tonic_prost_build::Builder;
 /// - FileContentInternal
 pub fn setup_internal_file(builder: Builder) -> Builder {
     builder
-        // .type_attribute("Files", "#[derive(internal_derive_macros::Internal)]")
+        .type_attribute("Files", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute("File", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "File",
@@ -144,11 +144,11 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
 /// - FreeMemoryInternal
 pub fn setup_internal_agent_map(builder: Builder) -> Builder {
     builder
-        // .type_attribute("AgentMap", "#[derive(internal_derive_macros::Internal)]")
-        // .type_attribute(
-        //     "AgentMap",
-        //     "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
-        // )
+        .type_attribute("AgentMap", "#[derive(internal_derive_macros::Internal)]")
+        .type_attribute(
+            "AgentMap",
+            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+        )
         .type_attribute(
             "AgentAttributes",
             "#[derive(internal_derive_macros::Internal)]",

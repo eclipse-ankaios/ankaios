@@ -15,10 +15,10 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-    Attribute, Data, DataEnum, DataStruct, DeriveInput, Fields, FieldsUnnamed, GenericArgument,
-    Ident, Meta, Path, PathArguments, Token, Type, TypePath,
+    Attribute, Data, DataEnum, DataStruct, DeriveInput, Expr, Fields, FieldsUnnamed,
+    GenericArgument, Ident, Lit, Meta, MetaNameValue, Path, PathArguments, Token, Type, TypePath,
     parse::{Parse, ParseStream},
-    parse_macro_input,
+    parse_macro_input, parse_quote,
     punctuated::Punctuated,
 };
 
@@ -76,87 +76,144 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
             for field in fields_named.named {
                 let field_name = field.ident.unwrap();
                 let mandatory = has_mandatory_attr(&field.attrs);
-                let new_ty = transform_type(&field.ty, mandatory);
+                let mut new_ty = transform_type(&field.ty, mandatory);
                 let missing_field_msg = format!("Missing field '{field_name}'");
 
-                // TODO: check what the fell the AI did here...
                 let internal_field_attrs = get_internal_field_attrs(&field.attrs);
 
+                let mut is_prost_num_field = false;
+
+                // either Some(prost_type: TypePath) where the type is extracted from an annotation like
+                // #[prost(enumeration = "ReadWriteEnum", tag = "1")] in this case ReadWriteEnumInternal
+                // or none if no such annotation was found
+
+                println!("I'm not here -1");
+                if let Some(prost_enum_type) = get_prost_enum_type(&field.attrs) {
+                    is_prost_num_field = true;
+                    println!("I'm not here0");
+                    // new_ty = to_internal_type(&prost_enum_type);
+                    new_ty = Type::Path(prost_enum_type);
+                    if is_option_type(&field.ty) && !mandatory {
+                        println!("I'm not here");
+                        new_ty = wrap_in_option(new_ty);
+                        println!("I'm not here 2");
+                    }
+                }
+                println!("I'm here 1");
                 // add field to Internal struct
                 internal_fields.push(quote! {
                     #(#internal_field_attrs )*
                     pub #field_name: #new_ty
                 });
+                println!("I'm here 2");
+                let Type::Path(tp) = &field.ty else {
+                    return syn::Error::new_spanned(
+                        field_name,
+                        "Only simple type paths are supported in struct fields.",
+                    )
+                    .to_compile_error()
+                    .into();
+                };
+
+                println!("I'm here 3");
 
                 // TODO: this looks way to complicated, we need so simplify it according to the use-case at hand
                 // The current general solution is too complex and hard to maintain for our purposes
                 // conversion logic
-                if let Type::Path(tp) = &field.ty {
-                    if is_option(tp) {
-                        let inner = extract_inner(tp);
-                        if mandatory {
-                            if is_custom_type(&inner) {
-                                try_from_inits.push(quote! {
-                                    #field_name: orig.#field_name
-                                        .ok_or(#missing_field_msg)?
-                                        .try_into()?
-                                });
-                                from_inits.push(quote! {
-                                    #field_name: Some(orig.#field_name.into())
-                                });
-                            } else {
-                                try_from_inits.push(quote! {
-                                    #field_name: orig.#field_name
-                                        .ok_or(#missing_field_msg)?
-                                });
-                                from_inits.push(quote! {
-                                    #field_name: Some(orig.#field_name)
-                                });
-                            }
-                        } else if is_custom_type(&inner) {
+                if is_option_type_path(tp) {
+                    println!("!!!!!!!!!!!!!!!!!!optionType");
+                    // Option<inner>
+                    let inner = extract_inner(tp);
+                    if mandatory {
+                        // TODO: we should check the new type and not the old one if it is a custom type
+                        if is_prost_num_field || is_custom_type(&inner) {
                             try_from_inits.push(quote! {
-                                #field_name: match orig.#field_name {
-                                    Some(v) => Some(v.try_into()?),
-                                    None => None,
-                                }
+                                #field_name: orig.#field_name
+                                    .ok_or(#missing_field_msg)?
+                                    .try_into()?
                             });
                             from_inits.push(quote! {
-                                #field_name: orig.#field_name.map(|v| v.into())
+                                #field_name: Some(orig.#field_name.into())
                             });
                         } else {
                             try_from_inits.push(quote! {
                                 #field_name: orig.#field_name
+                                    .ok_or(#missing_field_msg)?
                             });
                             from_inits.push(quote! {
-                                #field_name: orig.#field_name
+                                #field_name: Some(orig.#field_name)
                             });
                         }
+                    } else if is_prost_num_field || is_custom_type(&inner) {
+                        try_from_inits.push(quote! {
+                            #field_name: match orig.#field_name {
+                                Some(v) => Some(v.try_into()?),
+                                None => None,
+                            }
+                        });
+                        from_inits.push(quote! {
+                            #field_name: orig.#field_name.map(|v| v.into())
+                        });
                     } else {
-                        // plain type
-                        if is_custom_type_path(tp) {
-                            if mandatory {
-                                try_from_inits.push(quote! {
-                                    #field_name: orig.#field_name.try_into()?
-                                });
-                                from_inits.push(quote! {
-                                    #field_name: orig.#field_name.into()
-                                });
-                            } else {
-                                try_from_inits.push(quote! {
-                                    #field_name: Some(orig.#field_name.try_into()?)
-                                });
-                                from_inits.push(quote! {
-                                    #field_name: orig.#field_name.map(|v| v.into()).unwrap()
-                                });
-                            }
-                        } else {
-                            try_from_inits.push(quote! {
-                                #field_name: orig.#field_name
+                        try_from_inits.push(quote! {
+                            #field_name: orig.#field_name
+                        });
+                        from_inits.push(quote! {
+                            #field_name: orig.#field_name
+                        });
+                    }
+                } else {
+                    // if let Some(prost_enum_type) = {
+
+                    // } else
+                    // plain type
+
+                    println!("!!!!!!!!!!!!!!!!!!2");
+                    if is_prost_num_field || is_custom_type_path(tp) {
+                        println!("!!!!!!!!!!!!!!!!!!3");
+                        // if mandatory {
+                        try_from_inits.push(quote! {
+                                // TODO fix the message
+                                #field_name: orig.#field_name.try_into().map_err(|_| "Cannot convert {#field_name} to internal object.".to_string())?
                             });
-                            from_inits.push(quote! {
-                                #field_name: orig.#field_name
+                        from_inits.push(quote! {
+                            #field_name: orig.#field_name.into()
+                        });
+                        // } else {
+                        //     try_from_inits.push(quote! {
+                        //         #field_name: Some(orig.#field_name.try_into()?)
+                        //     });
+                        //     from_inits.push(quote! {
+                        //         #field_name: orig.#field_name.map(|v| v.into()).unwrap()
+                        //     });
+                        // }
+                    } else if let Some(inner) = inner_vec_type_path(tp)
+                        && is_custom_type_path(&inner)
+                    {
+                        try_from_inits.push(quote! {
+                                #field_name: orig.#field_name.into_iter().map(|v| v.try_into()).collect::<Result<_, _>>()?
                             });
-                        }
+                        from_inits.push(quote! {
+                            #field_name: orig.#field_name.into_iter().map(|v| v.into()).collect()
+                        });
+                    } else if let Some((_key_tp, val_tp)) = inner_hashmap_type_path(tp)
+                        && is_custom_type_path(&val_tp)
+                    {
+                        // This here does not handle custom key types, only custom value types
+                        try_from_inits.push(quote! {
+                                #field_name: orig.#field_name.into_iter().map(|(k, v)| Ok((k.clone(), v.try_into()?))).collect::<Result<_, String>>()?
+                            });
+                        from_inits.push(quote! {
+                            #field_name: orig.#field_name.into_iter().map(|(k, v)| (k.clone(), v.into())).collect()
+                        });
+                    } else {
+                        println!("!!!!!!!!!!!!!!!!!!4");
+                        try_from_inits.push(quote! {
+                            #field_name: orig.#field_name
+                        });
+                        from_inits.push(quote! {
+                            #field_name: orig.#field_name
+                        });
                     }
                 }
             }
@@ -267,7 +324,7 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
 
                                 // prepare the try_from and from variants
                                 if let Type::Path(tp) = orig_ty {
-                                    if is_option(tp) {
+                                    if is_option_type_path(tp) {
                                         return syn::Error::new_spanned(
                                             tp,
                                             "Variants with optional attribute are not supported.",
@@ -275,7 +332,6 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                                         .to_compile_error()
                                         .into();
                                     } else if is_custom_type_path(tp) {
-                                        // prepare the enum variant
                                         let new_ty = to_internal_type(tp);
                                         new_variant.push(quote! { #new_ty });
 
@@ -286,10 +342,10 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                                         from_fields.push(quote! {
                                             #field_id.into()
                                         });
+                                    // handle custom boxed types
                                     } else if let Some(inner) = inner_boxed_type_path(tp)
                                         && is_custom_type_path(&inner)
                                     {
-                                        // TODO handle the boxed types
                                         let new_ty = Type::Path(to_internal_type_path(&inner));
                                         new_variant.push(quote! { Box<#new_ty> });
                                         try_fields.push(quote! {
@@ -410,8 +466,51 @@ fn pascal_to_snake_case(s: &str) -> String {
     result
 }
 
+fn get_prost_enum_type(attrs: &[Attribute]) -> Option<TypePath> {
+    for attr in attrs {
+        println!("I'm at 1");
+
+        // Check if this is a #[prost(...)] attribute
+        if !attr.path().is_ident("prost") {
+            continue;
+        }
+
+        println!("I'm at 2");
+
+        // Parse the attribute's arguments as a list of Meta items
+        let Ok(nested) = attr
+            .parse_args_with(syn::punctuated::Punctuated::<Meta, syn::Token![,]>::parse_terminated)
+        else {
+            continue;
+        };
+
+        println!("I'm at 4");
+
+        for meta in nested {
+            println!("I'm at 5");
+            // Look for enumeration = "ReadWriteEnum"
+            if let Meta::NameValue(MetaNameValue { path, value, .. }) = meta {
+                if path.is_ident("enumeration") {
+                    println!("I'm at 6");
+                    if let Expr::Lit(expr_lit) = value {
+                        if let Lit::Str(lit_str) = expr_lit.lit {
+                            let enum_name = lit_str.value();
+                            let internal_name = format_ident!("{}", enum_name);
+                            println!("I'm at 7");
+                            return Some(parse_quote! { #internal_name });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
 /// Extracts all attributes with the `internal_field_attr` meta and returns their tokens for quoting on the internal field.
 fn get_internal_field_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStream> {
+    // TODO: check what the hell the AI did here...
     attrs
         .iter()
         .filter_map(|attr| {
@@ -451,11 +550,20 @@ fn check_for_forbidden_mandatory_attr(attrs: &[Attribute]) {
     }
 }
 
-fn is_option(ty: &TypePath) -> bool {
-    for segment in &ty.path.segments {
+fn is_option_type(ty: &Type) -> bool {
+    if let Type::Path(tp) = ty {
+        is_option_type_path(tp)
+    } else {
+        false
+    }
+}
+
+fn is_option_type_path(tp: &TypePath) -> bool {
+    for segment in &tp.path.segments {
         println!("Checking segment: {}", segment.ident);
     }
-    !ty.path.segments.is_empty() && ty.path.segments.last().unwrap().ident == "Option"
+
+    !tp.path.segments.is_empty() && tp.path.segments.last().unwrap().ident == "Option"
 }
 
 fn extract_inner(ty: &TypePath) -> Type {
@@ -467,6 +575,7 @@ fn extract_inner(ty: &TypePath) -> Type {
             return inner_ty.clone();
         }
     }
+    println!("!!!!!!!!!!!!!!!!!!!");
     panic!("Expected G<T>");
 }
 
@@ -522,11 +631,56 @@ fn is_box_type_path(tp: &TypePath) -> bool {
         .is_some_and(|seg| seg.ident == "Box")
 }
 
+/// Checks if the given TypePath is a Box<T>
+fn is_vec_type_path(tp: &TypePath) -> bool {
+    tp.path
+        .segments
+        .last()
+        .is_some_and(|seg| seg.ident == "Vec")
+}
+
+/// Checks if the given TypePath is a Box<T>
+fn is_hashmap_type_path(tp: &TypePath) -> bool {
+    tp.path
+        .segments
+        .last()
+        .is_some_and(|seg| seg.ident == "HashMap")
+}
+
 /// Returns the inner TypePath T if the given TypePath is a Box<T>, otherwise None.
 fn inner_boxed_type_path(tp: &TypePath) -> Option<TypePath> {
     if is_box_type_path(tp) {
         if let Type::Path(inner) = extract_inner(tp) {
             return Some(inner);
+        }
+    }
+    None
+}
+
+/// Returns the inner TypePath T if the given TypePath is a Vec<T>, otherwise None.
+fn inner_vec_type_path(tp: &TypePath) -> Option<TypePath> {
+    if is_vec_type_path(tp) {
+        if let Type::Path(inner) = extract_inner(tp) {
+            return Some(inner);
+        }
+    }
+    None
+}
+
+/// Returns the inner TypePath T if the given TypePath is a Vec<T>, otherwise None.
+fn inner_hashmap_type_path(tp: &TypePath) -> Option<(TypePath, TypePath)> {
+    if is_hashmap_type_path(tp) {
+        if let PathArguments::AngleBracketed(generic) = &tp.path.segments.last().unwrap().arguments
+        {
+            if generic.args.len() == 2 {
+                if let (Some(GenericArgument::Type(key_ty)), Some(GenericArgument::Type(val_ty))) =
+                    (generic.args.first(), generic.args.last())
+                {
+                    if let (Type::Path(key_tp), Type::Path(val_tp)) = (key_ty, val_ty) {
+                        return Some((key_tp.clone(), val_tp.clone()));
+                    }
+                }
+            }
         }
     }
     None
@@ -549,7 +703,7 @@ fn wrap_in_option(inner: Type) -> Type {
 
 fn transform_type(orig_ty: &Type, mandatory: bool) -> Type {
     match orig_ty {
-        Type::Path(tp) if is_option(tp) => {
+        Type::Path(tp) if is_option_type_path(tp) => {
             let inner = extract_inner(tp);
             if mandatory {
                 transform_type(&inner, true)
@@ -599,7 +753,6 @@ fn has_generic_args(tp: &TypePath) -> bool {
         false
     }
 }
-
 
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
@@ -760,41 +913,41 @@ mod tests {
     #[test]
     fn test_is_option_with_option_type() {
         let tp: syn::TypePath = parse_quote! { Option<u32> };
-        assert!(super::is_option(&tp));
+        assert!(super::is_option_type(&tp));
 
         let tp: syn::TypePath = parse_quote! { Option<String> };
-        assert!(super::is_option(&tp));
+        assert!(super::is_option_type(&tp));
 
         let tp: syn::TypePath = parse_quote! { Option<MyStruct> };
-        assert!(super::is_option(&tp));
+        assert!(super::is_option_type(&tp));
 
         let tp: syn::TypePath =
             parse_quote! { Option<MyStruct<MyOtherStruct<WithAnother<StructInside>>>> };
-        assert!(super::is_option(&tp));
+        assert!(super::is_option_type(&tp));
     }
 
     #[test]
     fn test_is_option_with_non_option_type() {
         let tp: syn::TypePath = parse_quote! { Result<u32, String> };
-        assert!(!super::is_option(&tp));
+        assert!(!super::is_option_type(&tp));
 
         let tp: syn::TypePath = parse_quote! { Vec<u32> };
-        assert!(!super::is_option(&tp));
+        assert!(!super::is_option_type(&tp));
 
         let tp: syn::TypePath = parse_quote! { MyStruct };
-        assert!(!super::is_option(&tp));
+        assert!(!super::is_option_type(&tp));
     }
 
     #[test]
     fn test_is_option_with_nested_option() {
         let tp: syn::TypePath = parse_quote! { Option<Option<u32>> };
-        assert!(super::is_option(&tp));
+        assert!(super::is_option_type(&tp));
     }
 
     #[test]
     fn test_is_option_with_option_of_vec() {
         let tp: syn::TypePath = parse_quote! { Option<Vec<u32>> };
-        assert!(super::is_option(&tp));
+        assert!(super::is_option_type(&tp));
     }
 
     #[test]
