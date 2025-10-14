@@ -65,6 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     builder = setup_internal_workload(builder);
     builder = setup_internal_workload_instance_name(builder);
     builder = setup_internal_agent_map(builder);
+    builder = setup_internal_configs(builder);
     builder = setup_internal_workload_state(builder);
 
     builder

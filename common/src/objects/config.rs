@@ -29,15 +29,15 @@ pub enum ConfigItem {
 impl From<ConfigItem> for ank_base::ConfigItem {
     fn from(value: ConfigItem) -> Self {
         Self {
-            config_item: Some(match value {
-                ConfigItem::String(string) => config_item::ConfigItem::String(string),
+            config_item_enum: Some(match value {
+                ConfigItem::String(string) => config_item::ConfigItemEnum::String(string),
                 ConfigItem::ConfigArray(array) => {
-                    config_item::ConfigItem::Array(ank_base::ConfigArray {
+                    config_item::ConfigItemEnum::Array(ank_base::ConfigArray {
                         values: array.into_iter().map(Into::into).collect(),
                     })
                 }
                 ConfigItem::ConfigObject(object) => {
-                    config_item::ConfigItem::Object(ank_base::ConfigObject {
+                    config_item::ConfigItemEnum::Object(ank_base::ConfigObject {
                         fields: object
                             .into_iter()
                             .map(|(key, value)| (key, value.into()))
@@ -52,18 +52,20 @@ impl From<ConfigItem> for ank_base::ConfigItem {
 impl TryFrom<ank_base::ConfigItem> for ConfigItem {
     type Error = String;
     fn try_from(value: ank_base::ConfigItem) -> Result<Self, Self::Error> {
-        let Some(value) = value.config_item else {
+        let Some(value) = value.config_item_enum else {
             return Err("Value of ConfigItem is None".into());
         };
         Ok(match value {
-            config_item::ConfigItem::String(string) => Self::String(string),
-            config_item::ConfigItem::Array(ank_base::ConfigArray { values }) => Self::ConfigArray(
-                values
-                    .into_iter()
-                    .map(TryInto::try_into)
-                    .collect::<Result<Vec<ConfigItem>, Self::Error>>()?,
-            ),
-            config_item::ConfigItem::Object(ank_base::ConfigObject { fields }) => {
+            config_item::ConfigItemEnum::String(string) => Self::String(string),
+            config_item::ConfigItemEnum::Array(ank_base::ConfigArray { values }) => {
+                Self::ConfigArray(
+                    values
+                        .into_iter()
+                        .map(TryInto::try_into)
+                        .collect::<Result<Vec<ConfigItem>, Self::Error>>()?,
+                )
+            }
+            config_item::ConfigItemEnum::Object(ank_base::ConfigObject { fields }) => {
                 Self::ConfigObject(
                     fields
                         .into_iter()
@@ -162,12 +164,12 @@ mod tests {
         use api::ank_base;
 
         pub fn none() -> ank_base::ConfigItem {
-            ank_base::ConfigItem { config_item: None }
+            ank_base::ConfigItem { config_item_enum: None }
         }
 
         pub fn string(string: &str) -> ank_base::ConfigItem {
             ank_base::ConfigItem {
-                config_item: Some(ank_base::config_item::ConfigItem::String(
+                config_item_enum: Some(ank_base::config_item::ConfigItemEnum::String(
                     string.to_string(),
                 )),
             }
@@ -175,7 +177,7 @@ mod tests {
 
         pub fn array<const N: usize>(values: [ank_base::ConfigItem; N]) -> ank_base::ConfigItem {
             ank_base::ConfigItem {
-                config_item: Some(ank_base::config_item::ConfigItem::Array(
+                config_item_enum: Some(ank_base::config_item::ConfigItemEnum::Array(
                     ank_base::ConfigArray {
                         values: values.to_vec(),
                     },
@@ -187,7 +189,7 @@ mod tests {
             fields: [(&str, ank_base::ConfigItem); N],
         ) -> ank_base::ConfigItem {
             ank_base::ConfigItem {
-                config_item: Some(ank_base::config_item::ConfigItem::Object(
+                config_item_enum: Some(ank_base::config_item::ConfigItemEnum::Object(
                     ank_base::ConfigObject {
                         fields: fields
                             .into_iter()

@@ -438,7 +438,7 @@ message ConfigMap {
 * An enum type describing possible configuration objects.
 */
 message ConfigItem {
-    oneof ConfigItem {
+    oneof ConfigItemEnum {
         string String = 1;
         ConfigArray array = 2;
         ConfigObject object = 3;

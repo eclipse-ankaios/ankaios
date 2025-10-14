@@ -154,56 +154,21 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
 /// - ConfigArrayInternal
 pub fn setup_internal_configs(builder: Builder) -> Builder {
     builder
-        // .type_attribute(
-        //     "ControlInterfaceAccess",
-        //     "#[derive(internal_derive_macros::Internal)]",
-        // )
-        // .type_attribute(
-        //     "AccessRightsRule",
-        //     "#[derive(internal_derive_macros::Internal)]",
-        // )
-        // .type_attribute(
-        //     "AccessRightsRule",
-        //     "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
-        // )
-        // .field_attribute(
-        //     "AccessRightsRule.AccessRightsRuleEnum",
-        //     "#[internal_mandatory]",
-        // )
-        // .type_attribute(
-        //     "AccessRightsRuleEnum",
-        //     "#[derive(internal_derive_macros::Internal)]",
-        // )
-        // .type_attribute(
-        //     "AccessRightsRuleEnum",
-        //     "#[internal_type_attr(#[serde(tag = \"type\")])]",
-        // )
-        // .type_attribute("StateRule", "#[derive(internal_derive_macros::Internal)]")
-        // .type_attribute(
-        //     "StateRule",
-        //     "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
-        // )
-        // .type_attribute(
-        //     "StateRule",
-        //     "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
-        // )
-        .type_attribute(
-            "ReadWriteEnum",
-            "#[derive(internal_derive_macros::Internal)]",
-        )
-        .type_attribute(
-            "ReadWriteEnum",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
-        )
-        .type_attribute("LogRule", "#[derive(internal_derive_macros::Internal)]")
-        .type_attribute(
-            "LogRule",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
-        )
-        .type_attribute(
-            "LogRule",
-            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
-        )
+    // .type_attribute(
+    //     "ConfigMappings",
+    //     "#[derive(internal_derive_macros::Internal)]",
+    // )
+    // .type_attribute("ConfigMap", "#[derive(internal_derive_macros::Internal)]")
+    // .type_attribute("ConfigItem", "#[derive(internal_derive_macros::Internal)]")
+    // .type_attribute(
+    //     "ConfigItemEnum",
+    //     "#[derive(internal_derive_macros::Internal)]",
+    // )
+    // .type_attribute(
+    //     "ConfigObject",
+    //     "#[derive(internal_derive_macros::Internal)]",
+    // )
+    // .type_attribute("ConfigArray", "#[derive(internal_derive_macros::Internal)]")
 }
 
 /// This function is used to create and configure the following structs:

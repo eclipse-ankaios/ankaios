@@ -14,21 +14,23 @@
 
 use std::collections::HashMap;
 
-use crate::ank_base::{config_item, ConfigArray, ConfigItem, ConfigObject};
+use crate::ank_base::{ConfigArray, ConfigItem, ConfigObject, config_item};
 
 impl TryFrom<serde_yaml::Value> for ConfigItem {
     type Error = String;
 
     fn try_from(value: serde_yaml::Value) -> Result<Self, Self::Error> {
         match value {
-            serde_yaml::Value::Null => Ok(Self { config_item: None }),
+            serde_yaml::Value::Null => Ok(Self {
+                config_item_enum: None,
+            }),
             serde_yaml::Value::Bool(_) => Err("Bool not supported".into()),
             serde_yaml::Value::Number(_) => Err("Number not supported".into()),
             serde_yaml::Value::String(string) => Ok(Self {
-                config_item: Some(config_item::ConfigItem::String(string)),
+                config_item_enum: Some(config_item::ConfigItemEnum::String(string)),
             }),
             serde_yaml::Value::Sequence(array) => Ok(Self {
-                config_item: Some(config_item::ConfigItem::Array(ConfigArray {
+                config_item_enum: Some(config_item::ConfigItemEnum::Array(ConfigArray {
                     values: array
                         .into_iter()
                         .map(TryInto::try_into)
@@ -36,7 +38,7 @@ impl TryFrom<serde_yaml::Value> for ConfigItem {
                 })),
             }),
             serde_yaml::Value::Mapping(object) => Ok(Self {
-                config_item: Some(config_item::ConfigItem::Object(ConfigObject {
+                config_item_enum: Some(config_item::ConfigItemEnum::Object(ConfigObject {
                     fields: object
                         .into_iter()
                         .map(|(key, value)| {
@@ -57,13 +59,13 @@ impl TryFrom<serde_yaml::Value> for ConfigItem {
 
 impl From<ConfigItem> for serde_yaml::Value {
     fn from(value: ConfigItem) -> Self {
-        match value.config_item {
+        match value.config_item_enum {
             None => serde_yaml::Value::Null,
-            Some(config_item::ConfigItem::String(string)) => serde_yaml::Value::String(string),
-            Some(config_item::ConfigItem::Array(ConfigArray { values })) => {
+            Some(config_item::ConfigItemEnum::String(string)) => serde_yaml::Value::String(string),
+            Some(config_item::ConfigItemEnum::Array(ConfigArray { values })) => {
                 serde_yaml::Value::Sequence(values.into_iter().map(Into::into).collect())
             }
-            Some(config_item::ConfigItem::Object(ConfigObject { fields })) => {
+            Some(config_item::ConfigItemEnum::Object(ConfigObject { fields })) => {
                 serde_yaml::Value::Mapping(
                     fields
                         .into_iter()
@@ -91,7 +93,7 @@ impl From<ConfigItem> for serde_yaml::Value {
 mod tests {
     use serde_yaml::Value;
 
-    use crate::ank_base::{config_item, ConfigArray, ConfigItem, ConfigObject};
+    use crate::ank_base::{ConfigArray, ConfigItem, ConfigObject, config_item};
 
     const YAML_CONFIG_EXAMPLE: &str = r#"
 - string_value
@@ -131,13 +133,13 @@ mod tests {
 
     fn string(str: &str) -> ConfigItem {
         ConfigItem {
-            config_item: Some(config_item::ConfigItem::String(str.to_string())),
+            config_item_enum: Some(config_item::ConfigItemEnum::String(str.to_string())),
         }
     }
 
     fn array<const N: usize>(array: [ConfigItem; N]) -> ConfigItem {
         ConfigItem {
-            config_item: Some(config_item::ConfigItem::Array(ConfigArray {
+            config_item_enum: Some(config_item::ConfigItemEnum::Array(ConfigArray {
                 values: array.to_vec(),
             })),
         }
@@ -145,7 +147,7 @@ mod tests {
 
     fn object<const N: usize>(object: [(&str, ConfigItem); N]) -> ConfigItem {
         ConfigItem {
-            config_item: Some(config_item::ConfigItem::Object(ConfigObject {
+            config_item_enum: Some(config_item::ConfigItemEnum::Object(ConfigObject {
                 fields: object
                     .into_iter()
                     .map(|(key, value)| (key.to_string(), value))
@@ -171,13 +173,13 @@ mod tests {
     #[test]
     fn utest_convert_none_from_yaml() {
         let parsed_config: ConfigItem = serde_yaml::from_str("null").unwrap();
-        let expected_config = ConfigItem { config_item: None };
+        let expected_config = ConfigItem { config_item_enum: None };
         assert_eq!(parsed_config, expected_config);
     }
 
     #[test]
     fn utest_convert_none_to_yaml() {
-        let serialized_config = serde_yaml::to_string(&ConfigItem { config_item: None }).unwrap();
+        let serialized_config = serde_yaml::to_string(&ConfigItem { config_item_enum: None }).unwrap();
         let expected_yaml = "null\n";
         assert_eq!(serialized_config, expected_yaml);
     }
