@@ -583,7 +583,6 @@ The Common library shall provide a method for expanding paths containing wildcar
 
 Comment:
 The result is a list of all paths valid for the given object, resulting from replacing wildcard segments with any possible segment.
-The result is a list of all paths valid for the given object, resulting from replacing wildcard segments with any possible segment.
 
 Tags:
 - CommonStateManipulation
