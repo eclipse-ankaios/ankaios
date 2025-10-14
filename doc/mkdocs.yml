@@ -3,7 +3,7 @@ site_url: https://eclipse-ankaios.github.io/ankaios
 repo_url: https://github.com/eclipse-ankaios/ankaios
 repo_name: eclipse-ankaios/ankaios
 edit_uri: edit/main/doc/docs/
-copyright: Copyright &copy; 2023 Elektrobit Automotive GmbH
+copyright: Copyright &copy; 2023-2025 Elektrobit Automotive GmbH and others
 
 theme:
   name: material
@@ -66,6 +66,9 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 plugins:
   - social
@@ -82,6 +85,9 @@ plugins:
 extra:
   version:
     provider: mike
+
+extra_css:
+  - stylesheets/extra.css
 
 nav:
   - index.md
