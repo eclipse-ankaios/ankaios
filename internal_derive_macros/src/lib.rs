@@ -30,6 +30,7 @@ pub fn add_field(attr: TokenStream, item: TokenStream) -> TokenStream {
         internal_derive,
         internal_type_attr,
         internal_field_attr,
+        internal_skip_try_from,
     )
 )]
 pub fn derive_internal(input: TokenStream) -> TokenStream {

@@ -53,11 +53,15 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
         }
     }
 
+    let internal_skip_try_from = has_skip_try_from(&input.attrs);
+
     let internal_quoted_type_attrs = if !internal_type_attrs.is_empty() {
         Some(quote! { #(#internal_type_attrs )* })
     } else {
         None
     };
+
+    // TODO add getter for the added fields for the internal struct.
 
     println!(
         "internal_quoted_type_attrs: {}",
@@ -87,25 +91,22 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                 // #[prost(enumeration = "ReadWriteEnum", tag = "1")] in this case ReadWriteEnumInternal
                 // or none if no such annotation was found
 
-                println!("I'm not here -1");
                 if let Some(prost_enum_type) = get_prost_enum_type(&field.attrs) {
                     is_prost_num_field = true;
-                    println!("I'm not here0");
                     // new_ty = to_internal_type(&prost_enum_type);
                     new_ty = Type::Path(prost_enum_type);
                     if is_option_type(&field.ty) && !mandatory {
-                        println!("I'm not here");
                         new_ty = wrap_in_option(new_ty);
-                        println!("I'm not here 2");
                     }
                 }
-                println!("I'm here 1");
                 // add field to Internal struct
                 internal_fields.push(quote! {
                     #(#internal_field_attrs )*
                     pub #field_name: #new_ty
                 });
-                println!("I'm here 2");
+
+                // TODO Add each fields added by the macro inside the internal_fields vector
+
                 let Type::Path(tp) = &field.ty else {
                     return syn::Error::new_spanned(
                         field_name,
@@ -115,13 +116,10 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                     .into();
                 };
 
-                println!("I'm here 3");
-
                 // TODO: this looks way to complicated, we need so simplify it according to the use-case at hand
                 // The current general solution is too complex and hard to maintain for our purposes
                 // conversion logic
                 if is_option_type_path(tp) {
-                    println!("!!!!!!!!!!!!!!!!!!optionType");
                     // Option<inner>
                     let inner = extract_inner(tp);
                     if mandatory {
@@ -169,9 +167,7 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                     // } else
                     // plain type
 
-                    println!("!!!!!!!!!!!!!!!!!!2");
                     if is_prost_num_field || is_custom_type_path(tp) {
-                        println!("!!!!!!!!!!!!!!!!!!3");
                         // if mandatory {
                         try_from_inits.push(quote! {
                                 // TODO fix the message
@@ -208,7 +204,6 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                             #field_name: orig.#field_name.into_iter().map(|(k, v)| (k.clone(), v.into())).collect()
                         });
                     } else {
-                        println!("!!!!!!!!!!!!!!!!!!4");
                         try_from_inits.push(quote! {
                             #field_name: orig.#field_name
                         });
@@ -224,28 +219,46 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
             // * the implementation of the try_from_inits (only the internal code inside the function)
             // * the implementation of the from_inits (only the internal code inside the function)
 
-            let expanded = quote! {
+            let expanded = if internal_skip_try_from {
+                quote! {
+                    #internal_quoted_derives
+                    #internal_quoted_type_attrs
+                    #vis struct #internal_name {
+                        #(#internal_fields, )*
+                    }
 
-                #internal_quoted_derives
-                #internal_quoted_type_attrs
-                #vis struct #internal_name {
-                    #(#internal_fields, )*
-                }
-
-                impl std::convert::TryFrom<#orig_name> for #internal_name {
-                    type Error = String;
-
-                    fn try_from(orig: #orig_name) -> Result<Self, Self::Error> {
-                        Ok(#internal_name {
-                            #(#try_from_inits, )*
-                        })
+                    impl From<#internal_name> for #orig_name {
+                        fn from(orig: #internal_name) -> Self {
+                            #orig_name {
+                                #(#from_inits, )*
+                            }
+                        }
                     }
                 }
+            } else {
+                quote! {
 
-                impl From<#internal_name> for #orig_name {
-                    fn from(orig: #internal_name) -> Self {
-                        #orig_name {
-                            #(#from_inits, )*
+                    #internal_quoted_derives
+                    #internal_quoted_type_attrs
+                    #vis struct #internal_name {
+                        #(#internal_fields, )*
+                    }
+
+                    impl std::convert::TryFrom<#orig_name> for #internal_name {
+                        type Error = String;
+
+                        fn try_from(orig: #orig_name) -> Result<Self, Self::Error> {
+                            Ok(#internal_name {
+                                #(#try_from_inits, )*
+                            })
+                        }
+                    }
+
+                    impl From<#internal_name> for #orig_name {
+                        fn from(orig: #internal_name) -> Self {
+                            #orig_name {
+                                #(#from_inits, )*
+                            }
                         }
                     }
                 }
@@ -469,14 +482,10 @@ fn pascal_to_snake_case(s: &str) -> String {
 
 fn get_prost_enum_type(attrs: &[Attribute]) -> Option<TypePath> {
     for attr in attrs {
-        println!("I'm at 1");
-
         // Check if this is a #[prost(...)] attribute
         if !attr.path().is_ident("prost") {
             continue;
         }
-
-        println!("I'm at 2");
 
         // Parse the attribute's arguments as a list of Meta items
         let Ok(nested) = attr
@@ -485,14 +494,10 @@ fn get_prost_enum_type(attrs: &[Attribute]) -> Option<TypePath> {
             continue;
         };
 
-        println!("I'm at 4");
-
         for meta in nested {
-            println!("I'm at 5");
             // Look for enumeration = "ReadWriteEnum"
             if let Meta::NameValue(MetaNameValue { path, value, .. }) = meta {
                 if path.is_ident("enumeration") {
-                    println!("I'm at 6");
                     if let Expr::Lit(expr_lit) = value {
                         if let Lit::Str(lit_str) = expr_lit.lit {
                             let enum_name = lit_str.value();
@@ -532,6 +537,12 @@ fn has_mandatory_attr(attrs: &[Attribute]) -> bool {
         .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("internal_mandatory")))
 }
 
+fn has_skip_try_from(attrs: &[Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("internal_skip_try_from")))
+}
+
 fn has_enum_named_attr(attrs: &[Attribute]) -> bool {
     attrs
         .iter()
@@ -560,9 +571,9 @@ fn is_option_type(ty: &Type) -> bool {
 }
 
 fn is_option_type_path(tp: &TypePath) -> bool {
-    for segment in &tp.path.segments {
-        println!("Checking segment: {}", segment.ident);
-    }
+    // for segment in &tp.path.segments {
+    //     println!("Checking segment: {}", segment.ident);
+    // }
 
     !tp.path.segments.is_empty() && tp.path.segments.last().unwrap().ident == "Option"
 }
