@@ -44,3 +44,24 @@ Test Ankaios CLI update workload
     Then the workload "simple" shall not exist on agent "agent_A" within "20" seconds
     And podman shall not have a container for workload "simple" on agent "agent_A"
     [Teardown]    Clean up Ankaios
+
+#[stest->swdd~server-filters-get-complete-state-result-with-wildcards~1]
+Test Ankaios CLI get workloads with wildcard
+    [Setup]    Run Keywords    Setup Ankaios
+    ...    AND    Set Global Variable    ${default_state_yaml_file}     ${CONFIGS_DIR}/default.yaml
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with config "${default_state_yaml_file}"
+    And Ankaios agent is started with name "agent_A"
+    And all workloads of agent "agent_A" have an initial execution state
+    # Actions
+    And user triggers "ank -k get state -o json 'desiredState.workloads.*.agent' 'desiredState.workloads.*.runtime'"
+    # Asserts
+    Then the last command shall contain the workload "sleepy"
+    And the last command shall contain the workload "hello1"
+    And the last command shall contain the workload "hello2"
+    And the last command shall contain the workload "hello3"
+    And the last command shall only contain agent and runtime
+    # And the last command shall only return the agent of the workloads
+    [Teardown]    Clean up Ankaios
