@@ -88,7 +88,6 @@ impl<'a> CliCommand<'a> {
 
         let stderr = child.stderr.take().unwrap();
         let program_str = self.program.clone();
-        log::debug!("Executing command: {program_str}");
         let stderr_handle = tokio::spawn(async move {
             use tokio::io::AsyncBufReadExt;
             let mut stderr_buffer = Vec::new();
