@@ -69,12 +69,52 @@ impl<'a> CliCommand<'a> {
                 .await
                 .map_err(|err| format!("Could write stdin data to command: '{err}'"))?;
         }
-        let result = child.wait_with_output().await.unwrap();
-        if result.status.success() {
-            String::from_utf8(result.stdout)
+
+        let stdout = child.stdout.take().unwrap();
+        let program_str = self.program.clone();
+        let stdout_handle = tokio::spawn(async move {
+            use tokio::io::AsyncBufReadExt;
+            let mut stdout_buffer = Vec::new();
+            let mut stdout_reader = tokio::io::BufReader::new(stdout).lines();
+            while let Ok(Some(mut line)) = stdout_reader.next_line().await {
+                if program_str == "nerdctl" {
+                    log::debug!("stdout: {line}",);
+                }
+                line.push('\n');
+                stdout_buffer.extend_from_slice(line.as_bytes());
+            }
+            stdout_buffer
+        });
+
+        let stderr = child.stderr.take().unwrap();
+        let program_str = self.program.clone();
+        log::debug!("Executing command: {program_str}");
+        let stderr_handle = tokio::spawn(async move {
+            use tokio::io::AsyncBufReadExt;
+            let mut stderr_buffer = Vec::new();
+            let mut stderr_reader = tokio::io::BufReader::new(stderr).lines();
+            while let Ok(Some(mut line)) = stderr_reader.next_line().await {
+                if program_str == "nerdctl" {
+                    log::debug!("stderr: {line}",);
+                }
+                line.push('\n');
+                stderr_buffer.extend_from_slice(line.as_bytes());
+            }
+            stderr_buffer
+        });
+
+        let exit_status = child.wait().await.unwrap();
+        let stdout_buffer = stdout_handle
+            .await
+            .map_err(|err| format!("Could not join stdout task: '{err}'"))?;
+        let stderr_buffer = stderr_handle
+            .await
+            .map_err(|err| format!("Could not join stderr task: '{err}'"))?;
+        if exit_status.success() {
+            String::from_utf8(stdout_buffer)
                 .map_err(|err| format!("Could not decode command's output as UTF8: '{err}'"))
         } else {
-            let stderr = String::from_utf8(result.stderr).unwrap_or_else(|err| {
+            let stderr = String::from_utf8(stderr_buffer).unwrap_or_else(|err| {
                 format!("Could not decode command's stderr as UTF8: '{err}'")
             });
 
