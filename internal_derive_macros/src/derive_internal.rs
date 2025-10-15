@@ -147,7 +147,7 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                     } else if is_prost_num_field || is_custom_type(&inner) {
                         try_from_inits.push(quote! {
                             #field_name: match orig.#field_name {
-                                Some(v) => Some(v.try_into()?),
+                                Some(v) => Some(v.try_into().map_err(|_| "Cannot convert {#field_name} to internal object.".to_string())?),
                                 None => None,
                             }
                         });
