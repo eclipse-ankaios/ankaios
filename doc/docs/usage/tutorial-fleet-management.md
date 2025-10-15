@@ -13,7 +13,7 @@ To connect the vehicles to the cloud, we use an MQTT connection. Each vehicle co
 </figure>
 
 To complete this tutorial, you will need a Linux platform, which can be a WSL2, RaspberryPi, a Linux PC or a virtual machine.
-It's also assumed that the Ankaios setup is done with mutual TLS (mTLS) disabled or using the default installation settings.
+It's also assumed that the Ankaios setup has been performed using the default [installation](installation.md) script.
 
 ## MQTT broker
 
@@ -192,7 +192,7 @@ sudo systemctl start ank-server ank-agent
 And we check that the fleet connector is up and running with:
 
 ```shell
-ank -k get workloads
+ank get workloads
 ```
 
 ## Remote installation of a vehicle data sender
