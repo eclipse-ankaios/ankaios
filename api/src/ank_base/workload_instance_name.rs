@@ -17,8 +17,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::ank_base::WorkloadInstanceNameInternal;
-// use crate::ank_base::{WorkloadInstanceNameInternal, WorkloadInternal};
+use crate::ank_base::{WorkloadInstanceNameInternal, WorkloadInternal};
 
 // This could be std::mem::variant_count::<WorkloadExecutionInstanceParts>(),
 // but the function is still in only nightly ...
@@ -48,11 +47,11 @@ impl ConfigHash for String {
     }
 }
 
-// impl ConfigHash for WorkloadInternal {
-//     fn hash_config(&self) -> String {
-//         self.runtime_config.as_ref().unwrap().hash_config()
-//     }
-// }
+impl ConfigHash for WorkloadInternal {
+    fn hash_config(&self) -> String {
+        self.runtime_config.hash_config()
+    }
+}
 
 impl WorkloadInstanceNameInternal {
     pub fn new(

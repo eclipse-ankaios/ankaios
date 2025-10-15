@@ -17,11 +17,6 @@ use crate::ank_base::{
 };
 use std::collections::{HashMap, hash_map::Entry};
 
-// Temporary struct until WorkloadInternal is implemented
-pub struct WorkloadInternal {
-    pub instance_name: crate::ank_base::WorkloadInstanceNameInternal,
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentLoadStatus {
     pub agent_name: String,
@@ -88,11 +83,13 @@ pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMapInterna
 }
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_agent_map_from_specs(workloads: &[WorkloadInternal]) -> AgentMapInternal {
+pub fn generate_test_agent_map_from_specs(
+    workloads: &[crate::ank_base::WorkloadInternal],
+) -> AgentMapInternal {
     workloads
         .iter()
         .fold(AgentMapInternal::new(), |mut agent_map, spec| {
-            let agent_name = spec.instance_name.agent_name();
+            let agent_name = &spec.agent;
             agent_map
                 .entry(agent_name.to_owned())
                 .or_insert(AgentAttributesInternal {
