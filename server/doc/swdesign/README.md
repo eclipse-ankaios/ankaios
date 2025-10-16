@@ -553,6 +553,22 @@ Needs:
 - impl
 - utest
 
+##### Server filters GetCompleteState requests with wildcards
+`swdd~server-filters-get-complete-state-result-with-wildcards~1`
+
+Status: approved
+
+When the Ankaios Server responses to a GetCompleteState with `field_mask` containing wildcards,
+the wildcards segment of the `field_mask` match all possible values on this level.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
+
 ##### Server includes RequestID in the ControlInterface response
 `swdd~server-includes-id-in-control-interface-response~1`
 
