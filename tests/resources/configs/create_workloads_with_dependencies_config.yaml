@@ -1,4 +1,4 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   logger:
     runtime: podman
@@ -7,8 +7,7 @@ workloads:
     dependencies:
       storage_provider: ADD_COND_RUNNING
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
@@ -20,8 +19,7 @@ workloads:
     dependencies:
       filesystem_init: ADD_COND_SUCCEEDED
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
@@ -31,8 +29,7 @@ workloads:
     agent: agent_B
     restartPolicy: NEVER
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
@@ -44,8 +41,7 @@ workloads:
     dependencies:
       storage_provider: ADD_COND_FAILED
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "echo", "Send error notifications."]

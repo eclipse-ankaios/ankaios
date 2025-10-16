@@ -1,9 +1,9 @@
 desiredState:
-  apiVersion: v0.1
+  apiVersion: v1
   workloads:
     greeting_person:
       agent: agent_A
-      tags: []
+      tags: {}
       dependencies: {}
       restartPolicy: NEVER
       runtime: podman
@@ -14,7 +14,7 @@ desiredState:
         person: person
     nginx:
       agent: '{{agent.agent_name}}'
-      tags: []
+      tags: {}
       dependencies: {}
       restartPolicy: NEVER
       runtime: podman

@@ -5,8 +5,9 @@ workloads:
     agent: agent_A
     restartPolicy: ON_FAILURE
     tags:
-      - key: owner
-        value: Ankaios team
+      - key: test
+        value: this
+      # owner: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
       commandOptions: ["-p", "8081:80"]
@@ -30,6 +31,7 @@ workloads:
     agent: agent_B
     restartPolicy: ON_FAILURE
     tags:
+      # owner: Ankaios team
       - key: owner
         value: Ankaios team
     runtimeConfig: |
@@ -41,6 +43,7 @@ workloads:
     agent: agent_A
     restartPolicy: NEVER
     tags:
+      # owner: Ankaios team
       - key: owner
         value: Ankaios team
     runtimeConfig: |
@@ -53,6 +56,7 @@ workloads:
     tags:
       - key: owner
         value: Ankaios team
+      # owner: Ankaios team
     runtimeConfig: |
       manifest: |
         apiVersion: v1

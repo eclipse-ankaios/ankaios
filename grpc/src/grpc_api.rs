@@ -116,7 +116,7 @@ impl TryFrom<AddedWorkload> for objects::WorkloadSpec {
             restart_policy: workload.restart_policy.try_into()?,
             runtime: workload.runtime,
             instance_name: workload.instance_name.ok_or("No instance name")?.into(),
-            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            tags: workload.tags.into_iter().collect(),
             runtime_config: workload.runtime_config,
             control_interface_access: workload
                 .control_interface_access
@@ -144,7 +144,7 @@ impl From<objects::WorkloadSpec> for AddedWorkload {
             restart_policy: workload.restart_policy as i32,
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
-            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            tags: workload.tags.into_iter().collect(),
             files: workload.files.into_iter().map(Into::into).collect(),
             control_interface_access: workload.control_interface_access.into(),
         }
@@ -201,11 +201,11 @@ pub fn generate_test_failed_update_workload_state(
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{generate_test_proto_deleted_workload, AddedWorkload, DeletedWorkload};
+    use crate::{AddedWorkload, DeletedWorkload, generate_test_proto_deleted_workload};
 
     use api::ank_base::{self};
     use common::{
-        objects::{generate_test_rendered_workload_files, generate_test_workload_spec, ConfigHash},
+        objects::{ConfigHash, generate_test_rendered_workload_files, generate_test_workload_spec},
         test_utils::generate_test_deleted_workload,
     };
 
@@ -269,10 +269,7 @@ mod tests {
             restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: workload_spec.runtime_config.clone(),
-            tags: vec![ank_base::Tag {
-                key: "key".into(),
-                value: "value".into(),
-            }],
+            tags: HashMap::from([("key".into(), "value".into())]),
             control_interface_access: Default::default(),
             files: vec![
                 ank_base::File {
@@ -310,7 +307,7 @@ mod tests {
                 .agent_name("agent")
                 .workload_name("name")
                 .build(),
-            tags: vec![],
+            tags: HashMap::new(),
             runtime_config: String::from("some config"),
             control_interface_access: Default::default(),
             files: generate_test_rendered_workload_files(),
@@ -335,7 +332,7 @@ mod tests {
             restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
-            tags: vec![],
+            tags: HashMap::new(),
             control_interface_access: Default::default(),
             files: vec![
                 ank_base::File {
@@ -378,7 +375,7 @@ mod tests {
             restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
-            tags: vec![],
+            tags: HashMap::new(),
             control_interface_access: Default::default(),
             files: Default::default(),
         };

@@ -1,12 +1,11 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   sleepy:
     runtime: containerd
     agent: agent_A
     restartPolicy: NEVER
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/sleepy:latest
   hello2:
@@ -14,8 +13,7 @@ workloads:
     agent: agent_B
     restartPolicy: NEVER
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]
@@ -24,8 +22,7 @@ workloads:
     agent: agent_B
     restartPolicy: NEVER
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]

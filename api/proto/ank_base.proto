@@ -314,7 +314,7 @@ message Workload {
     optional string agent = 1; /// The name of the owning Agent.
     optional RestartPolicy restartPolicy = 2; /// An enum value that defines the condition under which a workload is restarted.
     Dependencies dependencies = 3; /// A map of workload names and expected states to enable a synchronized start of the workload.
-    Tags tags = 4; /// A list of tag names.
+    Tags tags = 4; /// A map of tag names.
     optional string runtime = 5; /// The name of the runtime e.g. podman.
     optional string runtimeConfig  = 6; /// The configuration information specific to the runtime.
     ControlInterfaceAccess controlInterfaceAccess = 7;
@@ -323,10 +323,10 @@ message Workload {
 }
 
 /**
-* This is a workaround for proto not supporting optional repeated values
+* This is a workaround for proto not supporting optional maps
 */
 message Tags {
-    repeated Tag tags = 1;
+    map<string, string> tags = 1;
 }
 
 /**
@@ -334,14 +334,6 @@ message Tags {
 */
 message Dependencies {
     map<string, AddCondition> dependencies = 1;
-}
-
-/**
-* A message to store a tag.
-*/
-message Tag {
-    string key = 1; /// The key of the tag.
-    string value = 2; /// The value of the tag.
 }
 
 /**

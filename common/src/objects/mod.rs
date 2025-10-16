@@ -18,15 +18,15 @@
 
 pub mod state;
 pub use state::State;
-pub use state::CURRENT_API_VERSION;
+pub use state::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 
 mod complete_state;
 pub use complete_state::CompleteState;
 
 mod agent_map;
+pub use agent_map::{AgentAttributes, AgentMap, CpuUsage, FreeMemory};
 #[cfg(any(feature = "test_utils", test))]
 pub use agent_map::{generate_test_agent_map, generate_test_agent_map_from_specs};
-pub use agent_map::{AgentAttributes, AgentMap, CpuUsage, FreeMemory};
 
 mod workload_states_map;
 pub use workload_states_map::WorkloadStatesMap;
@@ -45,17 +45,18 @@ pub use stored_workload_spec::{
 pub use stored_workload_spec::{StoredWorkloadSpec, STR_RE_CONFIG_REFERENCES};
 
 mod workload_state;
+pub use workload_state::{
+    ExecutionState, ExecutionStateEnum, FailedSubstate, NO_MORE_RETRIES_MSG, PendingSubstate,
+    RunningSubstate, StoppingSubstate, SucceededSubstate, WorkloadState,
+};
 #[cfg(any(feature = "test_utils", test))]
 pub use workload_state::{
     generate_test_workload_state, generate_test_workload_state_with_agent,
     generate_test_workload_state_with_workload_spec,
 };
-pub use workload_state::{
-    ExecutionState, ExecutionStateEnum, FailedSubstate, PendingSubstate, RunningSubstate,
-    StoppingSubstate, SucceededSubstate, WorkloadState, NO_MORE_RETRIES_MSG,
-};
 
 mod workload_spec;
+pub use workload_spec::{ALLOWED_SYMBOLS, STR_RE_AGENT};
 #[cfg(any(feature = "test_utils", test))]
 pub use workload_spec::{
     generate_test_runtime_config, generate_test_workload_spec,
@@ -64,16 +65,12 @@ pub use workload_spec::{
     generate_test_workload_spec_with_rendered_files,
     generate_test_workload_spec_with_runtime_config,
 };
-pub use workload_spec::{ALLOWED_SYMBOLS, STR_RE_AGENT};
 
 pub use workload_spec::{
-    get_workloads_per_agent, verify_workload_name_format, AddCondition, DeleteCondition,
-    DeletedWorkload, DeletedWorkloadCollection, FulfilledBy, RestartPolicy, WorkloadCollection,
-    WorkloadSpec,
+    AddCondition, DeleteCondition, DeletedWorkload, DeletedWorkloadCollection, FulfilledBy,
+    RestartPolicy, WorkloadCollection, WorkloadSpec, get_workloads_per_agent,
+    verify_workload_name_format,
 };
-
-mod tag;
-pub use tag::Tag;
 
 mod workload_instance_name;
 #[cfg(any(feature = "test_utils", test))]
@@ -91,9 +88,9 @@ pub use control_interface_access::{
 };
 
 mod config;
+pub use config::ConfigItem;
 #[cfg(any(feature = "test_utils", test))]
 pub use config::generate_test_configs;
-pub use config::ConfigItem;
 
 mod file;
 #[cfg(any(feature = "test_utils", test))]

@@ -30,14 +30,14 @@ The [control interface](./control-interface.md) enables a [workload](glossary.md
 
 Ankaios authorizes each workload's request to the control interface based on its `controlInterfaceAccess` configuration. If not set, all actions are denied. The authorization uses allow and deny rules to specify the permitted operations, where rules can be of type `StateRule` or `LogRule`.
 
-`StateRule`s authorize the reading and/or the updating (writing) of the CompleteState. Additionally to the operation, a `StateRule` defines the target of the rule using a filter mask. A filter mask describes a path in the CompleteState object, where segments are divided by the '.' symbol and can also be generalized with the wildcard character '*', e.g., `desiredState.workloads.*.tag` allows access to the tags of all workloads.
+`StateRule`s authorize the reading and/or the updating (writing) of the CompleteState. Additionally to the operation, a `StateRule` defines the target of the rule using a filter mask. A filter mask describes a path in the CompleteState object, where segments are divided by the '.' symbol and can also be generalized with the wildcard character '*', e.g., `desiredState.workloads.*.tags` allows access to the tags of all workloads.
 
 `LogRule`s authorize requesting logs of workloads. A `LogRule` defines the names of workloads that it targets, where a wildcard can be used to match multiple names with a single statement. If only a wildcard is specified, i.e., `*`, all workload names match. Prefixes and/or suffixes can be matched by specifying multiple characters and a wildcard, where only a single wildcard is allowed per statement, e.g., "ivi_*"
 
 The following example shows the manifest for the workload `watchdog` with read access to all workload tags beside "ivi_updater" and log access to all workloads starting with "ivi_" beside "ivi_updater":
 
 ```bash
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   watchdog:
     ...
@@ -46,7 +46,7 @@ workloads:
       - type: StateRule
         operation: Read
         filterMask:
-          - "desiredState.workloads.*.tag"
+          - "desiredState.workloads.*.tags"
       - type: LogRule
         workloadNames:
           - "ivi_*"
@@ -163,11 +163,7 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
                 runtime: Some("podman".to_string()),
                 agent: Some("agent_A".to_string()),
                 restart_policy: Some(RestartPolicy::Never.into()),
-                tags: Some(Tags {
-                    tags: vec![Tag {
-                        key: "owner".to_string(),
-                        value: "Ankaios team".to_string(),
-                    }],
+                tags: HashMap::from([("owner".to_string(), "Ankaios team".to_string())]),
                 }),
                 runtime_config: Some(
                     "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
@@ -189,7 +185,7 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
                 UpdateStateRequest {
                     new_state: Some(CompleteState {
                         desired_state: Some(State {
-                            api_version: "v0.1".into(),
+                            api_version: "v1".into(),
                             workloads: new_workloads,
                             ..Default::default()
                         }),

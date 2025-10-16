@@ -1,4 +1,4 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   frontend:
     runtime: podman
@@ -7,8 +7,7 @@ workloads:
     dependencies:
       backend: ADD_COND_RUNNING
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/sleepy:latest
   backend:
@@ -16,7 +15,6 @@ workloads:
     agent: agent_A
     restartPolicy: NEVER
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/sleepy:latest
