@@ -35,7 +35,7 @@ The Ankaios server will read the config but detect that no agent with the name
 `agent_A` is available that could start the workload, see logs with:
 
 ```shell
-journalctl -t ank-server
+sudo journalctl -t ank-server
 ```
 
 Now let's start an agent:
