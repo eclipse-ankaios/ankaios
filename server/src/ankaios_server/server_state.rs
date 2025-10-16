@@ -26,16 +26,27 @@ use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
     objects::{CompleteState, DeletedWorkload, WorkloadSpec},
-    state_manipulation::{Object, Path},
+    state_manipulation::{FieldDifference, Object, Path},
 };
 use std::fmt::Display;
 
 #[cfg(test)]
 use mockall::automock;
 
+pub struct StateComparator {
+    old_state: Object,
+    state_from_update: Object,
+}
+
+impl StateComparator {
+    pub fn state_differences(&self) -> Vec<FieldDifference> {
+        self.old_state
+            .calculate_state_differences(&self.state_from_update)
+    }
+}
+
 pub struct StateGenerationResult {
-    pub old_state: Object,
-    pub state_from_update: Object,
+    pub state_comparator: StateComparator,
     pub new_desired_state: State,
 }
 
@@ -276,19 +287,20 @@ impl ServerState {
         update_mask: Vec<String>,
     ) -> Result<StateGenerationResult, UpdateStateError> {
         // [impl->swdd~update-desired-state-with-update-mask~1]
-        let old_state: Object = (&self.state.desired_state).try_into().map_err(|err| {
+        let old_state: Object = (&self.state).try_into().map_err(|err| {
             UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{err}'"))
         })?;
-        let state_from_update: Object =
-            (&updated_state.desired_state).try_into().map_err(|err| {
-                UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{err}'"))
-            })?;
+        let state_from_update: Object = (&updated_state).try_into().map_err(|err| {
+            UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{err}'"))
+        })?;
 
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         if update_mask.is_empty() {
             return Ok(StateGenerationResult {
-                old_state,
-                state_from_update,
+                state_comparator: StateComparator {
+                    old_state,
+                    state_from_update,
+                },
                 new_desired_state: updated_state.desired_state,
             });
         }
@@ -311,8 +323,10 @@ impl ServerState {
         })?;
 
         Ok(StateGenerationResult {
-            old_state,
-            state_from_update,
+            state_comparator: StateComparator {
+                old_state,
+                state_from_update,
+            },
             new_desired_state: new_state.desired_state,
         })
     }

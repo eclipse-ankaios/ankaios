@@ -19,17 +19,14 @@ mod log_campaign_store;
 mod server_state;
 
 use api::ank_base;
+use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::objects::{
     AgentMap, CompleteState, DeletedWorkload, ExecutionState, State, WorkloadInstanceName,
     WorkloadState, WorkloadStatesMap,
 };
-use common::{
-    commands::{Request, UpdateWorkload},
-    state_manipulation::Object,
-};
 
-use server_state::{AddedDeletedWorkloads, StateGenerationResult};
+use server_state::{AddedDeletedWorkloads, StateComparator};
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -98,9 +95,8 @@ impl AnkaiosServer {
                 .update(state_generation_result.new_desired_state)
             {
                 Ok(Some(added_deleted_workloads)) => {
-                    let field_differences = state_generation_result
-                        .old_state
-                        .calculate_state_differences(&state_generation_result.state_from_update);
+                    let field_differences =
+                        state_generation_result.state_comparator.state_differences();
 
                     // TODO: sent only when event subscribers exist
                     if !field_differences.is_empty() {
@@ -300,11 +296,7 @@ impl AnkaiosServer {
 
                         // [impl->swdd~update-desired-state-with-update-mask~1]
                         // [impl->swdd~update-desired-state-empty-update-mask~1]
-                        let StateGenerationResult {
-                            old_state,
-                            state_from_update,
-                            new_desired_state,
-                        } = match self.server_state.generate_new_state(
+                        let state_generation_result = match self.server_state.generate_new_state(
                             update_state_request.state,
                             update_state_request.update_mask,
                         ) {
@@ -319,13 +311,15 @@ impl AnkaiosServer {
                             }
                         };
 
-                        match self.server_state.update(new_desired_state) {
+                        match self
+                            .server_state
+                            .update(state_generation_result.new_desired_state)
+                        {
                             Ok(Some(added_deleted_workloads)) => {
                                 self.handle_post_update_steps(
                                     request_id,
                                     added_deleted_workloads,
-                                    old_state,
-                                    state_from_update,
+                                    &state_generation_result.state_comparator,
                                 )
                                 .await;
                             }
@@ -457,13 +451,12 @@ impl AnkaiosServer {
         &mut self,
         request_id: String,
         added_deleted_workloads: AddedDeletedWorkloads,
-        old_state: Object,
-        state_from_update: Object,
+        state_comparator: &StateComparator,
     ) {
         // [impl->swdd~server-calculates-state-differences-for-events~1]
         // TODO: determine state differences only when event subscribers exist
         // state changes must be calculated after every update since only config item can be changed as well
-        let state_differences = old_state.calculate_state_differences(&state_from_update);
+        let state_differences = state_comparator.state_differences();
 
         if !state_differences.is_empty() {
             log::debug!("Found '{}' state differences", state_differences.len());
