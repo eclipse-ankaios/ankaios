@@ -29,25 +29,14 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
     let vis = input.vis.clone();
     let internal_name = format_ident!("{}Internal", orig_name);
 
-    let mut internal_derives = Vec::new();
+    let mut internal_type_attrs = Vec::new();
     for attr in &input.attrs {
         if let Meta::List(meta_list) = &attr.meta {
             if meta_list.path.is_ident("internal_derive") {
                 let parsed = syn::parse2::<DeriveList>(meta_list.tokens.clone()).unwrap();
-                internal_derives.extend(parsed.0.into_iter());
-            }
-        }
-    }
-    let internal_quoted_derives = if !internal_derives.is_empty() {
-        Some(quote! { #[derive(#(#internal_derives),*)] })
-    } else {
-        None
-    };
-
-    let mut internal_type_attrs = Vec::new();
-    for attr in &input.attrs {
-        if let Meta::List(meta_list) = &attr.meta {
-            if meta_list.path.is_ident("internal_type_attr") {
+                let derive_list: Vec<Path> = parsed.0.into_iter().collect();
+                internal_type_attrs.push(quote! { #[derive(#(#derive_list),*)] });
+            } else if meta_list.path.is_ident("internal_type_attr") {
                 internal_type_attrs.push(meta_list.tokens.clone());
             }
         }
@@ -55,18 +44,9 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
 
     let internal_skip_try_from = has_skip_try_from(&input.attrs);
 
-    let internal_quoted_type_attrs = if !internal_type_attrs.is_empty() {
-        Some(quote! { #(#internal_type_attrs )* })
-    } else {
-        None
-    };
-
     // TODO add getter for the added fields for the internal struct.
 
-    println!(
-        "internal_quoted_type_attrs: {}",
-        internal_quoted_type_attrs.clone().unwrap_or_default()
-    );
+    println!("internal_type_attrs: {:?}", internal_type_attrs.clone());
 
     match input.data {
         Data::Struct(DataStruct {
@@ -221,8 +201,7 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
 
             let expanded = if internal_skip_try_from {
                 quote! {
-                    #internal_quoted_derives
-                    #internal_quoted_type_attrs
+                    #(#internal_type_attrs )*
                     #vis struct #internal_name {
                         #(#internal_fields, )*
                     }
@@ -237,9 +216,7 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                 }
             } else {
                 quote! {
-
-                    #internal_quoted_derives
-                    #internal_quoted_type_attrs
+                    #(#internal_type_attrs )*
                     #vis struct #internal_name {
                         #(#internal_fields, )*
                     }
@@ -420,9 +397,7 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
             }
 
             let expanded = quote! {
-
-                #internal_quoted_derives
-                #internal_quoted_type_attrs
+                #(#internal_type_attrs )*
                 #vis enum #internal_name {
                     #(#internal_variants,)*
             }

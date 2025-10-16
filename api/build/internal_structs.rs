@@ -67,20 +67,20 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
         .type_attribute("Workload", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "Workload",
+            "#[internal_skip_try_from]",
+        )
+        .type_attribute(
+            "Workload",
+            "#[internal_type_attr(#[internal_derive_macros::add_field(name = \"workload_instance_name\", ty = \"WorkloadInstanceNameInternal\")])]",
+        )
+        .type_attribute(
+            "Workload",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]", // Default
         )
         .type_attribute(
             "Workload",
             "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
-        // .type_attribute(
-        //     "Workload",
-        //     "#[internal_skip_try_from]",
-        // )
-        // .type_attribute(
-        //     "Workload",
-        //     "#[internal_type_attr(#[internal_derive_macros::add_field(name = \"workload_instance_name\", ty = \"WorkloadInstanceNameInternal\")])]",
-        // )
         .field_attribute("Workload.agent", "#[internal_mandatory]")
         .field_attribute("Workload.restartPolicy", "#[internal_mandatory]")
         .field_attribute("Workload.dependencies", "#[internal_mandatory]")
