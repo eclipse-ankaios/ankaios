@@ -280,13 +280,9 @@ impl ServerState {
             UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{err}'"))
         })?;
         let state_from_update: Object =
-            updated_state
-                .desired_state
-                .clone()
-                .try_into()
-                .map_err(|err| {
-                    UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{err}'"))
-                })?;
+            (&updated_state.desired_state).try_into().map_err(|err| {
+                UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{err}'"))
+            })?;
 
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         if update_mask.is_empty() {
