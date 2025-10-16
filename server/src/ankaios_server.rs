@@ -19,12 +19,17 @@ mod log_campaign_store;
 mod server_state;
 
 use api::ank_base;
-use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::objects::{
-    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadInstanceName, WorkloadState,
-    WorkloadStatesMap,
+    AgentMap, CompleteState, DeletedWorkload, ExecutionState, State, WorkloadInstanceName,
+    WorkloadState, WorkloadStatesMap,
 };
+use common::{
+    commands::{Request, UpdateWorkload},
+    state_manipulation::Object,
+};
+
+use server_state::{AddedDeletedWorkloads, StateGenerationResult};
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -63,6 +68,7 @@ pub struct AnkaiosServer {
     to_agents: FromServerSender,
     server_state: ServerState,
     workload_states_map: WorkloadStatesMap,
+    agent_map: AgentMap,
     log_campaign_store: LogCampaignStore,
 }
 
@@ -73,6 +79,7 @@ impl AnkaiosServer {
             to_agents,
             server_state: ServerState::default(),
             workload_states_map: WorkloadStatesMap::default(),
+            agent_map: AgentMap::default(),
             log_campaign_store: LogCampaignStore::default(),
         }
     }
@@ -81,8 +88,29 @@ impl AnkaiosServer {
         if let Some(state) = startup_state {
             State::verify_api_version(&state.desired_state)?;
 
-            match self.server_state.update(state, vec![]) {
-                Ok(Some((added_workloads, deleted_workloads))) => {
+            let state_generation_result = self
+                .server_state
+                .generate_new_state(state, vec![])
+                .map_err(|err| err.to_string())?;
+
+            match self
+                .server_state
+                .update(state_generation_result.new_desired_state)
+            {
+                Ok(Some(added_deleted_workloads)) => {
+                    let field_differences = state_generation_result
+                        .old_state
+                        .calculate_state_differences(&state_generation_result.state_from_update);
+
+                    // TODO: sent only when event subscribers exist
+                    if !field_differences.is_empty() {
+                        log::debug!("Found '{}' field differences.", field_differences.len());
+                        log::debug!("Field differences: {field_differences:?}");
+                    }
+
+                    let added_workloads = added_deleted_workloads.added_workloads;
+                    let deleted_workloads = added_deleted_workloads.deleted_workloads;
+
                     // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
                     self.workload_states_map.initial_state(&added_workloads);
 
@@ -96,7 +124,9 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
                 }
-                Ok(None) => log::info!("No initial workloads to send to agents."),
+                Ok(None) => {
+                    log::info!("No initial workloads to send to agents.");
+                }
                 Err(err) => {
                     // [impl->swdd~server-fails-on-invalid-startup-state~1]
                     return Err(err.to_string());
@@ -152,7 +182,7 @@ impl AnkaiosServer {
                         .unwrap_or_illegal_state();
 
                     // [impl->swdd~server-stores-newly-connected-agent~1]
-                    self.server_state.add_agent(agent_name);
+                    self.agent_map.add_agent(agent_name);
                 }
                 // [impl->swdd~server-receives-resource-availability~1]
                 ToServer::AgentLoadStatus(method_obj) => {
@@ -163,7 +193,7 @@ impl AnkaiosServer {
                         method_obj.free_memory.free_memory,
                     );
 
-                    self.server_state
+                    self.agent_map
                         .update_agent_resource_availability(method_obj);
                 }
                 ToServer::AgentGone(method_obj) => {
@@ -171,7 +201,7 @@ impl AnkaiosServer {
                     let agent_name = method_obj.agent_name;
 
                     // [impl->swdd~server-removes-disconnected-agents-from-state~1]
-                    self.server_state.remove_agent(&agent_name);
+                    self.agent_map.remove_agent(&agent_name);
 
                     // [impl->swdd~server-set-workload-state-on-disconnect~1]
                     self.workload_states_map.agent_disconnected(&agent_name);
@@ -220,6 +250,7 @@ impl AnkaiosServer {
                         match self.server_state.get_complete_state_by_field_mask(
                             complete_state_request,
                             &self.workload_states_map,
+                            &self.agent_map,
                         ) {
                             Ok(complete_state) => self
                                 .to_agents
@@ -269,57 +300,34 @@ impl AnkaiosServer {
 
                         // [impl->swdd~update-desired-state-with-update-mask~1]
                         // [impl->swdd~update-desired-state-empty-update-mask~1]
-                        match self
-                            .server_state
-                            .update(update_state_request.state, update_state_request.update_mask)
-                        {
-                            Ok(Some((added_workloads, deleted_workloads))) => {
-                                log::info!(
-                                    "The update has {} new or updated workloads, {} workloads to delete",
-                                    added_workloads.len(),
-                                    deleted_workloads.len()
-                                );
-
-                                // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
-                                self.workload_states_map.initial_state(&added_workloads);
-
-                                let added_workloads_names = added_workloads
-                                    .iter()
-                                    .map(|x| x.instance_name.to_string())
-                                    .collect();
-                                let deleted_workloads_names = deleted_workloads
-                                    .iter()
-                                    .map(|x| x.instance_name.to_string())
-                                    .collect();
-
-                                // [impl->swdd~server-cancels-log-campaign-for-deleted-workloads~1]
-                                self.cancel_log_requests_of_deleted_workloads(&deleted_workloads)
-                                    .await;
-
-                                // [impl->swdd~server-handles-not-started-deleted-workloads~1]
-                                let retained_deleted_workloads = self
-                                    .handle_not_started_deleted_workloads(deleted_workloads)
-                                    .await;
-
-                                let from_server_command =
-                                    FromServer::UpdateWorkload(UpdateWorkload {
-                                        added_workloads,
-                                        deleted_workloads: retained_deleted_workloads,
-                                    });
+                        let StateGenerationResult {
+                            old_state,
+                            state_from_update,
+                            new_desired_state,
+                        } = match self.server_state.generate_new_state(
+                            update_state_request.state,
+                            update_state_request.update_mask,
+                        ) {
+                            Ok(state_generation_result) => state_generation_result,
+                            Err(error_msg) => {
+                                log::error!("Update rejected: '{error_msg}'",);
                                 self.to_agents
-                                    .send(from_server_command)
+                                    .error(request_id, format!("Update rejected: '{error_msg}'"))
                                     .await
                                     .unwrap_or_illegal_state();
-                                log::debug!("Send UpdateStateSuccess for request '{request_id}'");
-                                // [impl->swdd~server-update-state-success-response~1]
-                                self.to_agents
-                                    .update_state_success(
-                                        request_id,
-                                        added_workloads_names,
-                                        deleted_workloads_names,
-                                    )
-                                    .await
-                                    .unwrap_or_illegal_state();
+                                continue;
+                            }
+                        };
+
+                        match self.server_state.update(new_desired_state) {
+                            Ok(Some(added_deleted_workloads)) => {
+                                self.handle_post_update_steps(
+                                    request_id,
+                                    added_deleted_workloads,
+                                    old_state,
+                                    state_from_update,
+                                )
+                                .await;
                             }
                             Ok(None) => {
                                 log::debug!(
@@ -445,6 +453,68 @@ impl AnkaiosServer {
         }
     }
 
+    async fn handle_post_update_steps(
+        &mut self,
+        request_id: String,
+        added_deleted_workloads: AddedDeletedWorkloads,
+        old_state: Object,
+        state_from_update: Object,
+    ) {
+        // [impl->swdd~server-calculates-state-differences-for-events~1]
+        // TODO: determine state differences only when event subscribers exist
+        // state changes must be calculated after every update since only config item can be changed as well
+        let state_differences = old_state.calculate_state_differences(&state_from_update);
+
+        if !state_differences.is_empty() {
+            log::debug!("Found '{}' state differences", state_differences.len());
+            log::debug!("State differences: {state_differences:?}");
+        }
+
+        let added_workloads = added_deleted_workloads.added_workloads;
+        let deleted_workloads = added_deleted_workloads.deleted_workloads;
+        log::info!(
+            "The update has {} new or updated workloads, {} workloads to delete",
+            added_workloads.len(),
+            deleted_workloads.len()
+        );
+
+        // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
+        self.workload_states_map.initial_state(&added_workloads);
+
+        let added_workloads_names = added_workloads
+            .iter()
+            .map(|x| x.instance_name.to_string())
+            .collect();
+        let deleted_workloads_names = deleted_workloads
+            .iter()
+            .map(|x| x.instance_name.to_string())
+            .collect();
+
+        // [impl->swdd~server-cancels-log-campaign-for-deleted-workloads~1]
+        self.cancel_log_requests_of_deleted_workloads(&deleted_workloads)
+            .await;
+
+        // [impl->swdd~server-handles-not-started-deleted-workloads~1]
+        let retained_deleted_workloads = self
+            .handle_not_started_deleted_workloads(deleted_workloads)
+            .await;
+
+        let from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
+            added_workloads,
+            deleted_workloads: retained_deleted_workloads,
+        });
+        self.to_agents
+            .send(from_server_command)
+            .await
+            .unwrap_or_illegal_state();
+        log::debug!("Send UpdateStateSuccess for request '{request_id}'");
+        // [impl->swdd~server-update-state-success-response~1]
+        self.to_agents
+            .update_state_success(request_id, added_workloads_names, deleted_workloads_names)
+            .await
+            .unwrap_or_illegal_state();
+    }
+
     // [impl->swdd~server-handles-not-started-deleted-workloads~1]
     async fn handle_not_started_deleted_workloads(
         &mut self,
@@ -480,7 +550,7 @@ impl AnkaiosServer {
 
     fn deleted_workload_never_started_on_agent(&self, deleted_workload: &DeletedWorkload) -> bool {
         !self
-            .server_state
+            .agent_map
             .contains_connected_agent(deleted_workload.instance_name.agent_name())
             && self
                 .workload_states_map

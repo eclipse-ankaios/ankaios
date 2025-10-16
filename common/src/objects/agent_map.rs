@@ -14,7 +14,7 @@
 
 use api::ank_base;
 use serde::{Deserialize, Serialize};
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::HashMap;
 
 use crate::commands;
 
@@ -53,19 +53,22 @@ impl AgentMap {
         Self(HashMap::new())
     }
 
-    pub fn entry(&mut self, key: String) -> Entry<'_, String, AgentAttributes> {
-        self.0.entry(key)
+    pub fn add_agent(&mut self, key: String) {
+        self.0.entry(key).or_insert(AgentAttributes::default());
     }
 
-    pub fn contains_key(&self, key: &str) -> bool {
-        self.0.contains_key(key)
+    pub fn contains_connected_agent(&self, agent_name: &str) -> bool {
+        self.0.contains_key(agent_name)
     }
 
-    pub fn remove(&mut self, key: &str) {
+    pub fn remove_agent(&mut self, key: &str) {
         self.0.remove(key);
     }
 
-    pub fn update_resource_availability(&mut self, agent_load_status: commands::AgentLoadStatus) {
+    pub fn update_agent_resource_availability(
+        &mut self,
+        agent_load_status: commands::AgentLoadStatus,
+    ) {
         self.0.entry(agent_load_status.agent_name).and_modify(|e| {
             e.cpu_usage = Some(agent_load_status.cpu_usage);
             e.free_memory = Some(agent_load_status.free_memory);
