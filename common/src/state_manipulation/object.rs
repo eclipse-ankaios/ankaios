@@ -15,11 +15,11 @@
 use std::collections::HashSet;
 
 use super::Path;
-use crate::objects as ankaios;
-use api::ank_base as proto;
+use crate::{objects as ankaios, std_extensions::UnreachableOption};
+use api::ank_base::{self as proto};
 use serde_yaml::{
     Mapping, Value, from_value,
-    mapping::{Entry::Occupied, Entry::Vacant},
+    mapping::Entry::{Occupied, Vacant},
     to_value,
 };
 
@@ -208,6 +208,22 @@ impl From<&Object> for Vec<Path> {
         get_paths_from_yaml_node(&value.data, true)
     }
 }
+
+type FieldMask = Vec<String>; // e.g. ["desiredState", "workloads", "workload_1", "agent"]
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FieldDifference {
+    Added(FieldMask),
+    Removed(FieldMask),
+    Updated(FieldMask),
+}
+
+pub enum StackTask<'a> {
+    VisitPair(&'a Mapping, &'a Mapping),
+    PushField(String),
+    PopField,
+}
+
 impl Object {
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
@@ -229,13 +245,13 @@ impl Object {
         Ok(())
     }
 
-    pub fn remove(&mut self, path: &Path) -> Result<(), String> {
+    pub fn remove(&mut self, path: &Path) -> Result<Option<serde_yaml::Value>, String> {
         let (path_head, path_last) = path.split_last()?;
 
-        self.get_as_mapping(&path_head)
+        Ok(self
+            .get_as_mapping(&path_head)
             .ok_or_else(|| format!("{path_head:?} is not mapping"))?
-            .remove(Value::String(path_last));
-        Ok(())
+            .remove(Value::String(path_last)))
     }
 
     fn get_as_mapping(&mut self, path: &Path) -> Option<&mut Mapping> {
@@ -281,6 +297,111 @@ impl Object {
     pub fn check_if_provided_path_exists(&self, path: &Path) -> bool {
         self.get(path).is_some()
     }
+
+    /// Determine the added, updated and removed fields between self and other using a depth-first search (DFS) algorithm.
+    ///
+    /// ## Arguments
+    ///
+    /// - `other`: The [Object] containing the new state to compare against the current state.
+    ///
+    /// ## Returns
+    ///
+    /// - a [Vec<`FieldDifference`>] containing added, updated and removed fields and the corresponding field mask.
+    ///
+    pub fn calculate_state_differences(&self, other: &Object) -> Vec<FieldDifference> {
+        // [impl->swdd~server-calculates-state-differences-for-events~1]
+        let mut field_differences = Vec::new();
+        let mut stack_tasks = Vec::new();
+
+        let Value::Mapping(current_mapping) = &self.data else {
+            return vec![];
+        };
+
+        let Value::Mapping(other_mapping) = &other.data else {
+            return vec![];
+        };
+
+        stack_tasks.push(StackTask::VisitPair(current_mapping, other_mapping));
+        let mut current_field_mask = Vec::new();
+        while let Some(task) = stack_tasks.pop() {
+            match task {
+                StackTask::VisitPair(current_node, other_node) => {
+                    let current_keys: HashSet<_> = current_node.keys().collect();
+                    let other_keys: HashSet<_> = other_node.keys().collect();
+
+                    for key in &other_keys {
+                        if !current_keys.contains(key) {
+                            let Value::String(added_key) = key else {
+                                continue;
+                            };
+                            let mut added_field_mask = current_field_mask.clone();
+                            added_field_mask.push(added_key.clone());
+                            field_differences.push(FieldDifference::Added(added_field_mask));
+                        }
+                    }
+
+                    for key in &current_keys {
+                        if !other_keys.contains(key) {
+                            let Value::String(removed_key) = key else {
+                                continue;
+                            };
+                            let mut removed_field_mask = current_field_mask.clone();
+                            removed_field_mask.push(removed_key.clone());
+                            field_differences.push(FieldDifference::Removed(removed_field_mask));
+                        } else {
+                            let Value::String(key_str) = key else {
+                                continue;
+                            };
+
+                            let current_value = current_node.get(key).unwrap_or_unreachable();
+                            let other_value = other_node.get(key).unwrap_or_unreachable();
+
+                            match (current_value, other_value) {
+                                (Value::Mapping(current_map), Value::Mapping(other_map)) => {
+                                    stack_tasks.push(StackTask::PopField);
+                                    stack_tasks.push(StackTask::VisitPair(current_map, other_map));
+                                    stack_tasks.push(StackTask::PushField(key_str.clone()));
+                                }
+                                (Value::Sequence(current_seq), Value::Sequence(other_seq)) => {
+                                    let mut sequence_field_mask = current_field_mask.clone();
+                                    sequence_field_mask.push(key_str.clone());
+
+                                    if current_seq.is_empty() && !other_seq.is_empty() {
+                                        field_differences
+                                            .push(FieldDifference::Added(sequence_field_mask));
+                                    } else if !current_seq.is_empty() && other_seq.is_empty() {
+                                        field_differences
+                                            .push(FieldDifference::Removed(sequence_field_mask));
+                                    } else if current_seq != other_seq {
+                                        field_differences
+                                            .push(FieldDifference::Updated(sequence_field_mask));
+                                    }
+                                }
+                                _ => {
+                                    if current_value != other_value {
+                                        let mut updated_field_mask = current_field_mask.clone();
+                                        updated_field_mask.push(key_str.clone());
+                                        field_differences
+                                            .push(FieldDifference::Updated(updated_field_mask));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                StackTask::PushField(key) => {
+                    current_field_mask.push(key);
+                    continue;
+                }
+                StackTask::PopField => {
+                    current_field_mask.pop();
+                    continue;
+                }
+            }
+        }
+
+        field_differences
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -299,11 +420,12 @@ mod tests {
             generate_test_rendered_workload_files, generate_test_workload_spec_with_rendered_files,
             generate_test_workload_states_map_with_data,
         },
+        state_manipulation::object::tests::object::Mapping,
         test_utils::generate_test_state_from_workloads,
     };
     use serde_yaml::Value;
 
-    use super::Object;
+    use super::{FieldDifference, Object};
     #[test]
     fn utest_object_from_state() {
         let state: State = generate_test_state_from_workloads(vec![
@@ -737,6 +859,295 @@ mod tests {
         let expected_set: HashSet<_> = expected.iter().collect();
 
         assert_eq!(actual_set, expected_set)
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_no_differences_on_empty_states() {
+        let old_state = Object {
+            data: Mapping::default().into(),
+        };
+        let new_state = Object {
+            data: Mapping::default().into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert!(changed_fields.is_empty());
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_no_differences_on_equal_states() {
+        let old_state = Object {
+            data: object::generate_test_complete_state().into(),
+        };
+        let new_state = &old_state;
+
+        let changed_fields = old_state.calculate_state_differences(new_state);
+
+        assert!(changed_fields.is_empty());
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_added_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+              key_2_2: value_2_2
+            key_1_2: {}
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let mut changed_fields = old_state.calculate_state_differences(&new_state);
+        changed_fields.sort();
+
+        assert_eq!(
+            changed_fields,
+            vec![
+                FieldDifference::Added(vec!["key_1_1".to_owned(), "key_2_2".to_owned()]),
+                FieldDifference::Added(vec!["key_1_2".to_owned()]),
+            ]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_updated_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+            key_1_2: {}
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1_updated
+            key_1_2: {}
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Updated(vec![
+                "key_1_1".to_owned(),
+                "key_2_1".to_owned()
+            ]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_removed_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+            key_1_2: {}
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1_1: {}
+            key_1_2: {}
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Removed(vec![
+                "key_1_1".to_owned(),
+                "key_2_1".to_owned()
+            ]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_removed_nested_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+            key_1_2: {}
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1_2: {}
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Removed(vec!["key_1_1".to_owned(),]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_added_sequence() {
+        let old_state_yaml = r#"
+            key_1: []
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1:
+              - seq_value
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Added(vec!["key_1".to_owned(),]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_updated_sequence() {
+        let old_state_yaml = r#"
+            key_1:
+              - seq_value_1
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1:
+              - seq_value_1
+              - seq_value_2
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Updated(vec!["key_1".to_owned(),]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_removed_sequence() {
+        let old_state_yaml = r#"
+            key_1:
+              - seq_value
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1: []
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Removed(vec!["key_1".to_owned(),]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_data_is_not_mapping() {
+        // owned data is not mapping
+        let old_state = Object { data: Value::Null };
+
+        let new_state = Object {
+            data: Mapping::default().into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert!(changed_fields.is_empty());
+
+        // other state is not mapping
+        let old_state = Object {
+            data: Mapping::default().into(),
+        };
+
+        let new_state = Object { data: Value::Null };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert!(changed_fields.is_empty());
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_key_is_not_string() {
+        let old_state_yaml = r#"
+            0: value
+        "#;
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state = Object {
+            data: Mapping::default().into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert!(changed_fields.is_empty());
     }
 
     mod object {
