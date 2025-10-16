@@ -1,6 +1,6 @@
 [package]
 name = "ank-server"
-version = "0.7.0-pre"
+version = "0.7.0-rc1"
 edition = "2024"
 license = "Apache-2.0"
 description = "Eclipse Ankaios server component"

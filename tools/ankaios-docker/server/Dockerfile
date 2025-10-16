@@ -1,7 +1,7 @@
 FROM ubuntu:24.04
 
 ARG TARGETARCH
-ARG VERSION=0.6.0
+ARG VERSION=0.7.0-rc1
 
 RUN apt update && \
     apt install -y curl
