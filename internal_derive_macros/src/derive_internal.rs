@@ -63,6 +63,12 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                         new_ty = wrap_in_option(new_ty);
                     }
                 }
+
+                if let Some(prost_map_enum_value_type) = get_prost_map_enum_value_type(&field.attrs)
+                {
+                    println!("Prost map enum value  type: {}", prost_map_enum_value_type.to_token_stream());
+                }
+
                 // add field to Internal struct
                 internal_fields.push(quote! {
                     #(#internal_field_attrs )*
@@ -403,6 +409,50 @@ fn pascal_to_snake_case(s: &str) -> String {
     }
 
     result
+}
+
+fn get_prost_map_enum_value_type(attrs: &[Attribute]) -> Option<TypePath> {
+    for attr in attrs {
+        // Check if this is a #[prost(...)] attribute
+        if !attr.path().is_ident("prost") {
+            continue;
+        }
+
+        // Parse the attribute's arguments as a list of Meta items
+        let Ok(nested) = attr
+            .parse_args_with(syn::punctuated::Punctuated::<Meta, syn::Token![,]>::parse_terminated)
+        else {
+            continue;
+        };
+
+        for meta in nested {
+            // Look for map = "key_type, enumeration(ReadWriteEnum)"
+            if let Meta::NameValue(MetaNameValue { path, value, .. }) = meta
+                && path.is_ident("map")
+                && let Expr::Lit(expr_lit) = value
+                && let Lit::Str(lit_str) = expr_lit.lit
+                && let map_value = lit_str.value()
+                && let parts = map_value
+                    .split(',')
+                    .map(|s| s.trim())
+                    .collect::<Vec<&str>>()
+                && parts.len() == 2
+                && let Some(part) = parts.last()
+                && part.starts_with("enumeration")
+                && let enum_parts = part
+                    .split_terminator(&['(', ')'][..])
+                    .map(|s| s.trim())
+                    .collect::<Vec<&str>>()
+                && enum_parts.len() == 2
+            {
+                let enum_name = format_ident!("{}", enum_parts[1]);
+
+                return Some(parse_quote! { #enum_name });
+            }
+        }
+    }
+
+    None
 }
 
 fn get_prost_enum_type(attrs: &[Attribute]) -> Option<TypePath> {
