@@ -54,7 +54,7 @@ impl AgentMap {
     }
 
     pub fn add_agent(&mut self, key: String) {
-        self.0.entry(key).or_insert(AgentAttributes::default());
+        self.0.entry(key).or_default();
     }
 
     pub fn contains_connected_agent(&self, agent_name: &str) -> bool {
@@ -173,6 +173,7 @@ impl From<ank_base::AgentMap> for AgentMap {
 pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMap {
     let mut agent_map = AgentMap::new();
     agent_map
+        .0
         .entry(agent_name.into())
         .or_insert(AgentAttributes {
             cpu_usage: Some(CpuUsage { cpu_usage: 42 }),
@@ -188,6 +189,7 @@ pub fn generate_test_agent_map_from_specs(workloads: &[crate::objects::WorkloadS
         .fold(AgentMap::new(), |mut agent_map, spec| {
             let agent_name = spec.instance_name.agent_name();
             agent_map
+                .0
                 .entry(agent_name.to_owned())
                 .or_insert(AgentAttributes {
                     cpu_usage: Some(CpuUsage { cpu_usage: 42 }),
