@@ -18,9 +18,9 @@ use api::ank_base::{self, ConfigMappings, Dependencies, Tags, WorkloadMap};
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    generate_test_rendered_workload_files, generate_test_runtime_config,
-    generate_test_stored_workload_spec_with_config, ConfigItem, DeleteCondition, DeletedWorkload,
-    State, StoredWorkloadSpec, WorkloadInstanceName, WorkloadSpec,
+    ConfigItem, DeleteCondition, DeletedWorkload, State, StoredWorkloadSpec, WorkloadInstanceName,
+    WorkloadSpec, generate_test_rendered_workload_files, generate_test_runtime_config,
+    generate_test_stored_workload_spec_with_config,
 };
 
 const RUNTIME_NAME: &str = "runtime";
@@ -54,6 +54,17 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
     }
 }
 
+pub fn generate_test_complete_state_response(
+    workloads: &[(&str, ank_base::Workload)],
+) -> ank_base::response::ResponseContent {
+    ank_base::response::ResponseContent::CompleteStateResponse(Box::new(
+        ank_base::CompleteStateResponse {
+            complete_state: Some(generate_test_proto_complete_state(workloads)),
+            ..Default::default()
+        },
+    ))
+}
+
 pub fn generate_test_proto_complete_state(
     workloads: &[(&str, ank_base::Workload)],
 ) -> ank_base::CompleteState {
@@ -75,8 +86,8 @@ pub fn generate_test_proto_complete_state(
 
 pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::objects::CompleteState {
     use crate::objects::{
-        generate_test_agent_map_from_specs, generate_test_workload_states_map_from_specs,
-        CompleteState,
+        CompleteState, generate_test_agent_map_from_specs,
+        generate_test_workload_states_map_from_specs,
     };
 
     let agents = generate_test_agent_map_from_specs(&workloads);

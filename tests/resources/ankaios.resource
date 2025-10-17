@@ -668,6 +668,32 @@ the last command shall list the config "${config_name}"
 the last command shall not list the config "${config_name}"
     Run Keyword And Expect Error    Config name ${config_name} does not exist in the list    the last command shall list the config "${config_name}"
 
+the last command shall contain the workload "${workload_name}"
+    ${list_result}=    Json To Dict    ${CURRENT_RESULT.stdout}
+    ${desired_state}=    Get From Dictionary    ${list_result}    desiredState
+    ${workloads}=    Get From Dictionary    ${desired_state}    workloads
+    Should Contain   ${workloads}    ${workload_name}
+
+the last command shall only contain agent and runtime
+    ${expected_keys}=    Create List    agent    runtime
+
+    ${list_result}=    Json To Dict    ${CURRENT_RESULT.stdout}
+    dictionary ${list_result} should have exact keys    desiredState
+    ${desired_state}=    Get From Dictionary    ${list_result}    desiredState
+    ${workloads}=    Get From Dictionary    ${desired_state}    workloads
+    @{workloads}=    Get Dictionary Values   ${workloads}
+    FOR    ${w}    IN   @{workloads}
+        # ${keys}=    Get Dictionary Keys    ${w}
+        # Should Be Equal    ${keys}   ${expected_keys}
+        dictionary ${w} should have exact keys   @{expected_keys}
+    END
+
+dictionary ${dictionary} should have exact keys
+    [Arguments]    @{expected_keys}
+    ${keys}=    Get Dictionary Keys   ${dictionary}
+    Sort List    ${expected_keys}
+    Should Be Equal    ${keys}    ${expected_keys}
+
 Setup Ankaios for Control Interface test
     Setup Ankaios
     Prepare Test Control Interface Workload
@@ -718,6 +744,15 @@ The controller workload gets the state
 
 The controller workload gets the state of fields ${field_mask}
     internal_add_get_state_command    ${field_mask}
+
+The controller workload subscribes to the state of fields ${field_mask}
+    internal_add_get_state_command    ${field_mask}    true
+
+The controller workload get events for fields ${field_mask}
+    internal_add_get_state_command    ${field_mask}
+
+The controller workload cancels events for fields ${field_mask}
+    internal_add_cancel_events_command    ${field_mask}
 
 The controller workload requests shall all succeed
     ${ankaios_config_folder}=    create_control_interface_config_for_test
