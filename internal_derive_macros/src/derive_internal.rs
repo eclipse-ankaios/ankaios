@@ -12,19 +12,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use proc_macro::TokenStream;
-use quote::{format_ident, quote};
+use proc_macro2::TokenStream;
+use quote::{ToTokens, format_ident, quote};
 use syn::{
     Attribute, Data, DataEnum, DataStruct, DeriveInput, Expr, Fields, FieldsUnnamed,
     GenericArgument, Ident, Lit, Meta, MetaNameValue, Path, PathArguments, Token, Type, TypePath,
     parse::{Parse, ParseStream},
-    parse_macro_input, parse_quote,
+    parse_quote,
     punctuated::Punctuated,
 };
 
-pub fn derive_internal(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-
+pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
     let orig_name = input.ident;
     let vis = input.vis.clone();
     let internal_name = format_ident!("{}Internal", orig_name);
@@ -53,7 +51,6 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                 // either Some(prost_type: TypePath) where the type is extracted from an annotation like
                 // #[prost(enumeration = "ReadWriteEnum", tag = "1")] in this case ReadWriteEnumInternal
                 // or none if no such annotation was found
-
                 if let Some(prost_enum_type) = get_prost_enum_type(&field.attrs) {
                     is_prost_num_field = true;
                     // new_ty = to_internal_type(&prost_enum_type);
@@ -68,15 +65,11 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                     pub #field_name: #new_ty
                 });
 
-                // TODO Add each fields added by the macro inside the internal_fields vector
-
                 let Type::Path(tp) = &field.ty else {
-                    return syn::Error::new_spanned(
+                    return Err(syn::Error::new_spanned(
                         field_name,
                         "Only simple type paths are supported in struct fields.",
-                    )
-                    .to_compile_error()
-                    .into();
+                    ));
                 };
 
                 // TODO: this looks way to complicated, we need so simplify it according to the use-case at hand
@@ -226,7 +219,7 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
 
             println!("Generated: \n{expanded}");
 
-            expanded.into()
+            Ok(expanded)
         }
         //Data::Enum(enum_data) => {
         Data::Enum(DataEnum { variants, .. }) => {
@@ -237,31 +230,28 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
             let mut from_variants = Vec::new();
 
             for variant in variants {
-                check_for_forbidden_mandatory_attr(&variant.attrs);
+                check_for_forbidden_mandatory_attr(&variant, &variant.attrs)?;
 
                 let variant_ident = &variant.ident;
                 let internal_field_attrs = get_internal_field_attrs(&variant.attrs);
 
                 match &variant.fields {
                     Fields::Named(_) => {
-                        return syn::Error::new_spanned(
+                        return Err(syn::Error::new_spanned(
                             variant_ident,
                             "Variants with named fields are not supported.",
-                        )
-                        .to_compile_error()
-                        .into();
+                        ));
                     }
                     Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
                         if has_enum_named_attr(&variant.attrs) {
                             if unnamed.len() != 1 {
-                                return syn::Error::new_spanned(
+                                return Err(syn::Error::new_spanned(
                                     variant_ident,
                                     "Variants with 'internal_enum_named' attribute must have exactly one unnamed field",
-                                )
-                                .to_compile_error().into();
+                                ));
                             }
                             let field = &unnamed[0];
-                            check_for_forbidden_mandatory_attr(&field.attrs);
+                            check_for_forbidden_mandatory_attr(&field, &field.attrs)?;
 
                             // let orig_ty = &field.ty;
                             let new_ty = transform_type(&field.ty, false);
@@ -291,7 +281,7 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                             let mut from_fields = Vec::new();
 
                             for (i, field) in unnamed.iter().enumerate() {
-                                check_for_forbidden_mandatory_attr(&field.attrs);
+                                check_for_forbidden_mandatory_attr(&field, &field.attrs)?;
 
                                 let field_id = format_ident!("field_{i}");
                                 let orig_ty = &field.ty;
@@ -299,12 +289,10 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
                                 // prepare the try_from and from variants
                                 if let Type::Path(tp) = orig_ty {
                                     if is_option_type_path(tp) {
-                                        return syn::Error::new_spanned(
+                                        return Err(syn::Error::new_spanned(
                                             tp,
                                             "Variants with optional attribute are not supported.",
-                                        )
-                                        .to_compile_error()
-                                        .into();
+                                        ));
                                     } else if is_custom_type_path(tp) {
                                         let new_ty = to_internal_type(tp);
                                         new_variant.push(quote! { #new_ty });
@@ -407,14 +395,12 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
 
             println!("Generated (enum): \n{expanded}");
 
-            expanded.into()
+            Ok(expanded)
         }
-        _ => syn::Error::new_spanned(
+        _ => Err(syn::Error::new_spanned(
             orig_name,
             "Internal derive only supports named structs and enums",
-        )
-        .to_compile_error()
-        .into(),
+        )),
     }
 }
 
@@ -486,8 +472,6 @@ fn get_internal_type_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStream>
         }
     }
 
-    println!("internal_type_attrs: {:?}", internal_type_attrs.clone());
-
     internal_type_attrs
 }
 
@@ -533,10 +517,19 @@ impl Parse for DeriveList {
     }
 }
 
-fn check_for_forbidden_mandatory_attr(attrs: &[Attribute]) {
+// Variant and Field do not implement a common train for attributes
+// so we need to take both the target and the attrs as parameters
+fn check_for_forbidden_mandatory_attr(
+    target: &impl ToTokens,
+    attrs: &[Attribute],
+) -> syn::Result<()> {
     if has_mandatory_attr(attrs) {
-        panic!("'internal_mandatory' attributes are allowed only on struct fields.");
+        return Err(syn::Error::new_spanned(
+            target,
+            "'internal_mandatory' attributes are allowed only on struct fields.",
+        ));
     }
+    Ok(())
 }
 
 fn is_option_type(ty: &Type) -> bool {

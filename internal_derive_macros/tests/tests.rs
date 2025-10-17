@@ -57,9 +57,9 @@ mod tests {
             // E(Vec<Person>),
         }
 
-        /// Remove from here
+        // Remove from here
 
-        /// to here
+        // to here
         let address = Address {
             street: Some("123 Main St".to_string()),
             additional: None,
