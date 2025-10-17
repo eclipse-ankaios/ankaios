@@ -37,7 +37,7 @@ Built specifically for embedded and automotive use cases, Ankaios understands th
 
     ---
 
-    Native support for Podman and containerd gives you runtime choice. Switch between runtimes or run different runtimes on different nodes based on your specific requirements.
+    Native support for Podman and containerd gives you runtime choice and other runtimes can also be easily added. Mix runtimes on the same node or run different runtimes on different nodes based on your specific requirements.
 
 * <span class="icon-wrapper">🚗</span> __Built for Automotive Constraints__
 
