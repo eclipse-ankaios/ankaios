@@ -29,24 +29,7 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
     let vis = input.vis.clone();
     let internal_name = format_ident!("{}Internal", orig_name);
 
-    let mut internal_type_attrs = Vec::new();
-    for attr in &input.attrs {
-        if let Meta::List(meta_list) = &attr.meta {
-            if meta_list.path.is_ident("internal_derive") {
-                let parsed = syn::parse2::<DeriveList>(meta_list.tokens.clone()).unwrap();
-                let derive_list: Vec<Path> = parsed.0.into_iter().collect();
-                internal_type_attrs.push(quote! { #[derive(#(#derive_list),*)] });
-            } else if meta_list.path.is_ident("internal_type_attr") {
-                internal_type_attrs.push(meta_list.tokens.clone());
-            }
-        }
-    }
-
-    let internal_skip_try_from = has_skip_try_from(&input.attrs);
-
-    // TODO add getter for the added fields for the internal struct.
-
-    println!("internal_type_attrs: {:?}", internal_type_attrs.clone());
+    let internal_type_attrs = get_internal_type_attrs(&input.attrs);
 
     match input.data {
         Data::Struct(DataStruct {
@@ -199,7 +182,7 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
             // * the implementation of the try_from_inits (only the internal code inside the function)
             // * the implementation of the from_inits (only the internal code inside the function)
 
-            let expanded = if internal_skip_try_from {
+            let expanded = if has_skip_try_from(&input.attrs) {
                 quote! {
                     #(#internal_type_attrs )*
                     #vis struct #internal_name {
@@ -487,6 +470,25 @@ fn get_prost_enum_type(attrs: &[Attribute]) -> Option<TypePath> {
     }
 
     None
+}
+
+fn get_internal_type_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStream> {
+    let mut internal_type_attrs = Vec::new();
+    for attr in attrs {
+        if let Meta::List(meta_list) = &attr.meta {
+            if meta_list.path.is_ident("internal_derive") {
+                let parsed = syn::parse2::<DeriveList>(meta_list.tokens.clone()).unwrap();
+                let derive_list: Vec<Path> = parsed.0.into_iter().collect();
+                internal_type_attrs.push(quote! { #[derive(#(#derive_list),*)] });
+            } else if meta_list.path.is_ident("internal_type_attr") {
+                internal_type_attrs.push(meta_list.tokens.clone());
+            }
+        }
+    }
+
+    println!("internal_type_attrs: {:?}", internal_type_attrs.clone());
+
+    internal_type_attrs
 }
 
 /// Extracts all attributes with the `internal_field_attr` meta and returns their tokens for quoting on the internal field.
