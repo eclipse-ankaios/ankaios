@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{CpuUsage, FreeMemory};
+use api::ank_base::{CpuUsageInternal, FreeMemoryInternal};
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind};
 
 #[cfg(test)]
@@ -42,13 +42,16 @@ impl ResourceMonitor {
         }
     }
 
-    pub fn sample_resource_usage(&mut self) -> (CpuUsage, FreeMemory) {
+    pub fn sample_resource_usage(&mut self) -> (CpuUsageInternal, FreeMemoryInternal) {
         self.sys.refresh_specifics(self.refresh_kind);
 
         let cpu_usage = self.sys.global_cpu_usage();
         let free_memory = self.sys.free_memory();
 
-        (CpuUsage::new(cpu_usage), FreeMemory { free_memory })
+        (
+            CpuUsageInternal::new(cpu_usage),
+            FreeMemoryInternal { free_memory },
+        )
     }
 }
 

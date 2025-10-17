@@ -16,8 +16,10 @@ use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
+use api::ank_base::WorkloadInstanceNameInternal;
+
 use common::{
-    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
+    objects::{AgentName, ExecutionState, WorkloadSpec},
     std_extensions::UnreachableOption,
 };
 
@@ -105,7 +107,7 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
 impl PodmanRuntime {
     async fn sample_workload_states(
         &self,
-        workload_instance_names: &Vec<WorkloadInstanceName>,
+        workload_instance_names: &Vec<WorkloadInstanceNameInternal>,
     ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
         let mut workload_states = Vec::<ReusableWorkloadState>::default();
         for instance_name in workload_instance_names {
@@ -147,7 +149,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 
         log::debug!("Found {} reusable workload(s): '{:?}'", res.len(), &res);
 
-        let workload_instance_names: Vec<WorkloadInstanceName> = res
+        let workload_instance_names: Vec<WorkloadInstanceNameInternal> = res
             .iter()
             .filter_map(|x| x.as_str().try_into().ok())
             .collect();
@@ -225,7 +227,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 
     async fn get_workload_id(
         &self,
-        instance_name: &WorkloadInstanceName,
+        instance_name: &WorkloadInstanceNameInternal,
     ) -> Result<PodmanWorkloadId, RuntimeError> {
         // [impl->swdd~podman-get-workload-id-uses-label~1]
         let res =
@@ -304,9 +306,8 @@ mod tests {
     use std::path::PathBuf;
     use std::str::FromStr;
 
-    use common::objects::{
-        AgentName, ExecutionState, WorkloadInstanceName, generate_test_workload_spec_with_param,
-    };
+    use api::ank_base::WorkloadInstanceNameInternal;
+    use common::objects::{AgentName, ExecutionState, generate_test_workload_spec_with_param};
     use mockall::Sequence;
 
     use super::PodmanCli;
@@ -367,7 +368,7 @@ mod tests {
         assert_eq!(
             res.iter()
                 .map(|x| x.workload_state.instance_name.clone())
-                .collect::<Vec<WorkloadInstanceName>>(),
+                .collect::<Vec<WorkloadInstanceNameInternal>>(),
             vec![
                 "container1.hash.dummy_agent".try_into().unwrap(),
                 "container2.hash.dummy_agent".try_into().unwrap()

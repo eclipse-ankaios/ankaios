@@ -11,11 +11,12 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+use crate::BUFFER_SIZE;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
 use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
-use crate::BUFFER_SIZE;
-use common::objects::{WorkloadInstanceName, WorkloadSpec, WorkloadState};
+use api::ank_base::WorkloadInstanceNameInternal;
+use common::objects::{WorkloadSpec, WorkloadState};
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -52,7 +53,7 @@ where
         ControlLoopStateBuilder::new()
     }
 
-    pub fn instance_name(&self) -> &WorkloadInstanceName {
+    pub fn instance_name(&self) -> &WorkloadInstanceNameInternal {
         &self.workload_spec.instance_name
     }
 }
@@ -185,8 +186,8 @@ mod tests {
         workload_state::WorkloadStateSenderInterface,
     };
     use common::objects::{
-        generate_test_workload_spec, generate_test_workload_state_with_workload_spec,
-        ExecutionState,
+        ExecutionState, generate_test_workload_spec,
+        generate_test_workload_state_with_workload_spec,
     };
     use tokio::time;
 

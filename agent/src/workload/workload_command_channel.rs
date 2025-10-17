@@ -13,10 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
     control_interface::ControlInterfacePath,
-    runtime_connectors::{log_fetcher::LogFetcher, LogRequestOptions},
+    runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
     workload::WorkloadCommand,
 };
-use common::objects::{WorkloadInstanceName, WorkloadSpec};
+use api::ank_base::WorkloadInstanceNameInternal;
+use common::objects::WorkloadSpec;
 #[cfg(test)]
 use mockall_double::double;
 use tokio::sync::{mpsc, oneshot};
@@ -49,7 +50,7 @@ impl WorkloadCommandSender {
 
     pub async fn retry(
         &self,
-        instance_name: WorkloadInstanceName,
+        instance_name: WorkloadInstanceNameInternal,
         retry_token: RetryToken,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         let sender = self.sender.clone();
@@ -116,7 +117,7 @@ impl WorkloadCommandSender {
 #[cfg(test)]
 mod tests {
     use crate::{
-        runtime_connectors::{log_fetcher::MockLogFetcher, LogRequestOptions},
+        runtime_connectors::{LogRequestOptions, log_fetcher::MockLogFetcher},
         workload::retry_manager::MockRetryToken,
     };
 

@@ -14,13 +14,14 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
+use api::ank_base::WorkloadInstanceNameInternal;
 use async_trait::async_trait;
-use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec};
+use common::objects::{AgentName, WorkloadSpec};
 
 use crate::workload_state::WorkloadStateSender;
 
 use super::{
-    dummy_state_checker::DummyStateChecker, ReusableWorkloadState, RuntimeConnector, RuntimeError,
+    ReusableWorkloadState, RuntimeConnector, RuntimeError, dummy_state_checker::DummyStateChecker,
 };
 
 #[derive(Clone)]
@@ -61,7 +62,7 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
 
     async fn get_workload_id(
         &self,
-        _instance_name: &WorkloadInstanceName,
+        _instance_name: &WorkloadInstanceNameInternal,
     ) -> Result<String, RuntimeError> {
         Err(RuntimeError::List(
             "Cannot get information about workload with unsupported runtime".into(),
@@ -104,8 +105,8 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
 mod tests {
     use crate::runtime_connectors::{LogRequestOptions, RuntimeConnector};
 
-    use super::{RuntimeError, UnsupportedRuntime};
-    use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec};
+    use super::{RuntimeError, UnsupportedRuntime, WorkloadInstanceNameInternal};
+    use common::objects::{AgentName, WorkloadSpec};
     use std::collections::HashMap;
 
     const TEST_RUNTIME_NAME: &str = "test_runtime";
@@ -187,7 +188,8 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workload_id_returns_list_error() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let instance_name = WorkloadInstanceName::new("test-agent", "test-workload", "test-id");
+        let instance_name =
+            WorkloadInstanceNameInternal::new("test-agent", "test-workload", "test-id");
 
         let result = unsupported_runtime.get_workload_id(&instance_name).await;
 

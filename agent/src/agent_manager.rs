@@ -11,8 +11,9 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+
+use api::ank_base::AgentLoadStatus;
 use common::{
-    commands::AgentLoadStatus,
     from_server_interface::{FromServer, FromServerReceiver},
     objects::WorkloadState,
     std_extensions::{GracefulExitResult, IllegalStateResult},
@@ -292,11 +293,11 @@ mod tests {
         WorkloadStateSenderInterface,
         workload_state_store::{MockWorkloadStateStore, mock_parameter_storage_new_returns},
     };
-    use api::ank_base;
+    use api::ank_base::{self, CpuUsageInternal, FreeMemoryInternal};
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::{FromServer, FromServerInterface},
-        objects::{CpuUsage, ExecutionState, FreeMemory, generate_test_workload_spec_with_param},
+        objects::{ExecutionState, generate_test_workload_spec_with_param},
         to_server_interface::ToServer,
     };
 
@@ -583,7 +584,12 @@ mod tests {
         let mut mock_resource_monitor = MockResourceMonitor::default();
         mock_resource_monitor
             .expect_sample_resource_usage()
-            .returning(|| (CpuUsage::new(50.0), FreeMemory { free_memory: 1024 }));
+            .returning(|| {
+                (
+                    CpuUsageInternal::new(50.0),
+                    FreeMemoryInternal { free_memory: 1024 },
+                )
+            });
 
         let mock_resource_monitor_context = MockResourceMonitor::new_context();
         mock_resource_monitor_context
@@ -655,7 +661,12 @@ mod tests {
                 let mut mock_resource_monitor = MockResourceMonitor::default();
                 mock_resource_monitor
                     .expect_sample_resource_usage()
-                    .returning(|| (CpuUsage::new(50.0), FreeMemory { free_memory: 1024 }));
+                    .returning(|| {
+                        (
+                            CpuUsageInternal::new(50.0),
+                            FreeMemoryInternal { free_memory: 1024 },
+                        )
+                    });
                 mock_resource_monitor
             });
 

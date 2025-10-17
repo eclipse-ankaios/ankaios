@@ -15,9 +15,10 @@ use crate::io_utils::FileSystemError;
 
 use std::{path::PathBuf, str::FromStr};
 
+use api::ank_base::WorkloadInstanceNameInternal;
 use async_trait::async_trait;
 use common::{
-    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
+    objects::{AgentName, ExecutionState, WorkloadSpec},
     std_extensions::IllegalStateResult,
 };
 
@@ -75,7 +76,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 
     fn delete_workload(
         &self,
-        instance_name: WorkloadInstanceName,
+        instance_name: WorkloadInstanceNameInternal,
         update_state_tx: &WorkloadStateSender,
     );
 }
@@ -158,7 +159,7 @@ impl<
     // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload(
         &self,
-        instance_name: WorkloadInstanceName,
+        instance_name: WorkloadInstanceNameInternal,
         update_state_tx: &WorkloadStateSender,
     ) {
         let _task_handle = Self::delete_workload_non_blocking(self, instance_name, update_state_tx);
@@ -338,7 +339,7 @@ impl<
     // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload_non_blocking(
         &self,
-        instance_name: WorkloadInstanceName,
+        instance_name: WorkloadInstanceNameInternal,
         update_state_tx: &WorkloadStateSender,
     ) -> JoinHandle<()> {
         let runtime = self.runtime.to_owned();
@@ -433,7 +434,7 @@ mockall::mock! {
 
         fn delete_workload(
             &self,
-            instance_name: WorkloadInstanceName,
+            instance_name: WorkloadInstanceNameInternal,
             update_state_tx: &WorkloadStateSender,
         );
     }
@@ -449,9 +450,9 @@ mockall::mock! {
 
 #[cfg(test)]
 mod tests {
+    use api::ank_base::WorkloadInstanceNameInternal;
     use common::objects::{
-        ExecutionState, WorkloadInstanceName,
-        generate_test_workload_spec_with_control_interface_access,
+        ExecutionState, generate_test_workload_spec_with_control_interface_access,
         generate_test_workload_spec_with_param,
     };
 
@@ -483,7 +484,7 @@ mod tests {
     async fn utest_runtime_facade_reusable_running_workloads() {
         let mut runtime_mock = MockRuntimeConnector::new();
 
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
@@ -512,7 +513,7 @@ mod tests {
                 .unwrap()
                 .iter()
                 .map(|x| x.workload_state.instance_name.clone())
-                .collect::<Vec<WorkloadInstanceName>>(),
+                .collect::<Vec<WorkloadInstanceNameInternal>>(),
             vec![workload_instance_name]
         );
 
@@ -626,7 +627,7 @@ mod tests {
             .expect_get_instance_name()
             .once()
             .return_const(
-                WorkloadInstanceName::builder()
+                WorkloadInstanceNameInternal::builder()
                     .workload_name(WORKLOAD_1_NAME)
                     .build(),
             );
@@ -743,7 +744,7 @@ mod tests {
         let (wl_state_sender, wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
@@ -789,7 +790,7 @@ mod tests {
         let (wl_state_sender, wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 

@@ -12,9 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base::WorkloadInstanceNameInternal;
 use async_trait::async_trait;
 use common::{
-    objects::{ExecutionState, WorkloadInstanceName, WorkloadState},
+    objects::{ExecutionState, WorkloadState},
     std_extensions::IllegalStateResult,
 };
 
@@ -25,7 +26,7 @@ pub type WorkloadStateSender = tokio::sync::mpsc::Sender<WorkloadState>;
 pub trait WorkloadStateSenderInterface {
     async fn report_workload_execution_state(
         &self,
-        instance_name: &WorkloadInstanceName,
+        instance_name: &WorkloadInstanceNameInternal,
         execution_state: ExecutionState,
     );
 }
@@ -34,7 +35,7 @@ pub trait WorkloadStateSenderInterface {
 impl WorkloadStateSenderInterface for WorkloadStateSender {
     async fn report_workload_execution_state(
         &self,
-        instance_name: &WorkloadInstanceName,
+        instance_name: &WorkloadInstanceNameInternal,
         execution_state: ExecutionState,
     ) {
         self.send(WorkloadState {
@@ -57,7 +58,7 @@ impl WorkloadStateSenderInterface for WorkloadStateSender {
 #[cfg(test)]
 pub async fn assert_execution_state_sequence(
     mut state_change_rx: WorkloadStateReceiver,
-    expected_states: Vec<(&WorkloadInstanceName, ExecutionState)>,
+    expected_states: Vec<(&WorkloadInstanceNameInternal, ExecutionState)>,
 ) {
     for expected_state in expected_states {
         assert_eq!(
@@ -78,7 +79,8 @@ pub async fn assert_execution_state_sequence(
 
 #[cfg(test)]
 mod tests {
-    use common::objects::{ExecutionState, WorkloadInstanceName, WorkloadState};
+    use api::ank_base::WorkloadInstanceNameInternal;
+    use common::objects::{ExecutionState, WorkloadState};
 
     use crate::workload_state::WorkloadStateSenderInterface;
 
@@ -89,7 +91,7 @@ mod tests {
         let (wl_state_tx, mut wl_state_rx) =
             tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
 
-        let instance_name = WorkloadInstanceName::builder()
+        let instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name("name1")
             .agent_name("agent_X")
             .config(&"config string".to_string())

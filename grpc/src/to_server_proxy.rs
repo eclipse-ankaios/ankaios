@@ -226,7 +226,7 @@ pub async fn forward_from_ankaios_to_proto(
                 grpc_tx
                     .send(grpc_api::ToServer {
                         to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentLoadStatus(
-                            common::commands::AgentLoadStatus {
+                            ank_base::AgentLoadStatus {
                                 agent_name: status.agent_name,
                                 cpu_usage: status.cpu_usage,
                                 free_memory: status.free_memory,
@@ -306,7 +306,6 @@ mod tests {
 
     use super::{GRPCStreaming, forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use async_trait::async_trait;
-    use common::objects::{CpuUsage, FreeMemory};
     use common::test_utils::generate_test_complete_state;
     use common::{
         objects::generate_test_workload_spec_with_param,
@@ -316,7 +315,8 @@ mod tests {
 
     use crate::grpc_api::{self, to_server::ToServerEnum};
     use api::ank_base::{
-        self, LogEntriesResponse, LogEntry, LogsStopResponse, WorkloadInstanceName,
+        self, CpuUsageInternal, FreeMemoryInternal, LogEntriesResponse, LogEntry, LogsStopResponse,
+        WorkloadInstanceName,
     };
 
     #[derive(Default, Clone)]
@@ -356,10 +356,10 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let agent_load_status = common::commands::AgentLoadStatus {
+        let agent_load_status = ank_base::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: CpuUsage { cpu_usage: 42 },
-            free_memory: FreeMemory { free_memory: 42 },
+            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
+            free_memory: FreeMemoryInternal { free_memory: 42 },
         };
 
         let agent_resource_result = server_tx.agent_load_status(agent_load_status.clone()).await;
@@ -376,8 +376,12 @@ mod tests {
 
         let expected = ToServerEnum::AgentLoadStatus(grpc_api::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: Some(ank_base::CpuUsage { cpu_usage: 42 }),
-            free_memory: Some(ank_base::FreeMemory { free_memory: 42 }),
+            cpu_usage: Some(ank_base::CpuUsage {
+                cpu_usage: Some(42),
+            }),
+            free_memory: Some(ank_base::FreeMemory {
+                free_memory: Some(42),
+            }),
         });
 
         assert_eq!(result.to_server_enum, Some(expected));
@@ -386,10 +390,10 @@ mod tests {
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
-        let agent_load_status = common::commands::AgentLoadStatus {
+        let agent_load_status = ank_base::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: CpuUsage { cpu_usage: 42 },
-            free_memory: FreeMemory { free_memory: 42 },
+            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
+            free_memory: FreeMemoryInternal { free_memory: 42 },
         };
 
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
@@ -515,9 +519,7 @@ mod tests {
         assert!(forward_result.is_err());
         assert_eq!(
             forward_result.unwrap_err().to_string(),
-            String::from(
-                "Connection interrupted: 'status: 'Unknown error', self: \"test\"'"
-            )
+            String::from("Connection interrupted: 'status: 'Unknown error', self: \"test\"'")
         );
 
         // pick received from server message
@@ -847,13 +849,13 @@ mod tests {
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
         let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
-        let expected_workload_names: Vec<common::objects::WorkloadInstanceName> = vec![
-            common::objects::WorkloadInstanceName::new(
+        let expected_workload_names: Vec<api::ank_base::WorkloadInstanceNameInternal> = vec![
+            api::ank_base::WorkloadInstanceNameInternal::new(
                 AGENT_A_NAME,
                 WORKLOAD_1_NAME,
                 WORKLOAD_ID_1,
             ),
-            common::objects::WorkloadInstanceName::new(
+            api::ank_base::WorkloadInstanceNameInternal::new(
                 AGENT_A_NAME,
                 WORKLOAD_2_NAME,
                 WORKLOAD_ID_2,

@@ -16,9 +16,11 @@ use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
+use api::ank_base::WorkloadInstanceNameInternal;
+
 use common::{
     commands::LogsRequest,
-    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState},
+    objects::{AgentName, ExecutionState, WorkloadSpec, WorkloadState},
 };
 
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
@@ -89,7 +91,7 @@ pub struct ReusableWorkloadState {
 
 impl ReusableWorkloadState {
     pub fn new(
-        instance_name: WorkloadInstanceName,
+        instance_name: WorkloadInstanceNameInternal,
         execution_state: ExecutionState,
         workload_id: Option<String>,
     ) -> ReusableWorkloadState {
@@ -128,7 +130,7 @@ where
 
     async fn get_workload_id(
         &self,
-        instance_name: &WorkloadInstanceName,
+        instance_name: &WorkloadInstanceNameInternal,
     ) -> Result<WorkloadId, RuntimeError>;
 
     async fn start_checker(
@@ -182,8 +184,9 @@ pub mod test {
         sync::{Arc, Mutex},
     };
 
+    use api::ank_base::WorkloadInstanceNameInternal;
     use async_trait::async_trait;
-    use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
+    use common::objects::{AgentName, ExecutionState, WorkloadSpec};
 
     use crate::{
         runtime_connectors::{
@@ -253,7 +256,7 @@ pub mod test {
             HashMap<PathBuf, PathBuf>,
             Result<(String, StubStateChecker), RuntimeError>,
         ),
-        GetWorkloadId(WorkloadInstanceName, Result<String, RuntimeError>),
+        GetWorkloadId(WorkloadInstanceNameInternal, Result<String, RuntimeError>),
         StartChecker(
             String,
             WorkloadSpec,
@@ -416,7 +419,7 @@ pub mod test {
 
         async fn get_workload_id(
             &self,
-            instance_name: &WorkloadInstanceName,
+            instance_name: &WorkloadInstanceNameInternal,
         ) -> Result<String, RuntimeError> {
             match self.get_expected_call() {
                 RuntimeCall::GetWorkloadId(expected_instance_name, result)

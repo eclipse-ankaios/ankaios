@@ -12,8 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+#[path = "build/internal_structs.rs"]
+mod internal_structs;
+use internal_structs::*;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tonic_prost_build::configure()
+    let mut builder = tonic_prost_build::configure()
         .build_server(true)
         .boxed("Request.RequestContent.updateStateRequest")
         .boxed("FromAnkaios.FromAnkaiosEnum.response")
@@ -54,7 +58,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "Files.files",
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
         )
-        .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]")
+        .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]");
+
+    builder = setup_internal_files(builder);
+    builder = setup_internal_control_interface_access(builder);
+    builder = setup_internal_workload(builder);
+    builder = setup_internal_workload_instance_name(builder);
+    builder = setup_internal_agent_map(builder);
+    builder = setup_internal_configs(builder);
+    builder = setup_internal_workload_state(builder);
+
+    builder
         .compile_protos(&["proto/control_api.proto"], &["proto"])
         .unwrap();
     Ok(())

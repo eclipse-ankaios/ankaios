@@ -84,15 +84,15 @@ fn transform_into_table_rows(
 #[cfg(test)]
 mod tests {
     use crate::cli_commands::{
-        server_connection::{MockServerConnection, ServerConnectionError},
         CliCommands,
+        server_connection::{MockServerConnection, ServerConnectionError},
     };
-    use api::ank_base;
+    use api::ank_base::{self, AgentMapInternal};
+    use api::test_utils::{generate_test_agent_map, generate_test_agent_map_from_specs};
     use common::{
         objects::{
-            generate_test_agent_map, generate_test_agent_map_from_specs,
-            generate_test_workload_spec_with_param, generate_test_workload_states_map_with_data,
-            AgentMap, ExecutionState,
+            ExecutionState, generate_test_workload_spec_with_param,
+            generate_test_workload_states_map_with_data,
         },
         test_utils,
     };
@@ -167,7 +167,7 @@ mod tests {
                     ),
                 ]);
 
-                complete_state.agents = AgentMap::default();
+                complete_state.agents = AgentMapInternal::default();
                 Ok(ank_base::CompleteState::from(complete_state).into())
             });
 
