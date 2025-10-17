@@ -40,22 +40,26 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
 
             for field in fields_named.named {
                 let field_name = field.ident.unwrap();
-                let mandatory = has_mandatory_attr(&field.attrs);
-                let mut new_ty = transform_type(&field.ty, mandatory);
+
+                let Type::Path(tp) = &field.ty else {
+                    return Err(syn::Error::new_spanned(
+                        field_name,
+                        "Only simple type paths are supported in struct fields.",
+                    ));
+                };
+
                 let missing_field_msg = format!("Missing field '{field_name}'");
 
+                let mandatory = has_mandatory_attr(&field.attrs);
+                let mut new_ty = transform_type(&field.ty, mandatory);
                 let internal_field_attrs = get_internal_field_attrs(&field.attrs);
 
                 let mut is_prost_num_field = false;
-
-                // either Some(prost_type: TypePath) where the type is extracted from an annotation like
-                // #[prost(enumeration = "ReadWriteEnum", tag = "1")] in this case ReadWriteEnumInternal
-                // or none if no such annotation was found
                 if let Some(prost_enum_type) = get_prost_enum_type(&field.attrs) {
                     is_prost_num_field = true;
                     // new_ty = to_internal_type(&prost_enum_type);
                     new_ty = Type::Path(prost_enum_type);
-                    if is_option_type(&field.ty) && !mandatory {
+                    if !mandatory && is_option_type_path(tp) {
                         new_ty = wrap_in_option(new_ty);
                     }
                 }
@@ -64,13 +68,6 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                     #(#internal_field_attrs )*
                     pub #field_name: #new_ty
                 });
-
-                let Type::Path(tp) = &field.ty else {
-                    return Err(syn::Error::new_spanned(
-                        field_name,
-                        "Only simple type paths are supported in struct fields.",
-                    ));
-                };
 
                 // TODO: this looks way to complicated, we need so simplify it according to the use-case at hand
                 // The current general solution is too complex and hard to maintain for our purposes
@@ -101,10 +98,7 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                         }
                     } else if is_prost_num_field || is_custom_type(&inner) {
                         try_from_inits.push(quote! {
-                            #field_name: match orig.#field_name {
-                                Some(v) => Some(v.try_into().map_err(|_| "Cannot convert {#field_name} to internal object.".to_string())?),
-                                None => None,
-                            }
+                            #field_name: orig.#field_name.map(|v| v.try_into()).transpose()?
                         });
                         from_inits.push(quote! {
                             #field_name: orig.#field_name.map(|v| v.into())
@@ -118,13 +112,8 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                         });
                     }
                 } else {
-                    // if let Some(prost_enum_type) = {
-
-                    // } else
-                    // plain type
-
+                    // not an option
                     if is_prost_num_field || is_custom_type_path(tp) {
-                        // if mandatory {
                         try_from_inits.push(quote! {
                                 // TODO fix the message
                                 #field_name: orig.#field_name.try_into().map_err(|_| "Cannot convert {#field_name} to internal object.".to_string())?
@@ -132,14 +121,6 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                         from_inits.push(quote! {
                             #field_name: orig.#field_name.into()
                         });
-                        // } else {
-                        //     try_from_inits.push(quote! {
-                        //         #field_name: Some(orig.#field_name.try_into()?)
-                        //     });
-                        //     from_inits.push(quote! {
-                        //         #field_name: orig.#field_name.map(|v| v.into()).unwrap()
-                        //     });
-                        // }
                     } else if let Some(inner) = inner_vec_type_path(tp)
                         && is_custom_type_path(&inner)
                     {
@@ -152,7 +133,7 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                     } else if let Some((_key_tp, val_tp)) = inner_hashmap_type_path(tp)
                         && is_custom_type_path(&val_tp)
                     {
-                        // This here does not handle custom key types, only custom value types
+                        // TODO: check and fail: This here does not handle custom key types, only custom value types
                         try_from_inits.push(quote! {
                                 #field_name: orig.#field_name.into_iter().map(|(k, v)| Ok((k.clone(), v.try_into()?))).collect::<Result<_, String>>()?
                             });
@@ -532,19 +513,7 @@ fn check_for_forbidden_mandatory_attr(
     Ok(())
 }
 
-fn is_option_type(ty: &Type) -> bool {
-    if let Type::Path(tp) = ty {
-        is_option_type_path(tp)
-    } else {
-        false
-    }
-}
-
 fn is_option_type_path(tp: &TypePath) -> bool {
-    // for segment in &tp.path.segments {
-    //     println!("Checking segment: {}", segment.ident);
-    // }
-
     !tp.path.segments.is_empty() && tp.path.segments.last().unwrap().ident == "Option"
 }
 
@@ -557,7 +526,6 @@ fn extract_inner(ty: &TypePath) -> Type {
             return inner_ty.clone();
         }
     }
-    println!("!!!!!!!!!!!!!!!!!!!");
     panic!("Expected G<T>");
 }
 

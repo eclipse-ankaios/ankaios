@@ -45,6 +45,7 @@ mod tests {
             second_address: Option<Address>,
         }
 
+        #[allow(clippy::large_enum_variant)]
         #[derive(Internal)]
         #[internal_derive(Debug)]
         enum MyEnum {
@@ -85,5 +86,30 @@ mod tests {
         let _my_enum_internal_c = MyEnumInternal::C(Box::new(person_internal.clone()));
 
         println!("Person Spec: {person_internal:?}");
+    }
+
+    #[test]
+    fn test_options_kept_in_internal() {
+        const CPU_USAGE: u32 = 42;
+
+        #[derive(Internal)]
+        pub struct AgentAttributes {
+            pub cpu_usage: Option<CpuUsage>,
+        }
+
+        #[derive(Internal)]
+        #[internal_derive(Debug)]
+        pub struct CpuUsage {
+            #[internal_mandatory]
+            pub cpu_usage: Option<u32>,
+        }
+
+        let external = AgentAttributes {
+            cpu_usage: Some(CpuUsage { cpu_usage: Some(CPU_USAGE) }),
+        };
+
+        let internal: AgentAttributesInternal = external.try_into().unwrap();
+
+        assert_eq!(internal.cpu_usage.unwrap().cpu_usage, CPU_USAGE);
     }
 }
