@@ -61,7 +61,7 @@ Built specifically for embedded and automotive use cases, Ankaios understands th
 
     ---
 
-    Native SDKs allow workloads to communicate with Ankaios programmatically. Applications can query the system state, trigger workload updates, and react to orchestration events, creating intelligent applications that adapt to their deployment environment.
+    Native SDKs allow workloads to communicate with Ankaios programmatically. Applications can query the system state, trigger workload updates, and react to orchestration events, creating intelligent systems that adapt to their deployment environment.
 
 </div>
 
