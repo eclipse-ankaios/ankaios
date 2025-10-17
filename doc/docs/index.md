@@ -13,13 +13,15 @@ Eclipse Ankaios is a workload orchestrator purpose-built for embedded and automo
 Designed to meet the unique demands of resource-constrained environments and High-Performance Computing (HPC) systems in vehicles, Ankaios delivers reliable workload management where it matters most.
 
 <!-- markdownlint-disable MD001 -->
-### Flexible Runtime Support
+### Flexible runtime support
 
 Ankaios supports both Podman and containerd runtimes, giving you the freedom to choose the container technology that best fits your architecture and security requirements. Whether managing a single ECU or orchestrating across multiple compute domains, Ankaios provides a unified API to start, stop, configure, and update workloads deployed as containers.
 
+### Horizontal scalability
+
 Built on a server-agent architecture, Ankaios offers a central place to manage automotive applications across your entire system. The setup consists of one server and multiple agents — typically one agent per node — with each agent connecting to one or more runtimes that execute your workloads. This design ensures scalability from simple single-node deployments to complex distributed systems.
 
-### Why Choose Ankaios?
+### Why choose Ankaios?
 
 Built specifically for embedded and automotive use cases, Ankaios understands the constraints you face: limited resources, real-time requirements, safety considerations, and complex system integration. Unlike existing orchestrators, Ankaios is optimized for deterministic behavior, minimal overhead, and seamless integration with automotive-grade platforms for environments where reliability and efficiency are non-negotiable.
 
@@ -27,37 +29,37 @@ Built specifically for embedded and automotive use cases, Ankaios understands th
 
 <div class="grid cards" markdown>
 
-* <span class="icon-wrapper">📋</span> __Declarative Configuration__
+* <span class="icon-wrapper">📋</span> __Declarative configuration__
 
     ---
 
     Define your entire system state in a single manifest. Ankaios ensures your workloads match your desired configuration, automatically reconciling any drift. Update, configure and rollback your applications with simple manifest changes.
 
-* <span class="icon-wrapper">🔄</span> __Multi-Runtime Flexibility__
+* <span class="icon-wrapper">🔄</span> __Multi-runtime flexibility__
 
     ---
 
     Native support for Podman and containerd gives you runtime choice and other runtimes can also be easily added. Mix runtimes on the same node or run different runtimes on different nodes based on your specific requirements.
 
-* <span class="icon-wrapper">🚗</span> __Built for Automotive Constraints__
+* <span class="icon-wrapper">🚗</span> __Built for automotive constraints__
 
     ---
 
     Optimized for deterministic behavior and minimal resource overhead. Ankaios respects the requirements and constraints of automotive platforms while providing modern container orchestration capabilities.
 
-* <span class="icon-wrapper">🌐</span> __Distributed by Design__
+* <span class="icon-wrapper">🌐</span> __Distributed by design__
 
     ---
 
     The server-agent architecture scales from single-node deployments to complex multi-domain systems. Manage workloads across ECUs, HPCs, and edge devices from a central control point with consistent APIs.
 
-* <span class="icon-wrapper">⚡</span> __Dynamic Workload Management__
+* <span class="icon-wrapper">⚡</span> __Dynamic workload management__
 
     ---
 
     Start, stop, update, and monitor containerized workloads in real-time. Ankaios handles dependencies, ensures proper startup sequences, and provides visibility into workload health across your entire system.
 
-* <span class="icon-wrapper">💻</span> __Programmable Orchestration__
+* <span class="icon-wrapper">💻</span> __Programmable orchestration__
 
     ---
 
@@ -65,7 +67,7 @@ Built specifically for embedded and automotive use cases, Ankaios understands th
 
 </div>
 
-## Getting Started
+## Getting started
 
 * For first steps see [installation](usage/installation.md) and
 [quickstart](usage/quickstart.md).
@@ -74,10 +76,10 @@ Built specifically for embedded and automotive use cases, Ankaios understands th
 * The [Manage a fleet of vehicles from the cloud](usage/tutorial-fleet-management.md) tutorial shows how an Ankaios workload can access the Ankaios control interface in order to provide remote management capabilities.
 * The API is described in the [reference](reference/control-interface.md) section.
 
-## Community & Resources
+## Community & resources
 
 * [:fontawesome-brands-youtube:{ .youtube } Eclipse Ankaios playlist](https://youtube.com/playlist?list=PLXGqib0ZinZFwXpqN9pdFBrtflJVZ--_p)
-* See how others use Ankaios or provides extenstions on the [Awesome Ankaios](usage/awesome-ankaios.md) page.
+* See how others use Ankaios or provides extenstions on the [awesome Ankaios](usage/awesome-ankaios.md) page.
 * There are various ways to get [support](support.md).
 * For contributions have a look at the [contributing](development/build.md) pages.
 
