@@ -2,6 +2,11 @@
 
  Mutual TLS (mTLS) is a security protocol that verifies both the client and server identities before establishing a connection. In Ankaios mTLS can be used to secure communication between the server, agent and ank CLI.
 
+ The standard [installation](installation.md) **disables mTLS** for server, agent and CLI in the respective [configuration files](../reference/config-files.md) with `insecure = true`.
+ Besides that, mTLS can also be disabled for the CLI as command argument like `ank --insecure get state` or setting the environment variable `export ANK_INSECURE=true`.
+
+ This page describes how to create certificates and **enable mTLS**.
+
 ## Prerequisites
 
 - OpenSSL 3.0 or newer

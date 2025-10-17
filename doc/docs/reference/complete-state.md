@@ -4,11 +4,7 @@
 
 The complete state data structure [CompleteState](./_ankaios.proto.md#completestate) is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the `desiredState` which describes the state of the Ankaios system the user wants to have, the `workloadStates` which gives the information about the execution state of all the workloads and the `agents` field containing the names of the Ankaios agents that are currently connected to the Ankaios server. By using of [CompleteState](./_ankaios.proto.md#completestate) in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.
 
-Example: `ank -k get state` returns the complete state of Ankaios system with runtimes `podman`, `containerd` and `podman-kube`:
-
-!!! Note
-
-    The instructions assume the default installation without mutual TLS (mTLS) for communication. With `-k` or `--insecure` the `ank` CLI will connect without mTLS. Alternatively, set the environment variable `ANK_INSECURE=true` to avoid passing the argument to each `ank` CLI command. For an Ankaios setup with mTLS, see [here](../usage/mtls-setup.md).
+Example: `ank get state` returns the complete state of Ankaios system with runtimes `podman`, `containerd` and `podman-kube`:
 
 ```bash
 desiredState:
@@ -114,7 +110,7 @@ The object field mask can be constructed using the field names of the [CompleteS
 <top level field name>.<second level field name>.<third level field name>.<...>
 ```
 
-1. Example: `ank -k get state desiredState.workloads.nginx` returns only the information about nginx workload:
+1. Example: `ank get state desiredState.workloads.nginx` returns only the information about nginx workload:
 
     ```yaml
     desiredState:
@@ -134,7 +130,7 @@ The object field mask can be constructed using the field names of the [CompleteS
           configs: {}
     ```
 
-2. Example `ank -k get state desiredState.workloads.nginx.runtimeConfig` returns only the runtime configuration of nginx workload:
+2. Example `ank get state desiredState.workloads.nginx.runtimeConfig` returns only the runtime configuration of nginx workload:
 
     ```yaml
     desiredState:
@@ -146,7 +142,7 @@ The object field mask can be constructed using the field names of the [CompleteS
             commandOptions: ["-p", "8081:80"]
     ```
 
-3. Example `ank -k set state desiredState.workloads.nginx.restartPolicy new-state.yaml` changes the restart behavior of nginx workload to `NEVER`:
+3. Example `ank set state desiredState.workloads.nginx.restartPolicy new-state.yaml` changes the restart behavior of nginx workload to `NEVER`:
 
     ```yaml title="new-state.yaml"
     desiredState:

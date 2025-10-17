@@ -31,24 +31,11 @@ container runtime
 For using the `podman` runtime, Podman version 3.4.2 is sufficient but the
 `podman-kube` runtime requires at least Podman version 4.3.1.
 
-!!! note
-
-    On Ubuntu 24.04 there is a [known problem with Podman stopping containers](https://bugs.launchpad.net/ubuntu/+source/libpod/+bug/2040483).
-    The following workaround disables AppArmor for Podman. Run the following steps as root after installation of Podman:
-
-    ```shell
-    mkdir -p /etc/containers/containers.conf.d
-    printf '[CONTAINERS]\napparmor_profile=""\n' > /etc/containers/containers.conf.d/disable-apparmor.conf
-    ```
-
 ### Containerd
 
 For using the Ankaios `containerd` runtime, follow the [containerd installation instructions](https://github.com/containerd/containerd/blob/main/docs/getting-started.md#installing-containerd) to install the containerd daemon.
 
 Ankaios uses the `nerdctl` command-line interface (CLI) to manage containers with the containerd runtime. Install a compatible version of the `nerdctl` CLI for the containerd runtime, or install the full `nerdctl` package, including dependencies such as containerd, runc, and CNI. Note that if you are not using the version distributed by your package manager, you must check the platform compatibility of containerd. Download and install the `nerdctl` package from the [official nerdctl releases](https://github.com/containerd/nerdctl/releases).
-
-!!! note
-    AppArmor shall be disabled on Ubuntu 24.04 in the same way as for the Podman runtime mentioned above.
 
 ## Installation methods
 

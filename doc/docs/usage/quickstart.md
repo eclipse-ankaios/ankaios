@@ -35,7 +35,7 @@ The Ankaios server will read the config but detect that no agent with the name
 `agent_A` is available that could start the workload, see logs with:
 
 ```shell
-journalctl -t ank-server
+sudo journalctl -t ank-server
 ```
 
 Now let's start an agent:
@@ -48,12 +48,8 @@ This Ankaios agent will run the workload that has been assigned to it. We can
 use the Ankaios CLI to check the current state:
 
 ```shell
-ank -k get state
+ank get state
 ```
-
-!!! Note
-
-    The instructions assume the default installation without mutual TLS (mTLS) for communication. With `-k` or `--insecure` the `ank` CLI will connect without mTLS. Alternatively, set the environment variable `ANK_INSECURE=true` to avoid passing the argument to each `ank` CLI command. For an Ankaios setup with mTLS, see [here](./mtls-setup.md).
 
 which creates:
 
@@ -91,7 +87,7 @@ agents:
 or
 
 ```shell
-ank -k get workloads
+ank get workloads
 ```
 
 which results in:
@@ -106,7 +102,7 @@ Ankaios also supports adding and removing workloads dynamically. The following c
 To add another workload call:
 
 ```shell
-ank -k run workload \
+ank run workload \
 helloworld \
 --runtime containerd \
 --agent agent_A \
@@ -115,7 +111,7 @@ commandOptions: [ "-e", "MESSAGE=Hello World"]
 commandArgs: [ "sh", "-c", "echo $MESSAGE"]'
 ```
 
-We can check the state again with `ank -k get state` and see, that the workload
+We can check the state again with `ank get state` and see, that the workload
 `helloworld` with runtime `containerd` has been added to `desiredState.workloads` and the execution
 state is available in `workloadStates`:
 
@@ -129,7 +125,7 @@ As the workload had a one time job its state is `Succeeded(Ok)` and we can
 delete it from the state again with:
 
 ```shell
-ank -k delete workload helloworld
+ank delete workload helloworld
 ```
 
 !!! Note
