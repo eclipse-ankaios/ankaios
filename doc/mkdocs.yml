@@ -104,6 +104,7 @@ nav:
       - usage/manifest/config-objects.md
       - usage/manifest/workload-files.md
     - Upgrading:
+      - usage/upgrading/v0_6_to_v0_7.md
       - usage/upgrading/v0_5_to_v0_6.md
       - usage/upgrading/v0_4_to_v0_5.md
       - usage/upgrading/v0_3_to_v0_4.md
