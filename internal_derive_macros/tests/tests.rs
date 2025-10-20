@@ -105,11 +105,99 @@ mod tests {
         }
 
         let external = AgentAttributes {
-            cpu_usage: Some(CpuUsage { cpu_usage: Some(CPU_USAGE) }),
+            cpu_usage: Some(CpuUsage {
+                cpu_usage: Some(CPU_USAGE),
+            }),
         };
 
         let internal: AgentAttributesInternal = external.try_into().unwrap();
 
         assert_eq!(internal.cpu_usage.unwrap().cpu_usage, CPU_USAGE);
+    }
+
+    #[test]
+    fn test_internal_vector_with_custom_type() {
+        #[derive(Internal)]
+        #[internal_derive(Debug)]
+        struct CustomType {
+            #[internal_mandatory]
+            value: Option<String>,
+        }
+
+        #[derive(Internal)]
+        #[internal_derive(Debug)]
+        struct Container {
+            items: Vec<CustomType>,
+        }
+
+        let external = Container {
+            items: vec![
+                CustomType {
+                    value: Some("Item 1".to_string()),
+                },
+                CustomType {
+                    value: Some("Item 2".to_string()),
+                },
+            ],
+        };
+
+        let internal: ContainerInternal = external.try_into().unwrap();
+
+        assert_eq!(
+            internal.items[0].value,
+            "Item 1".to_string()
+        );
+        assert_eq!(
+            internal.items[1].value,
+            "Item 2".to_string()
+        );
+    }
+
+    #[test]
+    fn test_internal_hashmap_with_custom_type() {
+
+        use std::collections::HashMap;
+
+        #[derive(Internal)]
+        #[internal_derive(Debug)]
+        struct CustomType {
+            #[internal_mandatory]
+            value: Option<String>,
+        }
+
+        #[derive(Internal)]
+        #[internal_derive(Debug)]
+        struct Container {
+            items: HashMap<String, CustomType>,
+        }
+
+        let mut external_items = HashMap::new();
+        external_items.insert(
+            "key1".to_string(),
+            CustomType {
+                value: Some("Value 1".to_string()),
+            },
+        );
+        external_items.insert(
+            "key2".to_string(),
+            CustomType {
+                value: Some("Value 2".to_string()),
+            },
+        );
+
+        let external = Container {
+            items: external_items,
+        };
+
+        let internal: ContainerInternal = external.try_into().unwrap();
+
+        assert_eq!(
+            internal.items.get("key1").unwrap().value,
+            "Value 1".to_string()
+        );
+        assert_eq!(
+            internal.items.get("key2").unwrap().value,
+            "Value 2".to_string()
+        );
     }
 }
