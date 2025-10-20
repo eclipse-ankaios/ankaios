@@ -3,7 +3,7 @@ site_url: https://eclipse-ankaios.github.io/ankaios
 repo_url: https://github.com/eclipse-ankaios/ankaios
 repo_name: eclipse-ankaios/ankaios
 edit_uri: edit/main/doc/docs/
-copyright: Copyright &copy; 2023 Elektrobit Automotive GmbH
+copyright: Copyright &copy; 2023-2025 Elektrobit Automotive GmbH and others
 
 theme:
   name: material
@@ -66,6 +66,9 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 plugins:
   - social
@@ -83,6 +86,9 @@ extra:
   version:
     provider: mike
 
+extra_css:
+  - stylesheets/extra.css
+
 nav:
   - index.md
   - architecture.md
@@ -98,11 +104,11 @@ nav:
       - usage/manifest/config-objects.md
       - usage/manifest/workload-files.md
     - Upgrading:
-      - usage/upgrading/v0_2_to_v0_3.md
-      - usage/upgrading/v0_3_to_v0_4.md
-      - usage/upgrading/v0_4_to_v0_5.md
-      - usage/upgrading/v0_5_to_v0_6.md
       - usage/upgrading/v0_6_to_v0_7.md
+      - usage/upgrading/v0_5_to_v0_6.md
+      - usage/upgrading/v0_4_to_v0_5.md
+      - usage/upgrading/v0_3_to_v0_4.md
+      - usage/upgrading/v0_2_to_v0_3.md
   - Reference:
     - reference/startup-configuration.md
     - reference/interacting-with-ankaios.md
