@@ -15,7 +15,9 @@
 mod config_renderer;
 mod cycle_check;
 mod delete_graph;
+mod event_handler;
 mod log_campaign_store;
+mod request_id;
 mod server_state;
 
 use api::ank_base;
@@ -25,6 +27,7 @@ use common::objects::{
     AgentMap, CompleteState, DeletedWorkload, ExecutionState, State, WorkloadInstanceName,
     WorkloadState, WorkloadStatesMap,
 };
+use common::state_manipulation::{FieldDifference, Path};
 
 use server_state::{AddedDeletedWorkloads, StateComparator};
 
@@ -58,6 +61,8 @@ use log_campaign_store::LogCollectorRequestId;
 
 use std::collections::HashSet;
 
+use event_handler::EventHandler;
+
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
     receiver: ToServerReceiver,
@@ -67,6 +72,7 @@ pub struct AnkaiosServer {
     workload_states_map: WorkloadStatesMap,
     agent_map: AgentMap,
     log_campaign_store: LogCampaignStore,
+    event_handler: EventHandler,
 }
 
 impl AnkaiosServer {
@@ -78,6 +84,7 @@ impl AnkaiosServer {
             workload_states_map: WorkloadStatesMap::default(),
             agent_map: AgentMap::default(),
             log_campaign_store: LogCampaignStore::default(),
+            event_handler: EventHandler::default(),
         }
     }
 
@@ -95,13 +102,23 @@ impl AnkaiosServer {
                 .update(state_generation_result.new_desired_state)
             {
                 Ok(Some(added_deleted_workloads)) => {
-                    let field_differences =
-                        state_generation_result.state_comparator.state_differences();
+                    if self.event_handler.has_subscribers() {
+                        let field_differences =
+                            state_generation_result.state_comparator.state_differences();
 
-                    // TODO: sent only when event subscribers exist
-                    if !field_differences.is_empty() {
-                        log::debug!("Found '{}' field differences.", field_differences.len());
-                        log::debug!("Field differences: {field_differences:?}");
+                        if !field_differences.is_empty() {
+                            log::debug!("Found '{}' field differences.", field_differences.len());
+                            log::debug!("Field differences: {field_differences:?}");
+                            self.event_handler
+                                .send_events(
+                                    &self.server_state,
+                                    &self.workload_states_map,
+                                    &self.agent_map,
+                                    field_differences,
+                                    &self.to_agents,
+                                )
+                                .await;
+                        }
                     }
 
                     let added_workloads = added_deleted_workloads.added_workloads;
@@ -177,6 +194,21 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
 
+                    if self.event_handler.has_subscribers() {
+                        self.event_handler
+                            .send_events(
+                                &self.server_state,
+                                &self.workload_states_map,
+                                &self.agent_map,
+                                vec![FieldDifference::Added(Vec::from([
+                                    "agents".to_owned(),
+                                    agent_name.clone(),
+                                ]))],
+                                &self.to_agents,
+                            )
+                            .await;
+                    }
+
                     // [impl->swdd~server-stores-newly-connected-agent~2]
                     self.agent_map.add_agent(agent_name);
                 }
@@ -191,6 +223,10 @@ impl AnkaiosServer {
 
                     self.agent_map
                         .update_agent_resource_availability(method_obj);
+
+                    // TODO: if there are event subscribers, send resource availability if they have changed
+                    // we need to check if first times resource availability were added => Added field difference
+                    // or if resource availability changed => Updated field difference
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
@@ -227,6 +263,21 @@ impl AnkaiosServer {
                         removed_log_requests.disconnected_log_providers,
                     )
                     .await;
+
+                    if self.event_handler.has_subscribers() {
+                        self.event_handler
+                            .send_events(
+                                &self.server_state,
+                                &self.workload_states_map,
+                                &self.agent_map,
+                                vec![FieldDifference::Removed(Vec::from([
+                                    "agents".to_owned(),
+                                    agent_name,
+                                ]))],
+                                &self.to_agents,
+                            )
+                            .await;
+                    }
                 }
                 // [impl->swdd~server-provides-update-desired-state-interface~1]
                 ToServer::Request(Request {
@@ -244,23 +295,34 @@ impl AnkaiosServer {
                             complete_state_request.field_mask
                         );
                         match self.server_state.get_complete_state_by_field_mask(
-                            complete_state_request,
+                            complete_state_request.field_mask.clone(),
                             &self.workload_states_map,
                             &self.agent_map,
                         ) {
-                            Ok(complete_state) => self
-                                .to_agents
-                                .complete_state(request_id, complete_state)
-                                .await
-                                .unwrap_or_illegal_state(),
+                            Ok(complete_state) => {
+                                self.to_agents
+                                    .complete_state(request_id.clone(), complete_state, None)
+                                    .await
+                                    .unwrap_or_illegal_state();
+
+                                // if complete_state_request.subscribe_for_events {
+                                self.event_handler.add_subscriber(
+                                    request_id,
+                                    complete_state_request
+                                        .field_mask
+                                        .into_iter()
+                                        .map(Path::from)
+                                        .collect(),
+                                );
+                                // }
+                            }
                             Err(error) => {
                                 log::error!("Failed to get complete state: '{error}'");
                                 self.to_agents
                                     .complete_state(
                                         request_id,
-                                        ank_base::CompleteState {
-                                            ..Default::default()
-                                        },
+                                        ank_base::CompleteState::default(),
+                                        None,
                                     )
                                     .await
                                     .unwrap_or_illegal_state();
@@ -392,8 +454,7 @@ impl AnkaiosServer {
                     common::commands::RequestContent::EventsCancelRequest => {
                         log::debug!("Got event cancel request with ID: {request_id}");
 
-                        // TODO
-                        // self.event_campaign_store.remove_event_request_id(&request_id);
+                        self.event_handler.remove_subscriber(request_id.clone());
 
                         self.to_agents
                             .event_cancel_request_accepted(request_id)
@@ -465,13 +526,23 @@ impl AnkaiosServer {
         state_comparator: &StateComparator,
     ) {
         // [impl->swdd~server-calculates-state-differences-for-events~1]
-        // TODO: determine state differences only when event subscribers exist
         // state changes must be calculated after every update since only config item can be changed as well
-        let state_differences = state_comparator.state_differences();
+        if self.event_handler.has_subscribers() {
+            let state_differences = state_comparator.state_differences();
 
-        if !state_differences.is_empty() {
-            log::debug!("Found '{}' state differences", state_differences.len());
-            log::debug!("State differences: {state_differences:?}");
+            if !state_differences.is_empty() {
+                log::debug!("Found '{}' state differences", state_differences.len());
+                log::debug!("State differences: {state_differences:?}");
+                self.event_handler
+                    .send_events(
+                        &self.server_state,
+                        &self.workload_states_map,
+                        &self.agent_map,
+                        state_differences,
+                        &self.to_agents,
+                    )
+                    .await;
+            }
         }
 
         let added_workloads = added_deleted_workloads.added_workloads;
@@ -1553,13 +1624,7 @@ mod tests {
         mock_server_state
             .expect_get_complete_state_by_field_mask()
             .with(
-                mockall::predicate::function(|request_complete_state| {
-                    request_complete_state
-                        == &CompleteStateRequest {
-                            field_mask: vec![],
-                            subscribe_for_events: false,
-                        }
-                }),
+                mockall::predicate::eq(Vec::default()),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
             )
@@ -1616,13 +1681,7 @@ mod tests {
         mock_server_state
             .expect_get_complete_state_by_field_mask()
             .with(
-                mockall::predicate::function(|request_complete_state| {
-                    request_complete_state
-                        == &CompleteStateRequest {
-                            field_mask: vec![],
-                            subscribe_for_events: false,
-                        }
-                }),
+                mockall::predicate::eq(Vec::default()),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
             )

@@ -14,7 +14,7 @@
 
 use crate::PATH_SEPARATOR;
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Path {
     parts: Vec<String>,
 }
@@ -71,6 +71,12 @@ impl From<Path> for String {
 impl From<&Path> for String {
     fn from(value: &Path) -> Self {
         value.parts.join(".")
+    }
+}
+
+impl From<Vec<String>> for Path {
+    fn from(value: Vec<String>) -> Self {
+        Path { parts: value }
     }
 }
 

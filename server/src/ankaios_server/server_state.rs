@@ -24,7 +24,6 @@ use super::delete_graph::DeleteGraph;
 use common::objects::{AgentMap, State, WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
 use common::std_extensions::IllegalStateResult;
 use common::{
-    commands::CompleteStateRequest,
     objects::{CompleteState, DeletedWorkload, WorkloadSpec},
     state_manipulation::{FieldDifference, Object, Path},
 };
@@ -157,7 +156,7 @@ impl ServerState {
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
-        request_complete_state: CompleteStateRequest,
+        field_masks: Vec<String>,
         workload_states_map: &WorkloadStatesMap,
         agent_map: &AgentMap,
     ) -> Result<ank_base::CompleteState, String> {
@@ -168,8 +167,8 @@ impl ServerState {
         }
         .into();
 
-        if !request_complete_state.field_mask.is_empty() {
-            let mut filters = request_complete_state.field_mask;
+        if !field_masks.is_empty() {
+            let mut filters = field_masks;
             if filters
                 .iter()
                 .any(|field| field.starts_with(Self::DESIRED_STATE_FIELD_MASK_PART))
@@ -441,7 +440,7 @@ mod tests {
 
         let received_complete_state = server_state
             .get_complete_state_by_field_mask(
-                request_complete_state,
+                request_complete_state.field_mask,
                 &workload_states_map,
                 &agent_map,
             )
@@ -482,7 +481,7 @@ mod tests {
 
         let received_complete_state = server_state
             .get_complete_state_by_field_mask(
-                request_complete_state,
+                request_complete_state.field_mask,
                 &WorkloadStatesMap::default(),
                 &AgentMap::default(),
             )
@@ -540,7 +539,7 @@ mod tests {
 
         let complete_state = server_state
             .get_complete_state_by_field_mask(
-                request_complete_state,
+                request_complete_state.field_mask,
                 &workload_state_map,
                 &AgentMap::default(),
             )
