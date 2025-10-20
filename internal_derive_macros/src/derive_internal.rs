@@ -334,6 +334,19 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                                         from_fields.push(quote! {
                                             #field_id.into()
                                         });
+                                    // TODO: think about the order
+                                    } else if let Some(prost_enum_tp) = get_prost_enum_type(&variant.attrs) {
+                                        let new_ty = Type::Path(prost_enum_tp);
+                                        new_variant.push(quote! { #new_ty });
+
+                                        // TODO: fix the error message
+                                        try_fields.push(quote! {
+                                            #field_id.try_into().map_err(|_| "Cannot convert {#field_name} to internal object.".to_string())?
+                                        });
+
+                                        from_fields.push(quote! {
+                                            #field_id.into()
+                                        });
                                     // handle custom boxed types
                                     } else if let Some(inner) = inner_boxed_type_path(tp)
                                         && is_custom_type_path(&inner)
@@ -519,9 +532,11 @@ fn get_prost_enum_type(attrs: &[Attribute]) -> Option<TypePath> {
                     if let Expr::Lit(expr_lit) = value {
                         if let Lit::Str(lit_str) = expr_lit.lit {
                             let enum_name = lit_str.value();
-                            let internal_name = format_ident!("{}", enum_name);
-                            println!("I'm at 7");
-                            return Some(parse_quote! { #internal_name });
+                            // Parse the string as a Rust path
+                            // if it does not work, it's not what we expect
+                            if let Ok(tp) = syn::parse_str::<TypePath>(&enum_name) {
+                                return Some(tp);
+                            }
                         }
                     }
                 }
