@@ -5,9 +5,7 @@ workloads:
     agent: agent_A
     restartPolicy: ON_FAILURE
     tags:
-      - key: test
-        value: this
-      # owner: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
       commandOptions: ["-p", "8081:80"]
@@ -31,9 +29,7 @@ workloads:
     agent: agent_B
     restartPolicy: ON_FAILURE
     tags:
-      # owner: Ankaios team
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
@@ -43,9 +39,7 @@ workloads:
     agent: agent_A
     restartPolicy: NEVER
     tags:
-      # owner: Ankaios team
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "sh", "-c", "echo 'Hello from a containerd workload.'; sleep 3;" ]
@@ -54,9 +48,7 @@ workloads:
     agent: agent_B
     restartPolicy: NEVER
     tags:
-      - key: owner
-        value: Ankaios team
-      # owner: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       manifest: |
         apiVersion: v1
