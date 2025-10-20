@@ -48,6 +48,8 @@
       
     
     
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -947,35 +949,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../upgrading/v0_2_to_v0_3/" class="md-nav__link">
+      <a href="../upgrading/v0_5_to_v0_6/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Upgrading v0.2 to v0.3
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../upgrading/v0_3_to_v0_4/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Upgrading v0.3 to v0.4
+    Upgrading v0.5 to v0.6
     
   </span>
   
@@ -1016,12 +995,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../upgrading/v0_5_to_v0_6/" class="md-nav__link">
+      <a href="../upgrading/v0_3_to_v0_4/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Upgrading v0.5 to v0.6
+    Upgrading v0.3 to v0.4
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrading/v0_2_to_v0_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upgrading v0.2 to v0.3
     
   </span>
   
@@ -1831,7 +1833,7 @@ This tutorial assumes that the reader is familiar with the basics of Ankaios sho
 <figcaption>Fleet management overview</figcaption>
 </figure>
 <p>To complete this tutorial, you will need a Linux platform, which can be a WSL2, RaspberryPi, a Linux PC or a virtual machine.
-It's also assumed that the Ankaios setup is done with mutual TLS (mTLS) disabled or using the default installation settings.</p>
+It's also assumed that the Ankaios setup has been performed using the default <a href="../installation/">installation</a> script.</p>
 <h2 id="mqtt-broker">MQTT broker<a class="headerlink" href="#mqtt-broker" title="Permanent link">&para;</a></h2>
 <p>In the real world, the MQTT broker would reside in the cloud, but for this tutorial, we set up an MQTT broker on the local machine using the existing Eclipse Mosquitto container image. The container is started with Podman directly to emulate that it is running outside of the vehicle.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>podman<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--net<span class="o">=</span>host<span class="w"> </span>docker.io/eclipse-mosquitto:2.0.20
@@ -1962,7 +1964,7 @@ The following examples assume that the installation script was used with the def
 <a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;*&quot;</span>
 <a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">    </span><span class="nt">restartPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NEVER</span>
 <a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/fleet-connector:0.6.0</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/fleet-connector:0.7.0</span>
 <a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">      </span><span class="no">commandOptions: [ &quot;--net=host&quot;, &quot;-e&quot;, &quot;VIN=1&quot;]</span>
 </code></pre></div>
 <p>Since the fleet connector needs to access the Ankaios control interface, we need to allow this with the <code>controlInterfaceAccess</code> section in the manifest.
@@ -1971,7 +1973,7 @@ See the <a href="../../reference/_ankaios.proto/#controlinterfaceaccess">referen
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>ank-server<span class="w"> </span>ank-agent
 </code></pre></div>
 <p>And we check that the fleet connector is up and running with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <h2 id="remote-installation-of-a-vehicle-data-sender">Remote installation of a vehicle data sender<a class="headerlink" href="#remote-installation-of-a-vehicle-data-sender" title="Permanent link">&para;</a></h2>
 <p>Now we want to use the fleet connector to remotely install a new containerized workload on the vehicle. The workload is called <code>vehicle-data-sender</code>. It will send a (random) speed value to the MQTT broker in the cloud. The full source code of the vehicle data sender is available in the <a href="https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_fleet_management/vehicle-data-sender">Ankaios repository</a>.</p>
@@ -2131,7 +2133,7 @@ Just publish the manifest with the workload and config from the previous section
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2023 Elektrobit Automotive GmbH
+      Copyright &copy; 2023-2025 Elektrobit Automotive GmbH and others
     </div>
   
   

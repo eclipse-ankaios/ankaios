@@ -48,6 +48,8 @@
       
     
     
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -962,35 +964,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../upgrading/v0_2_to_v0_3/" class="md-nav__link">
+      <a href="../upgrading/v0_5_to_v0_6/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Upgrading v0.2 to v0.3
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../upgrading/v0_3_to_v0_4/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Upgrading v0.3 to v0.4
+    Upgrading v0.5 to v0.6
     
   </span>
   
@@ -1031,12 +1010,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../upgrading/v0_5_to_v0_6/" class="md-nav__link">
+      <a href="../upgrading/v0_3_to_v0_4/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Upgrading v0.5 to v0.6
+    Upgrading v0.3 to v0.4
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrading/v0_2_to_v0_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upgrading v0.2 to v0.3
     
   </span>
   
@@ -1852,6 +1854,9 @@
 
 <h1 id="setting-up-ankaios-with-mtls">Setting up Ankaios with mTLS<a class="headerlink" href="#setting-up-ankaios-with-mtls" title="Permanent link">&para;</a></h1>
 <p>Mutual TLS (mTLS) is a security protocol that verifies both the client and server identities before establishing a connection. In Ankaios mTLS can be used to secure communication between the server, agent and ank CLI.</p>
+<p>The standard <a href="../installation/">installation</a> <strong>disables mTLS</strong> for server, agent and CLI in the respective <a href="../../reference/config-files/">configuration files</a> with <code>insecure = true</code>.
+ Besides that, mTLS can also be disabled for the CLI as command argument like <code>ank --insecure get state</code> or setting the environment variable <code>export ANK_INSECURE=true</code>.</p>
+<p>This page describes how to create certificates and <strong>enable mTLS</strong>.</p>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <ul>
 <li>OpenSSL 3.0 or newer</li>
@@ -2066,7 +2071,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2023 Elektrobit Automotive GmbH
+      Copyright &copy; 2023-2025 Elektrobit Automotive GmbH and others
     </div>
   
   

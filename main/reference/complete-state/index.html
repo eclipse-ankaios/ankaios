@@ -48,6 +48,8 @@
       
     
     
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -822,35 +824,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/upgrading/v0_2_to_v0_3/" class="md-nav__link">
+      <a href="../../usage/upgrading/v0_5_to_v0_6/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Upgrading v0.2 to v0.3
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../usage/upgrading/v0_3_to_v0_4/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Upgrading v0.3 to v0.4
+    Upgrading v0.5 to v0.6
     
   </span>
   
@@ -891,12 +870,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/upgrading/v0_5_to_v0_6/" class="md-nav__link">
+      <a href="../../usage/upgrading/v0_3_to_v0_4/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Upgrading v0.5 to v0.6
+    Upgrading v0.3 to v0.4
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/upgrading/v0_2_to_v0_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upgrading v0.2 to v0.3
     
   </span>
   
@@ -1709,11 +1711,7 @@
 <h1 id="working-with-completestate">Working with CompleteState<a class="headerlink" href="#working-with-completestate" title="Permanent link">&para;</a></h1>
 <h2 id="completestate">CompleteState<a class="headerlink" href="#completestate" title="Permanent link">&para;</a></h2>
 <p>The complete state data structure <a href="../_ankaios.proto/#completestate">CompleteState</a> is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the <code>desiredState</code> which describes the state of the Ankaios system the user wants to have, the <code>workloadStates</code> which gives the information about the execution state of all the workloads and the <code>agents</code> field containing the names of the Ankaios agents that are currently connected to the Ankaios server. By using of <a href="../_ankaios.proto/#completestate">CompleteState</a> in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.</p>
-<p>Example: <code>ank -k get state</code> returns the complete state of Ankaios system with runtimes <code>podman</code>, <code>containerd</code> and <code>podman-kube</code>:</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The instructions assume the default installation without mutual TLS (mTLS) for communication. With <code>-k</code> or <code>--insecure</code> the <code>ank</code> CLI will connect without mTLS. Alternatively, set the environment variable <code>ANK_INSECURE=true</code> to avoid passing the argument to each <code>ank</code> CLI command. For an Ankaios setup with mTLS, see <a href="../../usage/mtls-setup/">here</a>.</p>
-</div>
+<p>Example: <code>ank get state</code> returns the complete state of Ankaios system with runtimes <code>podman</code>, <code>containerd</code> and <code>podman-kube</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>desiredState:
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>apiVersion:<span class="w"> </span>v0.1
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>workloads:
@@ -1811,7 +1809,7 @@ The object field mask can be constructed using the field names of the <a href=".
 </code></pre></div>
 <ol>
 <li>
-<p>Example: <code>ank -k get state desiredState.workloads.nginx</code> returns only the information about nginx workload:</p>
+<p>Example: <code>ank get state desiredState.workloads.nginx</code> returns only the information about nginx workload:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">desiredState</span><span class="p">:</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">workloads</span><span class="p">:</span>
@@ -1830,7 +1828,7 @@ The object field mask can be constructed using the field names of the <a href=".
 </code></pre></div>
 </li>
 <li>
-<p>Example <code>ank -k get state desiredState.workloads.nginx.runtimeConfig</code> returns only the runtime configuration of nginx workload:</p>
+<p>Example <code>ank get state desiredState.workloads.nginx.runtimeConfig</code> returns only the runtime configuration of nginx workload:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">desiredState</span><span class="p">:</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">workloads</span><span class="p">:</span>
@@ -1841,7 +1839,7 @@ The object field mask can be constructed using the field names of the <a href=".
 </code></pre></div>
 </li>
 <li>
-<p>Example <code>ank -k set state desiredState.workloads.nginx.restartPolicy new-state.yaml</code> changes the restart behavior of nginx workload to <code>NEVER</code>:</p>
+<p>Example <code>ank set state desiredState.workloads.nginx.restartPolicy new-state.yaml</code> changes the restart behavior of nginx workload to <code>NEVER</code>:</p>
 <div class="highlight"><span class="filename">new-state.yaml</span><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">desiredState</span><span class="p">:</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">workloads</span><span class="p">:</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">nginx</span><span class="p">:</span>
@@ -1923,7 +1921,7 @@ The object field mask can be constructed using the field names of the <a href=".
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2023 Elektrobit Automotive GmbH
+      Copyright &copy; 2023-2025 Elektrobit Automotive GmbH and others
     </div>
   
   

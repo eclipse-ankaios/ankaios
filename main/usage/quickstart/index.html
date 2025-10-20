@@ -48,6 +48,8 @@
       
     
     
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -843,35 +845,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../upgrading/v0_2_to_v0_3/" class="md-nav__link">
+      <a href="../upgrading/v0_5_to_v0_6/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Upgrading v0.2 to v0.3
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../upgrading/v0_3_to_v0_4/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Upgrading v0.3 to v0.4
+    Upgrading v0.5 to v0.6
     
   </span>
   
@@ -912,12 +891,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../upgrading/v0_5_to_v0_6/" class="md-nav__link">
+      <a href="../upgrading/v0_3_to_v0_4/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Upgrading v0.5 to v0.6
+    Upgrading v0.3 to v0.4
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrading/v0_2_to_v0_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upgrading v0.2 to v0.3
     
   </span>
   
@@ -1662,19 +1664,15 @@ The startup manifest file contains all of the workloads and their configuration 
 </code></pre></div>
 <p>The Ankaios server will read the config but detect that no agent with the name
 <code>agent_A</code> is available that could start the workload, see logs with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>journalctl<span class="w"> </span>-t<span class="w"> </span>ank-server
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sudo<span class="w"> </span>journalctl<span class="w"> </span>-t<span class="w"> </span>ank-server
 </code></pre></div>
 <p>Now let's start an agent:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>ank-agent
 </code></pre></div>
 <p>This Ankaios agent will run the workload that has been assigned to it. We can
 use the Ankaios CLI to check the current state:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>state
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>ank<span class="w"> </span>get<span class="w"> </span>state
 </code></pre></div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The instructions assume the default installation without mutual TLS (mTLS) for communication. With <code>-k</code> or <code>--insecure</code> the <code>ank</code> CLI will connect without mTLS. Alternatively, set the environment variable <code>ANK_INSECURE=true</code> to avoid passing the argument to each <code>ank</code> CLI command. For an Ankaios setup with mTLS, see <a href="../mtls-setup/">here</a>.</p>
-</div>
 <p>which creates:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">desiredState</span><span class="p">:</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
@@ -1706,7 +1704,7 @@ use the Ankaios CLI to check the current state:</p>
 <a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="w">    </span><span class="nt">freeMemory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7989682176</span>
 </code></pre></div>
 <p>or</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <p>which results in:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO
@@ -1714,7 +1712,7 @@ use the Ankaios CLI to check the current state:</p>
 </code></pre></div>
 <p>Ankaios also supports adding and removing workloads dynamically. The following command assumes that the <code>containerd</code> runtime is installed according to the <a href="../installation/">installation instructions</a>.</p>
 <p>To add another workload call:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>run<span class="w"> </span>workload<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>ank<span class="w"> </span>run<span class="w"> </span>workload<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>helloworld<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>--runtime<span class="w"> </span>containerd<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>--agent<span class="w"> </span>agent_A<span class="w"> </span><span class="se">\</span>
@@ -1722,7 +1720,7 @@ use the Ankaios CLI to check the current state:</p>
 <a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="s1">commandOptions: [ &quot;-e&quot;, &quot;MESSAGE=Hello World&quot;]</span>
 <a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="s1">commandArgs: [ &quot;sh&quot;, &quot;-c&quot;, &quot;echo $MESSAGE&quot;]&#39;</span>
 </code></pre></div>
-<p>We can check the state again with <code>ank -k get state</code> and see, that the workload
+<p>We can check the state again with <code>ank get state</code> and see, that the workload
 <code>helloworld</code> with runtime <code>containerd</code> has been added to <code>desiredState.workloads</code> and the execution
 state is available in <code>workloadStates</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>WORKLOAD NAME   AGENT     RUNTIME      EXECUTION STATE   ADDITIONAL INFO
@@ -1731,7 +1729,7 @@ state is available in <code>workloadStates</code>:</p>
 </code></pre></div>
 <p>As the workload had a one time job its state is <code>Succeeded(Ok)</code> and we can
 delete it from the state again with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>helloworld
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>ank<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>helloworld
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -1816,7 +1814,7 @@ Then also check the reference documentation for the
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2023 Elektrobit Automotive GmbH
+      Copyright &copy; 2023-2025 Elektrobit Automotive GmbH and others
     </div>
   
   
