@@ -38,9 +38,11 @@ theme:
     - navigation.instant
     - navigation.sections
     - navigation.tabs
+    - navigation.top
     - content.code.copy
     - content.code.annotate
     - content.action.edit
+    - content.tabs.link
     - navigation.footer
 
 markdown_extensions:
@@ -48,6 +50,7 @@ markdown_extensions:
   - md_in_html
   - admonition
   - footnotes
+  - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
       # line_spans: __span
@@ -88,6 +91,7 @@ extra:
 
 extra_css:
   - stylesheets/extra.css
+  - stylesheets/index.css
 
 nav:
   - index.md
