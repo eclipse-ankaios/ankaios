@@ -177,10 +177,10 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
 
-                    // [impl->swdd~server-stores-newly-connected-agent~1]
+                    // [impl->swdd~server-stores-newly-connected-agent~2]
                     self.agent_map.add_agent(agent_name);
                 }
-                // [impl->swdd~server-receives-resource-availability~1]
+                // [impl->swdd~server-receives-resource-availability~2]
                 ToServer::AgentLoadStatus(method_obj) => {
                     log::trace!(
                         "Received load status from agent '{}': CPU usage: {}%, Free Memory: {}B",
@@ -196,7 +196,7 @@ impl AnkaiosServer {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
                     let agent_name = method_obj.agent_name;
 
-                    // [impl->swdd~server-removes-disconnected-agents-from-state~1]
+                    // [impl->swdd~server-removes-disconnected-agents-from-state~2]
                     self.agent_map.remove_agent(&agent_name);
 
                     // [impl->swdd~server-set-workload-state-on-disconnect~1]
@@ -974,7 +974,6 @@ mod tests {
     // [utest->swdd~server-sends-all-workloads-on-start~2]
     // [utest->swdd~agent-from-agent-field~1]
     // [utest->swdd~server-starts-without-startup-config~1]
-    // [utest->swdd~server-stores-newly-connected-agent~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1674,7 +1673,6 @@ mod tests {
     // [utest->swdd~server-set-workload-state-on-disconnect~1]
     // [utest->swdd~server-distribute-workload-state-on-disconnect~1]
     // [utest->swdd~server-starts-without-startup-config~1]
-    // [utest->swdd~server-removes-disconnected-agents-from-state~1]
     #[tokio::test]
     async fn utest_server_start_distributes_workload_states_after_agent_disconnect() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2430,7 +2428,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
-    // [utest->swdd~server-receives-resource-availability~1]
+    // [utest->swdd~server-receives-resource-availability~2]
     #[tokio::test]
     async fn utest_server_receives_agent_status_load() {
         let payload = AgentLoadStatus {
@@ -2459,7 +2457,7 @@ mod tests {
         assert_eq!(expected_agent_map, server.agent_map);
     }
 
-    // [utest->swdd~server-stores-newly-connected-agent~1]
+    // [utest->swdd~server-stores-newly-connected-agent~2]
     #[tokio::test]
     async fn utest_server_stores_newly_connected_agents() {
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
@@ -2490,7 +2488,7 @@ mod tests {
         assert_eq!(expected_agent_map, server.agent_map);
     }
 
-    // [utest->swdd~server-removes-disconnected-agents-from-state~1]
+    // [utest->swdd~server-removes-disconnected-agents-from-state~2]
     #[tokio::test]
     async fn utest_server_removes_disconnected_agents_from_agent_map() {
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
