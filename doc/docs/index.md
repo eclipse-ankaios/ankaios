@@ -23,8 +23,8 @@ hide:
   <div class="hero-content">
     <div class="hero-text">
       <div class="hero-logo-container">
-        <img src="assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="Eclipse Ankaios" class="logo-dark" />
-        <img src="assets/Ankaios__logo_for_light_bgrd_clipped.png" alt="Eclipse Ankaios" class="logo-light" />
+        <img src="assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="Eclipse Ankaios (dark theme)" class="logo-dark" />
+        <img src="assets/Ankaios__logo_for_light_bgrd_clipped.png" alt="Eclipse Ankaios (light theme)" class="logo-light" />
       </div>
       <p class="hero-description">
         Eclipse Ankaios is a workload orchestrator purpose-built for embedded and automotive platforms.
