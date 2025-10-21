@@ -148,10 +148,14 @@ impl ServerState {
                 current_complete_state.try_into().unwrap_or_illegal_state();
             let mut return_state = Object::default();
 
+            let filters = filters.into_iter().map(|f| f.into()).collect::<Vec<Path>>();
+            //[impl->swdd~server-filters-get-complete-state-result-with-wildcards~1]
+            let filters = current_complete_state.expand_wildcards(&filters);
+
             log::debug!("Current state: {current_complete_state:?}");
             for field in &filters {
-                if let Some(value) = current_complete_state.get(&field.into()) {
-                    return_state.set(&field.into(), value.to_owned())?;
+                if let Some(value) = current_complete_state.get(field) {
+                    return_state.set(field, value.to_owned())?;
                 } else {
                     log::debug!(
                         concat!(
@@ -499,6 +503,7 @@ mod tests {
 
     // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-filters-get-complete-state-result~2]
+    // [utest->swdd~server-filters-get-complete-state-result-with-wildcards~1]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask() {
         let w1 = generate_test_workload_spec_with_control_interface_access(
@@ -528,6 +533,7 @@ mod tests {
             field_mask: vec![
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
                 format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
+                format!("desiredState.workloads.*.runtime"),
             ],
             subscribe_for_events: false,
         };
@@ -547,7 +553,21 @@ mod tests {
                     restart_policy: None,
                     dependencies: None,
                     tags: None,
-                    runtime: None,
+                    runtime: Some(w3.runtime.clone()),
+                    runtime_config: None,
+                    control_interface_access: None,
+                    configs: None,
+                    files: None,
+                },
+            ),
+            (
+                w2.instance_name.workload_name(),
+                ank_base::Workload {
+                    agent: None,
+                    restart_policy: None,
+                    dependencies: None,
+                    tags: None,
+                    runtime: Some(w2.runtime.clone()),
                     runtime_config: None,
                     control_interface_access: None,
                     configs: None,
