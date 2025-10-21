@@ -74,6 +74,18 @@ impl From<&Path> for String {
     }
 }
 
+impl From<Vec<String>> for Path {
+    fn from(value: Vec<String>) -> Self {
+        Path { parts: value }
+    }
+}
+
+impl std::fmt::Display for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", String::from(self))
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //

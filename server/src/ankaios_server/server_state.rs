@@ -148,10 +148,13 @@ impl ServerState {
                 current_complete_state.try_into().unwrap_or_illegal_state();
             let mut return_state = Object::default();
 
+            let filters = filters.into_iter().map(|f| f.into()).collect::<Vec<Path>>();
+            let filters = current_complete_state.expand_wildcards(&filters);
+
             log::debug!("Current state: {current_complete_state:?}");
             for field in &filters {
-                if let Some(value) = current_complete_state.get(&field.into()) {
-                    return_state.set(&field.into(), value.to_owned())?;
+                if let Some(value) = current_complete_state.get(field) {
+                    return_state.set(field, value.to_owned())?;
                 } else {
                     log::debug!(
                         concat!(

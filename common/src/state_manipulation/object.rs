@@ -12,11 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 use super::Path;
-use crate::{objects as ankaios, std_extensions::UnreachableOption};
-use api::ank_base::{self as proto};
+use crate::{
+    objects::{self as ankaios, WILDCARD_SYMBOL},
+    std_extensions::UnreachableOption,
+};
+use api::ank_base as proto;
 use serde_yaml::{
     Mapping, Value, from_value,
     mapping::Entry::{Occupied, Vacant},
@@ -292,6 +295,66 @@ impl Object {
             }
         }
         Some(current_obj)
+    }
+
+    pub fn expand_wildcards(&self, path: &[Path]) -> Vec<Path> {
+        let value = &self.data;
+        let mut result = Vec::new();
+        let mut to_do = path
+            .iter()
+            .map(|p| (Vec::<String>::new(), value, p.parts().as_slice()))
+            .collect::<VecDeque<_>>();
+
+        while let Some((mut current_prefix, mut current_value, mut remaining_path)) =
+            to_do.pop_front()
+        {
+            let mut current_result_valid = true;
+            while !remaining_path.is_empty() {
+                let path_element;
+                (path_element, remaining_path) = remaining_path.split_first().unwrap();
+                if path_element == WILDCARD_SYMBOL {
+                    current_result_valid = false;
+                    match current_value {
+                        Value::Mapping(map) => {
+                            for (key, value) in map {
+                                let key = match key {
+                                    Value::String(s) => s.clone(),
+                                    Value::Number(n) if n.is_i64() || n.is_u64() => n.to_string(),
+                                    _ => continue,
+                                };
+                                // let Value::String(key) = key else { continue };
+                                let mut new_prefix = current_prefix.clone();
+                                new_prefix.push(key);
+                                to_do.push_front((new_prefix, value, remaining_path));
+                            }
+                        }
+                        Value::Sequence(seq) => {
+                            for (index, value) in seq.iter().enumerate() {
+                                let mut new_prefix = current_prefix.clone();
+                                new_prefix.push(index.to_string());
+                                to_do.push_front((new_prefix, value, remaining_path));
+                            }
+                        }
+                        _ => {}
+                    }
+
+                    break;
+                } else {
+                    current_prefix.push(path_element.clone());
+                    current_value = if let Some(x) = current_value.get(path_element) {
+                        x
+                    } else {
+                        current_result_valid = false;
+                        break;
+                    }
+                }
+            }
+            if current_result_valid {
+                result.push(current_prefix);
+            }
+        }
+
+        result.into_iter().map(|p| p.into()).collect()
     }
 
     pub fn check_if_provided_path_exists(&self, path: &Path) -> bool {
