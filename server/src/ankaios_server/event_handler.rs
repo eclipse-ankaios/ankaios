@@ -16,13 +16,13 @@ use crate::ankaios_server::request_id::to_string_id;
 use crate::ankaios_server::server_state::ServerState;
 
 use super::request_id::RequestId;
-use common::from_server_interface::{FromServerInterface, FromServerSender};
-use common::objects::{AgentMap, WorkloadStatesMap};
-use common::state_manipulation::{FieldDifference, Path};
-use common::std_extensions::IllegalStateResult;
+use common::{
+    from_server_interface::{FromServerInterface, FromServerSender},
+    objects::{AgentMap, WorkloadStatesMap},
+    state_manipulation::{FieldDifference, Path},
+    std_extensions::IllegalStateResult,
+};
 use std::collections::HashMap;
-
-type SubscribedFieldMasks = Vec<Path>;
 
 const WILDCARD_SEPARATOR: &str = "*";
 
@@ -49,6 +49,7 @@ impl AlteredFields {
     }
 }
 
+type SubscribedFieldMasks = Vec<Path>;
 #[derive(Debug, Default)]
 pub struct EventHandler {
     subscriber_store: HashMap<RequestId, SubscribedFieldMasks>,
