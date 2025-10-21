@@ -338,16 +338,16 @@ impl AnkaiosServer {
                                     .await
                                     .unwrap_or_illegal_state();
 
-                                // if complete_state_request.subscribe_for_events {
-                                self.event_handler.add_subscriber(
-                                    request_id,
-                                    complete_state_request
-                                        .field_mask
-                                        .into_iter()
-                                        .map(Path::from)
-                                        .collect(),
-                                );
-                                // }
+                                if complete_state_request.subscribe_for_events {
+                                    self.event_handler.add_subscriber(
+                                        request_id,
+                                        complete_state_request
+                                            .field_mask
+                                            .into_iter()
+                                            .map(Path::from)
+                                            .collect(),
+                                    );
+                                }
                             }
                             Err(error) => {
                                 log::error!("Failed to get complete state: '{error}'");
