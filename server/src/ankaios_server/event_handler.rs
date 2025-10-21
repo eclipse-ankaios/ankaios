@@ -70,9 +70,10 @@ fn fill_altered_fields_and_filter_masks(
                 altered_fields.push(altered_field_mask.into());
             }
             MaskComparisonResult::ShorterAlteredFieldMask => {
-                // TODO: expand wildcards in subscriber masks
-                filter_masks.push(String::from(subscriber_mask));
-                altered_fields.push(subscriber_mask.into());
+                let expanded_subscriber_mask =
+                    expand_wildcards_in_subscriber_mask(subscriber_mask, altered_field_mask);
+                filter_masks.push(String::from(expanded_subscriber_mask.clone()));
+                altered_fields.push(expanded_subscriber_mask.into());
             }
         }
     }
@@ -108,6 +109,30 @@ fn compare_subscriber_mask_with_altered_field_mask(
     }
 
     MaskComparisonResult::EqualLength
+}
+
+fn expand_wildcards_in_subscriber_mask(subscriber_mask: &Path, altered_field_mask: &Path) -> Path {
+    let mut subscriber_mask_parts_iter = subscriber_mask.parts().iter();
+    let mut expanded_subscriber_mask = Vec::new();
+    for (altered_field_mask_part, subscriber_mask_part) in altered_field_mask
+        .parts()
+        .iter()
+        .zip(&mut subscriber_mask_parts_iter)
+    {
+        if altered_field_mask_part == subscriber_mask_part
+            || subscriber_mask_part == WILDCARD_SEPARATOR
+        {
+            expanded_subscriber_mask.push(altered_field_mask_part.clone());
+        } else {
+            expanded_subscriber_mask.push(subscriber_mask_part.clone());
+        }
+    }
+
+    for part in subscriber_mask_parts_iter {
+        expanded_subscriber_mask.push(part.clone());
+    }
+
+    Path::from(expanded_subscriber_mask)
 }
 
 impl EventHandler {
@@ -460,28 +485,27 @@ mod tests {
         );
     }
 
-    // TODO: test will pass if the wildcard support of other PR is merged into branch
-    // #[test]
-    // fn utest_fill_altered_fields_and_filter_masks_shorter_altered_field_mask_subscriber_wildcards()
-    // {
-    //     let altered_field_mask = "desiredState.workloads.workload_1";
-    //     let subscribed_field_masks = vec!["desiredState.workloads.*.agent".into()];
-    //     let altered_field_mask_path = altered_field_mask.into();
-    //     let expected_altered_field_mask = "desiredState.workloads.workload_1.agent";
+    #[test]
+    fn utest_fill_altered_fields_and_filter_masks_shorter_altered_field_mask_subscriber_wildcards()
+    {
+        let altered_field_mask = "desiredState.workloads.workload_1";
+        let subscribed_field_masks = vec!["desiredState.workloads.*.agent".into()];
+        let altered_field_mask_path = altered_field_mask.into();
+        let expected_altered_field_mask = "desiredState.workloads.workload_1.agent";
 
-    //     let (altered_fields, filter_masks) = super::fill_altered_fields_and_filter_masks(
-    //         Vec::new(),
-    //         Vec::new(),
-    //         &altered_field_mask_path,
-    //         &subscribed_field_masks,
-    //     );
+        let (altered_fields, filter_masks) = super::fill_altered_fields_and_filter_masks(
+            Vec::new(),
+            Vec::new(),
+            &altered_field_mask_path,
+            &subscribed_field_masks,
+        );
 
-    //     assert_eq!(
-    //         altered_fields,
-    //         vec![expected_altered_field_mask.to_owned(),]
-    //     );
-    //     assert_eq!(filter_masks, vec![expected_altered_field_mask.to_owned(),]);
-    // }
+        assert_eq!(
+            altered_fields,
+            vec![expected_altered_field_mask.to_owned(),]
+        );
+        assert_eq!(filter_masks, vec![expected_altered_field_mask.to_owned(),]);
+    }
 
     #[test]
     fn utest_fill_altered_fields_and_filter_masks_shorter_altered_field_mask() {
