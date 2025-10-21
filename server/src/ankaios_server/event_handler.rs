@@ -72,6 +72,7 @@ fn fill_altered_fields_and_filter_masks(
                 altered_fields.push(altered_field_mask.into());
             }
             MaskComparisonResult::ShorterAlteredFieldMask => {
+                // TODO: expand wildcards in subscriber masks
                 filter_masks.push(String::from(subscriber_mask));
                 altered_fields.push(subscriber_mask.into());
             }
