@@ -101,37 +101,37 @@ hide:
 
 <!-- Getting Started -->
 <section class="getting-started">
-  <h2>Getting Started</h2>
+  <h2>Getting started</h2>
   <div class="getting-started-grid">
     <div class="getting-started-item">
       <strong>📦 Installation</strong><br>
       Get Ankaios up and running on your system<br>
-      <a href="usage/installation/">Installation Guide →</a>
+      <a href="usage/installation/">Installation guide →</a>
     </div>
     <div class="getting-started-item">
-      <strong>🚀 Quick Start</strong><br>
+      <strong>🚀 Quick start</strong><br>
       Deploy your first workload in minutes<br>
-      <a href="usage/quickstart/">Quick Start Tutorial →</a>
+      <a href="usage/quickstart/">Quick start tutorial →</a>
     </div>
     <div class="getting-started-item">
       <strong>🏗️ Architecture</strong><br>
       Understand how Ankaios works under the hood<br>
-      <a href="architecture/">Architecture Overview →</a>
+      <a href="architecture/">Architecture overview →</a>
     </div>
     <div class="getting-started-item">
-      <strong>📡 Vehicle Signals</strong><br>
+      <strong>📡 Vehicle signals</strong><br>
       Send and receive vehicle signals with workloads<br>
-      <a href="usage/tutorial-vehicle-signals/">Vehicle Signals Tutorial →</a>
+      <a href="usage/tutorial-vehicle-signals/">Vehicle signals tutorial →</a>
     </div>
     <div class="getting-started-item">
-      <strong>☁️ Fleet Management</strong><br>
+      <strong>☁️ Fleet management</strong><br>
       Manage vehicle fleets from the cloud<br>
-      <a href="usage/tutorial-fleet-management/">Fleet Management Tutorial →</a>
+      <a href="usage/tutorial-fleet-management/">Fleet management tutorial →</a>
     </div>
     <div class="getting-started-item">
-      <strong>📚 API Reference</strong><br>
+      <strong>📚 API reference</strong><br>
       Explore the complete API documentation<br>
-      <a href="reference/control-interface/">API Reference →</a>
+      <a href="reference/control-interface/">API reference →</a>
     </div>
   </div>
 </section>
@@ -142,7 +142,7 @@ hide:
   <div class="community-grid">
     <div class="community-item">
       <a href="https://youtube.com/playlist?list=PLXGqib0ZinZFwXpqN9pdFBrtflJVZ--_p">
-        <span class="youtube-icon">▶️</span> Eclipse Ankaios Playlist
+        <span class="youtube-icon">▶</span> Eclipse Ankaios playlist
       </a>
     </div>
     <div class="community-item">
@@ -152,12 +152,12 @@ hide:
     </div>
     <div class="community-item">
       <a href="support/">
-        💬 Get Support
+        💬 Get support
       </a>
     </div>
     <div class="community-item">
       <a href="development/build/">
-        🔧 Contributing Guide
+        🔧 Contributing guide
       </a>
     </div>
   </div>
