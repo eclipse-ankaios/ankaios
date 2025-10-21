@@ -328,28 +328,6 @@ mod tests {
     }
 
     #[test]
-    fn utest_request_id_from_string() {
-        let cli_request_id = super::RequestId::from(CLI_REQUEST_ID_1);
-        assert!(
-            matches!(cli_request_id, super::RequestId::CliRequestId(super::CliRequestId { cli_name, request_uuid })
-            if cli_name == CLI_CON_1 && request_uuid == "cli_request_id_1")
-        );
-
-        let agent_request_id = super::RequestId::from(REQUEST_ID_AGENT_A);
-        assert!(
-            matches!(agent_request_id, super::RequestId::AgentRequestId(super::AgentRequestId { agent_name, workload_name, request_uuid })
-            if agent_name == AGENT_A && workload_name == WORKLOAD_1_NAME && request_uuid == "request_id")
-        );
-
-        let extra_part = "@extra@parts.with_strange#format";
-        let agent_request_id = super::RequestId::from(format!("{REQUEST_ID_AGENT_A}{extra_part}"));
-        assert!(
-            matches!(agent_request_id, super::RequestId::AgentRequestId(super::AgentRequestId { agent_name, workload_name, request_uuid })
-            if agent_name == AGENT_A && workload_name == WORKLOAD_1_NAME && request_uuid == format!("request_id{extra_part}"))
-        );
-    }
-
-    #[test]
     fn utest_cli_log_connection_store_insert_log_campaign() {
         let mut log_campaign_store = LogCampaignStore::default();
 

@@ -2669,7 +2669,7 @@ mod tests {
     async fn utest_server_handles_pending_initial_deleted_workload_on_not_connected_agent() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
-        let (to_agents, comm_middle_ware_receiver) =
+        let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
