@@ -61,10 +61,7 @@ fn fill_altered_fields_and_filter_masks(
     subscribed_field_masks: &SubscribedFieldMasks,
 ) -> (Vec<String>, Vec<String>) {
     for subscriber_mask in subscribed_field_masks {
-        match compare_subscriber_mask_with_field_difference_mask(
-            subscriber_mask,
-            altered_field_mask,
-        ) {
+        match compare_subscriber_mask_with_altered_field_mask(subscriber_mask, altered_field_mask) {
             MaskComparisonResult::NoMatch => {}
             MaskComparisonResult::ShorterSubscriberFieldMask
             | MaskComparisonResult::EqualLength => {
@@ -82,7 +79,7 @@ fn fill_altered_fields_and_filter_masks(
     (altered_fields, filter_masks)
 }
 
-fn compare_subscriber_mask_with_field_difference_mask(
+fn compare_subscriber_mask_with_altered_field_mask(
     subscriber_mask: &Path,
     altered_field_path: &Path,
 ) -> MaskComparisonResult {
