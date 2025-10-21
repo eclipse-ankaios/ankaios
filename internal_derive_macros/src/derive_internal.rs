@@ -50,6 +50,8 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                 };
 
                 let missing_field_msg = format!("Missing field '{field_name}'");
+                let conversion_error_msg =
+                    format!("Cannot convert field '{field_name}' to internal object.");
 
                 let mandatory = has_mandatory_attr(&field.attrs);
 
@@ -83,7 +85,7 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                                 #field_name: orig.#field_name
                                     .ok_or(#missing_field_msg)?
                                     .try_into()
-                                    .map_err(|_| "Cannot convert {#field_name} to internal object.".to_string())?
+                                    .map_err(|_| #conversion_error_msg)?
                             };
                             from_init_entry = quote! {
                                 #field_name: Some(orig.#field_name.into())
@@ -136,8 +138,7 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                             };
 
                         try_from_init_entry = quote! {
-                            // TODO fix the message
-                            #field_name: orig.#field_name.try_into().map_err(|_| "Cannot convert {#field_name} to internal object.".to_string())?
+                            #field_name: orig.#field_name.try_into().map_err(|_| #conversion_error_msg)?
                         };
                         from_init_entry = quote! {
                             #field_name: orig.#field_name.into()
@@ -171,8 +172,9 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
 
                         // TODO: check and fail: This here does not handle custom key types, only custom value types
                         try_from_init_entry = quote! {
-                            // TODO fix the message
-                            #field_name: orig.#field_name.into_iter().map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| "Cannot convert {#field_name} to internal object.".to_string())?))).collect::<Result<_, String>>()?
+                            #field_name: orig.#field_name.into_iter()
+                                .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| #conversion_error_msg)?)))
+                                .collect::<Result<_, String>>()?
                         };
                         from_init_entry = quote! {
                             #field_name: orig.#field_name.into_iter().map(|(k, v)| (k.clone(), v.into())).collect()
@@ -272,6 +274,9 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                         ));
                     }
                     Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
+                        let conversion_enum_error_msg =
+                            format!("Cannot convert '{orig_name}::{variant_ident}' to internal object.");
+
                         if has_enum_named_attr(&variant.attrs) {
                             if unnamed.len() != 1 {
                                 return Err(syn::Error::new_spanned(
@@ -298,7 +303,10 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
 
                             // Enum::A(String) -> EnumInternal::A { a: String }
                             try_from_variants.push(quote! {
-                                #orig_name::#variant_ident( field_0 ) => #internal_name::#variant_ident{ #new_field_name: field_0 } // TODO convert .try_into()? }
+                                #orig_name::#variant_ident( field_0 ) =>
+                                    #internal_name::#variant_ident{
+                                        #new_field_name: field_0.try_into().map_err(|_| #conversion_enum_error_msg)?
+                                    }
                             });
 
                             // EnumInternal::A { a: String } -> Enum::A(String)
@@ -335,13 +343,14 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
                                             #field_id.into()
                                         });
                                     // TODO: think about the order
-                                    } else if let Some(prost_enum_tp) = get_prost_enum_type(&variant.attrs) {
+                                    } else if let Some(prost_enum_tp) =
+                                        get_prost_enum_type(&variant.attrs)
+                                    {
                                         let new_ty = Type::Path(prost_enum_tp);
                                         new_variant.push(quote! { #new_ty });
 
-                                        // TODO: fix the error message
                                         try_fields.push(quote! {
-                                            #field_id.try_into().map_err(|_| "Cannot convert {#field_name} to internal object.".to_string())?
+                                            #field_id.try_into().map_err(|_| #conversion_enum_error_msg)?
                                         });
 
                                         from_fields.push(quote! {

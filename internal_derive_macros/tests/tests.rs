@@ -52,6 +52,7 @@ mod tests {
             #[internal_enum_named]
             A(String),
             // B{#[mandatory] bla: Option<Person>, val: i32},
+            #[internal_enum_named]
             B(Person),
             C(Box<Person>),
             D,
@@ -82,7 +83,7 @@ mod tests {
 
         let person_internal: PersonInternal = person.clone().try_into().unwrap();
 
-        let _my_enum_internal_b = MyEnumInternal::B(person_internal.clone());
+        let _my_enum_internal_b = MyEnumInternal::B{b: person_internal.clone()};
         let _my_enum_internal_c = MyEnumInternal::C(Box::new(person_internal.clone()));
 
         println!("Person Spec: {person_internal:?}");
