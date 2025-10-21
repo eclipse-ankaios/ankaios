@@ -23,10 +23,12 @@ use std::collections::HashMap;
 
 type SubscribedFieldMasks = Vec<Path>;
 
+const WILDCARD_SEPARATOR: &str = "*";
+
 #[derive(Debug, PartialEq, Eq)]
 enum MaskComparisonResult {
-    SubscriberMaskShorter,
-    FieldDifferenceMaskShorter,
+    ShorterSubscriberFieldMask,
+    ShorterAlteredFieldMask,
     EqualLength,
     NoMatch,
 }
@@ -54,26 +56,23 @@ pub struct EventHandler {
 fn fill_altered_fields_and_filter_masks(
     mut altered_fields: Vec<String>,
     mut filter_masks: Vec<String>,
-    field_difference_mask: &Path,
+    altered_field_mask: &Path,
     subscribed_field_masks: &SubscribedFieldMasks,
 ) -> (Vec<String>, Vec<String>) {
     for subscriber_mask in subscribed_field_masks {
         match compare_subscriber_mask_with_field_difference_mask(
             subscriber_mask,
-            field_difference_mask,
+            altered_field_mask,
         ) {
             MaskComparisonResult::NoMatch => {}
-            MaskComparisonResult::SubscriberMaskShorter => {
-                filter_masks.push(String::from(field_difference_mask));
-                altered_fields.push(field_difference_mask.into());
+            MaskComparisonResult::ShorterSubscriberFieldMask
+            | MaskComparisonResult::EqualLength => {
+                filter_masks.push(String::from(altered_field_mask));
+                altered_fields.push(altered_field_mask.into());
             }
-            MaskComparisonResult::FieldDifferenceMaskShorter => {
+            MaskComparisonResult::ShorterAlteredFieldMask => {
                 filter_masks.push(String::from(subscriber_mask));
                 altered_fields.push(subscriber_mask.into());
-            }
-            MaskComparisonResult::EqualLength => {
-                filter_masks.push(String::from(field_difference_mask));
-                altered_fields.push(field_difference_mask.into());
             }
         }
     }
@@ -83,25 +82,29 @@ fn fill_altered_fields_and_filter_masks(
 
 fn compare_subscriber_mask_with_field_difference_mask(
     subscriber_mask: &Path,
-    field_difference_path: &Path,
+    altered_field_path: &Path,
 ) -> MaskComparisonResult {
     let mut subscriber_parts_iter = subscriber_mask.parts().iter();
-    let mut field_difference_parts_iter = field_difference_path.parts().iter();
+    let mut altered_field_parts_iter = altered_field_path.parts().iter();
 
-    while let Some(subscriber_part) = subscriber_parts_iter.next()
-        && let Some(field_difference_part) = field_difference_parts_iter.next()
+    let mut next_subscriber_part = subscriber_parts_iter.next();
+    let mut next_altered_field_part = altered_field_parts_iter.next();
+    while let Some(subscriber_part) = next_subscriber_part
+        && let Some(altered_field_part) = next_altered_field_part
     {
-        if subscriber_part != "*" && subscriber_part != field_difference_part {
+        if subscriber_part != WILDCARD_SEPARATOR && subscriber_part != altered_field_part {
             return MaskComparisonResult::NoMatch;
         }
+        next_subscriber_part = subscriber_parts_iter.next();
+        next_altered_field_part = altered_field_parts_iter.next();
     }
 
-    if subscriber_parts_iter.next().is_some() && field_difference_parts_iter.next().is_none() {
-        return MaskComparisonResult::FieldDifferenceMaskShorter;
+    if next_subscriber_part.is_some() && next_altered_field_part.is_none() {
+        return MaskComparisonResult::ShorterAlteredFieldMask;
     }
 
-    if field_difference_parts_iter.next().is_some() && subscriber_parts_iter.next().is_none() {
-        return MaskComparisonResult::SubscriberMaskShorter;
+    if next_altered_field_part.is_some() && next_subscriber_part.is_none() {
+        return MaskComparisonResult::ShorterSubscriberFieldMask;
     }
 
     MaskComparisonResult::EqualLength
@@ -186,8 +189,14 @@ impl EventHandler {
                     };
 
                     let new_complete_state_yaml = serde_yaml::to_string(&new_complete_state);
+
+                    let request_id = match request_id {
+                        RequestId::CliRequestId(cli_request_id) => cli_request_id.to_string(),
+                        RequestId::AgentRequestId(agent_request_id) => agent_request_id.to_string(),
+                    };
+
                     log::debug!(
-                        "Sending event to subscriber '{}' with filter masks: {:?}, altered fields: {:?} and complete state: {}",
+                        "Sending event to subscriber '{}' with filter masks: {:?}, altered fields: {:?} and complete state:\n{}",
                         request_id,
                         filter_masks,
                         altered_fields,
@@ -195,11 +204,7 @@ impl EventHandler {
                     );
 
                     from_server_channel
-                        .complete_state(
-                            request_id.to_string(),
-                            new_complete_state,
-                            Some(altered_fields),
-                        )
+                        .complete_state(request_id, new_complete_state, Some(altered_fields))
                         .await
                         .unwrap_or_illegal_state();
                 }
@@ -209,4 +214,289 @@ impl EventHandler {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::collections::HashMap;
+
+    use common::{
+        from_server_interface::FromServer,
+        objects::{
+            AgentMap, CompleteState, State, WorkloadStatesMap, generate_test_stored_workload_spec,
+        },
+        state_manipulation::FieldDifference,
+    };
+
+    use api::ank_base::response::ResponseContent;
+    use mockall::predicate;
+
+    use super::EventHandler;
+    use crate::ankaios_server::{create_from_server_channel, server_state::MockServerState};
+    const REQUEST_ID_1: &str = "agent_A@workload_1@1234";
+    const REQUEST_ID_2: &str = "agent_B@workload_2@5678";
+
+    #[test]
+    fn utest_event_handler_add_subscriber() {
+        let mut event_handler = EventHandler::default();
+        let subscriber_1_field_masks = vec!["path.to.field".into()];
+        event_handler.add_subscriber(REQUEST_ID_1.to_owned(), subscriber_1_field_masks.clone());
+        assert!(event_handler.has_subscribers());
+        assert_eq!(event_handler.subscriber_store.len(), 1);
+        assert_eq!(
+            event_handler.subscriber_store.get(&REQUEST_ID_1.into()),
+            Some(&subscriber_1_field_masks)
+        );
+        let subscriber_2_field_masks = vec!["another.path".into(), "more.paths".into()];
+        event_handler.add_subscriber(REQUEST_ID_2.to_owned(), subscriber_2_field_masks.clone());
+        assert_eq!(event_handler.subscriber_store.len(), 2);
+        assert_eq!(
+            event_handler.subscriber_store.get(&REQUEST_ID_2.into()),
+            Some(&subscriber_2_field_masks)
+        );
+    }
+
+    #[test]
+    fn utest_event_handler_remove_subscriber() {
+        let mut event_handler = EventHandler {
+            subscriber_store: HashMap::from([
+                (REQUEST_ID_1.into(), vec!["path.to.field".into()]),
+                (
+                    REQUEST_ID_2.into(),
+                    vec!["another.path".into(), "more.paths".into()],
+                ),
+            ]),
+        };
+
+        event_handler.remove_subscriber(REQUEST_ID_1.to_owned());
+        assert_eq!(event_handler.subscriber_store.len(), 1);
+        assert!(
+            !event_handler
+                .subscriber_store
+                .contains_key(&REQUEST_ID_1.into())
+        );
+        assert!(
+            event_handler
+                .subscriber_store
+                .contains_key(&REQUEST_ID_2.into())
+        );
+
+        event_handler.remove_subscriber(REQUEST_ID_2.to_owned());
+        assert!(!event_handler.has_subscribers());
+        assert_eq!(event_handler.subscriber_store.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn utest_event_handler_send_events_subscriber_masks_equal() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let added_field_mask = "desiredState.workloads.workload_2";
+        let updated_field_mask = "desiredState.workloads.workload_1.agent";
+        let removed_field_mask = "configs.*";
+        let expected_removed_field_mask = "configs.some_config";
+        let added_workload = generate_test_stored_workload_spec("agent_A", "runtime_1");
+        let mut mock_server_state = MockServerState::default();
+        mock_server_state
+            .expect_get_complete_state_by_field_mask()
+            .once()
+            .with(
+                predicate::eq(vec![
+                    added_field_mask.to_owned(),
+                    updated_field_mask.to_owned(),
+                    expected_removed_field_mask.to_owned(),
+                ]),
+                predicate::always(),
+                predicate::always(),
+            )
+            .return_const(Ok(CompleteState {
+                desired_state: State {
+                    workloads: HashMap::from([
+                        (
+                            "workload_1".to_string(),
+                            common::objects::StoredWorkloadSpec {
+                                agent: "agent_1".to_string(),
+                                ..Default::default()
+                            },
+                        ),
+                        ("workload_2".to_string(), added_workload.clone()),
+                    ]),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+            .into()));
+        let workload_states_map = WorkloadStatesMap::default();
+        let agent_map = AgentMap::default();
+        let field_differences = vec![
+            FieldDifference::Added(vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                "workload_2".to_owned(),
+            ]),
+            FieldDifference::Updated(vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                "workload_1".to_owned(),
+                "agent".to_owned(),
+            ]),
+            FieldDifference::Removed(vec!["configs".to_owned(), "some_config".to_owned()]),
+        ];
+        let (to_agents, mut agents_receiver) = create_from_server_channel(1);
+
+        let mut event_handler = EventHandler::default();
+        event_handler.subscriber_store.insert(
+            REQUEST_ID_1.into(),
+            vec![
+                added_field_mask.into(),
+                updated_field_mask.into(),
+                removed_field_mask.into(),
+            ],
+        );
+
+        event_handler
+            .send_events(
+                &mock_server_state,
+                &workload_states_map,
+                &agent_map,
+                field_differences,
+                &to_agents,
+            )
+            .await;
+
+        let received_message = tokio::time::timeout(
+            tokio::time::Duration::from_millis(100),
+            agents_receiver.recv(),
+        )
+        .await;
+        assert!(received_message.is_ok());
+        let received_message = received_message.unwrap();
+        assert!(received_message.is_some());
+        let received_message = received_message.unwrap();
+        let FromServer::Response(response) = received_message else {
+            panic!("Expected FromServer::Response message");
+        };
+
+        assert_eq!(response.request_id, REQUEST_ID_1.to_owned());
+        let ResponseContent::CompleteStateResponse(complete_state_response) =
+            response.response_content.unwrap()
+        else {
+            panic!("Expected CompleteStateResponse");
+        };
+
+        let complete_state = complete_state_response.complete_state.unwrap();
+        let altered_fields = complete_state_response.altered_fields.unwrap();
+
+        let expected_complete_state: api::ank_base::CompleteState = CompleteState {
+            desired_state: State {
+                workloads: HashMap::from([
+                    (
+                        "workload_1".to_owned(),
+                        common::objects::StoredWorkloadSpec {
+                            agent: "agent_1".to_owned(),
+                            ..Default::default()
+                        },
+                    ),
+                    ("workload_2".to_owned(), added_workload),
+                ]),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+        .into();
+
+        let expected_altered_fields = api::ank_base::AlteredFields {
+            added_fields: vec![added_field_mask.to_owned()],
+            updated_fields: vec![updated_field_mask.to_owned()],
+            removed_fields: vec![expected_removed_field_mask.to_owned()],
+        };
+
+        assert_eq!(complete_state, expected_complete_state);
+        assert_eq!(altered_fields, expected_altered_fields);
+    }
+
+    #[test]
+    fn utest_fill_altered_fields_and_filter_masks_shorter_wildcard_subscriber_masks() {
+        let expected_field_difference_mask = "desiredState.workloads.workload_1.agent";
+        let subscribed_field_masks = vec!["desiredState.workloads.*".into()];
+        let field_difference_mask = expected_field_difference_mask.into();
+
+        let (altered_fields, filter_masks) = super::fill_altered_fields_and_filter_masks(
+            Vec::new(),
+            Vec::new(),
+            &field_difference_mask,
+            &subscribed_field_masks,
+        );
+
+        assert_eq!(
+            altered_fields,
+            vec![expected_field_difference_mask.to_owned(),]
+        );
+        assert_eq!(
+            filter_masks,
+            vec![expected_field_difference_mask.to_owned(),]
+        );
+    }
+
+    #[test]
+    fn utest_fill_altered_fields_and_filter_masks_shorter_subscriber_masks() {
+        let expected_field_difference_mask = "desiredState.workloads.workload_1.agent";
+        let subscribed_field_masks = vec!["desiredState.workloads".into()];
+        let field_difference_mask = expected_field_difference_mask.into();
+
+        let (altered_fields, filter_masks) = super::fill_altered_fields_and_filter_masks(
+            Vec::new(),
+            Vec::new(),
+            &field_difference_mask,
+            &subscribed_field_masks,
+        );
+
+        assert_eq!(
+            altered_fields,
+            vec![expected_field_difference_mask.to_owned(),]
+        );
+        assert_eq!(
+            filter_masks,
+            vec![expected_field_difference_mask.to_owned(),]
+        );
+    }
+
+    // TODO: test will pass if the wildcard support of other PR is merged into branch
+    // #[test]
+    // fn utest_fill_altered_fields_and_filter_masks_shorter_altered_field_mask_subscriber_wildcards()
+    // {
+    //     let altered_field_mask = "desiredState.workloads.workload_1";
+    //     let subscribed_field_masks = vec!["desiredState.workloads.*.agent".into()];
+    //     let altered_field_mask_path = altered_field_mask.into();
+    //     let expected_altered_field_mask = "desiredState.workloads.workload_1.agent";
+
+    //     let (altered_fields, filter_masks) = super::fill_altered_fields_and_filter_masks(
+    //         Vec::new(),
+    //         Vec::new(),
+    //         &altered_field_mask_path,
+    //         &subscribed_field_masks,
+    //     );
+
+    //     assert_eq!(
+    //         altered_fields,
+    //         vec![expected_altered_field_mask.to_owned(),]
+    //     );
+    //     assert_eq!(filter_masks, vec![expected_altered_field_mask.to_owned(),]);
+    // }
+
+    #[test]
+    fn utest_fill_altered_fields_and_filter_masks_shorter_altered_field_mask() {
+        let altered_field_mask = "desiredState.workloads.workload_1";
+        let expected_altered_field_mask = "desiredState.workloads.workload_1.agent";
+        let subscribed_field_masks = vec![expected_altered_field_mask.into()];
+        let altered_field_mask_path = altered_field_mask.into();
+
+        let (altered_fields, filter_masks) = super::fill_altered_fields_and_filter_masks(
+            Vec::new(),
+            Vec::new(),
+            &altered_field_mask_path,
+            &subscribed_field_masks,
+        );
+
+        assert_eq!(
+            altered_fields,
+            vec![expected_altered_field_mask.to_owned(),]
+        );
+        assert_eq!(filter_masks, vec![expected_altered_field_mask.to_owned(),]);
+    }
+}
