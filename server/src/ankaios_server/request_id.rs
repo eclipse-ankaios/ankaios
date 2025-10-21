@@ -45,6 +45,13 @@ where
     request_ids.into_iter().map(|id| id.to_string()).collect()
 }
 
+pub fn to_string_id(request_id: &RequestId) -> String {
+    match request_id {
+        RequestId::CliRequestId(cli_request_id) => cli_request_id.to_string(),
+        RequestId::AgentRequestId(agent_request_id) => agent_request_id.to_string(),
+    }
+}
+
 impl Display for AgentRequestId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(

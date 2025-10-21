@@ -1,3 +1,4 @@
+use crate::ankaios_server::request_id::to_string_id;
 // Copyright (c) 2025 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
@@ -190,11 +191,7 @@ impl EventHandler {
 
                     let new_complete_state_yaml = serde_yaml::to_string(&new_complete_state);
 
-                    let request_id = match request_id {
-                        RequestId::CliRequestId(cli_request_id) => cli_request_id.to_string(),
-                        RequestId::AgentRequestId(agent_request_id) => agent_request_id.to_string(),
-                    };
-
+                    let request_id = to_string_id(request_id);
                     log::debug!(
                         "Sending event to subscriber '{}' with filter masks: {:?}, altered fields: {:?} and complete state:\n{}",
                         request_id,
