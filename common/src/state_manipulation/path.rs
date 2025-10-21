@@ -38,6 +38,7 @@ impl Path {
     }
 }
 
+// [impl->swdd~common-state-manipulation-path~1]
 impl From<&str> for Path {
     fn from(value: &str) -> Self {
         Path {
@@ -74,6 +75,18 @@ impl From<&Path> for String {
     }
 }
 
+impl From<Vec<String>> for Path {
+    fn from(value: Vec<String>) -> Self {
+        Path { parts: value }
+    }
+}
+
+impl std::fmt::Display for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", String::from(self))
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -85,6 +98,7 @@ impl From<&Path> for String {
 mod tests {
     use super::Path;
 
+    // [utest->swdd~common-state-manipulation-path~1]
     #[test]
     fn utest_path_from_string() {
         let path_string: String = "1.2.3".into();
@@ -107,6 +121,7 @@ mod tests {
         assert_eq!(actual, expected)
     }
 
+    // [utest->swdd~common-state-manipulation-path~1]
     #[test]
     fn utest_path_from_string_ref() {
         let path_string: String = "1.2.3".into();
@@ -129,6 +144,7 @@ mod tests {
         assert_eq!(actual, expected)
     }
 
+    // [utest->swdd~common-state-manipulation-path~1]
     #[test]
     fn utest_path_from_str() {
         let expected = Path {
