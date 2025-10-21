@@ -1,20 +1,20 @@
-<!-- markdownlint-disable MD033 -->
-<!-- markdownlint-disable MD041 -->
 ---
 title: Welcome
 description: Eclipse Ankaios is a workload and container orchestrator purpose-built for embedded and automotive platforms.
 hide:
-
-- navigation
-- toc
-- navigation.title
-- navigation.tabs
-- navigation.sections
-- navigation.expand
-- navigation.path
-- toc.integrate
-
+  - navigation
+  - toc
+  - navigation.title
+  - navigation.tabs
+  - navigation.sections
+  - navigation.expand
+  - navigation.path
+  - toc.integrate
 ---
+<!-- markdownlint-disable MD033 -->
+<!-- markdownlint-disable MD041 -->
+<!-- markdownlint-disable MD007 -->
+<!-- markdownlint-disable MD032 -->
 
 <!-- Hero Section with Full Background -->
 <section class="hero-section">
@@ -57,9 +57,9 @@ hide:
 <p>Built specifically for embedded and automotive use cases, Ankaios understands the constraints you face: limited resources, real-time requirements, safety considerations, and complex system integration. Unlike existing orchestrators, Ankaios is optimized for deterministic behavior, minimal overhead, and seamless integration with automotive-grade platforms for environments where reliability and efficiency are non-negotiable.</p>
 </div>
 
-<!-- Key Features -->
+<!-- Key features -->
 <section class="key-features-section">
-  <h2>Key Features</h2>
+  <h2>Key features</h2>
   <div class="grid cards">
     <div class="feature-card">
       <div class="feature-icon">📋</div>
