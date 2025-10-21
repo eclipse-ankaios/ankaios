@@ -544,7 +544,7 @@ Provides methods for accessing or updating parts of objects, as used by field ma
 
 Status: approved
 
-The state manipulation methods of the Common library use paths separated by the '.' symbols.
+The state manipulation methods of the Common library shall use paths separated by the '.' symbols.
 
 Tags:
 - CommonStateManipulation
@@ -558,7 +558,7 @@ Needs:
 
 Status: approved
 
-The Common library provides a method to set the value of an object at a certain path.
+The Common library shall provide a method to set the value of an object at a certain path.
 
 Tags:
 - CommonStateManipulation
@@ -572,8 +572,7 @@ Needs:
 
 Status: approved
 
-When setting the value of an object at a certain path, the Common library adds missing intermediate objects.
-This intermediate objects are empty, except the newly added value.
+When setting the value of an object at a certain path, the Common library shall add missing intermediate objects as empty objects followed by the newly added value.
 
 Tags:
 - CommonStateManipulation
@@ -587,7 +586,7 @@ Needs:
 
 Status: approved
 
-The Common library provides a method to remove the value of an object at a certain path.
+The Common library shall provide a method to remove the value of an object at a certain path.
 
 Tags:
 - CommonStateManipulation
@@ -601,7 +600,7 @@ Needs:
 
 Status: approved
 
-The Common library provides a method to get the value of an object at a certain path.
+The Common library shall provide a method to get the value of an object at a certain path.
 
 Tags:
 - CommonStateManipulation
@@ -615,7 +614,10 @@ Needs:
 
 Status: approved
 
-The Common library provides a methods for expanding paths containing wildcards ('*') as segments, using an exisiting object.
+The Common library shall provide a method for expanding paths containing wildcards ('*') as segments, using an existing object.
+
+Comment:
+The result is a list of all paths valid for the given object, resulting from replacing wildcard segments with any possible segment.
 The result is a list of all paths valid for the given object, resulting from replacing wildcard segments with any possible segment.
 
 Tags:
