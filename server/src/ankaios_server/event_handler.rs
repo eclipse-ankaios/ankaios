@@ -27,8 +27,23 @@ type SubscribedFieldMasks = Vec<Path>;
 enum MaskComparisonResult {
     SubscriberMaskShorter,
     FieldDifferenceMaskShorter,
-    MasksEqualLength,
+    EqualLength,
     NoMatch,
+}
+
+#[derive(Debug, Default)]
+struct AlteredFields {
+    added_fields: Vec<String>,
+    removed_fields: Vec<String>,
+    updated_fields: Vec<String>,
+}
+
+impl AlteredFields {
+    fn all_empty(&self) -> bool {
+        self.added_fields.is_empty()
+            && self.removed_fields.is_empty()
+            && self.updated_fields.is_empty()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -56,8 +71,8 @@ fn fill_altered_fields_and_filter_masks(
                 filter_masks.push(String::from(subscriber_mask));
                 altered_fields.push(subscriber_mask.into());
             }
-            MaskComparisonResult::MasksEqualLength => {
-                filter_masks.push(String::from(subscriber_mask));
+            MaskComparisonResult::EqualLength => {
+                filter_masks.push(String::from(field_difference_mask));
                 altered_fields.push(field_difference_mask.into());
             }
         }
@@ -89,7 +104,7 @@ fn compare_subscriber_mask_with_field_difference_mask(
         return MaskComparisonResult::SubscriberMaskShorter;
     }
 
-    MaskComparisonResult::MasksEqualLength
+    MaskComparisonResult::EqualLength
 }
 
 impl EventHandler {
@@ -117,85 +132,77 @@ impl EventHandler {
     ) {
         for (request_id, subscribed_field_masks) in &self.subscriber_store {
             let mut filter_masks: Vec<String> = Vec::new();
-            let mut added_fields: Vec<String> = Vec::new();
-            let mut removed_fields: Vec<String> = Vec::new();
-            let mut updated_fields: Vec<String> = Vec::new();
+            let mut altered_fields = AlteredFields::default();
 
             for field_difference in &field_differences {
                 match field_difference {
                     FieldDifference::Added(path) => {
                         let added_mask: Path = path.clone().into();
-                        let (extended_added_fields, extended_filter_masks) =
+                        (altered_fields.added_fields, filter_masks) =
                             fill_altered_fields_and_filter_masks(
-                                added_fields,
+                                altered_fields.added_fields,
                                 filter_masks,
                                 &added_mask,
                                 subscribed_field_masks,
                             );
-                        added_fields = extended_added_fields;
-                        filter_masks = extended_filter_masks;
                     }
                     FieldDifference::Removed(path) => {
                         let removed_mask: Path = path.clone().into();
-                        let (extended_removed_fields, extended_filter_masks) =
+                        (altered_fields.removed_fields, filter_masks) =
                             fill_altered_fields_and_filter_masks(
-                                removed_fields,
+                                altered_fields.removed_fields,
                                 filter_masks,
                                 &removed_mask,
                                 subscribed_field_masks,
                             );
-                        removed_fields = extended_removed_fields;
-                        filter_masks = extended_filter_masks;
                     }
                     FieldDifference::Updated(path) => {
                         let updated_mask: Path = path.clone().into();
-                        let (extended_updated_fields, extended_filter_masks) =
+                        (altered_fields.updated_fields, filter_masks) =
                             fill_altered_fields_and_filter_masks(
-                                updated_fields,
+                                altered_fields.updated_fields,
                                 filter_masks,
                                 &updated_mask,
                                 subscribed_field_masks,
                             );
-                        updated_fields = extended_updated_fields;
-                        filter_masks = extended_filter_masks;
                     }
                 }
             }
 
-            if !added_fields.is_empty() || !removed_fields.is_empty() || !updated_fields.is_empty()
-            {
-                let new_complete_state = server_state
-                    .get_complete_state_by_field_mask(
-                        filter_masks.clone(),
-                        workload_states_map,
-                        agent_map,
-                    )
-                    .unwrap_or_illegal_state();
+            if !altered_fields.all_empty() {
+                {
+                    let new_complete_state = server_state
+                        .get_complete_state_by_field_mask(
+                            filter_masks.clone(),
+                            workload_states_map,
+                            agent_map,
+                        )
+                        .unwrap_or_illegal_state();
 
-                // TODO: rename fields and assign directly to avoid the risk of mixing the vectors
-                let altered_fields = api::ank_base::AlteredFields {
-                    added_fields,
-                    updated_fields,
-                    removed_fields,
-                };
+                    let altered_fields = api::ank_base::AlteredFields {
+                        added_fields: altered_fields.added_fields,
+                        updated_fields: altered_fields.updated_fields,
+                        removed_fields: altered_fields.removed_fields,
+                    };
 
-                let new_complete_state_yaml = serde_yaml::to_string(&new_complete_state);
-                log::debug!(
-                    "Sending event to subscriber '{}' with filter masks: {:?}, altered fields: {:?} and complete state: {}",
-                    request_id,
-                    filter_masks,
-                    altered_fields,
-                    new_complete_state_yaml.unwrap_or_default()
-                );
+                    let new_complete_state_yaml = serde_yaml::to_string(&new_complete_state);
+                    log::debug!(
+                        "Sending event to subscriber '{}' with filter masks: {:?}, altered fields: {:?} and complete state: {}",
+                        request_id,
+                        filter_masks,
+                        altered_fields,
+                        new_complete_state_yaml.unwrap_or_default()
+                    );
 
-                from_server_channel
-                    .complete_state(
-                        request_id.to_string(),
-                        new_complete_state,
-                        Some(altered_fields),
-                    )
-                    .await
-                    .unwrap_or_illegal_state();
+                    from_server_channel
+                        .complete_state(
+                            request_id.to_string(),
+                            new_complete_state,
+                            Some(altered_fields),
+                        )
+                        .await
+                        .unwrap_or_illegal_state();
+                }
             }
         }
     }
