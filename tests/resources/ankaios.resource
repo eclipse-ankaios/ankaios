@@ -749,7 +749,13 @@ The controller workload subscribes to the state of fields ${field_mask}
     internal_add_get_state_command    ${field_mask}    true
 
 The controller workload get events for fields ${field_mask}
-    internal_add_get_state_command    ${field_mask}
+    internal_add_get_events_command    ${field_mask}
+
+The last result contains exactly the workloads ${workload_names}
+    internal_check_control_interface_workloads_in_last_result    ${workload_names}
+
+In the last result the workload ${workload_name} has exactly the fields ${field_names}
+    internal_check_control_interface_workload_fields_in_last_result    ${workload_name}    ${field_names}
 
 The controller workload cancels events for fields ${field_mask}
     internal_add_cancel_events_command    ${field_mask}
@@ -760,6 +766,7 @@ The controller workload requests shall all succeed
     Ankaios agent is started with name "${AGENT_NAME}"
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
     internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
+    internal_check_all_result_expectations_succeeded    ${ankaios_config_folder.name}
 
 The controller workload last request shall fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test
