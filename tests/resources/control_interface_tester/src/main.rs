@@ -14,8 +14,8 @@
 
 use api::ank_base::response::ResponseContent;
 use api::ank_base::{
-    CompleteStateResponse, EventsCancelAccepted, LogEntriesResponse, LogsCancelAccepted,
-    LogsRequestAccepted, State, UpdateStateRequest,
+    AlteredFields, CompleteStateResponse, EventsCancelAccepted, LogEntriesResponse,
+    LogsCancelAccepted, LogsRequestAccepted, State, UpdateStateRequest,
 };
 
 use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
@@ -127,7 +127,7 @@ enum TestResultEnum {
     LogRequestResponse(TagSerializedResult<LogsRequestAccepted>),
     LogEntriesResponse(TagSerializedResult<LogEntriesResponse>),
     LogCancelResponse(TagSerializedResult<LogsCancelAccepted>),
-    EventEntriesResponse(TagSerializedResult<Option<State>>),
+    EventEntriesResponse(TagSerializedResult<(Option<State>, AlteredFields)>),
     EventsCancelResponse(TagSerializedResult<EventsCancelAccepted>),
     NoApi,
     SendHelloResult(TagSerializedResult<()>),
@@ -665,9 +665,11 @@ impl Connection {
 
         Ok(TestResultEnum::EventEntriesResponse(match response {
             ResponseContent::CompleteStateResponse(complete_state) => {
-                match (complete_state).complete_state {
-                    Some(complete_state) => TagSerializedResult::Ok(complete_state.desired_state),
-                    None => TagSerializedResult::Err(
+                match (complete_state.complete_state, complete_state.altered_fields) {
+                    (Some(complete_state), Some(altered_fields)) => {
+                        TagSerializedResult::Ok((complete_state.desired_state, altered_fields))
+                    }
+                    _ => TagSerializedResult::Err(
                         "Received CompleteStateResponse without complete_state field.".to_string(),
                     ),
                 }
