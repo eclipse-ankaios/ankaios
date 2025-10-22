@@ -551,17 +551,29 @@ impl AnkaiosServer {
                     self.workload_states_map
                         .process_new_states(method_obj.workload_states.clone());
 
+                    // [impl->swdd~server-cleans-up-state~1]
+                    self.server_state.cleanup_state(&method_obj.workload_states);
+
                     if self.event_handler.has_subscribers() {
                         let altered_fields: Vec<FieldDifference> = method_obj
                             .workload_states
                             .iter()
                             .map(|ws| {
-                                FieldDifference::Updated(vec![
-                                    "workloadStates".to_owned(),
-                                    ws.instance_name.agent_name().to_owned(),
-                                    ws.instance_name.workload_name().to_owned(),
-                                    ws.instance_name.id().to_owned(),
-                                ])
+                                if ws.execution_state.is_removed() {
+                                    FieldDifference::Removed(vec![
+                                        "workloadStates".to_owned(),
+                                        ws.instance_name.agent_name().to_owned(),
+                                        ws.instance_name.workload_name().to_owned(),
+                                        ws.instance_name.id().to_owned(),
+                                    ])
+                                } else {
+                                    FieldDifference::Updated(vec![
+                                        "workloadStates".to_owned(),
+                                        ws.instance_name.agent_name().to_owned(),
+                                        ws.instance_name.workload_name().to_owned(),
+                                        ws.instance_name.id().to_owned(),
+                                    ])
+                                }
                             })
                             .collect();
 
@@ -569,6 +581,12 @@ impl AnkaiosServer {
                             "Found '{}' altered fields. Altered fields: {altered_fields:?}",
                             altered_fields.len()
                         );
+
+                        // [impl->swdd~server-forwards-workload-state~1]
+                        self.to_agents
+                            .update_workload_state(method_obj.workload_states)
+                            .await
+                            .unwrap_or_illegal_state();
 
                         self.event_handler
                             .send_events(
@@ -579,16 +597,13 @@ impl AnkaiosServer {
                                 &self.to_agents,
                             )
                             .await;
+                    } else {
+                        // [impl->swdd~server-forwards-workload-state~1]
+                        self.to_agents
+                            .update_workload_state(method_obj.workload_states)
+                            .await
+                            .unwrap_or_illegal_state();
                     }
-
-                    // [impl->swdd~server-cleans-up-state~1]
-                    self.server_state.cleanup_state(&method_obj.workload_states);
-
-                    // [impl->swdd~server-forwards-workload-state~1]
-                    self.to_agents
-                        .update_workload_state(method_obj.workload_states)
-                        .await
-                        .unwrap_or_illegal_state();
                 }
                 // [impl->swdd~server-forwards-logs-entries-response-messages~1]
                 ToServer::LogEntriesResponse(request_id, logs_response) => {
