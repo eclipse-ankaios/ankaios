@@ -36,13 +36,12 @@ use mockall::automock;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StateComparator {
     old_state: Object,
-    state_from_update: Object,
+    new_state: Object,
 }
 
 impl StateComparator {
     pub fn state_differences(&self) -> Vec<FieldDifference> {
-        self.old_state
-            .calculate_state_differences(&self.state_from_update)
+        self.old_state.calculate_state_differences(&self.new_state)
     }
 }
 
@@ -306,7 +305,7 @@ impl ServerState {
             return Ok(StateGenerationResult {
                 state_comparator: StateComparator {
                     old_state,
-                    state_from_update,
+                    new_state: state_from_update,
                 },
                 new_desired_state: updated_state.desired_state,
             });
@@ -325,16 +324,16 @@ impl ServerState {
             }
         }
 
-        let new_state: CompleteState = new_state.try_into().map_err(|err| {
+        let new_complete_state: CompleteState = new_state.clone().try_into().map_err(|err| {
             UpdateStateError::ResultInvalid(format!("Could not parse into CompleteState: '{err}'"))
         })?;
 
         Ok(StateGenerationResult {
             state_comparator: StateComparator {
                 old_state,
-                state_from_update,
+                new_state,
             },
-            new_desired_state: new_state.desired_state,
+            new_desired_state: new_complete_state.desired_state,
         })
     }
 
