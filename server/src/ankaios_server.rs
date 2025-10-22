@@ -206,6 +206,9 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
 
+                    // [impl->swdd~server-stores-newly-connected-agent~2]
+                    self.agent_map.add_agent(agent_name.clone());
+
                     if self.event_handler.has_subscribers() {
                         self.event_handler
                             .send_events(
@@ -214,15 +217,12 @@ impl AnkaiosServer {
                                 &self.agent_map,
                                 vec![FieldDifference::Added(Vec::from([
                                     "agents".to_owned(),
-                                    agent_name.clone(),
+                                    agent_name,
                                 ]))],
                                 &self.to_agents,
                             )
                             .await;
                     }
-
-                    // [impl->swdd~server-stores-newly-connected-agent~2]
-                    self.agent_map.add_agent(agent_name);
                 }
                 // [impl->swdd~server-receives-resource-availability~2]
                 ToServer::AgentLoadStatus(method_obj) => {
