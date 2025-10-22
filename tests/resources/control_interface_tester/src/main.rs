@@ -13,10 +13,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ankaios_api::ank_base::{
-    CompleteStateRequestSpec, CompleteStateResponse, CompleteStateSpec, EventsCancelAccepted,
-    EventsCancelRequestSpec, LogEntriesResponse, LogsCancelAccepted, LogsCancelRequestSpec,
-    LogsRequestAccepted, LogsRequestSpec, RequestContentSpec, RequestSpec, ResponseContent, State,
-    UpdateStateRequestSpec, WorkloadInstanceNameSpec,
+    AlteredFields, CompleteStateRequestSpec, CompleteStateResponse, CompleteStateSpec,
+    EventsCancelAccepted, EventsCancelRequestSpec, LogEntriesResponse, LogsCancelAccepted,
+    LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec, RequestContentSpec, RequestSpec,
+    ResponseContent, State, UpdateStateRequestSpec, WorkloadInstanceNameSpec,
 };
 
 use ankaios_api::control_api::ToAnkaios;
@@ -130,7 +130,7 @@ enum TestResultEnum {
     LogRequestResponse(TagSerializedResult<LogsRequestAccepted>),
     LogEntriesResponse(TagSerializedResult<LogEntriesResponse>),
     LogCancelResponse(TagSerializedResult<LogsCancelAccepted>),
-    EventEntriesResponse(TagSerializedResult<Option<State>>),
+    EventEntriesResponse(TagSerializedResult<(Option<State>, AlteredFields)>),
     EventsCancelResponse(TagSerializedResult<EventsCancelAccepted>),
     NoApi,
     SendHelloResult(TagSerializedResult<()>),
@@ -660,9 +660,11 @@ impl Connection {
 
         Ok(TestResultEnum::EventEntriesResponse(match response {
             ResponseContent::CompleteStateResponse(complete_state) => {
-                match (complete_state).complete_state {
-                    Some(complete_state) => TagSerializedResult::Ok(complete_state.desired_state),
-                    None => TagSerializedResult::Err(
+                match (complete_state.complete_state, complete_state.altered_fields) {
+                    (Some(complete_state), Some(altered_fields)) => {
+                        TagSerializedResult::Ok((complete_state.desired_state, altered_fields))
+                    }
+                    _ => TagSerializedResult::Err(
                         "Received CompleteStateResponse without complete_state field.".to_string(),
                     ),
                 }
