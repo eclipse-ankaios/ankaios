@@ -250,7 +250,9 @@ body:has(.hero-section) .md-content h1:first-of-type {
 .feature-intro {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.05) 100%);
   border-radius: 12px;
-  padding: 2rem;
+  padding-top: 0.01rem;
+  padding-bottom: 1.25rem;
+  padding-left: 2rem;
   margin: 1.5rem 0;
   border-left: 4px solid #8b5cf6;
   backdrop-filter: blur(10px);
@@ -507,7 +509,8 @@ body:has(.hero-section) .md-content h1:first-of-type {
   }
 
   .feature-intro {
-    padding: 1.75rem;
+    padding-top: 0.01rem;
+    padding-left: 1.75rem;
     margin: 1.75rem 0;
   }
 
@@ -607,7 +610,8 @@ body:has(.hero-section) .md-content h1:first-of-type {
   }
 
   .feature-intro {
-    padding: 1.5rem;
+    padding-top: 0.01rem;
+    padding-left: 1.5rem;
     margin: 1.5rem 0;
     border-radius: 10px;
   }
@@ -796,7 +800,8 @@ body:has(.hero-section) .md-content h1:first-of-type {
   }
 
   .feature-intro {
-    padding: 1rem;
+    padding-top: 0.01rem;
+    padding-left: 1rem;
     margin: 1rem 0;
   }
 
