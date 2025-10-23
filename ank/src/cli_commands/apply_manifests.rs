@@ -5,8 +5,8 @@
 // https://www.apache.org/licenses/LICENSE-2.0.
 //
 // Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations
 // under the License.
 //
@@ -17,6 +17,7 @@ use crate::cli_commands::State;
 use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
+use common::helpers::validate_tags;
 use common::objects::{ALLOWED_SYMBOLS, CURRENT_API_VERSION, CompleteState, PREVIOUS_API_VERSION};
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
@@ -29,19 +30,8 @@ use super::get_input_sources;
 
 const WORKLOAD_LEVEL: usize = 1;
 
-// [impl->swdd~cli-apply-supports-ankaios-manifest~1]
-// [impl->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
-// [impl->swdd~cli-apply-manifest-accepts-api-version~1]
-pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
-    let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
-        .map_err(|err| format!("Invalid manifest data provided: {err}"))?;
-    let obj = state_obj_parsing_check.into();
-
-    let mut workload_paths: HashSet<Path> = HashSet::new();
-    let obj_paths = Vec::<Path>::from(&obj);
-    let mut detected_api_version: Option<&str> = None;
-
-    for path in &obj_paths {
+fn detect_api_version(obj: &Object, obj_paths: &[Path]) -> Result<Option<&'static str>, String> {
+    for path in obj_paths {
         let parts = path.parts();
         if parts.contains(&"apiVersion".to_string()) {
             let manifest_api_version = obj
@@ -50,53 +40,49 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
                 .unwrap_or("Invalid manifest API version or format provided.");
             match manifest_api_version {
                 CURRENT_API_VERSION => {
-                    detected_api_version = Some(CURRENT_API_VERSION);
+                    return Ok(Some(CURRENT_API_VERSION));
                 }
                 PREVIOUS_API_VERSION => {
-                    detected_api_version = Some(PREVIOUS_API_VERSION);
                     output!(
                         "Warning: The manifest API version '{PREVIOUS_API_VERSION}' is deprecated and support will be removed in future releases. Please update to the latest API version '{CURRENT_API_VERSION}'."
                     );
+                    return Ok(Some(PREVIOUS_API_VERSION));
                 }
                 _ => {
                     return Err(format!(
-                        "Invalid manifest API version provided. Expected: '{CURRENT_API_VERSION}' or '{PREVIOUS_API_VERSION}', got: '{manifest_api_version}'."
+                        "Invalid manifest API version provided. Expected '{CURRENT_API_VERSION}', got: '{manifest_api_version}'."
                     ));
                 }
             }
-            break;
         }
     }
+    Ok(None)
+}
+
+// [impl->swdd~cli-apply-supports-ankaios-manifest~1]
+// [impl->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
+// [impl->swdd~cli-apply-manifest-accepts-v01-api-version~1]
+pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
+    let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
+        .map_err(|err| format!("Invalid manifest data provided: {err}"))?;
+    let obj = state_obj_parsing_check.into();
+
+    let mut workload_paths: HashSet<Path> = HashSet::new();
+    let obj_paths = Vec::<Path>::from(&obj);
+    let detected_api_version = detect_api_version(&obj, &obj_paths)?;
 
     for path in obj_paths {
         let parts = path.parts();
         if parts.len() > 1 {
             let _ = &mut workload_paths.insert(Path::from(format!("{}.{}", parts[0], parts[1])));
 
-            if parts.len() == 3 && parts[0] == "workloads" && parts[2] == "tags" {
-                if let Some(api_version) = detected_api_version {
-                    if let Some(tags_value) = obj.get(&path) {
-                        match api_version {
-                            CURRENT_API_VERSION => {
-                                if !tags_value.is_mapping() {
-                                    return Err(format!(
-                                        "For API version '{CURRENT_API_VERSION}', tags must be specified as a mapping (key-value pairs). Found tags as sequence in workload '{}'.",
-                                        parts[1]
-                                    ));
-                                }
-                            }
-                            PREVIOUS_API_VERSION => {
-                                if !tags_value.is_sequence() {
-                                    return Err(format!(
-                                        "For API version '{PREVIOUS_API_VERSION}', tags must be specified as a sequence (list of key-value entries). Found tags as mapping in workload '{}'.",
-                                        parts[1]
-                                    ));
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
+            if parts.len() == 3
+                && parts[0] == "workloads"
+                && parts[2] == "tags"
+                && let Some(api_version) = detected_api_version
+                && let Some(tags_value) = obj.get(&path)
+            {
+                validate_tags(api_version, tags_value, &parts[1])?;
             }
         }
     }
@@ -344,7 +330,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-apply-manifest-accepts-api-version~1]
+    // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_mapping_ok() {
         let manifest_content = io::Cursor::new(
@@ -368,7 +354,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-apply-manifest-accepts-api-version~1]
+    // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_sequence_fails() {
         let manifest_content = io::Cursor::new(
@@ -397,8 +383,8 @@ mod tests {
                 .contains("tags must be specified as a mapping")
         );
     }
-    
-    // [utest->swdd~cli-apply-manifest-accepts-api-version~1]
+
+    // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_previous_api_version_tags_as_sequence_ok() {
         let manifest_content = io::Cursor::new(
@@ -424,7 +410,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-apply-manifest-accepts-api-version~1]
+    // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_previous_api_version_tags_as_mapping_fails() {
         let manifest_content = io::Cursor::new(

@@ -19,10 +19,11 @@ mod server_config;
 use std::fs;
 use std::path::PathBuf;
 
+use common::helpers::validate_tags;
 use common::objects::CompleteState;
 
 use common::communications_server::CommunicationsServer;
-use common::objects::{CURRENT_API_VERSION, PREVIOUS_API_VERSION, State};
+use common::objects::State;
 use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{AnkaiosServer, create_from_server_channel, create_to_server_channel};
@@ -68,32 +69,16 @@ fn validate_tags_format_in_manifest(data: &str) -> Result<(), String> {
     let api_version = yaml_value
         .get("apiVersion")
         .and_then(|v| v.as_str())
-        .unwrap_or("");
+        .unwrap_or("")
+        .to_string();
 
     if let Some(workloads) = yaml_value.get("workloads")
         && let Some(workloads_map) = workloads.as_mapping()
     {
         for (workload_name, workload_spec) in workloads_map {
-            if let Some(tags) = workload_spec.get("tags") {
+            if let Some(tags_value) = workload_spec.get("tags") {
                 let workload_name_str = workload_name.as_str().unwrap_or("unknown");
-
-                match api_version {
-                    CURRENT_API_VERSION => {
-                        if !tags.is_mapping() {
-                            return Err(format!(
-                                "For API version '{CURRENT_API_VERSION}', tags must be specified as a mapping (key-value pairs). Found tags as sequence in workload '{workload_name_str}'.",
-                            ));
-                        }
-                    }
-                    PREVIOUS_API_VERSION => {
-                        if !tags.is_sequence() {
-                            return Err(format!(
-                                "For API version '{PREVIOUS_API_VERSION}', tags must be specified as a sequence (list of key-value entries). Found tags as mapping in workload '{workload_name_str}'.",
-                            ));
-                        }
-                    }
-                    _ => {}
-                }
+                validate_tags(&api_version, tags_value, workload_name_str)?;
             }
         }
     }

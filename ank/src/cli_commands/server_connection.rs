@@ -768,11 +768,13 @@ mod tests {
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
-        let result = server_connection
+        let expected_complete_state = server_connection
             .get_complete_state(&[FIELD_MASK.into()])
             .await;
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), (proto_complete_state.into()));
+        let actual_complete_state = proto_complete_state.into();
+
+        assert!(expected_complete_state.is_ok());
+        assert_eq!(expected_complete_state.unwrap(), actual_complete_state);
         checker.check_communication();
     }
 

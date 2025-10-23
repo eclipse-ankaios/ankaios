@@ -25,6 +25,7 @@ use api::ank_base;
 pub const API_VERSION_0_1: &str = "v0.1";
 pub const API_VERSION_1_0: &str = "v1";
 pub const CURRENT_API_VERSION: &str = API_VERSION_1_0;
+pub const PREVIOUS_API_VERSION: &str = API_VERSION_0_1;
 
 // [impl->swdd~common-object-representation~1]
 // [impl->swdd~common-object-serialization~1]

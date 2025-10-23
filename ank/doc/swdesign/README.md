@@ -977,8 +977,8 @@ Needs:
 - utest
 - stest
 
-#### CLI accepts both current and previous API versions
-`swdd~cli-apply-manifest-accepts-api-version~1`
+#### CLI accepts both v1 and v0.1 API versions
+`swdd~cli-apply-manifest-accepts-v01-api-version~1`
 
 Status: approved
 
@@ -996,6 +996,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ### `ank get agents`
 

@@ -727,7 +727,7 @@ mod tests {
     mod object {
         use serde_yaml::Value;
 
-        use crate::objects::generate_test_runtime_config;
+        use crate::objects::{generate_test_runtime_config, CURRENT_API_VERSION};
 
         pub fn generate_test_complete_state() -> Mapping {
             let agent_name = "agent";
@@ -763,7 +763,7 @@ mod tests {
 
         pub fn generate_test_state() -> Mapping {
             Mapping::default()
-                .entry("apiVersion", "v1")
+                .entry("apiVersion", CURRENT_API_VERSION)
                 .entry(
                     "workloads",
                     Mapping::default().entry(

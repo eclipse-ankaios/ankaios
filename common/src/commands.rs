@@ -265,6 +265,7 @@ pub struct Stop {}
 
 #[cfg(test)]
 mod tests {
+    use crate::objects::CURRENT_API_VERSION;
     use crate::test_utils::generate_test_proto_workload_files;
     use std::collections::HashMap;
 
@@ -412,7 +413,7 @@ mod tests {
         (ankaios) => {
             ankaios::CompleteState {
                 desired_state: ankaios::State {
-                    api_version: "v1".into(),
+                    api_version: CURRENT_API_VERSION.into(),
                     workloads: HashMap::from([("desired".into(), workload!(ankaios))]),
                     configs: HashMap::new(),
                 }
@@ -424,7 +425,7 @@ mod tests {
         (ank_base) => {
             ank_base::CompleteState {
                 desired_state: Some(ank_base::State {
-                    api_version: "v1".into(),
+                    api_version: CURRENT_API_VERSION.into(),
                     workloads: Some(ank_base::WorkloadMap {
                         workloads: HashMap::from([("desired".to_string(), workload!(ank_base))]),
                     }),
@@ -554,7 +555,7 @@ mod tests {
         };
         proto_request_content.new_state = Some(ank_base::CompleteState {
             desired_state: Some(ank_base::State {
-                api_version: "v1".into(),
+                api_version: CURRENT_API_VERSION.into(),
                 workloads: Some(ank_base::WorkloadMap {
                     workloads: HashMap::new(),
                 }),
@@ -596,7 +597,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .desired_state = Some(ank_base::State {
-            api_version: "v1".into(),
+            api_version: CURRENT_API_VERSION.into(),
             workloads: Some(ank_base::WorkloadMap {
                 workloads: HashMap::new(),
             }),

@@ -1,0 +1,42 @@
+apiVersion: v0.1
+workloads:
+  sleepy:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: NEVER
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/sleepy:latest
+  hello1:
+    runtime: podman
+    agent: agent_B
+    restartPolicy: NEVER
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandOptions: [ "--rm"]
+      commandArgs: [ "echo", "Hello Ankaios"]
+  hello2:
+    runtime: podman
+    agent: agent_B
+    restartPolicy: NEVER
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]
+  hello3:
+    runtime: podman
+    agent: agent_B
+    restartPolicy: NEVER
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]

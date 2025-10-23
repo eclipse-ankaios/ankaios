@@ -165,6 +165,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### Server starts without startup config
 `swdd~server-starts-without-startup-config~1`
