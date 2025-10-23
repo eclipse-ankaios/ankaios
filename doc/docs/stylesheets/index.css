@@ -250,9 +250,10 @@ body:has(.hero-section) .md-content h1:first-of-type {
 .feature-intro {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.05) 100%);
   border-radius: 12px;
-  padding-top: 0.01rem;
-  padding-bottom: 1.25rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
   padding-left: 2rem;
+  padding-right: 2rem;
   margin: 1.5rem 0;
   border-left: 4px solid #8b5cf6;
   backdrop-filter: blur(10px);
@@ -261,6 +262,7 @@ body:has(.hero-section) .md-content h1:first-of-type {
 .feature-intro h3 {
   color: #8b5cf6;
   font-size: 1.5rem;
+  margin-top: 0.75rem;
   margin-bottom: 0.75rem;
   font-weight: 600;
 }
@@ -275,14 +277,17 @@ body:has(.hero-section) .md-content h1:first-of-type {
 .key-features-section {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(236, 72, 153, 0.03) 100%);
   border-radius: 12px;
-  padding: 2.5rem 2rem;
+  padding-top: 0.5rem;
+  padding-left: 2.5rem;
+  padding-right: 2.5rem;
+  padding-bottom: 2rem;
   margin: 2rem 0;
 }
 
 .key-features-section h2 {
   text-align: center;
   font-size: 2.25rem;
-  margin-bottom: 2rem;
+  margin-top: 0.5rem;
   background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -293,7 +298,6 @@ body:has(.hero-section) .md-content h1:first-of-type {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
-  margin: 1.5rem 0;
   align-items: stretch;
 }
 
@@ -365,14 +369,17 @@ body:has(.hero-section) .md-content h1:first-of-type {
 .getting-started {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(236, 72, 153, 0.03) 100%);
   border-radius: 12px;
-  padding: 2.5rem 2rem;
+  padding-top: 0.5rem;
+  padding-left: 2.5rem;
+  padding-right: 2.5rem;
+  padding-bottom: 2rem;
   margin: 2rem 0;
 }
 
 .getting-started h2 {
   text-align: center;
   font-size: 2.25rem;
-  margin-bottom: 2rem;
+  margin-top: 0.5rem;
   background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -416,16 +423,19 @@ body:has(.hero-section) .md-content h1:first-of-type {
 
 /* Community Section */
 .community-section {
-  background: var(--md-code-bg-color);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(236, 72, 153, 0.03) 100%);
   border-radius: 12px;
-  padding: 2.5rem 2rem;
+  padding-top: 0.5rem;
+  padding-left: 2.5rem;
+  padding-bottom: 2rem;
+  padding-right: 2.5rem;
   margin: 2rem 0;
 }
 
 .community-section h2 {
   text-align: center;
   font-size: 2.25rem;
-  margin-bottom: 2rem;
+  margin-top: 0.2rem;
   background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -442,6 +452,8 @@ body:has(.hero-section) .md-content h1:first-of-type {
 .community-item {
   padding: 0.9rem;
   background: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 12px;
   border-radius: 8px;
   transition: all 0.3s ease;
   display: flex;
@@ -509,12 +521,15 @@ body:has(.hero-section) .md-content h1:first-of-type {
   }
 
   .feature-intro {
-    padding-top: 0.01rem;
+    padding-top: 0.3rem;
     padding-left: 1.75rem;
+    padding-right: 0.5rem;
+    padding-bottom: 0.3rem;
     margin: 1.75rem 0;
   }
 
   .feature-intro h3 {
+    margin-top: 0.3rem;
     font-size: 1.35rem;
   }
 
@@ -610,14 +625,17 @@ body:has(.hero-section) .md-content h1:first-of-type {
   }
 
   .feature-intro {
-    padding-top: 0.01rem;
+    padding-top: 0.2rem;
     padding-left: 1.5rem;
+    padding-right: 0.5rem;
+    padding-bottom: 0.2rem;
     margin: 1.5rem 0;
     border-radius: 10px;
   }
 
   .feature-intro h3 {
     font-size: 1.25rem;
+    margin-top: 0.2rem;
     margin-bottom: 0.5rem;
   }
 
@@ -802,6 +820,8 @@ body:has(.hero-section) .md-content h1:first-of-type {
   .feature-intro {
     padding-top: 0.01rem;
     padding-left: 1rem;
+    padding-right: 0.3rem;
+    padding-bottom: 0.01rem;
     margin: 1rem 0;
   }
 
