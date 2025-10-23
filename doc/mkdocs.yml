@@ -91,7 +91,6 @@ extra:
 
 extra_css:
   - stylesheets/extra.css
-  - stylesheets/index.css
 
 nav:
   - index.md
