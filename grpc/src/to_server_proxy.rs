@@ -89,11 +89,18 @@ pub async fn forward_from_proto_to_ankaios(
                             }
                         };
                     }
-                    RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask }) => {
+                    RequestContent::CompleteStateRequest(CompleteStateRequest {
+                        field_mask,
+                        subscribe_for_events,
+                    }) => {
                         log::trace!("Received RequestCompleteState from '{agent_name}'");
                         sink.request_complete_state(
                             request_id,
-                            ank_base::CompleteStateRequest { field_mask }.into(),
+                            ank_base::CompleteStateRequest {
+                                field_mask,
+                                subscribe_for_events,
+                            }
+                            .into(),
                         )
                         .await?;
                     }
@@ -104,6 +111,10 @@ pub async fn forward_from_proto_to_ankaios(
                     RequestContent::LogsCancelRequest(_logs_stop_request) => {
                         log::trace!("Received LogsCancelRequest from '{agent_name}'");
                         sink.logs_cancel_request(request_id).await?;
+                    }
+                    RequestContent::EventsCancelRequest(_event_cancel_request) => {
+                        log::trace!("Received EventsCancelRequest from '{agent_name}'");
+                        sink.event_cancel_request(request_id).await?;
                     }
                 }
             }
@@ -515,9 +526,7 @@ mod tests {
         assert!(forward_result.is_err());
         assert_eq!(
             forward_result.unwrap_err().to_string(),
-            String::from(
-                "Connection interrupted: 'status: 'Unknown error', self: \"test\"'"
-            )
+            String::from("Connection interrupted: 'status: 'Unknown error', self: \"test\"'")
         );
 
         // pick received from server message
@@ -734,7 +743,10 @@ mod tests {
                         request_id: REQUEST_ID.to_string(),
                         request_content: Some(
                             ank_base::request::RequestContent::CompleteStateRequest(
-                                ank_base::CompleteStateRequest { field_mask: vec![] },
+                                ank_base::CompleteStateRequest {
+                                    field_mask: vec![],
+                                    subscribe_for_events: false,
+                                },
                             ),
                         ),
                     })),
@@ -761,9 +773,9 @@ mod tests {
                 request_id,
                 request_content:
                     common::commands::RequestContent::CompleteStateRequest(
-                        common::commands::CompleteStateRequest { field_mask },
+                        common::commands::CompleteStateRequest { field_mask, subscribe_for_events },
                     ),
-            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask)
+            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask && !subscribe_for_events)
         );
     }
 
@@ -772,7 +784,10 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let request_complete_state = common::commands::CompleteStateRequest { field_mask: vec![] };
+        let request_complete_state = common::commands::CompleteStateRequest {
+            field_mask: vec![],
+            subscribe_for_events: false,
+        };
 
         let request_complete_state_result = server_tx
             .request_complete_state(REQUEST_ID.to_owned(), request_complete_state.clone())
@@ -794,10 +809,10 @@ mod tests {
             request_id,
             request_content:
                 Some(ank_base::request::RequestContent::CompleteStateRequest(
-                    ank_base::CompleteStateRequest { field_mask },
+                    ank_base::CompleteStateRequest { field_mask, subscribe_for_events },
                 )),
         }))
-        if request_id == REQUEST_ID && field_mask == vec![] as Vec<String>));
+        if request_id == REQUEST_ID && field_mask == vec![] as Vec<String> && !subscribe_for_events));
     }
 
     #[tokio::test]
