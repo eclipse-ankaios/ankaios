@@ -87,6 +87,10 @@ The ConfigRenderer is responsible for rendering the templated configuration of w
 The LogCampaignStore holds metadata about log collections triggered by workloads or the CLI and enables the Ankaios server to cancel log campaigns or send logs stop responses automatically in certain situations.
 In the following a workload requesting logs is sometimes also called log collector and workloads providing logs are also called log providers. All information on a collector and the providers is stored in one log campaign giving the name of the component.
 
+### EventHandler
+
+The EventHandler holds metadata about the event subscribers and their subscribed field masks. It is responsible for sending out events to the corresponding event subscribers.
+
 ## Behavioral view
 
 ### Startup sequence
@@ -1318,10 +1322,10 @@ Status: approved
 
 When the Ankaios server receives an `AgentGone` message
 and there is at least one subscriber for events,
-the Ankaios server requests the EventHandler to send out:
+the Ankaios server requests the EventHandler to send out an:
 
-* an event with removed field with field mask `agents.<agent_name>`
-* an event with updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state with execution state `AgentDisconnected` managed by this agent
+* event with removed field with field mask `agents.<agent_name>`
+* event with updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state with execution state `AgentDisconnected` managed by this agent
 
 Tags:
 - AnkaiosServer
