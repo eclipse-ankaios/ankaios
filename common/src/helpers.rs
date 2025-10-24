@@ -68,6 +68,7 @@ pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), Strin
     ))
 }
 
+// [impl->swdd~common-helper-methods~1]
 pub fn validate_tags(
     api_version: &str,
     tags_value: &Value,
