@@ -48,6 +48,8 @@
       
     
     
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -947,12 +949,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../upgrading/v0_2_to_v0_3/" class="md-nav__link">
+      <a href="../upgrading/v0_6_to_v0_7/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Upgrading v0.2 to v0.3
+    Upgrading v0.6 to v0.7
     
   </span>
   
@@ -970,12 +972,12 @@
   
   
     <li class="md-nav__item">
-      <a href="../upgrading/v0_3_to_v0_4/" class="md-nav__link">
+      <a href="../upgrading/v0_5_to_v0_6/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Upgrading v0.3 to v0.4
+    Upgrading v0.5 to v0.6
     
   </span>
   
@@ -1016,12 +1018,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../upgrading/v0_5_to_v0_6/" class="md-nav__link">
+      <a href="../upgrading/v0_3_to_v0_4/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
-    Upgrading v0.5 to v0.6
+    Upgrading v0.3 to v0.4
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../upgrading/v0_2_to_v0_3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Upgrading v0.2 to v0.3
     
   </span>
   
@@ -1860,12 +1885,8 @@ See the <a href="https://eclipse-ankaios.github.io/ankaios/latest/reference/star
 </ul>
 <p>Store the Ankaios manifest listed above in a file <code>databroker.yaml</code>.</p>
 <p>Then start the workload:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>apply<span class="w"> </span>databroker.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ank<span class="w"> </span>apply<span class="w"> </span>databroker.yaml
 </code></pre></div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The instructions assume the default installation without mutual TLS (mTLS) for communication. With <code>-k</code> or <code>--insecure</code> the <code>ank</code> CLI will connect without mTLS. Alternatively, set the environment variable <code>ANK_INSECURE=true</code> to avoid passing the argument to each <code>ank</code> CLI command. For an Ankaios setup with mTLS, see <a href="../mtls-setup/">here</a>.</p>
-</div>
 <p>The Ankaios agent <code>agent_A</code> will now instruct podman to start the workload.
 The command waits until the databroker is running.
 It should finally print:</p>
@@ -1886,7 +1907,7 @@ It should finally print:</p>
 </code></pre></div>
 <p>The source code for that image is available in the <a href="https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_vehicle_signals">Ankaios repository</a>.</p>
 <p>Start the workload with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>apply<span class="w"> </span>speed-provider.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ank<span class="w"> </span>apply<span class="w"> </span>speed-provider.yaml
 </code></pre></div>
 <p>The command waits until the speed-provider is running.
 It should finally print:</p>
@@ -1906,10 +1927,10 @@ A speed consumer such as a navigation system typically runs on a separate node f
 Let's create another Ankaios agent to connect to the existing server.
 For this tutorial we can either use a separate Linux host or use the existing one.
 Start a new agent with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>ank-agent<span class="w"> </span>-k<span class="w"> </span>--name<span class="w"> </span>infotainment<span class="w"> </span>--server-url<span class="w"> </span>http://&lt;SERVER_IP&gt;:25551
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>ank-agent<span class="w"> </span>--name<span class="w"> </span>infotainment<span class="w"> </span>--server-url<span class="w"> </span>http://&lt;SERVER_IP&gt;:25551
 </code></pre></div>
 <p>If the agent is started on the same host as the existing Ankaios server and agent, then we will call it as follows:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>ank-agent<span class="w"> </span>-k<span class="w"> </span>--name<span class="w"> </span>infotainment<span class="w"> </span>--server-url<span class="w"> </span>http://127.0.0.1:25551
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>ank-agent<span class="w"> </span>--name<span class="w"> </span>infotainment<span class="w"> </span>--server-url<span class="w"> </span>http://127.0.0.1:25551
 </code></pre></div>
 <p>As the first agent was started by systemd, it runs as root and therefore calls podman as root.
 The second agent is started by a non-root user and therefore also uses podman in user mode.
@@ -1918,7 +1939,7 @@ Ankaios does not need root privileges and can be started as any user.</p>
 <p>For the next steps we need to keep this terminal untouched in order to keep the agent running.</p>
 <h2 id="list-the-connected-agents">List the connected agents<a class="headerlink" href="#list-the-connected-agents" title="Permanent link">&para;</a></h2>
 <p>Let's verify that the new <code>infotainment</code> agent has connected to the Ankaios server by running the following command, which will list all Ankaios agents currently connected to the Ankaios server, along with their number of workloads:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>agents
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ank<span class="w"> </span>get<span class="w"> </span>agents
 </code></pre></div>
 <p>It should print:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>NAME           WORKLOADS      CPU USAGE      FREE MEMORY
@@ -1946,17 +1967,17 @@ Ankaios does not need root privileges and can be started as any user.</p>
 <p>In case the speed-consumer workload is not running on the same host as the databroker you need to adjust the <code>KUKSA_DATA_BROKER_ADDR</code>.</p>
 <p>Note that this time the image does not specify the agent.
 While we could add <code>agent: infotainment</code>, this time we pass the agent name when the workload starts:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>apply<span class="w"> </span>--agent<span class="w"> </span>infotainment<span class="w"> </span>speed-consumer.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>ank<span class="w"> </span>apply<span class="w"> </span>--agent<span class="w"> </span>infotainment<span class="w"> </span>speed-consumer.yaml
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>If you are running the ank command on a host that is different from the host
 on which the Ankaios server is running, you need to add a parameter <code>-s &lt;SERVER_URL&gt;</code> like:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>ank -k apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>ank apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
 </code></pre></div>
 <p>Optionally the server URL can also be provided via environment variable:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>export ANK_SERVER_URL=http://127.0.0.1:25551
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>ank -k apply --agent infotainment speed-consumer.yaml
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>ank apply --agent infotainment speed-consumer.yaml
 </code></pre></div>
 </div>
 <p>The command waits until speed consumer is running.
@@ -1965,7 +1986,7 @@ It should print:</p>
 <a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a> speed-consumer   infotainment   podman      Running(Ok)
 </code></pre></div>
 <p>We can check all running workloads with</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <p>The output should be:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a> WORKLOAD NAME    AGENT          RUNTIME   EXECUTION STATE   ADDITIONAL INFO
@@ -1973,7 +1994,7 @@ It should print:</p>
 <a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a> speed-consumer   infotainment   podman    Running(Ok)
 <a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a> speed-provider   agent_A        podman    Running(Ok)
 </code></pre></div>
-<p>Optionally, you can re-run the previous <code>ank -k get agents</code> command again, to verify that the number of workloads managed by the <code>infotainment</code> agent has now increased.</p>
+<p>Optionally, you can re-run the previous <code>ank get agents</code> command again, to verify that the number of workloads managed by the <code>infotainment</code> agent has now increased.</p>
 <h2 id="reading-workload-logs">Reading workload logs<a class="headerlink" href="#reading-workload-logs" title="Permanent link">&para;</a></h2>
 <p>The speed-consumer workload subscribes to the vehicle speed signal and prints it to stdout.
 Use the web UI of the speed-provider to send a few vehicle speed values and watch the log messages of the speed-consumer with:</p>
@@ -1993,19 +2014,19 @@ Use the web UI of the speed-provider to send a few vehicle speed values and watc
 </span><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="hll"><span class="w">        </span><span class="no">- &quot;SPEED_PROVIDER_MODE=auto&quot;</span>
 </span></code></pre></div>
 <p>We apply the changes with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>apply<span class="w"> </span>speed-provider.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>ank<span class="w"> </span>apply<span class="w"> </span>speed-provider.yaml
 </code></pre></div>
 <p>and recognize that we get a new speed value every 1 second:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>ank<span class="w"> </span>logs<span class="w"> </span>--follow<span class="w"> </span>speed-consumer
 </code></pre></div>
 <h2 id="ankaios-state">Ankaios state<a class="headerlink" href="#ankaios-state" title="Permanent link">&para;</a></h2>
-<p>Previously we have used <code>ank -k get workloads</code> to a get list of running workloads.
+<p>Previously we have used <code>ank get workloads</code> to a get list of running workloads.
 Ankaios also maintains a current state which can be retrieved with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>state
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>ank<span class="w"> </span>get<span class="w"> </span>state
 </code></pre></div>
 <p>Let's delete all workloads and check the state again:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>databroker<span class="w"> </span>speed-provider<span class="w"> </span>speed-consumer
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>state
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>ank<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>databroker<span class="w"> </span>speed-provider<span class="w"> </span>speed-consumer
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>ank<span class="w"> </span>get<span class="w"> </span>state
 </code></pre></div>
 <p>If we want to start the three workloads on startup of the Ankaios server and agents we need to create a startup manifest file.
 In the default server config (see <code>/etc/ankaios/ank-server.conf</code>), a startup manifest is read from <code>/etc/ankaios/state.yaml</code>.</p>
@@ -2067,8 +2088,16 @@ In the default server config (see <code>/etc/ankaios/ank-server.conf</code>), a 
             </div>
           
           
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
         </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
         
       </main>
       
@@ -2121,7 +2150,7 @@ In the default server config (see <code>/etc/ankaios/ank-server.conf</code>), a 
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2023 Elektrobit Automotive GmbH
+      Copyright &copy; 2023-2025 Elektrobit Automotive GmbH and others
     </div>
   
   
@@ -2167,7 +2196,7 @@ In the default server config (see <code>/etc/ankaios/ank-server.conf</code>), a 
     
     
       
-      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "content.code.copy", "content.code.annotate", "content.action.edit", "navigation.footer"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "navigation.top", "content.code.copy", "content.code.annotate", "content.action.edit", "content.tabs.link", "navigation.footer"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.92b07e13.min.js"></script>
