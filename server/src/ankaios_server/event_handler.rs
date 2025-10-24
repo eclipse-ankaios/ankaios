@@ -199,7 +199,7 @@ impl EventHandler {
 
             if !altered_fields.all_empty() {
                 {
-                    let new_complete_state = server_state
+                    let complete_state_differences = server_state
                         .get_complete_state_by_field_mask(
                             filter_masks.clone(),
                             workload_states_map,
@@ -213,19 +213,17 @@ impl EventHandler {
                         removed_fields: altered_fields.removed_fields,
                     };
 
-                    let new_complete_state_yaml = serde_yaml::to_string(&new_complete_state);
-
-                    let request_id = to_string_id(request_id);
                     log::debug!(
-                        "Sending event to subscriber '{}' with filter masks: {:?}, altered fields: {:?} and complete state:\n{}",
-                        request_id,
-                        filter_masks,
-                        altered_fields,
-                        new_complete_state_yaml.unwrap_or_default()
+                        "Sending event to subscriber '{request_id}' with altered fields: {altered_fields:?} and complete state differences: {complete_state_differences:?}",
                     );
 
+                    let request_id = to_string_id(request_id);
                     from_server_channel
-                        .complete_state(request_id, new_complete_state, Some(altered_fields))
+                        .complete_state(
+                            request_id,
+                            complete_state_differences,
+                            Some(altered_fields),
+                        )
                         .await
                         .unwrap_or_illegal_state();
                 }

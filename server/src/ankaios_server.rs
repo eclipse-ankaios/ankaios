@@ -27,9 +27,9 @@ use common::objects::{
     AgentMap, CompleteState, DeletedWorkload, ExecutionState, State, WorkloadInstanceName,
     WorkloadState, WorkloadStatesMap,
 };
-use common::state_manipulation::{FieldDifference, Path};
+use common::state_manipulation::{FieldDifference, Path, StateComparator};
 
-use server_state::{AddedDeletedWorkloads, StateComparator};
+use server_state::AddedDeletedWorkloads;
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -108,25 +108,20 @@ impl AnkaiosServer {
                     // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
                     self.workload_states_map.initial_state(&added_workloads);
 
+                    // [impl->swdd~server-sends-state-differences-as-events~1]
                     if self.event_handler.has_subscribers() {
                         let mut altered_fields =
                             state_generation_result.state_comparator.state_differences();
 
                         // add initial workload states as added fields
-                        altered_fields.extend(added_workloads.iter().map(|wl| {
-                            FieldDifference::Added(vec![
-                                "workloadStates".to_owned(),
-                                wl.instance_name.agent_name().to_owned(),
-                                wl.instance_name.workload_name().to_owned(),
-                                wl.instance_name.id().to_owned(),
-                            ])
-                        }));
+                        // [impl->swdd~server-sends-event-for-initial-workload-states~1]
+                        altered_fields.extend(
+                            added_workloads
+                                .iter()
+                                .map(|wl| FieldDifference::added_workload_state(&wl.instance_name)),
+                        );
 
                         if !altered_fields.is_empty() {
-                            log::debug!(
-                                "Found '{}' altered fields. Altered fields: {altered_fields:?}",
-                                altered_fields.len()
-                            );
                             self.event_handler
                                 .send_events(
                                     &self.server_state,
@@ -210,15 +205,13 @@ impl AnkaiosServer {
                     self.agent_map.add_agent(agent_name.clone());
 
                     if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-event-for-newly-connected-agent~1]
                         self.event_handler
                             .send_events(
                                 &self.server_state,
                                 &self.workload_states_map,
                                 &self.agent_map,
-                                vec![FieldDifference::Added(Vec::from([
-                                    "agents".to_owned(),
-                                    agent_name,
-                                ]))],
+                                vec![FieldDifference::added_agent(&agent_name)],
                                 &self.to_agents,
                             )
                             .await;
@@ -239,22 +232,15 @@ impl AnkaiosServer {
 
                     // For simplicity we treat the resource availability changes always as update
                     if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-event-for-updated-agent-resource-availability~1]
                         self.event_handler
                             .send_events(
                                 &self.server_state,
                                 &self.workload_states_map,
                                 &self.agent_map,
                                 vec![
-                                    FieldDifference::Updated(vec![
-                                        "agents".to_owned(),
-                                        agent_name.clone(),
-                                        "cpuUsage".to_owned(),
-                                    ]),
-                                    FieldDifference::Updated(vec![
-                                        "agents".to_owned(),
-                                        agent_name,
-                                        "freeMemory".to_owned(),
-                                    ]),
+                                    FieldDifference::updated_agent_cpu(&agent_name),
+                                    FieldDifference::updated_agent_memory(&agent_name),
                                 ],
                                 &self.to_agents,
                             )
@@ -277,30 +263,18 @@ impl AnkaiosServer {
                         .workload_states_map
                         .get_workload_state_for_agent(&agent_name);
 
-                    // [impl->swdd~server-calculates-state-differences-for-events~1]
                     if self.event_handler.has_subscribers() {
-                        let altered_fields = vec![FieldDifference::Removed(Vec::from([
-                            "agents".to_owned(),
-                            agent_name.clone(),
-                        ]))];
-
+                        // [impl->swdd~server-sends-events-for-disconnected-agent~1]
+                        let altered_fields = vec![FieldDifference::removed_agent(&agent_name)];
                         let altered_fields = agent_workload_states.iter().fold(
                             altered_fields,
                             |mut altered_fields, ws| {
-                                altered_fields.push(FieldDifference::Updated(vec![
-                                    "workloadStates".to_owned(),
-                                    ws.instance_name.agent_name().to_owned(),
-                                    ws.instance_name.workload_name().to_owned(),
-                                    ws.instance_name.id().to_owned(),
-                                ]));
+                                altered_fields.push(FieldDifference::updated_workload_state(
+                                    &ws.instance_name,
+                                ));
                                 altered_fields
                             },
                         );
-
-                        self.to_agents
-                            .update_workload_state(agent_workload_states)
-                            .await
-                            .unwrap_or_illegal_state();
 
                         self.event_handler
                             .send_events(
@@ -311,12 +285,13 @@ impl AnkaiosServer {
                                 &self.to_agents,
                             )
                             .await;
-                    } else {
-                        self.to_agents
-                            .update_workload_state(agent_workload_states)
-                            .await
-                            .unwrap_or_illegal_state();
                     }
+
+                    // [impl->swdd~server-distribute-workload-state-on-disconnect~1]
+                    self.to_agents
+                        .update_workload_state(agent_workload_states)
+                        .await
+                        .unwrap_or_illegal_state();
 
                     // [impl->swdd~server-handles-log-campaign-for-disconnected-agent~1]
                     let removed_log_requests = self
@@ -361,6 +336,7 @@ impl AnkaiosServer {
                                     .unwrap_or_illegal_state();
 
                                 if complete_state_request.subscribe_for_events {
+                                    // [impl->swdd~server-stores-new-event-subscription~1]
                                     self.event_handler.add_subscriber(
                                         request_id,
                                         complete_state_request
@@ -449,18 +425,14 @@ impl AnkaiosServer {
                                     .await
                                     .unwrap_or_illegal_state();
 
-                                // [impl->swdd~server-calculates-state-differences-for-events~1]
                                 // state changes must be calculated after every update since only config item can be changed as well
                                 if self.event_handler.has_subscribers() {
+                                    // [impl->swdd~server-sends-state-differences-as-events~1]
                                     let state_differences = state_generation_result
                                         .state_comparator
                                         .state_differences();
 
                                     if !state_differences.is_empty() {
-                                        log::debug!(
-                                            "Found '{}' altered fields. Altered fields: {state_differences:?}",
-                                            state_differences.len()
-                                        );
                                         self.event_handler
                                             .send_events(
                                                 &self.server_state,
@@ -530,6 +502,7 @@ impl AnkaiosServer {
                             .await
                             .unwrap_or_illegal_state();
                     }
+                    // [impl->swdd~server-removes-event-subscription~1]
                     common::commands::RequestContent::EventsCancelRequest => {
                         log::debug!("Got event cancel request with ID: {request_id}");
 
@@ -560,19 +533,11 @@ impl AnkaiosServer {
                             .iter()
                             .map(|ws| {
                                 if ws.execution_state.is_removed() {
-                                    FieldDifference::Removed(vec![
-                                        "workloadStates".to_owned(),
-                                        ws.instance_name.agent_name().to_owned(),
-                                        ws.instance_name.workload_name().to_owned(),
-                                        ws.instance_name.id().to_owned(),
-                                    ])
+                                    // [impl->swdd~server-sends-event-for-removed-workload-states~1]
+                                    FieldDifference::removed_workload_state(&ws.instance_name)
                                 } else {
-                                    FieldDifference::Updated(vec![
-                                        "workloadStates".to_owned(),
-                                        ws.instance_name.agent_name().to_owned(),
-                                        ws.instance_name.workload_name().to_owned(),
-                                        ws.instance_name.id().to_owned(),
-                                    ])
+                                    // [impl->swdd~server-sends-event-for-updated-workload-states~1]
+                                    FieldDifference::updated_workload_state(&ws.instance_name)
                                 }
                             })
                             .collect();
@@ -581,12 +546,6 @@ impl AnkaiosServer {
                             "Found '{}' altered fields. Altered fields: {altered_fields:?}",
                             altered_fields.len()
                         );
-
-                        // [impl->swdd~server-forwards-workload-state~1]
-                        self.to_agents
-                            .update_workload_state(method_obj.workload_states)
-                            .await
-                            .unwrap_or_illegal_state();
 
                         self.event_handler
                             .send_events(
@@ -597,13 +556,13 @@ impl AnkaiosServer {
                                 &self.to_agents,
                             )
                             .await;
-                    } else {
-                        // [impl->swdd~server-forwards-workload-state~1]
-                        self.to_agents
-                            .update_workload_state(method_obj.workload_states)
-                            .await
-                            .unwrap_or_illegal_state();
                     }
+
+                    // [impl->swdd~server-forwards-workload-state~1]
+                    self.to_agents
+                        .update_workload_state(method_obj.workload_states)
+                        .await
+                        .unwrap_or_illegal_state();
                 }
                 // [impl->swdd~server-forwards-logs-entries-response-messages~1]
                 ToServer::LogEntriesResponse(request_id, logs_response) => {
@@ -678,35 +637,25 @@ impl AnkaiosServer {
             .handle_not_started_deleted_workloads(deleted_workloads)
             .await;
 
-        // [impl->swdd~server-calculates-state-differences-for-events~1]
-        // state changes must be calculated after every update since only config item can be changed as well
+        // [impl->swdd~server-sends-state-differences-as-events~1]
         if self.event_handler.has_subscribers() {
+            // state changes must be calculated after every update since only config item can be changed as well
             let mut state_differences = state_comparator.state_differences();
 
             // add initial workload states as added fields
-            state_differences.extend(added_workloads.iter().map(|wl| {
-                FieldDifference::Added(vec![
-                    "workloadStates".to_owned(),
-                    wl.instance_name.agent_name().to_owned(),
-                    wl.instance_name.workload_name().to_owned(),
-                    wl.instance_name.id().to_owned(),
-                ])
-            }));
+            // [impl->swdd~server-sends-event-for-initial-workload-states~1]
+            state_differences.extend(
+                added_workloads
+                    .iter()
+                    .map(|wl| FieldDifference::added_workload_state(&wl.instance_name)),
+            );
 
             state_differences.extend(deleted_workload_states.iter().map(|wl_state| {
-                FieldDifference::Removed(vec![
-                    "workloadStates".to_owned(),
-                    wl_state.instance_name.agent_name().to_owned(),
-                    wl_state.instance_name.workload_name().to_owned(),
-                    wl_state.instance_name.id().to_owned(),
-                ])
+                // [impl->swdd~server-sends-event-for-removed-workload-states~1]
+                FieldDifference::removed_workload_state(&wl_state.instance_name)
             }));
 
             if !state_differences.is_empty() {
-                log::debug!(
-                    "Found '{}' altered fields. Altered fields: {state_differences:?}",
-                    state_differences.len()
-                );
                 self.event_handler
                     .send_events(
                         &self.server_state,
@@ -856,8 +805,7 @@ mod tests {
     use super::AnkaiosServer;
     use crate::ankaios_server::log_campaign_store::RemovedLogRequests;
     use crate::ankaios_server::server_state::{
-        AddedDeletedWorkloads, MockServerState, StateComparator, StateGenerationResult,
-        UpdateStateError,
+        AddedDeletedWorkloads, MockServerState, StateGenerationResult, UpdateStateError,
     };
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
@@ -874,6 +822,7 @@ mod tests {
         generate_test_agent_map, generate_test_stored_workload_spec,
         generate_test_workload_spec_with_param, generate_test_workload_states_map_with_data,
     };
+    use common::state_manipulation::StateComparator;
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
     use mockall::predicate;

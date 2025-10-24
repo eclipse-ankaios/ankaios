@@ -25,24 +25,12 @@ use common::objects::{AgentMap, State, WorkloadInstanceName, WorkloadState, Work
 use common::std_extensions::IllegalStateResult;
 use common::{
     objects::{CompleteState, DeletedWorkload, WorkloadSpec},
-    state_manipulation::{FieldDifference, Object, Path},
+    state_manipulation::{Object, Path, StateComparator},
 };
 use std::fmt::Display;
 
 #[cfg(test)]
 use mockall::automock;
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct StateComparator {
-    old_state: Object,
-    new_state: Object,
-}
-
-impl StateComparator {
-    pub fn state_differences(&self) -> Vec<FieldDifference> {
-        self.old_state.calculate_state_differences(&self.new_state)
-    }
-}
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct StateGenerationResult {
@@ -302,10 +290,7 @@ impl ServerState {
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         if update_mask.is_empty() {
             return Ok(StateGenerationResult {
-                state_comparator: StateComparator {
-                    old_state,
-                    new_state: state_from_update,
-                },
+                state_comparator: StateComparator::new(old_state.into(), state_from_update.into()),
                 new_desired_state: updated_state.desired_state,
             });
         }
@@ -328,10 +313,7 @@ impl ServerState {
         })?;
 
         Ok(StateGenerationResult {
-            state_comparator: StateComparator {
-                old_state,
-                new_state,
-            },
+            state_comparator: StateComparator::new(old_state.into(), new_state.into()),
             new_desired_state: new_complete_state.desired_state,
         })
     }

@@ -747,31 +747,6 @@ Needs:
 - utest
 - itest
 
-#### Server calculates state differences for configured events
-`swdd~server-calculates-state-differences-for-events~1`
-
-Status: approved
-
-When the Ankaios Server gets the `ToServer` message `UpdateStateRequest`
-and there is at least one subscriber for events,
-the Ankaios Server shall calculate the state differences between the current and the new state by determining the field masks for added, updated and deleted fields.
-
-Comment:
-A custom Depth-Search-First (DFS) implementation comparing the current and new state fields is used.
-A sequence is treated as a leaf and in mappings only `string`s are supported as keys.
-An update from an empty sequence to a non-empty sequence is treated as an added field and the other way around as a removed field.
-Any other changes to a sequence field is treated as an updated field.
-
-Rationale:
-The determined field masks are forwarded to the subscriber.
-
-Tags:
-- AnkaiosServer
-
-Needs:
-- impl
-- utest
-
 #### ServerState compares rendered workload configurations
 `swdd~server-state-compares-rendered-workloads~1`
 
@@ -1263,6 +1238,165 @@ The agents collecting logs from workloads must be informed by the server to stop
 Tags:
 - AnkaiosServer
 - LogCampaignStore
+
+Needs:
+- impl
+- utest
+
+### Handle events
+
+#### Server stores new event subscription
+`swdd~server-stores-new-event-subscription~1`
+
+Status: approved
+
+When the Ankaios server receives a `CompleteStateRequest` message with enabled `subscribe_for_events` field, the Ankaios server shall request the EventHandler to store the requester as new event subscriber.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server removes event subscription
+`swdd~server-removes-event-subscription~1`
+
+Status: approved
+
+When the Ankaios server receives a `EventsCancelRequest` message, the Ankaios server shall request the EventHandler to remove subscriber from its internal subscription store.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends state differences as events
+`swdd~server-sends-state-differences-as-events~1`
+
+Status: approved
+
+When the Ankaios Server updates its internal state
+and there is at least one subscriber for events,
+the Ankaios Server shall:
+* request the StateComparator of the Common library to determine the state differences between the current and the new state
+* request the EventHandler to send out events for the state differences to all subscribers
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends event for newly connected agent
+`swdd~server-sends-event-for-newly-connected-agent~1`
+
+Status: approved
+
+When the Ankaios server receives an `AgentHello` message
+and there is at least one subscriber for events,
+the Ankaios server requests the EventHandler to send out an event containing an added field with field mask `agents.<agent_name>`.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends events for disconnected agent
+`swdd~server-sends-events-for-disconnected-agent~1`
+
+Status: approved
+
+When the Ankaios server receives an `AgentGone` message
+and there is at least one subscriber for events,
+the Ankaios server requests the EventHandler to send out:
+
+* an event with removed field with field mask `agents.<agent_name>`
+* an event with updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state with execution state `AgentDisconnected` managed by this agent
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends event for updated agent resource availability
+`swdd~server-sends-event-for-updated-agent-resource-availability~1`
+
+Status: approved
+
+When the Ankaios server receives an `AgentLoadStatus` message,
+and there is at least one subscriber for events,
+the Ankaios server shall request the EventHandler to send out an event for the newly received resource availability data containing an updated field with field mask `agents.<agent_name>.<resource_availability_field>`.
+
+Comment:
+Since null values for resource availability entries are created for each newly connected agent, each overwrite of resource availability data is treated as an updated field for events.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends event for initial workload states
+`swdd~server-sends-event-for-initial-workload-states~1`
+
+Status: approved
+
+When the Ankaios server detects added workloads
+and there is at least one subscriber for events,
+the Ankaios server shall request the EventHandler to send an event containing an added field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends event for updated workload states
+`swdd~server-sends-event-for-updated-workload-states~1`
+
+Status: approved
+
+When the Ankaios server gets the `ToServer` message `UpdateWorkloadState`
+and there is at least one subscriber for events,
+the Ankaios server shall request the EventHandler to send an event containing an updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state not having the execution state `Removed`.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends event for removed workload states
+`swdd~server-sends-event-for-removed-workload-states~1`
+
+Status: approved
+
+When the Ankaios server detects deleted workloads
+and there is at least one subscriber for events,
+the Ankaios server shall request the EventHandler to send an event containing a removed field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state having the execution state `Removed`.
+
+Tags:
+- AnkaiosServer
+- EventHandler
 
 Needs:
 - impl
