@@ -20,6 +20,6 @@ FROM base
 ENV PYTHONPATH="${PYTHONPATH}:/usr/local/lib/ankaios"
 COPY --from=dev /usr/local/lib/ankaios /usr/local/lib/ankaios
 COPY examples/python_control_interface /ankaios
-ENV ANKAIOS_VERSION=0.7.0
+ENV ANKAIOS_VERSION=v0.8.0-pre
 
 ENTRYPOINT ["python3", "-u", "/ankaios/src/main.py"]

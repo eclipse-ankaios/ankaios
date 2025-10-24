@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR ${WORKSPACE_DIR}/ankaios_example
-ENV ANKAIOS_VERSION=0.7.0
+ENV ANKAIOS_VERSION=v0.8.0-pre
 
 COPY examples/rust_sdk_logging ${WORKSPACE_DIR}/ankaios_example
 COPY examples/tools/setup_rust_sdk.sh .
