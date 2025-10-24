@@ -40,6 +40,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[serde(flatten)]",
         )
         .field_attribute("ExecutionState.ExecutionStateEnum", "#[serde(flatten)]")
+        .type_attribute(
+            "ExecutionStateEnum",
+            "#[serde(tag = \"state\", content = \"subState\")]",
+        )
         .field_attribute("ExecutionsStatesForId.idStateMap", "#[serde(flatten)]")
         .field_attribute("WorkloadMap.workloads", "#[serde(flatten)]")
         .field_attribute("AgentMap.agents", "#[serde(flatten)]")
@@ -59,7 +63,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
         )
         .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]")
-        .type_attribute("ExecutionStateEnum", "#[derive(internal_derive_macros::Internal)]");
+        .type_attribute(
+            "ExecutionStateEnum",
+            "#[derive(internal_derive_macros::Internal)]",
+        )
+        .type_attribute(
+            "ExecutionStateEnum",
+            "#[internal_type_attr(#[serde(tag = \"state\", content = \"subState\")])]",
+        )
+        .field_attribute(
+            "ExecutionState.ExecutionStateEnum",
+            "#[internal_field_attr(#[serde(flatten)])]",
+        );
 
     builder = setup_internal_files(builder);
     builder = setup_internal_control_interface_access(builder);
