@@ -17,10 +17,9 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 
 use api::ank_base;
+use api::ank_base::WorkloadInstanceNameInternal;
 
 use crate::std_extensions::UnreachableOption;
-
-use super::WorkloadInstanceName;
 
 const TRIGGERED_MSG: &str = "Triggered at runtime.";
 pub const NO_MORE_RETRIES_MSG: &str = "No more retries";
@@ -489,7 +488,7 @@ impl Display for ExecutionState {
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadState {
     // [impl->swdd~common-workload-state-identification~1]
-    pub instance_name: WorkloadInstanceName,
+    pub instance_name: WorkloadInstanceNameInternal,
     pub execution_state: ExecutionState,
 }
 
@@ -505,7 +504,11 @@ impl From<WorkloadState> for ank_base::WorkloadState {
 impl From<ank_base::WorkloadState> for WorkloadState {
     fn from(item: ank_base::WorkloadState) -> Self {
         WorkloadState {
-            instance_name: item.instance_name.unwrap_or_unreachable().into(),
+            instance_name: item
+                .instance_name
+                .unwrap_or_unreachable()
+                .try_into()
+                .unwrap(),
             execution_state: item
                 .execution_state
                 .unwrap_or(ank_base::ExecutionState {
@@ -536,7 +539,7 @@ pub fn generate_test_workload_state_with_agent(
     execution_state: ExecutionState,
 ) -> WorkloadState {
     WorkloadState {
-        instance_name: WorkloadInstanceName::builder()
+        instance_name: WorkloadInstanceNameInternal::builder()
             .workload_name(workload_name)
             .agent_name(agent_name)
             .config(&"config".to_string())
@@ -567,11 +570,9 @@ pub fn generate_test_workload_state(
 // [utest->swdd~common-object-representation~1]
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self};
+    use api::ank_base::{self, WorkloadInstanceNameInternal};
 
-    use crate::objects::{
-        ExecutionState, WorkloadInstanceName, WorkloadState, workload_state::NO_MORE_RETRIES_MSG,
-    };
+    use crate::objects::{ExecutionState, WorkloadState, workload_state::NO_MORE_RETRIES_MSG};
 
     // [utest->swdd~common-workload-state-transitions~1]
     #[test]
@@ -625,7 +626,7 @@ mod tests {
         let additional_info = "some additional info";
         let ankaios_wl_state = WorkloadState {
             execution_state: ExecutionState::starting(additional_info),
-            instance_name: WorkloadInstanceName::builder()
+            instance_name: WorkloadInstanceNameInternal::builder()
                 .workload_name("john")
                 .agent_name("strange")
                 .build(),
@@ -656,7 +657,7 @@ mod tests {
     fn utest_converts_to_ankaios_workload_state() {
         let ankaios_wl_state = WorkloadState {
             execution_state: ExecutionState::running(),
-            instance_name: WorkloadInstanceName::builder()
+            instance_name: WorkloadInstanceNameInternal::builder()
                 .workload_name("john")
                 .agent_name("strange")
                 .build(),

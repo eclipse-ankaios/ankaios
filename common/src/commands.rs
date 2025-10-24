@@ -12,22 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::objects::{
-    CompleteState, CpuUsage, DeletedWorkload, FreeMemory, WorkloadInstanceName, WorkloadSpec,
-};
+use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec};
 use api::ank_base;
+use api::ank_base::WorkloadInstanceNameInternal;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentHello {
     pub agent_name: String,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct AgentLoadStatus {
-    pub agent_name: String,
-    pub cpu_usage: CpuUsage,
-    pub free_memory: FreeMemory,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -128,7 +120,7 @@ impl TryFrom<ank_base::request::RequestContent> for RequestContent {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogsRequest {
-    pub workload_names: Vec<WorkloadInstanceName>,
+    pub workload_names: Vec<WorkloadInstanceNameInternal>,
     pub follow: bool,
     pub tail: i32,
     pub since: Option<String>,
@@ -166,7 +158,7 @@ impl From<ank_base::LogsRequest> for LogsRequest {
             workload_names: value
                 .workload_names
                 .into_iter()
-                .map(|name: ank_base::WorkloadInstanceName| name.into())
+                .map(|name: ank_base::WorkloadInstanceName| name.try_into().unwrap())
                 .collect(),
             follow: value.follow.unwrap_or(false),
             tail: value.tail.unwrap_or(-1),
@@ -283,11 +275,12 @@ mod tests {
                 UpdateStateRequest,
             },
             objects::{
-                Base64Data, CompleteState, Data, ExecutionState, File, FileContent, RestartPolicy,
-                State, StoredWorkloadSpec, Tag, WorkloadInstanceName, generate_test_agent_map,
+                CompleteState, ExecutionState, RestartPolicy, State, StoredWorkloadSpec, Tag,
                 generate_test_workload_states_map_with_data,
             },
         };
+        pub use api::ank_base::{FileContentInternal, FileInternal, WorkloadInstanceNameInternal};
+        pub use api::test_utils::generate_test_agent_map;
     }
 
     const REQUEST_ID: &str = "request_id";
@@ -370,11 +363,11 @@ mod tests {
             }
         };
         (ankaios, $number:expr) => {
-            ankaios::WorkloadInstanceName::new(
-                AGENT_NAME,
-                workload_name!($number),
-                instance_id!($number),
-            )
+            ankaios::WorkloadInstanceNameInternal {
+                workload_name: workload_name!($number).to_owned(),
+                agent_name: AGENT_NAME.to_owned(),
+                id: instance_id!($number).to_owned(),
+            }
         };
     }
 
@@ -479,17 +472,17 @@ mod tests {
                 ]
                 .into(),
                 files: vec![
-                    ankaios::File {
+                    ankaios::FileInternal {
                         mount_point: "/file.json".to_string(),
-                        file_content: ankaios::FileContent::Data(ankaios::Data {
+                        file_content: ankaios::FileContentInternal::Data {
                             data: "text data".into(),
-                        }),
+                        },
                     },
-                    ankaios::File {
+                    ankaios::FileInternal {
                         mount_point: "/binary_file".to_string(),
-                        file_content: ankaios::FileContent::BinaryData(ankaios::Base64Data {
-                            base64_data: "base64_data".into(),
-                        }),
+                        file_content: ankaios::FileContentInternal::BinaryData {
+                            binary_data: "base64_data".into(),
+                        },
                     },
                 ],
             }
@@ -519,7 +512,7 @@ mod tests {
     macro_rules! agent_map {
         (ankaios) => {{ ankaios::generate_test_agent_map(AGENT_NAME) }};
         (ank_base) => {
-            ankaios::generate_test_agent_map(AGENT_NAME).into()
+            Some(ankaios::generate_test_agent_map(AGENT_NAME).into())
         };
     }
 

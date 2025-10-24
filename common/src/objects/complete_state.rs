@@ -13,9 +13,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base;
+use api::ank_base::AgentMapInternal;
 use serde::{Deserialize, Serialize};
 
-use super::{AgentMap, State, WorkloadStatesMap};
+use super::{State, WorkloadStatesMap};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -25,7 +26,7 @@ pub struct CompleteState {
     #[serde(default)]
     pub workload_states: WorkloadStatesMap,
     #[serde(default)]
-    pub agents: AgentMap,
+    pub agents: AgentMapInternal,
 }
 
 impl From<CompleteState> for ank_base::CompleteState {
@@ -33,7 +34,7 @@ impl From<CompleteState> for ank_base::CompleteState {
         ank_base::CompleteState {
             desired_state: Some(ank_base::State::from(item.desired_state)),
             workload_states: item.workload_states.into(),
-            agents: item.agents.into(),
+            agents: Some(item.agents.into()),
         }
     }
 }
@@ -45,7 +46,7 @@ impl TryFrom<ank_base::CompleteState> for CompleteState {
         Ok(CompleteState {
             desired_state: item.desired_state.unwrap_or_default().try_into()?,
             workload_states: item.workload_states.unwrap_or_default().into(),
-            agents: item.agents.unwrap_or_default().into(),
+            agents: item.agents.unwrap_or_default().try_into()?,
         })
     }
 }

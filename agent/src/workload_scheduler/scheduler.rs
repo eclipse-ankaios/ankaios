@@ -18,7 +18,8 @@ use crate::{
     workload_operation::ReusableWorkloadSpec,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
-use common::objects::{DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec};
+use api::ank_base::WorkloadInstanceNameInternal;
+use common::objects::{DeletedWorkload, ExecutionState, WorkloadSpec};
 use std::{collections::HashMap, fmt::Display};
 
 use crate::workload_operation::WorkloadOperation;
@@ -310,13 +311,13 @@ impl WorkloadScheduler {
         ready_workload_operations
     }
 
-    async fn report_pending_create_state(&self, instance_name: &WorkloadInstanceName) {
+    async fn report_pending_create_state(&self, instance_name: &WorkloadInstanceNameInternal) {
         self.workload_state_sender
             .report_workload_execution_state(instance_name, ExecutionState::waiting_to_start())
             .await;
     }
 
-    async fn report_pending_delete_state(&self, instance_name: &WorkloadInstanceName) {
+    async fn report_pending_delete_state(&self, instance_name: &WorkloadInstanceNameInternal) {
         self.workload_state_sender
             .report_workload_execution_state(instance_name, ExecutionState::waiting_to_stop())
             .await;

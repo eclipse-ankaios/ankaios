@@ -19,7 +19,8 @@ use crate::runtime_connectors::{LogRequestOptions, RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
-use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec};
+use api::ank_base::WorkloadInstanceNameInternal;
+use common::objects::{ExecutionState, RestartPolicy, WorkloadSpec};
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
 use std::collections::HashMap;
@@ -168,7 +169,7 @@ impl WorkloadControlLoop {
 
     async fn send_workload_state_to_agent(
         workload_state_sender: &WorkloadStateSender,
-        instance_name: &WorkloadInstanceName,
+        instance_name: &WorkloadInstanceNameInternal,
         execution_state: ExecutionState,
     ) {
         workload_state_sender
@@ -206,8 +207,8 @@ impl WorkloadControlLoop {
     }
 
     fn is_same_workload(
-        lhs_instance_name: &WorkloadInstanceName,
-        rhs_instance_name: &WorkloadInstanceName,
+        lhs_instance_name: &WorkloadInstanceNameInternal,
+        rhs_instance_name: &WorkloadInstanceNameInternal,
     ) -> bool {
         lhs_instance_name.eq(rhs_instance_name)
     }
@@ -225,7 +226,7 @@ impl WorkloadControlLoop {
 
     async fn send_retry_for_workload<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        instance_name: WorkloadInstanceName,
+        instance_name: WorkloadInstanceNameInternal,
         retry_token: RetryToken,
         error_msg: String,
     ) -> ControlLoopState<WorkloadId, StChecker>
@@ -269,7 +270,7 @@ impl WorkloadControlLoop {
         Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>> + 'static,
         ErrorFunc: FnOnce(
                 ControlLoopState<WorkloadId, StChecker>,
-                WorkloadInstanceName,
+                WorkloadInstanceNameInternal,
                 RetryToken,
                 String,
             ) -> Fut
@@ -701,9 +702,10 @@ mod tests {
 
     use mockall::predicate;
 
+    use api::ank_base::WorkloadInstanceNameInternal;
+    use api::test_utils::generate_test_rendered_workload_files;
     use common::objects::{
-        ExecutionState, ExecutionStateEnum, WorkloadInstanceName,
-        generate_test_rendered_workload_files, generate_test_workload_spec_with_param,
+        ExecutionState, ExecutionStateEnum, generate_test_workload_spec_with_param,
         generate_test_workload_spec_with_rendered_files,
     };
     use common::objects::{RestartPolicy, generate_test_workload_state_with_workload_spec};
@@ -765,7 +767,7 @@ mod tests {
 
         let mut new_workload_spec = old_workload_spec.clone();
         new_workload_spec.runtime_config = "changed config".to_string();
-        new_workload_spec.instance_name = WorkloadInstanceName::builder()
+        new_workload_spec.instance_name = WorkloadInstanceNameInternal::builder()
             .agent_name(old_workload_spec.instance_name.agent_name())
             .workload_name(old_workload_spec.instance_name.workload_name())
             .config(&new_workload_spec.runtime_config)
@@ -976,7 +978,7 @@ mod tests {
 
         let mut new_workload_spec = old_workload_spec.clone();
         new_workload_spec.runtime_config = "changed config".to_string();
-        new_workload_spec.instance_name = WorkloadInstanceName::builder()
+        new_workload_spec.instance_name = WorkloadInstanceNameInternal::builder()
             .agent_name(old_workload_spec.instance_name.agent_name())
             .workload_name(old_workload_spec.instance_name.workload_name())
             .config(&new_workload_spec.runtime_config)
@@ -1096,7 +1098,7 @@ mod tests {
 
         let mut new_workload_spec = old_workload_spec.clone();
         new_workload_spec.runtime_config = "changed config".to_string();
-        new_workload_spec.instance_name = WorkloadInstanceName::builder()
+        new_workload_spec.instance_name = WorkloadInstanceNameInternal::builder()
             .agent_name(old_workload_spec.instance_name.agent_name())
             .workload_name(old_workload_spec.instance_name.workload_name())
             .config(&new_workload_spec.runtime_config)
@@ -1203,7 +1205,7 @@ mod tests {
 
         let mut new_workload_spec = old_workload_spec.clone();
         new_workload_spec.runtime_config = "changed config".to_string();
-        new_workload_spec.instance_name = WorkloadInstanceName::builder()
+        new_workload_spec.instance_name = WorkloadInstanceNameInternal::builder()
             .agent_name(old_workload_spec.instance_name.agent_name())
             .workload_name(old_workload_spec.instance_name.workload_name())
             .config(&new_workload_spec.runtime_config)
@@ -2062,7 +2064,7 @@ mod tests {
     // [utest->swdd~workload-control-loop-checks-workload-state-validity~1]
     #[test]
     fn utest_is_same_workload() {
-        let current_instance_name = WorkloadInstanceName::builder()
+        let current_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .agent_name(AGENT_NAME)
             .config(&String::from("existing config"))
@@ -2073,7 +2075,7 @@ mod tests {
             &current_instance_name
         ));
 
-        let new_instance_name = WorkloadInstanceName::builder()
+        let new_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .agent_name(AGENT_NAME)
             .config(&String::from("different config"))
@@ -2434,7 +2436,7 @@ mod tests {
 
         let mut new_workload_spec = old_workload_spec.clone();
         new_workload_spec.runtime_config = "changed config".to_string();
-        new_workload_spec.instance_name = WorkloadInstanceName::builder()
+        new_workload_spec.instance_name = WorkloadInstanceNameInternal::builder()
             .agent_name(old_workload_spec.instance_name.agent_name())
             .workload_name(old_workload_spec.instance_name.workload_name())
             .config(&new_workload_spec.runtime_config)

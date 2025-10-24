@@ -14,7 +14,7 @@
 
 use std::{ops::Deref, path::PathBuf};
 
-use common::objects::WorkloadInstanceName;
+use api::ank_base::WorkloadInstanceNameInternal;
 
 #[derive(Debug, PartialEq)]
 pub struct WorkloadFilesBasePath(PathBuf);
@@ -29,8 +29,10 @@ impl Deref for WorkloadFilesBasePath {
 }
 
 // [impl->swdd~location-of-workload-files-at-predefined-path~1]
-impl From<(&PathBuf, &WorkloadInstanceName)> for WorkloadFilesBasePath {
-    fn from((run_folder, workload_instance_name): (&PathBuf, &WorkloadInstanceName)) -> Self {
+impl From<(&PathBuf, &WorkloadInstanceNameInternal)> for WorkloadFilesBasePath {
+    fn from(
+        (run_folder, workload_instance_name): (&PathBuf, &WorkloadInstanceNameInternal),
+    ) -> Self {
         let workload_files_path = workload_instance_name
             .pipes_folder_name(run_folder.as_path())
             .join(SUBFOLDER_WORKLOAD_FILES);
@@ -55,8 +57,7 @@ pub fn generate_test_workload_files_path() -> WorkloadFilesBasePath {
 
 #[cfg(test)]
 mod tests {
-
-    use common::objects::WorkloadInstanceName;
+    use api::ank_base::WorkloadInstanceNameInternal;
 
     use super::{PathBuf, WorkloadFilesBasePath};
 
@@ -68,7 +69,8 @@ mod tests {
     // [utest->swdd~location-of-workload-files-at-predefined-path~1]
     #[test]
     fn utest_workload_files_path_from() {
-        let instance_name = WorkloadInstanceName::new(AGENT_A, WORKLOAD_1_NAME, WORKLOAD_1_ID);
+        let instance_name =
+            WorkloadInstanceNameInternal::new(AGENT_A, WORKLOAD_1_NAME, WORKLOAD_1_ID);
         let workload_files_path =
             WorkloadFilesBasePath::from((&AGENT_A_RUN_FOLDER.into(), &instance_name));
         let expected = PathBuf::from(format!(

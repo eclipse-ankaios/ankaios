@@ -19,14 +19,13 @@ use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
-use api::ank_base::{self, LogsRequestAccepted};
+use api::ank_base::{self, LogsRequestAccepted, WorkloadInstanceNameInternal};
 use common::{
     commands::{CompleteStateRequest, LogsRequest, UpdateWorkloadState},
     communications_client::CommunicationsClient,
     communications_error::CommunicationMiddlewareError,
     from_server_interface::{FromServer, FromServerReceiver},
     objects::CompleteState,
-    objects::WorkloadInstanceName,
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 use grpc::{client::GRPCCommunicationsClient, security::TLSConfig};
@@ -229,7 +228,7 @@ impl ServerConnection {
     // [impl->swdd~cli-streams-logs-from-the-server~1]
     pub async fn stream_logs(
         &mut self,
-        instance_names: BTreeSet<WorkloadInstanceName>,
+        instance_names: BTreeSet<WorkloadInstanceNameInternal>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
         let request_id = uuid::Uuid::new_v4().to_string();
@@ -260,7 +259,7 @@ impl ServerConnection {
     async fn send_logs_request_for_workloads(
         &mut self,
         request_id: &str,
-        workload_instance_names: Vec<WorkloadInstanceName>,
+        workload_instance_names: Vec<WorkloadInstanceNameInternal>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
         let logs_request = LogsRequest {
@@ -339,7 +338,7 @@ impl ServerConnection {
 
     fn compare_requested_with_accepted_workloads(
         &self,
-        requested_workloads: &BTreeSet<WorkloadInstanceName>,
+        requested_workloads: &BTreeSet<WorkloadInstanceNameInternal>,
         accepted_workloads: Vec<ank_base::WorkloadInstanceName>,
     ) -> Result<(), ServerConnectionError> {
         for instance_name in requested_workloads {
@@ -358,7 +357,7 @@ impl ServerConnection {
     async fn listen_for_workload_logs(
         &mut self,
         request_id: String,
-        mut instance_names: BTreeSet<WorkloadInstanceName>,
+        mut instance_names: BTreeSet<WorkloadInstanceNameInternal>,
         output_log_format_function: fn(Vec<ank_base::LogEntry>),
     ) -> Result<(), ServerConnectionError> {
         loop {
@@ -429,7 +428,7 @@ fn handle_server_log_response(
                 workload_instance_name
             );
             Ok(LogStreamingState::StopForWorkload(
-                workload_instance_name.into(),
+                workload_instance_name.try_into().unwrap(),
             ))
         }
 
@@ -452,7 +451,7 @@ fn handle_server_log_response(
 
 // [impl->swdd~cli-outputs-logs-in-specific-format~1]
 fn select_log_format_function(
-    instance_names: &BTreeSet<WorkloadInstanceName>,
+    instance_names: &BTreeSet<WorkloadInstanceNameInternal>,
     force_output_names: bool,
 ) -> fn(Vec<ank_base::LogEntry>) {
     if is_output_with_workload_names(instance_names, force_output_names) {
@@ -463,14 +462,14 @@ fn select_log_format_function(
 }
 
 fn is_output_with_workload_names(
-    instance_names: &BTreeSet<WorkloadInstanceName>,
+    instance_names: &BTreeSet<WorkloadInstanceNameInternal>,
     force_output_names: bool,
 ) -> bool {
     instance_names.len() > 1 || force_output_names
 }
 
 enum LogStreamingState {
-    StopForWorkload(WorkloadInstanceName),
+    StopForWorkload(WorkloadInstanceNameInternal),
     Continue,
     Output(api::ank_base::LogEntriesResponse),
 }
@@ -562,14 +561,11 @@ mod tests {
         test_helper::MOCKALL_CONTEXT_SYNC,
     };
 
-    use super::ank_base::{self, UpdateStateSuccess};
+    use super::ank_base::{self, UpdateStateSuccess, WorkloadInstanceNameInternal};
     use common::{
         commands::{CompleteStateRequest, RequestContent, UpdateStateRequest, UpdateWorkloadState},
         from_server_interface::FromServer,
-        objects::{
-            CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadInstanceName,
-            WorkloadState,
-        },
+        objects::{CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadState},
         test_utils::{self, generate_test_proto_workload_files},
         to_server_interface::ToServer,
     };
@@ -721,7 +717,7 @@ mod tests {
         }
     }
 
-    fn instance_name(workload_name: &str) -> WorkloadInstanceName {
+    fn instance_name(workload_name: &str) -> WorkloadInstanceNameInternal {
         format!("{workload_name}.{ID}.{AGENT_A}")
             .try_into()
             .unwrap()
@@ -1318,7 +1314,7 @@ mod tests {
 
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone(), instance_name_2.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
@@ -1526,7 +1522,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
@@ -1597,7 +1593,7 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
@@ -1673,7 +1669,7 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
@@ -1732,7 +1728,7 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
@@ -1814,7 +1810,7 @@ mod tests {
         let instance_name_2 = instance_name(WORKLOAD_NAME_2);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(

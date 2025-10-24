@@ -478,7 +478,7 @@ impl Connection {
                     ))
                 })?;
 
-            workload_instance_names.push(common::objects::WorkloadInstanceName::new(
+            workload_instance_names.push(api::ank_base::WorkloadInstanceNameInternal::new(
                 agent_name.clone(),
                 workload_name.clone(),
                 workload_id.clone(),

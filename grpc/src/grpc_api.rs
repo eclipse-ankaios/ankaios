@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base;
 use common::commands;
 use common::objects;
 use std::collections::HashMap;
@@ -36,18 +37,18 @@ impl CommanderHello {
     }
 }
 
-impl From<AgentLoadStatus> for commands::AgentLoadStatus {
+impl From<AgentLoadStatus> for ank_base::AgentLoadStatus {
     fn from(item: AgentLoadStatus) -> Self {
-        commands::AgentLoadStatus {
+        ank_base::AgentLoadStatus {
             agent_name: item.agent_name,
-            cpu_usage: item.cpu_usage.unwrap_or_default().into(),
-            free_memory: item.free_memory.unwrap_or_default().into(),
+            cpu_usage: item.cpu_usage.unwrap_or_default().try_into().unwrap(),
+            free_memory: item.free_memory.unwrap_or_default().try_into().unwrap(),
         }
     }
 }
 
-impl From<commands::AgentLoadStatus> for AgentLoadStatus {
-    fn from(item: commands::AgentLoadStatus) -> Self {
+impl From<ank_base::AgentLoadStatus> for AgentLoadStatus {
+    fn from(item: ank_base::AgentLoadStatus) -> Self {
         AgentLoadStatus {
             agent_name: item.agent_name,
             cpu_usage: Some(item.cpu_usage.into()),
@@ -80,7 +81,8 @@ impl TryFrom<DeletedWorkload> for objects::DeletedWorkload {
             instance_name: deleted_workload
                 .instance_name
                 .ok_or("No instance name")?
-                .into(),
+                .try_into()
+                .unwrap(),
             dependencies: deleted_workload
                 .dependencies
                 .into_iter()
@@ -115,7 +117,11 @@ impl TryFrom<AddedWorkload> for objects::WorkloadSpec {
                 .collect::<Result<HashMap<String, objects::AddCondition>, String>>()?,
             restart_policy: workload.restart_policy.try_into()?,
             runtime: workload.runtime,
-            instance_name: workload.instance_name.ok_or("No instance name")?.into(),
+            instance_name: workload
+                .instance_name
+                .ok_or("No instance name")?
+                .try_into()
+                .unwrap(),
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
             runtime_config: workload.runtime_config,
             control_interface_access: workload
@@ -169,7 +175,7 @@ fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
 
 #[cfg(test)]
 pub fn generate_test_proto_deleted_workload() -> DeletedWorkload {
-    let instance_name = common::objects::WorkloadInstanceName::builder()
+    let instance_name = api::ank_base::WorkloadInstanceNameInternal::builder()
         .agent_name("agent")
         .workload_name("workload X")
         .config(&String::from("config"))
@@ -201,12 +207,12 @@ pub fn generate_test_failed_update_workload_state(
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{generate_test_proto_deleted_workload, AddedWorkload, DeletedWorkload};
+    use crate::{AddedWorkload, DeletedWorkload, generate_test_proto_deleted_workload};
 
-    use api::ank_base::{self};
+    use api::ank_base::{self, ConfigHash};
+    use api::test_utils::generate_test_rendered_workload_files;
     use common::{
-        objects::{generate_test_rendered_workload_files, generate_test_workload_spec, ConfigHash},
-        test_utils::generate_test_deleted_workload,
+        objects::generate_test_workload_spec, test_utils::generate_test_deleted_workload,
     };
 
     mod ankaios {
@@ -306,7 +312,7 @@ mod tests {
             ]),
             restart_policy: ankaios::RestartPolicy::Always,
             runtime: String::from("runtime"),
-            instance_name: ankaios::WorkloadInstanceName::builder()
+            instance_name: api::ank_base::WorkloadInstanceNameInternal::builder()
                 .agent_name("agent")
                 .workload_name("name")
                 .build(),
@@ -408,13 +414,13 @@ mod tests {
         (ankaios) => {{
             struct HashableString(String);
 
-            impl ankaios::ConfigHash for HashableString {
+            impl ConfigHash for HashableString {
                 fn hash_config(&self) -> String {
                     self.0.clone()
                 }
             }
             ankaios::WorkloadState {
-                instance_name: ankaios::WorkloadInstanceName::builder()
+                instance_name: api::ank_base::WorkloadInstanceNameInternal::builder()
                     .workload_name(WORKLOAD_NAME_1)
                     .config(&HashableString(HASH.into()))
                     .agent_name(AGENT_NAME)

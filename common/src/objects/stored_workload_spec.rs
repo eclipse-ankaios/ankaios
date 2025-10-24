@@ -21,9 +21,10 @@ use serde::{Deserialize, Serialize};
 use crate::helpers::serialize_to_ordered_map;
 
 use super::{
-    AddCondition, RestartPolicy, Tag, WorkloadInstanceName, WorkloadSpec,
-    control_interface_access::ControlInterfaceAccess, file::File,
+    AddCondition, RestartPolicy, Tag, WorkloadSpec,
+    control_interface_access::ControlInterfaceAccess,
 };
+use api::ank_base::{FileInternal, WorkloadInstanceNameInternal};
 
 pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
 
@@ -44,7 +45,7 @@ pub struct StoredWorkloadSpec {
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub configs: HashMap<String, String>,
     #[serde(default)]
-    pub files: Vec<File>,
+    pub files: Vec<FileInternal>,
 }
 
 impl StoredWorkloadSpec {
@@ -104,7 +105,7 @@ impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
                 .files
                 .into_iter()
                 .map(|file| file.try_into())
-                .collect::<Result<Vec<File>, String>>()?,
+                .collect::<Result<Vec<FileInternal>, String>>()?,
         })
     }
 }
@@ -140,7 +141,7 @@ impl From<StoredWorkloadSpec> for ank_base::Workload {
 impl From<(String, StoredWorkloadSpec)> for WorkloadSpec {
     fn from((name, spec): (String, StoredWorkloadSpec)) -> Self {
         WorkloadSpec {
-            instance_name: WorkloadInstanceName::builder()
+            instance_name: WorkloadInstanceNameInternal::builder()
                 .workload_name(name)
                 .agent_name(spec.agent)
                 .config(&spec.runtime_config)
@@ -213,7 +214,7 @@ pub fn generate_test_stored_workload_spec_with_config(
 pub fn generate_test_stored_workload_spec_with_files(
     agent: impl Into<String>,
     runtime_name: impl Into<String>,
-    files: Vec<File>,
+    files: Vec<FileInternal>,
 ) -> crate::objects::StoredWorkloadSpec {
     let mut stored_spec = generate_test_stored_workload_spec(agent, runtime_name);
     stored_spec.files = files;

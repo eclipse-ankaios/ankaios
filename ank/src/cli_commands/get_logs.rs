@@ -14,7 +14,8 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use common::objects::{WorkloadInstanceName, WorkloadState};
+use api::ank_base::WorkloadInstanceNameInternal;
+use common::objects::WorkloadState;
 
 use crate::cli::LogsArgs;
 use crate::cli_error::CliError;
@@ -39,7 +40,7 @@ impl CliCommands {
     async fn workload_names_to_instance_names(
         &mut self,
         workload_names: Vec<String>,
-    ) -> Result<BTreeSet<WorkloadInstanceName>, CliError> {
+    ) -> Result<BTreeSet<WorkloadInstanceNameInternal>, CliError> {
         let filter_mask_workload_states = ["workloadStates".to_string()];
         let complete_state = self
             .server_connection
@@ -47,7 +48,7 @@ impl CliCommands {
             .await?;
 
         if let Some(wl_states) = complete_state.workload_states {
-            let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceName>> =
+            let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceNameInternal>> =
                 Vec::<WorkloadState>::from(wl_states).into_iter().fold(
                     HashMap::new(),
                     |mut acc, wl_state| {
@@ -102,7 +103,7 @@ mod tests {
     };
     use crate::cli_error::CliError;
     use api::ank_base;
-    use common::objects::WorkloadInstanceName;
+    use api::ank_base::WorkloadInstanceNameInternal;
     use common::{objects::generate_test_workload_spec_with_param, test_utils};
     use mockall::predicate;
 
@@ -141,7 +142,7 @@ mod tests {
                 )
             });
 
-        let instance_names: BTreeSet<WorkloadInstanceName> =
+        let instance_names: BTreeSet<WorkloadInstanceNameInternal> =
             BTreeSet::from([log_workload.instance_name.clone()]);
 
         let args = LogsArgs {
@@ -376,7 +377,7 @@ mod tests {
 
         assert!(result.is_ok(), "Got result {result:?}");
         let instance_names = result.unwrap();
-        let expected_instance_names: BTreeSet<WorkloadInstanceName> =
+        let expected_instance_names: BTreeSet<WorkloadInstanceNameInternal> =
             BTreeSet::from([instance_name_wl_1_agent_a, instance_name_wl_1_agent_b]);
 
         assert_eq!(instance_names, expected_instance_names);
