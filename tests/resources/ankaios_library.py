@@ -333,18 +333,22 @@ def find_control_interface_test_tag():
 
 def prepare_test_control_interface_workload():
     global control_interface_workload_config
+    global control_interface_result_expectations
     global manifest_files_location
     global next_manifest_number
     global control_interface_allow_rules
     global control_interface_deny_rules
     global logs_requests
+    global events_requests
 
     control_interface_workload_config = []
+    control_interface_result_expectations = []
     manifest_files_location = []
     next_manifest_number = 0
     control_interface_allow_rules = []
     control_interface_deny_rules = []
     logs_requests = {}
+    events_requests = {}
 
 
 def create_control_interface_config_for_test() -> TemporaryDirectory:
@@ -540,8 +544,14 @@ def internal_send_initial_hello(version: str):
 
 
 @err_logging_decorator
-def internal_add_get_state_command(field_mask: str):
+def internal_add_get_state_command(field_mask: str, subscribe_for_events: bool=False):
     global control_interface_workload_config
+    global events_requests
+
+    request_id = generate_request_id()
+    if subscribe_for_events:
+        events_requests[field_mask] = request_id
+
 
     field_mask = field_mask.replace(" and ", ", ").split(", ")
     if field_mask == [""]:
@@ -549,8 +559,59 @@ def internal_add_get_state_command(field_mask: str):
     control_interface_workload_config.append({
         "command": {
             "type": "GetState",
-            "field_mask": field_mask
+            "field_mask": field_mask,
+            "subscribe_for_events": subscribe_for_events,
+            "request_id": request_id
         }
+    })
+
+@err_logging_decorator
+def internal_add_cancel_events_command(field_mask: str):
+    global control_interface_workload_config
+
+    assert field_mask in events_requests, f"Workload names {field_mask} are not in previous events requests"
+    request_id = events_requests.get(field_mask)
+    control_interface_workload_config.append({
+        "command": {
+            "type": "CancelEvents",
+            "request_id": request_id
+        }
+    })
+
+@err_logging_decorator
+def internal_add_get_events_command(field_mask: str, subscribe_for_events: bool=False):
+    global control_interface_workload_config
+
+    assert field_mask in events_requests, f"Workload names {field_mask} are not in previous logs requests"
+    request_id = events_requests.get(field_mask)
+    control_interface_workload_config.append({
+        "command": {
+            "type": "GetEvents",
+            "request_id": request_id,
+        }
+    })
+
+@err_logging_decorator
+def internal_check_control_interface_workloads_in_last_result(workload_names: str):
+    global control_interface_result_expectations
+
+    workload_names = workload_names.replace(" and ", ", ").split(", ")
+    control_interface_result_expectations.append({
+        "response_number": len(control_interface_workload_config)-1,
+        "type": "exact_workloads",
+        "workload_names": workload_names}
+    )
+
+@err_logging_decorator
+def internal_check_control_interface_workload_fields_in_last_result(workload_name: str, field_names: str):
+    global control_interface_result_expectations
+
+    field_names = field_names.replace(" and ", ", ").split(", ")
+    control_interface_result_expectations.append({
+        "response_number": len(control_interface_workload_config)-1,
+        "type": "exact_workload_fields",
+        "workload_name": workload_name,
+        "field_names": field_names
     })
 
 
@@ -607,6 +668,8 @@ def internal_get_logs_command(workload_names: str):
     })
 
 
+
+
 @err_logging_decorator
 def internal_add_cancel_logs_request_command(workload_names: str):
     global control_interface_workload_config
@@ -638,6 +701,25 @@ def internal_check_all_control_interface_requests_succeeded(tmp_folder):
         test_result = test_result["result"]["value"]["type"] == "Ok"
         assert test_result, \
             f"Expected request {test_number + 1} to succeed, but it failed"
+
+@err_logging_decorator
+def internal_check_all_result_expectations_succeeded(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    logger.trace(output)
+    for expectation in control_interface_result_expectations:
+        logger.trace(expectation)
+        response_number = expectation["response_number"]
+        test_result = output[response_number]
+        logger.trace(test_result)
+        if expectation["type"] == "exact_workloads":
+            expected_workload_names = expectation["workload_names"]
+            actual_workload_names = list(test_result["result"]["value"]["value"][0]["workloads"].keys())
+            assert set(expected_workload_names) == set(actual_workload_names), f"Expected workloads {expected_workload_names} but found {actual_workload_names}"
+        elif expectation["type"] == "exact_workload_fields":
+            workload_name = expectation["workload_name"]
+            expected_field_names = expectation["field_names"]
+            actual_field_names = [k for (k,v) in test_result["result"]["value"]["value"][0]["workloads"][workload_name].items() if v is not None]
+            assert set(expected_field_names) == set(actual_field_names), f"Expected fields {expected_field_names} but found {actual_field_names}"
 
 @err_logging_decorator
 def internal_check_last_control_interface_request_failed(tmp_folder):
