@@ -1406,6 +1406,128 @@ Needs:
 - impl
 - utest
 
+#### EventHandler handles event notifications
+
+##### EventHandler adds new subscribers to the event store
+`swdd~event-handler-adds-new-subscribers-to-event-store~1`
+
+Status: approved
+
+The EventHandler provides a method to add a new subscriber to its internal event store by adding a new entry with the subscriber's request ID as key and the subscriber's field masks as value.
+
+Comment:
+The event store is an associative data structure.
+One subscriber can subscriber to multiple field masks.
+
+Rationale:
+The EventHandler sends events to specific subscribers identified by their request ID.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler removes subscribers from event store
+`swdd~event-handler-removes-subscribers-from-event-store~1`
+
+Status: approved
+
+The EventHandler provides a method to remove a subscriber from its internal event store.
+
+Comment:
+The event store is an associative data structure.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler provides subscriber exists functionality
+`swdd~event-handler-provides-subscriber-exists-functionality~1`
+
+Status: approved
+
+The EventHandler shall provide a method to check if there is any subscriber inside its internal event store.
+
+Comment:
+The event store is an associative data structure.
+
+Rationale:
+For efficiency, the Ankaios Server skips the state difference calculations if there are no subscribers available.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler sends complete state differences including altered fields
+`swdd~event-handler-sends-complete-state-differences-including-altered-fields~1`
+
+Status: approved
+
+When the EventHandler is triggered to send out events, for each event subscriber the EventHandler shall:
+
+* creates the altered fields for added, updated and deleted fields for each field difference of the state
+* generate filter masks for creating a complete state containing only the state differences
+* send a `CompleteStateResponse` containing the altered fields and the complete state difference if there is at least one entry in one of the altered fields.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler creates altered fields and filter masks
+`swdd~event-handler-creates-altered-fields-and-filter-masks~1`
+
+Status: approved
+
+When the EventHandler creates altered fields and filter masks for the complete state differences, the EventHandler shall:
+
+* compare each field mask of the event subscriber with the field mask of the altered field
+* add the field mask of the altered field to the event's altered fields and filter masks if the subscriber's field mask is shorter than the altered field mask or both have equal length
+* add the expanded subscriber field mask to the event's altered fields and filter masks if field mask of the altered field is shorter than the subscriber field mask
+* skip events for subscriber field masks not matching any altered field masks
+
+Comment:
+The comparison is done by splitting the field mask into parts by the separator `.`.
+
+Rationale:
+The more specific field mask are used as altered field and filter mask to get the complete state differences.
+For example, subscriber field mask `desiredState.workloads.*` and altered field mask `desiredState.workloads.workload_1.agent` leads to altered field `desiredState.workloads.workload_1.agent` and filter mask `desiredState.workloads.workload_1.agent` for the complete state differences.
+Subscriber field mask `desiredState.workloads.*.agent` and altered field mask `desiredState.workloads.workload_1` leads to altered field `desiredState.workloads.workload_1.agent` and filter mask `desiredState.workloads.workload_1.agent`.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler expands subscriber field mask using altered field masks
+`swdd~event-handler-expands-subscriber-field-mask-using-altered-field-masks~1`
+
+Status: approved
+
+When the EventHandler expands the subscriber's field mask, the EventHandler shall replace all parts containing the wild card symbol (`*`) with the corresponding part of the altered field mask.
+
+Rationale:
+The expansion of wild cards is required in the case of the altered field mask is shorter than the subscriber's field mask to fill complete state differences only with the required data.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
 ## Data view
 
 ## Error management view

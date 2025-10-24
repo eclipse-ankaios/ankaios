@@ -55,6 +55,7 @@ pub struct EventHandler {
     subscriber_store: HashMap<RequestId, SubscribedFieldMasks>,
 }
 
+// [impl->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
 fn fill_altered_fields_and_filter_masks(
     mut altered_fields: Vec<String>,
     mut filter_masks: Vec<String>,
@@ -70,6 +71,7 @@ fn fill_altered_fields_and_filter_masks(
                 altered_fields.push(altered_field_mask.into());
             }
             MaskComparisonResult::ShorterAlteredFieldMask => {
+                // [impl->swdd~event-handler-expands-subscriber-field-mask-using-altered-field-masks~1]s
                 let expanded_subscriber_mask =
                     expand_wildcards_in_subscriber_mask(subscriber_mask, altered_field_mask);
                 filter_masks.push(String::from(expanded_subscriber_mask.clone()));
@@ -111,6 +113,7 @@ fn compare_subscriber_mask_with_altered_field_mask(
     MaskComparisonResult::EqualLength
 }
 
+// [impl->swdd~event-handler-expands-subscriber-field-mask-using-altered-field-masks~1]
 fn expand_wildcards_in_subscriber_mask(subscriber_mask: &Path, altered_field_mask: &Path) -> Path {
     let mut subscriber_mask_parts_iter = subscriber_mask.parts().iter();
     let mut expanded_subscriber_mask = Vec::new();
@@ -136,20 +139,24 @@ fn expand_wildcards_in_subscriber_mask(subscriber_mask: &Path, altered_field_mas
 }
 
 impl EventHandler {
+    // [impl->swdd~event-handler-adds-new-subscribers-to-event-store~1]
     pub fn add_subscriber(&mut self, request_id: String, field_masks: SubscribedFieldMasks) {
         log::debug!("Adding subscriber '{request_id}' with field masks: {field_masks:?}",);
         self.subscriber_store.insert(request_id.into(), field_masks);
     }
 
+    // [impl->swdd~event-handler-removes-subscribers-from-event-store~1]
     pub fn remove_subscriber(&mut self, request_id: String) {
         log::debug!("Removing subscriber '{request_id}'");
         self.subscriber_store.remove(&request_id.into());
     }
 
+    // [impl->swdd~event-handler-provides-subscriber-exists-functionality~1]
     pub fn has_subscribers(&self) -> bool {
         !self.subscriber_store.is_empty()
     }
 
+    // [impl->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
     pub async fn send_events(
         &self,
         server_state: &ServerState,
@@ -260,6 +267,7 @@ mod tests {
     const REQUEST_ID_1: &str = "agent_A@workload_1@1234";
     const REQUEST_ID_2: &str = "agent_B@workload_2@5678";
 
+    // [utest->swdd~event-handler-adds-new-subscribers-to-event-store~1]
     #[test]
     fn utest_event_handler_add_subscriber() {
         let mut event_handler = EventHandler::default();
@@ -280,6 +288,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~event-handler-removes-subscribers-from-event-store~1]
     #[test]
     fn utest_event_handler_remove_subscriber() {
         let mut event_handler = EventHandler {
@@ -310,6 +319,8 @@ mod tests {
         assert_eq!(event_handler.subscriber_store.len(), 0);
     }
 
+    // [utest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
+    // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
     #[tokio::test]
     async fn utest_event_handler_send_events_subscriber_masks_equal() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -437,6 +448,8 @@ mod tests {
         assert_eq!(altered_fields, expected_altered_fields);
     }
 
+    // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
+    // [utest->swdd~event-handler-expands-subscriber-field-mask-using-altered-field-masks~1]
     #[test]
     fn utest_fill_altered_fields_and_filter_masks_shorter_wildcard_subscriber_masks() {
         let expected_field_difference_mask = "desiredState.workloads.workload_1.agent";
@@ -460,6 +473,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
     #[test]
     fn utest_fill_altered_fields_and_filter_masks_shorter_subscriber_masks() {
         let expected_field_difference_mask = "desiredState.workloads.workload_1.agent";
@@ -483,6 +497,8 @@ mod tests {
         );
     }
 
+    // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
+    // [utest->swdd~event-handler-expands-subscriber-field-mask-using-altered-field-masks~1]
     #[test]
     fn utest_fill_altered_fields_and_filter_masks_shorter_altered_field_mask_subscriber_wildcards()
     {
@@ -505,6 +521,7 @@ mod tests {
         assert_eq!(filter_masks, vec![expected_altered_field_mask.to_owned(),]);
     }
 
+    // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
     #[test]
     fn utest_fill_altered_fields_and_filter_masks_shorter_altered_field_mask() {
         let altered_field_mask = "desiredState.workloads.workload_1";
