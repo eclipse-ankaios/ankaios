@@ -15,450 +15,485 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use syn::{
-    Attribute, Data, DataEnum, DataStruct, DeriveInput, Expr, Fields, FieldsUnnamed,
+    Attribute, Data, DataEnum, DataStruct, DeriveInput, Expr, Fields, FieldsNamed, FieldsUnnamed,
     GenericArgument, Ident, Lit, Meta, MetaNameValue, Path, PathArguments, Token, Type, TypePath,
+    Visibility,
     parse::{Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
 };
 
-pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
-    let orig_name = input.ident;
-    let vis = input.vis.clone();
+fn derive_internal_struct(
+    fields_named: FieldsNamed,
+    orig_name: Ident,
+    vis: Visibility,
+    type_attrs: Vec<TokenStream>,
+    skip_try_from: bool,
+) -> syn::Result<DerivedInternal> {
     let internal_name = format_ident!("{}Internal", orig_name);
 
-    let internal_type_attrs = get_internal_type_attrs(&input.attrs);
+    let mut internal_fields = Vec::new();
+    let mut try_from_inits = Vec::new();
+    let mut from_inits = Vec::new();
 
-    match input.data {
-        Data::Struct(DataStruct {
-            fields: Fields::Named(fields_named),
-            ..
-        }) => {
-            let mut internal_fields = Vec::new();
-            let mut try_from_inits = Vec::new();
-            let mut from_inits = Vec::new();
+    for field in fields_named.named {
+        let field_vis = field.vis.clone();
+        let field_name = field.ident.unwrap();
 
-            for field in fields_named.named {
-                let field_vis = field.vis.clone();
-                let field_name = field.ident.unwrap();
+        let Type::Path(tp) = &field.ty else {
+            return Err(syn::Error::new_spanned(
+                field_name,
+                "Only simple type paths are supported in struct fields.",
+            ));
+        };
 
-                let Type::Path(tp) = &field.ty else {
-                    return Err(syn::Error::new_spanned(
-                        field_name,
-                        "Only simple type paths are supported in struct fields.",
-                    ));
-                };
+        let missing_field_msg = format!("Missing field '{field_name}'");
+        let conversion_error_msg =
+            format!("Cannot convert field '{field_name}' to internal object.");
 
-                let missing_field_msg = format!("Missing field '{field_name}'");
-                let conversion_error_msg =
-                    format!("Cannot convert field '{field_name}' to internal object.");
+        let mandatory = has_mandatory_attr(&field.attrs);
 
-                let mandatory = has_mandatory_attr(&field.attrs);
+        let prost_enum_tp = get_prost_enum_type(&field.attrs);
 
-                let prost_enum_tp = get_prost_enum_type(&field.attrs);
+        let prost_map_enum_value_tp = get_prost_map_enum_value_type(&field.attrs);
 
-                let prost_map_enum_value_tp = get_prost_map_enum_value_type(&field.attrs);
+        let new_field_type: Type;
+        let try_from_init_entry;
+        let from_init_entry;
 
-                let new_field_type: Type;
-                let try_from_init_entry;
-                let from_init_entry;
-
-                if is_option_type_path(tp) {
-                    // Option<inner>
-                    let inner = extract_inner(tp);
-                    if mandatory {
-                        if prost_enum_tp.is_some() || is_custom_type_path(&inner) {
-                            new_field_type = if let Some(prost_enum_type) = prost_enum_tp {
-                                Type::Path(prost_enum_type)
-                            } else {
-                                to_internal_type(&inner)
-                            };
-
-                            try_from_init_entry = quote! {
-                                #field_name: orig.#field_name
-                                    .ok_or(#missing_field_msg)?
-                                    .try_into()
-                                    .map_err(|_| #conversion_error_msg)?
-                            };
-                            from_init_entry = quote! {
-                                #field_name: Some(orig.#field_name.into())
-                            };
-                        } else {
-                            new_field_type = Type::Path(inner);
-
-                            try_from_init_entry = quote! {
-                                #field_name: orig.#field_name
-                                    .ok_or(#missing_field_msg)?
-                            };
-                            from_init_entry = quote! {
-                                #field_name: Some(orig.#field_name)
-                            };
-                        }
-                    } else if prost_enum_tp.is_some() || is_custom_type_path(&inner) {
-                        new_field_type =
-                            wrap_in_option(if let Some(prost_enum_type) = prost_enum_tp {
-                                Type::Path(prost_enum_type)
-                            } else {
-                                to_internal_type(&inner)
-                            });
-
-                        try_from_init_entry = quote! {
-                            #field_name: orig.#field_name.map(|v| v.try_into()).transpose()?
-                        };
-                        from_init_entry = quote! {
-                            #field_name: orig.#field_name.map(|v| v.into())
-                        };
+        if is_option_type_path(tp) {
+            // Option<inner>
+            let inner = extract_inner(tp);
+            if mandatory {
+                if prost_enum_tp.is_some() || is_custom_type_path(&inner) {
+                    new_field_type = if let Some(prost_enum_type) = prost_enum_tp {
+                        Type::Path(prost_enum_type)
                     } else {
-                        new_field_type = field.ty.clone();
+                        to_internal_type(&inner)
+                    };
 
-                        try_from_init_entry = quote! {
-                            #field_name: orig.#field_name
-                        };
-                        from_init_entry = quote! {
-                            #field_name: orig.#field_name
-                        };
-                    }
+                    try_from_init_entry = quote! {
+                        #field_name: orig.#field_name
+                            .ok_or(#missing_field_msg)?
+                            .try_into()
+                            .map_err(|_| #conversion_error_msg)?
+                    };
+                    from_init_entry = quote! {
+                        #field_name: Some(orig.#field_name.into())
+                    };
                 } else {
-                    // not an option
-                    if prost_enum_tp.is_some() || is_custom_type_path(tp) {
-                        new_field_type =
-                            if let Some(prost_enum_type) = prost_enum_tp {
-                                Type::Path(prost_enum_type)
-                            } else {
-                                to_internal_type(tp)
-                            };
+                    new_field_type = Type::Path(inner);
 
-                        try_from_init_entry = quote! {
-                            #field_name: orig.#field_name.try_into().map_err(|_| #conversion_error_msg)?
-                        };
-                        from_init_entry = quote! {
-                            #field_name: orig.#field_name.into()
-                        };
-                    } else if let Some(inner) = inner_vec_type_path(tp)
-                        && is_custom_type_path(&inner)
-                    {
-                        let new_inner = to_internal_type(&inner);
-                        new_field_type = Type::Path(parse_quote! { Vec<#new_inner> });
-
-                        try_from_init_entry = quote! {
-                            #field_name: orig.#field_name.into_iter().map(|v| v.try_into()).collect::<Result<_, _>>()?
-                        };
-                        from_init_entry = quote! {
-                            #field_name: orig.#field_name.into_iter().map(|v| v.into()).collect()
-                        };
-                    } else if let Some((key_tp, val_tp)) = inner_hashmap_type_path(tp)
-                        && (is_custom_type_path(&val_tp) || prost_map_enum_value_tp.is_some())
-                    {
-                        let new_val_tp =
-                            if let Some(prost_map_enum_value_tp) = prost_map_enum_value_tp {
-                                Type::Path(prost_map_enum_value_tp)
-                            } else {
-                                to_internal_type(&val_tp)
-                            };
-                        new_field_type = Type::Path(
-                            parse_quote! { ::std::collections::HashMap<#key_tp, #new_val_tp> },
-                        );
-
-                        try_from_init_entry = quote! {
-                            #field_name: orig.#field_name.into_iter()
-                                .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| #conversion_error_msg)?)))
-                                .collect::<Result<_, String>>()?
-                        };
-                        from_init_entry = quote! {
-                            #field_name: orig.#field_name.into_iter().map(|(k, v)| (k.clone(), v.into())).collect()
-                        };
-                    } else {
-                        new_field_type = field.ty.clone();
-
-                        try_from_init_entry = quote! {
-                            #field_name: orig.#field_name
-                        };
-                        from_init_entry = quote! {
-                            #field_name: orig.#field_name
-                        };
-                    }
+                    try_from_init_entry = quote! {
+                        #field_name: orig.#field_name
+                            .ok_or(#missing_field_msg)?
+                    };
+                    from_init_entry = quote! {
+                        #field_name: Some(orig.#field_name)
+                    };
                 }
-
-                let internal_field_attrs = get_internal_field_attrs(&field.attrs);
-                internal_fields.push(quote! {
-                    #(#internal_field_attrs )*
-                    #field_vis #field_name: #new_field_type
+            } else if prost_enum_tp.is_some() || is_custom_type_path(&inner) {
+                new_field_type = wrap_in_option(if let Some(prost_enum_type) = prost_enum_tp {
+                    Type::Path(prost_enum_type)
+                } else {
+                    to_internal_type(&inner)
                 });
 
-                try_from_inits.push(try_from_init_entry);
-                from_inits.push(from_init_entry);
-            }
-
-            // TODO: the expanded functions can be build outside and the 2 variants for structs and enums can return:
-            // * the expanded type definition ( struct or enum )
-            // * the implementation of the try_from_inits (only the internal code inside the function)
-            // * the implementation of the from_inits (only the internal code inside the function)
-
-            let expanded = if has_skip_try_from(&input.attrs) {
-                quote! {
-                    #(#internal_type_attrs )*
-                    #vis struct #internal_name {
-                        #(#internal_fields, )*
-                    }
-
-                    impl From<#internal_name> for #orig_name {
-                        fn from(orig: #internal_name) -> Self {
-                            #orig_name {
-                                #(#from_inits, )*
-                            }
-                        }
-                    }
-                }
+                try_from_init_entry = quote! {
+                    #field_name: orig.#field_name.map(|v| v.try_into()).transpose()?
+                };
+                from_init_entry = quote! {
+                    #field_name: orig.#field_name.map(|v| v.into())
+                };
             } else {
-                quote! {
-                    #(#internal_type_attrs )*
-                    #vis struct #internal_name {
-                        #(#internal_fields, )*
-                    }
+                new_field_type = field.ty.clone();
 
-                    impl std::convert::TryFrom<#orig_name> for #internal_name {
-                        type Error = String;
+                try_from_init_entry = quote! {
+                    #field_name: orig.#field_name
+                };
+                from_init_entry = quote! {
+                    #field_name: orig.#field_name
+                };
+            }
+        } else {
+            // not an option
+            if prost_enum_tp.is_some() || is_custom_type_path(tp) {
+                new_field_type = if let Some(prost_enum_type) = prost_enum_tp {
+                    Type::Path(prost_enum_type)
+                } else {
+                    to_internal_type(tp)
+                };
 
-                        fn try_from(orig: #orig_name) -> Result<Self, Self::Error> {
-                            Ok(#internal_name {
-                                #(#try_from_inits, )*
-                            })
-                        }
-                    }
+                try_from_init_entry = quote! {
+                    #field_name: orig.#field_name.try_into().map_err(|_| #conversion_error_msg)?
+                };
+                from_init_entry = quote! {
+                    #field_name: orig.#field_name.into()
+                };
+            } else if let Some(inner) = inner_vec_type_path(tp)
+                && is_custom_type_path(&inner)
+            {
+                let new_inner = to_internal_type(&inner);
+                new_field_type = Type::Path(parse_quote! { Vec<#new_inner> });
 
-                    impl From<#internal_name> for #orig_name {
-                        fn from(orig: #internal_name) -> Self {
-                            #orig_name {
-                                #(#from_inits, )*
-                            }
-                        }
-                    }
-                }
-            };
+                try_from_init_entry = quote! {
+                    #field_name: orig.#field_name.into_iter().map(|v| v.try_into()).collect::<Result<_, _>>()?
+                };
+                from_init_entry = quote! {
+                    #field_name: orig.#field_name.into_iter().map(|v| v.into()).collect()
+                };
+            } else if let Some((key_tp, val_tp)) = inner_hashmap_type_path(tp)
+                && (is_custom_type_path(&val_tp) || prost_map_enum_value_tp.is_some())
+            {
+                let new_val_tp = if let Some(prost_map_enum_value_tp) = prost_map_enum_value_tp {
+                    Type::Path(prost_map_enum_value_tp)
+                } else {
+                    to_internal_type(&val_tp)
+                };
+                new_field_type =
+                    Type::Path(parse_quote! { ::std::collections::HashMap<#key_tp, #new_val_tp> });
 
-            println!("Generated: \n{expanded}");
+                try_from_init_entry = quote! {
+                    #field_name: orig.#field_name.into_iter()
+                        .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| #conversion_error_msg)?)))
+                        .collect::<Result<_, String>>()?
+                };
+                from_init_entry = quote! {
+                    #field_name: orig.#field_name.into_iter().map(|(k, v)| (k.clone(), v.into())).collect()
+                };
+            } else {
+                new_field_type = field.ty.clone();
 
-            Ok(expanded)
+                try_from_init_entry = quote! {
+                    #field_name: orig.#field_name
+                };
+                from_init_entry = quote! {
+                    #field_name: orig.#field_name
+                };
+            }
         }
-        //Data::Enum(enum_data) => {
-        Data::Enum(DataEnum { variants, .. }) => {
-            // Generate Internal enum name
 
-            let mut internal_variants = Vec::new();
-            let mut try_from_variants = Vec::new();
-            let mut from_variants = Vec::new();
+        let internal_field_attrs = get_internal_field_attrs(&field.attrs);
+        internal_fields.push(quote! {
+            #(#internal_field_attrs )*
+            #field_vis #field_name: #new_field_type
+        });
 
-            for variant in variants {
-                check_for_forbidden_mandatory_attr(&variant, &variant.attrs)?;
+        try_from_inits.push(try_from_init_entry);
+        from_inits.push(from_init_entry);
+    }
 
-                let variant_ident = &variant.ident;
-                let internal_field_attrs = get_internal_field_attrs(&variant.attrs);
+    let internal_struct = quote! {
+        #(#type_attrs )*
+        #vis struct #internal_name {
+            #(#internal_fields, )*
+        }
+    };
 
-                match &variant.fields {
-                    Fields::Named(_) => {
+    let try_from_impl = if skip_try_from {
+        TokenStream::new()
+    } else {
+        quote! {
+            impl std::convert::TryFrom<#orig_name> for #internal_name {
+                type Error = String;
+
+                fn try_from(orig: #orig_name) -> Result<Self, Self::Error> {
+                    Ok(#internal_name {
+                        #(#try_from_inits, )*
+                    })
+                }
+            }
+        }
+    };
+
+    let from_impl = quote! {
+        impl From<#internal_name> for #orig_name {
+            fn from(orig: #internal_name) -> Self {
+                #orig_name {
+                    #(#from_inits, )*
+                }
+            }
+        }
+    };
+
+    Ok(DerivedInternal {
+        obj: internal_struct,
+        try_from_impl,
+        from_impl,
+    })
+}
+
+fn derive_internal_enum(
+    variants: Punctuated<syn::Variant, Token![,]>,
+    orig_name: Ident,
+    vis: Visibility,
+    type_attrs: Vec<TokenStream>,
+    skip_try_from: bool,
+) -> syn::Result<DerivedInternal> {
+    let internal_name = format_ident!("{}Internal", orig_name);
+    let mut internal_variants = Vec::new();
+    let mut try_from_variants = Vec::new();
+    let mut from_variants = Vec::new();
+
+    for variant in variants {
+        check_for_forbidden_mandatory_attr(&variant, &variant.attrs)?;
+
+        let variant_ident = &variant.ident;
+        let internal_field_attrs = get_internal_field_attrs(&variant.attrs);
+
+        match &variant.fields {
+            Fields::Named(_) => {
+                return Err(syn::Error::new_spanned(
+                    variant_ident,
+                    "Variants with named fields are not supported.",
+                ));
+            }
+            Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
+                let conversion_enum_error_msg =
+                    format!("Cannot convert '{orig_name}::{variant_ident}' to internal object.");
+
+                if has_enum_named_attr(&variant.attrs) {
+                    if unnamed.len() != 1 {
                         return Err(syn::Error::new_spanned(
                             variant_ident,
-                            "Variants with named fields are not supported.",
+                            "Variants with 'internal_enum_named' attribute must have exactly one unnamed field",
                         ));
                     }
-                    Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
-                        let conversion_enum_error_msg = format!(
-                            "Cannot convert '{orig_name}::{variant_ident}' to internal object."
-                        );
+                    let field = &unnamed[0];
+                    check_for_forbidden_mandatory_attr(&field, &field.attrs)?;
 
-                        if has_enum_named_attr(&variant.attrs) {
-                            if unnamed.len() != 1 {
-                                return Err(syn::Error::new_spanned(
-                                    variant_ident,
-                                    "Variants with 'internal_enum_named' attribute must have exactly one unnamed field",
-                                ));
+                    let Type::Path(tp) = &field.ty else {
+                        return Err(syn::Error::new_spanned(
+                            variant_ident,
+                            "Only simple type paths are supported in enum fields.",
+                        ));
+                    };
+                    if is_option_type_path(tp) {
+                        return Err(syn::Error::new_spanned(
+                            variant_ident,
+                            "Variants with 'internal_enum_named' attribute cannot have Option types.",
+                        ));
+                    }
+
+                    let new_ty = if is_custom_type_path(tp) {
+                        to_internal_type(tp)
+                    } else if let Some(prost_enum_tp) = get_prost_enum_type(&field.attrs) {
+                        Type::Path(prost_enum_tp)
+                    } else {
+                        field.ty.clone()
+                    };
+
+                    // the new named field should start with a lowercase letter
+                    let variant_name = variant_ident.to_string();
+                    let new_field_name = format_ident!("{}", pascal_to_snake_case(&variant_name));
+
+                    internal_variants.push(quote! {
+                        #(#internal_field_attrs )*
+                        #variant_ident { #new_field_name: #new_ty }
+                    });
+
+                    // Enum::A(String) -> EnumInternal::A { a: String }
+                    try_from_variants.push(quote! {
+                        #orig_name::#variant_ident( field_0 ) =>
+                            #internal_name::#variant_ident{
+                                #new_field_name: field_0.try_into().map_err(|_| #conversion_enum_error_msg)?
                             }
-                            let field = &unnamed[0];
-                            check_for_forbidden_mandatory_attr(&field, &field.attrs)?;
+                    });
 
-                            let Type::Path(tp) = &field.ty else {
-                                return Err(syn::Error::new_spanned(
-                                    variant_ident,
-                                    "Only simple type paths are supported in enum fields.",
-                                ));
-                            };
+                    // EnumInternal::A { a: String } -> Enum::A(String)
+                    from_variants.push(quote! {
+                        #internal_name::#variant_ident{ #new_field_name } => #orig_name::#variant_ident( #new_field_name.into() )
+                    });
+                } else {
+                    let mut new_variant = Vec::new();
+                    let mut try_fields = Vec::new();
+                    let mut from_fields = Vec::new();
+
+                    for (i, field) in unnamed.iter().enumerate() {
+                        check_for_forbidden_mandatory_attr(&field, &field.attrs)?;
+
+                        let field_id = format_ident!("field_{i}");
+                        let orig_ty = &field.ty;
+
+                        // prepare the try_from and from variants
+                        if let Type::Path(tp) = orig_ty {
                             if is_option_type_path(tp) {
                                 return Err(syn::Error::new_spanned(
-                                    variant_ident,
-                                    "Variants with 'internal_enum_named' attribute cannot have Option types.",
+                                    tp,
+                                    "Variants with optional attribute are not supported.",
                                 ));
-                            }
+                            } else if is_custom_type_path(tp) {
+                                let new_ty = to_internal_type(tp);
+                                new_variant.push(quote! { #new_ty });
 
-                            let new_ty = if is_custom_type_path(tp) {
-                                to_internal_type(tp)
-                            } else if let Some(prost_enum_tp) = get_prost_enum_type(&field.attrs) {
-                                Type::Path(prost_enum_tp)
+                                try_fields.push(quote! {
+                                    #field_id.try_into()?
+                                });
+
+                                from_fields.push(quote! {
+                                    #field_id.into()
+                                });
+                            // TODO: think about the order
+                            } else if let Some(prost_enum_tp) = get_prost_enum_type(&variant.attrs)
+                            {
+                                let new_ty = Type::Path(prost_enum_tp);
+                                new_variant.push(quote! { #new_ty });
+
+                                try_fields.push(quote! {
+                                    #field_id.try_into().map_err(|_| #conversion_enum_error_msg)?
+                                });
+
+                                from_fields.push(quote! {
+                                    #field_id.into()
+                                });
+                            // handle custom boxed types
+                            } else if let Some(inner) = inner_boxed_type_path(tp)
+                                && is_custom_type_path(&inner)
+                            {
+                                let new_ty = to_internal_type(&inner);
+                                new_variant.push(quote! { Box<#new_ty> });
+                                try_fields.push(quote! {
+                                    Box::new((*#field_id).try_into()?)
+                                });
+                                from_fields.push(quote! {
+                                    Box::new((*#field_id).into())
+                                });
                             } else {
-                                field.ty.clone()
-                            };
+                                new_variant.push(quote! { #orig_ty });
 
-                            // the new named field should start with a lowercase letter
-                            let variant_name = variant_ident.to_string();
-                            let new_field_name =
-                                format_ident!("{}", pascal_to_snake_case(&variant_name));
+                                try_fields.push(quote! {
+                                    #field_id
+                                });
 
-                            internal_variants.push(quote! {
-                                #(#internal_field_attrs )*
-                                #variant_ident { #new_field_name: #new_ty }
-                            });
-
-                            // Enum::A(String) -> EnumInternal::A { a: String }
-                            try_from_variants.push(quote! {
-                                #orig_name::#variant_ident( field_0 ) =>
-                                    #internal_name::#variant_ident{
-                                        #new_field_name: field_0.try_into().map_err(|_| #conversion_enum_error_msg)?
-                                    }
-                            });
-
-                            // EnumInternal::A { a: String } -> Enum::A(String)
-                            from_variants.push(quote! {
-                                #internal_name::#variant_ident{ #new_field_name } => #orig_name::#variant_ident( #new_field_name.into() )
-                            });
-                        } else {
-                            let mut new_variant = Vec::new();
-                            let mut try_fields = Vec::new();
-                            let mut from_fields = Vec::new();
-
-                            for (i, field) in unnamed.iter().enumerate() {
-                                check_for_forbidden_mandatory_attr(&field, &field.attrs)?;
-
-                                let field_id = format_ident!("field_{i}");
-                                let orig_ty = &field.ty;
-
-                                // prepare the try_from and from variants
-                                if let Type::Path(tp) = orig_ty {
-                                    if is_option_type_path(tp) {
-                                        return Err(syn::Error::new_spanned(
-                                            tp,
-                                            "Variants with optional attribute are not supported.",
-                                        ));
-                                    } else if is_custom_type_path(tp) {
-                                        let new_ty = to_internal_type(tp);
-                                        new_variant.push(quote! { #new_ty });
-
-                                        try_fields.push(quote! {
-                                            #field_id.try_into()?
-                                        });
-
-                                        from_fields.push(quote! {
-                                            #field_id.into()
-                                        });
-                                    // TODO: think about the order
-                                    } else if let Some(prost_enum_tp) =
-                                        get_prost_enum_type(&variant.attrs)
-                                    {
-                                        let new_ty = Type::Path(prost_enum_tp);
-                                        new_variant.push(quote! { #new_ty });
-
-                                        try_fields.push(quote! {
-                                            #field_id.try_into().map_err(|_| #conversion_enum_error_msg)?
-                                        });
-
-                                        from_fields.push(quote! {
-                                            #field_id.into()
-                                        });
-                                    // handle custom boxed types
-                                    } else if let Some(inner) = inner_boxed_type_path(tp)
-                                        && is_custom_type_path(&inner)
-                                    {
-                                        let new_ty = to_internal_type(&inner);
-                                        new_variant.push(quote! { Box<#new_ty> });
-                                        try_fields.push(quote! {
-                                            Box::new((*#field_id).try_into()?)
-                                        });
-                                        from_fields.push(quote! {
-                                            Box::new((*#field_id).into())
-                                        });
-                                    } else {
-                                        new_variant.push(quote! { #orig_ty });
-
-                                        try_fields.push(quote! {
-                                            #field_id
-                                        });
-
-                                        from_fields.push(quote! {
-                                            #field_id
-                                        });
-                                    }
-                                } // TODO: else panic?
+                                from_fields.push(quote! {
+                                    #field_id
+                                });
                             }
+                        } // TODO: else panic?
+                    }
 
-                            internal_variants.push(quote! {
-                                #(#internal_field_attrs )*
-                                #variant_ident ( #(#new_variant),* )
-                            });
+                    internal_variants.push(quote! {
+                        #(#internal_field_attrs )*
+                        #variant_ident ( #(#new_variant),* )
+                    });
 
-                            // create a vector field_<i> for each unnamed field
-                            let bindings = (0..unnamed.len())
-                                .map(|i| format_ident!("field_{i}"))
-                                .collect::<Vec<_>>();
+                    // create a vector field_<i> for each unnamed field
+                    let bindings = (0..unnamed.len())
+                        .map(|i| format_ident!("field_{i}"))
+                        .collect::<Vec<_>>();
 
-                            try_from_variants.push(quote! {
+                    try_from_variants.push(quote! {
                                 #orig_name::#variant_ident( #(#bindings),* ) => #internal_name::#variant_ident( #(#try_fields),* )
                             });
 
-                            from_variants.push(quote! {
+                    from_variants.push(quote! {
                                 #internal_name::#variant_ident( #(#bindings),* ) => #orig_name::#variant_ident( #(#from_fields),* )
                             });
-                        };
-                    }
-
-                    Fields::Unit => {
-                        internal_variants.push(quote! {
-                            #(#internal_field_attrs )*
-                            #variant_ident
-                        });
-
-                        try_from_variants.push(quote! {
-                            #orig_name::#variant_ident => #internal_name::#variant_ident
-                        });
-
-                        from_variants.push(quote! {
-                            #internal_name::#variant_ident => #orig_name::#variant_ident
-                        });
-                    }
                 };
             }
 
-            let expanded = quote! {
-                #(#internal_type_attrs )*
-                #vis enum #internal_name {
-                    #(#internal_variants,)*
+            Fields::Unit => {
+                internal_variants.push(quote! {
+                    #(#internal_field_attrs )*
+                    #variant_ident
+                });
+
+                try_from_variants.push(quote! {
+                    #orig_name::#variant_ident => #internal_name::#variant_ident
+                });
+
+                from_variants.push(quote! {
+                    #internal_name::#variant_ident => #orig_name::#variant_ident
+                });
+            }
+        };
+    }
+
+    let internal_enum = quote! {
+        #(#type_attrs )*
+        #vis enum #internal_name {
+            #(#internal_variants,)*
+        }
+    };
+
+    let try_from_impl = if skip_try_from {
+        TokenStream::new()
+    } else {
+        quote! {
+            impl std::convert::TryFrom<#orig_name> for #internal_name {
+                type Error = String;
+
+                fn try_from(orig: #orig_name) -> Result<Self, Self::Error> {
+                    Ok(match orig {
+                        #(#try_from_variants),*
+                    })
                 }
+            }
+        }
+    };
 
-                impl std::convert::TryFrom<#orig_name> for #internal_name {
-                    type Error = String;
-
-                    fn try_from(orig: #orig_name) -> Result<Self, Self::Error> {
-                        Ok(match orig {
-                            #(#try_from_variants),*
-                        })
-                        // Err("Not implemented yet".into())
-                    }
+    let from_impl = quote! {
+        impl From<#internal_name> for #orig_name {
+            fn from(original: #internal_name) -> Self {
+                match original {
+                    #(#from_variants),*
                 }
+            }
+        }
+    };
 
-                impl From<#internal_name> for #orig_name {
-                    fn from(original: #internal_name) -> Self {
-                        match original {
-                            #(#from_variants),*
-                        }
-                    }
-                }
-            };
+    Ok(DerivedInternal {
+        obj: internal_enum,
+        try_from_impl,
+        from_impl,
+    })
+}
 
-            println!("Generated (enum): \n{expanded}");
+pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
+    let orig_name = input.ident;
+    let vis = input.vis.clone();
+    let skip_try_from = has_skip_try_from(&input.attrs);
+    let new_type_attrs = get_internal_type_attrs(&input.attrs);
 
-            Ok(expanded)
+    let internal = match input.data {
+        Data::Struct(DataStruct {
+            fields: Fields::Named(fields),
+            ..
+        }) => derive_internal_struct(fields, orig_name, vis, new_type_attrs, skip_try_from)?,
+        Data::Enum(DataEnum { variants, .. }) => {
+            derive_internal_enum(variants, orig_name, vis, new_type_attrs, skip_try_from)?
         }
         _ => Err(syn::Error::new_spanned(
             orig_name,
             "Internal derive only supports named structs and enums",
-        )),
+        ))?,
+    };
+
+    let expanded = quote! {
+        #internal
+    };
+
+    println!("Generated (enum): \n{expanded}");
+
+    Ok(expanded)
+}
+
+pub struct DerivedInternal {
+    pub obj: TokenStream,
+    pub try_from_impl: TokenStream,
+    pub from_impl: TokenStream,
+}
+
+impl ToTokens for DerivedInternal {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let obj = &self.obj;
+        let try_from_impl = &self.try_from_impl;
+        let from_impl = &self.from_impl;
+        tokens.extend(quote! {
+            #obj
+            #try_from_impl
+            #from_impl
+        });
     }
 }
 
@@ -941,5 +976,4 @@ mod tests {
             .collect();
         assert_eq!(idents, vec!["Clone", "Debug"]);
     }
-
 }
