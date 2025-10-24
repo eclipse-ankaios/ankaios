@@ -1,4 +1,4 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   rust_sdk_hello:
     runtime: podman

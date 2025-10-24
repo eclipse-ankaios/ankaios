@@ -1,4 +1,4 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   after_backend:
     runtime: podman
@@ -8,8 +8,7 @@ workloads:
       backend:
         ADD_COND_RUNNING
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: ["echo", "After backend job."]
@@ -18,7 +17,6 @@ workloads:
     agent: agent_A
     restartPolicy: NEVER
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/sleepy:latest

@@ -19,6 +19,7 @@ mod server_config;
 use std::fs;
 use std::path::PathBuf;
 
+use common::helpers::validate_tags;
 use common::objects::CompleteState;
 
 use common::communications_server::CommunicationsServer;
@@ -60,6 +61,31 @@ fn handle_sever_config(config_path: &Option<String>, default_path: &str) -> Serv
     }
 }
 
+// [impl->swdd~server-validates-startup-manifest-tags-format~1]
+fn validate_tags_format_in_manifest(data: &str) -> Result<(), String> {
+    let yaml_value: serde_yaml::Value =
+        serde_yaml::from_str(data).map_err(|e| format!("Failed to parse YAML: {e}"))?;
+
+    let api_version = yaml_value
+        .get("apiVersion")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    if let Some(workloads) = yaml_value.get("workloads")
+        && let Some(workloads_map) = workloads.as_mapping()
+    {
+        for (workload_name, workload_spec) in workloads_map {
+            if let Some(tags_value) = workload_spec.get("tags") {
+                let workload_name_str = workload_name.as_str().unwrap_or("unknown");
+                validate_tags(&api_version, tags_value, workload_name_str)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
@@ -84,6 +110,10 @@ async fn main() {
         Some(config_path) => {
             let data =
                 fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");
+
+            validate_tags_format_in_manifest(&data)
+                .unwrap_or_exit("Invalid tags format in startup manifest");
+
             // [impl->swdd~server-state-in-memory~1]
             // [impl->swdd~server-loads-startup-state-file~3]
             let state: State = serde_yaml::from_str(&data)
@@ -154,6 +184,7 @@ async fn main() {
 mod tests {
     use crate::{
         ServerConfig, handle_sever_config, server_config::DEFAULT_SERVER_CONFIG_FILE_PATH,
+        validate_tags_format_in_manifest,
     };
     use std::{io::Write, net::SocketAddr};
     use tempfile::NamedTempFile;
@@ -209,5 +240,93 @@ mod tests {
         let server_config = handle_sever_config(&None, "/a/very/invalid/path/to/config/file");
 
         assert_eq!(server_config, ServerConfig::default());
+    }
+
+    // [utest->swdd~server-validates-startup-manifest-tags-format~1]
+    #[test]
+    fn utest_validate_tags_format_current_api_version_with_mapping_ok() {
+        let manifest = r#"
+apiVersion: v1
+workloads:
+  nginx:
+    agent: agent_A
+    runtime: podman
+    tags:
+      owner: team_a
+      version: "1.0"
+    runtimeConfig: |
+      image: nginx:latest
+"#;
+        assert!(validate_tags_format_in_manifest(manifest).is_ok());
+    }
+
+    // [utest->swdd~server-validates-startup-manifest-tags-format~1]
+    #[test]
+    fn utest_validate_tags_format_current_api_version_with_sequence_fails() {
+        let manifest = r#"
+apiVersion: v1
+workloads:
+  nginx:
+    agent: agent_A
+    runtime: podman
+    tags:
+      - key: owner
+        value: team_a
+      - key: version
+        value: "1.0"
+    runtimeConfig: |
+      image: nginx:latest
+"#;
+        let result = validate_tags_format_in_manifest(manifest);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("tags must be specified as a mapping")
+        );
+    }
+
+    // [utest->swdd~server-validates-startup-manifest-tags-format~1]
+    #[test]
+    fn utest_validate_tags_format_previous_api_version_with_sequence_ok() {
+        let manifest = r#"
+apiVersion: v0.1
+workloads:
+  nginx:
+    agent: agent_A
+    runtime: podman
+    tags:
+      - key: owner
+        value: team_a
+      - key: version
+        value: "1.0"
+    runtimeConfig: |
+      image: nginx:latest
+"#;
+        assert!(validate_tags_format_in_manifest(manifest).is_ok());
+    }
+
+    // [utest->swdd~server-validates-startup-manifest-tags-format~1]
+    #[test]
+    fn utest_validate_tags_format_previous_api_version_with_mapping_fails() {
+        let manifest = r#"
+apiVersion: v0.1
+workloads:
+  nginx:
+    agent: agent_A
+    runtime: podman
+    tags:
+      owner: team_a
+      version: "1.0"
+    runtimeConfig: |
+      image: nginx:latest
+"#;
+        let result = validate_tags_format_in_manifest(manifest);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("tags must be specified as a sequence")
+        );
     }
 }

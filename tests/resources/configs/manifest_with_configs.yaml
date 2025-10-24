@@ -1,4 +1,4 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   nginx:
     agent: "{{agent.agent_name}}"

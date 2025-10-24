@@ -249,3 +249,44 @@ Test Ankaios apply workload specification with wrong api version format
     # Asserts
     Then the last command shall finish with an error
     [Teardown]    Clean up Ankaios
+
+# [stest->swdd~server-validates-startup-manifest-tags-format~1]
+Test Ankaios Podman Update workload with current API version
+    [Setup]    Run Keywords    Setup Ankaios
+
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Podman has deleted all existing pods
+    And Podman has deleted all existing volumes
+    And Ankaios insecure server is started with config "${CONFIGS_DIR}/default_deprecated_api.yaml"
+    And Ankaios agent is started with name "agent_A"
+    And all workloads of agent "agent_A" have an initial execution state
+    # Actions
+    When user triggers "ank -k apply ${CONFIGS_DIR}/default.yaml"
+    And user triggers "ank -k get workloads"
+    # Asserts
+    Then the last command shall finish with exit code "0"
+    Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+
+    [Teardown]    Clean up Ankaios
+
+# [stest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
+Test Ankaios Podman Update workload with deprecated API version v0.1
+    [Setup]    Run Keywords    Setup Ankaios
+
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Podman has deleted all existing pods
+    And Podman has deleted all existing volumes
+    And Ankaios server is started without config successfully
+    And Ankaios agent is started with name "agent_A"
+    # Actions
+    When user triggers "ank -k apply ${CONFIGS_DIR}/default_deprecated_api.yaml"
+    And user triggers "ank -k get workloads"
+    # Asserts
+    Then the last command shall finish with exit code "0"
+    Then the workload "sleepy" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+
+    [Teardown]    Clean up Ankaios

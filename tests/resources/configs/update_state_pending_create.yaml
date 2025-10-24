@@ -1,11 +1,10 @@
 desiredState:
-  apiVersion: v0.1
+  apiVersion: v1
   workloads:
     after_backend:
       agent: agent_A
       tags:
-      - key: owner
-        value: Ankaios team
+        owner: Ankaios team
       dependencies:
         backend: ADD_COND_SUCCEEDED
       restartPolicy: NEVER
@@ -16,8 +15,7 @@ desiredState:
     backend:
       agent: agent_A
       tags:
-      - key: owner
-        value: Ankaios team
+        owner: Ankaios team
       dependencies: {}
       restartPolicy: NEVER
       runtime: podman

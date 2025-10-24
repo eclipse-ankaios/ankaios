@@ -6,7 +6,6 @@ desiredState:
       agent: agent_A
       restartPolicy: ALWAYS
       tags:
-        - key: owner
-          value: Ankaios team
+        owner: Ankaios team
       runtimeConfig: |
         image: ghcr.io/eclipse-ankaios/tests/sleepy:latest

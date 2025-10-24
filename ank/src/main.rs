@@ -235,7 +235,7 @@ async fn main() {
                         runtime_name,
                         runtime_config,
                         agent_name,
-                        tags,
+                        tags.into_iter().collect(),
                     )
                     .await
                 {
