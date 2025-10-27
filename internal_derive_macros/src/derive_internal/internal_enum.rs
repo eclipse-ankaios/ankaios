@@ -1,0 +1,249 @@
+// Copyright (c) 2025 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
+use syn::{Fields, FieldsUnnamed, Ident, Token, Type, Visibility, punctuated::Punctuated};
+
+use crate::derive_internal::utils::{
+    DerivedInternal, check_for_forbidden_mandatory_attr, get_internal_field_attrs,
+    get_prost_enum_type, has_enum_named_attr, inner_boxed_type_path, is_custom_type_path,
+    is_option_type_path, pascal_to_snake_case, to_internal_type,
+};
+
+pub fn derive_internal_enum(
+    variants: Punctuated<syn::Variant, Token![,]>,
+    orig_name: Ident,
+    vis: Visibility,
+    type_attrs: Vec<TokenStream>,
+    skip_try_from: bool,
+) -> syn::Result<DerivedInternal> {
+    let internal_name = format_ident!("{}Internal", orig_name);
+    let mut internal_variants = Vec::new();
+    let mut try_from_variants = Vec::new();
+    let mut from_variants = Vec::new();
+
+    for variant in variants {
+        check_for_forbidden_mandatory_attr(&variant, &variant.attrs)?;
+
+        let variant_ident = &variant.ident;
+        let internal_field_attrs = get_internal_field_attrs(&variant.attrs);
+
+        match &variant.fields {
+            Fields::Named(_) => {
+                return Err(syn::Error::new_spanned(
+                    variant_ident,
+                    "Variants with named fields are not supported.",
+                ));
+            }
+            Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
+                let conversion_enum_error_msg =
+                    format!("Cannot convert '{orig_name}::{variant_ident}' to internal object.");
+
+                if has_enum_named_attr(&variant.attrs) {
+                    if unnamed.len() != 1 {
+                        return Err(syn::Error::new_spanned(
+                            variant_ident,
+                            "Variants with 'internal_enum_named' attribute must have exactly one unnamed field",
+                        ));
+                    }
+                    let field = &unnamed[0];
+                    check_for_forbidden_mandatory_attr(&field, &field.attrs)?;
+
+                    let Type::Path(tp) = &field.ty else {
+                        return Err(syn::Error::new_spanned(
+                            variant_ident,
+                            "Only simple type paths are supported in enum fields.",
+                        ));
+                    };
+                    if is_option_type_path(tp) {
+                        return Err(syn::Error::new_spanned(
+                            variant_ident,
+                            "Variants with 'internal_enum_named' attribute cannot have Option types.",
+                        ));
+                    }
+
+                    let new_ty = if is_custom_type_path(tp) {
+                        to_internal_type(tp)
+                    } else if let Some(prost_enum_tp) = get_prost_enum_type(&field.attrs) {
+                        Type::Path(prost_enum_tp)
+                    } else {
+                        field.ty.clone()
+                    };
+
+                    // the new named field should start with a lowercase letter
+                    let variant_name = variant_ident.to_string();
+                    let new_field_name = format_ident!("{}", pascal_to_snake_case(&variant_name));
+
+                    internal_variants.push(quote! {
+                        #(#internal_field_attrs )*
+                        #variant_ident { #new_field_name: #new_ty }
+                    });
+
+                    // Enum::A(String) -> EnumInternal::A { a: String }
+                    try_from_variants.push(quote! {
+                        #orig_name::#variant_ident( field_0 ) =>
+                            #internal_name::#variant_ident{
+                                #new_field_name: field_0.try_into().map_err(|_| #conversion_enum_error_msg)?
+                            }
+                    });
+
+                    // EnumInternal::A { a: String } -> Enum::A(String)
+                    from_variants.push(quote! {
+                        #internal_name::#variant_ident{ #new_field_name } => #orig_name::#variant_ident( #new_field_name.into() )
+                    });
+                } else {
+                    let mut new_variant = Vec::new();
+                    let mut try_fields = Vec::new();
+                    let mut from_fields = Vec::new();
+
+                    for (i, field) in unnamed.iter().enumerate() {
+                        check_for_forbidden_mandatory_attr(&field, &field.attrs)?;
+
+                        let field_id = format_ident!("field_{i}");
+                        let orig_ty = &field.ty;
+
+                        // prepare the try_from and from variants
+                        if let Type::Path(tp) = orig_ty {
+                            if is_option_type_path(tp) {
+                                return Err(syn::Error::new_spanned(
+                                    tp,
+                                    "Variants with optional attribute are not supported.",
+                                ));
+                            } else if is_custom_type_path(tp) {
+                                let new_ty = to_internal_type(tp);
+                                new_variant.push(quote! { #new_ty });
+
+                                try_fields.push(quote! {
+                                    #field_id.try_into()?
+                                });
+
+                                from_fields.push(quote! {
+                                    #field_id.into()
+                                });
+                            // TODO: think about the order
+                            } else if let Some(prost_enum_tp) = get_prost_enum_type(&variant.attrs)
+                            {
+                                let new_ty = Type::Path(prost_enum_tp);
+                                new_variant.push(quote! { #new_ty });
+
+                                try_fields.push(quote! {
+                                    #field_id.try_into().map_err(|_| #conversion_enum_error_msg)?
+                                });
+
+                                from_fields.push(quote! {
+                                    #field_id.into()
+                                });
+                            // handle custom boxed types
+                            } else if let Some(inner) = inner_boxed_type_path(tp)
+                                && is_custom_type_path(&inner)
+                            {
+                                let new_ty = to_internal_type(&inner);
+                                new_variant.push(quote! { Box<#new_ty> });
+                                try_fields.push(quote! {
+                                    Box::new((*#field_id).try_into()?)
+                                });
+                                from_fields.push(quote! {
+                                    Box::new((*#field_id).into())
+                                });
+                            } else {
+                                new_variant.push(quote! { #orig_ty });
+
+                                try_fields.push(quote! {
+                                    #field_id
+                                });
+
+                                from_fields.push(quote! {
+                                    #field_id
+                                });
+                            }
+                        } // TODO: else panic?
+                    }
+
+                    internal_variants.push(quote! {
+                        #(#internal_field_attrs )*
+                        #variant_ident ( #(#new_variant),* )
+                    });
+
+                    // create a vector field_<i> for each unnamed field
+                    let bindings = (0..unnamed.len())
+                        .map(|i| format_ident!("field_{i}"))
+                        .collect::<Vec<_>>();
+
+                    try_from_variants.push(quote! {
+                                #orig_name::#variant_ident( #(#bindings),* ) => #internal_name::#variant_ident( #(#try_fields),* )
+                            });
+
+                    from_variants.push(quote! {
+                                #internal_name::#variant_ident( #(#bindings),* ) => #orig_name::#variant_ident( #(#from_fields),* )
+                            });
+                };
+            }
+
+            Fields::Unit => {
+                internal_variants.push(quote! {
+                    #(#internal_field_attrs )*
+                    #variant_ident
+                });
+
+                try_from_variants.push(quote! {
+                    #orig_name::#variant_ident => #internal_name::#variant_ident
+                });
+
+                from_variants.push(quote! {
+                    #internal_name::#variant_ident => #orig_name::#variant_ident
+                });
+            }
+        };
+    }
+
+    let internal_enum = quote! {
+        #(#type_attrs )*
+        #vis enum #internal_name {
+            #(#internal_variants,)*
+        }
+    };
+
+    let try_from_impl = if skip_try_from {
+        TokenStream::new()
+    } else {
+        quote! {
+            impl std::convert::TryFrom<#orig_name> for #internal_name {
+                type Error = String;
+
+                fn try_from(orig: #orig_name) -> Result<Self, Self::Error> {
+                    Ok(match orig {
+                        #(#try_from_variants),*
+                    })
+                }
+            }
+        }
+    };
+
+    let from_impl = quote! {
+        impl From<#internal_name> for #orig_name {
+            fn from(original: #internal_name) -> Self {
+                match original {
+                    #(#from_variants),*
+                }
+            }
+        }
+    };
+
+    Ok(DerivedInternal {
+        obj: internal_enum,
+        try_from_impl,
+        from_impl,
+    })
+}
