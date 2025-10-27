@@ -215,7 +215,11 @@ mod tests {
 
     #[test]
     fn utest_state_comparator_new() {
-        let old_state = Mapping::default();
+        let mut old_state = Mapping::default();
+        old_state.insert(
+            serde_yaml::Value::String("key_1".to_owned()),
+            serde_yaml::Value::String("value_1".to_owned()),
+        );
         let new_state = Mapping::default();
 
         let state_comparator = StateComparator::new(old_state.clone(), new_state.clone());
