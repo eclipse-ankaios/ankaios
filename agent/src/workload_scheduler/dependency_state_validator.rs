@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{DeletedWorkload, FulfilledBy, WorkloadSpec};
+use api::ank_base::{DeletedWorkload, FulfilledBy, WorkloadInternal};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
@@ -25,10 +25,11 @@ pub struct DependencyStateValidator {}
 #[cfg_attr(test, automock)]
 impl DependencyStateValidator {
     pub fn create_fulfilled(
-        workload: &WorkloadSpec,
+        workload: &WorkloadInternal,
         workload_state_db: &WorkloadStateStore,
     ) -> bool {
         workload
+            .dependencies
             .dependencies
             .iter()
             // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
@@ -72,18 +73,13 @@ impl DependencyStateValidator {
 #[cfg(test)]
 mod tests {
     use super::DependencyStateValidator;
-    use common::{
-        objects::{
-            generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
-            AddCondition, DeleteCondition, ExecutionState,
-        },
-        test_utils::{
-            generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
-        },
+    use crate::workload_state::workload_state_store::MockWorkloadStateStore;
+    use api::ank_base::{AddCondition, DeleteCondition, ExecutionStateInternal};
+    use api::test_utils::{
+        generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
+        generate_test_workload_with_dependencies, generate_test_workload_with_param,
     };
     use std::collections::HashMap;
-
-    use crate::workload_state::workload_state_store::MockWorkloadStateStore;
 
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";
@@ -94,14 +90,14 @@ mod tests {
     // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     #[test]
     fn utest_create_fulfilled() {
-        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+        let workload_with_dependencies = generate_test_workload_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
             RUNTIME,
             HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
         );
 
-        let execution_state = ExecutionState::running();
+        let execution_state = ExecutionStateInternal::running();
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
@@ -116,13 +112,13 @@ mod tests {
     // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
     #[test]
     fn utest_create_fulfilled_no_dependencies() {
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let mut workload_spec = generate_test_workload_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
             RUNTIME.to_string(),
         );
 
-        workload_spec.dependencies.clear(); // no inter-workload dependencies
+        workload_spec.dependencies.dependencies.clear(); // no inter-workload dependencies
 
         let wl_state_store_mock = MockWorkloadStateStore::default();
 
@@ -135,7 +131,7 @@ mod tests {
     // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     #[test]
     fn utest_create_fulfilled_no_workload_state_known() {
-        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+        let workload_with_dependencies = generate_test_workload_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
             RUNTIME,
@@ -154,14 +150,14 @@ mod tests {
     // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     #[test]
     fn utest_create_fulfilled_unfulfilled_execution_state() {
-        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+        let workload_with_dependencies = generate_test_workload_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
             RUNTIME,
             HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
         );
 
-        let execution_state = ExecutionState::succeeded();
+        let execution_state = ExecutionStateInternal::succeeded();
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
@@ -186,7 +182,7 @@ mod tests {
             )]),
         );
 
-        let execution_state = ExecutionState::succeeded();
+        let execution_state = ExecutionStateInternal::succeeded();
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
@@ -211,7 +207,7 @@ mod tests {
             )]),
         );
 
-        let execution_state = ExecutionState::running();
+        let execution_state = ExecutionStateInternal::running();
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage

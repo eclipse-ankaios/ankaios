@@ -15,7 +15,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use common::objects::WorkloadSpec;
+use api::ank_base::WorkloadInternal;
 
 use crate::workload_state::WorkloadStateSender;
 
@@ -37,7 +37,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn start_checker(
-        _workload_spec: &WorkloadSpec,
+        _workload_spec: &WorkloadInternal,
         _workload_id: WorkloadId,
         _manager_interface: WorkloadStateSender,
         _state_getter: impl RuntimeStateGetter<WorkloadId>,
@@ -57,12 +57,12 @@ where
 mod tests {
     use super::*;
     use crate::runtime_connectors::MockRuntimeStateGetter;
-    use common::objects::generate_test_workload_spec_with_param;
+    use api::test_utils::generate_test_workload_with_param;
 
     // [utest->swdd~agent-skips-unknown-runtime~2]
     #[tokio::test]
     async fn utest_dummy_state_checker() {
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             "agent_name".to_string(),
             "workload_name".to_string(),
             "runtime_name".to_string(),

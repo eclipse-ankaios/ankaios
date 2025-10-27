@@ -39,9 +39,9 @@ use crate::{
 };
 
 use api::ank_base;
-use api::ank_base::WorkloadInstanceNameInternal;
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadInternal};
 
-use common::{from_server_interface::FromServer, objects::WorkloadSpec};
+use common::from_server_interface::FromServer;
 
 #[cfg(test)]
 use mockall::automock;
@@ -68,7 +68,7 @@ impl Display for WorkloadError {
 #[derive(Debug)]
 pub enum WorkloadCommand {
     Delete,
-    Update(Option<Box<WorkloadSpec>>, Option<ControlInterfacePath>),
+    Update(Option<Box<WorkloadInternal>>, Option<ControlInterfacePath>),
     Retry(Box<WorkloadInstanceNameInternal>, RetryToken),
     Create,
     Resume,
@@ -159,7 +159,7 @@ impl Workload {
     // [impl->swdd~agent-workload-obj-update-command~2]
     pub async fn update(
         &mut self,
-        spec: Option<WorkloadSpec>,
+        spec: Option<WorkloadInternal>,
         control_interface_info: Option<ControlInterfaceInfo>,
     ) -> Result<(), WorkloadError> {
         log::info!("Updating workload '{}'.", self.name);
@@ -238,20 +238,7 @@ impl Workload {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-    use std::time::Duration;
-
     use super::ank_base::{self, Response, response::ResponseContent};
-    use common::{
-        from_server_interface::FromServer,
-        objects::{
-            CompleteState, generate_test_workload_spec_with_control_interface_access,
-            generate_test_workload_spec_with_param,
-        },
-        test_utils::generate_test_complete_state,
-    };
-    use tokio::{sync::mpsc, time::timeout};
-
     use crate::{
         control_interface::{
             ControlInterfacePath, MockControlInterface, authorizer::MockAuthorizer,
@@ -260,6 +247,18 @@ mod tests {
         runtime_connectors::{LogRequestOptions, log_fetcher::MockLogFetcher},
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
+
+    use api::test_utils::{
+        generate_test_workload_with_control_interface_access, generate_test_workload_with_param,
+    };
+    use common::{
+        from_server_interface::FromServer, objects::CompleteState,
+        test_utils::generate_test_complete_state,
+    };
+
+    use std::path::PathBuf;
+    use std::time::Duration;
+    use tokio::{sync::mpsc, time::timeout};
 
     const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";
@@ -408,7 +407,7 @@ mod tests {
         let mut test_workload =
             Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -434,7 +433,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let workload_spec = generate_test_workload_spec_with_control_interface_access(
+        let workload_spec = generate_test_workload_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -527,7 +526,7 @@ mod tests {
             .once()
             .return_const(CONTROL_INTERFACE_PATH.clone());
 
-        let workload_spec = generate_test_workload_spec_with_control_interface_access(
+        let workload_spec = generate_test_workload_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -632,12 +631,11 @@ mod tests {
             workload_command_sender,
             Some(control_interface_mock),
         );
-        let complete_state =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                AGENT_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )]);
+        let complete_state = generate_test_complete_state(vec![generate_test_workload_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        )]);
 
         test_workload
             .forward_response(ank_base::Response {

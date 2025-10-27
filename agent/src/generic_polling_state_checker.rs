@@ -20,7 +20,7 @@ use crate::{
     runtime_connectors::{RuntimeStateGetter, StateChecker},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
-use common::objects::{ExecutionState, ExecutionStateEnum, WorkloadSpec};
+use api::ank_base::{ExecutionStateEnumInternal, ExecutionStateInternal, WorkloadInternal};
 
 // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
 const STATUS_CHECK_INTERVAL_MS: u64 = 500;
@@ -38,7 +38,7 @@ where
 {
     // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
     fn start_checker(
-        workload_spec: &WorkloadSpec,
+        workload_spec: &WorkloadInternal,
         workload_id: WorkloadId,
         workload_state_sender: WorkloadStateSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,
@@ -46,7 +46,8 @@ where
         let workload_spec = workload_spec.clone();
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
         let task_handle = tokio::spawn(async move {
-            let mut last_state = ExecutionState::unknown("Never received an execution state.");
+            let mut last_state =
+                ExecutionStateInternal::unknown("Never received an execution state.");
             let mut interval = time::interval(Duration::from_millis(STATUS_CHECK_INTERVAL_MS));
             loop {
                 interval.tick().await;
@@ -68,7 +69,7 @@ where
                         )
                         .await;
 
-                    if last_state.state == ExecutionStateEnum::Removed {
+                    if matches!(last_state.state(), ExecutionStateEnumInternal::Removed(_)) {
                         break;
                     }
                 }
@@ -103,14 +104,15 @@ impl Drop for GenericPollingStateChecker {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
-    use common::{objects::generate_test_workload_spec_with_param, objects::ExecutionState};
-
     use crate::{
         generic_polling_state_checker::GenericPollingStateChecker,
         runtime_connectors::{MockRuntimeStateGetter, StateChecker},
     };
+
+    use api::ank_base::ExecutionStateInternal;
+    use api::test_utils::generate_test_workload_with_param;
+
+    use std::time::Duration;
 
     const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";
@@ -129,11 +131,11 @@ mod tests {
         mock_runtime_getter
             .expect_get_state()
             .times(2)
-            .returning(|_: &String| Box::pin(async { ExecutionState::running() }));
+            .returning(|_: &String| Box::pin(async { ExecutionStateInternal::running() }));
 
         let (state_sender, mut state_receiver) = tokio::sync::mpsc::channel(20);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -155,7 +157,7 @@ mod tests {
 
         let expected_state = common::objects::generate_test_workload_state_with_workload_spec(
             &workload_spec,
-            ExecutionState::running(),
+            ExecutionStateInternal::running(),
         );
 
         // [utest->swdd~generic-state-checker-sends-workload-state~2]

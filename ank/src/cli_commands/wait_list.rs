@@ -15,8 +15,8 @@
 use std::{collections::HashSet, fmt::Display};
 
 use api::ank_base;
-use api::ank_base::WorkloadInstanceNameInternal;
-use common::objects::{PendingSubstate, WorkloadState};
+use api::ank_base::{ExecutionStateEnumInternal, Pending, WorkloadInstanceNameInternal};
+use common::objects::WorkloadState;
 
 #[cfg(test)]
 use mockall::mock;
@@ -96,26 +96,26 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
     pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadState>) {
         for workload_state in values.into_iter() {
             self.display.update(&workload_state);
-            match workload_state.execution_state.state {
-                common::objects::ExecutionStateEnum::Running(_)
-                | common::objects::ExecutionStateEnum::Succeeded(_)
-                | common::objects::ExecutionStateEnum::Failed(_)
-                | common::objects::ExecutionStateEnum::NotScheduled => {
+            match workload_state.execution_state.state() {
+                ExecutionStateEnumInternal::Running(_)
+                | ExecutionStateEnumInternal::Succeeded(_)
+                | ExecutionStateEnumInternal::Failed(_)
+                | ExecutionStateEnumInternal::NotScheduled(_) => {
                     if self.added_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
                     }
                 }
-                common::objects::ExecutionStateEnum::Pending(PendingSubstate::StartingFailed) => {
+                ExecutionStateEnumInternal::Pending(Pending::StartingFailed) => {
                     if self.added_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
                     }
                 }
-                common::objects::ExecutionStateEnum::Removed => {
+                ExecutionStateEnumInternal::Removed(_) => {
                     if self.deleted_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
                     }
                 }
-                common::objects::ExecutionStateEnum::AgentDisconnected => {
+                ExecutionStateEnumInternal::AgentDisconnected(_) => {
                     if self.added_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
                     }
@@ -197,9 +197,9 @@ fn generate_test_wait_list(
 mod tests {
     use std::collections::HashSet;
 
-    use api::ank_base::WorkloadInstanceNameInternal;
+    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
     use api::test_utils::generate_test_workload_instance_name;
-    use common::objects::{ExecutionState, WorkloadState};
+    use common::objects::WorkloadState;
     use mockall::predicate::eq;
 
     use crate::cli_commands::wait_list::generate_test_wait_list;
@@ -248,7 +248,7 @@ mod tests {
 
         let workload_state = WorkloadState {
             instance_name: i_name_1.clone(),
-            execution_state: ExecutionState::running(),
+            execution_state: ExecutionStateInternal::running(),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_1);
@@ -274,7 +274,7 @@ mod tests {
 
         let workload_state = WorkloadState {
             instance_name: i_name_1.clone(),
-            execution_state: ExecutionState::succeeded(),
+            execution_state: ExecutionStateInternal::succeeded(),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_1);
@@ -300,7 +300,7 @@ mod tests {
 
         let workload_state = WorkloadState {
             instance_name: i_name_2.clone(),
-            execution_state: ExecutionState::not_scheduled(),
+            execution_state: ExecutionStateInternal::not_scheduled(),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);
@@ -326,7 +326,7 @@ mod tests {
 
         let workload_state = WorkloadState {
             instance_name: i_name_2.clone(),
-            execution_state: ExecutionState::failed("some info"),
+            execution_state: ExecutionStateInternal::failed("some info"),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);
@@ -352,7 +352,7 @@ mod tests {
 
         let workload_state = WorkloadState {
             instance_name: i_name_2.clone(),
-            execution_state: ExecutionState::retry_failed_no_retry("some error"),
+            execution_state: ExecutionStateInternal::retry_failed_no_retry("some error"),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);
@@ -378,7 +378,7 @@ mod tests {
 
         let workload_state = WorkloadState {
             instance_name: i_name_3.clone(),
-            execution_state: ExecutionState::removed(),
+            execution_state: ExecutionStateInternal::removed(),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_3);

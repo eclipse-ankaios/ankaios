@@ -550,8 +550,7 @@ lazy_static! {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeSet, HashMap};
-
+    use super::ServerConnection;
     use crate::{
         cli::LogsArgs,
         cli_commands::server_connection::{
@@ -561,17 +560,20 @@ mod tests {
         test_helper::MOCKALL_CONTEXT_SYNC,
     };
 
-    use super::ank_base::{self, UpdateStateSuccess, WorkloadInstanceNameInternal};
+    use api::ank_base::{
+        self, ExecutionStateInternal, UpdateStateSuccess, WorkloadInstanceNameInternal,
+        WorkloadInternal,
+    };
+    use api::test_utils::{generate_test_proto_complete_state, generate_test_proto_workload_files};
     use common::{
         commands::{CompleteStateRequest, RequestContent, UpdateStateRequest, UpdateWorkloadState},
         from_server_interface::FromServer,
-        objects::{CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadState},
-        test_utils::{self, generate_test_proto_workload_files},
+        objects::{CompleteState, State, WorkloadState},
         to_server_interface::ToServer,
     };
-    use tokio::sync::mpsc::Receiver;
 
-    use super::ServerConnection;
+    use std::collections::{BTreeSet, HashMap};
+    use tokio::sync::mpsc::Receiver;
 
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
@@ -704,7 +706,7 @@ mod tests {
             desired_state: State {
                 workloads: [(
                     workload_name.into(),
-                    StoredWorkloadSpec {
+                    WorkloadInternal {
                         agent: AGENT_A.into(),
                         runtime: RUNTIME.into(),
                         ..Default::default()
@@ -734,8 +736,8 @@ mod tests {
         );
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
+            ank_base::response::ResponseContent::CompleteState(generate_test_proto_complete_state(
+                &[(
                     WORKLOAD_NAME_1,
                     ank_base::Workload {
                         agent: Some(AGENT_A.to_string()),
@@ -756,8 +758,8 @@ mod tests {
                         }),
                         files: Some(generate_test_proto_workload_files()),
                     },
-                )]),
-            ),
+                )],
+            )),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -767,7 +769,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
-            (test_utils::generate_test_proto_complete_state(&[(
+            (generate_test_proto_complete_state(&[(
                 WORKLOAD_NAME_1,
                 ank_base::Workload {
                     agent: Some(AGENT_A.to_string()),
@@ -831,7 +833,7 @@ mod tests {
         let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
+                generate_test_proto_complete_state(&[(
                     WORKLOAD_NAME_2,
                     ank_base::Workload {
                         agent: Some(AGENT_A.to_string()),
@@ -866,8 +868,8 @@ mod tests {
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
+            ank_base::response::ResponseContent::CompleteState(generate_test_proto_complete_state(
+                &[(
                     WORKLOAD_NAME_1,
                     ank_base::Workload {
                         agent: Some(AGENT_A.to_string()),
@@ -888,8 +890,8 @@ mod tests {
                         }),
                         files: Some(generate_test_proto_workload_files()),
                     },
-                )]),
-            ),
+                )],
+            )),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -899,7 +901,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
-            (test_utils::generate_test_proto_complete_state(&[(
+            (generate_test_proto_complete_state(&[(
                 WORKLOAD_NAME_1,
                 ank_base::Workload {
                     agent: Some(AGENT_A.to_string()),
@@ -947,8 +949,8 @@ mod tests {
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
+            ank_base::response::ResponseContent::CompleteState(generate_test_proto_complete_state(
+                &[(
                     WORKLOAD_NAME_1,
                     ank_base::Workload {
                         agent: Some(AGENT_A.to_string()),
@@ -969,8 +971,8 @@ mod tests {
                         }),
                         files: Some(generate_test_proto_workload_files()),
                     },
-                )]),
-            ),
+                )],
+            )),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -980,7 +982,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
-            (test_utils::generate_test_proto_complete_state(&[(
+            (generate_test_proto_complete_state(&[(
                 WORKLOAD_NAME_1,
                 ank_base::Workload {
                     agent: Some(AGENT_A.to_string()),
@@ -1134,7 +1136,7 @@ mod tests {
         let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
+                generate_test_proto_complete_state(&[(
                     WORKLOAD_NAME_2,
                     ank_base::Workload {
                         agent: Some(AGENT_A.to_string()),
@@ -1231,7 +1233,7 @@ mod tests {
         let update_workload_state = UpdateWorkloadState {
             workload_states: vec![WorkloadState {
                 instance_name: instance_name(WORKLOAD_NAME_1),
-                execution_state: ExecutionState::running(),
+                execution_state: ExecutionStateInternal::running(),
             }],
         };
 
@@ -1260,7 +1262,7 @@ mod tests {
         let update_workload_state = UpdateWorkloadState {
             workload_states: vec![WorkloadState {
                 instance_name: instance_name(WORKLOAD_NAME_1),
-                execution_state: ExecutionState::running(),
+                execution_state: ExecutionStateInternal::running(),
             }],
         };
 

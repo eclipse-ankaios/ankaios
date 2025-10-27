@@ -19,12 +19,10 @@ mod log_campaign_store;
 mod server_state;
 
 use api::ank_base;
-use api::ank_base::WorkloadInstanceNameInternal;
+use api::ank_base::{DeletedWorkload, ExecutionStateInternal, WorkloadInstanceNameInternal};
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
-use common::objects::{
-    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap,
-};
+use common::objects::{CompleteState, State, WorkloadState, WorkloadStatesMap};
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -458,7 +456,7 @@ impl AnkaiosServer {
                 self.workload_states_map.remove(&deleted_wl.instance_name);
                 deleted_states.push(WorkloadState {
                     instance_name: deleted_wl.instance_name.clone(),
-                    execution_state: ExecutionState::removed(),
+                    execution_state: ExecutionStateInternal::removed(),
                 });
 
                 return false;
@@ -560,30 +558,32 @@ impl AnkaiosServer {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
-
     use super::AnkaiosServer;
+    use super::WorkloadInstanceNameInternal;
+    use super::ank_base;
     use crate::ankaios_server::log_campaign_store::RemovedLogRequests;
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
-    use super::WorkloadInstanceNameInternal;
-    use super::ank_base;
     use api::ank_base::{
-        AgentLoadStatus, CpuUsageInternal, FreeMemoryInternal, LogsStopResponse, WorkloadMap,
+        AgentLoadStatus, CpuUsageInternal, DeletedWorkload, ExecutionStateEnumInternal,
+        ExecutionStateInternal, FreeMemoryInternal, LogsStopResponse, Pending as PendingSubstate,
+        WorkloadMap,
+    };
+    use api::test_utils::{
+        generate_test_proto_workload_with_param, generate_test_workload_with_param,
     };
     use common::commands::{
         CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
     use common::objects::{
-        CompleteState, DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
-        WorkloadState, generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
-        generate_test_workload_states_map_with_data,
+        CompleteState, State, WorkloadState, generate_test_workload_states_map_with_data,
     };
-    use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
+
     use mockall::predicate;
+    use std::collections::{HashMap, HashSet};
 
     const AGENT_A: &str = "agent_A";
     const AGENT_B: &str = "agent_B";
@@ -609,7 +609,7 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         // contains a self cycle to workload_A
-        let workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME_NAME);
+        let workload = generate_test_workload_with_param(AGENT_A, "workload_A", RUNTIME_NAME);
 
         let startup_state = CompleteState {
             desired_state: State {
@@ -675,17 +675,14 @@ mod tests {
 
         /* new workload invalidates the state because
         it contains a self cycle in the inter workload dependencies config */
-        let mut updated_workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            "workload_A".to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let mut updated_workload =
+            generate_test_workload_with_param(AGENT_A, "workload_A", RUNTIME_NAME);
 
         let new_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([(
                     updated_workload.instance_name.workload_name().to_owned(),
-                    updated_workload.clone().into(),
+                    updated_workload.clone(),
                 )]),
                 ..Default::default()
             },
@@ -694,10 +691,10 @@ mod tests {
 
         // fix new state by deleting the dependencies
         let mut fixed_state = new_state.clone();
-        updated_workload.dependencies.clear();
+        updated_workload.dependencies.dependencies.clear();
         fixed_state.desired_state.workloads = HashMap::from([(
             updated_workload.instance_name.workload_name().to_owned(),
-            updated_workload.clone().into(),
+            updated_workload.clone(),
         )]);
 
         let update_mask = vec!["desiredState.workloads".to_string()];
@@ -801,7 +798,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let workload = generate_test_workload_spec_with_param(
+        let workload = generate_test_workload_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
             RUNTIME_NAME.to_string(),
@@ -811,7 +808,7 @@ mod tests {
             desired_state: State {
                 workloads: HashMap::from([(
                     workload.instance_name.workload_name().to_owned(),
-                    workload.clone().into(),
+                    workload.clone(),
                 )]),
                 ..Default::default()
             },
@@ -857,8 +854,10 @@ mod tests {
                 .get_workload_state_for_agent(AGENT_A),
             vec![WorkloadState {
                 instance_name: workload.instance_name,
-                execution_state: ExecutionState {
-                    state: ExecutionStateEnum::Pending(PendingSubstate::Initial),
+                execution_state: ExecutionStateInternal {
+                    execution_state_enum: ExecutionStateEnumInternal::Pending(
+                        PendingSubstate::Initial
+                    ),
                     additional_info: Default::default()
                 }
             }]
@@ -881,13 +880,13 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
-        let w1 = generate_test_workload_spec_with_param(
+        let w1 = generate_test_workload_with_param(
             AGENT_A.to_owned(),
             WORKLOAD_NAME_1.to_owned(),
             RUNTIME_NAME.to_string(),
         );
 
-        let w2 = generate_test_workload_spec_with_param(
+        let w2 = generate_test_workload_with_param(
             AGENT_B.to_owned(),
             WORKLOAD_NAME_2.to_owned(),
             RUNTIME_NAME.to_string(),
@@ -949,7 +948,7 @@ mod tests {
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
         let test_wl_1_state_running = common::objects::generate_test_workload_state(
             WORKLOAD_NAME_1,
-            ExecutionState::running(),
+            ExecutionStateInternal::running(),
         );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_running.clone()])
@@ -991,7 +990,7 @@ mod tests {
         // send update_workload_state for second agent which is then stored in the workload_state_db in ankaios server
         let test_wl_2_state_succeeded = common::objects::generate_test_workload_state(
             WORKLOAD_NAME_2,
-            ExecutionState::succeeded(),
+            ExecutionStateInternal::succeeded(),
         );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_2_state_succeeded.clone()])
@@ -1010,7 +1009,7 @@ mod tests {
         // send update_workload_state for first agent again which is then updated in the workload_state_db in ankaios server
         let test_wl_1_state_succeeded = common::objects::generate_test_workload_state(
             WORKLOAD_NAME_2,
-            ExecutionState::succeeded(),
+            ExecutionStateInternal::succeeded(),
         );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_succeeded.clone()])
@@ -1042,7 +1041,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut w1 = generate_test_workload_spec_with_param(
+        let mut w1 = generate_test_workload_with_param(
             AGENT_A.to_owned(),
             WORKLOAD_NAME_1.to_owned(),
             RUNTIME_NAME.to_string(),
@@ -1051,7 +1050,7 @@ mod tests {
 
         let update_state = CompleteState {
             desired_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone().into())]
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
                 ..Default::default()
@@ -1129,8 +1128,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut w1 =
-            generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
+        let mut w1 = generate_test_workload_with_param(AGENT_A, WORKLOAD_NAME_1, RUNTIME_NAME);
         w1.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
@@ -1196,7 +1194,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
+        let w1 = generate_test_workload_with_param(AGENT_A, WORKLOAD_NAME_1, RUNTIME_NAME);
 
         let update_state = CompleteState {
             desired_state: State {
@@ -1584,7 +1582,7 @@ mod tests {
         let test_wl_1_state_running = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
-            ExecutionState::running(),
+            ExecutionStateInternal::running(),
         );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_running.clone()])
@@ -1616,7 +1614,7 @@ mod tests {
         let expected_workload_state = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
-            ExecutionState::agent_disconnected(),
+            ExecutionStateInternal::agent_disconnected(),
         );
         assert_eq!(vec![expected_workload_state.clone()], workload_states);
 
@@ -1779,13 +1777,13 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_workload_spec_with_param(
+        let w1 = generate_test_workload_with_param(
             AGENT_A.to_owned(),
             WORKLOAD_NAME_1.to_owned(),
             RUNTIME_NAME.to_string(),
         );
 
-        let w2 = generate_test_workload_spec_with_param(
+        let w2 = generate_test_workload_with_param(
             AGENT_B.to_owned(),
             WORKLOAD_NAME_2.to_owned(),
             RUNTIME_NAME.to_string(),
@@ -1799,7 +1797,7 @@ mod tests {
             .build();
         let update_state = CompleteState {
             desired_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone().into())]
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone())]
                     .into_iter()
                     .collect(),
                 ..Default::default()
@@ -1919,8 +1917,10 @@ mod tests {
                 .get_workload_state_for_agent(AGENT_A),
             vec![WorkloadState {
                 instance_name: updated_w1.instance_name,
-                execution_state: ExecutionState {
-                    state: ExecutionStateEnum::Pending(PendingSubstate::Initial),
+                execution_state: ExecutionStateInternal {
+                    execution_state_enum: ExecutionStateEnumInternal::Pending(
+                        PendingSubstate::Initial
+                    ),
                     additional_info: Default::default()
                 }
             }]
@@ -2116,7 +2116,7 @@ mod tests {
 
         let workload_states = vec![common::objects::generate_test_workload_state(
             WORKLOAD_NAME_1,
-            ExecutionState::removed(),
+            ExecutionStateInternal::removed(),
         )];
 
         mock_server_state
@@ -2141,13 +2141,13 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let workload_without_agent = generate_test_workload_spec_with_param(
+        let workload_without_agent = generate_test_workload_with_param(
             "".to_owned(),
             WORKLOAD_NAME_1.to_owned(),
             RUNTIME_NAME.to_string(),
         );
 
-        let workload_with_agent = generate_test_workload_spec_with_param(
+        let workload_with_agent = generate_test_workload_with_param(
             AGENT_B.to_owned(),
             WORKLOAD_NAME_2.to_owned(),
             RUNTIME_NAME.to_string(),
@@ -2198,13 +2198,13 @@ mod tests {
         drop(to_server);
         tokio::join!(server_handle).0.unwrap();
 
-        // the server sends the ExecutionState removed for the workload with an empty agent name
+        // the server sends the ExecutionStateInternal removed for the workload with an empty agent name
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![WorkloadState {
                     instance_name: workload_without_agent.instance_name,
-                    execution_state: ExecutionState::removed()
+                    execution_state: ExecutionStateInternal::removed()
                 }]
             }),
             from_server_command
@@ -2237,7 +2237,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let log_collecting_workload = generate_test_workload_spec_with_param(
+        let log_collecting_workload = generate_test_workload_with_param(
             AGENT_B.to_owned(),
             WORKLOAD_NAME_2.to_owned(),
             RUNTIME_NAME.to_string(),
@@ -2365,7 +2365,7 @@ mod tests {
             .once()
             .return_const(false);
 
-        let workload = generate_test_workload_spec_with_param(
+        let workload = generate_test_workload_with_param(
             AGENT_A.to_owned(),
             WORKLOAD_NAME_1.to_owned(),
             RUNTIME_NAME.to_string(),
@@ -2376,7 +2376,7 @@ mod tests {
             workload.instance_name.agent_name(),
             workload.instance_name.workload_name(),
             workload.instance_name.id(),
-            ExecutionState::initial(),
+            ExecutionStateInternal::initial(),
         );
 
         let deleted_workload_with_not_connected_agent = DeletedWorkload {
@@ -2401,7 +2401,7 @@ mod tests {
             Ok(Some(FromServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![WorkloadState {
                     instance_name: workload.instance_name,
-                    execution_state: ExecutionState::removed()
+                    execution_state: ExecutionStateInternal::removed()
                 }]
             })))
         );

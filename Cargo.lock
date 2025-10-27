@@ -178,7 +178,10 @@ name = "api"
 version = "0.7.0-pre"
 dependencies = [
  "internal_derive_macros",
+ "log",
  "prost",
+ "regex",
+ "semver",
  "serde",
  "serde_yaml",
  "sha256",

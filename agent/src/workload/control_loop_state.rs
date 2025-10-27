@@ -15,8 +15,8 @@ use crate::BUFFER_SIZE;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
 use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
-use api::ank_base::WorkloadInstanceNameInternal;
-use common::objects::{WorkloadSpec, WorkloadState};
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadInternal};
+use common::objects::WorkloadState;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -30,7 +30,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    pub workload_spec: WorkloadSpec,
+    pub workload_spec: WorkloadInternal,
     pub control_interface_path: Option<ControlInterfacePath>,
     pub run_folder: PathBuf,
     pub workload_id: Option<WorkloadId>,
@@ -63,7 +63,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    workload_spec: Option<WorkloadSpec>,
+    workload_spec: Option<WorkloadInternal>,
     workload_id: Option<WorkloadId>,
     control_interface_path: Option<ControlInterfacePath>,
     run_folder: Option<PathBuf>,
@@ -91,7 +91,7 @@ where
         }
     }
 
-    pub fn workload_spec(mut self, workload_spec: WorkloadSpec) -> Self {
+    pub fn workload_spec(mut self, workload_spec: WorkloadInternal) -> Self {
         self.workload_spec = Some(workload_spec);
         self
     }
@@ -142,7 +142,7 @@ where
         Ok(ControlLoopState {
             workload_spec: self
                 .workload_spec
-                .ok_or_else(|| "WorkloadSpec is not set".to_string())?,
+                .ok_or_else(|| "WorkloadInternal is not set".to_string())?,
             control_interface_path: self.control_interface_path,
             run_folder: self
                 .run_folder
@@ -185,10 +185,9 @@ mod tests {
         workload::workload_command_channel::WorkloadCommandSender,
         workload_state::WorkloadStateSenderInterface,
     };
-    use common::objects::{
-        ExecutionState, generate_test_workload_spec,
-        generate_test_workload_state_with_workload_spec,
-    };
+    use api::ank_base::ExecutionStateInternal;
+    use api::test_utils::generate_test_workload;
+    use common::objects::generate_test_workload_state_with_workload_spec;
     use tokio::time;
 
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 20;
@@ -196,7 +195,7 @@ mod tests {
     #[tokio::test]
     async fn utest_control_loop_state_builder_build_success() {
         let control_interface_path = Some(ControlInterfacePath::new("/some/path".into()));
-        let workload_spec = generate_test_workload_spec();
+        let workload_spec = generate_test_workload();
 
         let (workload_state_sender, mut workload_state_receiver) =
             tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
@@ -230,7 +229,7 @@ mod tests {
         // workload state for testing the channel between state checker and workload control loop
         let state_checker_wl_state = generate_test_workload_state_with_workload_spec(
             &workload_spec,
-            ExecutionState::running(),
+            ExecutionStateInternal::running(),
         );
 
         control_loop_state
@@ -255,7 +254,7 @@ mod tests {
         // workload state for testing the channel between workload control loop and agent manager
         let forwarded_wl_state_to_agent = generate_test_workload_state_with_workload_spec(
             &workload_spec,
-            ExecutionState::succeeded(),
+            ExecutionStateInternal::succeeded(),
         );
 
         control_loop_state
@@ -284,7 +283,7 @@ mod tests {
 
     #[test]
     fn utest_control_loop_state_instance_name() {
-        let workload_spec = generate_test_workload_spec();
+        let workload_spec = generate_test_workload();
         let (workload_state_sender, _workload_state_receiver) =
             tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =

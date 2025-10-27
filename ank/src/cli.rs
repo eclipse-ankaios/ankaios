@@ -502,14 +502,14 @@ mod tests {
               "databroker": {
                 "211c1e7c1170508711b76bb9be19ad73af7a2b11e3c2a4fb895d0ce5f4894eaa": {
                   "state": "Running",
-                  "subState": "Ok",
+                  "subState": "OK",
                   "additionalInfo": ""
                 }
               },
               "speed-provider": {
                 "4bc1b2047e6a67b60b7a6c3b07955a2f29040ab7a2b6bc7d1bee78efc81a48d9": {
                   "state": "Running",
-                  "subState": "Ok",
+                  "subState": "OK",
                   "additionalInfo": ""
                 }
               }

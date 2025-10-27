@@ -15,12 +15,9 @@ use crate::io_utils::FileSystemError;
 
 use std::{path::PathBuf, str::FromStr};
 
-use api::ank_base::WorkloadInstanceNameInternal;
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadInternal};
 use async_trait::async_trait;
-use common::{
-    objects::{AgentName, ExecutionState, WorkloadSpec},
-    std_extensions::IllegalStateResult,
-};
+use common::{objects::AgentName, std_extensions::IllegalStateResult};
 
 #[cfg(test)]
 use crate::runtime_connectors::dummy_state_checker::DummyStateChecker;
@@ -69,7 +66,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 
     fn resume_workload(
         &self,
-        runtime_workload: WorkloadSpec,
+        runtime_workload: WorkloadInternal,
         control_interface: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload;
@@ -143,7 +140,7 @@ impl<
     // [impl->swdd~agent-resume-workload~2]
     fn resume_workload(
         &self,
-        workload_spec: WorkloadSpec,
+        workload_spec: WorkloadInternal,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload {
@@ -265,7 +262,7 @@ impl<
     // [impl->swdd~agent-resume-workload~2]
     fn resume_workload_non_blocking(
         &self,
-        workload_spec: WorkloadSpec,
+        workload_spec: WorkloadInternal,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
@@ -357,7 +354,7 @@ impl<
             update_state_tx
                 .report_workload_execution_state(
                     &instance_name,
-                    ExecutionState::stopping_requested(),
+                    ExecutionStateInternal::stopping_requested(),
                 )
                 .await;
 
@@ -366,7 +363,7 @@ impl<
                     update_state_tx
                         .report_workload_execution_state(
                             &instance_name,
-                            ExecutionState::delete_failed(err),
+                            ExecutionStateInternal::delete_failed(err),
                         )
                         .await;
 
@@ -398,7 +395,7 @@ impl<
             }
 
             update_state_tx
-                .report_workload_execution_state(&instance_name, ExecutionState::removed())
+                .report_workload_execution_state(&instance_name, ExecutionStateInternal::removed())
                 .await;
         })
     }
@@ -427,7 +424,7 @@ mockall::mock! {
 
         fn resume_workload(
             &self,
-            runtime_workload: WorkloadSpec,
+            runtime_workload: WorkloadInternal,
             control_interface: Option<ControlInterfaceInfo>,
             update_state_tx: &WorkloadStateSender,
         ) -> Workload;
@@ -450,12 +447,6 @@ mockall::mock! {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::WorkloadInstanceNameInternal;
-    use common::objects::{
-        ExecutionState, generate_test_workload_spec_with_control_interface_access,
-        generate_test_workload_spec_with_param,
-    };
-
     use crate::{
         control_interface::{
             ControlInterfacePath, MockControlInterface, authorizer::MockAuthorizer,
@@ -469,6 +460,11 @@ mod tests {
         workload::{ControlLoopState, MockWorkload, MockWorkloadControlLoop},
         workload_operation::ReusableWorkloadSpec,
         workload_state::assert_execution_state_sequence,
+    };
+
+    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
+    use api::test_utils::{
+        generate_test_workload_with_control_interface_access, generate_test_workload_with_param,
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -490,7 +486,7 @@ mod tests {
 
         let workload_state = ReusableWorkloadState::new(
             workload_instance_name.clone(),
-            ExecutionState::initial(),
+            ExecutionStateInternal::initial(),
             None,
         );
 
@@ -532,7 +528,7 @@ mod tests {
         const WORKLOAD_ID: &str = "workload_id_1";
 
         let reusable_workload_spec = ReusableWorkloadSpec::new(
-            generate_test_workload_spec_with_control_interface_access(
+            generate_test_workload_with_control_interface_access(
                 AGENT_NAME.to_string(),
                 WORKLOAD_1_NAME.to_string(),
                 RUNTIME_NAME.to_string(),
@@ -642,7 +638,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| Ok(MockControlInterface::default()));
 
-        let workload_spec = generate_test_workload_spec_with_control_interface_access(
+        let workload_spec = generate_test_workload_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -694,7 +690,7 @@ mod tests {
         let control_interface_new_context = MockControlInterface::new_context();
         control_interface_new_context.expect().never();
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -772,9 +768,9 @@ mod tests {
             vec![
                 (
                     &workload_instance_name,
-                    ExecutionState::stopping_requested(),
+                    ExecutionStateInternal::stopping_requested(),
                 ),
-                (&workload_instance_name, ExecutionState::removed()),
+                (&workload_instance_name, ExecutionStateInternal::removed()),
             ],
         )
         .await;
@@ -820,11 +816,11 @@ mod tests {
             vec![
                 (
                     &workload_instance_name,
-                    ExecutionState::stopping_requested(),
+                    ExecutionStateInternal::stopping_requested(),
                 ),
                 (
                     &workload_instance_name,
-                    ExecutionState::delete_failed("delete failed".to_owned()),
+                    ExecutionStateInternal::delete_failed("delete failed".to_owned()),
                 ),
             ],
         )

@@ -23,7 +23,7 @@ pub fn setup_internal_files(builder: Builder) -> Builder {
         .type_attribute("Files", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "Files",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
         .type_attribute("File", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
@@ -71,11 +71,11 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
         )
         .type_attribute(
             "Workload",
-            "#[internal_type_attr(#[internal_derive_macros::add_field(name = \"workload_instance_name\", ty = \"WorkloadInstanceNameInternal\")])]",
+            "#[internal_type_attr(#[internal_derive_macros::add_field(name = \"instance_name\", ty = \"WorkloadInstanceNameInternal\")])]",
         )
         .type_attribute(
             "Workload",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]", // Default
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
         .type_attribute(
             "Workload",
@@ -90,18 +90,25 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
         .field_attribute("Workload.controlInterfaceAccess", "#[internal_mandatory]")
         .field_attribute("Workload.configs", "#[internal_mandatory]")
         .field_attribute("Workload.files", "#[internal_mandatory]")
+        // .field_attribute("Workload.restartPolicy", "#[internal_field_attr(#[serde(default)])]")
+        // .field_attribute("Workload.dependencies", "#[internal_field_attr(#[serde(default)])]")
+        // .field_attribute("Workload.tags", "#[internal_field_attr(#[serde(default)])]")
+        // .field_attribute("Workload.controlInterfaceAccess", "#[internal_field_attr(#[serde(default)])]")
+        // .field_attribute("Workload.configs", "#[internal_field_attr(#[serde(default)])]")
+        // .field_attribute("Workload.files", "#[internal_field_attr(#[serde(default)])]")
+        // .field_attribute("Workload.instanceName", "#[internal_field_attr(#[serde(default)])]")
         .type_attribute(
             "Dependencies",
             "#[derive(internal_derive_macros::Internal)]",
         )
         .type_attribute(
             "Dependencies",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
         .type_attribute("Tags", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "Tags",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
+            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, Default)]",
         )
         .type_attribute("Tag", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
@@ -141,7 +148,7 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
         )
         .type_attribute(
             "ControlInterfaceAccess",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
+            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, Default)]",
         )
         .type_attribute(
             "ControlInterfaceAccess",
@@ -214,7 +221,7 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
         )
         .type_attribute(
             "ConfigMappings",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
+            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, Default)]",
         )
     // .type_attribute("ConfigMap", "#[derive(internal_derive_macros::Internal)]")
     // .type_attribute(
@@ -297,12 +304,33 @@ pub fn setup_internal_workload_state(builder: Builder) -> Builder {
     //     "WorkloadState",
     //     "#[derive(internal_derive_macros::Internal)]",
     // )
-    // .type_attribute(
-    //     "ExecutionState",
-    //     "#[derive(internal_derive_macros::Internal)]",
-    // )
-    // .type_attribute(
-    //     "ExecutionStateEnum",
-    //     "#[derive(internal_derive_macros::Internal)]",
-    // )
+    .type_attribute(
+        "ExecutionState",
+        "#[derive(internal_derive_macros::Internal)]",
+    )
+    .type_attribute(
+        "ExecutionState",
+        "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+    )
+    .type_attribute(
+        "ExecutionState",
+        "#[internal_type_attr(#[serde(default, rename_all = \"camelCase\")])]",
+    )
+    .field_attribute("ExecutionState.ExecutionStateEnum", "#[internal_mandatory]")
+    .field_attribute(
+        "ExecutionState.ExecutionStateEnum",
+        "#[internal_field_attr(#[serde(flatten)])]",
+    )
+    .type_attribute(
+        "ExecutionStateEnum",
+        "#[derive(internal_derive_macros::Internal)]",
+    )
+    .type_attribute(
+        "ExecutionStateEnum",
+        "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
+    )
+    .type_attribute(
+        "ExecutionStateEnum",
+        "#[internal_type_attr(#[serde(tag = \"state\", content = \"subState\")])]",
+    )
 }

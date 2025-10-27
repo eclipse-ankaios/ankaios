@@ -294,28 +294,26 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use crate::{
-        objects::{
-            CompleteState, ExecutionState, State, generate_test_workload_spec_with_rendered_files,
-            generate_test_workload_states_map_with_data,
-        },
+        objects::{CompleteState, State, generate_test_workload_states_map_with_data},
         test_utils::generate_test_state_from_workloads,
     };
+    use api::ank_base::ExecutionStateInternal;
     use api::test_utils::{
         generate_test_agent_map_from_specs, generate_test_rendered_workload_files,
+        generate_test_workload_with_files,
     };
     use serde_yaml::Value;
 
     use super::Object;
     #[test]
     fn utest_object_from_state() {
-        let state: State = generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_rendered_files(
+        let state: State =
+            generate_test_state_from_workloads(vec![generate_test_workload_with_files(
                 "agent".to_string(),
                 "name".to_string(),
                 "runtime".to_string(),
                 generate_test_rendered_workload_files(),
-            ),
-        ]);
+            )]);
 
         let expected = Object {
             data: object::generate_test_state().into(),
@@ -331,21 +329,19 @@ mod tests {
         };
 
         let actual: State = object.try_into().unwrap();
-        let expected = generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_rendered_files(
-                "agent".to_string(),
-                "name".to_string(),
-                "runtime".to_string(),
-                generate_test_rendered_workload_files(),
-            ),
-        ]);
+        let expected = generate_test_state_from_workloads(vec![generate_test_workload_with_files(
+            "agent".to_string(),
+            "name".to_string(),
+            "runtime".to_string(),
+            generate_test_rendered_workload_files(),
+        )]);
 
         assert_eq!(actual, expected)
     }
 
     #[test]
     fn utest_object_from_complete_state() {
-        let wl_spec = generate_test_workload_spec_with_rendered_files(
+        let wl_spec = generate_test_workload_with_files(
             "agent".to_string(),
             "name".to_string(),
             "runtime".to_string(),
@@ -361,13 +357,13 @@ mod tests {
                 "agent",
                 "name",
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
-                ExecutionState::running(),
+                ExecutionStateInternal::running(),
             ),
             agents: agent_map,
         };
 
         let expected = Object {
-            data: object::generate_test_complete_state().into(),
+            data: object::generate_test_complete_state_mapping().into(),
         };
         let actual: Object = complete_state.try_into().unwrap();
 
@@ -377,9 +373,9 @@ mod tests {
     #[test]
     fn utest_complete_state_from_object() {
         let object = Object {
-            data: object::generate_test_complete_state().into(),
+            data: object::generate_test_complete_state_mapping().into(),
         };
-        let wl_spec = generate_test_workload_spec_with_rendered_files(
+        let wl_spec = generate_test_workload_with_files(
             "agent".to_string(),
             "name".to_string(),
             "runtime".to_string(),
@@ -395,7 +391,7 @@ mod tests {
                 "agent",
                 "name",
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
-                ExecutionState::running(),
+                ExecutionStateInternal::running(),
             ),
             agents: agent_map,
         };
@@ -446,7 +442,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.set(&"workloads.name.tags.key".into(), "value".into());
+        let res = actual.set(&"workloads.name.tags.tags.key".into(), "value".into());
 
         assert!(res.is_err());
         assert_eq!(actual, expected);
@@ -744,9 +740,9 @@ mod tests {
     mod object {
         use serde_yaml::Value;
 
-        use crate::objects::generate_test_runtime_config;
+        use api::test_utils::generate_test_runtime_config;
 
-        pub fn generate_test_complete_state() -> Mapping {
+        pub fn generate_test_complete_state_mapping() -> Mapping {
             let agent_name = "agent";
             let config_hash: &dyn api::ank_base::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
@@ -761,7 +757,7 @@ mod tests {
                                 config_hash.hash_config(),
                                 Mapping::default()
                                     .entry("state", "Running")
-                                    .entry("subState", "Ok")
+                                    .entry("subState", "OK")
                                     .entry("additionalInfo", ""),
                             ),
                         ),
@@ -770,10 +766,13 @@ mod tests {
                 .entry(
                     "agents",
                     Mapping::default().entry(
-                        agent_name,
-                        Mapping::default()
-                            .entry("cpu_usage", Mapping::default().entry("cpu_usage", 42))
-                            .entry("free_memory", Mapping::default().entry("free_memory", 42)),
+                        "agents",
+                        Mapping::default().entry(
+                            agent_name,
+                            Mapping::default()
+                                .entry("cpu_usage", Mapping::default().entry("cpu_usage", 42))
+                                .entry("free_memory", Mapping::default().entry("free_memory", 42)),
+                        ),
                     ),
                 )
         }
@@ -789,16 +788,23 @@ mod tests {
                             .entry("agent", "agent")
                             .entry(
                                 "tags",
-                                vec![Mapping::default()
+                                Mapping::default()
+                                .entry(
+                                    "tags",
+                                    vec![Mapping::default()
                                     .entry("key", "key")
                                     .entry("value", "value")
-                                    .into()] as Vec<Value>,
+                                    .into()
+                                    ] as Vec<Value>,
+                                )
                             )
                             .entry(
                                 "dependencies",
                                 Mapping::default()
-                                    .entry("workload_A", "ADD_COND_RUNNING")
-                                    .entry("workload_C", "ADD_COND_SUCCEEDED"),
+                                    .entry("dependencies", Mapping::default()
+                                        .entry("workload_A", "ADD_COND_RUNNING")
+                                        .entry("workload_C", "ADD_COND_SUCCEEDED"),
+                                    )
                             )
                             .entry("restartPolicy", "ALWAYS")
                             .entry("runtime", "runtime")
@@ -812,17 +818,30 @@ mod tests {
                             .entry(
                                 "configs",
                                 Mapping::default()
-                                    .entry("ref1", "config_1")
-                                    .entry("ref2", "config_2")
+                                    .entry("configs", Mapping::default()
+                                        .entry("ref1", "config_1")
+                                        .entry("ref2", "config_2")
+                                    )
                             )
-                            .entry("files", vec![
+                            .entry(
+                                "files",
                                 Mapping::default()
-                                    .entry("mountPoint", "/file.json")
-                                    .entry("data", "text data"),
+                                .entry("files", vec![
+                                    Mapping::default()
+                                        .entry("mountPoint", "/file.json")
+                                        .entry("data", "text data"),
+                                    Mapping::default()
+                                        .entry("mountPoint", "/binary_file")
+                                        .entry("binaryData", "base64_data"),
+                                ]),
+                            )
+                            .entry(
+                                "instanceName",
                                 Mapping::default()
-                                    .entry("mountPoint", "/binary_file")
-                                    .entry("binaryData", "base64_data"),
-                            ]),
+                                .entry("workloadName", "name")
+                                .entry("agentName", "agent")
+                                .entry("id", "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed")
+                            )
                     ),
                 )
                 .entry(

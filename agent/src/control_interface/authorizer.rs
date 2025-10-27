@@ -16,14 +16,14 @@ mod path;
 mod path_pattern;
 mod rules;
 
-use std::{sync::Arc, vec};
-
-use common::{
-    commands::Request,
-    objects::{AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum},
+use api::ank_base::{
+    AccessRightsRuleEnumInternal, AccessRightsRuleInternal, ControlInterfaceAccessInternal,
+    ReadWriteEnum,
 };
+use common::commands::Request;
 use path_pattern::{AllowPathPattern, DenyPathPattern, PathPatternMatcher};
 use rules::{LogRule, StateRule};
+use std::{sync::Arc, vec};
 
 #[cfg(test)]
 use mockall::mock;
@@ -56,8 +56,8 @@ mock! {
         fn eq(&self, other: &Self) -> bool;
     }
 
-    impl From<&ControlInterfaceAccess> for Authorizer {
-        fn from(value: &ControlInterfaceAccess) -> Self;
+    impl From<&ControlInterfaceAccessInternal> for Authorizer {
+        fn from(value: &ControlInterfaceAccessInternal) -> Self;
     }
 }
 
@@ -168,15 +168,15 @@ impl Authorizer {
 }
 
 // [impl->swdd~agent-authorizing-request-operations~2]
-impl From<&ControlInterfaceAccess> for Authorizer {
-    fn from(value: &ControlInterfaceAccess) -> Self {
+impl From<&ControlInterfaceAccessInternal> for Authorizer {
+    fn from(value: &ControlInterfaceAccessInternal) -> Self {
         struct ReadWriteFiltered<T: PathPattern> {
             state_read: Vec<Arc<StateRule<T>>>,
             state_write: Vec<Arc<StateRule<T>>>,
             log: Vec<LogRule>,
         }
 
-        fn split_rules<T>(rule_list: &[AccessRightsRule]) -> ReadWriteFiltered<T>
+        fn split_rules<T>(rule_list: &[AccessRightsRuleInternal]) -> ReadWriteFiltered<T>
         where
             T: PathPattern,
             T: for<'a> From<&'a str>,
@@ -188,26 +188,26 @@ impl From<&ControlInterfaceAccess> for Authorizer {
             };
 
             for access_rule in rule_list {
-                match access_rule {
-                    AccessRightsRule::StateRule(state_rule) => {
+                match &access_rule.access_rights_rule_enum {
+                    AccessRightsRuleEnumInternal::StateRule(state_rule) => {
                         let rule = Arc::new(StateRule::<T>::create(
                             state_rule
-                                .filter_mask
+                                .filter_masks
                                 .iter()
                                 .map(|x| (**x).into())
                                 .collect(),
                         ));
                         match state_rule.operation {
-                            ReadWriteEnum::Read => res.state_read.push(rule),
-                            ReadWriteEnum::Write => res.state_write.push(rule),
-                            ReadWriteEnum::ReadWrite => {
+                            ReadWriteEnum::RwRead => res.state_read.push(rule),
+                            ReadWriteEnum::RwWrite => res.state_write.push(rule),
+                            ReadWriteEnum::RwReadWrite => {
                                 res.state_read.push(rule.clone());
                                 res.state_write.push(rule);
                             }
-                            ReadWriteEnum::Nothing => {}
+                            ReadWriteEnum::RwNothing => {}
                         }
                     }
-                    AccessRightsRule::LogRule(log_rule) => {
+                    AccessRightsRuleEnumInternal::LogRule(log_rule) => {
                         res.log.push(log_rule.workload_names.clone().into());
                     }
                 }
@@ -240,10 +240,12 @@ impl From<&ControlInterfaceAccess> for Authorizer {
 
 #[cfg(test)]
 mod test {
-    use api::ank_base::WorkloadInstanceNameInternal;
+    use api::ank_base::{
+        AccessRightsRuleInternal, ControlInterfaceAccessInternal, ReadWriteEnum,
+        WorkloadInstanceNameInternal,
+    };
     use common::{
-        commands::{CompleteStateRequest, LogsRequest, Request, UpdateStateRequest},
-        objects::{self, AccessRightsRule, ControlInterfaceAccess},
+        commands::{CompleteStateRequest, LogsRequest, Request, UpdateStateRequest}
     };
     use std::sync::Arc;
 
@@ -624,40 +626,36 @@ mod test {
     // [utest->swdd~agent-authorizing-request-operations~2]
     #[test]
     fn utest_authorizer_from_control_interface_access() {
-        let control_interface_access = ControlInterfaceAccess {
+        let control_interface_access = ControlInterfaceAccessInternal {
             allow_rules: vec![
-                AccessRightsRule::StateRule(objects::StateRule {
-                    operation: common::objects::ReadWriteEnum::Read,
-                    filter_mask: vec!["state.allow.read.mask".into()],
-                }),
-                AccessRightsRule::StateRule(objects::StateRule {
-                    operation: common::objects::ReadWriteEnum::Write,
-                    filter_mask: vec!["state.allow.write.mask".into()],
-                }),
-                AccessRightsRule::StateRule(objects::StateRule {
-                    operation: common::objects::ReadWriteEnum::ReadWrite,
-                    filter_mask: vec!["state.allow.read.write.mask".into()],
-                }),
-                AccessRightsRule::LogRule(objects::LogRule {
-                    workload_names: vec!["allowed_workload".into()],
-                }),
+                AccessRightsRuleInternal::state_rule(
+                    ReadWriteEnum::RwRead,
+                    vec!["state.allow.read.mask".into()],
+                ),
+                AccessRightsRuleInternal::state_rule(
+                    ReadWriteEnum::RwWrite,
+                    vec!["state.allow.write.mask".into()],
+                ),
+                AccessRightsRuleInternal::state_rule(
+                    ReadWriteEnum::RwReadWrite,
+                    vec!["state.allow.read.write.mask".into()],
+                ),
+                AccessRightsRuleInternal::log_rule(vec!["allowed_workload".into()]),
             ],
             deny_rules: vec![
-                AccessRightsRule::StateRule(objects::StateRule {
-                    operation: common::objects::ReadWriteEnum::Read,
-                    filter_mask: vec!["state.deny.read.mask".into()],
-                }),
-                AccessRightsRule::StateRule(objects::StateRule {
-                    operation: common::objects::ReadWriteEnum::Write,
-                    filter_mask: vec!["state.deny.write.mask".into()],
-                }),
-                AccessRightsRule::StateRule(objects::StateRule {
-                    operation: common::objects::ReadWriteEnum::ReadWrite,
-                    filter_mask: vec!["state.deny.read.write.mask".into()],
-                }),
-                AccessRightsRule::LogRule(objects::LogRule {
-                    workload_names: vec!["denied_workload".into()],
-                }),
+                AccessRightsRuleInternal::state_rule(
+                    ReadWriteEnum::RwRead,
+                    vec!["state.deny.read.mask".into()],
+                ),
+                AccessRightsRuleInternal::state_rule(
+                    ReadWriteEnum::RwWrite,
+                    vec!["state.deny.write.mask".into()],
+                ),
+                AccessRightsRuleInternal::state_rule(
+                    ReadWriteEnum::RwReadWrite,
+                    vec!["state.deny.read.write.mask".into()],
+                ),
+                AccessRightsRuleInternal::log_rule(vec!["denied_workload".into()]),
             ],
         };
         let authorizer = Authorizer::from(&control_interface_access);

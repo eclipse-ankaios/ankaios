@@ -12,8 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base::STR_RE_AGENT;
 use common::communications_client::CommunicationsClient;
-use common::objects::{AgentName, STR_RE_AGENT, WorkloadState};
+use common::objects::{AgentName, WorkloadState};
 use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use grpc::security::TLSConfig;

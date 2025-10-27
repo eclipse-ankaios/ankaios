@@ -56,13 +56,14 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use api::ank_base;
-    use common::test_utils::{
-        self, generate_test_proto_complete_state, generate_test_proto_workload_with_param,
+    use api::test_utils::{
+        generate_test_proto_complete_state,
+        generate_test_proto_workload_with_param,
     };
     use mockall::predicate::eq;
 
     use crate::{
-        cli_commands::{server_connection::MockServerConnection, CliCommands},
+        cli_commands::{CliCommands, server_connection::MockServerConnection},
         filtered_complete_state,
     };
 
@@ -254,7 +255,7 @@ mod tests {
     #[tokio::test]
     async fn utest_get_state_single_field_without_api_version() {
         let test_data = filtered_complete_state::FilteredCompleteState::from(
-            test_utils::generate_test_proto_complete_state(&[("", ank_base::Workload::default())]),
+            generate_test_proto_complete_state(&[("", ank_base::Workload::default())]),
         );
 
         let mut mock_server_connection = MockServerConnection::default();

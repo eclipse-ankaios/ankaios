@@ -12,17 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub const ANKAIOS_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub mod extended_option;
+pub use extended_option::*;
 
-pub mod control_api {
-    // [impl->swdd~control-api-provides-control-interface-definitions~1]
-    tonic::include_proto!("control_api"); // The string specified here must match the proto package name
-}
-
-pub mod ank_base;
-mod convert;
-pub mod helpers;
-pub mod std_extensions;
-
-#[cfg(any(feature = "test_utils", test))]
-pub mod test_utils;
+pub mod extended_result;
+pub use extended_result::*;

@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::WorkloadSpec;
+use api::ank_base::WorkloadInternal;
 
 use super::nerdctl_cli::NerdctlRunConfig;
 
@@ -41,9 +41,9 @@ impl From<ContainerdRuntimeConfig> for NerdctlRunConfig {
     }
 }
 
-impl TryFrom<&WorkloadSpec> for ContainerdRuntimeConfig {
+impl TryFrom<&WorkloadInternal> for ContainerdRuntimeConfig {
     type Error = String;
-    fn try_from(workload_spec: &WorkloadSpec) -> Result<Self, Self::Error> {
+    fn try_from(workload_spec: &WorkloadInternal) -> Result<Self, Self::Error> {
         if CONTAINERD_RUNTIME_NAME != workload_spec.runtime {
             return Err(format!(
                 "Received a spec for the wrong runtime: '{}'",
@@ -67,7 +67,7 @@ impl TryFrom<&WorkloadSpec> for ContainerdRuntimeConfig {
 
 #[cfg(test)]
 mod tests {
-    use common::objects::generate_test_workload_spec_with_param;
+    use api::test_utils::generate_test_workload_with_param;
 
     use super::{ContainerdRuntimeConfig, NerdctlRunConfig};
     use crate::runtime_connectors::containerd::containerd_runtime::CONTAINERD_RUNTIME_NAME;
@@ -78,7 +78,7 @@ mod tests {
 
     #[test]
     fn utest_containerd_config_failure_missing_image() {
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let mut workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             CONTAINERD_RUNTIME_NAME.to_string(),
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn utest_containerd_config_failure_wrong_runtime() {
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             DIFFERENT_RUNTIME_NAME.to_string(),
@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn utest_containerd_config_success() {
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let mut workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             CONTAINERD_RUNTIME_NAME.to_string(),

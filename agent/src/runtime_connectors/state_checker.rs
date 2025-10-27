@@ -16,7 +16,7 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 
-use common::objects::{ExecutionState, WorkloadSpec};
+use api::ank_base::{ExecutionStateInternal, WorkloadInternal};
 
 #[cfg(test)]
 use mockall::automock;
@@ -31,7 +31,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     // [impl->swdd~allowed-workload-states~2]
-    async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionState;
+    async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionStateInternal;
 }
 
 // [impl->swdd~agent-general-state-checker-interface~1]
@@ -41,7 +41,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn start_checker(
-        workload_spec: &WorkloadSpec,
+        workload_spec: &WorkloadInternal,
         workload_id: WorkloadId,
         manager_interface: WorkloadStateSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,

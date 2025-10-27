@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::WorkloadSpec;
+use api::ank_base::WorkloadInternal;
 
 use crate::runtime_connectors::podman_cli::PodmanRunConfig;
 
@@ -41,9 +41,9 @@ impl From<PodmanRuntimeConfig> for PodmanRunConfig {
     }
 }
 
-impl TryFrom<&WorkloadSpec> for PodmanRuntimeConfig {
+impl TryFrom<&WorkloadInternal> for PodmanRuntimeConfig {
     type Error = String;
-    fn try_from(workload_spec: &WorkloadSpec) -> Result<Self, Self::Error> {
+    fn try_from(workload_spec: &WorkloadInternal) -> Result<Self, Self::Error> {
         if PODMAN_RUNTIME_NAME != workload_spec.runtime {
             return Err(format!(
                 "Received a spec for the wrong runtime: '{}'",
@@ -67,8 +67,7 @@ impl TryFrom<&WorkloadSpec> for PodmanRuntimeConfig {
 
 #[cfg(test)]
 mod tests {
-    use common::objects::generate_test_workload_spec_with_param;
-
+    use api::test_utils::generate_test_workload_with_param;
     use super::PodmanRuntimeConfig;
     use crate::runtime_connectors::{
         podman::podman_runtime::PODMAN_RUNTIME_NAME, podman_cli::PodmanRunConfig,
@@ -80,7 +79,7 @@ mod tests {
 
     #[test]
     fn utest_podman_config_failure_missing_image() {
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let mut workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
@@ -93,7 +92,7 @@ mod tests {
 
     #[test]
     fn utest_podman_config_failure_wrong_runtime() {
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             DIFFERENT_RUNTIME_NAME.to_string(),
@@ -104,7 +103,7 @@ mod tests {
 
     #[test]
     fn utest_podman_config_success() {
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let mut workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),

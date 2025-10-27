@@ -16,8 +16,7 @@ use crate::{
     runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
     workload::WorkloadCommand,
 };
-use api::ank_base::WorkloadInstanceNameInternal;
-use common::objects::WorkloadSpec;
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadInternal};
 #[cfg(test)]
 use mockall_double::double;
 use tokio::sync::{mpsc, oneshot};
@@ -71,7 +70,7 @@ impl WorkloadCommandSender {
 
     pub async fn update(
         &self,
-        workload_spec: Option<WorkloadSpec>,
+        workload_spec: Option<WorkloadInternal>,
         control_interface_path: Option<ControlInterfacePath>,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender
@@ -120,9 +119,10 @@ mod tests {
         runtime_connectors::{LogRequestOptions, log_fetcher::MockLogFetcher},
         workload::retry_manager::MockRetryToken,
     };
+    use api::ank_base::WorkloadInternal;
+    use api::test_utils::generate_test_workload;
 
-    use super::{ControlInterfacePath, WorkloadCommand, WorkloadCommandSender, WorkloadSpec};
-    use common::objects::generate_test_workload_spec;
+    use super::{ControlInterfacePath, WorkloadCommand, WorkloadCommandSender};
     use std::path::PathBuf;
     use tokio::sync::mpsc::Receiver;
 
@@ -137,7 +137,7 @@ mod tests {
     };
 
     lazy_static! {
-        pub static ref WORKLOAD_SPEC: WorkloadSpec = generate_test_workload_spec();
+        pub static ref WORKLOAD_SPEC: WorkloadInternal = generate_test_workload();
         pub static ref CONTROL_INTERFACE_PATH: Option<ControlInterfacePath> =
             Some(ControlInterfacePath::new(PathBuf::from(PIPES_LOCATION)));
     }

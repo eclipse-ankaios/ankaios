@@ -79,7 +79,8 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
                 }
 
                 // sort the map to have an constant equal outcome
-                let mut dependencies: Vec<&String> = workload_spec.dependencies.keys().collect();
+                let mut dependencies: Vec<&String> =
+                    workload_spec.dependencies.dependencies.keys().collect();
                 dependencies.sort();
 
                 for dependency in dependencies {
@@ -111,13 +112,13 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::{
-        objects::{AddCondition, generate_test_stored_workload_spec},
-        test_utils::generate_test_complete_state,
-    };
+    use api::ank_base::AddCondition;
+    use api::test_utils::generate_test_workload_with_param;
+    use common::test_utils::generate_test_complete_state;
     use std::{collections::HashSet, ops::Deref};
 
     const AGENT_NAME: &str = "agent_A";
+    const WORKLOAD_NAME: &str = "workload_name";
     const RUNTIME: &str = "runtime X";
 
     fn fn_assert_cycle(
@@ -591,8 +592,8 @@ mod tests {
         fn with_workloads(mut self, workloads: &[&str]) -> Self {
             for w in workloads {
                 let mut test_workload_spec =
-                    generate_test_stored_workload_spec(AGENT_NAME, RUNTIME);
-                test_workload_spec.dependencies.clear();
+                    generate_test_workload_with_param(AGENT_NAME, WORKLOAD_NAME, RUNTIME);
+                test_workload_spec.dependencies.dependencies.clear();
                 self.0.workloads.insert(w.to_string(), test_workload_spec);
             }
             self
@@ -604,10 +605,12 @@ mod tests {
             depend_on: &str,
             add_condition: AddCondition,
         ) -> Self {
-            self.0
-                .workloads
-                .get_mut(workload)
-                .and_then(|w_spec| w_spec.dependencies.insert(depend_on.into(), add_condition));
+            self.0.workloads.get_mut(workload).and_then(|w_spec| {
+                w_spec
+                    .dependencies
+                    .dependencies
+                    .insert(depend_on.into(), add_condition)
+            });
             self
         }
 
@@ -617,8 +620,11 @@ mod tests {
             self.0.workloads.insert(new_name.clone(), entry);
 
             for workload_spec in self.0.workloads.values_mut() {
-                if let Some(dep_condition) = workload_spec.dependencies.remove(start_node) {
+                if let Some(dep_condition) =
+                    workload_spec.dependencies.dependencies.remove(start_node)
+                {
                     workload_spec
+                        .dependencies
                         .dependencies
                         .insert(new_name.clone(), dep_condition);
                 }

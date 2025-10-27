@@ -19,8 +19,9 @@ use crate::runtime_connectors::{LogRequestOptions, RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
-use api::ank_base::WorkloadInstanceNameInternal;
-use common::objects::{ExecutionState, RestartPolicy, WorkloadSpec};
+use api::ank_base::{
+    ExecutionStateInternal, RestartPolicy, WorkloadInstanceNameInternal, WorkloadInternal,
+};
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
 use std::collections::HashMap;
@@ -125,7 +126,7 @@ impl WorkloadControlLoop {
                             Self::send_workload_state_to_agent(
                                 &control_loop_state.to_agent_workload_state_sender,
                                 control_loop_state.instance_name(),
-                                ExecutionState::starting_triggered(),
+                                ExecutionStateInternal::starting_triggered(),
                             )
                             .await;
 
@@ -170,7 +171,7 @@ impl WorkloadControlLoop {
     async fn send_workload_state_to_agent(
         workload_state_sender: &WorkloadStateSender,
         instance_name: &WorkloadInstanceNameInternal,
-        execution_state: ExecutionState,
+        execution_state: ExecutionStateInternal,
     ) {
         workload_state_sender
             .report_workload_execution_state(instance_name, execution_state)
@@ -215,7 +216,7 @@ impl WorkloadControlLoop {
 
     fn restart_policy_matches_execution_state(
         restart_policy: &RestartPolicy,
-        execution_state: &ExecutionState,
+        execution_state: &ExecutionStateInternal,
     ) -> bool {
         match restart_policy {
             RestartPolicy::Never => false,
@@ -245,7 +246,7 @@ impl WorkloadControlLoop {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
             &instance_name,
-            ExecutionState::retry_starting(retry_token.counter() + 1, error_msg),
+            ExecutionStateInternal::retry_starting(retry_token.counter() + 1, error_msg),
         )
         .await;
 
@@ -332,7 +333,7 @@ impl WorkloadControlLoop {
                         Self::send_workload_state_to_agent(
                             &control_loop_state.to_agent_workload_state_sender,
                             &new_instance_name,
-                            ExecutionState::starting_failed(msg.to_string()),
+                            ExecutionStateInternal::starting_failed(msg.to_string()),
                         )
                         .await;
 
@@ -369,7 +370,7 @@ impl WorkloadControlLoop {
 
             match WorkloadFilesCreator::create_files(
                 &workload_files_base_path,
-                &control_loop_state.workload_spec.files,
+                &control_loop_state.workload_spec.files.files,
             )
             .await
             {
@@ -389,7 +390,7 @@ impl WorkloadControlLoop {
                     Self::send_workload_state_to_agent(
                         &control_loop_state.to_agent_workload_state_sender,
                         control_loop_state.instance_name(),
-                        ExecutionState::starting_failed(&err),
+                        ExecutionStateInternal::starting_failed(&err),
                     )
                     .await;
 
@@ -412,7 +413,7 @@ impl WorkloadControlLoop {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
             control_loop_state.instance_name(),
-            ExecutionState::stopping_requested(),
+            ExecutionStateInternal::stopping_requested(),
         )
         .await;
 
@@ -421,7 +422,7 @@ impl WorkloadControlLoop {
                 Self::send_workload_state_to_agent(
                     &control_loop_state.to_agent_workload_state_sender,
                     control_loop_state.instance_name(),
-                    ExecutionState::delete_failed(err.to_string()),
+                    ExecutionStateInternal::delete_failed(err.to_string()),
                 )
                 .await;
                 // [impl->swdd~agent-workload-control-loop-delete-failed-allows-retry~1]
@@ -456,7 +457,7 @@ impl WorkloadControlLoop {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
             control_loop_state.instance_name(),
-            ExecutionState::removed(),
+            ExecutionStateInternal::removed(),
         )
         .await;
 
@@ -466,7 +467,7 @@ impl WorkloadControlLoop {
     // [impl->swdd~agent-workload-control-loop-executes-update~3]
     async fn update_workload_on_runtime<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        new_workload_spec: Option<Box<WorkloadSpec>>,
+        new_workload_spec: Option<Box<WorkloadInternal>>,
         control_interface_path: Option<ControlInterfacePath>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
@@ -476,7 +477,7 @@ impl WorkloadControlLoop {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
             control_loop_state.instance_name(),
-            ExecutionState::stopping_requested(),
+            ExecutionStateInternal::stopping_requested(),
         )
         .await;
 
@@ -485,7 +486,7 @@ impl WorkloadControlLoop {
                 Self::send_workload_state_to_agent(
                     &control_loop_state.to_agent_workload_state_sender,
                     control_loop_state.instance_name(),
-                    ExecutionState::delete_failed(err.to_string()),
+                    ExecutionStateInternal::delete_failed(err.to_string()),
                 )
                 .await;
 
@@ -536,7 +537,7 @@ impl WorkloadControlLoop {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
             control_loop_state.instance_name(),
-            ExecutionState::removed(),
+            ExecutionStateInternal::removed(),
         )
         .await;
 
@@ -549,7 +550,7 @@ impl WorkloadControlLoop {
             Self::send_workload_state_to_agent(
                 &control_loop_state.to_agent_workload_state_sender,
                 control_loop_state.instance_name(),
-                ExecutionState::starting_triggered(),
+                ExecutionStateInternal::starting_triggered(),
             )
             .await;
 
@@ -686,38 +687,33 @@ mockall::mock! {
 mod tests {
     use super::{ControlInterfacePath, WorkloadControlLoop};
     use crate::io_utils::mock_filesystem_async;
-    use crate::runtime_connectors::log_fetcher::MockLogFetcher;
-    use crate::runtime_connectors::{LogRequestOptions, RuntimeError};
-    use crate::workload::WorkloadCommand;
-    use crate::workload::retry_manager::MockRetryToken;
-    use crate::workload::workload_command_channel::WorkloadCommandSender;
+    use crate::runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker};
+    use crate::runtime_connectors::{LogRequestOptions, RuntimeError, log_fetcher::MockLogFetcher};
+    use crate::workload::{
+        ControlLoopState, WorkloadCommand, retry_manager::MockRetryToken,
+        workload_command_channel::WorkloadCommandSender,
+    };
     use crate::workload_files::{
         MockWorkloadFilesCreator, WorkloadFileCreationError, WorkloadFilesBasePath,
     };
-    use common::objects::PendingSubstate;
+    use crate::workload_state::{WorkloadStateSenderInterface, assert_execution_state_sequence};
+
+    use api::ank_base::{
+        ExecutionStateEnumInternal, ExecutionStateInternal, Pending, RestartPolicy,
+        WorkloadInstanceNameInternal,
+    };
+    use api::test_utils::{
+        generate_test_rendered_workload_files, generate_test_workload_with_files,
+        generate_test_workload_with_param,
+    };
+    use common::objects::generate_test_workload_state_with_workload_spec;
+
+    use mockall::predicate;
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::time::Duration;
     use tokio::sync::oneshot;
-
-    use mockall::predicate;
-
-    use api::ank_base::WorkloadInstanceNameInternal;
-    use api::test_utils::generate_test_rendered_workload_files;
-    use common::objects::{
-        ExecutionState, ExecutionStateEnum, generate_test_workload_spec_with_param,
-        generate_test_workload_spec_with_rendered_files,
-    };
-    use common::objects::{RestartPolicy, generate_test_workload_state_with_workload_spec};
-
     use tokio::{sync::mpsc, time::timeout};
-
-    use crate::workload_state::WorkloadStateSenderInterface;
-    use crate::{
-        runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
-        workload::ControlLoopState,
-        workload_state::assert_execution_state_sequence,
-    };
 
     const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";
@@ -759,7 +755,7 @@ mod tests {
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
 
-        let old_workload_spec = generate_test_workload_spec_with_param(
+        let old_workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -845,11 +841,20 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_requested()),
-                (&old_instance_name, ExecutionState::removed()),
-                (&new_instance_name, ExecutionState::starting_triggered()),
-                (&new_instance_name, ExecutionState::stopping_requested()),
-                (&new_instance_name, ExecutionState::removed()),
+                (
+                    &old_instance_name,
+                    ExecutionStateInternal::stopping_requested(),
+                ),
+                (&old_instance_name, ExecutionStateInternal::removed()),
+                (
+                    &new_instance_name,
+                    ExecutionStateInternal::starting_triggered(),
+                ),
+                (
+                    &new_instance_name,
+                    ExecutionStateInternal::stopping_requested(),
+                ),
+                (&new_instance_name, ExecutionStateInternal::removed()),
             ],
         )
         .await;
@@ -873,7 +878,7 @@ mod tests {
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
 
-        let old_workload_spec = generate_test_workload_spec_with_param(
+        let old_workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -940,8 +945,11 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_requested()),
-                (&old_instance_name, ExecutionState::removed()),
+                (
+                    &old_instance_name,
+                    ExecutionStateInternal::stopping_requested(),
+                ),
+                (&old_instance_name, ExecutionStateInternal::removed()),
             ],
         )
         .await;
@@ -970,7 +978,7 @@ mod tests {
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
 
-        let old_workload_spec = generate_test_workload_spec_with_param(
+        let old_workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1061,10 +1069,16 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_requested()),
-                (&old_instance_name, ExecutionState::removed()),
-                (&old_instance_name, ExecutionState::stopping_requested()),
-                (&old_instance_name, ExecutionState::removed()),
+                (
+                    &old_instance_name,
+                    ExecutionStateInternal::stopping_requested(),
+                ),
+                (&old_instance_name, ExecutionStateInternal::removed()),
+                (
+                    &old_instance_name,
+                    ExecutionStateInternal::stopping_requested(),
+                ),
+                (&old_instance_name, ExecutionStateInternal::removed()),
             ],
         )
         .await;
@@ -1090,7 +1104,7 @@ mod tests {
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
 
-        let old_workload_spec = generate_test_workload_spec_with_param(
+        let old_workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1171,11 +1185,20 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_requested()),
-                (&old_instance_name, ExecutionState::removed()),
-                (&new_instance_name, ExecutionState::starting_triggered()),
-                (&new_instance_name, ExecutionState::stopping_requested()),
-                (&new_instance_name, ExecutionState::removed()),
+                (
+                    &old_instance_name,
+                    ExecutionStateInternal::stopping_requested(),
+                ),
+                (&old_instance_name, ExecutionStateInternal::removed()),
+                (
+                    &new_instance_name,
+                    ExecutionStateInternal::starting_triggered(),
+                ),
+                (
+                    &new_instance_name,
+                    ExecutionStateInternal::stopping_requested(),
+                ),
+                (&new_instance_name, ExecutionStateInternal::removed()),
             ],
         )
         .await;
@@ -1197,7 +1220,7 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let old_workload_spec = generate_test_workload_spec_with_param(
+        let old_workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1268,13 +1291,19 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_requested()),
                 (
                     &old_instance_name,
-                    ExecutionState::delete_failed("some delete error"),
+                    ExecutionStateInternal::stopping_requested(),
                 ),
-                (&old_instance_name, ExecutionState::stopping_requested()),
-                (&old_instance_name, ExecutionState::removed()),
+                (
+                    &old_instance_name,
+                    ExecutionStateInternal::delete_failed("some delete error"),
+                ),
+                (
+                    &old_instance_name,
+                    ExecutionStateInternal::stopping_requested(),
+                ),
+                (&old_instance_name, ExecutionStateInternal::removed()),
             ],
         )
         .await;
@@ -1310,7 +1339,7 @@ mod tests {
         // Send the delete command now. It will be buffered until the await receives it.
         workload_command_sender.delete().await.unwrap();
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1349,8 +1378,8 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&instance_name, ExecutionState::stopping_requested()),
-                (&instance_name, ExecutionState::removed()),
+                (&instance_name, ExecutionStateInternal::stopping_requested()),
+                (&instance_name, ExecutionStateInternal::removed()),
             ],
         )
         .await;
@@ -1379,7 +1408,7 @@ mod tests {
         // Send the delete command now. It will be buffered until the await receives it.
         workload_command_sender.delete().await.unwrap();
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1428,7 +1457,7 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1513,7 +1542,7 @@ mod tests {
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1590,7 +1619,7 @@ mod tests {
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1650,7 +1679,7 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1698,7 +1727,7 @@ mod tests {
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1763,7 +1792,7 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1803,7 +1832,7 @@ mod tests {
 
         let workload_state = generate_test_workload_state_with_workload_spec(
             &workload_spec,
-            ExecutionState::running(),
+            ExecutionStateInternal::running(),
         );
 
         state_checker_wl_state_sender
@@ -1841,7 +1870,7 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1898,7 +1927,7 @@ mod tests {
         let (workload_state_forward_tx, _workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1966,7 +1995,7 @@ mod tests {
 
         let workload_state = generate_test_workload_state_with_workload_spec(
             &workload_spec,
-            ExecutionState::succeeded(),
+            ExecutionStateInternal::succeeded(),
         );
 
         state_checker_wl_state_sender
@@ -1998,19 +2027,19 @@ mod tests {
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionState::running()
+                &ExecutionStateInternal::running()
             )
         );
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionState::succeeded()
+                &ExecutionStateInternal::succeeded()
             )
         );
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionState::failed("some error".to_owned())
+                &ExecutionStateInternal::failed("some error".to_owned())
             )
         );
     }
@@ -2023,17 +2052,17 @@ mod tests {
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionState::running()
+                &ExecutionStateInternal::running()
             )
         );
         assert!(WorkloadControlLoop::restart_policy_matches_execution_state(
             &restart_policy,
-            &ExecutionState::failed("some error".to_owned())
+            &ExecutionStateInternal::failed("some error".to_owned())
         ));
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionState::succeeded()
+                &ExecutionStateInternal::succeeded()
             )
         );
     }
@@ -2046,16 +2075,16 @@ mod tests {
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionState::running()
+                &ExecutionStateInternal::running()
             )
         );
         assert!(WorkloadControlLoop::restart_policy_matches_execution_state(
             &restart_policy,
-            &ExecutionState::failed("some error".to_owned())
+            &ExecutionStateInternal::failed("some error".to_owned())
         ));
         assert!(WorkloadControlLoop::restart_policy_matches_execution_state(
             &restart_policy,
-            &ExecutionState::succeeded()
+            &ExecutionStateInternal::succeeded()
         ));
     }
 
@@ -2102,7 +2131,7 @@ mod tests {
         let (workload_state_forward_tx, _workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_rendered_files(
+        let workload_spec = generate_test_workload_with_files(
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
@@ -2137,7 +2166,7 @@ mod tests {
             .once()
             .with(
                 predicate::eq(workload_configs_dir),
-                predicate::eq(workload_spec.files.clone()),
+                predicate::eq(workload_spec.files.files.clone()),
             )
             .returning(move |_, _| Ok(expected_mount_point_mappings.clone()));
 
@@ -2186,7 +2215,7 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_rendered_files(
+        let workload_spec = generate_test_workload_with_files(
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
@@ -2237,9 +2266,9 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        let expected_execution_state = ExecutionStateEnum::Pending(PendingSubstate::StartingFailed);
+        let expected_execution_state = ExecutionStateEnumInternal::Pending(Pending::StartingFailed);
         assert_eq!(
-            workload_state.execution_state.state,
+            *workload_state.execution_state.state(),
             expected_execution_state,
         );
     }
@@ -2257,7 +2286,7 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_rendered_files(
+        let workload_spec = generate_test_workload_with_files(
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
@@ -2312,9 +2341,9 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        let expected_execution_state = ExecutionStateEnum::Pending(PendingSubstate::StartingFailed);
+        let expected_execution_state = ExecutionStateEnumInternal::Pending(Pending::StartingFailed);
         assert_eq!(
-            workload_state.execution_state.state,
+            *workload_state.execution_state.state(),
             expected_execution_state
         );
     }
@@ -2334,7 +2363,7 @@ mod tests {
             WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -2428,7 +2457,7 @@ mod tests {
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
 
-        let old_workload_spec = generate_test_workload_spec_with_param(
+        let old_workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -2535,7 +2564,7 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -2615,7 +2644,7 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -2692,7 +2721,7 @@ mod tests {
             WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -2782,7 +2811,7 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -2849,7 +2878,7 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -2916,7 +2945,7 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -2973,7 +3002,7 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),

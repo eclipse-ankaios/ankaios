@@ -15,7 +15,8 @@
 use std::{fmt::Display, sync::Arc};
 
 use super::path::Path;
-use common::{objects::WILDCARD_SYMBOL, PATH_SEPARATOR};
+use api::ank_base::WILDCARD_SYMBOL;
+use common::PATH_SEPARATOR;
 
 pub type PathPatternMatchReason = String;
 

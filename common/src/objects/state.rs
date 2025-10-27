@@ -11,16 +11,14 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use serde::{Deserialize, Serialize};
-
-use regex::Regex;
-use std::collections::HashMap;
 
 use crate::helpers::serialize_to_ordered_map;
 use crate::objects::ConfigItem;
-use crate::objects::{STR_RE_CONFIG_REFERENCES, StoredWorkloadSpec};
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-use api::ank_base;
+use api::ank_base::{self, STR_RE_CONFIG_REFERENCES, WorkloadInternal};
 
 pub const CURRENT_API_VERSION: &str = "v0.1";
 
@@ -31,7 +29,7 @@ pub const CURRENT_API_VERSION: &str = "v0.1";
 pub struct State {
     pub api_version: String,
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
-    pub workloads: HashMap<String, StoredWorkloadSpec>,
+    pub workloads: HashMap<String, WorkloadInternal>,
     #[serde(default)]
     pub configs: HashMap<String, ConfigItem>,
 }
@@ -79,8 +77,8 @@ impl TryFrom<ank_base::State> for State {
                 .unwrap_or_default()
                 .workloads
                 .into_iter()
-                .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))
-                .collect::<Result<HashMap<String, StoredWorkloadSpec>, String>>()?,
+                .map(|(k, v)| Ok((k.to_owned(), (k, v).try_into()?)))
+                .collect::<Result<HashMap<String, WorkloadInternal>, String>>()?,
             configs: item
                 .configs
                 .unwrap_or_default()
@@ -118,7 +116,7 @@ impl State {
 
         for workload in provided_state.workloads.values() {
             // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
-            StoredWorkloadSpec::verify_config_reference_format(&workload.configs)?;
+            WorkloadInternal::verify_config_reference_format(&workload.configs.configs)?;
         }
         Ok(())
     }
@@ -138,16 +136,15 @@ impl State {
 #[cfg(test)]
 mod tests {
     use api::ank_base;
+    use api::test_utils::{generate_test_workload, generate_test_proto_state};
     use std::collections::HashMap;
 
     use crate::{
-        objects::{ConfigItem, State, generate_test_configs, generate_test_stored_workload_spec},
-        test_utils::{generate_test_proto_state, generate_test_state},
+        objects::{ConfigItem, State, generate_test_configs},
+        test_utils::generate_test_state,
     };
 
     const WORKLOAD_NAME_1: &str = "workload_1";
-    const AGENT_A: &str = "agent_A";
-    const RUNTIME: &str = "runtime";
     const INVALID_CONFIG_KEY: &str = "invalid%key";
 
     #[test]
@@ -230,7 +227,7 @@ mod tests {
     // [utest->swdd~common-config-item-key-naming-convention~1]
     #[test]
     fn utest_verify_configs_format_compatible_config_item_keys_and_config_references() {
-        let workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME);
+        let workload = generate_test_workload();
         let state = State {
             api_version: super::CURRENT_API_VERSION.into(),
             workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
@@ -265,8 +262,9 @@ mod tests {
     // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
     #[test]
     fn utest_verify_configs_format_incompatible_workload_config_alias() {
-        let mut workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME);
+        let mut workload = generate_test_workload();
         workload
+            .configs
             .configs
             .insert(INVALID_CONFIG_KEY.to_owned(), "config_1".to_string());
 

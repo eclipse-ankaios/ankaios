@@ -12,9 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base;
+use api::ank_base::{self, DependenciesInternal, FilesInternal, TagsInternal, WorkloadInternal};
 use common::commands;
-use common::objects;
 use std::collections::HashMap;
 
 // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
@@ -73,11 +72,11 @@ impl From<UpdateWorkloadState> for commands::UpdateWorkloadState {
     }
 }
 
-impl TryFrom<DeletedWorkload> for objects::DeletedWorkload {
+impl TryFrom<DeletedWorkload> for ank_base::DeletedWorkload {
     type Error = String;
 
     fn try_from(deleted_workload: DeletedWorkload) -> Result<Self, Self::Error> {
-        Ok(objects::DeletedWorkload {
+        Ok(ank_base::DeletedWorkload {
             instance_name: deleted_workload
                 .instance_name
                 .ok_or("No instance name")?
@@ -87,13 +86,13 @@ impl TryFrom<DeletedWorkload> for objects::DeletedWorkload {
                 .dependencies
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
-                .collect::<Result<HashMap<String, objects::DeleteCondition>, String>>()?,
+                .collect::<Result<HashMap<String, ank_base::DeleteCondition>, String>>()?,
         })
     }
 }
 
-impl From<objects::DeletedWorkload> for DeletedWorkload {
-    fn from(value: objects::DeletedWorkload) -> Self {
+impl From<ank_base::DeletedWorkload> for DeletedWorkload {
+    fn from(value: ank_base::DeletedWorkload) -> Self {
         DeletedWorkload {
             instance_name: super::ank_base::WorkloadInstanceName::from(value.instance_name).into(),
             dependencies: value
@@ -105,44 +104,66 @@ impl From<objects::DeletedWorkload> for DeletedWorkload {
     }
 }
 
-impl TryFrom<AddedWorkload> for objects::WorkloadSpec {
+impl TryFrom<AddedWorkload> for WorkloadInternal {
     type Error = String;
 
     fn try_from(workload: AddedWorkload) -> Result<Self, String> {
-        Ok(objects::WorkloadSpec {
-            dependencies: workload
-                .dependencies
-                .into_iter()
-                .map(|(k, v)| Ok((k, v.try_into()?)))
-                .collect::<Result<HashMap<String, objects::AddCondition>, String>>()?,
-            restart_policy: workload.restart_policy.try_into()?,
-            runtime: workload.runtime,
-            instance_name: workload
-                .instance_name
-                .ok_or("No instance name")?
+        let instance_name = workload.instance_name.ok_or("No instance name")?;
+        Ok(WorkloadInternal {
+            agent: instance_name.agent_name.clone(),
+            dependencies: DependenciesInternal {
+                dependencies: workload
+                    .dependencies
+                    .into_iter()
+                    .map(|(k, v)| {
+                        Ok((
+                            k,
+                            v.try_into()
+                                .map_err(|_| "Invalid AddCondition value".to_string())?,
+                        ))
+                    })
+                    .collect::<Result<HashMap<String, ank_base::AddCondition>, String>>()?,
+            },
+            restart_policy: workload
+                .restart_policy
                 .try_into()
-                .unwrap(),
-            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+                .map_err(|_| "Invalid RestartPolicy value".to_string())?,
+            runtime: workload.runtime,
+            instance_name: instance_name.try_into().unwrap(),
+            tags: TagsInternal {
+                tags: workload
+                    .tags
+                    .into_iter()
+                    .map(|t| api::ank_base::TagInternal {
+                        key: t.key,
+                        value: t.value,
+                    })
+                    .collect(),
+            },
             runtime_config: workload.runtime_config,
             control_interface_access: workload
                 .control_interface_access
                 .unwrap_or_default()
                 .try_into()?,
-            files: workload
-                .files
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<_, _>>()?,
+            files: FilesInternal {
+                files: workload
+                    .files
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<_, _>>()?,
+            },
+            configs: Default::default(),
         })
     }
 }
 
-impl From<objects::WorkloadSpec> for AddedWorkload {
-    fn from(workload: objects::WorkloadSpec) -> Self {
+impl From<WorkloadInternal> for AddedWorkload {
+    fn from(workload: WorkloadInternal) -> Self {
         AddedWorkload {
             instance_name: super::ank_base::WorkloadInstanceName::from(workload.instance_name)
                 .into(),
             dependencies: workload
+                .dependencies
                 .dependencies
                 .into_iter()
                 .map(|(k, v)| (k, v as i32))
@@ -150,9 +171,9 @@ impl From<objects::WorkloadSpec> for AddedWorkload {
             restart_policy: workload.restart_policy as i32,
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
-            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
-            files: workload.files.into_iter().map(Into::into).collect(),
-            control_interface_access: workload.control_interface_access.into(),
+            tags: workload.tags.tags.into_iter().map(|x| x.into()).collect(),
+            files: workload.files.files.into_iter().map(Into::into).collect(),
+            control_interface_access: Some(workload.control_interface_access.into()),
         }
     }
 }
@@ -192,13 +213,11 @@ pub fn generate_test_failed_update_workload_state(
     agent_name: &str,
     workload_name: &str,
 ) -> common::to_server_interface::ToServer {
-    use common::objects::ExecutionState;
-
     common::to_server_interface::ToServer::UpdateWorkloadState(commands::UpdateWorkloadState {
         workload_states: vec![common::objects::generate_test_workload_state_with_agent(
             workload_name,
             agent_name,
-            ExecutionState::failed("additional_info"),
+            api::ank_base::ExecutionStateInternal::failed("additional_info"),
         )],
     })
 }
@@ -209,10 +228,10 @@ mod tests {
 
     use crate::{AddedWorkload, DeletedWorkload, generate_test_proto_deleted_workload};
 
-    use api::ank_base::{self, ConfigHash};
-    use api::test_utils::generate_test_rendered_workload_files;
-    use common::{
-        objects::generate_test_workload_spec, test_utils::generate_test_deleted_workload,
+    use api::ank_base::{self, ConfigHash, ExecutionStateInternal, WorkloadInternal};
+    use api::test_utils::{
+        generate_test_deleted_workload, generate_test_rendered_workload_files,
+        generate_test_workload,
     };
 
     mod ankaios {
@@ -220,7 +239,7 @@ mod tests {
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // WorkloadSpec tests
+    // Workload tests
     ///////////////////////////////////////////////////////////////////////////
     #[test]
     fn utest_converts_to_proto_deleted_workload() {
@@ -238,7 +257,7 @@ mod tests {
             generate_test_deleted_workload("agent".to_string(), "workload X".to_string());
 
         assert_eq!(
-            ankaios::DeletedWorkload::try_from(proto_workload),
+            ank_base::DeletedWorkload::try_from(proto_workload),
             Ok(workload)
         );
     }
@@ -248,12 +267,12 @@ mod tests {
         let mut proto_workload = generate_test_proto_deleted_workload();
         proto_workload.dependencies.insert("workload_B".into(), -1);
 
-        assert!(ankaios::DeletedWorkload::try_from(proto_workload).is_err());
+        assert!(ank_base::DeletedWorkload::try_from(proto_workload).is_err());
     }
 
     #[test]
     fn utest_converts_to_proto_added_workload() {
-        let mut workload_spec = generate_test_workload_spec();
+        let mut workload_spec = generate_test_workload();
         workload_spec.files = generate_test_rendered_workload_files();
 
         let proto_workload = AddedWorkload {
@@ -279,7 +298,7 @@ mod tests {
                 key: "key".into(),
                 value: "value".into(),
             }],
-            control_interface_access: Default::default(),
+            control_interface_access: Some(Default::default()),
             files: vec![
                 ank_base::File {
                     mount_point: "/file.json".into(),
@@ -299,27 +318,31 @@ mod tests {
 
     #[test]
     fn utest_converts_to_ankaios_added_workload() {
-        let ank_workload = ankaios::WorkloadSpec {
+        let agent_name = "agent";
+        let ank_workload = WorkloadInternal {
+            agent: agent_name.to_string(),
             dependencies: HashMap::from([
                 (
                     String::from("workload_A"),
-                    ankaios::AddCondition::AddCondRunning,
+                    ank_base::AddCondition::AddCondRunning,
                 ),
                 (
                     String::from("workload_C"),
-                    ankaios::AddCondition::AddCondSucceeded,
+                    ank_base::AddCondition::AddCondSucceeded,
                 ),
-            ]),
-            restart_policy: ankaios::RestartPolicy::Always,
+            ])
+            .into(),
+            restart_policy: ank_base::RestartPolicy::Always,
             runtime: String::from("runtime"),
             instance_name: api::ank_base::WorkloadInstanceNameInternal::builder()
-                .agent_name("agent")
+                .agent_name(agent_name)
                 .workload_name("name")
                 .build(),
-            tags: vec![],
+            tags: Default::default(),
             runtime_config: String::from("some config"),
             control_interface_access: Default::default(),
             files: generate_test_rendered_workload_files(),
+            configs: Default::default(),
         };
 
         let proto_workload = AddedWorkload {
@@ -357,10 +380,7 @@ mod tests {
             ],
         };
 
-        assert_eq!(
-            ankaios::WorkloadSpec::try_from(proto_workload),
-            Ok(ank_workload)
-        );
+        assert_eq!(WorkloadInternal::try_from(proto_workload), Ok(ank_workload));
     }
 
     #[test]
@@ -389,7 +409,7 @@ mod tests {
             files: Default::default(),
         };
 
-        assert!(ankaios::WorkloadSpec::try_from(proto_workload).is_err());
+        assert!(WorkloadInternal::try_from(proto_workload).is_err());
     }
 
     // UpdateWorkloadState tests
@@ -425,7 +445,7 @@ mod tests {
                     .config(&HashableString(HASH.into()))
                     .agent_name(AGENT_NAME)
                     .build(),
-                execution_state: ankaios::ExecutionState::running(),
+                execution_state: ExecutionStateInternal::running(),
             }
         }};
         (ank_base) => {

@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2025 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -12,33 +12,22 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ank_base::{
+    AddCondition, DependenciesInternal, ExecutionStateInternal, TagInternal, TagsInternal,
+    Workload, WorkloadInstanceNameInternal, WorkloadInternal,
+};
+use crate::helpers::serialize_to_ordered_map;
+#[cfg(any(feature = "test_utils", test))]
+use crate::test_utils::generate_test_control_interface_access;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-use crate::helpers::serialize_to_ordered_map;
-use crate::objects::Tag;
-
-use api::ank_base::{FileInternal, WorkloadInstanceNameInternal};
-
-use super::ExecutionState;
-use super::control_interface_access::ControlInterfaceAccess;
-
-pub type WorkloadCollection = Vec<WorkloadSpec>;
-pub type DeletedWorkloadCollection = Vec<DeletedWorkload>;
 
 const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
 pub const ALLOWED_SYMBOLS: &str = "[a-zA-Z0-9_-]";
 pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]*$";
 pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
-
-// [impl->swdd~common-object-serialization~1]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct DeletedWorkload {
-    pub instance_name: WorkloadInstanceNameInternal,
-    #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub dependencies: HashMap<String, DeleteCondition>,
-}
+pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
 
 // [impl->swdd~common-workload-naming-convention~1]
 pub fn verify_workload_name_format(workload_name: &str) -> Result<(), String> {
@@ -88,23 +77,7 @@ fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
     }
 }
 
-// [impl->swdd~common-object-serialization~1]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(default, rename_all = "camelCase")]
-pub struct WorkloadSpec {
-    pub instance_name: WorkloadInstanceNameInternal,
-    pub tags: Vec<Tag>,
-    #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub dependencies: HashMap<String, AddCondition>,
-    pub restart_policy: RestartPolicy,
-    pub runtime: String,
-    pub runtime_config: String,
-    pub files: Vec<FileInternal>,
-    pub control_interface_access: ControlInterfaceAccess,
-}
-
-// [impl->swdd~common-workload-needs-control-interface~1]
-impl WorkloadSpec {
+impl WorkloadInternal {
     pub fn needs_control_interface(&self) -> bool {
         !self.control_interface_access.allow_rules.is_empty()
     }
@@ -123,76 +96,123 @@ impl WorkloadSpec {
         self.control_interface_access.verify_format()?;
         Ok(())
     }
-}
 
-pub type AgentWorkloadMap = HashMap<String, (WorkloadCollection, DeletedWorkloadCollection)>;
+    // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    pub fn verify_config_reference_format(
+        config_references: &HashMap<String, String>,
+    ) -> Result<(), String> {
+        let re_config_references = Regex::new(STR_RE_CONFIG_REFERENCES).unwrap();
+        for (config_alias, referenced_config) in config_references {
+            if !re_config_references.is_match(config_alias) {
+                return Err(format!(
+                    "Unsupported config alias. Received '{config_alias}', expected to have characters in {STR_RE_CONFIG_REFERENCES}"
+                ));
+            }
 
-pub fn get_workloads_per_agent(
-    added_workloads: WorkloadCollection,
-    deleted_workloads: DeletedWorkloadCollection,
-) -> AgentWorkloadMap {
-    let mut agent_workloads: AgentWorkloadMap = HashMap::new();
-
-    for added_workload in added_workloads {
-        if let Some((added_workload_vector, _)) =
-            agent_workloads.get_mut(added_workload.instance_name.agent_name())
-        {
-            added_workload_vector.push(added_workload);
-        } else if !added_workload.instance_name.agent_name().is_empty() {
-            agent_workloads.insert(
-                added_workload.instance_name.agent_name().to_owned(),
-                (vec![added_workload], vec![]),
-            );
+            if !re_config_references.is_match(referenced_config) {
+                return Err(format!(
+                    "Unsupported config reference key. Received '{referenced_config}', expected to have characters in {STR_RE_CONFIG_REFERENCES}"
+                ));
+            }
         }
-    }
-
-    for deleted_workload in deleted_workloads {
-        if let Some((_, deleted_workload_vector)) =
-            agent_workloads.get_mut(deleted_workload.instance_name.agent_name())
-        {
-            deleted_workload_vector.push(deleted_workload);
-        } else {
-            agent_workloads.insert(
-                deleted_workload.instance_name.agent_name().to_owned(),
-                (vec![], vec![deleted_workload]),
-            );
-        }
-    }
-
-    agent_workloads
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-// [impl->swdd~agent-supports-restart-policies~1]
-pub enum RestartPolicy {
-    #[default]
-    Never,
-    OnFailure,
-    Always,
-}
-
-impl std::fmt::Display for RestartPolicy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RestartPolicy::Never => write!(f, "Never"),
-            RestartPolicy::OnFailure => write!(f, "OnFailure"),
-            RestartPolicy::Always => write!(f, "Always"),
-        }
+        Ok(())
     }
 }
 
-impl TryFrom<i32> for RestartPolicy {
+impl TryFrom<(String, Workload)> for WorkloadInternal {
     type Error = String;
 
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        match value {
-            x if x == RestartPolicy::Never as i32 => Ok(RestartPolicy::Never),
-            x if x == RestartPolicy::OnFailure as i32 => Ok(RestartPolicy::OnFailure),
-            x if x == RestartPolicy::Always as i32 => Ok(RestartPolicy::Always),
-            _ => Err(format!(
-                "Received an unknown value '{value}' as restart policy."
-            )),
+    fn try_from((name, orig): (String, Workload)) -> Result<Self, Self::Error> {
+        let agent = orig
+            .agent
+            .clone()
+            .ok_or_else(|| "Missing field agent".to_string())?;
+        let res =
+            WorkloadInternal {
+                instance_name: WorkloadInstanceNameInternal::builder()
+                    .workload_name(name)
+                    .agent_name(agent.clone())
+                    .config(
+                        orig.runtime_config
+                            .as_ref()
+                            .ok_or_else(|| "Missing field runtime_config".to_string())?,
+                    )
+                    .build(),
+                agent,
+                tags: match orig.tags {
+                    Some(t) => t.try_into()?,
+                    None => Default::default(),
+                },
+                dependencies: match orig.dependencies {
+                    Some(deps) => deps.try_into()?,
+                    None => Default::default(),
+                },
+                restart_policy: orig.restart_policy.unwrap_or_default().try_into().map_err(
+                    |e| {
+                        format!(
+                            "Failed to convert restart_policy '{:?}': {e}",
+                            orig.restart_policy
+                        )
+                    },
+                )?,
+                runtime: orig
+                    .runtime
+                    .as_ref()
+                    .ok_or_else(|| "Missing field runtime".to_string())?
+                    .to_string(),
+                runtime_config: orig
+                    .runtime_config
+                    .as_ref()
+                    .ok_or_else(|| "Missing field runtime config".to_string())?
+                    .clone(),
+                files: match orig.files {
+                    Some(files) => files.try_into()?,
+                    None => Default::default(),
+                },
+                configs: match orig.configs {
+                    Some(configs) => configs.try_into()?,
+                    None => Default::default(),
+                },
+                // control_interface_access: orig
+                //     .control_interface_access
+                //     .clone()
+                //     .ok_or_else(|| "Missing field control_interface_access".to_string())?
+                //     .try_into()
+                //     .map_err(|e| {
+                //         format!(
+                //             "Failed to convert control_interface_access '{:?}': {e}",
+                //             orig.control_interface_access
+                //         )
+                //     })?,
+                control_interface_access: orig
+                    .control_interface_access
+                    .unwrap_or_default()
+                    .try_into()?,
+            };
+        Ok(res)
+    }
+}
+
+impl<const N: usize> From<[(String, String); N]> for TagsInternal {
+    fn from(value: [(String, String); N]) -> Self {
+        TagsInternal {
+            tags: value
+                .into_iter()
+                .map(|(k, v)| TagInternal { key: k, value: v })
+                .collect(),
+        }
+    }
+}
+impl From<Vec<TagInternal>> for TagsInternal {
+    fn from(value: Vec<TagInternal>) -> Self {
+        TagsInternal { tags: value }
+    }
+}
+
+impl From<HashMap<String, AddCondition>> for DependenciesInternal {
+    fn from(value: HashMap<String, AddCondition>) -> Self {
+        DependenciesInternal {
+            dependencies: value,
         }
     }
 }
@@ -201,39 +221,12 @@ pub trait FulfilledBy<T> {
     fn fulfilled_by(&self, other: &T) -> bool;
 }
 
-// [impl->swdd~workload-add-conditions-for-dependencies~1]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum AddCondition {
-    AddCondRunning = 0,
-    AddCondSucceeded = 1,
-    AddCondFailed = 2,
-}
-
-impl FulfilledBy<ExecutionState> for AddCondition {
-    // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
-    fn fulfilled_by(&self, other: &ExecutionState) -> bool {
-        match self {
-            AddCondition::AddCondRunning => (*other).is_running(),
-            AddCondition::AddCondSucceeded => (*other).is_succeeded(),
-            AddCondition::AddCondFailed => (*other).is_failed(),
-        }
-    }
-}
-
-impl TryFrom<i32> for AddCondition {
-    type Error = String;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        match value {
-            x if x == AddCondition::AddCondRunning as i32 => Ok(AddCondition::AddCondRunning),
-            x if x == AddCondition::AddCondSucceeded as i32 => Ok(AddCondition::AddCondSucceeded),
-            x if x == AddCondition::AddCondFailed as i32 => Ok(AddCondition::AddCondFailed),
-            _ => Err(format!(
-                "Received an unknown value '{value}' as AddCondition."
-            )),
-        }
-    }
+// [impl->swdd~common-object-serialization~1]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
+pub struct DeletedWorkload {
+    pub instance_name: WorkloadInstanceNameInternal,
+    #[serde(serialize_with = "serialize_to_ordered_map")]
+    pub dependencies: HashMap<String, DeleteCondition>,
 }
 
 // [impl->swdd~workload-delete-conditions-for-dependencies~1]
@@ -244,9 +237,20 @@ pub enum DeleteCondition {
     DelCondNotPendingNorRunning = 1,
 }
 
-impl FulfilledBy<ExecutionState> for DeleteCondition {
+impl FulfilledBy<ExecutionStateInternal> for AddCondition {
+    // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
+    fn fulfilled_by(&self, other: &ExecutionStateInternal) -> bool {
+        match self {
+            AddCondition::AddCondRunning => (*other).is_running(),
+            AddCondition::AddCondSucceeded => (*other).is_succeeded(),
+            AddCondition::AddCondFailed => (*other).is_failed(),
+        }
+    }
+}
+
+impl FulfilledBy<ExecutionStateInternal> for DeleteCondition {
     // [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
-    fn fulfilled_by(&self, other: &ExecutionState) -> bool {
+    fn fulfilled_by(&self, other: &ExecutionStateInternal) -> bool {
         if other.is_waiting_to_start() {
             return true;
         }
@@ -283,14 +287,16 @@ impl TryFrom<i32> for DeleteCondition {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-use crate::objects::generate_test_control_interface_access;
+use crate::ank_base::{ConfigMappingsInternal, FilesInternal, RestartPolicy};
 
 #[cfg(any(feature = "test_utils", test))]
-fn generate_test_dependencies() -> HashMap<String, AddCondition> {
-    HashMap::from([
-        (String::from("workload_A"), AddCondition::AddCondRunning),
-        (String::from("workload_C"), AddCondition::AddCondSucceeded),
-    ])
+fn generate_test_dependencies() -> DependenciesInternal {
+    DependenciesInternal {
+        dependencies: HashMap::from([
+            (String::from("workload_A"), AddCondition::AddCondRunning),
+            (String::from("workload_C"), AddCondition::AddCondSucceeded),
+        ]),
+    }
 }
 
 #[cfg(any(feature = "test_utils", test))]
@@ -299,14 +305,14 @@ pub fn generate_test_runtime_config() -> String {
 }
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_spec_with_param(
-    agent_name: String,
-    workload_name: String,
-    runtime_name: String,
-) -> crate::objects::WorkloadSpec {
+pub fn generate_test_workload_with_param(
+    agent_name: impl Into<String>,
+    workload_name: impl Into<String>,
+    runtime_name: impl Into<String>,
+) -> WorkloadInternal {
     let runtime_config = generate_test_runtime_config();
 
-    generate_test_workload_spec_with_runtime_config(
+    generate_test_workload_with_runtime_config(
         agent_name,
         workload_name,
         runtime_name,
@@ -315,86 +321,86 @@ pub fn generate_test_workload_spec_with_param(
 }
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_spec_with_runtime_config(
-    agent_name: String,
-    workload_name: String,
-    runtime_name: String,
-    runtime_config: String,
-) -> crate::objects::WorkloadSpec {
+pub fn generate_test_workload_with_runtime_config(
+    agent_name: impl Into<String>,
+    workload_name: impl Into<String>,
+    runtime_name: impl Into<String>,
+    runtime_config: impl Into<String>,
+) -> WorkloadInternal {
+    let agent_name = agent_name.into();
+    let runtime_config = runtime_config.into();
     let instance_name = WorkloadInstanceNameInternal::builder()
-        .agent_name(agent_name)
+        .agent_name(agent_name.clone())
         .workload_name(workload_name)
         .config(&runtime_config)
         .build();
 
-    WorkloadSpec {
+    WorkloadInternal {
         instance_name,
+        agent: agent_name,
         dependencies: generate_test_dependencies(),
         restart_policy: RestartPolicy::Always,
-        runtime: runtime_name,
-        tags: vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }],
+        runtime: runtime_name.into(),
+        tags: TagsInternal {
+            tags: vec![TagInternal {
+                key: "key".into(),
+                value: "value".into(),
+            }],
+        },
         runtime_config,
+        configs: ConfigMappingsInternal {
+            configs: HashMap::from([
+                ("ref1".into(), "config_1".into()),
+                ("ref2".into(), "config_2".into()),
+            ]),
+        },
         control_interface_access: Default::default(),
         files: Default::default(),
     }
 }
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_spec_with_control_interface_access(
-    agent_name: String,
-    workload_name: String,
-    runtime_name: String,
-) -> WorkloadSpec {
-    let mut workload_spec = generate_test_workload_spec_with_param(
-        agent_name.to_owned(),
-        workload_name.to_owned(),
-        runtime_name.to_owned(),
-    );
+pub fn generate_test_workload_with_control_interface_access(
+    agent_name: impl Into<String>,
+    workload_name: impl Into<String>,
+    runtime_name: impl Into<String>,
+) -> WorkloadInternal {
+    let mut workload_spec =
+        generate_test_workload_with_param(agent_name, workload_name, runtime_name);
     workload_spec.control_interface_access = generate_test_control_interface_access();
     workload_spec
 }
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_spec_with_rendered_files(
-    agent_name: impl ToString,
-    workload_name: impl ToString,
-    runtime_name: impl ToString,
-    files: Vec<FileInternal>,
-) -> WorkloadSpec {
-    let mut workload_spec = generate_test_workload_spec_with_param(
-        agent_name.to_string(),
-        workload_name.to_string(),
-        runtime_name.to_string(),
-    );
+pub fn generate_test_workload_with_files(
+    agent_name: impl Into<String>,
+    workload_name: impl Into<String>,
+    runtime_name: impl Into<String>,
+    files: FilesInternal,
+) -> WorkloadInternal {
+    let mut workload_spec =
+        generate_test_workload_with_param(agent_name, workload_name, runtime_name);
     workload_spec.files = files;
     workload_spec
 }
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_spec() -> WorkloadSpec {
-    generate_test_workload_spec_with_param(
-        "agent".to_string(),
-        "name".to_string(),
-        "runtime".to_string(),
-    )
+pub fn generate_test_workload() -> WorkloadInternal {
+    generate_test_workload_with_param("agent", "name", "runtime")
 }
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_spec_with_dependencies(
-    agent_name: &str,
-    workload_name: &str,
-    runtime_name: &str,
+pub fn generate_test_workload_with_dependencies(
+    agent_name: impl Into<String>,
+    workload_name: impl Into<String>,
+    runtime_name: impl Into<String>,
     dependencies: HashMap<String, AddCondition>,
-) -> WorkloadSpec {
-    let mut workload_spec = generate_test_workload_spec_with_param(
-        agent_name.to_owned(),
-        workload_name.to_owned(),
-        runtime_name.to_owned(),
-    );
-    workload_spec.dependencies = dependencies;
+) -> WorkloadInternal {
+    let mut workload_spec =
+        generate_test_workload_with_param(agent_name, workload_name, runtime_name);
+    workload_spec.dependencies = DependenciesInternal {
+        dependencies: dependencies.iter().map(|(k, v)| (k.clone(), *v)).collect(),
+    };
     workload_spec
 }
 
@@ -403,25 +409,33 @@ pub fn generate_test_workload_spec_with_dependencies(
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
-    use crate::objects::*;
-    use crate::test_utils::*;
-    use api::test_utils::generate_test_rendered_workload_files;
+    use crate::ank_base::{
+        AddCondition, DeleteCondition, ExecutionStateInternal, FulfilledBy, RestartPolicy,
+        WorkloadInternal, get_workloads_per_agent, verify_workload_name_format,
+    };
+    use crate::test_utils::{
+        generate_test_control_interface_access, generate_test_deleted_workload,
+        generate_test_rendered_workload_files, generate_test_workload,
+        generate_test_workload_with_files, generate_test_workload_with_param,
+    };
+    use std::collections::HashMap;
+
     const RUNTIME: &str = "runtime";
 
     #[test]
     fn utest_get_workloads_per_agent_one_agent_one_workload() {
         let added_workloads = vec![
-            generate_test_workload_spec_with_param(
+            generate_test_workload_with_param(
                 "agent1".to_string(),
                 "name 1".to_string(),
                 "runtime1".to_string(),
             ),
-            generate_test_workload_spec_with_param(
+            generate_test_workload_with_param(
                 "agent1".to_string(),
                 "name 2".to_string(),
                 "runtime2".to_string(),
             ),
-            generate_test_workload_spec_with_param(
+            generate_test_workload_with_param(
                 "agent2".to_string(),
                 "name 3".to_string(),
                 "runtime3".to_string(),
@@ -476,6 +490,26 @@ mod tests {
         assert_eq!(workload3.instance_name.workload_name(), "workload 9");
     }
 
+    // one test for a failing case, other cases are tested on the caller side to not repeat test code
+    // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    #[test]
+    fn utest_verify_config_reference_format_invalid_config_reference_key() {
+        let invalid_config_reference_key = "invalid%key";
+        let mut configs = HashMap::new();
+        configs.insert(
+            "config_alias_1".to_owned(),
+            invalid_config_reference_key.to_owned(),
+        );
+        assert_eq!(
+            WorkloadInternal::verify_config_reference_format(&configs),
+            Err(format!(
+                "Unsupported config reference key. Received '{}', expected to have characters in {}",
+                invalid_config_reference_key,
+                super::STR_RE_CONFIG_REFERENCES
+            ))
+        );
+    }
+
     // [utest->swdd~workload-add-conditions-for-dependencies~1]
     #[test]
     fn utest_add_condition_from_int() {
@@ -493,9 +527,7 @@ mod tests {
         );
         assert_eq!(
             AddCondition::try_from(100),
-            Err::<AddCondition, String>(
-                "Received an unknown value '100' as AddCondition.".to_string()
-            )
+            Err(prost::UnknownEnumValue(100))
         );
     }
 
@@ -543,26 +575,28 @@ mod tests {
     #[test]
     fn utest_add_condition_fulfilled_by_fulfilled() {
         let add_condition = AddCondition::AddCondRunning;
-        assert!(add_condition.fulfilled_by(&ExecutionState::running()));
+        assert!(add_condition.fulfilled_by(&ExecutionStateInternal::running()));
 
         let add_condition = AddCondition::AddCondSucceeded;
-        assert!(add_condition.fulfilled_by(&ExecutionState::succeeded()));
+        assert!(add_condition.fulfilled_by(&ExecutionStateInternal::succeeded()));
 
         let add_condition = AddCondition::AddCondFailed;
-        assert!(add_condition.fulfilled_by(&ExecutionState::failed("some failure".to_string())));
+        assert!(
+            add_condition.fulfilled_by(&ExecutionStateInternal::failed("some failure".to_string()))
+        );
     }
 
     // [utest->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
     #[test]
     fn utest_delete_condition_fulfilled_by() {
         let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionState::succeeded()));
+        assert!(delete_condition.fulfilled_by(&ExecutionStateInternal::succeeded()));
 
         let delete_condition = DeleteCondition::DelCondRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionState::running()));
+        assert!(delete_condition.fulfilled_by(&ExecutionStateInternal::running()));
 
         let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionState::waiting_to_start()));
+        assert!(delete_condition.fulfilled_by(&ExecutionStateInternal::waiting_to_start()));
     }
 
     // [utest->swdd~agent-supports-restart-policies~1]
@@ -577,9 +611,7 @@ mod tests {
 
         assert_eq!(
             RestartPolicy::try_from(100),
-            Err::<RestartPolicy, String>(
-                "Received an unknown value '100' as restart policy.".to_string()
-            )
+            Err(prost::UnknownEnumValue(100))
         );
     }
 
@@ -593,7 +625,7 @@ mod tests {
     // [utest->swdd~common-workload-needs-control-interface~1]
     #[test]
     fn utest_needs_control_interface() {
-        let mut workload_spec = generate_test_workload_spec();
+        let mut workload_spec = generate_test_workload();
         assert!(!workload_spec.needs_control_interface());
 
         workload_spec.control_interface_access = generate_test_control_interface_access();
@@ -605,7 +637,7 @@ mod tests {
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_workload_verify_fields_format_success() {
-        let compatible_workload_spec = generate_test_workload_spec();
+        let compatible_workload_spec = generate_test_workload();
         assert!(compatible_workload_spec.verify_fields_format().is_ok());
     }
 
@@ -622,7 +654,7 @@ mod tests {
     // [utest->swdd~common-workload-naming-convention~1]
     #[test]
     fn utest_workload_verify_fields_incompatible_workload_name() {
-        let spec_with_wrong_workload_name = generate_test_workload_spec_with_param(
+        let spec_with_wrong_workload_name = generate_test_workload_with_param(
             "agent_A".to_owned(),
             "incompatible.workload_name".to_owned(),
             RUNTIME.to_owned(),
@@ -641,7 +673,7 @@ mod tests {
     // [utest->swdd~common-agent-naming-convention~3]
     #[test]
     fn utest_workload_verify_fields_incompatible_agent_name() {
-        let spec_with_wrong_agent_name = generate_test_workload_spec_with_param(
+        let spec_with_wrong_agent_name = generate_test_workload_with_param(
             "incompatible.agent_name".to_owned(),
             "workload_1".to_owned(),
             RUNTIME.to_owned(),
@@ -660,7 +692,7 @@ mod tests {
     // [utest->swdd~common-agent-naming-convention~3]
     #[test]
     fn utest_workload_spec_with_valid_empty_agent_name() {
-        let spec_with_wrong_agent_name = generate_test_workload_spec_with_param(
+        let spec_with_wrong_agent_name = generate_test_workload_with_param(
             "".to_owned(),
             "workload_1".to_owned(),
             RUNTIME.to_owned(),
@@ -687,10 +719,10 @@ mod tests {
     // [utest->swdd~common-workload-has-files~1]
     #[test]
     fn utest_workload_has_files() {
-        let workload_spec = generate_test_workload_spec_with_rendered_files(
-            "agent".to_string(),
-            "name".to_string(),
-            "runtime".to_string(),
+        let workload_spec = generate_test_workload_with_files(
+            "agent",
+            "name",
+            "runtime",
             generate_test_rendered_workload_files(),
         );
         assert!(workload_spec.has_files());
@@ -699,7 +731,7 @@ mod tests {
     // [utest->swdd~common-workload-has-files~1]
     #[test]
     fn utest_workload_has_files_empty() {
-        let workload_spec = generate_test_workload_spec();
+        let workload_spec = generate_test_workload();
         assert!(!workload_spec.has_files());
     }
 }

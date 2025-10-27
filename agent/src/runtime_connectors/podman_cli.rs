@@ -12,8 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base::ExecutionStateInternal;
 use base64::Engine;
-use common::objects::ExecutionState;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -81,26 +81,26 @@ impl From<PodmanContainerInfo> for ContainerState {
 }
 
 // [impl->swdd~podman-state-getter-maps-state~3]
-impl From<PodmanContainerInfo> for ExecutionState {
+impl From<PodmanContainerInfo> for ExecutionStateInternal {
     fn from(value: PodmanContainerInfo) -> Self {
         match value.state.to_lowercase().as_str() {
-            "created" => ExecutionState::starting(value.state),
-            "configured" => ExecutionState::starting(value.state),
-            "initialized" => ExecutionState::starting(value.state),
-            "exited" if value.exit_code == 0 => ExecutionState::succeeded(),
+            "created" => ExecutionStateInternal::starting(value.state),
+            "configured" => ExecutionStateInternal::starting(value.state),
+            "initialized" => ExecutionStateInternal::starting(value.state),
+            "exited" if value.exit_code == 0 => ExecutionStateInternal::succeeded(),
             "exited" if value.exit_code != 0 => {
-                ExecutionState::failed(format!("Exit code: '{}'", value.exit_code))
+                ExecutionStateInternal::failed(format!("Exit code: '{}'", value.exit_code))
             }
-            "running" => ExecutionState::running(),
-            "stopping" => ExecutionState::stopping(value.state),
-            "stopped" => ExecutionState::stopping(value.state),
-            "removing" => ExecutionState::stopping(value.state),
-            "unknown" => ExecutionState::unknown(value.state),
+            "running" => ExecutionStateInternal::running(),
+            "stopping" => ExecutionStateInternal::stopping(value.state),
+            "stopped" => ExecutionStateInternal::stopping(value.state),
+            "removing" => ExecutionStateInternal::stopping(value.state),
+            "unknown" => ExecutionStateInternal::unknown(value.state),
             state => {
                 log::trace!(
                     "Mapping the container state '{state}' to the execution state 'ExecUnknown'"
                 );
-                ExecutionState::unknown(state)
+                ExecutionStateInternal::unknown(state)
             }
         }
     }
@@ -160,7 +160,7 @@ impl Deref for TimedPodmanPsResult {
 // [impl->swdd~podmancli-container-state-cache-all-containers~1]
 #[derive(Debug)]
 struct PodmanPsResult {
-    container_states: Result<HashMap<String, ExecutionState>, String>,
+    container_states: Result<HashMap<String, ExecutionStateInternal>, String>,
     pod_states: Result<HashMap<String, Vec<ContainerState>>, String>,
 }
 
@@ -402,7 +402,9 @@ impl PodmanCli {
     }
 
     // [impl->swdd~podmancli-uses-container-state-cache~1]
-    pub async fn list_states_by_id(workload_id: &str) -> Result<Option<ExecutionState>, String> {
+    pub async fn list_states_by_id(
+        workload_id: &str,
+    ) -> Result<Option<ExecutionStateInternal>, String> {
         let ps_result = LAST_PS_RESULT.get().await;
         let all_containers_states = ps_result
             .as_ref()
@@ -563,7 +565,7 @@ mod tests {
 
     use super::PodmanContainerInfo;
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
-    use common::objects::ExecutionState;
+    use api::ank_base::ExecutionStateInternal;
     use common::test_utils::serialize_as_map;
     use serde::Serialize;
     use std::collections::HashMap;
@@ -1210,7 +1212,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::starting("created"))));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::starting("created"))));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]
@@ -1234,7 +1236,10 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::starting("configured"))));
+        assert_eq!(
+            res,
+            Ok(Some(ExecutionStateInternal::starting("configured")))
+        );
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]
@@ -1258,7 +1263,10 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::starting("initialized"))));
+        assert_eq!(
+            res,
+            Ok(Some(ExecutionStateInternal::starting("initialized")))
+        );
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]
@@ -1283,7 +1291,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::succeeded())));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::succeeded())));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]
@@ -1308,7 +1316,10 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::failed("Exit code: '1'"))));
+        assert_eq!(
+            res,
+            Ok(Some(ExecutionStateInternal::failed("Exit code: '1'")))
+        );
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]
@@ -1332,7 +1343,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::running())));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::running())));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]
@@ -1356,7 +1367,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::stopping("stopping"))));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::stopping("stopping"))));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]
@@ -1380,7 +1391,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::stopping("stopped"))));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::stopping("stopped"))));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]
@@ -1404,7 +1415,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::stopping("removing"))));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::stopping("removing"))));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]
@@ -1428,7 +1439,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::unknown("unknown"))));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::unknown("unknown"))));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]
@@ -1452,7 +1463,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::unknown("undefined"))));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::unknown("undefined"))));
     }
 
     #[tokio::test]
@@ -1497,7 +1508,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::running())));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::running())));
     }
 
     // [utest->podmancli-uses-container-state-cache~1]
@@ -1509,7 +1520,7 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = Some(PodmanPsCache {
             last_update: time::Instant::now(),
             cache: Arc::new(super::PodmanPsResult {
-                container_states: Ok([("test_id".into(), ExecutionState::running())]
+                container_states: Ok([("test_id".into(), ExecutionStateInternal::running())]
                     .into_iter()
                     .collect()),
                 pod_states: Err("".into()),
@@ -1517,7 +1528,7 @@ mod tests {
         });
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::running())));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::running())));
     }
 
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
@@ -1531,9 +1542,12 @@ mod tests {
         *super::LAST_PS_RESULT.lock().await = Some(PodmanPsCache {
             last_update: old_time_stamp,
             cache: Arc::new(super::PodmanPsResult {
-                container_states: Ok([("test_id".into(), ExecutionState::failed("Some error"))]
-                    .into_iter()
-                    .collect()),
+                container_states: Ok([(
+                    "test_id".into(),
+                    ExecutionStateInternal::failed("Some error"),
+                )]
+                .into_iter()
+                .collect()),
                 pod_states: Err("".into()),
             }),
         });
@@ -1551,7 +1565,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::running())));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::running())));
     }
 
     #[tokio::test]
@@ -1596,7 +1610,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::running())));
+        assert_eq!(res, Ok(Some(ExecutionStateInternal::running())));
     }
 
     #[tokio::test]
@@ -1871,7 +1885,7 @@ mod tests {
         let _ = PodmanCli::list_states_by_id("id1").await;
 
         assert!(
-            matches!(PodmanCli::list_states_by_id("id2").await, Ok(Some(state)) if state == ExecutionState::succeeded() )
+            matches!(PodmanCli::list_states_by_id("id2").await, Ok(Some(state)) if state == ExecutionStateInternal::succeeded() )
         );
         assert!(
             matches!(PodmanCli::list_states_from_pods(&["pod2".into()]).await, Ok(states) if states == [ContainerState::Exited(0)] )

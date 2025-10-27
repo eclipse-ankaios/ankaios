@@ -15,12 +15,13 @@
 use std::collections::HashMap;
 
 use api::ank_base;
-use api::ank_base::FileInternal;
+use api::ank_base::{
+    AddCondition, ControlInterfaceAccessInternal, FileInternal, RestartPolicy, TagInternal,
+};
+use api::std_extensions::UnreachableResult;
 use common::{
     helpers::serialize_to_ordered_map,
-    objects::{
-        AddCondition, ConfigItem, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap,
-    },
+    objects::{ConfigItem, WorkloadStatesMap},
 };
 use serde::{Deserialize, Serialize, Serializer};
 
@@ -130,7 +131,7 @@ pub struct FilteredWorkloadSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<Tag>>,
+    pub tags: Option<Vec<TagInternal>>,
     #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependencies: Option<HashMap<String, AddCondition>>,
@@ -141,7 +142,7 @@ pub struct FilteredWorkloadSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime_config: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub control_interface_access: Option<ControlInterfaceAccess>,
+    pub control_interface_access: Option<ControlInterfaceAccessInternal>,
     #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub configs: Option<HashMap<String, String>>,
@@ -187,18 +188,11 @@ impl From<ank_base::State> for FilteredState {
     }
 }
 
-fn map_vec<T, F>(vec: Vec<T>) -> Vec<F>
-where
-    F: From<T>,
-{
-    vec.into_iter().map(Into::into).collect()
-}
-
 impl From<ank_base::Workload> for FilteredWorkloadSpec {
     fn from(value: ank_base::Workload) -> Self {
         FilteredWorkloadSpec {
             agent: value.agent,
-            tags: value.tags.map(|x| map_vec(x.tags)),
+            tags: value.tags.map(|tags| tags.tags.into_iter().map(|tag| tag.try_into().unwrap_or_unreachable()).collect()),
             dependencies: value.dependencies.map(|x| {
                 x.dependencies
                     .into_iter()

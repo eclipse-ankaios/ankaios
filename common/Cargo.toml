@@ -9,7 +9,7 @@ authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
 repository = "https://github.com/eclipse-ankaios/ankaios"
 
 [dependencies]
-api = { path = "../api" }
+api = { path = "../api", features = ["test_utils"]}
 async-trait = "0.1"
 tokio = { version = "1.41", features = [
     "macros",

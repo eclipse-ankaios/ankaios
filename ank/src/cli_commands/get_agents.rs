@@ -87,15 +87,13 @@ mod tests {
         CliCommands,
         server_connection::{MockServerConnection, ServerConnectionError},
     };
-    use api::ank_base::{self, AgentMapInternal};
-    use api::test_utils::{generate_test_agent_map, generate_test_agent_map_from_specs};
-    use common::{
-        objects::{
-            ExecutionState, generate_test_workload_spec_with_param,
-            generate_test_workload_states_map_with_data,
-        },
-        test_utils,
+    use api::ank_base::{self, AgentMapInternal, ExecutionStateInternal};
+    use api::test_utils::{
+        generate_test_agent_map, generate_test_agent_map_from_specs,
+        generate_test_workload_with_param,
     };
+    use common::objects::generate_test_workload_states_map_with_data;
+    use common::test_utils::generate_test_complete_state;
     use mockall::predicate::eq;
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
@@ -117,13 +115,13 @@ mod tests {
             .with(eq(vec![]))
             .return_once(|_| {
                 Ok(
-                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
-                        generate_test_workload_spec_with_param(
+                    ank_base::CompleteState::from(generate_test_complete_state(vec![
+                        generate_test_workload_with_param(
                             AGENT_A_NAME.to_string(),
                             WORKLOAD_NAME_1.to_string(),
                             RUNTIME_NAME.to_string(),
                         ),
-                        generate_test_workload_spec_with_param(
+                        generate_test_workload_with_param(
                             AGENT_B_NAME.to_string(),
                             WORKLOAD_NAME_2.to_string(),
                             RUNTIME_NAME.to_string(),
@@ -159,13 +157,12 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                let mut complete_state = test_utils::generate_test_complete_state(vec![
-                    generate_test_workload_spec_with_param(
+                let mut complete_state =
+                    generate_test_complete_state(vec![generate_test_workload_with_param(
                         AGENT_UNCONNECTED_NAME.to_string(),
                         WORKLOAD_NAME_2.to_string(),
                         RUNTIME_NAME.to_string(),
-                    ),
-                ]);
+                    )]);
 
                 complete_state.agents = AgentMapInternal::default();
                 Ok(ank_base::CompleteState::from(complete_state).into())
@@ -192,7 +189,7 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                let mut complete_state = test_utils::generate_test_complete_state(vec![]);
+                let mut complete_state = generate_test_complete_state(vec![]);
 
                 complete_state.agents = generate_test_agent_map(AGENT_A_NAME);
                 Ok(ank_base::CompleteState::from(complete_state).into())
@@ -246,14 +243,14 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                let workload1 = generate_test_workload_spec_with_param(
+                let workload1 = generate_test_workload_with_param(
                     AGENT_A_NAME.to_string(),
                     WORKLOAD_NAME_2.to_string(),
                     RUNTIME_NAME.to_string(),
                 );
-                let mut complete_state = test_utils::generate_test_complete_state(vec![
+                let mut complete_state = generate_test_complete_state(vec![
                     workload1.clone(),
-                    generate_test_workload_spec_with_param(
+                    generate_test_workload_with_param(
                         String::default(),
                         WORKLOAD_NAME_1.to_string(),
                         RUNTIME_NAME.to_string(),
@@ -289,14 +286,14 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                let mut complete_state = test_utils::generate_test_complete_state(vec![]);
+                let mut complete_state = generate_test_complete_state(vec![]);
                 complete_state.agents = generate_test_agent_map(AGENT_A_NAME);
                 // workload1 is deleted from the complete state already but delete not scheduled yet
                 complete_state.workload_states = generate_test_workload_states_map_with_data(
                     AGENT_A_NAME,
                     WORKLOAD_NAME_1,
                     "some workload id",
-                    ExecutionState::waiting_to_stop(),
+                    ExecutionStateInternal::waiting_to_stop(),
                 );
                 Ok(ank_base::CompleteState::from(complete_state).into())
             });

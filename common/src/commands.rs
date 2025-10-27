@@ -12,9 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec};
+use crate::objects::CompleteState;
 use api::ank_base;
-use api::ank_base::WorkloadInstanceNameInternal;
+use api::ank_base::{DeletedWorkload, WorkloadInstanceNameInternal, WorkloadInternal};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -230,12 +230,12 @@ impl TryFrom<ank_base::UpdateStateRequest> for UpdateStateRequest {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ServerHello {
     pub agent_name: Option<String>,
-    pub added_workloads: Vec<WorkloadSpec>,
+    pub added_workloads: Vec<WorkloadInternal>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UpdateWorkload {
-    pub added_workloads: Vec<WorkloadSpec>,
+    pub added_workloads: Vec<WorkloadInternal>,
     pub deleted_workloads: Vec<DeletedWorkload>,
 }
 
@@ -257,14 +257,14 @@ pub struct Stop {}
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::generate_test_proto_workload_files;
+    use api::test_utils::generate_test_proto_workload_files;
     use std::collections::HashMap;
 
     mod ank_base {
         pub use api::ank_base::{
             CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, LogsCancelRequest,
-            LogsRequest, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
-            WorkloadInstanceName, WorkloadMap, request::RequestContent,
+            LogsRequest, Request, RequestContent, RestartPolicy, State, Tag, Tags,
+            UpdateStateRequest, Workload, WorkloadInstanceName, WorkloadMap,
         };
     }
 
@@ -274,12 +274,12 @@ mod tests {
                 CompleteStateRequest, LogsCancelRequest, LogsRequest, Request, RequestContent,
                 UpdateStateRequest,
             },
-            objects::{
-                CompleteState, ExecutionState, RestartPolicy, State, StoredWorkloadSpec, Tag,
-                generate_test_workload_states_map_with_data,
-            },
+            objects::{CompleteState, State, generate_test_workload_states_map_with_data},
         };
-        pub use api::ank_base::{FileContentInternal, FileInternal, WorkloadInstanceNameInternal};
+        pub use api::ank_base::{
+            ExecutionStateInternal, FileContentInternal, FileInternal, RestartPolicy,
+            WorkloadInstanceNameBuilder, WorkloadInstanceNameInternal, WorkloadInternal,
+        };
         pub use api::test_utils::generate_test_agent_map;
     }
 
@@ -406,7 +406,7 @@ mod tests {
             ankaios::CompleteState {
                 desired_state: ankaios::State {
                     api_version: "v0.1".into(),
-                    workloads: HashMap::from([("desired".into(), workload!(ankaios))]),
+                    workloads: HashMap::from([("workload_name".into(), workload!(ankaios))]),
                     configs: HashMap::new(),
                 }
                 .into(),
@@ -419,7 +419,7 @@ mod tests {
                 desired_state: Some(ank_base::State {
                     api_version: "v0.1".into(),
                     workloads: Some(ank_base::WorkloadMap {
-                        workloads: HashMap::from([("desired".to_string(), workload!(ank_base))]),
+                        workloads: HashMap::from([("workload_name".to_string(), workload!(ank_base))]),
                     }),
                     configs: Some(Default::default()),
                 }),
@@ -455,13 +455,18 @@ mod tests {
             }
         };
         (ankaios) => {
-            ankaios::StoredWorkloadSpec {
+            ankaios::WorkloadInternal {
                 agent: AGENT_NAME.to_string(),
-                tags: vec![ankaios::Tag {
-                    key: "key".into(),
-                    value: "value".into(),
-                }],
-                dependencies: HashMap::new(),
+                instance_name: ankaios::WorkloadInstanceNameBuilder::default()
+                    .workload_name("workload_name")
+                    .config(&RUNTIME_CONFIG.to_owned())
+                    .agent_name(AGENT_NAME)
+                    .build(),
+                tags: [
+                    ("key".into(), "value".into()),
+                ]
+                .into(),
+                dependencies: Default::default(),
                 restart_policy: ankaios::RestartPolicy::Always,
                 runtime: RUNTIME.to_string(),
                 runtime_config: RUNTIME_CONFIG.to_string(),
@@ -484,7 +489,8 @@ mod tests {
                             binary_data: "base64_data".into(),
                         },
                     },
-                ],
+                ]
+                .into(),
             }
         };
     }
@@ -495,7 +501,7 @@ mod tests {
                 AGENT_NAME,
                 WORKLOAD_NAME_1,
                 HASH,
-                ankaios::ExecutionState::running(),
+                ankaios::ExecutionStateInternal::running(),
             )
         }};
         (ank_base) => {
@@ -503,7 +509,7 @@ mod tests {
                 AGENT_NAME,
                 WORKLOAD_NAME_1,
                 HASH,
-                ankaios::ExecutionState::running(),
+                ankaios::ExecutionStateInternal::running(),
             )
             .into()
         };

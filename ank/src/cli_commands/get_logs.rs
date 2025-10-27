@@ -94,18 +94,19 @@ impl CliCommands {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
-
     use crate::cli::LogsArgs;
     use crate::cli_commands::{
         CliCommands,
         server_connection::{MockServerConnection, ServerConnectionError},
     };
     use crate::cli_error::CliError;
-    use api::ank_base;
-    use api::ank_base::WorkloadInstanceNameInternal;
-    use common::{objects::generate_test_workload_spec_with_param, test_utils};
+
+    use api::ank_base::{self, WorkloadInstanceNameInternal};
+    use api::test_utils::generate_test_workload_with_param;
+    use common::test_utils::generate_test_complete_state;
+
     use mockall::predicate;
+    use std::collections::BTreeSet;
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
     const AGENT_A_NAME: &str = "agent_A";
@@ -118,7 +119,7 @@ mod tests {
     // [utest->swdd~cli-streams-logs-from-the-server~1]
     #[tokio::test]
     async fn utest_get_locks_blocking_success() {
-        let log_workload = generate_test_workload_spec_with_param(
+        let log_workload = generate_test_workload_with_param(
             AGENT_A_NAME.to_string(),
             WORKLOAD_NAME_1.to_string(),
             RUNTIME_NAME.to_string(),
@@ -130,9 +131,9 @@ mod tests {
             .with(predicate::eq(vec!["workloadStates".to_string()]))
             .return_once(|_| {
                 Ok(
-                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
+                    ank_base::CompleteState::from(generate_test_complete_state(vec![
                         cloned_log_workload,
-                        generate_test_workload_spec_with_param(
+                        generate_test_workload_with_param(
                             AGENT_B_NAME.to_string(),
                             WORKLOAD_NAME_2.to_string(),
                             RUNTIME_NAME.to_string(),
@@ -227,8 +228,8 @@ mod tests {
             .expect_get_complete_state()
             .return_once(|_| {
                 Ok(
-                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
-                        generate_test_workload_spec_with_param(
+                    ank_base::CompleteState::from(generate_test_complete_state(vec![
+                        generate_test_workload_with_param(
                             AGENT_A_NAME.to_string(),
                             WORKLOAD_NAME_1.to_string(),
                             RUNTIME_NAME.to_string(),
@@ -280,8 +281,8 @@ mod tests {
             .expect_get_complete_state()
             .return_once(|_| {
                 Ok(
-                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
-                        generate_test_workload_spec_with_param(
+                    ank_base::CompleteState::from(generate_test_complete_state(vec![
+                        generate_test_workload_with_param(
                             AGENT_A_NAME.to_string(),
                             WORKLOAD_NAME_1.to_string(),
                             RUNTIME_NAME.to_string(),
@@ -339,13 +340,13 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_names_to_instance_names_multiple_instance_names_for_one_workload() {
         let mut mock_server_connection = MockServerConnection::default();
-        let workload_1_agent_a = generate_test_workload_spec_with_param(
+        let workload_1_agent_a = generate_test_workload_with_param(
             AGENT_A_NAME.to_string(),
             WORKLOAD_NAME_1.to_string(),
             RUNTIME_NAME.to_string(),
         );
 
-        let workload_1_agent_b = generate_test_workload_spec_with_param(
+        let workload_1_agent_b = generate_test_workload_with_param(
             AGENT_B_NAME.to_string(),
             WORKLOAD_NAME_1.to_string(),
             RUNTIME_NAME.to_string(),
@@ -358,7 +359,7 @@ mod tests {
             .expect_get_complete_state()
             .return_once(|_| {
                 Ok(
-                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
+                    ank_base::CompleteState::from(generate_test_complete_state(vec![
                         workload_1_agent_a,
                         workload_1_agent_b,
                     ]))

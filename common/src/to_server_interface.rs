@@ -228,19 +228,18 @@ impl ToServerInterface for ToServerSender {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{
-        self, AgentLoadStatus, CpuUsageInternal, FreeMemoryInternal, LogEntriesResponse, LogEntry,
-        WorkloadInstanceNameInternal,
-    };
-
+    use super::{ToServerReceiver, ToServerSender};
     use crate::{
         commands::{self, RequestContent},
-        objects::{ExecutionState, generate_test_workload_spec, generate_test_workload_state},
+        objects::{generate_test_workload_state},
         test_utils::generate_test_complete_state,
         to_server_interface::{ToServer, ToServerInterface},
     };
-
-    use super::{ToServerReceiver, ToServerSender};
+    use api::ank_base::{
+        self, AgentLoadStatus, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal,
+        LogEntriesResponse, LogEntry, WorkloadInstanceNameInternal,
+    };
+    use api::test_utils::generate_test_workload;
 
     const TEST_CHANNEL_CAP: usize = 5;
     const WORKLOAD_NAME: &str = "X";
@@ -314,7 +313,7 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
-        let workload1 = generate_test_workload_spec();
+        let workload1 = generate_test_workload();
         let complete_state = generate_test_complete_state(vec![workload1]);
         assert!(
             tx.update_state(
@@ -346,7 +345,8 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
-        let workload_state = generate_test_workload_state(WORKLOAD_NAME, ExecutionState::running());
+        let workload_state =
+            generate_test_workload_state(WORKLOAD_NAME, ExecutionStateInternal::running());
         assert!(
             tx.update_workload_state(vec![workload_state.clone()])
                 .await

@@ -12,6 +12,20 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ank_base::{FileInternal, FilesInternal};
+
+impl FilesInternal {
+    pub fn is_empty(&self) -> bool {
+        self.files.is_empty()
+    }
+}
+
+impl From<Vec<FileInternal>> for FilesInternal {
+    fn from(value: Vec<FileInternal>) -> Self {
+        FilesInternal { files: value }
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -21,21 +35,23 @@
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_rendered_workload_files() -> Vec<crate::ank_base::FileInternal> {
-    vec![
-        crate::ank_base::FileInternal {
-            mount_point: "/file.json".to_string(),
-            file_content: crate::ank_base::FileContentInternal::Data {
-                data: "text data".into(),
+pub fn generate_test_rendered_workload_files() -> FilesInternal {
+    FilesInternal {
+        files: vec![
+            crate::ank_base::FileInternal {
+                mount_point: "/file.json".to_string(),
+                file_content: crate::ank_base::FileContentInternal::Data {
+                    data: "text data".into(),
+                },
             },
-        },
-        crate::ank_base::FileInternal {
-            mount_point: "/binary_file".to_string(),
-            file_content: crate::ank_base::FileContentInternal::BinaryData {
-                binary_data: "base64_data".into(),
+            crate::ank_base::FileInternal {
+                mount_point: "/binary_file".to_string(),
+                file_content: crate::ank_base::FileContentInternal::BinaryData {
+                    binary_data: "base64_data".into(),
+                },
             },
-        },
-    ]
+        ],
+    }
 }
 
 #[cfg(test)]

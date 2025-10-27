@@ -15,14 +15,16 @@
 use std::collections::{HashMap, hash_map::Entry};
 
 use api::ank_base;
-use api::ank_base::WorkloadInstanceNameInternal;
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadInternal};
 use serde::{Deserialize, Serialize};
 
-use super::{ExecutionState, WorkloadSpec, WorkloadState};
+use super::WorkloadState;
 
 type AgentName = String;
 type WorkloadName = String;
 type WorkloadId = String;
+
+type ExecutionState = ExecutionStateInternal;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct WorkloadStatesMap(
@@ -105,7 +107,7 @@ impl WorkloadStatesMap {
         }
     }
 
-    pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadSpec>) {
+    pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadInternal>) {
         for spec in workload_specs {
             self.entry(spec.instance_name.agent_name().to_owned())
                 .or_default()
@@ -240,7 +242,9 @@ impl From<ank_base::WorkloadStatesMap> for WorkloadStatesMap {
                                     id_map
                                         .id_state_map
                                         .into_iter()
-                                        .map(|(id, exec_state)| (id, exec_state.into()))
+                                        .map(|(id, exec_state)| {
+                                            (id, exec_state.try_into().unwrap())
+                                        })
                                         .collect(),
                                 )
                             })
@@ -262,7 +266,7 @@ impl From<ank_base::WorkloadStatesMap> for WorkloadStatesMap {
 
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_states_map_from_specs(
-    workloads: Vec<WorkloadSpec>,
+    workloads: Vec<WorkloadInternal>,
 ) -> WorkloadStatesMap {
     let mut wl_states_map = WorkloadStatesMap::new();
 
@@ -324,16 +328,14 @@ pub fn generate_test_workload_states_map_from_workload_states(
 // [utest->swdd~state-map-for-workload-execution-states~2]
 #[cfg(test)]
 mod tests {
-    use std::vec;
-
-    use crate::objects::{
-        WorkloadState, generate_test_workload_spec_with_runtime_config,
-        generate_test_workload_state_with_agent,
+    use super::{
+        ExecutionState, WorkloadStatesMap, generate_test_workload_states_map_from_workload_states,
     };
-
-    use crate::objects::ExecutionState;
-
-    use super::{WorkloadStatesMap, generate_test_workload_states_map_from_workload_states};
+    use crate::objects::{
+        WorkloadState, generate_test_workload_state_with_agent,
+    };
+    use api::test_utils::generate_test_workload_with_runtime_config;
+    use std::vec;
 
     const AGENT_A: &str = "agent_A";
     const AGENT_B: &str = "agent_B";
@@ -587,13 +589,13 @@ mod tests {
     fn utest_workload_states_initial_state() {
         let mut wls_db = WorkloadStatesMap::new();
 
-        let wl_state_1 = generate_test_workload_spec_with_runtime_config(
+        let wl_state_1 = generate_test_workload_with_runtime_config(
             "".to_string(),
             WORKLOAD_NAME_1.to_string(),
             "some runtime".to_string(),
             "config".to_string(),
         );
-        let wl_state_3 = generate_test_workload_spec_with_runtime_config(
+        let wl_state_3 = generate_test_workload_with_runtime_config(
             AGENT_B.to_string(),
             WORKLOAD_NAME_3.to_string(),
             "some runtime".to_string(),

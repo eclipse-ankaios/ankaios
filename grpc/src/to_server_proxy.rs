@@ -305,18 +305,16 @@ mod tests {
     use std::collections::LinkedList;
 
     use super::{GRPCStreaming, forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
+    use api::test_utils::generate_test_workload_with_param;
     use async_trait::async_trait;
     use common::test_utils::generate_test_complete_state;
-    use common::{
-        objects::generate_test_workload_spec_with_param,
-        to_server_interface::{ToServer, ToServerInterface},
-    };
+    use common::to_server_interface::{ToServer, ToServerInterface};
     use tokio::sync::mpsc;
 
     use crate::grpc_api::{self, to_server::ToServerEnum};
     use api::ank_base::{
-        self, CpuUsageInternal, FreeMemoryInternal, LogEntriesResponse, LogEntry, LogsStopResponse,
-        WorkloadInstanceName,
+        self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogEntriesResponse,
+        LogEntry, LogsStopResponse, WorkloadInstanceName,
     };
 
     #[derive(Default, Clone)]
@@ -431,12 +429,11 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let input_state =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                AGENT_A_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )]);
+        let input_state = generate_test_complete_state(vec![generate_test_workload_with_param(
+            AGENT_A_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        )]);
         let update_mask = vec!["bla".into()];
 
         // As the channel capacity is big enough the await is satisfied right away
@@ -475,7 +472,7 @@ mod tests {
         let wl_state = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_A_NAME,
-            common::objects::ExecutionState::running(),
+            ExecutionStateInternal::running(),
         );
 
         let update_workload_state_result = server_tx
@@ -567,7 +564,7 @@ mod tests {
         let (server_tx, mut _server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
         let mut ankaios_state: ank_base::CompleteState =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
+            generate_test_complete_state(vec![generate_test_workload_with_param(
                 AGENT_A_NAME.to_string(),
                 WORKLOAD_1_NAME.to_string(),
                 RUNTIME_NAME.to_string(),
@@ -626,12 +623,11 @@ mod tests {
     async fn utest_to_server_command_forward_from_proto_to_ankaios_update_workload() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        let ankaios_state =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                AGENT_A_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )]);
+        let ankaios_state = generate_test_complete_state(vec![generate_test_workload_with_param(
+            AGENT_A_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        )]);
 
         let ankaios_update_mask = vec!["bla".into()];
 
@@ -686,7 +682,7 @@ mod tests {
             common::objects::generate_test_workload_state_with_agent(
                 "fake_workload",
                 AGENT_A_NAME,
-                common::objects::ExecutionState::running(),
+                ExecutionStateInternal::running(),
             )
             .into();
 

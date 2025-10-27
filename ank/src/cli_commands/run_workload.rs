@@ -12,7 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{CompleteState, StoredWorkloadSpec, Tag};
+use api::ank_base::{TagInternal, WorkloadInstanceNameBuilder, WorkloadInternal};
+use common::objects::CompleteState;
 
 use crate::{cli_error::CliError, output_debug};
 
@@ -29,17 +30,26 @@ impl CliCommands {
         agent_name: String,
         tags_strings: Vec<(String, String)>,
     ) -> Result<(), CliError> {
-        let tags: Vec<Tag> = tags_strings
+        let tags: Vec<TagInternal> = tags_strings
             .into_iter()
-            .map(|(k, v)| Tag { key: k, value: v })
+            .map(|(k, v)| TagInternal { key: k, value: v })
             .collect();
 
-        let new_workload = StoredWorkloadSpec {
-            agent: agent_name,
+        let new_workload = WorkloadInternal {
+            agent: agent_name.clone(),
             runtime: runtime_name,
-            tags,
-            runtime_config,
-            ..Default::default()
+            tags: tags.into(),
+            runtime_config: runtime_config.clone(),
+            restart_policy: Default::default(),
+            dependencies: Default::default(),
+            control_interface_access: Default::default(),
+            configs: Default::default(),
+            files: Default::default(),
+            instance_name: WorkloadInstanceNameBuilder::default()
+                .workload_name(workload_name.clone())
+                .config(&runtime_config.clone())
+                .agent_name(agent_name)
+                .build(),
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 
@@ -70,16 +80,19 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, UpdateStateSuccess};
+    use api::ank_base::{
+        self, ExecutionStateInternal, TagInternal, UpdateStateSuccess, WorkloadInstanceNameBuilder,
+        WorkloadInternal,
+    };
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::FromServer,
-        objects::{self, CompleteState, ExecutionState, StoredWorkloadSpec, Tag, WorkloadState},
+        objects::{CompleteState, WorkloadState},
     };
     use mockall::predicate::eq;
 
     use crate::{
-        cli_commands::{server_connection::MockServerConnection, CliCommands},
+        cli_commands::{CliCommands, server_connection::MockServerConnection},
         filtered_complete_state::FilteredCompleteState,
     };
 
@@ -99,15 +112,25 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let new_workload = StoredWorkloadSpec {
+        let new_workload = WorkloadInternal {
             agent: test_workload_agent.to_owned(),
             runtime: test_workload_runtime_name.clone(),
-            tags: vec![Tag {
+            tags: vec![TagInternal {
                 key: "key".to_string(),
                 value: "value".to_string(),
-            }],
+            }]
+            .into(),
             runtime_config: test_workload_runtime_cfg.clone(),
-            ..Default::default()
+            instance_name: WorkloadInstanceNameBuilder::default()
+                .workload_name(TEST_WORKLOAD_NAME)
+                .config(&test_workload_runtime_cfg)
+                .agent_name(test_workload_agent.to_owned())
+                .build(),
+            restart_policy: Default::default(),
+            dependencies: Default::default(),
+            control_interface_access: Default::default(),
+            configs: Default::default(),
+            files: Default::default(),
         };
         let mut complete_state_update = CompleteState::default();
         complete_state_update
@@ -151,12 +174,7 @@ mod tests {
                 vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
                     workload_states: vec![WorkloadState {
                         instance_name: "name4.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionState {
-                            state: objects::ExecutionStateEnum::Running(
-                                objects::RunningSubstate::Ok,
-                            ),
-                            additional_info: "".to_string(),
-                        },
+                        execution_state: ExecutionStateInternal::running(),
                     }],
                 })]
             });

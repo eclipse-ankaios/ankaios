@@ -22,7 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .boxed("Request.RequestContent.updateStateRequest")
         .boxed("FromAnkaios.FromAnkaiosEnum.response")
         .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")
-        .type_attribute(".", "#[serde(rename_all = \"camelCase\")]")
+        .message_attribute(".", "#[serde(rename_all = \"camelCase\")]")
+        .enum_attribute(".", "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]")
         .type_attribute(
             "ank_base.ConfigItem",
             "#[serde(into = \"serde_yaml::Value\")]",
@@ -40,6 +41,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[serde(flatten)]",
         )
         .field_attribute("ExecutionsStatesForId.idStateMap", "#[serde(flatten)]")
+        .field_attribute("ExecutionState.ExecutionStateEnum", "#[serde(flatten)]")
+        .type_attribute(
+            "ExecutionStateEnum",
+            "#[serde(tag = \"state\", content = \"subState\")]",
+        )
         .field_attribute("WorkloadMap.workloads", "#[serde(flatten)]")
         .field_attribute("AgentMap.agents", "#[serde(flatten)]")
         .field_attribute("ConfigMap.configs", "#[serde(flatten)]")
@@ -57,36 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "Files.files",
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
         )
-        .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]")
-        .field_attribute("ExecutionState.ExecutionStateEnum", "#[serde(flatten)]")
-        .type_attribute(
-            "ExecutionStateEnum",
-            "#[serde(tag = \"state\", content = \"subState\")]",
-        )
-        .type_attribute(
-            "ExecutionStateEnum",
-            "#[derive(internal_derive_macros::Internal)]",
-        )
-        .type_attribute(
-            "ExecutionStateEnum",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
-        )
-        .type_attribute(
-            "ExecutionStateEnum",
-            "#[internal_type_attr(#[serde(tag = \"state\", content = \"subState\")])]",
-        )
-        .type_attribute(
-            "ExecutionState",
-            "#[derive(internal_derive_macros::Internal)]",
-        )
-        .type_attribute(
-            "ExecutionState",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
-        )
-        .field_attribute(
-            "ExecutionState.ExecutionStateEnum",
-            "#[internal_field_attr(#[serde(flatten)])]",
-        );
+        .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]");
 
     builder = setup_internal_files(builder);
     builder = setup_internal_control_interface_access(builder);

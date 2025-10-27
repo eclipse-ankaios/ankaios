@@ -67,7 +67,7 @@ impl Display for WaitListDisplay {
 impl WaitListDisplayTrait for WaitListDisplay {
     fn update(&mut self, workload_state: &common::objects::WorkloadState) {
         if let Some(entry) = self.data.get_mut(&workload_state.instance_name) {
-            entry.execution_state = workload_state.execution_state.state.to_string();
+            entry.execution_state = workload_state.execution_state.state().to_string();
             entry.set_additional_info(&workload_state.execution_state.additional_info);
         }
     }
@@ -110,8 +110,8 @@ mod tests {
 
     use std::collections::{HashMap, HashSet};
 
-    use api::ank_base::WorkloadInstanceNameInternal;
-    use common::objects::{ExecutionState, WorkloadState};
+    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
+    use common::objects::WorkloadState;
 
     use crate::cli_commands::{
         wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow,
@@ -151,7 +151,7 @@ mod tests {
         );
         wait_list_display.update(&WorkloadState {
             instance_name: workload_instance_name.clone(),
-            execution_state: ExecutionState::succeeded(),
+            execution_state: ExecutionStateInternal::succeeded(),
         });
         assert_eq!(
             wait_list_display

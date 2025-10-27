@@ -12,16 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{DeletedWorkload, WorkloadSpec};
+use api::ank_base::{DeletedWorkload, WorkloadInternal};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReusableWorkloadSpec {
-    pub workload_spec: WorkloadSpec,
+    pub workload_spec: WorkloadInternal,
     pub workload_id: Option<String>,
 }
 
 impl ReusableWorkloadSpec {
-    pub fn new(workload_spec: WorkloadSpec, workload_id: Option<String>) -> ReusableWorkloadSpec {
+    pub fn new(workload_spec: WorkloadInternal, workload_id: Option<String>) -> ReusableWorkloadSpec {
         ReusableWorkloadSpec {
             workload_spec,
             workload_id,
@@ -33,7 +33,7 @@ impl ReusableWorkloadSpec {
 // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
 pub enum WorkloadOperation {
     Create(ReusableWorkloadSpec),
-    Update(WorkloadSpec, DeletedWorkload),
+    Update(WorkloadInternal, DeletedWorkload),
     UpdateDeleteOnly(DeletedWorkload),
     Delete(DeletedWorkload),
 }

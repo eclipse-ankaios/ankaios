@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::WorkloadSpec;
+use api::ank_base::WorkloadInternal;
 
 use super::podman_kube_runtime::PODMAN_KUBE_RUNTIME_NAME;
 
@@ -30,9 +30,9 @@ pub struct PodmanKubeRuntimeConfig {
     pub manifest: String,
 }
 
-impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
+impl TryFrom<&WorkloadInternal> for PodmanKubeRuntimeConfig {
     type Error = String;
-    fn try_from(workload_spec: &WorkloadSpec) -> Result<Self, Self::Error> {
+    fn try_from(workload_spec: &WorkloadInternal) -> Result<Self, Self::Error> {
         if PODMAN_KUBE_RUNTIME_NAME != workload_spec.runtime {
             return Err(format!(
                 "Received a spec for the wrong runtime: '{}'",
@@ -64,9 +64,9 @@ impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
 
 #[cfg(test)]
 mod tests {
-    use api::test_utils::generate_test_rendered_workload_files;
-    use common::objects::{
-        generate_test_workload_spec_with_param, generate_test_workload_spec_with_rendered_files,
+    use api::test_utils::{
+        generate_test_rendered_workload_files, generate_test_workload_with_files,
+        generate_test_workload_with_param,
     };
 
     use super::{PODMAN_KUBE_RUNTIME_NAME, PodmanKubeRuntimeConfig};
@@ -78,7 +78,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_podman_kube_config_failure_missing_manifest() {
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
@@ -89,7 +89,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_podman_kube_config_failure_wrong_runtime() {
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             DIFFERENT_RUNTIME_NAME.to_string(),
@@ -101,7 +101,7 @@ mod tests {
     // [utest->swdd~podman-kube-rejects-workload-files~1]
     #[tokio::test]
     async fn utest_podman_kube_config_failure_unsupported_files_field() {
-        let workload_spec_with_files = generate_test_workload_spec_with_rendered_files(
+        let workload_spec_with_files = generate_test_workload_with_files(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             DIFFERENT_RUNTIME_NAME.to_string(),
@@ -113,7 +113,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_podman_kube_config_success() {
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let mut workload_spec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
