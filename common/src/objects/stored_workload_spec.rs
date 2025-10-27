@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use crate::helpers::serialize_to_ordered_map;
 
 use super::{
-    AddCondition, RestartPolicy, Tag, WorkloadInstanceName, WorkloadSpec,
+    AddCondition, RestartPolicy, WorkloadInstanceName, WorkloadSpec,
     control_interface_access::ControlInterfaceAccess, file::File,
 };
 
@@ -31,8 +31,8 @@ pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
 #[serde(rename_all = "camelCase")]
 pub struct StoredWorkloadSpec {
     pub agent: String,
-    #[serde(default)]
-    pub tags: Vec<Tag>,
+    #[serde(default, deserialize_with = "tag_adapter_deserializer")]
+    pub tags: HashMap<String, String>,
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
     #[serde(default)]
@@ -76,13 +76,7 @@ impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
     fn try_from(value: ank_base::Workload) -> Result<Self, String> {
         Ok(StoredWorkloadSpec {
             agent: value.agent.ok_or("Missing field agent")?,
-            tags: value
-                .tags
-                .unwrap_or_default()
-                .tags
-                .into_iter()
-                .map(|x| x.into())
-                .collect(),
+            tags: value.tags.unwrap_or_default().tags.into_iter().collect(),
             dependencies: value
                 .dependencies
                 .unwrap_or_default()
@@ -124,7 +118,7 @@ impl From<StoredWorkloadSpec> for ank_base::Workload {
             runtime: workload.runtime.into(),
             runtime_config: workload.runtime_config.into(),
             tags: Some(ank_base::Tags {
-                tags: workload.tags.into_iter().map(Into::into).collect(),
+                tags: workload.tags.into_iter().collect(),
             }),
             control_interface_access: workload.control_interface_access.into(),
             configs: Some(ank_base::ConfigMappings {
@@ -172,6 +166,38 @@ impl From<WorkloadSpec> for StoredWorkloadSpec {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+enum MapOrVec<K: std::hash::Hash + Eq, V> {
+    Map(HashMap<K, V>),
+    Vec(Vec<MapEntry<K, V>>),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct MapEntry<K, V> {
+    key: K,
+    value: V,
+}
+
+fn tag_adapter_deserializer<'de, D, K, V>(deserializer: D) -> Result<HashMap<K, V>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    K: std::hash::Hash + Eq + Deserialize<'de>,
+    V: Deserialize<'de>,
+{
+    let map_or_vec = MapOrVec::<K, V>::deserialize(deserializer)?;
+    match map_or_vec {
+        MapOrVec::Map(m) => Ok(m),
+        MapOrVec::Vec(v) => {
+            let mut map = HashMap::new();
+            for entry in v {
+                map.insert(entry.key, entry.value);
+            }
+            Ok(map)
+        }
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -194,10 +220,7 @@ pub fn generate_test_stored_workload_spec_with_config(
         ]),
         restart_policy: RestartPolicy::Always,
         runtime: runtime_name.into(),
-        tags: vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }],
+        tags: HashMap::from([("key".into(), "value".into())]),
         runtime_config: runtime_config.into(),
         control_interface_access: Default::default(),
         configs: [

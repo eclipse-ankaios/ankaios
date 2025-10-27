@@ -1,12 +1,11 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   nginx:
     runtime: podman
     agent: agent_A
     restartPolicy: NEVER
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: ["-p", "8081:80"]

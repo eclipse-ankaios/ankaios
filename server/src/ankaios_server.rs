@@ -660,7 +660,7 @@ mod tests {
         let result = server.start(Some(startup_state)).await;
         assert_eq!(
             result,
-            Err("Unsupported API version. Received 'invalidVersion', expected 'v0.1'".into())
+            Err("Unsupported API version. Received 'invalidVersion', expected 'v1'".into())
         );
     }
 

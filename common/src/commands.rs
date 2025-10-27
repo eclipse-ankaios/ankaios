@@ -265,13 +265,14 @@ pub struct Stop {}
 
 #[cfg(test)]
 mod tests {
+    use crate::objects::CURRENT_API_VERSION;
     use crate::test_utils::generate_test_proto_workload_files;
     use std::collections::HashMap;
 
     mod ank_base {
         pub use api::ank_base::{
             CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, LogsCancelRequest,
-            LogsRequest, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
+            LogsRequest, Request, RestartPolicy, State, UpdateStateRequest, Workload,
             WorkloadInstanceName, WorkloadMap, request::RequestContent,
         };
     }
@@ -284,7 +285,7 @@ mod tests {
             },
             objects::{
                 Base64Data, CompleteState, Data, ExecutionState, File, FileContent, RestartPolicy,
-                State, StoredWorkloadSpec, Tag, WorkloadInstanceName, generate_test_agent_map,
+                State, StoredWorkloadSpec, WorkloadInstanceName, generate_test_agent_map,
                 generate_test_workload_states_map_with_data,
             },
         };
@@ -412,7 +413,7 @@ mod tests {
         (ankaios) => {
             ankaios::CompleteState {
                 desired_state: ankaios::State {
-                    api_version: "v0.1".into(),
+                    api_version: CURRENT_API_VERSION.into(),
                     workloads: HashMap::from([("desired".into(), workload!(ankaios))]),
                     configs: HashMap::new(),
                 }
@@ -424,7 +425,7 @@ mod tests {
         (ank_base) => {
             ank_base::CompleteState {
                 desired_state: Some(ank_base::State {
-                    api_version: "v0.1".into(),
+                    api_version: CURRENT_API_VERSION.into(),
                     workloads: Some(ank_base::WorkloadMap {
                         workloads: HashMap::from([("desired".to_string(), workload!(ank_base))]),
                     }),
@@ -444,11 +445,8 @@ mod tests {
                 restart_policy: Some(ank_base::RestartPolicy::Always.into()),
                 runtime: Some(RUNTIME.to_string()),
                 runtime_config: Some(RUNTIME_CONFIG.to_string()),
-                tags: Some(ank_base::Tags {
-                    tags: vec![ank_base::Tag {
-                        key: "key".into(),
-                        value: "value".into(),
-                    }],
+                tags: Some(api::ank_base::Tags {
+                    tags: HashMap::from([("key".into(), "value".into())]),
                 }),
                 control_interface_access: Default::default(),
                 configs: Some(ank_base::ConfigMappings {
@@ -464,10 +462,7 @@ mod tests {
         (ankaios) => {
             ankaios::StoredWorkloadSpec {
                 agent: AGENT_NAME.to_string(),
-                tags: vec![ankaios::Tag {
-                    key: "key".into(),
-                    value: "value".into(),
-                }],
+                tags: HashMap::from([("key".into(), "value".into())]),
                 dependencies: HashMap::new(),
                 restart_policy: ankaios::RestartPolicy::Always,
                 runtime: RUNTIME.to_string(),
@@ -560,7 +555,7 @@ mod tests {
         };
         proto_request_content.new_state = Some(ank_base::CompleteState {
             desired_state: Some(ank_base::State {
-                api_version: "v0.1".into(),
+                api_version: CURRENT_API_VERSION.into(),
                 workloads: Some(ank_base::WorkloadMap {
                     workloads: HashMap::new(),
                 }),
@@ -602,7 +597,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .desired_state = Some(ank_base::State {
-            api_version: "v0.1".into(),
+            api_version: CURRENT_API_VERSION.into(),
             workloads: Some(ank_base::WorkloadMap {
                 workloads: HashMap::new(),
             }),

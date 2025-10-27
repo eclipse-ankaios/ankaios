@@ -436,21 +436,6 @@ mod tests {
     }
 
     #[test]
-    fn utest_object_set_fails_as_not_mapping() {
-        let expected = Object {
-            data: object::generate_test_state().into(),
-        };
-        let mut actual = Object {
-            data: object::generate_test_state().into(),
-        };
-
-        let res = actual.set(&"workloads.name.tags.key".into(), "value".into());
-
-        assert!(res.is_err());
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
     fn utest_object_set_existing() {
         let mut expected = Object {
             data: object::generate_test_state().into(),
@@ -742,7 +727,7 @@ mod tests {
     mod object {
         use serde_yaml::Value;
 
-        use crate::objects::generate_test_runtime_config;
+        use crate::objects::{generate_test_runtime_config, CURRENT_API_VERSION};
 
         pub fn generate_test_complete_state() -> Mapping {
             let agent_name = "agent";
@@ -778,7 +763,7 @@ mod tests {
 
         pub fn generate_test_state() -> Mapping {
             Mapping::default()
-                .entry("apiVersion", "v0.1")
+                .entry("apiVersion", CURRENT_API_VERSION)
                 .entry(
                     "workloads",
                     Mapping::default().entry(
@@ -787,10 +772,8 @@ mod tests {
                             .entry("agent", "agent")
                             .entry(
                                 "tags",
-                                vec![Mapping::default()
-                                    .entry("key", "key")
-                                    .entry("value", "value")
-                                    .into()] as Vec<Value>,
+                                Mapping::default()
+                                    .entry("key", "value"),
                             )
                             .entry(
                                 "dependencies",
