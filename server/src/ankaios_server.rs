@@ -679,14 +679,11 @@ impl AnkaiosServer {
                 .unwrap_or_illegal_state();
         }
 
-        let from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
-            added_workloads,
-            deleted_workloads: retained_deleted_workloads,
-        });
         self.to_agents
-            .send(from_server_command)
+            .update_workload(added_workloads, retained_deleted_workloads)
             .await
             .unwrap_or_illegal_state();
+
         log::debug!("Send UpdateStateSuccess for request '{request_id}'");
         // [impl->swdd~server-update-state-success-response~1]
         self.to_agents
@@ -2766,8 +2763,8 @@ mod tests {
     #[tokio::test]
     async fn utest_server_handles_pending_initial_deleted_workload_on_not_connected_agent() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
-        let (to_agents, _comm_middle_ware_receiver) =
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
@@ -2778,6 +2775,44 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
+        let update_state = CompleteState::default();
+
+        let deleted_workload_with_not_connected_agent = DeletedWorkload {
+            instance_name: workload.instance_name.clone(),
+            ..Default::default()
+        };
+
+        let deleted_workloads = vec![deleted_workload_with_not_connected_agent];
+
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_generate_new_state()
+            .once()
+            .return_const(Ok(StateGenerationResult {
+                new_desired_state: update_state.desired_state.clone(),
+                ..Default::default()
+            }));
+        mock_server_state
+            .expect_update()
+            .once()
+            .return_const(Ok(Some(AddedDeletedWorkloads {
+                added_workloads: Vec::default(),
+                deleted_workloads,
+            })));
+        server.server_state = mock_server_state;
+
+        server
+            .log_campaign_store
+            .expect_remove_collector_campaign_entry()
+            .once()
+            .return_const(HashSet::new());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(false);
+
         server.workload_states_map = generate_test_workload_states_map_with_data(
             workload.instance_name.agent_name(),
             workload.instance_name.workload_name(),
@@ -2785,32 +2820,35 @@ mod tests {
             ExecutionState::initial(),
         );
 
-        let deleted_workload_with_not_connected_agent = DeletedWorkload {
-            instance_name: workload.instance_name.clone(),
-            ..Default::default()
-        };
+        assert!(
+            to_server
+                .update_state(
+                    REQUEST_ID.to_owned(),
+                    update_state,
+                    vec![format!("desiredState.workloads.{WORKLOAD_NAME_1}")],
+                )
+                .await
+                .is_ok()
+        );
 
-        let deleted_workloads = vec![deleted_workload_with_not_connected_agent.clone()];
+        drop(to_server);
+        let result = server.start(None).await;
 
-        let (retained_deleted_workloads, _) = server
-            .handle_not_started_deleted_workloads(deleted_workloads)
-            .await;
+        assert!(result.is_ok());
 
-        assert!(retained_deleted_workloads.is_empty());
-
-        // assert_eq!(
-        //     tokio::time::timeout(
-        //         tokio::time::Duration::from_millis(100),
-        //         comm_middle_ware_receiver.recv(),
-        //     )
-        //     .await,
-        //     Ok(Some(FromServer::UpdateWorkloadState(UpdateWorkloadState {
-        //         workload_states: vec![WorkloadState {
-        //             instance_name: workload.instance_name,
-        //             execution_state: ExecutionState::removed()
-        //         }]
-        //     })))
-        // );
+        assert_eq!(
+            tokio::time::timeout(
+                tokio::time::Duration::from_millis(100),
+                comm_middle_ware_receiver.recv(),
+            )
+            .await,
+            Ok(Some(FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![WorkloadState {
+                    instance_name: workload.instance_name,
+                    execution_state: ExecutionState::removed()
+                }]
+            })))
+        );
     }
 
     // [utest->swdd~server-handles-logs-cancel-request-message~1]
