@@ -319,6 +319,19 @@ mod tests {
         assert_eq!(event_handler.subscriber_store.len(), 0);
     }
 
+    // [utest->swdd~event-handler-provides-subscriber-exists-functionality~1]
+    #[test]
+    fn utest_event_handler_has_subscribers() {
+        let mut event_handler = EventHandler {
+            subscriber_store: HashMap::from([(REQUEST_ID_1.into(), vec!["path.to.field".into()])]),
+        };
+
+        assert!(event_handler.has_subscribers());
+
+        event_handler.subscriber_store.clear();
+        assert!(!event_handler.has_subscribers());
+    }
+
     // [utest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
     // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
     #[tokio::test]
