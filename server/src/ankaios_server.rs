@@ -814,7 +814,7 @@ mod tests {
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
     use super::ank_base;
-    use api::ank_base::{LogsStopResponse, WorkloadMap};
+    use api::ank_base::{CompleteStateResponse, LogsStopResponse, WorkloadMap};
     use common::commands::{
         AgentLoadStatus, CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload,
         UpdateWorkloadState,
@@ -2996,6 +2996,114 @@ mod tests {
         );
 
         server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-stores-new-event-subscription~1]
+    #[tokio::test]
+    async fn utest_server_adds_event_subscribers_upon_complete_state_request() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let current_complete_state = ank_base::CompleteState::default();
+
+        let request_id = format!("{AGENT_A}@my_request_id");
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .server_state
+            .expect_get_complete_state_by_field_mask()
+            .once()
+            .return_const(Ok(current_complete_state.clone()));
+
+        server
+            .event_handler
+            .expect_add_subscriber()
+            .with(
+                mockall::predicate::eq(request_id.clone()),
+                mockall::predicate::eq(vec![
+                    "desiredState.workloads.workload_1".into(),
+                    "workloadStates.*".into(),
+                ]),
+            )
+            .once()
+            .return_const(());
+
+        // send command 'CompleteStateRequest' with enabled event subscription
+        let request_complete_state_result = to_server
+            .request_complete_state(
+                request_id.clone(),
+                CompleteStateRequest {
+                    field_mask: vec![
+                        "desiredState.workloads.workload_1".to_owned(),
+                        "workloadStates.*".to_owned(),
+                    ],
+                    subscribe_for_events: true,
+                },
+            )
+            .await;
+        assert!(request_complete_state_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(
+            from_server_command,
+            common::from_server_interface::FromServer::Response(ank_base::Response {
+                request_id,
+                response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
+                    Box::new(CompleteStateResponse {
+                        complete_state: Some(current_complete_state),
+                        ..Default::default()
+                    })
+                ))
+            })
+        );
+
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-removes-event-subscription~1]
+    #[tokio::test]
+    async fn utest_server_removes_event_subscribers_upon_events_cancel_request() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let request_id = format!("{AGENT_A}@my_request_id");
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        server
+            .event_handler
+            .expect_remove_subscriber()
+            .with(mockall::predicate::eq(request_id.clone()))
+            .once()
+            .return_const(());
+
+        let events_cancel_request_result = to_server.event_cancel_request(request_id.clone()).await;
+        assert!(events_cancel_request_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(
+            from_server_command,
+            common::from_server_interface::FromServer::Response(ank_base::Response {
+                request_id,
+                response_content: Some(ank_base::response::ResponseContent::EventsCancelAccepted(
+                    ank_base::EventsCancelAccepted {}
+                ))
+            })
+        );
+
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 

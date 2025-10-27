@@ -1272,7 +1272,7 @@ Status: approved
 When the Ankaios Server receives an `EventsCancelRequest` message, the Ankaios Server shall:
 
 * request the EventHandler to remove the subscriber from its internal subscription store
-* forward the `EventsCancelRequest` message to the Ankaios Agent via the communication middleware.
+* sends an `EventsCancelAccepted` message to the subscriber using the request ID via the communication middleware.
 
 Tags:
 - AnkaiosServer
