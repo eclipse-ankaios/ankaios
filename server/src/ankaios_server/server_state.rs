@@ -21,7 +21,8 @@ use super::config_renderer::ConfigRenderer;
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-use super::state_comparator::StateComparator;
+#[cfg_attr(test, mockall_double::double)]
+use crate::ankaios_server::state_comparator::StateComparator;
 use common::objects::{AgentMap, State, WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
 use common::std_extensions::IllegalStateResult;
 use common::{
@@ -33,7 +34,7 @@ use std::fmt::Display;
 #[cfg(test)]
 use mockall::automock;
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default)]
 pub struct StateGenerationResult {
     pub state_comparator: StateComparator,
     pub new_desired_state: State,
@@ -362,6 +363,7 @@ mod tests {
         server_state::{
             AddedDeletedWorkloads, UpdateStateError, extract_added_and_deleted_workloads,
         },
+        state_comparator::MockStateComparator,
     };
 
     use super::ServerState;
@@ -746,9 +748,15 @@ mod tests {
     // [utest->swdd~update-desired-state-empty-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_replace_all_if_update_mask_empty() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec![];
+
+        let state_comparator_context = MockStateComparator::new_context();
+        state_comparator_context
+            .expect()
+            .returning(|_, _| MockStateComparator::default());
 
         let server_state = ServerState {
             state: old_state.clone(),
@@ -767,6 +775,7 @@ mod tests {
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_replace_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
@@ -788,6 +797,12 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
+
+        let state_comparator_context = MockStateComparator::new_context();
+        state_comparator_context
+            .expect()
+            .returning(|_, _| MockStateComparator::default());
+
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
             .unwrap();
@@ -801,6 +816,7 @@ mod tests {
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_add_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_4)];
@@ -822,6 +838,11 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
+        let state_comparator_context = MockStateComparator::new_context();
+        state_comparator_context
+            .expect()
+            .returning(|_, _| MockStateComparator::default());
+
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
             .unwrap();
@@ -835,6 +856,7 @@ mod tests {
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_update_configs() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let mut state_with_updated_config = old_state.clone();
         state_with_updated_config.desired_state.configs = generate_test_configs();
@@ -845,6 +867,11 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
+
+        let state_comparator_context = MockStateComparator::new_context();
+        state_comparator_context
+            .expect()
+            .returning(|_, _| MockStateComparator::default());
 
         let expected = state_with_updated_config.clone();
 
@@ -861,6 +888,7 @@ mod tests {
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_remove_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_2)];
@@ -876,6 +904,12 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
+
+        let state_comparator_context = MockStateComparator::new_context();
+        state_comparator_context
+            .expect()
+            .returning(|_, _| MockStateComparator::default());
+
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
             .unwrap();
@@ -889,6 +923,7 @@ mod tests {
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_update_state_remove_non_existing_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec!["desiredState.workloads.workload_5".into()];
@@ -899,6 +934,12 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
+
+        let state_comparator_context = MockStateComparator::new_context();
+        state_comparator_context
+            .expect()
+            .returning(|_, _| MockStateComparator::default());
+
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
             .unwrap();
@@ -922,10 +963,10 @@ mod tests {
             ..Default::default()
         };
         let result = server_state.generate_new_state(update_state, update_mask);
-
+        assert!(result.is_err());
         assert_eq!(
-            Err(UpdateStateError::FieldNotFound(field_mask.into())),
-            result
+            UpdateStateError::FieldNotFound(field_mask.into()),
+            result.unwrap_err()
         );
         assert_eq!(server_state.state, old_state);
     }
@@ -942,14 +983,24 @@ mod tests {
             ..Default::default()
         };
         let result = server_state.generate_new_state(update_state, update_mask);
-        assert_eq!(Err(UpdateStateError::FieldNotFound("".into())), result);
+        assert!(result.is_err());
+        assert_eq!(
+            UpdateStateError::FieldNotFound("".into()),
+            result.unwrap_err()
+        );
         assert_eq!(server_state.state, old_state);
     }
 
     // [utest->swdd~update-desired-state-empty-update-mask~1]
     #[test]
     fn utest_server_state_generate_new_state_no_changes_on_equal_states() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let server_state = ServerState::default(); // empty old state
+
+        let state_comparator_context = MockStateComparator::new_context();
+        state_comparator_context
+            .expect()
+            .returning(|_, _| MockStateComparator::default());
 
         let state_generation_result = server_state
             .generate_new_state(CompleteState::default(), vec![])
