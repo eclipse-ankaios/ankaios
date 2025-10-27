@@ -214,6 +214,17 @@ mod tests {
     const WORKLOAD_ID_1: &str = "id_1";
 
     #[test]
+    fn utest_state_comparator_new() {
+        let old_state = Mapping::default();
+        let new_state = Mapping::default();
+
+        let state_comparator = StateComparator::new(old_state.clone(), new_state.clone());
+
+        assert_eq!(state_comparator.old_state, old_state);
+        assert_eq!(state_comparator.new_state, new_state);
+    }
+
+    #[test]
     fn utest_calculate_state_differences_no_differences_on_empty_states() {
         let state_comparator = StateComparator {
             old_state: Mapping::default(),

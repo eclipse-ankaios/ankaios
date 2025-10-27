@@ -810,7 +810,7 @@ mod tests {
     use crate::ankaios_server::server_state::{
         AddedDeletedWorkloads, MockServerState, StateGenerationResult, UpdateStateError,
     };
-    use crate::ankaios_server::state_comparator::MockStateComparator;
+    use crate::ankaios_server::state_comparator::{FieldDifference, MockStateComparator};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
     use super::ank_base;
@@ -3107,37 +3107,103 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
-    // #[tokio::test]
-    // async fn utest_server_sends_events_on_update_state() {
-    //     let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
-    //     let (to_agents, _comm_middle_ware_receiver) =
-    //         create_from_server_channel(common::CHANNEL_CAPACITY);
+    // [utest->swdd~server-sends-event-for-newly-connected-agent~1]
+    #[tokio::test]
+    async fn utest_server_sends_events_for_newly_connected_agents() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
-    //     let mut server = AnkaiosServer::new(server_receiver, to_agents);
-    //     server
-    //         .event_handler
-    //         .expect_has_subscribers()
-    //         .once()
-    //         .return_const(true);
-    //     server
-    //         .event_handler
-    //         .expect_send_events()
-    //         .once()
-    //         .return_const(());
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
-    //     let added_deleted_workloads = AddedDeletedWorkloads {
-    //         added_workloads: vec![],
-    //         deleted_workloads: vec![],
-    //     };
+        server.server_state.expect_cleanup_state().return_const(());
 
-    //     let state_comparator = MockStateComparator::default();
+        server
+            .server_state
+            .expect_get_workloads_for_agent()
+            .with(mockall::predicate::eq(AGENT_A.to_string()))
+            .once()
+            .return_const(Vec::default());
 
-    //     server
-    //         .handle_post_update_steps(
-    //             REQUEST_ID.to_string(),
-    //             added_deleted_workloads,
-    //             &state_comparator,
-    //         )
-    //         .await;
-    // }
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .return_const(true);
+
+        server
+            .event_handler
+            .expect_send_events()
+            .with(
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::eq(vec![FieldDifference::added_agent(AGENT_A)]),
+                mockall::predicate::always(),
+            )
+            .once()
+            .return_const(());
+
+        let agent_hello_result = to_server.agent_hello(AGENT_A.to_string()).await;
+        assert!(agent_hello_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-sends-events-for-disconnected-agent~1]
+    #[tokio::test]
+    async fn utest_server_sends_events_for_disconnected_agents() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_agent_log_campaign_entry()
+            .once()
+            .return_const(RemovedLogRequests::default());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(true);
+
+        let test_wl_1_state_running = common::objects::generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_1,
+            AGENT_A,
+            ExecutionState::running(),
+        );
+        server
+            .event_handler
+            .expect_send_events()
+            .with(
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::eq(vec![
+                    FieldDifference::removed_agent(AGENT_A),
+                    FieldDifference::updated_workload_state(&test_wl_1_state_running.instance_name),
+                ]),
+                mockall::predicate::always(),
+            )
+            .once()
+            .return_const(());
+
+        server
+            .workload_states_map
+            .process_new_states(vec![test_wl_1_state_running]);
+
+        // first agent disconnects from the ankaios server
+        let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
+        assert!(agent_gone_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
 }
