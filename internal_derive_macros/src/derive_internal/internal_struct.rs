@@ -17,9 +17,10 @@ use quote::{format_ident, quote};
 use syn::{FieldsNamed, Ident, Type, Visibility, parse_quote};
 
 use crate::derive_internal::utils::{
-    DerivedInternal, get_internal_field_attrs, get_prost_enum_type, is_custom_type_path,
-    is_option_type_path, to_internal_type, has_mandatory_attr, get_prost_map_enum_value_type,
-    inner_vec_type_path, inner_hashmap_type_path, wrap_in_option, extract_inner
+    DerivedInternal, extract_inner, get_internal_field_attrs, get_prost_enum_type,
+    get_prost_map_enum_value_type, has_mandatory_attr, inner_hashmap_type_path,
+    inner_vec_type_path, is_custom_type_path, is_option_type_path, to_internal_type,
+    wrap_in_option,
 };
 
 pub fn derive_internal_struct(
@@ -220,4 +221,236 @@ pub fn derive_internal_struct(
         try_from_impl,
         from_impl,
     })
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+
+    use proc_macro2::TokenStream;
+    use quote::quote;
+    use syn::{Ident, Visibility, parse_quote};
+
+    use crate::derive_internal::internal_struct::derive_internal_struct;
+
+    #[test]
+    fn test_derive_internal_struct_with_mandatory_and_derive() {
+        use syn::{FieldsNamed, parse_quote};
+
+        let fields_named: FieldsNamed = parse_quote! {
+            {
+                #[internal_mandatory]
+                pub field1: Option<CustomType>,
+                pub field2: Vec<CustomType>,
+                pub field3: std::collections::HashMap<String, CustomType>,
+                pub field4: i32,
+            }
+        };
+
+        let orig_name: Ident = parse_quote! { MyStruct };
+        let vis: Visibility = parse_quote! { pub };
+        let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
+        let skip_try_from = false;
+
+        let derived =
+            derive_internal_struct(fields_named, orig_name, vis, type_attrs, skip_try_from)
+                .unwrap();
+
+        let expected_obj = quote! {
+            #[derive(Debug)]
+            pub struct MyStructInternal {
+                pub field1: CustomTypeInternal,
+                pub field2: Vec<CustomTypeInternal>,
+                pub field3: ::std::collections::HashMap<String, CustomTypeInternal>,
+                pub field4: i32,
+            }
+        };
+
+        assert_eq!(derived.obj.to_string(), expected_obj.to_string());
+        assert_eq!(
+        derived.try_from_impl.to_string(),
+        quote! {
+            impl std::convert::TryFrom<MyStruct> for MyStructInternal {
+                type Error = String;
+
+                fn try_from(orig: MyStruct) -> Result<Self, Self::Error> {
+                    Ok(MyStructInternal {
+                        field1: orig.field1.ok_or("Missing field 'field1'")?.try_into().map_err(|_| "Cannot convert field 'field1' to internal object.")?,
+                        field2: orig.field2.into_iter().map(|v| v.try_into()).collect::<Result<_, _>>()?,
+                        field3: orig.field3.into_iter()
+                            .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| "Cannot convert field 'field3' to internal object.")?)))
+                            .collect::<Result<_, String>>()?,
+                        field4: orig.field4,
+                    })
+                }
+            }
+        }
+        .to_string()
+    );
+        assert_eq!(
+        derived.from_impl.to_string(),
+        quote! {
+            impl From<MyStructInternal> for MyStruct {
+                fn from(orig: MyStructInternal) -> Self {
+                    MyStruct {
+                        field1: Some(orig.field1.into()),
+                        field2: orig.field2.into_iter().map(|v| v.into()).collect(),
+                        field3: orig.field3.into_iter().map(|(k, v)| (k.clone(), v.into())).collect(),
+                        field4: orig.field4,
+                    }
+                }
+            }
+        }
+        .to_string()
+    );
+    }
+
+    #[test]
+    fn test_derive_internal_struct_without_mandatory_and_skip_try_from() {
+        use syn::{FieldsNamed, parse_quote};
+        let fields_named: FieldsNamed = parse_quote! {
+            {
+                pub field1: Option<CustomType>,
+                pub field2: Vec<CustomType>,
+                pub field3: std::collections::HashMap<String, CustomType>,
+                pub field4: i32,
+            }
+        };
+        let orig_name: Ident = parse_quote! { MyStruct };
+        let vis: Visibility = parse_quote! { pub };
+        let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
+        let skip_try_from = true;
+
+        let derived =
+            derive_internal_struct(fields_named, orig_name, vis, type_attrs, skip_try_from)
+                .unwrap();
+
+        let expected_obj = quote! {
+            #[derive(Debug)]
+            pub struct MyStructInternal {
+                pub field1: Option<CustomTypeInternal>,
+                pub field2: Vec<CustomTypeInternal>,
+                pub field3: ::std::collections::HashMap<String, CustomTypeInternal>,
+                pub field4: i32,
+            }
+        };
+
+        assert_eq!(derived.obj.to_string(), expected_obj.to_string());
+        assert_eq!(
+            derived.try_from_impl.to_string(),
+            TokenStream::new().to_string()
+        );
+        assert_eq!(
+        derived.from_impl.to_string(),
+        quote! {
+            impl From<MyStructInternal> for MyStruct {
+                fn from(orig: MyStructInternal) -> Self {
+                    MyStruct {
+                        field1: orig.field1.map(|v| v.into()),
+                        field2: orig.field2.into_iter().map(|v| v.into()).collect(),
+                        field3: orig.field3.into_iter().map(|(k, v)| (k.clone(), v.into())).collect(),
+                        field4: orig.field4,
+                    }
+                }
+            }
+        }
+        .to_string()
+    );
+    }
+
+    #[test]
+    fn test_derive_internal_struct_internal_field_attributes() {
+        use syn::{FieldsNamed, parse_quote};
+        let fields_named: FieldsNamed = parse_quote! {
+            {
+                #[internal_field_attr(#[serde(rename = "custom_field1")])]
+                pub field1: i32,
+            }
+        };
+        let orig_name: Ident = parse_quote! { MyStruct };
+        let vis: Visibility = parse_quote! { pub };
+        let type_attrs: Vec<TokenStream> = vec![];
+        let skip_try_from = false;
+
+        let derived =
+            derive_internal_struct(fields_named, orig_name, vis, type_attrs, skip_try_from)
+                .unwrap();
+
+        let expected_obj = quote! {
+            pub struct MyStructInternal {
+                #[serde(rename = "custom_field1")]
+                pub field1: i32,
+            }
+        };
+
+        assert_eq!(derived.obj.to_string(), expected_obj.to_string());
+    }
+
+    #[test]
+    fn test_derive_internal_enum_prost_map_with_enum_type() {
+        use syn::{FieldsNamed, parse_quote};
+        let fields_named: FieldsNamed = parse_quote! {
+            {
+                #[prost(map = "string, enumeration(CustomEnum)", tag = "1")]
+                pub field1: std::collections::HashMap<String, CustomEnum>,
+            }
+        };
+        let orig_name: Ident = parse_quote! { MyStruct };
+        let vis: Visibility = parse_quote! { pub };
+        let type_attrs: Vec<TokenStream> = vec![];
+        let skip_try_from = false;
+
+        let derived =
+            derive_internal_struct(fields_named, orig_name, vis, type_attrs, skip_try_from)
+                .unwrap();
+
+        let expected_obj = quote! {
+            pub struct MyStructInternal {
+                pub field1: ::std::collections::HashMap<String, CustomEnum>,
+            }
+        };
+
+        let expected_try_from_impl = quote! {
+            impl std::convert::TryFrom<MyStruct> for MyStructInternal {
+                type Error = String;
+
+                fn try_from(orig: MyStruct) -> Result<Self, Self::Error> {
+                    Ok(MyStructInternal {
+                        field1: orig.field1.into_iter()
+                            .map(|(k , v)| Ok ((k.clone (), v.try_into().map_err(|_| "Cannot convert field 'field1' to internal object.")?)))
+                            .collect::<Result<_, String >>() ?,
+                        })
+                }
+
+
+            }
+        };
+
+        let expected_from_impl = quote! {
+            impl From<MyStructInternal> for MyStruct {
+                fn from(orig: MyStructInternal) -> Self {
+                    MyStruct {
+                        field1: orig.field1.into_iter().map(|(k, v)| (k.clone(), v.into())).collect(),
+                    }
+                }
+            }
+        };
+
+        assert_eq!(derived.obj.to_string(), expected_obj.to_string());
+        assert_eq!(
+            derived.try_from_impl.to_string(),
+            expected_try_from_impl.to_string()
+        );
+        assert_eq!(
+            derived.from_impl.to_string(),
+            expected_from_impl.to_string()
+        );
+    }
 }
