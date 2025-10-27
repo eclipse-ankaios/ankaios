@@ -204,8 +204,8 @@ impl AnkaiosServer {
                     // [impl->swdd~server-stores-newly-connected-agent~2]
                     self.agent_map.add_agent(agent_name.clone());
 
+                    // [impl->swdd~server-sends-event-for-newly-connected-agent~1]
                     if self.event_handler.has_subscribers() {
-                        // [impl->swdd~server-sends-event-for-newly-connected-agent~1]
                         self.event_handler
                             .send_events(
                                 &self.server_state,
@@ -263,8 +263,8 @@ impl AnkaiosServer {
                         .workload_states_map
                         .get_workload_state_for_agent(&agent_name);
 
+                    // [impl->swdd~server-sends-events-for-disconnected-agent~1]
                     if self.event_handler.has_subscribers() {
-                        // [impl->swdd~server-sends-events-for-disconnected-agent~1]
                         let altered_fields = vec![FieldDifference::removed_agent(&agent_name)];
                         let altered_fields = agent_workload_states.iter().fold(
                             altered_fields,
@@ -425,9 +425,9 @@ impl AnkaiosServer {
                                     .await
                                     .unwrap_or_illegal_state();
 
-                                // state changes must be calculated after every update since only config item can be changed as well
+                                // [impl->swdd~server-sends-state-differences-as-events~1]
                                 if self.event_handler.has_subscribers() {
-                                    // [impl->swdd~server-sends-state-differences-as-events~1]
+                                    // state changes must be calculated after every update since only config item can be changed as well
                                     let state_differences = state_generation_result
                                         .state_comparator
                                         .state_differences();

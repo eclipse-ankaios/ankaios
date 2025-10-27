@@ -1254,7 +1254,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios server receives a `CompleteStateRequest` message with enabled `subscribe_for_events` field, the Ankaios server shall request the EventHandler to store the requester as new event subscriber.
+When the Ankaios Server receives a `CompleteStateRequest` message with enabled `subscribe_for_events` field, the Ankaios Server shall request the EventHandler to store the requester as new event subscriber.
 
 Tags:
 - AnkaiosServer
@@ -1269,7 +1269,10 @@ Needs:
 
 Status: approved
 
-When the Ankaios server receives a `EventsCancelRequest` message, the Ankaios server shall request the EventHandler to remove subscriber from its internal subscription store.
+When the Ankaios Server receives an `EventsCancelRequest` message, the Ankaios Server shall:
+
+* request the EventHandler to remove the subscriber from its internal subscription store
+* forward the `EventsCancelRequest` message to the Ankaios Agent via the communication middleware.
 
 Tags:
 - AnkaiosServer
@@ -1288,7 +1291,7 @@ When the Ankaios Server updates its internal state
 and there is at least one subscriber for events,
 the Ankaios Server shall:
 * request the StateComparator of the Common library to determine the state differences between the current and the new state
-* request the EventHandler to send out events for the state differences to all subscribers
+* request the EventHandler to send events for state differences to event subscribers.
 
 Tags:
 - AnkaiosServer
@@ -1303,9 +1306,9 @@ Needs:
 
 Status: approved
 
-When the Ankaios server receives an `AgentHello` message
+When the Ankaios Server receives an `AgentHello` message
 and there is at least one subscriber for events,
-the Ankaios server requests the EventHandler to send out an event containing an added field with field mask `agents.<agent_name>`.
+the Ankaios Server shall request the EventHandler to send an event containing an added field with field mask `agents.<agent_name>`.
 
 Tags:
 - AnkaiosServer
@@ -1320,12 +1323,12 @@ Needs:
 
 Status: approved
 
-When the Ankaios server receives an `AgentGone` message
+When the Ankaios Server receives an `AgentGone` message
 and there is at least one subscriber for events,
-the Ankaios server requests the EventHandler to send out an:
+the Ankaios Server shall request the EventHandler to send an:
 
 * event with removed field with field mask `agents.<agent_name>`
-* event with updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state with execution state `AgentDisconnected` managed by this agent
+* event with updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state with execution state `AgentDisconnected` managed by the agent.
 
 Tags:
 - AnkaiosServer
@@ -1340,9 +1343,9 @@ Needs:
 
 Status: approved
 
-When the Ankaios server receives an `AgentLoadStatus` message,
+When the Ankaios Server receives an `AgentLoadStatus` message,
 and there is at least one subscriber for events,
-the Ankaios server shall request the EventHandler to send out an event for the newly received resource availability data containing an updated field with field mask `agents.<agent_name>.<resource_availability_field>`.
+the Ankaios Server shall request the EventHandler to send an event for the newly received resource availability data containing an updated field with field mask `agents.<agent_name>.<resource_availability_type>`.
 
 Comment:
 Since null values for resource availability entries are created for each newly connected agent, each overwrite of resource availability data is treated as an updated field for events.
@@ -1360,9 +1363,9 @@ Needs:
 
 Status: approved
 
-When the Ankaios server detects added workloads
+When the Ankaios Server detects added workloads
 and there is at least one subscriber for events,
-the Ankaios server shall request the EventHandler to send an event containing an added field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state.
+the Ankaios Server shall request the EventHandler to send an event containing an added field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state.
 
 Tags:
 - AnkaiosServer
@@ -1377,9 +1380,9 @@ Needs:
 
 Status: approved
 
-When the Ankaios server gets the `ToServer` message `UpdateWorkloadState`
+When the Ankaios Server gets the `ToServer` message `UpdateWorkloadState`
 and there is at least one subscriber for events,
-the Ankaios server shall request the EventHandler to send an event containing an updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state not having the execution state `Removed`.
+the Ankaios Server shall request the EventHandler to send an event containing an updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state not having the execution state `Removed`.
 
 Tags:
 - AnkaiosServer
@@ -1394,9 +1397,9 @@ Needs:
 
 Status: approved
 
-When the Ankaios server detects deleted workloads
+When the Ankaios Server detects deleted workloads
 and there is at least one subscriber for events,
-the Ankaios server shall request the EventHandler to send an event containing a removed field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state having the execution state `Removed`.
+the Ankaios Server shall request the EventHandler to send an event containing a removed field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state having the execution state `Removed`.
 
 Tags:
 - AnkaiosServer
@@ -1413,11 +1416,11 @@ Needs:
 
 Status: approved
 
-The EventHandler provides a method to add a new subscriber to its internal event store by adding a new entry with the subscriber's request ID as key and the subscriber's field masks as value.
+The EventHandler shall provide a method to add a new subscriber to its internal event store by adding a new entry with the subscriber's request ID as key and the subscriber's field masks as value.
 
 Comment:
 The event store is an associative data structure.
-One subscriber can subscriber to multiple field masks.
+One subscriber can subscribe to multiple field masks.
 
 Rationale:
 The EventHandler sends events to specific subscribers identified by their request ID.
@@ -1434,7 +1437,7 @@ Needs:
 
 Status: approved
 
-The EventHandler provides a method to remove a subscriber from its internal event store.
+The EventHandler shall provide a method to remove a subscriber from its internal event store.
 
 Comment:
 The event store is an associative data structure.
@@ -1457,7 +1460,7 @@ Comment:
 The event store is an associative data structure.
 
 Rationale:
-For efficiency, the Ankaios Server skips the state difference calculations if there are no subscribers available.
+For efficiency, the Ankaios Server skips the state difference calculation if there are no subscribers available.
 
 Tags:
 - EventHandler
@@ -1471,11 +1474,11 @@ Needs:
 
 Status: approved
 
-When the EventHandler is triggered to send out events, for each event subscriber the EventHandler shall:
+When the EventHandler is triggered to send events, for each event subscriber the EventHandler shall:
 
-* creates the altered fields for added, updated and deleted fields for each field difference of the state
-* generate filter masks for creating a complete state containing only the state differences
-* send a `CompleteStateResponse` containing the altered fields and the complete state difference if there is at least one entry in one of the altered fields.
+* create the altered fields for added, updated and deleted fields for each field difference of the state matching a subscriber's field mask
+* generate filter masks for creating a CompleteState containing only the state differences
+* send a `CompleteStateResponse` message containing the altered fields and the CompleteState difference if there is at least one entry in one of the altered fields.
 
 Tags:
 - EventHandler
@@ -1489,19 +1492,19 @@ Needs:
 
 Status: approved
 
-When the EventHandler creates altered fields and filter masks for the complete state differences, the EventHandler shall:
+When the EventHandler creates altered fields and filter masks for the CompleteState differences, the EventHandler shall:
 
 * compare each field mask of the event subscriber with the field mask of the altered field
 * add the field mask of the altered field to the event's altered fields and filter masks if the subscriber's field mask is shorter than the altered field mask or both have equal length
 * add the expanded subscriber field mask to the event's altered fields and filter masks if field mask of the altered field is shorter than the subscriber field mask
-* skip events for subscriber field masks not matching any altered field masks
+* skip events for subscriber field masks not matching any altered field masks.
 
 Comment:
 The comparison is done by splitting the field mask into parts by the separator `.`.
 
 Rationale:
-The more specific field mask are used as altered field and filter mask to get the complete state differences.
-For example, subscriber field mask `desiredState.workloads.*` and altered field mask `desiredState.workloads.workload_1.agent` leads to altered field `desiredState.workloads.workload_1.agent` and filter mask `desiredState.workloads.workload_1.agent` for the complete state differences.
+The most specific field masks are used as altered field and filter mask to get the CompleteState differences.
+For example, subscriber field mask `desiredState.workloads.*` and altered field mask `desiredState.workloads.workload_1.agent` leads to altered field `desiredState.workloads.workload_1.agent` and filter mask `desiredState.workloads.workload_1.agent` for the CompleteState differences.
 Subscriber field mask `desiredState.workloads.*.agent` and altered field mask `desiredState.workloads.workload_1` leads to altered field `desiredState.workloads.workload_1.agent` and filter mask `desiredState.workloads.workload_1.agent`.
 
 Tags:
@@ -1519,7 +1522,7 @@ Status: approved
 When the EventHandler expands the subscriber's field mask, the EventHandler shall replace all parts containing the wild card symbol (`*`) with the corresponding part of the altered field mask.
 
 Rationale:
-The expansion of wild cards is required in the case of the altered field mask is shorter than the subscriber's field mask to fill complete state differences only with the required data.
+The expansion of wild cards is required in the case of the altered field mask is shorter than the subscriber's field mask to fill CompleteState differences only with the most specific data.
 
 Tags:
 - EventHandler
