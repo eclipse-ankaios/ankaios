@@ -1689,18 +1689,18 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#tag" class="md-nav__link">
+  <a href="#tags" class="md-nav__link">
     <span class="md-ellipsis">
-      Tag
+      Tags
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#tags" class="md-nav__link">
+  <a href="#tagstagsentry" class="md-nav__link">
     <span class="md-ellipsis">
-      Tags
+      Tags.TagsEntry
     </span>
   </a>
   
@@ -2744,18 +2744,18 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#tag" class="md-nav__link">
+  <a href="#tags" class="md-nav__link">
     <span class="md-ellipsis">
-      Tag
+      Tags
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#tags" class="md-nav__link">
+  <a href="#tagstagsentry" class="md-nav__link">
     <span class="md-ellipsis">
-      Tags
+      Tags.TagsEntry
     </span>
   </a>
   
@@ -3035,8 +3035,8 @@
 <li><a href="#ank_base-Response">Response</a></li>
 <li><a href="#ank_base-State">State</a></li>
 <li><a href="#ank_base-StateRule">StateRule</a></li>
-<li><a href="#ank_base-Tag">Tag</a></li>
 <li><a href="#ank_base-Tags">Tags</a></li>
+<li><a href="#ank_base-Tags-TagsEntry">Tags.TagsEntry</a></li>
 <li><a href="#ank_base-UpdateStateRequest">UpdateStateRequest</a></li>
 <li><a href="#ank_base-UpdateStateSuccess">UpdateStateSuccess</a></li>
 <li><a href="#ank_base-Workload">Workload</a></li>
@@ -4230,9 +4230,29 @@ The response content depends on the request content previously sent to the Ankai
 </tr>
 </tbody>
 </table>
-<p><a name="ank_base-Tag"></a></p>
-<h3 id="tag">Tag<a class="headerlink" href="#tag" title="Permanent link">&para;</a></h3>
-<p>A message to store a tag.</p>
+<p><a name="ank_base-Tags"></a></p>
+<h3 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h3>
+<p>This is a workaround for proto not supporting optional maps</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tags</td>
+<td><a href="#ank_base-Tags-TagsEntry">Tags.TagsEntry</a></td>
+<td>repeated</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Tags-TagsEntry"></a></p>
+<h3 id="tagstagsentry">Tags.TagsEntry<a class="headerlink" href="#tagstagsentry" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -4247,33 +4267,12 @@ The response content depends on the request content previously sent to the Ankai
 <td>key</td>
 <td><a href="#string">string</a></td>
 <td></td>
-<td>The key of the tag.</td>
+<td></td>
 </tr>
 <tr>
 <td>value</td>
 <td><a href="#string">string</a></td>
 <td></td>
-<td>The value of the tag.</td>
-</tr>
-</tbody>
-</table>
-<p><a name="ank_base-Tags"></a></p>
-<h3 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h3>
-<p>This is a workaround for proto not supporting optional repeated values</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Label</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>tags</td>
-<td><a href="#ank_base-Tag">Tag</a></td>
-<td>repeated</td>
 <td></td>
 </tr>
 </tbody>
@@ -4370,7 +4369,7 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>tags</td>
 <td><a href="#ank_base-Tags">Tags</a></td>
 <td></td>
-<td>A list of tag names.</td>
+<td>A map of tag names.</td>
 </tr>
 <tr>
 <td>runtime</td>
