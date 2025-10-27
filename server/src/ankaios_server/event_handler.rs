@@ -19,9 +19,11 @@ use super::request_id::RequestId;
 use common::{
     from_server_interface::{FromServerInterface, FromServerSender},
     objects::{AgentMap, WorkloadStatesMap},
-    state_manipulation::{FieldDifference, Path},
+    state_manipulation::Path,
     std_extensions::IllegalStateResult,
 };
+
+use super::state_comparator::FieldDifference;
 use std::collections::HashMap;
 
 #[cfg(test)]
@@ -260,14 +262,17 @@ mod tests {
         objects::{
             AgentMap, CompleteState, State, WorkloadStatesMap, generate_test_stored_workload_spec,
         },
-        state_manipulation::FieldDifference,
     };
 
     use api::ank_base::response::ResponseContent;
     use mockall::predicate;
 
     use super::EventHandler;
-    use crate::ankaios_server::{create_from_server_channel, server_state::MockServerState};
+    use crate::ankaios_server::{
+        create_from_server_channel, server_state::MockServerState,
+        state_comparator::FieldDifference,
+    };
+
     const REQUEST_ID_1: &str = "agent_A@workload_1@1234";
     const REQUEST_ID_2: &str = "agent_B@workload_2@5678";
 

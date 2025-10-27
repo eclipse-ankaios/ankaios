@@ -21,11 +21,12 @@ use super::config_renderer::ConfigRenderer;
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
+use super::state_comparator::StateComparator;
 use common::objects::{AgentMap, State, WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
 use common::std_extensions::IllegalStateResult;
 use common::{
     objects::{CompleteState, DeletedWorkload, WorkloadSpec},
-    state_manipulation::{Object, Path, StateComparator},
+    state_manipulation::{Object, Path},
 };
 use std::fmt::Display;
 

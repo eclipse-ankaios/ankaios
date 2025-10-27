@@ -1282,6 +1282,26 @@ Needs:
 - impl
 - utest
 
+#### Server provides functionality to calculate state differences
+`swdd~server-calculates-state-differences~1`
+
+Status: approved
+
+The Ankaios Server shall provide a method for calculating the state differences between a current state and a new state represented as associative data structures with returning the absolute paths for added, updated and removed fields.
+
+Comment:
+A custom Depth-Search-First (DFS) implementation comparing the current and new state fields is used.
+A sequence is treated as a leaf and in mappings only `string`s are supported as keys.
+An update from an empty sequence to a non-empty sequence is treated as an added field and the other way around as a removed field.
+Any other changes to a sequence field is treated as an updated field.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+
 #### Server sends state differences as events
 `swdd~server-sends-state-differences-as-events~1`
 

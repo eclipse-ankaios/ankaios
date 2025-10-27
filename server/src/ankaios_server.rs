@@ -19,6 +19,7 @@ mod event_handler;
 mod log_campaign_store;
 mod request_id;
 mod server_state;
+mod state_comparator;
 
 use api::ank_base;
 use common::commands::{Request, UpdateWorkload};
@@ -27,9 +28,10 @@ use common::objects::{
     AgentMap, CompleteState, DeletedWorkload, ExecutionState, State, WorkloadInstanceName,
     WorkloadState, WorkloadStatesMap,
 };
-use common::state_manipulation::{FieldDifference, Path, StateComparator};
+use common::state_manipulation::Path;
 
 use server_state::AddedDeletedWorkloads;
+use state_comparator::{FieldDifference, StateComparator};
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -808,6 +810,7 @@ mod tests {
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
     use super::ank_base;
+    use super::state_comparator::StateComparator;
     use api::ank_base::{LogsStopResponse, WorkloadMap};
     use common::commands::{
         AgentLoadStatus, CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload,
@@ -820,7 +823,6 @@ mod tests {
         generate_test_agent_map, generate_test_stored_workload_spec,
         generate_test_workload_spec_with_param, generate_test_workload_states_map_with_data,
     };
-    use common::state_manipulation::StateComparator;
     use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
     use mockall::predicate;

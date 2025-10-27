@@ -14,9 +14,7 @@
 
 mod object;
 mod path;
-mod state_comparator;
 
 pub use object::Object;
 pub use object::get_paths_from_yaml_node;
 pub use path::Path;
-pub use state_comparator::{FieldDifference, StateComparator};

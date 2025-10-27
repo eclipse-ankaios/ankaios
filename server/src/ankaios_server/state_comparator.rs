@@ -12,11 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{objects::WorkloadInstanceName, std_extensions::UnreachableOption};
+use common::{objects::WorkloadInstanceName, std_extensions::UnreachableOption};
 use serde_yaml::{Mapping, Value};
 use std::collections::HashSet;
 
-// [impl->swdd~common-state-manipulation-calculate-state-differences~1]
+#[cfg(test)]
+use mockall::automock;
+
+// [impl->swdd~server-calculates-state-differences~1]
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StateComparator {
@@ -24,6 +27,7 @@ pub struct StateComparator {
     new_state: Mapping,
 }
 
+#[cfg_attr(test, automock)]
 impl StateComparator {
     pub fn new(old_state: Mapping, new_state: Mapping) -> Self {
         Self {
@@ -197,15 +201,13 @@ pub enum StackTask<'a> {
     PopField,
 }
 
-// [utest->swdd~common-state-manipulation-calculate-state-differences~1]
+// [utest->swdd~server-calculates-state-differences~1]
 #[cfg(test)]
 mod tests {
 
-    use crate::{
-        objects::WorkloadInstanceName, state_manipulation::state_comparator::StateComparator,
-    };
+    use common::objects::WorkloadInstanceName;
 
-    use super::{FieldDifference, Mapping};
+    use super::{FieldDifference, Mapping, StateComparator};
 
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";
