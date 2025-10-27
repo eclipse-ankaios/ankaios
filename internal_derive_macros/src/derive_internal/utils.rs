@@ -64,21 +64,26 @@ pub fn get_internal_type_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStr
     internal_type_attrs
 }
 
-pub fn pascal_to_snake_case(s: &str) -> String {
+pub fn pascal_to_snake_case(input: &str) -> String {
     let mut result = String::new();
-    let mut chars = s.chars().peekable();
 
-    while let Some(c) = chars.next() {
+    let chars: Vec<char> = input.chars().collect();
+    for (i, &c) in chars.iter().enumerate() {
         if c.is_uppercase() {
-            let next_is_lower = chars.peek().is_some_and(|&next| next.is_lowercase());
-
-            if !result.is_empty() && (next_is_lower || !result.ends_with('_')) {
+            // Insert underscore if:
+            // - not first char
+            // - previous char was not uppercase (start of new word)
+            // - next char is lowercase (end of acronym)
+            let next_is_lower = chars.get(i + 1).map(|n| n.is_lowercase()).unwrap_or(false);
+            let prev_is_lower = i > 0 && chars[i - 1].is_lowercase();
+            if i > 0 && (prev_is_lower || next_is_lower) {
                 result.push('_');
             }
-            result.extend(c.to_lowercase());
-        } else {
-            result.push(c);
+        } else if c == '_' {
+            // skip extra underscores
+            continue;
         }
+        result.extend(c.to_lowercase());
     }
 
     result
@@ -343,11 +348,323 @@ pub fn wrap_in_option(inner: Type) -> Type {
 
 #[cfg(test)]
 mod tests {
+    use proc_macro2::TokenStream;
+    use quote::{quote, ToTokens};
     use syn::{
-        Attribute, Type,
+        Attribute, Type, TypePath,
         parse::{Parse, Parser},
         parse_quote,
     };
+
+    #[test]
+    fn test_to_tokens_derived_internal() {
+        let derived_internal = super::DerivedInternal {
+            obj: quote! { struct MyStruct; },
+            try_from_impl: quote! { impl TryFrom<()> for MyStruct { type Error = (); fn try_from(_: ()) -> Result<Self, Self::Error> { Ok(MyStruct) } } },
+            from_impl: quote! { impl From<MyStruct> for () { fn from(_: MyStruct) -> Self { () } } },
+        };
+
+        let mut tokens = TokenStream::new();
+        derived_internal.to_tokens(&mut tokens);
+
+        let expected = quote! {
+            struct MyStruct;
+            impl TryFrom<()> for MyStruct { type Error = (); fn try_from(_: ()) -> Result<Self, Self::Error> { Ok(MyStruct) } }
+            impl From<MyStruct> for () { fn from(_: MyStruct) -> Self { () } }
+        };
+
+        assert_eq!(tokens.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_has_skip_try_from() {
+        let attrs_with_skip: Vec<Attribute> = vec![parse_quote!(#[internal_skip_try_from])];
+        let attrs_without_skip: Vec<Attribute> = vec![parse_quote!(#[serde(rename = "foo")])];
+
+        assert!(super::has_skip_try_from(&attrs_with_skip));
+        assert!(!super::has_skip_try_from(&attrs_without_skip));
+    }
+
+    #[test]
+    fn test_get_internal_type_attrs() {
+        let attrs: Vec<Attribute> = vec![
+            parse_quote!(#[internal_derive(Debug, Clone)]),
+            parse_quote!(#[internal_type_attr(serde(rename_all = "snake_case"))]),
+            parse_quote!(#[doc = "Some documentation"]),
+        ];
+
+        let internal_attrs = super::get_internal_type_attrs(&attrs);
+        assert_eq!(internal_attrs.len(), 2);
+        assert_eq!(
+            internal_attrs[0].to_string(),
+            quote::quote!( #[derive( Debug , Clone )] ).to_string()
+        );
+        assert_eq!(
+            internal_attrs[1].to_string(),
+            quote::quote!(serde(rename_all = "snake_case")).to_string()
+        );
+    }
+
+    #[test]
+    fn test_pascal_to_snake_case() {
+        // TODO fix
+        assert_eq!(super::pascal_to_snake_case("MyType"), "my_type");
+        assert_eq!(super::pascal_to_snake_case("XMLParser"), "xml_parser");
+        assert_eq!(super::pascal_to_snake_case("SimpleTest"), "simple_test");
+        assert_eq!(super::pascal_to_snake_case("A"), "a");
+        assert_eq!(super::pascal_to_snake_case("ThisIsATest"), "this_is_a_test");
+        assert_eq!(
+            super::pascal_to_snake_case("Already_Snake_Case"),
+            "already_snake_case"
+        );
+        assert_eq!(
+            super::pascal_to_snake_case("MixedCASEExample"),
+            "mixed_case_example"
+        );
+        assert_eq!(
+            super::pascal_to_snake_case("JSONToXMLConverter"),
+            "json_to_xml_converter"
+        );
+        assert_eq!(super::pascal_to_snake_case("EdgeCASEX"), "edge_casex");
+        assert_eq!(super::pascal_to_snake_case(""), "");
+    }
+
+    #[test]
+    fn test_get_prost_map_enum_value_type() {
+        let attrs: Vec<Attribute> = vec![
+            parse_quote!(#[prost(map = "string, enumeration(ReadWriteEnum)")]),
+            parse_quote!(#[serde(rename = "foo")]),
+        ];
+
+        let enum_type = super::get_prost_map_enum_value_type(&attrs).unwrap();
+        let expected: TypePath = parse_quote! { ReadWriteEnum };
+        assert_eq!(
+            quote::quote!(#enum_type).to_string(),
+            quote::quote!(#expected).to_string()
+        );
+    }
+
+    #[test]
+    fn test_get_prost_enum_type() {
+        let attrs: Vec<Attribute> = vec![
+            parse_quote!(#[prost(enumeration = "ReadWriteEnum")]),
+            parse_quote!(#[serde(rename = "foo")]),
+        ];
+
+        let enum_type = super::get_prost_enum_type(&attrs).unwrap();
+        let expected: TypePath = parse_quote! { ReadWriteEnum };
+        assert_eq!(
+            quote::quote!(#enum_type).to_string(),
+            quote::quote!(#expected).to_string()
+        );
+    }
+
+    #[test]
+    fn test_get_internal_field_attrs() {
+        let attrs: Vec<Attribute> = vec![
+            parse_quote!(#[internal_field_attr(serde(rename = "foo"))]),
+            parse_quote!(#[doc = "Some documentation"]),
+            parse_quote!(#[internal_field_attr(another_attr)]),
+        ];
+
+        let internal_attrs = super::get_internal_field_attrs(&attrs);
+        assert_eq!(internal_attrs.len(), 2);
+        assert_eq!(
+            internal_attrs[0].to_string(),
+            quote::quote!(serde(rename = "foo")).to_string()
+        );
+        assert_eq!(
+            internal_attrs[1].to_string(),
+            quote::quote!(another_attr).to_string()
+        );
+    }
+
+    #[test]
+    fn test_has_enum_named_attr() {
+        let attrs_with_enum_named: Vec<Attribute> = vec![parse_quote!(#[internal_enum_named])];
+        let attrs_without_enum_named: Vec<Attribute> = vec![parse_quote!(#[serde(rename = "foo")])];
+
+        assert!(super::has_enum_named_attr(&attrs_with_enum_named));
+        assert!(!super::has_enum_named_attr(&attrs_without_enum_named));
+    }
+
+    #[test]
+    fn test_check_for_forbidden_mandatory_attr() {
+        let attrs_with_mandatory: Vec<Attribute> = vec![parse_quote!(#[internal_mandatory])];
+        let attrs_without_mandatory: Vec<Attribute> = vec![parse_quote!(#[serde(rename = "foo")])];
+
+        let target: TypePath = parse_quote! { MyCustomType };
+
+        // Test with mandatory attribute
+        let result = super::check_for_forbidden_mandatory_attr(&target, &attrs_with_mandatory);
+        assert!(result.is_err());
+
+        // Test without mandatory attribute
+        let result = super::check_for_forbidden_mandatory_attr(&target, &attrs_without_mandatory);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_is_option_type_path() {
+        let tp_option: TypePath = parse_quote! { Option<u32> };
+        assert!(super::is_option_type_path(&tp_option));
+
+        let tp_non_option: TypePath = parse_quote! { u32 };
+        assert!(!super::is_option_type_path(&tp_non_option));
+    }
+
+    #[test]
+    fn test_is_custom_type_path() {
+        let tp_custom: TypePath = parse_quote! { MyCustomType };
+        assert!(super::is_custom_type_path(&tp_custom));
+
+        let tp_option_custom: TypePath = parse_quote! { Option<MyCustomType> };
+        assert!(super::is_custom_type_path(&tp_option_custom));
+
+        let tp_primitive: TypePath = parse_quote! { u32 };
+        assert!(!super::is_custom_type_path(&tp_primitive));
+
+        let tp_option_primitive: TypePath = parse_quote! { Option<u32> };
+        assert!(!super::is_custom_type_path(&tp_option_primitive));
+
+        let tp_string: TypePath = parse_quote! { String };
+        assert!(!super::is_custom_type_path(&tp_string));
+
+        let tp_option_string: TypePath = parse_quote! { Option<String> };
+        assert!(!super::is_custom_type_path(&tp_option_string));
+
+        let tp_vec: TypePath = parse_quote! { Vec<u32> };
+        assert!(!super::is_custom_type_path(&tp_vec));
+
+        let tp_option_vec: TypePath = parse_quote! { Option<Vec<u32>> };
+        assert!(!super::is_custom_type_path(&tp_option_vec));
+
+        let tp_hashmap: TypePath = parse_quote! { HashMap<String, u32> };
+        assert!(!super::is_custom_type_path(&tp_hashmap));
+
+        let tp_option_hashmap: TypePath = parse_quote! { Option<HashMap<String, u32>> };
+        assert!(!super::is_custom_type_path(&tp_option_hashmap));
+
+        let tp_box: TypePath = parse_quote! { Box<u32> };
+        assert!(!super::is_custom_type_path(&tp_box));
+
+        let tp_option_box: TypePath = parse_quote! { Option<Box<u32>> };
+        assert!(!super::is_custom_type_path(&tp_option_box));
+    }
+
+    #[test]
+    fn test_is_box_type_path() {
+        let tp: TypePath = parse_quote! { Box<u32> };
+        assert!(super::is_box_type_path(&tp));
+
+        let tp_non: TypePath = parse_quote! { Vec<u32> };
+        assert!(!super::is_box_type_path(&tp_non));
+    }
+
+    #[test]
+    fn test_is_vec_type_path() {
+        let tp: TypePath = parse_quote! { Vec<u32> };
+        assert!(super::is_vec_type_path(&tp));
+
+        let tp_non: TypePath = parse_quote! { HashMap<String, u32> };
+        assert!(!super::is_vec_type_path(&tp_non));
+    }
+
+    #[test]
+    fn test_is_hashmap_type_path() {
+        let tp: TypePath = parse_quote! { HashMap<String, u32> };
+        assert!(super::is_hashmap_type_path(&tp));
+
+        let tp_non: TypePath = parse_quote! { Vec<u32> };
+        assert!(!super::is_hashmap_type_path(&tp_non));
+    }
+
+    #[test]
+    fn test_inner_boxed_type_path_build_in_types() {
+        let tp: TypePath = parse_quote! { Box<u32> };
+        let inner = super::inner_boxed_type_path(&tp).unwrap();
+        let expected: Type = parse_quote! { u32 };
+        assert_eq!(
+            quote::quote!(#inner).to_string(),
+            quote::quote!(#expected).to_string()
+        );
+    }
+
+    #[test]
+    fn test_inner_boxed_type_path_custom_types() {
+        let tp: TypePath = parse_quote! { Box<CustomType> };
+        let inner = super::inner_boxed_type_path(&tp).unwrap();
+        let expected: Type = parse_quote! { CustomType };
+        assert_eq!(
+            quote::quote!(#inner).to_string(),
+            quote::quote!(#expected).to_string()
+        );
+    }
+
+    #[test]
+    fn test_inner_vec_type_path_build_in_types() {
+        let tp: TypePath = parse_quote! { Vec<u32> };
+        let inner = super::inner_vec_type_path(&tp).unwrap();
+        let expected: Type = parse_quote! { u32 };
+        assert_eq!(
+            quote::quote!(#inner).to_string(),
+            quote::quote!(#expected).to_string()
+        );
+    }
+
+    #[test]
+    fn test_inner_vec_type_path_custom_types() {
+        let tp: TypePath = parse_quote! { Vec<CustomType> };
+        let inner = super::inner_vec_type_path(&tp).unwrap();
+        let expected: Type = parse_quote! { CustomType };
+        assert_eq!(
+            quote::quote!(#inner).to_string(),
+            quote::quote!(#expected).to_string()
+        );
+    }
+
+    #[test]
+    fn test_inner_hashmap_type_path_build_in_types() {
+        let tp: TypePath = parse_quote! { HashMap<String, u32> };
+        let (key, value) = super::inner_hashmap_type_path(&tp).unwrap();
+        let expected_key: Type = parse_quote! { String };
+        let expected_value: Type = parse_quote! { u32 };
+        assert_eq!(
+            quote::quote!(#key).to_string(),
+            quote::quote!(#expected_key).to_string()
+        );
+        assert_eq!(
+            quote::quote!(#value).to_string(),
+            quote::quote!(#expected_value).to_string()
+        );
+    }
+
+    #[test]
+    fn test_inner_hashmap_type_path_custom_types() {
+        let tp: TypePath = parse_quote! { HashMap<CustomKey, CustomValue> };
+        let (key, value) = super::inner_hashmap_type_path(&tp).unwrap();
+        let expected_key: Type = parse_quote! { CustomKey };
+        let expected_value: Type = parse_quote! { CustomValue };
+        assert_eq!(
+            quote::quote!(#key).to_string(),
+            quote::quote!(#expected_key).to_string()
+        );
+        assert_eq!(
+            quote::quote!(#value).to_string(),
+            quote::quote!(#expected_value).to_string()
+        );
+    }
+
+    #[test]
+    fn test_to_internal_type() {
+        let original: TypePath = parse_quote! { MyType };
+        let internal_type = super::to_internal_type(&original);
+        let expected: Type = parse_quote! { MyTypeInternal };
+        assert_eq!(
+            quote::quote!(#internal_type).to_string(),
+            quote::quote!(#expected).to_string()
+        );
+    }
 
     #[test]
     fn test_wrap_in_option_with_simple_type() {
@@ -463,6 +780,15 @@ mod tests {
             quote::quote!(#inner).to_string(),
             quote::quote!(#expected).to_string()
         );
+    }
+
+    #[test]
+    fn test_extact_inner_with_two_generics_shall_fail() {
+        let tp: syn::TypePath = parse_quote! { HashMap<u32, String> };
+        let result = std::panic::catch_unwind(|| {
+            super::extract_inner(&tp);
+        });
+        assert!(result.is_err());
     }
 
     #[test]
