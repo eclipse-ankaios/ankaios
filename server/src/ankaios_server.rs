@@ -37,6 +37,9 @@ use common::to_server_interface::{ToServerReceiver, ToServerSender};
 #[cfg_attr(test, mockall_double::double)]
 use server_state::ServerState;
 
+#[cfg_attr(test, mockall_double::double)]
+use event_handler::EventHandler;
+
 use common::{
     from_server_interface::{FromServer, FromServerInterface},
     to_server_interface::ToServer,
@@ -60,8 +63,6 @@ use log_campaign_store::LogCampaignStore;
 use log_campaign_store::LogCollectorRequestId;
 
 use std::collections::HashSet;
-
-use event_handler::EventHandler;
 
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
@@ -977,6 +978,8 @@ mod tests {
                 "workload_A".to_string(),
             )));
 
+        server.event_handler.expect_has_subscribers().never();
+
         let added_workloads = vec![updated_workload.clone()];
         let deleted_workloads = vec![];
 
@@ -999,6 +1002,13 @@ mod tests {
             })));
 
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(false);
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
@@ -1106,6 +1116,12 @@ mod tests {
 
         server.server_state = mock_server_state;
 
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(false);
+
         let server_handle = server.start(Some(startup_state));
 
         // The receiver in the server receives the messages and terminates the infinite waiting-loop
@@ -1181,6 +1197,11 @@ mod tests {
             .return_const(vec![w2.clone()]);
 
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .return_const(false);
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
@@ -1335,6 +1356,13 @@ mod tests {
                 deleted_workloads: deleted_workloads.clone(),
             })));
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(false);
+
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
@@ -1416,6 +1444,13 @@ mod tests {
             .once()
             .return_const(Ok(None));
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(false);
+
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
@@ -1849,6 +1884,12 @@ mod tests {
 
         server.server_state = mock_server_state;
 
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(false);
+
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
         let test_wl_1_state_running = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
@@ -1926,6 +1967,12 @@ mod tests {
 
         server.server_state = mock_server_state;
 
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(false);
+
         let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
         assert!(agent_gone_result.is_ok());
 
@@ -1982,6 +2029,12 @@ mod tests {
         mock_server_state.expect_cleanup_state().never();
 
         server.server_state = mock_server_state;
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(false);
 
         let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
         assert!(agent_gone_result.is_ok());
@@ -2110,6 +2163,11 @@ mod tests {
             .log_campaign_store
             .expect_remove_collector_campaign_entry()
             .return_const(HashSet::new());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .return_const(false);
 
         let agent_hello1_result = to_server.agent_hello(AGENT_A.to_owned()).await;
         assert!(agent_hello1_result.is_ok());
@@ -2446,6 +2504,12 @@ mod tests {
             .expect_remove_collector_campaign_entry()
             .return_const(HashSet::new());
 
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(false);
+
         let update_state_result = to_server
             .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
             .await;
@@ -2528,6 +2592,12 @@ mod tests {
             })));
         server.server_state = mock_server_state;
 
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(false);
+
         let logs_request_id = format!(
             "{}@{}@{}",
             log_collecting_workload.instance_name.agent_name(),
@@ -2598,6 +2668,12 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         server.agent_map.add_agent(AGENT_A.to_owned());
 
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .once()
+            .return_const(false);
+
         let agent_resource_result = to_server.agent_load_status(payload).await;
         assert!(agent_resource_result.is_ok());
 
@@ -2624,6 +2700,12 @@ mod tests {
             .expect_get_workloads_for_agent()
             .times(2)
             .return_const(Vec::default());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(false);
 
         let agent_resource_result = to_server.agent_hello(AGENT_A.to_owned()).await;
         assert!(agent_resource_result.is_ok());
@@ -2655,6 +2737,12 @@ mod tests {
             .expect_remove_agent_log_campaign_entry()
             .times(2)
             .return_const(RemovedLogRequests::default());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .times(2)
+            .return_const(false);
 
         let mut agent_map = AgentMap::new();
         agent_map.add_agent(AGENT_A.to_owned());

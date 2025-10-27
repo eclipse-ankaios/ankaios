@@ -24,6 +24,9 @@ use common::{
 };
 use std::collections::HashMap;
 
+#[cfg(test)]
+use mockall::automock;
+
 const WILDCARD_SEPARATOR: &str = "*";
 
 #[derive(Debug, PartialEq, Eq)]
@@ -138,6 +141,7 @@ fn expand_wildcards_in_subscriber_mask(subscriber_mask: &Path, altered_field_mas
     Path::from(expanded_subscriber_mask)
 }
 
+#[cfg_attr(test, automock)]
 impl EventHandler {
     // [impl->swdd~event-handler-adds-new-subscribers-to-event-store~1]
     pub fn add_subscriber(&mut self, request_id: String, field_masks: SubscribedFieldMasks) {
