@@ -3325,7 +3325,6 @@ mod tests {
     }
 
     // [utest->swdd~server-sends-state-differences-as-events~1]
-    // [utest->swdd~server-sends-event-for-initial-workload-states~1]
     #[tokio::test]
     async fn utest_server_sends_events_upon_updated_startup_state_with_configs() {
         let _ = env_logger::builder().is_test(true).try_init();
