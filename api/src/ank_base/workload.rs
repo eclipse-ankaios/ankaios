@@ -411,7 +411,7 @@ pub fn generate_test_workload_with_dependencies(
 mod tests {
     use crate::ank_base::{
         AddCondition, DeleteCondition, ExecutionStateInternal, FulfilledBy, RestartPolicy,
-        WorkloadInternal, get_workloads_per_agent, verify_workload_name_format,
+        WorkloadInternal, verify_workload_name_format,
     };
     use crate::test_utils::{
         generate_test_control_interface_access, generate_test_deleted_workload,
@@ -421,74 +421,6 @@ mod tests {
     use std::collections::HashMap;
 
     const RUNTIME: &str = "runtime";
-
-    #[test]
-    fn utest_get_workloads_per_agent_one_agent_one_workload() {
-        let added_workloads = vec![
-            generate_test_workload_with_param(
-                "agent1".to_string(),
-                "name 1".to_string(),
-                "runtime1".to_string(),
-            ),
-            generate_test_workload_with_param(
-                "agent1".to_string(),
-                "name 2".to_string(),
-                "runtime2".to_string(),
-            ),
-            generate_test_workload_with_param(
-                "agent2".to_string(),
-                "name 3".to_string(),
-                "runtime3".to_string(),
-            ),
-        ];
-
-        let deleted_workloads = vec![
-            generate_test_deleted_workload("agent1".to_string(), "workload 8".to_string()),
-            generate_test_deleted_workload("agent4".to_string(), "workload 9".to_string()),
-        ];
-
-        let workload_map = get_workloads_per_agent(added_workloads, deleted_workloads);
-        assert_eq!(workload_map.len(), 3);
-
-        let (agent1_added_workloads, agent1_deleted_workloads) =
-            workload_map.get("agent1").unwrap();
-        assert_eq!(agent1_added_workloads.len(), 2);
-        assert_eq!(agent1_deleted_workloads.len(), 1);
-
-        let workload1 = &agent1_added_workloads[0];
-        let workload2 = &agent1_added_workloads[1];
-        assert_eq!(workload1.instance_name.agent_name(), "agent1");
-        assert_eq!(workload1.runtime, "runtime1");
-        assert_eq!(workload2.instance_name.agent_name(), "agent1");
-        assert_eq!(workload2.runtime, "runtime2");
-
-        let deleted_workload1 = &agent1_deleted_workloads[0];
-        assert_eq!(deleted_workload1.instance_name.agent_name(), "agent1");
-        assert_eq!(
-            deleted_workload1.instance_name.workload_name(),
-            "workload 8"
-        );
-
-        let (agent2_added_workloads, agent2_deleted_workloads) =
-            workload_map.get("agent2").unwrap();
-        assert_eq!(agent2_added_workloads.len(), 1);
-        assert_eq!(agent2_deleted_workloads.len(), 0);
-
-        let workload3 = &agent2_added_workloads[0];
-        assert_eq!(workload3.instance_name.agent_name(), "agent2");
-        assert_eq!(workload3.runtime, "runtime3");
-
-        assert!(!workload_map.contains_key("agent3"));
-
-        let (agent4_added_workloads, agent4_deleted_workloads) =
-            workload_map.get("agent4").unwrap();
-        assert_eq!(agent4_added_workloads.len(), 0);
-        assert_eq!(agent4_deleted_workloads.len(), 1);
-
-        let workload3 = &agent4_deleted_workloads[0];
-        assert_eq!(workload3.instance_name.agent_name(), "agent4");
-        assert_eq!(workload3.instance_name.workload_name(), "workload 9");
-    }
 
     // one test for a failing case, other cases are tested on the caller side to not repeat test code
     // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]

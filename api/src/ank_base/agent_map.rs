@@ -13,8 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    AgentAttributesInternal, AgentMapInternal, CpuUsageInternal, DeletedWorkload,
-    FreeMemoryInternal, WorkloadInternal,
+    AgentAttributesInternal, AgentMapInternal, CpuUsageInternal, FreeMemoryInternal,
 };
 use std::collections::{HashMap, hash_map::Entry};
 
@@ -61,43 +60,6 @@ impl AgentMapInternal {
                 e.free_memory = Some(agent_load_status.free_memory);
             });
     }
-}
-
-pub type AgentWorkloadMap = HashMap<String, (Vec<WorkloadInternal>, Vec<DeletedWorkload>)>;
-
-pub fn get_workloads_per_agent(
-    added_workloads: Vec<WorkloadInternal>,
-    deleted_workloads: Vec<DeletedWorkload>,
-) -> AgentWorkloadMap {
-    let mut agent_workloads: AgentWorkloadMap = HashMap::new();
-
-    for added_workload in added_workloads {
-        if let Some((added_workload_vector, _)) =
-            agent_workloads.get_mut(added_workload.instance_name.agent_name())
-        {
-            added_workload_vector.push(added_workload);
-        } else if !added_workload.instance_name.agent_name().is_empty() {
-            agent_workloads.insert(
-                added_workload.instance_name.agent_name().to_owned(),
-                (vec![added_workload], vec![]),
-            );
-        }
-    }
-
-    for deleted_workload in deleted_workloads {
-        if let Some((_, deleted_workload_vector)) =
-            agent_workloads.get_mut(deleted_workload.instance_name.agent_name())
-        {
-            deleted_workload_vector.push(deleted_workload);
-        } else {
-            agent_workloads.insert(
-                deleted_workload.instance_name.agent_name().to_owned(),
-                (vec![], vec![deleted_workload]),
-            );
-        }
-    }
-
-    agent_workloads
 }
 
 //////////////////////////////////////////////////////////////////////////////
