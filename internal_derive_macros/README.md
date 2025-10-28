@@ -20,8 +20,7 @@ Todo
 [Cargo expand](https://github.com/dtolnay/cargo-expand) is a nice way to see the output of the macros without having to add `println`s in the code.
 The only problem is the sheer amount of produced output as also the derives for `Clone`, `Debug`, serde, etc. are in the output.
 
-[!NOTE]
-Note that you need to be in the `api` crate where the macros are used to be able to run `cargo expand`.
+**Note** that you need to be in the `api` crate where the macros are used to be able to run `cargo expand`.
 
 To get a focused results, one has to get a bit creative, e.g., to get the derived struct for the internal workload `WorkloadInternal` use the following command:
 
