@@ -2348,10 +2348,7 @@ mod tests {
                             ]),
                         }),
                         tags: Some(ank_base::Tags {
-                            tags: vec![ank_base::Tag {
-                                key: "key".to_string(),
-                                value: "value".to_string(),
-                            }],
+                            tags: HashMap::from([("key".to_string(), "value".to_string())]),
                         }),
                         runtime: Some("runtime1".to_string()),
                         runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()),
@@ -2362,8 +2359,8 @@ mod tests {
                                 ("ref2".to_string(),"config_2".to_string(),)
                                 ])
                         }),
-                            files: Some(Files::default()),
-                        })];
+                        files: Some(Files::default()),
+                    })];
         let mut complete_state = generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
             agent_state_map: HashMap::from([(

@@ -131,14 +131,7 @@ impl TryFrom<AddedWorkload> for WorkloadInternal {
             runtime: workload.runtime,
             instance_name: instance_name.try_into().unwrap(),
             tags: TagsInternal {
-                tags: workload
-                    .tags
-                    .into_iter()
-                    .map(|t| api::ank_base::TagInternal {
-                        key: t.key,
-                        value: t.value,
-                    })
-                    .collect(),
+                tags: workload.tags.into_iter().collect(),
             },
             runtime_config: workload.runtime_config,
             control_interface_access: workload
@@ -171,7 +164,7 @@ impl From<WorkloadInternal> for AddedWorkload {
             restart_policy: workload.restart_policy as i32,
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
-            tags: workload.tags.tags.into_iter().map(|x| x.into()).collect(),
+            tags: workload.tags.tags,
             files: workload.files.files.into_iter().map(Into::into).collect(),
             control_interface_access: Some(workload.control_interface_access.into()),
         }
@@ -294,10 +287,7 @@ mod tests {
             restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: workload_spec.runtime_config.clone(),
-            tags: vec![ank_base::Tag {
-                key: "key".into(),
-                value: "value".into(),
-            }],
+            tags: HashMap::from([("key".into(), "value".into())]),
             control_interface_access: Some(Default::default()),
             files: vec![
                 ank_base::File {
@@ -364,7 +354,7 @@ mod tests {
             restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
-            tags: vec![],
+            tags: HashMap::new(),
             control_interface_access: Default::default(),
             files: vec![
                 ank_base::File {
@@ -404,7 +394,7 @@ mod tests {
             restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
-            tags: vec![],
+            tags: HashMap::new(),
             control_interface_access: Default::default(),
             files: Default::default(),
         };

@@ -5,8 +5,8 @@
 // https://www.apache.org/licenses/LICENSE-2.0.
 //
 // Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations
 // under the License.
 //
@@ -18,7 +18,8 @@ use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
 use api::ank_base::ALLOWED_SYMBOLS;
-use common::objects::{CURRENT_API_VERSION, CompleteState};
+use common::helpers::validate_tags;
+use common::objects::{CURRENT_API_VERSION, CompleteState, PREVIOUS_API_VERSION};
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
 
@@ -30,8 +31,38 @@ use super::get_input_sources;
 
 const WORKLOAD_LEVEL: usize = 1;
 
+fn detect_api_version(obj: &Object, obj_paths: &[Path]) -> Result<Option<&'static str>, String> {
+    for path in obj_paths {
+        let parts = path.parts();
+        if parts.contains(&"apiVersion".to_string()) {
+            let manifest_api_version = obj
+                .get(path)
+                .and_then(|value| value.as_str())
+                .unwrap_or("Invalid manifest API version or format provided.");
+            match manifest_api_version {
+                CURRENT_API_VERSION => {
+                    return Ok(Some(CURRENT_API_VERSION));
+                }
+                PREVIOUS_API_VERSION => {
+                    output!(
+                        "Warning: The manifest API version '{PREVIOUS_API_VERSION}' is deprecated and support will be removed in future releases. Please update to the latest API version '{CURRENT_API_VERSION}'."
+                    );
+                    return Ok(Some(PREVIOUS_API_VERSION));
+                }
+                _ => {
+                    return Err(format!(
+                        "Invalid manifest API version provided. Expected '{CURRENT_API_VERSION}', got: '{manifest_api_version}'."
+                    ));
+                }
+            }
+        }
+    }
+    Ok(None)
+}
+
 // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
 // [impl->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
+// [impl->swdd~cli-apply-manifest-accepts-v01-api-version~1]
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
     let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
         .map_err(|err| format!("Invalid manifest data provided: {err}"))?;
@@ -39,19 +70,20 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
 
     let mut workload_paths: HashSet<Path> = HashSet::new();
     let obj_paths = Vec::<Path>::from(&obj);
+    let detected_api_version = detect_api_version(&obj, &obj_paths)?;
+
     for path in obj_paths {
         let parts = path.parts();
         if parts.len() > 1 {
             let _ = &mut workload_paths.insert(Path::from(format!("{}.{}", parts[0], parts[1])));
-        } else if parts.contains(&"apiVersion".to_string()) {
-            let manifest_api_version = obj
-                .get(&path)
-                .and_then(|value| value.as_str())
-                .unwrap_or("Invalid manifest API version or format provided.");
-            if manifest_api_version != CURRENT_API_VERSION {
-                return Err(format!(
-                    "Invalid manifest API version provided. Expected: '{CURRENT_API_VERSION}', got: '{manifest_api_version}'."
-                ));
+
+            if parts.len() == 3
+                && parts[0] == "workloads"
+                && parts[2] == "tags"
+                && let Some(api_version) = detected_api_version
+                && let Some(tags_value) = obj.get(&path)
+            {
+                validate_tags(api_version, tags_value, &parts[1])?;
             }
         }
     }
@@ -78,7 +110,10 @@ pub fn handle_agent_overwrite(
                     .map_err(|_| "Could not find workload to update.".to_owned())?;
                 state_obj
                     .set(
-                        &Path::from(format!("{}.instanceName.agentName", String::from(mask_path))),
+                        &Path::from(format!(
+                            "{}.instanceName.agentName",
+                            String::from(mask_path)
+                        )),
                         serde_yaml::Value::String(agent_name.to_owned()),
                     )
                     .map_err(|_| "Could not find workload to update.".to_owned())?;
@@ -256,7 +291,7 @@ mod tests {
     #[test]
     fn utest_parse_manifest_ok() {
         let manifest_content = io::Cursor::new(
-            b"apiVersion: \"v0.1\"\nworkloads:
+            b"apiVersion: \"v1\"\nworkloads:
     simple:
       runtime: podman
       agent: agent_A
@@ -299,6 +334,114 @@ mod tests {
                 Box::new(manifest_content),
             ))
             .is_err()
+        );
+    }
+
+    // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
+    #[test]
+    fn utest_parse_manifest_current_api_version_tags_as_mapping_ok() {
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v1\"\nworkloads:
+    simple:
+      runtime: podman
+      agent: agent_A
+      tags:
+        owner: Ankaios team
+        version: 1.0
+      runtimeConfig: |
+        image: docker.io/nginx:latest",
+        );
+
+        assert!(
+            parse_manifest(&mut (
+                "valid_manifest_with_tags_mapping".to_string(),
+                Box::new(manifest_content)
+            ))
+            .is_ok()
+        );
+    }
+
+    // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
+    #[test]
+    fn utest_parse_manifest_current_api_version_tags_as_sequence_fails() {
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v1\"\nworkloads:
+    simple:
+      runtime: podman
+      agent: agent_A
+      tags:
+        - key: owner
+          value: Ankaios team
+        - key: version
+          value: 1.0
+      runtimeConfig: |
+        image: docker.io/nginx:latest",
+        );
+
+        let result = parse_manifest(&mut (
+            "invalid_manifest_with_tags_sequence".to_string(),
+            Box::new(manifest_content),
+        ));
+
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("tags must be specified as a mapping")
+        );
+    }
+
+    // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
+    #[test]
+    fn utest_parse_manifest_previous_api_version_tags_as_sequence_ok() {
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v0.1\"\nworkloads:
+    simple:
+      runtime: podman
+      agent: agent_A
+      tags:
+        - key: owner
+          value: Ankaios team
+        - key: version
+          value: 1.0
+      runtimeConfig: |
+        image: docker.io/nginx:latest",
+        );
+
+        assert!(
+            parse_manifest(&mut (
+                "valid_manifest_with_tags_sequence".to_string(),
+                Box::new(manifest_content)
+            ))
+            .is_ok()
+        );
+    }
+
+    // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
+    #[test]
+    fn utest_parse_manifest_previous_api_version_tags_as_mapping_fails() {
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v0.1\"\nworkloads:
+    simple:
+      runtime: podman
+      agent: agent_A
+      tags:
+        owner: Ankaios team
+        version: 1.0
+      runtimeConfig: |
+        image: docker.io/nginx:latest",
+        );
+
+        let result = parse_manifest(&mut (
+            "invalid_manifest_with_tags_mapping_old_version".to_string(),
+            Box::new(manifest_content),
+        ));
+
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("tags must be specified as a sequence")
         );
     }
 
@@ -552,7 +695,7 @@ mod tests {
     fn utest_generate_state_obj_and_filter_masks_from_manifests_ok() {
         let _manifest_file_name = "manifest.yaml";
         let manifest_content = io::Cursor::new(
-            b"apiVersion: \"v0.1\"\nworkloads:
+            b"apiVersion: \"v1\"\nworkloads:
         simple:
           runtime: podman
           agent: agent_A
@@ -562,8 +705,7 @@ mod tests {
             allow: []
             deny: []
           tags:
-            - key: owner
-              value: Ankaios team
+            owner: Ankaios team
           runtimeConfig: |
             image: docker.io/nginx:latest
             commandOptions: [\"-p\", \"8081:80\"]",
@@ -604,7 +746,7 @@ mod tests {
     fn utest_generate_state_obj_and_filter_masks_from_manifests_delete_mode_ok() {
         let manifest_file_name = "manifest.yaml";
         let manifest_content = io::Cursor::new(
-            b"apiVersion: \"v0.1\"\nworkloads:
+            b"apiVersion: \"v1\"\nworkloads:
         simple:
           runtime: podman
           agent: agent_A
@@ -644,7 +786,7 @@ mod tests {
             .await;
 
         let manifest_content = io::Cursor::new(
-            b"apiVersion: \"v0.1\"\nworkloads:
+            b"apiVersion: \"v1\"\nworkloads:
     simple_manifest1:
       runtime: podman
       agent: agent_A
@@ -728,7 +870,7 @@ mod tests {
             .await;
 
         let manifest_content = io::Cursor::new(
-            b"apiVersion: \"v0.1\"\nworkloads:
+            b"apiVersion: \"v1\"\nworkloads:
         simple_manifest1:
           runtime: podman
           agent: agent_A
@@ -838,7 +980,7 @@ mod tests {
             .await;
 
         let manifest_content = io::Cursor::new(
-            b"apiVersion: \"v0.1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1",
+            b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1",
         );
 
         let mut manifest_data = String::new();
@@ -902,7 +1044,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(b"apiVersion: \"v0.1\"");
+        let manifest_content = io::Cursor::new(b"apiVersion: \"v1\"");
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection.expect_update_state().never();
@@ -948,7 +1090,7 @@ mod tests {
             .await;
 
         let manifest_content = io::Cursor::new(
-            b"apiVersion: \"v0.1\"\nworkloads:
+            b"apiVersion: \"v1\"\nworkloads:
             simple.manifest1:
               runtime: podman
               agent: agent_A

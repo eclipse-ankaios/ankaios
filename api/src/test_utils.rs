@@ -13,9 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    AddCondition, CompleteState, ConfigMappings, DeleteCondition, DeletedWorkload, Dependencies,
-    File, FileContent, Files, RestartPolicy, State, Tag, Tags, Workload,
-    WorkloadInstanceNameInternal, WorkloadMap, ControlInterfaceAccess,
+    AddCondition, CompleteState, ConfigMappings, ControlInterfaceAccess, DeleteCondition,
+    DeletedWorkload, Dependencies, File, FileContent, Files, RestartPolicy, State, Tags, Workload,
+    WorkloadInstanceNameInternal, WorkloadMap,
 };
 pub use crate::ank_base::{
     agent_map::{generate_test_agent_map, generate_test_agent_map_from_specs},
@@ -24,15 +24,15 @@ pub use crate::ank_base::{
     workload::{
         generate_test_runtime_config, generate_test_workload,
         generate_test_workload_with_control_interface_access,
-        generate_test_workload_with_dependencies, generate_test_workload_with_param,
-        generate_test_workload_with_files, generate_test_workload_with_runtime_config,
+        generate_test_workload_with_dependencies, generate_test_workload_with_files,
+        generate_test_workload_with_param, generate_test_workload_with_runtime_config,
     },
     workload_instance_name::generate_test_workload_instance_name,
 };
 use std::collections::HashMap;
 
 const RUNTIME_NAME: &str = "runtime";
-const API_VERSION: &str = "v0.1";
+const API_VERSION: &str = "v1";
 const AGENT_NAME: &str = "agent";
 const WORKLOAD_1_NAME: &str = "workload_name_1";
 const WORKLOAD_2_NAME: &str = "workload_name_2";
@@ -111,10 +111,9 @@ pub fn generate_test_proto_workload_with_param(
         runtime: Some(runtime_name.into()),
         runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string()),
-        tags: Some(Tags{tags:vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }]}),
+        tags: Some(Tags {
+            tags: HashMap::from([("key".into(), "value".into())]),
+        }),
         control_interface_access: Default::default(),
         configs: Some(ConfigMappings{configs: [
             ("ref1".into(), "config_1".into()),
@@ -132,10 +131,9 @@ pub fn generate_test_proto_workload() -> Workload {
         runtime: Some(String::from(RUNTIME_NAME)),
         runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string()),
-        tags: Some(Tags{tags:vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }]}),
+        tags: Some(Tags {
+            tags: HashMap::from([("key".into(), "value".into())]),
+        }),
         control_interface_access: Some(ControlInterfaceAccess::default()),
         configs: Some(ConfigMappings{configs: [
             ("ref1".into(), "config_1".into()),

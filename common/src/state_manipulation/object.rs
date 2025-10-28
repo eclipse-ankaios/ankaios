@@ -395,6 +395,7 @@ mod tests {
             ),
             agents: agent_map,
         };
+
         let actual: CompleteState = object.try_into().unwrap();
 
         assert_eq!(actual, expected);
@@ -428,21 +429,6 @@ mod tests {
             &"workloads.workload_1.update_strategy.key".into(),
             "value".into(),
         );
-
-        assert!(res.is_err());
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn utest_object_set_fails_as_not_mapping() {
-        let expected = Object {
-            data: object::generate_test_state().into(),
-        };
-        let mut actual = Object {
-            data: object::generate_test_state().into(),
-        };
-
-        let res = actual.set(&"workloads.name.tags.tags.key".into(), "value".into());
 
         assert!(res.is_err());
         assert_eq!(actual, expected);
@@ -486,8 +472,8 @@ mod tests {
             data: object::generate_test_state().into(),
         };
         if let Value::Mapping(state) = &mut expected.data {
-            if let Some(Value::Mapping(worklaods)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = worklaods.get_mut("name") {
+            if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("name") {
                     workload_1.insert("new_key".into(), "new value".into());
                 }
             }
@@ -543,8 +529,8 @@ mod tests {
             data: object::generate_test_state().into(),
         };
         if let Value::Mapping(state) = &mut expected.data {
-            if let Some(Value::Mapping(worklaods)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = worklaods.get_mut("name") {
+            if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("name") {
                     workload_1.remove("access_rights");
                 }
             }
@@ -740,6 +726,7 @@ mod tests {
     mod object {
         use serde_yaml::Value;
 
+        use crate::objects::CURRENT_API_VERSION;
         use api::test_utils::generate_test_runtime_config;
 
         pub fn generate_test_complete_state_mapping() -> Mapping {
@@ -779,24 +766,19 @@ mod tests {
 
         pub fn generate_test_state() -> Mapping {
             Mapping::default()
-                .entry("apiVersion", "v0.1")
+                .entry("apiVersion", CURRENT_API_VERSION)
                 .entry(
                     "workloads",
                     Mapping::default().entry(
                         "name",
                         Mapping::default()
                             .entry("agent", "agent")
-                            .entry(
+                            .entry("tags",
+                            Mapping::default()
+                                .entry(
                                 "tags",
                                 Mapping::default()
-                                .entry(
-                                    "tags",
-                                    vec![Mapping::default()
-                                    .entry("key", "key")
-                                    .entry("value", "value")
-                                    .into()
-                                    ] as Vec<Value>,
-                                )
+                                .entry("key", "value"))
                             )
                             .entry(
                                 "dependencies",

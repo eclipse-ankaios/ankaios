@@ -589,7 +589,7 @@ mod tests {
         actions: Vec<CommunicationSimulatorAction>,
     }
 
-    struct CorrectCommuncationChecker {
+    struct CorrectCommunicationChecker {
         join_handle: tokio::task::JoinHandle<()>,
         is_ready: tokio::sync::oneshot::Receiver<Receiver<ToServer>>,
     }
@@ -602,7 +602,7 @@ mod tests {
     }
 
     impl CommunicationSimulator {
-        fn create_server_connection(self) -> (CorrectCommuncationChecker, ServerConnection) {
+        fn create_server_connection(self) -> (CorrectCommunicationChecker, ServerConnection) {
             let (from_server, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(1);
             let (to_server, mut server_receiver) = tokio::sync::mpsc::channel::<ToServer>(1);
 
@@ -644,7 +644,7 @@ mod tests {
             });
 
             (
-                CorrectCommuncationChecker {
+                CorrectCommunicationChecker {
                     join_handle,
                     is_ready,
                 },
@@ -683,7 +683,7 @@ mod tests {
         }
     }
 
-    impl CorrectCommuncationChecker {
+    impl CorrectCommunicationChecker {
         fn check_communication(mut self) {
             let Ok(mut to_server) = self.is_ready.try_recv() else {
                 panic!("Not all messages have been sent or received");
@@ -695,7 +695,7 @@ mod tests {
         }
     }
 
-    impl Drop for CorrectCommuncationChecker {
+    impl Drop for CorrectCommunicationChecker {
         fn drop(&mut self) {
             self.join_handle.abort();
         }
@@ -734,65 +734,45 @@ mod tests {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
+
+        let proto_complete_state = generate_test_proto_complete_state(&[(
+            WORKLOAD_NAME_1,
+            ank_base::Workload {
+                agent: Some(AGENT_A.to_string()),
+                runtime: Some(RUNTIME.to_string()),
+                tags: Some(ank_base::Tags {
+                    tags: HashMap::new(),
+                }),
+                dependencies: Some(ank_base::Dependencies {
+                    dependencies: HashMap::new(),
+                }),
+                restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                runtime_config: Some(String::default()),
+                control_interface_access: None,
+                configs: Some(ank_base::ConfigMappings {
+                    configs: [
+                        ("ref1".into(), "config_1".into()),
+                        ("ref2".into(), "config_2".into()),
+                    ]
+                    .into(),
+                }),
+                files: Some(generate_test_proto_workload_files()),
+            },
+        )]);
+
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(generate_test_proto_complete_state(
-                &[(
-                    WORKLOAD_NAME_1,
-                    ank_base::Workload {
-                        agent: Some(AGENT_A.to_string()),
-                        runtime: Some(RUNTIME.to_string()),
-                        tags: Some(ank_base::Tags { tags: vec![] }),
-                        dependencies: Some(ank_base::Dependencies {
-                            dependencies: HashMap::new(),
-                        }),
-                        restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                        runtime_config: Some(String::default()),
-                        control_interface_access: None,
-                        configs: Some(ank_base::ConfigMappings {
-                            configs: [
-                                ("ref1".into(), "config_1".into()),
-                                ("ref2".into(), "config_2".into()),
-                            ]
-                            .into(),
-                        }),
-                        files: Some(generate_test_proto_workload_files()),
-                    },
-                )],
-            )),
+            ank_base::response::ResponseContent::CompleteState(proto_complete_state.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
-        let result = server_connection
+        let received_complete_state = server_connection
             .get_complete_state(&[FIELD_MASK.into()])
             .await;
-        assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            (generate_test_proto_complete_state(&[(
-                WORKLOAD_NAME_1,
-                ank_base::Workload {
-                    agent: Some(AGENT_A.to_string()),
-                    runtime: Some(RUNTIME.to_string()),
-                    tags: Some(ank_base::Tags { tags: vec![] }),
-                    dependencies: Some(ank_base::Dependencies {
-                        dependencies: HashMap::new()
-                    }),
-                    restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                    runtime_config: Some("".to_string()),
-                    control_interface_access: None,
-                    configs: Some(ank_base::ConfigMappings {
-                        configs: [
-                            ("ref1".into(), "config_1".into()),
-                            ("ref2".into(), "config_2".into()),
-                        ]
-                        .into()
-                    }),
-                    files: Some(generate_test_proto_workload_files()),
-                },
-            )])
-            .into())
-        );
+        let expected_complete_state = proto_complete_state.into();
+
+        assert!(received_complete_state.is_ok());
+        assert_eq!(received_complete_state.unwrap(), expected_complete_state);
         checker.check_communication();
     }
 
@@ -830,6 +810,31 @@ mod tests {
     // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_get_complete_state_other_response_in_between() {
+        let proto_complete_state = generate_test_proto_complete_state(&[(
+            WORKLOAD_NAME_1,
+            ank_base::Workload {
+                agent: Some(AGENT_A.to_string()),
+                runtime: Some(RUNTIME.to_string()),
+                tags: Some(ank_base::Tags {
+                    tags: HashMap::new(),
+                }),
+                dependencies: Some(ank_base::Dependencies {
+                    dependencies: HashMap::new(),
+                }),
+                restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                runtime_config: Some("".to_string()),
+                control_interface_access: None,
+                configs: Some(ank_base::ConfigMappings {
+                    configs: [
+                        ("ref1".into(), "config_1".into()),
+                        ("ref2".into(), "config_2".into()),
+                    ]
+                    .into(),
+                }),
+                files: Some(generate_test_proto_workload_files()),
+            },
+        )]);
+
         let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
@@ -838,7 +843,9 @@ mod tests {
                     ank_base::Workload {
                         agent: Some(AGENT_A.to_string()),
                         runtime: Some(RUNTIME.to_string()),
-                        tags: Some(ank_base::Tags { tags: vec![] }),
+                        tags: Some(ank_base::Tags {
+                            tags: HashMap::new(),
+                        }),
                         dependencies: Some(ank_base::Dependencies {
                             dependencies: HashMap::new(),
                         }),
@@ -868,30 +875,7 @@ mod tests {
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(generate_test_proto_complete_state(
-                &[(
-                    WORKLOAD_NAME_1,
-                    ank_base::Workload {
-                        agent: Some(AGENT_A.to_string()),
-                        runtime: Some(RUNTIME.to_string()),
-                        tags: Some(ank_base::Tags { tags: vec![] }),
-                        dependencies: Some(ank_base::Dependencies {
-                            dependencies: HashMap::new(),
-                        }),
-                        restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                        runtime_config: Some("".to_string()),
-                        control_interface_access: None,
-                        configs: Some(ank_base::ConfigMappings {
-                            configs: [
-                                ("ref1".into(), "config_1".into()),
-                                ("ref2".into(), "config_2".into()),
-                            ]
-                            .into(),
-                        }),
-                        files: Some(generate_test_proto_workload_files()),
-                    },
-                )],
-            )),
+            ank_base::response::ResponseContent::CompleteState(proto_complete_state.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -899,32 +883,7 @@ mod tests {
             .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            (generate_test_proto_complete_state(&[(
-                WORKLOAD_NAME_1,
-                ank_base::Workload {
-                    agent: Some(AGENT_A.to_string()),
-                    runtime: Some(RUNTIME.to_string()),
-                    tags: Some(ank_base::Tags { tags: vec![] }),
-                    dependencies: Some(ank_base::Dependencies {
-                        dependencies: HashMap::new()
-                    }),
-                    restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                    runtime_config: Some("".to_string()),
-                    control_interface_access: None,
-                    configs: Some(ank_base::ConfigMappings {
-                        configs: [
-                            ("ref1".into(), "config_1".into()),
-                            ("ref2".into(), "config_2".into()),
-                        ]
-                        .into()
-                    }),
-                    files: Some(generate_test_proto_workload_files()),
-                },
-            )])
-            .into())
-        );
+        assert_eq!(result.unwrap(), (proto_complete_state.into()));
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
             vec![other_response]
@@ -938,6 +897,30 @@ mod tests {
         let other_message = FromServer::UpdateWorkloadState(UpdateWorkloadState {
             workload_states: vec![],
         });
+        let proto_complete_state = generate_test_proto_complete_state(&[(
+            WORKLOAD_NAME_1,
+            ank_base::Workload {
+                agent: Some(AGENT_A.to_string()),
+                runtime: Some(RUNTIME.to_string()),
+                tags: Some(ank_base::Tags {
+                    tags: HashMap::new(),
+                }),
+                dependencies: Some(ank_base::Dependencies {
+                    dependencies: HashMap::new(),
+                }),
+                restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                runtime_config: Some("".to_string()),
+                control_interface_access: None,
+                configs: Some(ank_base::ConfigMappings {
+                    configs: [
+                        ("ref1".into(), "config_1".into()),
+                        ("ref2".into(), "config_2".into()),
+                    ]
+                    .into(),
+                }),
+                files: Some(generate_test_proto_workload_files()),
+            },
+        )]);
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
@@ -949,30 +932,7 @@ mod tests {
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(generate_test_proto_complete_state(
-                &[(
-                    WORKLOAD_NAME_1,
-                    ank_base::Workload {
-                        agent: Some(AGENT_A.to_string()),
-                        runtime: Some(RUNTIME.to_string()),
-                        tags: Some(ank_base::Tags { tags: vec![] }),
-                        dependencies: Some(ank_base::Dependencies {
-                            dependencies: HashMap::new(),
-                        }),
-                        restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                        runtime_config: Some("".to_string()),
-                        control_interface_access: None,
-                        configs: Some(ank_base::ConfigMappings {
-                            configs: [
-                                ("ref1".into(), "config_1".into()),
-                                ("ref2".into(), "config_2".into()),
-                            ]
-                            .into(),
-                        }),
-                        files: Some(generate_test_proto_workload_files()),
-                    },
-                )],
-            )),
+            ank_base::response::ResponseContent::CompleteState(proto_complete_state.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -980,32 +940,7 @@ mod tests {
             .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            (generate_test_proto_complete_state(&[(
-                WORKLOAD_NAME_1,
-                ank_base::Workload {
-                    agent: Some(AGENT_A.to_string()),
-                    runtime: Some(RUNTIME.to_string()),
-                    tags: Some(ank_base::Tags { tags: vec![] }),
-                    dependencies: Some(ank_base::Dependencies {
-                        dependencies: HashMap::new()
-                    }),
-                    restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                    runtime_config: Some("".to_string()),
-                    control_interface_access: None,
-                    configs: Some(ank_base::ConfigMappings {
-                        configs: [
-                            ("ref1".into(), "config_1".into()),
-                            ("ref2".into(), "config_2".into()),
-                        ]
-                        .into()
-                    }),
-                    files: Some(generate_test_proto_workload_files()),
-                },
-            )])
-            .into())
-        );
+        assert_eq!(result.unwrap(), (proto_complete_state.into()));
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
             vec![other_message]
@@ -1141,7 +1076,9 @@ mod tests {
                     ank_base::Workload {
                         agent: Some(AGENT_A.to_string()),
                         runtime: Some(RUNTIME.to_string()),
-                        tags: Some(ank_base::Tags { tags: vec![] }),
+                        tags: Some(ank_base::Tags {
+                            tags: HashMap::new(),
+                        }),
                         dependencies: Some(ank_base::Dependencies {
                             dependencies: HashMap::new(),
                         }),

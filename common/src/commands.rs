@@ -257,14 +257,15 @@ pub struct Stop {}
 
 #[cfg(test)]
 mod tests {
+    use crate::objects::CURRENT_API_VERSION;
     use api::test_utils::generate_test_proto_workload_files;
     use std::collections::HashMap;
 
     mod ank_base {
         pub use api::ank_base::{
             CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, LogsCancelRequest,
-            LogsRequest, Request, RequestContent, RestartPolicy, State, Tag, Tags,
-            UpdateStateRequest, Workload, WorkloadInstanceName, WorkloadMap,
+            LogsRequest, Request, RequestContent, RestartPolicy, State, UpdateStateRequest,
+            Workload, WorkloadInstanceName, WorkloadMap,
         };
     }
 
@@ -277,7 +278,7 @@ mod tests {
             objects::{CompleteState, State, generate_test_workload_states_map_with_data},
         };
         pub use api::ank_base::{
-            ExecutionStateInternal, FileContentInternal, FileInternal, RestartPolicy,
+            ExecutionStateInternal, FileContentInternal, FileInternal, RestartPolicy, TagsInternal,
             WorkloadInstanceNameBuilder, WorkloadInstanceNameInternal, WorkloadInternal,
         };
         pub use api::test_utils::generate_test_agent_map;
@@ -405,7 +406,7 @@ mod tests {
         (ankaios) => {
             ankaios::CompleteState {
                 desired_state: ankaios::State {
-                    api_version: "v0.1".into(),
+                    api_version: CURRENT_API_VERSION.into(),
                     workloads: HashMap::from([("workload_name".into(), workload!(ankaios))]),
                     configs: HashMap::new(),
                 }
@@ -417,9 +418,12 @@ mod tests {
         (ank_base) => {
             ank_base::CompleteState {
                 desired_state: Some(ank_base::State {
-                    api_version: "v0.1".into(),
+                    api_version: CURRENT_API_VERSION.into(),
                     workloads: Some(ank_base::WorkloadMap {
-                        workloads: HashMap::from([("workload_name".to_string(), workload!(ank_base))]),
+                        workloads: HashMap::from([(
+                            "workload_name".to_string(),
+                            workload!(ank_base),
+                        )]),
                     }),
                     configs: Some(Default::default()),
                 }),
@@ -437,11 +441,8 @@ mod tests {
                 restart_policy: Some(ank_base::RestartPolicy::Always.into()),
                 runtime: Some(RUNTIME.to_string()),
                 runtime_config: Some(RUNTIME_CONFIG.to_string()),
-                tags: Some(ank_base::Tags {
-                    tags: vec![ank_base::Tag {
-                        key: "key".into(),
-                        value: "value".into(),
-                    }],
+                tags: Some(api::ank_base::Tags {
+                    tags: HashMap::from([("key".into(), "value".into())]),
                 }),
                 control_interface_access: Default::default(),
                 configs: Some(ank_base::ConfigMappings {
@@ -462,10 +463,9 @@ mod tests {
                     .config(&RUNTIME_CONFIG.to_owned())
                     .agent_name(AGENT_NAME)
                     .build(),
-                tags: [
-                    ("key".into(), "value".into()),
-                ]
-                .into(),
+                tags: ankaios::TagsInternal {
+                    tags: HashMap::from([("key".into(), "value".into())]),
+                },
                 dependencies: Default::default(),
                 restart_policy: ankaios::RestartPolicy::Always,
                 runtime: RUNTIME.to_string(),
@@ -559,7 +559,7 @@ mod tests {
         };
         proto_request_content.new_state = Some(ank_base::CompleteState {
             desired_state: Some(ank_base::State {
-                api_version: "v0.1".into(),
+                api_version: CURRENT_API_VERSION.into(),
                 workloads: Some(ank_base::WorkloadMap {
                     workloads: HashMap::new(),
                 }),
@@ -601,7 +601,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .desired_state = Some(ank_base::State {
-            api_version: "v0.1".into(),
+            api_version: CURRENT_API_VERSION.into(),
             workloads: Some(ank_base::WorkloadMap {
                 workloads: HashMap::new(),
             }),
@@ -720,7 +720,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_converts_to_proto_logs_request_with_no_tail_optio() {
+    fn utest_converts_to_proto_logs_request_with_no_tail_option() {
         let mut proto_logs_request = logs_request!(ank_base);
         proto_logs_request.request_content.as_logs_request().tail = None;
         let mut ankaios_logs_request = logs_request!(ankaios);

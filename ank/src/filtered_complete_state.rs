@@ -16,9 +16,8 @@ use std::collections::HashMap;
 
 use api::ank_base;
 use api::ank_base::{
-    AddCondition, ControlInterfaceAccessInternal, FileInternal, RestartPolicy, TagInternal,
+    AddCondition, ControlInterfaceAccessInternal, FileInternal, RestartPolicy,
 };
-use api::std_extensions::UnreachableResult;
 use common::{
     helpers::serialize_to_ordered_map,
     objects::{ConfigItem, WorkloadStatesMap},
@@ -131,7 +130,7 @@ pub struct FilteredWorkloadSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<TagInternal>>,
+    pub tags: Option<HashMap<String, String>>,
     #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependencies: Option<HashMap<String, AddCondition>>,
@@ -192,7 +191,11 @@ impl From<ank_base::Workload> for FilteredWorkloadSpec {
     fn from(value: ank_base::Workload) -> Self {
         FilteredWorkloadSpec {
             agent: value.agent,
-            tags: value.tags.map(|tags| tags.tags.into_iter().map(|tag| tag.try_into().unwrap_or_unreachable()).collect()),
+            tags: value.tags.map(|x| {
+                x.tags
+                    .into_iter()
+                    .collect()
+            }),
             dependencies: value.dependencies.map(|x| {
                 x.dependencies
                     .into_iter()

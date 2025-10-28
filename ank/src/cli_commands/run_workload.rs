@@ -12,12 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{TagInternal, WorkloadInstanceNameBuilder, WorkloadInternal};
-use common::objects::CompleteState;
-
+use super::CliCommands;
 use crate::{cli_error::CliError, output_debug};
 
-use super::CliCommands;
+use api::ank_base::{TagsInternal, WorkloadInstanceNameBuilder, WorkloadInternal};
+use common::objects::CompleteState;
+
+use std::collections::HashMap;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-run-workload~1]
@@ -28,17 +29,12 @@ impl CliCommands {
         runtime_name: String,
         runtime_config: String,
         agent_name: String,
-        tags_strings: Vec<(String, String)>,
+        tags: HashMap<String, String>,
     ) -> Result<(), CliError> {
-        let tags: Vec<TagInternal> = tags_strings
-            .into_iter()
-            .map(|(k, v)| TagInternal { key: k, value: v })
-            .collect();
-
         let new_workload = WorkloadInternal {
             agent: agent_name.clone(),
             runtime: runtime_name,
-            tags: tags.into(),
+            tags: TagsInternal { tags },
             runtime_config: runtime_config.clone(),
             restart_policy: Default::default(),
             dependencies: Default::default(),
@@ -81,8 +77,8 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use api::ank_base::{
-        self, ExecutionStateInternal, TagInternal, UpdateStateSuccess, WorkloadInstanceNameBuilder,
-        WorkloadInternal,
+        self, ExecutionStateInternal, TagsInternal, UpdateStateSuccess,
+        WorkloadInstanceNameBuilder, WorkloadInternal,
     };
     use common::{
         commands::UpdateWorkloadState,
@@ -90,6 +86,7 @@ mod tests {
         objects::{CompleteState, WorkloadState},
     };
     use mockall::predicate::eq;
+    use std::collections::HashMap;
 
     use crate::{
         cli_commands::{CliCommands, server_connection::MockServerConnection},
@@ -115,11 +112,9 @@ mod tests {
         let new_workload = WorkloadInternal {
             agent: test_workload_agent.to_owned(),
             runtime: test_workload_runtime_name.clone(),
-            tags: vec![TagInternal {
-                key: "key".to_string(),
-                value: "value".to_string(),
-            }]
-            .into(),
+            tags: TagsInternal {
+                tags: HashMap::from([("key".to_string(), "value".to_string())]),
+            },
             runtime_config: test_workload_runtime_cfg.clone(),
             instance_name: WorkloadInstanceNameBuilder::default()
                 .workload_name(TEST_WORKLOAD_NAME)
@@ -191,7 +186,7 @@ mod tests {
                 test_workload_runtime_name,
                 test_workload_runtime_cfg,
                 test_workload_agent,
-                vec![("key".to_string(), "value".to_string())],
+                HashMap::from([("key".to_string(), "value".to_string())]),
             )
             .await;
         assert!(run_workload_result.is_ok());

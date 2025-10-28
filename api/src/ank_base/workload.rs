@@ -12,9 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(any(feature = "test_utils", test))]
+use crate::ank_base::TagsInternal;
 use crate::ank_base::{
-    AddCondition, DependenciesInternal, ExecutionStateInternal, TagInternal, TagsInternal,
-    Workload, WorkloadInstanceNameInternal, WorkloadInternal,
+    AddCondition, DependenciesInternal, ExecutionStateInternal, Workload,
+    WorkloadInstanceNameInternal, WorkloadInternal,
 };
 use crate::helpers::serialize_to_ordered_map;
 #[cfg(any(feature = "test_utils", test))]
@@ -193,22 +195,6 @@ impl TryFrom<(String, Workload)> for WorkloadInternal {
     }
 }
 
-impl<const N: usize> From<[(String, String); N]> for TagsInternal {
-    fn from(value: [(String, String); N]) -> Self {
-        TagsInternal {
-            tags: value
-                .into_iter()
-                .map(|(k, v)| TagInternal { key: k, value: v })
-                .collect(),
-        }
-    }
-}
-impl From<Vec<TagInternal>> for TagsInternal {
-    fn from(value: Vec<TagInternal>) -> Self {
-        TagsInternal { tags: value }
-    }
-}
-
 impl From<HashMap<String, AddCondition>> for DependenciesInternal {
     fn from(value: HashMap<String, AddCondition>) -> Self {
         DependenciesInternal {
@@ -342,10 +328,7 @@ pub fn generate_test_workload_with_runtime_config(
         restart_policy: RestartPolicy::Always,
         runtime: runtime_name.into(),
         tags: TagsInternal {
-            tags: vec![TagInternal {
-                key: "key".into(),
-                value: "value".into(),
-            }],
+            tags: HashMap::from([("key".into(), "value".into())]),
         },
         runtime_config,
         configs: ConfigMappingsInternal {

@@ -523,7 +523,7 @@ Needs:
 
 Status: approved
 
-The Common library shall provide a common version checking functionality that fails if a provided version differs from the current major and minor one.
+The Common library shall provide a common release version checking functionality that fails if a provided version differs from the current major and minor one.
 
 Rationale:
 The version checking is executed in different Ankaios components and must behave in the same way. The failure on a different minor version is required as Ankaios is currently at a 0 (zero) major version.

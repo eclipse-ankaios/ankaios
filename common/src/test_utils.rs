@@ -12,19 +12,20 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 
 use crate::objects::{ConfigItem, State};
+
 use api::ank_base::{ConfigMappingsInternal, WorkloadInternal};
 #[cfg(any(feature = "test_utils", test))]
 use api::test_utils::{
     generate_test_rendered_workload_files, generate_test_runtime_config,
     generate_test_workload_with_runtime_config,
 };
-use serde::{Serialize, Serializer};
 
 const RUNTIME_NAME: &str = "runtime";
-const API_VERSION: &str = "v0.1";
+const API_VERSION: &str = "v1";
 const AGENT_NAME: &str = "agent";
 const WORKLOAD_1_NAME: &str = "workload_name_1";
 const WORKLOAD_2_NAME: &str = "workload_name_2";

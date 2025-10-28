@@ -12,9 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 use serde::{Serialize, Serializer};
+use serde_yaml::Value;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::{std_extensions::IllegalStateResult, ANKAIOS_VERSION};
+use crate::{
+    ANKAIOS_VERSION,
+    objects::{CURRENT_API_VERSION, PREVIOUS_API_VERSION},
+    std_extensions::IllegalStateResult,
+};
 use semver::Version;
 
 // [impl->swdd~common-helper-methods~1]
@@ -63,6 +68,34 @@ pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), Strin
     ))
 }
 
+// TODO #313 Move validate_tags to api crate
+// [impl->swdd~common-helper-methods~1]
+pub fn validate_tags(
+    api_version: &str,
+    tags_value: &Value,
+    workload_name: &str,
+) -> Result<(), String> {
+    match api_version {
+        CURRENT_API_VERSION => {
+            if !tags_value.is_mapping() {
+                return Err(format!(
+                    "For API version '{CURRENT_API_VERSION}', tags must be specified as a mapping (key-value pairs). Found tags as sequence for workload '{workload_name}'.",
+                ));
+            }
+        }
+        PREVIOUS_API_VERSION => {
+            if !tags_value.is_sequence() {
+                return Err(format!(
+                    "For API version '{PREVIOUS_API_VERSION}', tags must be specified as a sequence (list of key-value entries). Found tags as mapping for workload '{workload_name}'.",
+                ));
+            }
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -75,7 +108,7 @@ pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), Strin
 mod tests {
     use semver::Version;
 
-    use crate::{check_version_compatibility, ANKAIOS_VERSION};
+    use crate::{ANKAIOS_VERSION, check_version_compatibility};
 
     // [utest->swdd~common-version-checking~1]
     #[test]

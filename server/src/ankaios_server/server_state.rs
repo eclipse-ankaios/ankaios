@@ -547,7 +547,7 @@ mod tests {
                             .collect(),
                     }),
                     tags: Some(Tags {
-                        tags: w1.tags.tags.into_iter().map(ank_base::Tag::from).collect(),
+                        tags: w1.tags.tags.clone(),
                     }),
                     runtime: Some(w1.runtime.clone()),
                     runtime_config: Some(w1.runtime_config.clone()),
@@ -1191,34 +1191,6 @@ mod tests {
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
-    fn utest_server_state_update_state_remove_fails_from_non_map() {
-        let old_state = generate_test_old_state();
-        let update_state = generate_test_update_state();
-        let update_mask = vec!["desiredState.workloads.workload_2.tags.tags.x".into()];
-
-        let mut delete_graph_mock = MockDeleteGraph::new();
-        delete_graph_mock.expect_insert().never();
-        delete_graph_mock
-            .expect_apply_delete_conditions_to()
-            .never();
-
-        let mut mock_config_renderer = MockConfigRenderer::new();
-        mock_config_renderer.expect_render_workloads().never();
-
-        let mut server_state = ServerState {
-            state: old_state.clone(),
-            rendered_workloads: generate_rendered_workloads_from_state(&old_state.desired_state),
-            delete_graph: delete_graph_mock,
-            config_renderer: mock_config_renderer,
-        };
-        let result = server_state.update(update_state, update_mask);
-
-        assert!(result.is_err());
-        assert_eq!(server_state.state, old_state);
-    }
-
-    // [utest->swdd~update-desired-state-with-update-mask~1]
-    #[test]
     fn utest_server_state_update_state_fails_with_update_mask_empty_string() {
         let _ = env_logger::builder().is_test(true).try_init();
         let old_state = generate_test_old_state();
@@ -1316,7 +1288,8 @@ mod tests {
         let mut expected_added_workloads: Vec<WorkloadInternal> = new_state
             .clone()
             .desired_state
-            .workloads.into_values()
+            .workloads
+            .into_values()
             .collect();
         expected_added_workloads.sort_by(|left, right| {
             left.instance_name
@@ -1379,7 +1352,9 @@ mod tests {
         });
         let mut expected_deleted_workloads: Vec<DeletedWorkload> = current_complete_state
             .desired_state
-            .workloads.values().map(|workload| DeletedWorkload {
+            .workloads
+            .values()
+            .map(|workload| DeletedWorkload {
                 instance_name: workload.instance_name.clone(),
                 dependencies: HashMap::new(),
             })

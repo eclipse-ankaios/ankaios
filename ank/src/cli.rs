@@ -406,11 +406,11 @@ mod tests {
     static WORKLOAD_STATE: &str = r#"
         {
           "desiredState": {
-            "apiVersion": "v0.1",
+            "apiVersion": "v1",
             "workloads": {
               "databroker": {
                 "agent": "agent_A",
-                "tags": [],
+                "tags": {},
                 "dependencies": {},
                 "restartPolicy": "ALWAYS",
                 "runtime": "podman",
@@ -418,7 +418,7 @@ mod tests {
               },
               "speed-provider": {
                   "agent": "agent_A",
-                  "tags": [],
+                  "tags": {},
                   "dependencies": {
                   "databroker": "ADD_COND_RUNNING"
                   },
@@ -475,11 +475,11 @@ mod tests {
     static OBJECT_FIELD_MASK_STATE: &str = r#"
         {
           "desiredState": {
-            "apiVersion": "v0.1",
+            "apiVersion": "v1",
             "workloads": {
               "databroker": {
                 "agent": "agent_A",
-                "tags": [],
+                "tags": {},
                 "dependencies": {},
                 "restartPolicy": "ALWAYS",
                 "runtime": "podman",
@@ -487,7 +487,7 @@ mod tests {
               },
               "speed-provider": {
                 "agent": "agent_A",
-                "tags": [],
+                "tags": {},
                 "dependencies": {
                   "databroker": "ADD_COND_RUNNING"
                 },

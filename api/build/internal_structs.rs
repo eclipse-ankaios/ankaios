@@ -110,11 +110,6 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
             "Tags",
             "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, Default)]",
         )
-        .type_attribute("Tag", "#[derive(internal_derive_macros::Internal)]")
-        .type_attribute(
-            "Tag",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
-        )
 }
 
 /// This function is used to create and configure the following structs:
