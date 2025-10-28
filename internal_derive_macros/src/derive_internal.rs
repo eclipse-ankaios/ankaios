@@ -49,7 +49,5 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
         #internal
     };
 
-    println!("Generated (enum): \n{expanded}");
-
     Ok(expanded)
 }
