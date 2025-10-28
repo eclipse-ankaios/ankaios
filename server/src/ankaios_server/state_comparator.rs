@@ -130,7 +130,7 @@ impl StateComparator {
 
 type FieldMask = Vec<String>; // e.g. ["desiredState", "workloads", "workload_1", "agent"]
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum FieldDifference {
     Added(FieldMask),
     Removed(FieldMask),
