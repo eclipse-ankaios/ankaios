@@ -3521,7 +3521,7 @@ mod tests {
 
     // [utest->swdd~server-sends-state-differences-as-events~1]
     #[tokio::test]
-    async fn utest_server_sends_events_upon_update_state_without_updated_configs() {
+    async fn utest_server_sends_events_upon_update_state_with_updated_configs() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, _comm_middle_ware_receiver) =
@@ -3547,8 +3547,6 @@ mod tests {
         let expected_field_differences = vec![FieldDifference::Updated(vec![
             "configs".to_owned(),
             "config_2".to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            "agent".to_owned(),
         ])];
 
         let field_differences = expected_field_differences.clone();
@@ -3653,6 +3651,53 @@ mod tests {
             .update_workload_state(vec![workload_state_1, workload_state_2])
             .await;
         assert!(update_workload_state_result.is_ok());
+
+        drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-sends-event-for-updated-agent-resource-availability~1]
+    #[tokio::test]
+    async fn utest_server_sends_events_for_agent_load_status() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .return_const(true);
+
+        let expected_field_differences = vec![
+            FieldDifference::updated_agent_cpu(AGENT_A),
+            FieldDifference::updated_agent_memory(AGENT_A),
+        ];
+
+        server
+            .event_handler
+            .expect_send_events()
+            .with(
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::always(),
+                mockall::predicate::eq(expected_field_differences),
+                mockall::predicate::always(),
+            )
+            .once()
+            .return_const(());
+
+        let new_agent_load_status = AgentLoadStatus {
+            agent_name: AGENT_A.to_string(),
+            cpu_usage: CpuUsage { cpu_usage: 42 },
+            free_memory: FreeMemory { free_memory: 42 },
+        };
+        let update_agent_load_status_result =
+            to_server.agent_load_status(new_agent_load_status).await;
+        assert!(update_agent_load_status_result.is_ok());
 
         drop(to_server);
         let result = server.start(None).await;
