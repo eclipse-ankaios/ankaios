@@ -18,9 +18,9 @@ mod tests {
     use internal_derive_macros::add_field;
 
     #[test]
-    fn it_works() {
+    fn itest_internal_derive_and_add_field_basic_functionality() {
         #[derive(Debug, Clone, Internal)]
-        #[internal_derive(Debug, Clone)]
+        #[internal_derive(Debug, Clone, Eq, PartialEq)]
         struct Address {
             #[internal_mandatory]
             street: Option<String>,
@@ -35,7 +35,7 @@ mod tests {
             attrs = "#[internal_mandatory]"
         )]
         #[derive(Internal, Debug, Clone)]
-        #[internal_derive(Debug, Clone)]
+        #[internal_derive(Debug, Clone, Eq, PartialEq)]
         struct Person {
             #[internal_mandatory]
             name: Option<Vec<String>>,
@@ -45,23 +45,6 @@ mod tests {
             second_address: Option<Address>,
         }
 
-        #[allow(clippy::large_enum_variant)]
-        #[derive(Internal)]
-        #[internal_derive(Debug)]
-        enum MyEnum {
-            #[internal_enum_named]
-            A(String),
-            // B{#[mandatory] bla: Option<Person>, val: i32},
-            #[internal_enum_named]
-            B(Person),
-            C(Box<Person>),
-            D,
-            // E(Vec<Person>),
-        }
-
-        // Remove from here
-
-        // to here
         let address = Address {
             street: Some("123 Main St".to_string()),
             additional: None,
@@ -69,28 +52,66 @@ mod tests {
             zip: "12345".to_string(),
         };
 
-        let address_spec: AddressInternal = address.clone().try_into().unwrap();
-
-        println!("Address: {address_spec:?}");
+        let address_internal: AddressInternal = address.clone().try_into().unwrap();
+        let address_internal_expected = AddressInternal {
+            street: "123 Main St".to_string(),
+            additional: None,
+            city: "Metropolis".to_string(),
+            zip: "12345".to_string(),
+        };
+        assert_eq!(address_internal, address_internal_expected);
 
         let person = Person {
             name: vec!["Alice".to_string()].into(),
             middle_name: None,
-            extra_item: "Something extra".to_string().into(),
+            extra_item: Some("Something extra".to_string()),
             address: Some(address),
             second_address: None,
         };
-
         let person_internal: PersonInternal = person.clone().try_into().unwrap();
+        let person_internal_expected = PersonInternal {
+            name: vec!["Alice".to_string()],
+            middle_name: None,
+            extra_item: "Something extra".to_string(),
+            address: address_internal,
+            second_address: None,
+        };
+        assert_eq!(person_internal, person_internal_expected);
 
-        let _my_enum_internal_b = MyEnumInternal::B{b: person_internal.clone()};
-        let _my_enum_internal_c = MyEnumInternal::C(Box::new(person_internal.clone()));
+        #[allow(clippy::large_enum_variant)]
+        #[derive(Internal)]
+        #[internal_derive(Debug, Eq, PartialEq)]
+        enum MyEnum {
+            #[internal_enum_named]
+            A(String),
+            #[internal_enum_named]
+            B(Person),
+            C(Box<Person>),
+            D,
+        }
 
-        println!("Person Spec: {person_internal:?}");
+        let my_enum_a = MyEnum::A("Test String".to_string());
+        let my_enum_internal_a: MyEnumInternal = my_enum_a.try_into().unwrap();
+        let my_enum_internal_expected_a = MyEnumInternal::A {
+            a: "Test String".to_string(),
+        };
+        assert_eq!(my_enum_internal_a, my_enum_internal_expected_a);
+
+        let my_enum_b = MyEnum::B(person.clone());
+        let my_enum_internal_b: MyEnumInternal = my_enum_b.try_into().unwrap();
+        let my_enum_internal_expected_b = MyEnumInternal::B {
+            b: person_internal.clone(),
+        };
+        assert_eq!(my_enum_internal_b, my_enum_internal_expected_b);
+
+        let my_enum_c = MyEnum::C(Box::new(person.clone()));
+        let my_enum_internal_c: MyEnumInternal = my_enum_c.try_into().unwrap();
+        let my_enum_internal_expected_c = MyEnumInternal::C(Box::new(person_internal.clone()));
+        assert_eq!(my_enum_internal_c, my_enum_internal_expected_c);
     }
 
     #[test]
-    fn test_options_kept_in_internal() {
+    fn itest_options_no_mandatory_and_mandatory_in_internal() {
         const CPU_USAGE: u32 = 42;
 
         #[derive(Internal)]
@@ -117,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn test_internal_vector_with_custom_type() {
+    fn itest_internal_vector_with_custom_type() {
         #[derive(Internal)]
         #[internal_derive(Debug)]
         struct CustomType {
@@ -144,19 +165,12 @@ mod tests {
 
         let internal: ContainerInternal = external.try_into().unwrap();
 
-        assert_eq!(
-            internal.items[0].value,
-            "Item 1".to_string()
-        );
-        assert_eq!(
-            internal.items[1].value,
-            "Item 2".to_string()
-        );
+        assert_eq!(internal.items[0].value, "Item 1".to_string());
+        assert_eq!(internal.items[1].value, "Item 2".to_string());
     }
 
     #[test]
-    fn test_internal_hashmap_with_custom_type() {
-
+    fn itest_internal_hashmap_with_custom_type() {
         use std::collections::HashMap;
 
         #[derive(Internal)]
