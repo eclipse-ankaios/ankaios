@@ -14,10 +14,9 @@
 
 use crate::{
     commands::{self, LogsRequest, RequestContent},
-    objects::CompleteState,
+    objects::{AgentLoadStatus, CompleteState},
 };
 use api::ank_base;
-use api::ank_base::AgentLoadStatus;
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -231,13 +230,13 @@ mod tests {
     use super::{ToServerReceiver, ToServerSender};
     use crate::{
         commands::{self, RequestContent},
-        objects::{generate_test_workload_state},
+        objects::{AgentLoadStatus, generate_test_workload_state},
         test_utils::generate_test_complete_state,
         to_server_interface::{ToServer, ToServerInterface},
     };
     use api::ank_base::{
-        self, AgentLoadStatus, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal,
-        LogEntriesResponse, LogEntry, WorkloadInstanceNameInternal,
+        self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogEntriesResponse,
+        LogEntry, WorkloadInstanceNameInternal,
     };
     use api::test_utils::generate_test_workload;
 

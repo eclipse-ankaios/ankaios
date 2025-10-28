@@ -15,9 +15,7 @@
 use std::collections::HashMap;
 
 use api::ank_base;
-use api::ank_base::{
-    AddCondition, ControlInterfaceAccessInternal, FileInternal, RestartPolicy,
-};
+use api::ank_base::{AddCondition, ControlInterfaceAccessInternal, FileInternal, RestartPolicy};
 use common::{
     helpers::serialize_to_ordered_map,
     objects::{ConfigItem, WorkloadStatesMap},
@@ -241,8 +239,12 @@ impl From<ank_base::AgentMap> for FilteredAgentMap {
 impl From<ank_base::AgentAttributes> for FilteredAgentAttributes {
     fn from(value: ank_base::AgentAttributes) -> Self {
         FilteredAgentAttributes {
-            cpu_usage: value.cpu_usage.map(Into::into),
-            free_memory: value.free_memory.map(Into::into),
+            cpu_usage: value
+                .status
+                .and_then(|status| status.cpu_usage.map(Into::into)),
+            free_memory: value
+                .status
+                .and_then(|status| status.free_memory.map(Into::into)),
         }
     }
 }
@@ -250,7 +252,7 @@ impl From<ank_base::AgentAttributes> for FilteredAgentAttributes {
 impl From<ank_base::CpuUsage> for FilteredCpuUsage {
     fn from(value: ank_base::CpuUsage) -> Self {
         FilteredCpuUsage {
-            cpu_usage: value.cpu_usage,
+            cpu_usage: Some(value.cpu_usage),
         }
     }
 }
@@ -258,7 +260,7 @@ impl From<ank_base::CpuUsage> for FilteredCpuUsage {
 impl From<ank_base::FreeMemory> for FilteredFreeMemory {
     fn from(value: ank_base::FreeMemory) -> Self {
         FilteredFreeMemory {
-            free_memory: value.free_memory,
+            free_memory: Some(value.free_memory),
         }
     }
 }

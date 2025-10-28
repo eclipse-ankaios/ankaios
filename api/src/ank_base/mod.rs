@@ -25,7 +25,6 @@ pub(crate) mod file_internal; // Rename needed to avoid conflict with tonic gene
 pub use file::{FileContent, FileContentInternal};
 
 pub(crate) mod agent_map;
-pub use agent_map::AgentLoadStatus;
 
 pub(crate) mod control_interface_access;
 pub use access_rights_rule::AccessRightsRuleEnumInternal;

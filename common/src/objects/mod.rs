@@ -16,6 +16,8 @@
 
 // [impl->swdd~common-conversions-between-ankaios-and-proto~1]
 
+pub mod agent_load_status;
+pub use agent_load_status::AgentLoadStatus;
 pub mod state;
 pub use state::State;
 pub use state::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};

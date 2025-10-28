@@ -21,6 +21,7 @@ use api::ank_base::{
     request::RequestContent,
 };
 
+use common::objects::AgentLoadStatus;
 use common::request_id_prepending::prepend_request_id;
 use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender};
 
@@ -226,7 +227,7 @@ pub async fn forward_from_ankaios_to_proto(
                 grpc_tx
                     .send(grpc_api::ToServer {
                         to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentLoadStatus(
-                            ank_base::AgentLoadStatus {
+                            AgentLoadStatus {
                                 agent_name: status.agent_name,
                                 cpu_usage: status.cpu_usage,
                                 free_memory: status.free_memory,
@@ -354,7 +355,7 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let agent_load_status = ank_base::AgentLoadStatus {
+        let agent_load_status = common::objects::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
             cpu_usage: CpuUsageInternal { cpu_usage: 42 },
             free_memory: FreeMemoryInternal { free_memory: 42 },
@@ -374,12 +375,8 @@ mod tests {
 
         let expected = ToServerEnum::AgentLoadStatus(grpc_api::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: Some(ank_base::CpuUsage {
-                cpu_usage: Some(42),
-            }),
-            free_memory: Some(ank_base::FreeMemory {
-                free_memory: Some(42),
-            }),
+            cpu_usage: Some(ank_base::CpuUsage { cpu_usage: 42 }),
+            free_memory: Some(ank_base::FreeMemory { free_memory: 42 }),
         });
 
         assert_eq!(result.to_server_enum, Some(expected));
@@ -388,7 +385,7 @@ mod tests {
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
-        let agent_load_status = ank_base::AgentLoadStatus {
+        let agent_load_status = common::objects::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
             cpu_usage: CpuUsageInternal { cpu_usage: 42 },
             free_memory: FreeMemoryInternal { free_memory: 42 },

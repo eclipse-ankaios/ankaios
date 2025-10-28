@@ -2389,12 +2389,11 @@ mod tests {
             agents: HashMap::from([(
                 AGENT_NAME.to_owned(),
                 ank_base::AgentAttributes {
-                    cpu_usage: Some(ank_base::CpuUsage {
-                        cpu_usage: Some(42),
+                    status: Some(ank_base::AgentStatus {
+                        cpu_usage: Some(ank_base::CpuUsage { cpu_usage: 42 }),
+                        free_memory: Some(ank_base::FreeMemory { free_memory: 42 }),
                     }),
-                    free_memory: Some(ank_base::FreeMemory {
-                        free_memory: Some(42),
-                    }),
+                    ..Default::default()
                 },
             )]),
         });

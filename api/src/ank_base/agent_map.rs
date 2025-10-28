@@ -12,17 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::{
-    AgentAttributesInternal, AgentMapInternal, CpuUsageInternal, FreeMemoryInternal,
-};
+use crate::ank_base::{AgentAttributesInternal, AgentMapInternal, AgentStatusInternal, CpuUsageInternal};
 use std::collections::{HashMap, hash_map::Entry};
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct AgentLoadStatus {
-    pub agent_name: String,
-    pub cpu_usage: CpuUsageInternal,
-    pub free_memory: FreeMemoryInternal,
-}
 
 impl CpuUsageInternal {
     pub fn new(cpu_usage: f32) -> Self {
@@ -52,14 +43,6 @@ impl AgentMapInternal {
         self.agents.remove(key);
     }
 
-    pub fn update_resource_availability(&mut self, agent_load_status: AgentLoadStatus) {
-        self.agents
-            .entry(agent_load_status.agent_name)
-            .and_modify(|e| {
-                e.cpu_usage = Some(agent_load_status.cpu_usage);
-                e.free_memory = Some(agent_load_status.free_memory);
-            });
-    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -72,12 +55,17 @@ impl AgentMapInternal {
 
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMapInternal {
+    use crate::ank_base::{CpuUsageInternal, FreeMemoryInternal};
+
     let mut agent_map = AgentMapInternal::new();
     agent_map
         .entry(agent_name.into())
         .or_insert(AgentAttributesInternal {
-            cpu_usage: Some(CpuUsageInternal { cpu_usage: 42 }),
-            free_memory: Some(FreeMemoryInternal { free_memory: 42 }),
+            status: Some(AgentStatusInternal {
+                cpu_usage: Some(CpuUsageInternal { cpu_usage: 42 }),
+                free_memory: Some(FreeMemoryInternal { free_memory: 42 }),
+            }),
+            ..Default::default()
         });
     agent_map
 }
@@ -86,6 +74,8 @@ pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMapInterna
 pub fn generate_test_agent_map_from_specs(
     workloads: &[crate::ank_base::WorkloadInternal],
 ) -> AgentMapInternal {
+    use crate::ank_base::{CpuUsageInternal, FreeMemoryInternal};
+
     workloads
         .iter()
         .fold(AgentMapInternal::new(), |mut agent_map, spec| {
@@ -93,8 +83,11 @@ pub fn generate_test_agent_map_from_specs(
             agent_map
                 .entry(agent_name.to_owned())
                 .or_insert(AgentAttributesInternal {
-                    cpu_usage: Some(CpuUsageInternal { cpu_usage: 42 }),
-                    free_memory: Some(FreeMemoryInternal { free_memory: 42 }),
+                    status: Some(AgentStatusInternal {
+                        cpu_usage: Some(CpuUsageInternal { cpu_usage: 42 }),
+                        free_memory: Some(FreeMemoryInternal { free_memory: 42 }),
+                    }),
+                    ..Default::default()
                 });
             agent_map
         })

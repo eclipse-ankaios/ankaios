@@ -15,7 +15,7 @@
 use super::config_renderer::RenderedWorkloads;
 use api::ank_base;
 use api::ank_base::{
-    AgentAttributesInternal, CpuUsageInternal, DeletedWorkload, FreeMemoryInternal,
+    AgentAttributesInternal, DeletedWorkload,
     WorkloadInstanceNameInternal, WorkloadInternal,
 };
 
@@ -266,8 +266,7 @@ impl ServerState {
             .agents
             .entry(agent_name)
             .or_insert(AgentAttributesInternal {
-                cpu_usage: Some(CpuUsageInternal::default()),
-                free_memory: Some(FreeMemoryInternal::default()),
+                ..Default::default()
             });
     }
 
@@ -284,11 +283,21 @@ impl ServerState {
     // [impl->swdd~server-updates-resource-availability~1]
     pub fn update_agent_resource_availability(
         &mut self,
-        agent_load_status: ank_base::AgentLoadStatus,
+        agent_load_status: common::objects::AgentLoadStatus,
     ) {
         self.state
             .agents
-            .update_resource_availability(agent_load_status);
+            .entry(agent_load_status.agent_name)
+            .and_modify(|e| {
+                e.status = Some(api::ank_base::AgentStatusInternal {
+                    cpu_usage: Some(api::ank_base::CpuUsageInternal {
+                        cpu_usage: agent_load_status.cpu_usage.cpu_usage,
+                    }),
+                    free_memory: Some(api::ank_base::FreeMemoryInternal {
+                        free_memory: agent_load_status.free_memory.free_memory,
+                    }),
+                });
+            });
     }
 
     // [impl->swdd~server-cleans-up-state~1]
@@ -362,13 +371,14 @@ mod tests {
     use std::collections::HashMap;
 
     use api::ank_base::{
-        self, AgentLoadStatus, AgentMapInternal, CpuUsageInternal, DeletedWorkload, Dependencies,
+        self, AgentMapInternal, CpuUsageInternal, DeletedWorkload, Dependencies,
         FreeMemoryInternal, Tags, WorkloadInternal,
     };
     use api::test_utils::{
         generate_test_agent_map, generate_test_proto_complete_state,
         generate_test_workload_with_control_interface_access, generate_test_workload_with_param,
     };
+    use common::objects::AgentLoadStatus;
     use common::{
         commands::CompleteStateRequest,
         objects::{CompleteState, ConfigItem, State, WorkloadStatesMap, generate_test_configs},
@@ -1539,15 +1549,15 @@ mod tests {
             free_memory: free_memory.clone(),
         });
 
-        let stored_state = server_state
+        let agent_status = server_state
             .state
             .agents
             .entry(AGENT_A.to_string())
             .or_default()
-            .to_owned();
+            .to_owned().status.unwrap_or_default();
 
-        assert_eq!(stored_state.cpu_usage, Some(cpu_usage));
-        assert_eq!(stored_state.free_memory, Some(free_memory));
+        assert_eq!(agent_status.cpu_usage, Some(cpu_usage));
+        assert_eq!(agent_status.free_memory, Some(free_memory));
     }
 
     // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]

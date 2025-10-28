@@ -36,9 +36,9 @@ impl CommanderHello {
     }
 }
 
-impl From<AgentLoadStatus> for ank_base::AgentLoadStatus {
+impl From<AgentLoadStatus> for common::objects::AgentLoadStatus {
     fn from(item: AgentLoadStatus) -> Self {
-        ank_base::AgentLoadStatus {
+        common::objects::AgentLoadStatus {
             agent_name: item.agent_name,
             cpu_usage: item.cpu_usage.unwrap_or_default().try_into().unwrap(),
             free_memory: item.free_memory.unwrap_or_default().try_into().unwrap(),
@@ -46,8 +46,8 @@ impl From<AgentLoadStatus> for ank_base::AgentLoadStatus {
     }
 }
 
-impl From<ank_base::AgentLoadStatus> for AgentLoadStatus {
-    fn from(item: ank_base::AgentLoadStatus) -> Self {
+impl From<common::objects::AgentLoadStatus> for AgentLoadStatus {
+    fn from(item: common::objects::AgentLoadStatus) -> Self {
         AgentLoadStatus {
             agent_name: item.agent_name,
             cpu_usage: Some(item.cpu_usage.into()),

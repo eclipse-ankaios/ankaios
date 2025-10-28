@@ -12,10 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::AgentLoadStatus;
 use common::{
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::WorkloadState,
+    objects::{AgentLoadStatus, WorkloadState},
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
