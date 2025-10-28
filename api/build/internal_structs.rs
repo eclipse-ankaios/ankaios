@@ -84,12 +84,17 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
         .field_attribute("Workload.agent", "#[internal_mandatory]")
         .field_attribute("Workload.restartPolicy", "#[internal_mandatory]")
         .field_attribute("Workload.dependencies", "#[internal_mandatory]")
+        .field_attribute("Workload.dependencies", "#[internal_field_attr(#[serde(flatten)])]")
         .field_attribute("Workload.tags", "#[internal_mandatory]")
+        .field_attribute("Workload.tags", "#[internal_field_attr(#[serde(flatten)])]")
         .field_attribute("Workload.runtime", "#[internal_mandatory]")
         .field_attribute("Workload.runtimeConfig", "#[internal_mandatory]")
         .field_attribute("Workload.controlInterfaceAccess", "#[internal_mandatory]")
         .field_attribute("Workload.configs", "#[internal_mandatory]")
+        .field_attribute("Workload.configs", "#[internal_field_attr(#[serde(flatten)])]")
         .field_attribute("Workload.files", "#[internal_mandatory]")
+        .field_attribute("Workload.files", "#[internal_field_attr(#[serde(flatten)])]")
+
         // .field_attribute("Workload.restartPolicy", "#[internal_field_attr(#[serde(default)])]")
         // .field_attribute("Workload.dependencies", "#[internal_field_attr(#[serde(default)])]")
         // .field_attribute("Workload.tags", "#[internal_field_attr(#[serde(default)])]")
@@ -165,22 +170,26 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
             "AccessRightsRule",
             "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
         )
+        .field_attribute("AccessRightsRule.AccessRightsRuleEnum", "#[serde(flatten)]")
+        .field_attribute("AccessRightsRule.AccessRightsRuleEnum", "#[internal_field_attr(#[serde(flatten)])]")
         .field_attribute(
             "AccessRightsRule.AccessRightsRuleEnum",
             "#[internal_mandatory]",
         )
+
         .type_attribute(
             "AccessRightsRuleEnum",
             "#[derive(internal_derive_macros::Internal)]",
         )
         .type_attribute(
-            "AccessRightsRuleEnum",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
+            "AccessRightsRule.AccessRightsRuleEnum",
+            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",)
+        // .type_attribute("AccessRightsRule", "#[serde(flatten)]")
+        .type_attribute("AccessRightsRule.AccessRightsRuleEnum", "#[internal_type_attr(#[serde(tag = \"type\")])]")
+        .type_attribute(
+            "AccessRightsRule.AccessRightsRuleEnum",
+            "#[serde(tag = \"type\")]",
         )
-        // .type_attribute(
-        //     "AccessRightsRuleEnum",
-        //     "#[internal_type_attr(#[serde(tag = \"type\")])]",
-        // )
         .type_attribute("StateRule", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "StateRule",
@@ -275,18 +284,21 @@ pub fn setup_internal_agent_map(builder: Builder) -> Builder {
             "AgentAttributes",
             "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
+        .type_attribute("AgentStatus", "#[derive(internal_derive_macros::Internal)]")
+        .type_attribute(
+            "AgentStatus",
+            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+        )
         .type_attribute("CpuUsage", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "CpuUsage",
             "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
-        .field_attribute("CpuUsage.cpu_usage", "#[internal_mandatory]")
         .type_attribute("FreeMemory", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "FreeMemory",
             "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
-        .field_attribute("FreeMemory.free_memory", "#[internal_mandatory]")
 }
 
 /// This function is used to create and configure the following structs:

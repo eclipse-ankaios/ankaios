@@ -22,8 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .boxed("Request.RequestContent.updateStateRequest")
         .boxed("FromAnkaios.FromAnkaiosEnum.response")
         .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")
-        .message_attribute(".", "#[serde(rename_all = \"camelCase\")]")
-        .enum_attribute(".", "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]")
+        .type_attribute(".", "#[serde(rename_all = \"camelCase\")]")
+        // .enum_attribute(".", "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]")
         .type_attribute(
             "ank_base.ConfigItem",
             "#[serde(into = \"serde_yaml::Value\")]",
@@ -35,6 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .field_attribute("Workload.tags", "#[serde(flatten)]")
         .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")
+        .field_attribute("Workload.files", "#[serde(flatten)]")
         .field_attribute("WorkloadStatesMap.agentStateMap", "#[serde(flatten)]")
         .field_attribute(
             "ExecutionsStatesOfWorkload.wlNameStateMap",
