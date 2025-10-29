@@ -1453,96 +1453,28 @@ Needs:
 
 #### EventHandler handles event notifications
 
-##### EventHandler adds new subscribers to the event store
-`swdd~event-handler-adds-new-subscribers-to-event-store~1`
+##### EventHandler provides functionality to handle event subscriptions
+`swdd~provides-functionality-to-handle-event-subscriptions~1`
 
 Status: approved
 
-The EventHandler shall provide a method to add a new subscriber to its internal event store by adding a new entry with the subscriber's request ID as key and the subscriber's field masks as value.
+The EventHandler shall provide the following methods to manage the subscriptions in its internal event subscription store:
+
+* adding a new subscriber by inserting a new entry with the subscriber's request ID as key and the subscriber's field masks as value
+* removing a subscriber
+* checking if there is any subscriber inside its internal event store
+* removing all subscribers of a specific agent from its internal event store
+* removing all subscribers of a specific cli connection from its internal event store
 
 Comment:
-The event store is an associative data structure.
+The event subscription store is an associative data structure.
 One subscriber can subscribe to multiple field masks.
 
 Rationale:
 The EventHandler sends events to specific subscribers identified by their request ID.
-
-Tags:
-- EventHandler
-
-Needs:
-- impl
-- utest
-
-##### EventHandler removes subscribers from event store
-`swdd~event-handler-removes-subscribers-from-event-store~1`
-
-Status: approved
-
-The EventHandler shall provide a method to remove a subscriber from its internal event store.
-
-Comment:
-The event store is an associative data structure.
-
-Tags:
-- EventHandler
-
-Needs:
-- impl
-- utest
-
-##### EventHandler removes subscribers of specific agent from event store
-`swdd~event-handler-removes-subscribers-of-specific-agent-from-event-store~1`
-
-Status: approved
-
-The EventHandler shall provide a method to remove all subscribers of a specific agent from its internal event store.
-
-Comment:
-The event store is an associative data structure.
-
-Rationale:
+For efficiency, providing a check for existing subscribers allows to skip costly event related calculations if there are no subscribers available.
 This serves to prevent subscription corpses that remain in the system when an Ankaios Agent managing workloads with event subscriptions disconnects.
-
-Tags:
-- EventHandler
-
-Needs:
-- impl
-- utest
-
-##### EventHandler removes subscribers of cli connection
-`swdd~event-handler-removes-cli-subscriber-from-event-store~1`
-
-Status: approved
-
-The EventHandler shall provide a method to remove all subscribers of a specific cli connection from its internal event store.
-
-Comment:
-The event store is an associative data structure.
-
-Rationale:
 This serves to prevent subscription corpses that remain in the system when the cli with event subscriptions disconnects.
-
-Tags:
-- EventHandler
-
-Needs:
-- impl
-- utest
-
-##### EventHandler provides subscriber exists functionality
-`swdd~event-handler-provides-subscriber-exists-functionality~1`
-
-Status: approved
-
-The EventHandler shall provide a method to check if there is any subscriber inside its internal event store.
-
-Comment:
-The event store is an associative data structure.
-
-Rationale:
-For efficiency, the Ankaios Server skips the state difference calculation if there are no subscribers available.
 
 Tags:
 - EventHandler

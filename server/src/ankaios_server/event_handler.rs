@@ -145,19 +145,19 @@ fn expand_wildcards_in_subscriber_mask(subscriber_mask: &Path, altered_field_mas
 
 #[cfg_attr(test, automock)]
 impl EventHandler {
-    // [impl->swdd~event-handler-adds-new-subscribers-to-event-store~1]
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn add_subscriber(&mut self, request_id: String, field_masks: SubscribedFieldMasks) {
         log::debug!("Adding subscriber '{request_id}' with field masks: {field_masks:?}",);
         self.subscriber_store.insert(request_id.into(), field_masks);
     }
 
-    // [impl->swdd~event-handler-removes-subscribers-from-event-store~1]
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn remove_subscriber(&mut self, request_id: String) {
         log::debug!("Removing subscriber '{request_id}'");
         self.subscriber_store.remove(&request_id.into());
     }
 
-    // [impl->swdd~event-handler-removes-subscribers-of-specific-agent-from-event-store~1]
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn remove_subscribers_of_agent(&mut self, agent_name: &str) {
         self.subscriber_store.retain(|request_id, _| {
             if let RequestId::AgentRequestId(agent_request_id) = request_id {
@@ -168,7 +168,7 @@ impl EventHandler {
         });
     }
 
-    // [impl->swdd~event-handler-removes-cli-subscriber-from-event-store~1]
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn remove_cli_subscriber(&mut self, cli_connection_name: &CliConnectionName) {
         self.subscriber_store.retain(|request_id, _| {
             if let RequestId::CliRequestId(cli_request_id) = request_id {
@@ -179,7 +179,7 @@ impl EventHandler {
         });
     }
 
-    // [impl->swdd~event-handler-provides-subscriber-exists-functionality~1]
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn has_subscribers(&self) -> bool {
         !self.subscriber_store.is_empty()
     }
@@ -302,7 +302,7 @@ mod tests {
     const CLI_CONN_1_REQUEST_ID_2: &str = "cli-conn-1@cli_request_id_2";
     const CLI_CONN_2_REQUEST_ID_1: &str = "cli-conn-2@cli_request_id_2";
 
-    // [utest->swdd~event-handler-adds-new-subscribers-to-event-store~1]
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
     fn utest_event_handler_add_subscriber() {
         let mut event_handler = EventHandler::default();
@@ -333,7 +333,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~event-handler-removes-subscribers-from-event-store~1]
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
     fn utest_event_handler_remove_subscriber() {
         let mut event_handler = EventHandler {
@@ -364,7 +364,7 @@ mod tests {
         assert_eq!(event_handler.subscriber_store.len(), 0);
     }
 
-    // [utest->swdd~event-handler-removes-subscribers-of-specific-agent-from-event-store~1]
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
     fn utest_event_handler_removes_subscribers_of_agent() {
         let mut event_handler = EventHandler {
@@ -391,7 +391,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~event-handler-removes-cli-subscriber-from-event-store~1]
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
     fn utest_event_handler_removes_cli_subscriber() {
         let mut event_handler = EventHandler {
@@ -423,7 +423,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~event-handler-provides-subscriber-exists-functionality~1]
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
     fn utest_event_handler_has_subscribers() {
         let mut event_handler = EventHandler {
