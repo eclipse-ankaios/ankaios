@@ -114,32 +114,6 @@ impl AnkaiosServer {
                     // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
                     self.workload_states_map.initial_state(&added_workloads);
 
-                    // [impl->swdd~server-sends-state-differences-as-events~1]
-                    if self.event_handler.has_subscribers() {
-                        let mut altered_fields =
-                            state_generation_result.state_comparator.state_differences();
-
-                        // add initial workload states as added fields
-                        // [impl->swdd~server-sends-event-for-initial-workload-states~1]
-                        altered_fields.extend(
-                            added_workloads
-                                .iter()
-                                .map(|wl| FieldDifference::added_workload_state(&wl.instance_name)),
-                        );
-
-                        if !altered_fields.is_empty() {
-                            self.event_handler
-                                .send_events(
-                                    &self.server_state,
-                                    &self.workload_states_map,
-                                    &self.agent_map,
-                                    altered_fields,
-                                    &self.to_agents,
-                                )
-                                .await;
-                        }
-                    }
-
                     log::info!("Starting...");
                     self.to_agents
                         .update_workload(added_workloads, deleted_workloads)
@@ -148,25 +122,6 @@ impl AnkaiosServer {
                 }
                 Ok(None) => {
                     log::info!("No initial workloads to send to agents.");
-
-                    // events for startup state with only configs but no workloads
-                    // [impl->swdd~server-sends-state-differences-as-events~1]
-                    if self.event_handler.has_subscribers() {
-                        let altered_fields =
-                            state_generation_result.state_comparator.state_differences();
-
-                        if !altered_fields.is_empty() {
-                            self.event_handler
-                                .send_events(
-                                    &self.server_state,
-                                    &self.workload_states_map,
-                                    &self.agent_map,
-                                    altered_fields,
-                                    &self.to_agents,
-                                )
-                                .await;
-                        }
-                    }
                 }
                 Err(err) => {
                     // [impl->swdd~server-fails-on-invalid-startup-state~1]
@@ -1148,12 +1103,6 @@ mod tests {
             })));
 
         server.server_state = mock_server_state;
-
-        server
-            .event_handler
-            .expect_has_subscribers()
-            .once()
-            .return_const(false);
 
         let server_handle = server.start(Some(startup_state));
 
@@ -3231,176 +3180,6 @@ mod tests {
 
     // [utest->swdd~server-sends-state-differences-as-events~1]
     // [utest->swdd~server-sends-event-for-initial-workload-states~1]
-    #[tokio::test]
-    async fn utest_server_sends_events_upon_updated_startup_state_with_added_workloads() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
-        let (to_agents, _comm_middle_ware_receiver) =
-            create_from_server_channel(common::CHANNEL_CAPACITY);
-
-        let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
-        server
-            .event_handler
-            .expect_has_subscribers()
-            .once()
-            .return_const(true);
-
-        let workload_1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_owned(),
-        );
-
-        let startup_state = CompleteState {
-            desired_state: State {
-                workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), workload_1.clone().into())]),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let mut expected_field_differences = vec![FieldDifference::Added(vec![
-            "desiredState".to_owned(),
-            "workloads".to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-        ])];
-
-        let field_differences = expected_field_differences.clone();
-
-        let new_desired_state = startup_state.desired_state.clone();
-        let mut state_generation_result = StateGenerationResult {
-            new_desired_state: new_desired_state.clone(),
-            ..Default::default()
-        };
-
-        state_generation_result
-            .state_comparator
-            .expect_state_differences()
-            .once()
-            .returning(move || field_differences.clone());
-
-        server
-            .server_state
-            .expect_generate_new_state()
-            .once()
-            .return_once(move |_, _| Ok(state_generation_result));
-
-        server
-            .server_state
-            .expect_update()
-            .once()
-            .return_const(Ok(Some(AddedDeletedWorkloads {
-                added_workloads: vec![workload_1.clone()],
-                deleted_workloads: vec![],
-            })));
-
-        expected_field_differences.push(FieldDifference::added_workload_state(
-            &workload_1.instance_name,
-        ));
-
-        let mut expected_workload_state_map = WorkloadStatesMap::default();
-        expected_workload_state_map.process_new_states(vec![WorkloadState {
-            instance_name: workload_1.instance_name.clone(),
-            execution_state: ExecutionState::initial(),
-        }]);
-
-        server
-            .event_handler
-            .expect_send_events()
-            .with(
-                mockall::predicate::always(),
-                mockall::predicate::eq(expected_workload_state_map),
-                mockall::predicate::eq(AgentMap::default()),
-                mockall::predicate::eq(expected_field_differences),
-                mockall::predicate::function(move |event_sender_channel: &FromServerSender| {
-                    event_sender_channel.same_channel(&to_agents)
-                }),
-            )
-            .once()
-            .return_const(());
-
-        drop(to_server);
-        let result = server.start(Some(startup_state)).await;
-        assert!(result.is_ok());
-    }
-
-    // [utest->swdd~server-sends-state-differences-as-events~1]
-    #[tokio::test]
-    async fn utest_server_sends_events_upon_updated_startup_state_with_configs() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
-        let (to_agents, _comm_middle_ware_receiver) =
-            create_from_server_channel(common::CHANNEL_CAPACITY);
-
-        let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
-        server
-            .event_handler
-            .expect_has_subscribers()
-            .once()
-            .return_const(true);
-
-        let mut new_configs = generate_test_configs();
-        new_configs.retain(|key, _| key == "config_2");
-
-        let startup_state = CompleteState {
-            desired_state: State {
-                configs: new_configs,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let expected_field_differences = vec![FieldDifference::Added(vec![
-            "configs".to_owned(),
-            "config_2".to_owned(),
-        ])];
-
-        let field_differences = expected_field_differences.clone();
-
-        let new_desired_state = startup_state.desired_state.clone();
-        let mut state_generation_result = StateGenerationResult {
-            new_desired_state: new_desired_state.clone(),
-            ..Default::default()
-        };
-
-        state_generation_result
-            .state_comparator
-            .expect_state_differences()
-            .once()
-            .returning(move || field_differences.clone());
-
-        server
-            .server_state
-            .expect_generate_new_state()
-            .once()
-            .return_once(move |_, _| Ok(state_generation_result));
-
-        server
-            .server_state
-            .expect_update()
-            .once()
-            .return_const(Ok(None));
-
-        server
-            .event_handler
-            .expect_send_events()
-            .with(
-                mockall::predicate::always(),
-                mockall::predicate::eq(WorkloadStatesMap::default()),
-                mockall::predicate::eq(AgentMap::default()),
-                mockall::predicate::eq(expected_field_differences),
-                mockall::predicate::always(),
-            )
-            .once()
-            .return_const(());
-
-        drop(to_server);
-        let result = server.start(Some(startup_state)).await;
-        assert!(result.is_ok());
-    }
-
-    // [utest->swdd~server-sends-state-differences-as-events~1]
-    // [utest->swdd~server-sends-event-for-initial-workload-states~1]
     // [utest->swdd~server-sends-event-for-removed-workload-states~1]
     #[tokio::test]
     async fn utest_server_sends_events_upon_update_state_with_updated_workloads() {
@@ -3434,7 +3213,7 @@ mod tests {
         }];
 
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
-        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
 
         server
             .workload_states_map
@@ -3494,15 +3273,23 @@ mod tests {
 
         expected_field_differences.push(FieldDifference::removed_workload_state(&w1.instance_name));
 
+        let mut expected_workload_states_map = WorkloadStatesMap::default();
+        expected_workload_states_map.process_new_states(vec![WorkloadState {
+            instance_name: updated_w1.instance_name.clone(),
+            execution_state: ExecutionState::initial(),
+        }]);
+
         server
             .event_handler
             .expect_send_events()
             .with(
                 mockall::predicate::always(),
-                mockall::predicate::always(),
-                mockall::predicate::always(),
+                mockall::predicate::eq(expected_workload_states_map),
+                mockall::predicate::eq(AgentMap::default()),
                 mockall::predicate::eq(expected_field_differences),
-                mockall::predicate::always(),
+                mockall::predicate::function(move |event_sender_channel: &FromServerSender| {
+                    event_sender_channel.same_channel(&to_agents)
+                }),
             )
             .once()
             .return_const(());
