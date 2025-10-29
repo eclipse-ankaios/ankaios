@@ -12,10 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{
-    self,  
-    WorkloadInstanceNameInternal, WorkloadInternal,
-};
+use api::ank_base::{self, WorkloadNamed};
 use common::commands;
 use std::collections::HashMap;
 
@@ -107,27 +104,22 @@ impl From<ank_base::DeletedWorkload> for DeletedWorkload {
     }
 }
 
-impl TryFrom<AddedWorkload> for (String, WorkloadInternal) {
+impl TryFrom<AddedWorkload> for WorkloadNamed {
     type Error = String;
 
     fn try_from(workload: AddedWorkload) -> Result<Self, String> {
-        let instance_name = workload.instance_name.ok_or("No instance name")?;
-        let workload = workload.workload.ok_or("No workload")?;
-        Ok((instance_name.workload_name, workload.try_into()?))
+        Ok(WorkloadNamed {
+            instance_name: workload.instance_name.ok_or("No instance name")?.try_into()?,
+            workload: workload.workload.ok_or("No workload")?.try_into()?,
+        })
     }
 }
 
-impl From<(String, WorkloadInternal)> for AddedWorkload {
-    fn from((name, workload): (String, WorkloadInternal)) -> Self {
-        let instance_name = WorkloadInstanceNameInternal::builder()
-            .workload_name(name)
-            .agent_name(workload.agent.clone())
-            .config(&workload.runtime_config.clone())
-            .build();
-
+impl From<WorkloadNamed> for AddedWorkload {
+    fn from(workload: WorkloadNamed) -> Self {
         AddedWorkload {
-            instance_name: Some(instance_name.into()),
-            workload: Some(workload.into()),
+            instance_name: Some(workload.instance_name.into()),
+            workload: Some(workload.workload.into()),
         }
     }
 }

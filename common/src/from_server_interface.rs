@@ -14,9 +14,8 @@
 
 use crate::commands::{self, LogsRequest};
 use crate::objects::WorkloadState;
-use api::ank_base::{self, DeletedWorkload, WorkloadInternal};
+use api::ank_base::{self, DeletedWorkload, WorkloadNamed};
 use async_trait::async_trait;
-use std::collections::HashMap;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
 #[derive(Debug)]
@@ -52,11 +51,11 @@ pub trait FromServerInterface {
     async fn server_hello(
         &self,
         agent_name: Option<String>,
-        added_workloads: HashMap<String, WorkloadInternal>,
+        added_workloads: Vec<WorkloadNamed>,
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_workload(
         &self,
-        added_workloads: HashMap<String, WorkloadInternal>,
+        added_workloads: Vec<WorkloadNamed>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_workload_state(
@@ -118,7 +117,7 @@ impl FromServerInterface for FromServerSender {
         &self,
         // This is a workaround for not having a request-response model dedicated for the communication middleware
         agent_name: Option<String>,
-        added_workloads: HashMap<String, WorkloadInternal>,
+        added_workloads: Vec<WorkloadNamed>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::ServerHello(commands::ServerHello {
@@ -130,7 +129,7 @@ impl FromServerInterface for FromServerSender {
 
     async fn update_workload(
         &self,
-        added_workloads: HashMap<String, WorkloadInternal>,
+        added_workloads: Vec<WorkloadNamed>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
