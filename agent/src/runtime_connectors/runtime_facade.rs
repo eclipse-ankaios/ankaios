@@ -11,13 +11,16 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+
 use crate::io_utils::FileSystemError;
+use api::ank_base::{
+    ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed,
+};
 
-use std::{path::PathBuf, str::FromStr};
-
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadInternal};
 use async_trait::async_trait;
 use common::{objects::AgentName, std_extensions::IllegalStateResult};
+use std::{path::PathBuf, str::FromStr};
+use tokio::task::JoinHandle;
 
 #[cfg(test)]
 use crate::runtime_connectors::dummy_state_checker::DummyStateChecker;
@@ -47,8 +50,6 @@ use crate::workload::control_loop_state::ControlLoopState;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::workload_control_loop::WorkloadControlLoop;
 
-use tokio::task::JoinHandle;
-
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait RuntimeFacade: Send + Sync + 'static {
@@ -66,7 +67,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 
     fn resume_workload(
         &self,
-        runtime_workload: WorkloadInternal,
+        runtime_workload: WorkloadNamed,
         control_interface: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload;
@@ -140,13 +141,13 @@ impl<
     // [impl->swdd~agent-resume-workload~2]
     fn resume_workload(
         &self,
-        workload_spec: WorkloadInternal,
+        runtime_workload: WorkloadNamed,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let (_task_handle, workload) = Self::resume_workload_non_blocking(
             self,
-            workload_spec,
+            runtime_workload,
             control_interface_info,
             update_state_tx,
         );
@@ -175,7 +176,7 @@ impl<
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
-        let workload_spec = reusable_workload_spec.workload_spec;
+        let workload_named = reusable_workload_spec.workload_named;
         let workload_id = match reusable_workload_spec.workload_id {
             Some(id) => match WorkloadId::from_str(&id) {
                 Ok(id) => Some(id),
@@ -189,7 +190,7 @@ impl<
 
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
-        let workload_name = workload_spec.instance_name.workload_name().to_owned();
+        let workload_name = workload_named.instance_name.workload_name().to_owned();
 
         let (control_interface_path, control_interface) = if let Some(info) = control_interface_info
         {
@@ -239,7 +240,7 @@ impl<
                 });
 
             let control_loop_state = ControlLoopState::builder()
-                .workload_spec(workload_spec)
+                .workload_named(workload_named)
                 .workload_id(workload_id)
                 .control_interface_path(control_interface_path)
                 .run_folder(run_folder)
@@ -262,11 +263,11 @@ impl<
     // [impl->swdd~agent-resume-workload~2]
     fn resume_workload_non_blocking(
         &self,
-        workload_spec: WorkloadInternal,
+        workload_named: WorkloadNamed,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
-        let workload_name = workload_spec.instance_name.workload_name().to_owned();
+        let workload_name = workload_named.instance_name.workload_name().to_owned();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
@@ -292,7 +293,7 @@ impl<
                 Err(err) => {
                     log::warn!(
                         "Could not reuse or create control interface when resuming workload '{}': '{}'",
-                        workload_spec.instance_name,
+                        workload_named.instance_name,
                         err
                     );
                     None
@@ -301,7 +302,7 @@ impl<
         } else {
             log::info!(
                 "No control interface access rights specified for resumed workload '{}'. Skipping creation of control interface.",
-                workload_spec.instance_name.clone().workload_name()
+                workload_named.instance_name.clone().workload_name()
             );
             None
         };
@@ -315,7 +316,7 @@ impl<
         let run_folder = self.run_folder.clone();
         let task_handle = tokio::spawn(async move {
             let control_loop_state = ControlLoopState::builder()
-                .workload_spec(workload_spec)
+                .workload_named(workload_named)
                 .workload_state_sender(update_state_tx)
                 .runtime(runtime)
                 .run_folder(run_folder)

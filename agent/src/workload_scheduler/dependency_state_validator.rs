@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{DeletedWorkload, FulfilledBy, WorkloadInternal};
+use api::ank_base::{DeletedWorkload, FulfilledBy, WorkloadNamed};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
@@ -25,10 +25,11 @@ pub struct DependencyStateValidator {}
 #[cfg_attr(test, automock)]
 impl DependencyStateValidator {
     pub fn create_fulfilled(
-        workload: &WorkloadInternal,
+        workload: &WorkloadNamed,
         workload_state_db: &WorkloadStateStore,
     ) -> bool {
         workload
+        .workload
             .dependencies
             .dependencies
             .iter()

@@ -31,7 +31,7 @@ pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]*$";
 pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
 pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct WorkloadNamed {
     #[serde(skip)]
     pub instance_name: WorkloadInstanceNameInternal,

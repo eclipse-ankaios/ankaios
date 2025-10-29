@@ -16,7 +16,7 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 
-use api::ank_base::{ExecutionStateInternal, WorkloadInternal};
+use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
 
 #[cfg(test)]
 use mockall::automock;
@@ -41,7 +41,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn start_checker(
-        workload_spec: &WorkloadInternal,
+        workload_named: &WorkloadNamed,
         workload_id: WorkloadId,
         manager_interface: WorkloadStateSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,

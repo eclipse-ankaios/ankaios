@@ -16,7 +16,7 @@ use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadInternal};
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
 use common::{objects::AgentName, std_extensions::UnreachableOption};
 
 use crate::{
@@ -157,14 +157,14 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
     // [impl->swdd~podman-create-workload-starts-existing-workload~1]
     async fn create_workload(
         &self,
-        workload_spec: WorkloadInternal,
+        workload_named: WorkloadNamed,
         reusable_workload_id: Option<PodmanWorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
     ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
         let workload_cfg =
-            PodmanRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Unsupported)?;
+            PodmanRuntimeConfig::try_from(&workload_named.workload).map_err(RuntimeError::Unsupported)?;
 
         let cli_result = match reusable_workload_id {
             Some(workload_id) => {
@@ -172,14 +172,14 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
                     general_options: workload_cfg.general_options,
                     container_id: workload_id.id,
                 };
-                PodmanCli::podman_start(start_config, &workload_spec.instance_name.to_string())
+                PodmanCli::podman_start(start_config, &workload_named.instance_name.to_string())
                     .await
             }
             None => {
                 PodmanCli::podman_run(
                     workload_cfg.into(),
-                    &workload_spec.instance_name.to_string(),
-                    workload_spec.instance_name.agent_name(),
+                    &workload_named.instance_name.to_string(),
+                    workload_named.instance_name.agent_name(),
                     control_interface_path,
                     workload_file_path_mappings,
                 )
@@ -191,13 +191,13 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
             Ok(workload_id) => {
                 log::debug!(
                     "The workload '{}' has been created with internal id '{}'",
-                    workload_spec.instance_name,
+                    workload_named.instance_name,
                     workload_id
                 );
 
                 let podman_workload_id = PodmanWorkloadId { id: workload_id };
                 let state_checker = self
-                    .start_checker(&podman_workload_id, workload_spec, update_state_tx)
+                    .start_checker(&podman_workload_id, workload_named, update_state_tx)
                     .await?;
 
                 // [impl->swdd~podman-create-workload-returns-workload-id~1]
@@ -206,7 +206,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
             Err(err) => {
                 // [impl->swdd~podman-create-workload-deletes-failed-container~1]
                 log::debug!("Creating/starting container failed, cleaning up. Error: '{err}'");
-                match PodmanCli::remove_workloads_by_id(&workload_spec.instance_name.to_string())
+                match PodmanCli::remove_workloads_by_id(&workload_named.instance_name.to_string())
                     .await
                 {
                     Ok(()) => log::debug!("The broken container has been deleted successfully"),
@@ -248,7 +248,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
     async fn start_checker(
         &self,
         workload_id: &PodmanWorkloadId,
-        workload_spec: WorkloadInternal,
+        workload_named: WorkloadNamed,
         update_state_tx: WorkloadStateSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
         // [impl->swdd~podman-state-getter-reset-cache~1]
@@ -256,11 +256,11 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 
         log::debug!(
             "Starting the checker for the workload '{}' with internal id '{}'",
-            workload_spec.instance_name,
+            workload_named.instance_name,
             workload_id.id
         );
         let checker = GenericPollingStateChecker::start_checker(
-            &workload_spec,
+            &workload_named,
             workload_id.clone(),
             update_state_tx,
             PodmanStateGetter {},

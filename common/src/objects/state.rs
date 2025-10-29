@@ -12,15 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::helpers::serialize_to_ordered_map;
 use crate::objects::ConfigItem;
+
+use api::ank_base::{self, STR_RE_CONFIG_REFERENCES, WorkloadInternal, serialize_to_ordered_map};
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-use api::ank_base::{
-    self, STR_RE_CONFIG_REFERENCES, WorkloadInternal,
-};
 
 pub const API_VERSION_0_1: &str = "v0.1";
 pub const API_VERSION_1_0: &str = "v1";

@@ -12,7 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadInternal};
+use api::ank_base::{
+    ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed,
+};
 use common::objects::AgentName;
 use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
@@ -132,17 +134,17 @@ impl PodmanKubeRuntime {
     // [impl->swdd~podman-kube-mounts-control-interface~1]
     fn enrich_manifest_with_control_interface(
         workload_config: &mut PodmanKubeRuntimeConfig,
-        workload_spec: &WorkloadInternal,
+        workload_named: &WorkloadNamed,
         control_interface_target: &ControlInterfaceTarget,
     ) -> Result<(), RuntimeError> {
         log::trace!(
             "Enriching manifest with control interface for workload '{}'",
-            workload_spec.instance_name
+            workload_named.instance_name
         );
 
         let manifests = Self::parse_yaml_manifests(&workload_config.manifest)?;
         let processed_manifests: Vec<String> =
-            Self::process_manifest_list(manifests, workload_spec, control_interface_target)?;
+            Self::process_manifest_list(manifests, workload_named, control_interface_target)?;
 
         workload_config.manifest = processed_manifests.join("---\n");
         Ok(())
@@ -166,13 +168,13 @@ impl PodmanKubeRuntime {
 
     fn process_manifest_list(
         manifests: Vec<Value>,
-        workload_spec: &WorkloadInternal,
+        workload_named: &WorkloadNamed,
         control_interface_target: &ControlInterfaceTarget,
     ) -> Result<Vec<String>, RuntimeError> {
         log::trace!(
             "Processing {} manifests for workload '{}'",
             manifests.len(),
-            workload_spec.instance_name
+            workload_named.instance_name
         );
 
         manifests
@@ -182,7 +184,7 @@ impl PodmanKubeRuntime {
                 {
                     Self::inject_control_interface(
                         &mut manifest,
-                        workload_spec,
+                        workload_named,
                         &control_interface_target.container,
                     )?;
                 }
@@ -227,15 +229,15 @@ impl PodmanKubeRuntime {
     // [impl->swdd~podman-kube-injects-control-interface-volume-mount~1]
     fn inject_control_interface(
         manifest: &mut Value,
-        workload_spec: &WorkloadInternal,
+        workload_named: &WorkloadNamed,
         container_name: &str,
     ) -> Result<(), RuntimeError> {
         log::debug!(
             "Injecting control interface into manifest for workload '{}'",
-            workload_spec.instance_name
+            workload_named.instance_name
         );
         Self::inject_volume_mount(manifest, container_name)?;
-        Self::inject_control_volume(manifest, workload_spec)?;
+        Self::inject_control_volume(manifest, workload_named)?;
 
         log::trace!("Manifest after injecting control interface: {manifest:#?}");
         Ok(())
@@ -297,7 +299,7 @@ impl PodmanKubeRuntime {
     // [impl->swdd~podman-kube-injects-control-interface-volume~1]
     fn inject_control_volume(
         manifest: &mut Value,
-        workload_spec: &WorkloadInternal,
+        workload_named: &WorkloadNamed,
     ) -> Result<(), RuntimeError> {
         let spec_mapping = manifest
             .get_mut("spec")
@@ -316,20 +318,20 @@ impl PodmanKubeRuntime {
                 RuntimeError::Unsupported("Pod manifest missing spec.volumes".to_string())
             })?;
 
-        let volume = Self::create_control_interface_volume(workload_spec);
+        let volume = Self::create_control_interface_volume(workload_named);
         volumes.push(volume);
         Ok(())
     }
 
     // [impl->swdd~podman-kube-injects-control-interface-volume~1]
     // [impl->swdd~podman-kube-mounts-control-interface~1]
-    fn create_control_interface_volume(workload_spec: &WorkloadInternal) -> Value {
+    fn create_control_interface_volume(workload_named: &WorkloadNamed) -> Value {
         let mut host_path = Mapping::new();
         let path = format!(
             "/tmp/ankaios/{}_io/{}.{}/control_interface/",
-            workload_spec.instance_name.agent_name(),
-            workload_spec.instance_name.workload_name(),
-            workload_spec.instance_name.id()
+            workload_named.instance_name.agent_name(),
+            workload_named.instance_name.workload_name(),
+            workload_named.instance_name.id()
         );
 
         host_path.insert(Value::from("path"), Value::from(path));
@@ -395,51 +397,51 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
 
     async fn create_workload(
         &self,
-        workload_spec: WorkloadInternal,
+        workload_named: WorkloadNamed,
         _reusable_workload_id: Option<PodmanKubeWorkloadId>,
         _control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
         _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
-        let instance_name = workload_spec.instance_name.clone();
+        let instance_name = workload_named.instance_name.clone();
 
         // [impl->swdd~podman-kube-rejects-workload-files~1]
-        if workload_spec.has_files() {
+        if workload_named.workload.has_files() {
             return Err(RuntimeError::Unsupported(
                 "Workload files are not supported for podman-kube runtime. Use ConfigMaps instead."
                     .to_string(),
             ));
         }
 
-        let mut workload_config =
-            PodmanKubeRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Unsupported)?;
+        let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload_named.workload)
+            .map_err(RuntimeError::Unsupported)?;
 
         // [impl->swdd~podman-kube-create-workload-creates-config-volume~1]
         // [impl->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
         PodmanCli::store_data_as_volume(
             &(instance_name.to_string() + CONFIG_VOLUME_SUFFIX),
-            &workload_spec.runtime_config,
+            &workload_named.workload.runtime_config,
         )
         .await
         .unwrap_or_else(|err| {
             log::warn!(
                 "Could not store config for '{}' in volume: '{}'",
-                workload_spec.instance_name,
+                workload_named.instance_name,
                 err
             )
         });
 
-        if workload_spec.needs_control_interface() {
+        if workload_named.workload.needs_control_interface() {
             log::trace!(
                 "Workload '{}' needs control interface.",
-                workload_spec.instance_name
+                workload_named.instance_name
             );
             if let Some(control_interface_target) =
                 ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)?
             {
                 Self::enrich_manifest_with_control_interface(
                     &mut workload_config,
-                    &workload_spec,
+                    &workload_named,
                     &control_interface_target,
                 )?;
             } else {
@@ -473,7 +475,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         .unwrap_or_else(|err| {
             log::warn!(
                 "Could not store pods for '{}' in volume: '{}'",
-                workload_spec.instance_name,
+                workload_named.instance_name,
                 err
             )
         });
@@ -487,12 +489,12 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
 
         log::debug!(
             "The workload '{}' has been created.",
-            workload_spec.instance_name,
+            workload_named.instance_name,
         );
 
         // [impl->swdd~podman-kube-create-starts-podman-kube-state-getter~1]
         let state_checker = self
-            .start_checker(&workload_id, workload_spec, update_state_tx)
+            .start_checker(&workload_id, workload_named, update_state_tx)
             .await?;
 
         // [impl->swdd~podman-kube-create-workload-returns-workload-id~1]
@@ -542,17 +544,17 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
     async fn start_checker(
         &self,
         workload_id: &PodmanKubeWorkloadId,
-        workload_spec: WorkloadInternal,
+        workload_named: WorkloadNamed,
         update_state_tx: WorkloadStateSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
         // [impl->swdd~podman-kube-state-getter-reset-cache~1]
         PodmanCli::reset_ps_cache().await;
         log::debug!(
             "Starting the checker for the workload '{}'.",
-            workload_spec.instance_name,
+            workload_named.instance_name,
         );
         Ok(GenericPollingStateChecker::start_checker(
-            &workload_spec,
+            &workload_named,
             workload_id.clone(),
             update_state_tx,
             PodmanKubeRuntime {},

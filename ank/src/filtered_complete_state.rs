@@ -12,31 +12,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
-
-use api::ank_base;
-use api::ank_base::{AddCondition, ControlInterfaceAccessInternal, FileInternal, RestartPolicy};
-use common::{
-    helpers::serialize_to_ordered_map,
-    objects::{ConfigItem, WorkloadStatesMap},
-};
-use serde::{Deserialize, Serialize, Serializer};
-
 use crate::{output_and_error, output_warn};
 
-pub fn serialize_option_to_ordered_map<S, T: Serialize>(
-    value: &Option<HashMap<String, T>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    if let Some(value) = value {
-        serialize_to_ordered_map(value, serializer)
-    } else {
-        serializer.serialize_none()
-    }
-}
+use api::ank_base::{
+    self, AddCondition, ControlInterfaceAccessInternal, FileInternal, RestartPolicy,
+};
+use common::objects::{ConfigItem, WorkloadStatesMap};
+
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -52,28 +36,30 @@ pub struct FilteredCompleteState {
     pub agents: Option<FilteredAgentMap>,
 }
 
+// pub type FilteredCompleteStateInternal = api::ank_base::CompleteState;
+
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredState {
     // [impl->swdd~cli-returns-api-version-with-desired-state~1]
     pub api_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
+    // #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
     pub workloads: Option<HashMap<String, FilteredWorkloadSpec>>,
-    #[serde(serialize_with = "serialize_option_to_ordered_map")]
+    // #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub configs: Option<HashMap<String, ConfigItem>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FilteredAgentMap {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
-    pub agents: Option<HashMap<String, FilteredAgentAttributes>>,
-}
+// #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct FilteredAgentMap {
+//     #[serde(skip_serializing_if = "Option::is_none")]
+//     // #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
+//     pub agents: Option<HashMap<String, FilteredAgentAttributes>>,
+// }
 
-// pub type FilteredAgentMap = api::ank_base::AgentMap;
+pub type FilteredAgentMap = api::ank_base::AgentMap;
 
 // #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 // #[serde(rename_all = "camelCase")]
@@ -97,8 +83,6 @@ pub struct FilteredAgentMap {
 //     #[serde(flatten, skip_serializing_if = "Option::is_none")]
 //     pub free_memory: Option<FilteredFreeMemory>,
 // }
-
-pub type FilteredAgentAttributes = api::ank_base::AgentAttributes;
 
 // impl FilteredAgentAttributes {
 //     pub fn get_cpu_usage_as_string(&mut self) -> String {
@@ -133,7 +117,7 @@ pub struct FilteredWorkloadSpec {
     pub agent: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<HashMap<String, String>>,
-    #[serde(serialize_with = "serialize_option_to_ordered_map")]
+    // #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependencies: Option<HashMap<String, AddCondition>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -144,7 +128,7 @@ pub struct FilteredWorkloadSpec {
     pub runtime_config: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub control_interface_access: Option<ControlInterfaceAccessInternal>,
-    #[serde(serialize_with = "serialize_option_to_ordered_map")]
+    // #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub configs: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -156,7 +140,7 @@ impl From<ank_base::CompleteState> for FilteredCompleteState {
         FilteredCompleteState {
             desired_state: value.desired_state.map(Into::into),
             workload_states: value.workload_states.map(Into::into),
-            agents: value.agents.map(Into::into),
+            agents: value.agents,
         }
     }
 }
@@ -226,18 +210,13 @@ impl From<ank_base::Workload> for FilteredWorkloadSpec {
     }
 }
 
-impl From<ank_base::AgentMap> for FilteredAgentMap {
-    fn from(value: ank_base::AgentMap) -> Self {
-        FilteredAgentMap {
-            agents: Some(
-                value
-                    .agents
-                    .into_iter()
-                    .collect(),
-            ),
-        }
-    }
-}
+// impl From<ank_base::AgentMap> for FilteredAgentMap {
+//     fn from(value: ank_base::AgentMap) -> Self {
+//         FilteredAgentMap {
+//             agents: Some(value.agents.into_iter().collect()),
+//         }
+//     }
+// }
 
 // impl From<ank_base::AgentAttributes> for FilteredAgentAttributes {
 //     fn from(value: ank_base::AgentAttributes) -> Self {

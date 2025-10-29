@@ -71,11 +71,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
         )
         .field_attribute(
-            "AgentAttributes.cpu_usage",
+            "AgentStatus.cpu_usage",
             "#[serde(skip_serializing_if = \"::core::option::Option::is_none\")]",
         )
         .field_attribute(
-            "AgentAttributes.free_memory",
+            "AgentStatus.free_memory",
+            "#[serde(skip_serializing_if = \"::core::option::Option::is_none\")]",
+        )
+        .field_attribute(
+            "AgentAttributes.status",
+            "#[serde(skip_serializing_if = \"::core::option::Option::is_none\")]",
+        )
+        .field_attribute(
+            "AgentAttributes.tags",
             "#[serde(skip_serializing_if = \"::core::option::Option::is_none\")]",
         )
         .field_attribute(

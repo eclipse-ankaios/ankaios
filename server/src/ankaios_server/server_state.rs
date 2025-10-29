@@ -14,9 +14,8 @@
 
 use super::config_renderer::RenderedWorkloads;
 use api::ank_base;
-use api::ank_base::{WorkloadNamed,
-    AgentAttributesInternal, DeletedWorkload,
-    WorkloadInstanceNameInternal, WorkloadInternal,
+use api::ank_base::{
+    AgentAttributesInternal, DeletedWorkload, WorkloadInstanceNameInternal, WorkloadNamed,
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -40,8 +39,8 @@ use mockall::automock;
 fn extract_added_and_deleted_workloads(
     current_workloads: &RenderedWorkloads,
     new_workloads: &RenderedWorkloads,
-) -> Option<(Vec<WorkloadInternal>, Vec<DeletedWorkload>)> {
-    let mut added_workloads: Vec<WorkloadInternal> = Vec::new();
+) -> Option<(Vec<WorkloadNamed>, Vec<DeletedWorkload>)> {
+    let mut added_workloads: Vec<WorkloadNamed> = Vec::new();
     let mut deleted_workloads: Vec<DeletedWorkload> = Vec::new();
 
     // find updated or deleted workloads
@@ -173,7 +172,7 @@ impl ServerState {
     }
 
     // [impl->swdd~agent-from-agent-field~1]
-    pub fn get_workloads_for_agent(&self, agent_name: &str) -> Vec<WorkloadInternal> {
+    pub fn get_workloads_for_agent(&self, agent_name: &str) -> Vec<WorkloadNamed> {
         self.rendered_workloads
             .iter()
             .filter(|(_, workload)| workload.instance_name.agent_name().eq(agent_name))
@@ -222,7 +221,7 @@ impl ServerState {
                     let start_nodes: Vec<&str> = added_workloads
                         .iter()
                         .filter_map(|w| {
-                            if !w.dependencies.dependencies.is_empty() {
+                            if !w.workload.dependencies.dependencies.is_empty() {
                                 Some(w.instance_name.workload_name())
                             } else {
                                 None
@@ -352,6 +351,7 @@ impl ServerState {
     ) -> Result<(), UpdateStateError> {
         for workload_spec in workloads.values() {
             workload_spec
+                .workload
                 .verify_fields_format()
                 .map_err(UpdateStateError::ResultInvalid)?;
         }
@@ -1554,7 +1554,9 @@ mod tests {
             .agents
             .entry(AGENT_A.to_string())
             .or_default()
-            .to_owned().status.unwrap_or_default();
+            .to_owned()
+            .status
+            .unwrap_or_default();
 
         assert_eq!(agent_status.cpu_usage, Some(cpu_usage));
         assert_eq!(agent_status.free_memory, Some(free_memory));

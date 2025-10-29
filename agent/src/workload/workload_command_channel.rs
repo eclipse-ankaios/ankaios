@@ -16,7 +16,7 @@ use crate::{
     runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
     workload::WorkloadCommand,
 };
-use api::ank_base::{WorkloadInstanceNameInternal, WorkloadInternal};
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed};
 #[cfg(test)]
 use mockall_double::double;
 use tokio::sync::{mpsc, oneshot};
@@ -70,12 +70,12 @@ impl WorkloadCommandSender {
 
     pub async fn update(
         &self,
-        workload_spec: Option<WorkloadInternal>,
+        workload_named: Option<WorkloadNamed>,
         control_interface_path: Option<ControlInterfacePath>,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender
             .send(WorkloadCommand::Update(
-                workload_spec.map(Box::new),
+                workload_named.map(Box::new),
                 control_interface_path,
             ))
             .await

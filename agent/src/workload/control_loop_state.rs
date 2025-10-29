@@ -15,7 +15,7 @@ use crate::BUFFER_SIZE;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
 use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
-use api::ank_base::{WorkloadInstanceNameInternal, WorkloadInternal};
+use api::ank_base::{WorkloadNamed, WorkloadInstanceNameInternal};
 use common::objects::WorkloadState;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -30,7 +30,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    pub workload_spec: WorkloadInternal,
+    pub workload_named: WorkloadNamed,
     pub control_interface_path: Option<ControlInterfacePath>,
     pub run_folder: PathBuf,
     pub workload_id: Option<WorkloadId>,
@@ -54,7 +54,7 @@ where
     }
 
     pub fn instance_name(&self) -> &WorkloadInstanceNameInternal {
-        &self.workload_spec.instance_name
+        &self.workload_named.instance_name
     }
 }
 
@@ -63,7 +63,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    workload_spec: Option<WorkloadInternal>,
+    workload_named: Option<WorkloadNamed>,
     workload_id: Option<WorkloadId>,
     control_interface_path: Option<ControlInterfacePath>,
     run_folder: Option<PathBuf>,
@@ -80,7 +80,7 @@ where
 {
     pub fn new() -> Self {
         ControlLoopStateBuilder {
-            workload_spec: None,
+            workload_named: None,
             workload_id: None,
             control_interface_path: None,
             run_folder: None,
@@ -91,8 +91,8 @@ where
         }
     }
 
-    pub fn workload_spec(mut self, workload_spec: WorkloadInternal) -> Self {
-        self.workload_spec = Some(workload_spec);
+    pub fn workload_named(mut self, workload_named: WorkloadNamed) -> Self {
+        self.workload_named = Some(workload_named);
         self
     }
 
@@ -140,9 +140,9 @@ where
             tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
 
         Ok(ControlLoopState {
-            workload_spec: self
-                .workload_spec
-                .ok_or_else(|| "WorkloadInternal is not set".to_string())?,
+            workload_named: self
+                .workload_named
+                .ok_or_else(|| "WorkloadNamed is not set".to_string())?,
             control_interface_path: self.control_interface_path,
             run_folder: self
                 .run_folder
@@ -283,7 +283,7 @@ mod tests {
 
     #[test]
     fn utest_control_loop_state_instance_name() {
-        let workload_spec = generate_test_workload();
+        let workload_named = generate_test_workload();
         let (workload_state_sender, _workload_state_receiver) =
             tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
@@ -292,7 +292,7 @@ mod tests {
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState {
-            workload_spec: workload_spec.clone(),
+            workload_named: workload_named.clone(),
             control_interface_path: None,
             run_folder: "/some/path".into(),
             workload_id: None,

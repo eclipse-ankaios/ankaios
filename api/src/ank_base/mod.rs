@@ -37,7 +37,7 @@ pub use workload::{
 };
 
 pub(crate) mod workload_state;
-pub use execution_state::ExecutionStateEnumInternal;
+pub use execution_state::{ExecutionStateEnum, ExecutionStateEnumInternal};
 
 pub(crate) mod config;
 

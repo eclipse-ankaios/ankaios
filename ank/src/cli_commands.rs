@@ -298,7 +298,13 @@ impl CliCommands {
         let connected_agents: HashSet<String> = new_complete_state
             .agents
             .take()
-            .and_then(|agents| agents.agents)
+            .and_then(|agents| {
+                if !agents.agents.is_empty() {
+                    Some(agents.agents)
+                } else {
+                    None
+                }
+            })
             .unwrap_or_default()
             .into_keys()
             .collect();

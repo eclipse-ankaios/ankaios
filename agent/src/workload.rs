@@ -38,8 +38,7 @@ use crate::{
     runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
 };
 
-use api::ank_base;
-use api::ank_base::{WorkloadInstanceNameInternal, WorkloadInternal};
+use api::ank_base::{self, WorkloadInstanceNameInternal, WorkloadNamed};
 
 use common::from_server_interface::FromServer;
 
@@ -68,7 +67,7 @@ impl Display for WorkloadError {
 #[derive(Debug)]
 pub enum WorkloadCommand {
     Delete,
-    Update(Option<Box<WorkloadInternal>>, Option<ControlInterfacePath>),
+    Update(Option<Box<WorkloadNamed>>, Option<ControlInterfacePath>),
     Retry(Box<WorkloadInstanceNameInternal>, RetryToken),
     Create,
     Resume,
@@ -159,7 +158,7 @@ impl Workload {
     // [impl->swdd~agent-workload-obj-update-command~2]
     pub async fn update(
         &mut self,
-        spec: Option<WorkloadInternal>,
+        workload_named: Option<WorkloadNamed>,
         control_interface_info: Option<ControlInterfaceInfo>,
     ) -> Result<(), WorkloadError> {
         log::info!("Updating workload '{}'.", self.name);
@@ -168,8 +167,9 @@ impl Workload {
             // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
             self.exchange_control_interface(
                 control_interface_info,
-                spec.clone()
-                    .is_some_and(|spec| !spec.needs_control_interface()),
+                workload_named.clone().is_some_and(|workload_named| {
+                    !workload_named.workload.needs_control_interface()
+                }),
             );
         }
 
@@ -180,7 +180,7 @@ impl Workload {
 
         log::debug!("Send WorkloadCommand::Update.");
         self.channel
-            .update(spec, control_interface_path)
+            .update(workload_named, control_interface_path)
             .await
             .map_err(|err| WorkloadError::Communication(err.to_string()))
     }

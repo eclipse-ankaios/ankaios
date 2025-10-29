@@ -61,7 +61,6 @@ pub fn setup_internal_files(builder: Builder) -> Builder {
 /// - WorkloadInternal
 /// - DependenciesInternal
 /// - TagsInternal
-/// - TagInternal
 pub fn setup_internal_workload(builder: Builder) -> Builder {
     builder
         .type_attribute("Workload", "#[derive(internal_derive_macros::Internal)]")
@@ -81,18 +80,20 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
             "Workload",
             "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
+
         .field_attribute("Workload.agent", "#[internal_mandatory]")
         .field_attribute("Workload.restartPolicy", "#[internal_mandatory]")
         .field_attribute("Workload.dependencies", "#[internal_mandatory]")
-        .field_attribute("Workload.dependencies", "#[internal_field_attr(#[serde(flatten)])]")
         .field_attribute("Workload.tags", "#[internal_mandatory]")
-        .field_attribute("Workload.tags", "#[internal_field_attr(#[serde(flatten)])]")
         .field_attribute("Workload.runtime", "#[internal_mandatory]")
         .field_attribute("Workload.runtimeConfig", "#[internal_mandatory]")
         .field_attribute("Workload.controlInterfaceAccess", "#[internal_mandatory]")
         .field_attribute("Workload.configs", "#[internal_mandatory]")
-        .field_attribute("Workload.configs", "#[internal_field_attr(#[serde(flatten)])]")
         .field_attribute("Workload.files", "#[internal_mandatory]")
+
+        .field_attribute("Workload.dependencies", "#[internal_field_attr(#[serde(flatten)])]")
+        .field_attribute("Workload.tags", "#[internal_field_attr(#[serde(flatten)])]")
+        .field_attribute("Workload.configs", "#[internal_field_attr(#[serde(flatten)])]")
         .field_attribute("Workload.files", "#[internal_field_attr(#[serde(flatten)])]")
 
         // .field_attribute("Workload.restartPolicy", "#[internal_field_attr(#[serde(default)])]")
@@ -102,6 +103,7 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
         // .field_attribute("Workload.configs", "#[internal_field_attr(#[serde(default)])]")
         // .field_attribute("Workload.files", "#[internal_field_attr(#[serde(default)])]")
         // .field_attribute("Workload.instanceName", "#[internal_field_attr(#[serde(default)])]")
+
         .type_attribute(
             "Dependencies",
             "#[derive(internal_derive_macros::Internal)]",

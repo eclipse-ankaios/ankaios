@@ -14,7 +14,7 @@
 
 use crate::ank_base::{
     AgentDisconnected, ExecutionStateEnumInternal, ExecutionStateInternal, Failed, NotScheduled,
-    Pending, Removed, Running, Stopping, Succeeded,
+    Pending, Removed, Running, Stopping, Succeeded, ExecutionState, ExecutionStateEnum,
 };
 use std::fmt::Display;
 
@@ -257,6 +257,17 @@ impl ExecutionStateInternal {
         Self {
             execution_state_enum: ExecutionStateEnumInternal::NotScheduled(
                 NotScheduled::NotScheduled,
+            ),
+            ..Default::default()
+        }
+    }
+}
+
+impl ExecutionState{
+    pub fn agent_disconnected() -> Self {
+        Self {
+            execution_state_enum: Some(ExecutionStateEnum::AgentDisconnected(
+                AgentDisconnected::AgentDisconnected as i32),
             ),
             ..Default::default()
         }

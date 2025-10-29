@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{AddCondition, DeleteCondition, DeletedWorkload, WorkloadInternal};
+use api::ank_base::{AddCondition, DeleteCondition, DeletedWorkload, WorkloadNamed};
 use common::objects::WorkloadState;
 use std::collections::HashMap;
 
@@ -27,13 +27,13 @@ pub struct DeleteGraph {
 #[cfg_attr(test, automock)]
 impl DeleteGraph {
     // [impl->swdd~server-state-stores-delete-condition~1]
-    pub fn insert(&mut self, new_workloads: &[WorkloadInternal]) {
-        for workload_spec in new_workloads {
-            for (dependency_name, add_condition) in workload_spec.dependencies.dependencies.iter() {
+    pub fn insert(&mut self, new_workloads: &[WorkloadNamed]) {
+        for workload_named in new_workloads {
+            for (dependency_name, add_condition) in workload_named.workload.dependencies.dependencies.iter() {
                 /* currently for other add conditions besides AddCondRunning
                 the workload can be deleted immediately and does not need a delete condition */
                 if add_condition == &AddCondition::AddCondRunning {
-                    let workload_name = workload_spec.instance_name.workload_name().to_owned();
+                    let workload_name = workload_named.instance_name.workload_name().to_owned();
                     self.delete_graph
                         .entry(dependency_name.clone())
                         .or_default()

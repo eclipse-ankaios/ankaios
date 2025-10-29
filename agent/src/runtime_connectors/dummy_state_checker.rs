@@ -15,7 +15,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use api::ank_base::WorkloadInternal;
+use api::ank_base::WorkloadNamed;
 
 use crate::workload_state::WorkloadStateSender;
 
@@ -37,7 +37,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn start_checker(
-        _workload_spec: &WorkloadInternal,
+        _workload_named: &WorkloadNamed,
         _workload_id: WorkloadId,
         _manager_interface: WorkloadStateSender,
         _state_getter: impl RuntimeStateGetter<WorkloadId>,

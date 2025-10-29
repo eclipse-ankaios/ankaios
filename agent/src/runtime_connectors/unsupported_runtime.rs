@@ -14,7 +14,7 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
-use api::ank_base::{WorkloadInstanceNameInternal, WorkloadInternal};
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed};
 use async_trait::async_trait;
 use common::objects::AgentName;
 
@@ -44,18 +44,18 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
 
     async fn create_workload(
         &self,
-        runtime_workload_config: WorkloadInternal,
+        runtime_workload_config: WorkloadNamed,
         _reusable_workload_id: Option<String>,
         _control_interface_path: Option<PathBuf>,
         _update_state_tx: WorkloadStateSender,
         _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<(String, DummyStateChecker<String>), RuntimeError> {
-        if runtime_workload_config.runtime == self.0 {
+        if runtime_workload_config.workload.runtime == self.0 {
             Err(RuntimeError::Unsupported("Unsupported Runtime".into()))
         } else {
             Err(RuntimeError::Unsupported(format!(
                 "Received a spec for the wrong runtime: '{}'",
-                runtime_workload_config.runtime
+                runtime_workload_config.workload.runtime
             )))
         }
     }
@@ -72,7 +72,7 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
     async fn start_checker(
         &self,
         _workload_id: &String,
-        _runtime_workload_config: WorkloadInternal,
+        _runtime_workload_config: WorkloadNamed,
         _update_state_tx: WorkloadStateSender,
     ) -> Result<DummyStateChecker<String>, RuntimeError> {
         Ok(DummyStateChecker::new())

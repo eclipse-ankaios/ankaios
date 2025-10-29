@@ -16,7 +16,7 @@ use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadInternal};
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
 use common::{
     commands::LogsRequest,
     objects::{AgentName, WorkloadState},
@@ -120,7 +120,7 @@ where
 
     async fn create_workload(
         &self,
-        runtime_workload_config: WorkloadInternal,
+        runtime_workload_config: WorkloadNamed,
         reusable_workload_id: Option<WorkloadId>,
         control_interface_path: Option<PathBuf>,
         update_state_tx: WorkloadStateSender,
@@ -135,7 +135,7 @@ where
     async fn start_checker(
         &self,
         workload_id: &WorkloadId,
-        runtime_workload_config: WorkloadInternal,
+        runtime_workload_config: WorkloadNamed,
         update_state_tx: WorkloadStateSender,
     ) -> Result<StChecker, RuntimeError>;
 
@@ -250,7 +250,7 @@ pub mod test {
     pub enum RuntimeCall {
         GetReusableWorkloads(AgentName, Result<Vec<ReusableWorkloadState>, RuntimeError>),
         CreateWorkload(
-            WorkloadInternal,
+            WorkloadNamed,
             Option<PathBuf>,
             HashMap<PathBuf, PathBuf>,
             Result<(String, StubStateChecker), RuntimeError>,
@@ -258,7 +258,7 @@ pub mod test {
         GetWorkloadId(WorkloadInstanceNameInternal, Result<String, RuntimeError>),
         StartChecker(
             String,
-            WorkloadInternal,
+            WorkloadNamed,
             WorkloadStateSender,
             Result<StubStateChecker, RuntimeError>,
         ),
@@ -388,7 +388,7 @@ pub mod test {
 
         async fn create_workload(
             &self,
-            runtime_workload_config: WorkloadInternal,
+            runtime_workload_config: WorkloadNamed,
             _reusable_workload_id: Option<String>,
             control_interface_path: Option<PathBuf>,
             _update_state_tx: WorkloadStateSender,

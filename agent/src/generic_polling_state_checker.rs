@@ -20,7 +20,7 @@ use crate::{
     runtime_connectors::{RuntimeStateGetter, StateChecker},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
-use api::ank_base::{ExecutionStateEnumInternal, ExecutionStateInternal, WorkloadInternal};
+use api::ank_base::{ExecutionStateEnumInternal, ExecutionStateInternal, WorkloadNamed};
 
 // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
 const STATUS_CHECK_INTERVAL_MS: u64 = 500;
@@ -38,13 +38,13 @@ where
 {
     // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
     fn start_checker(
-        workload_spec: &WorkloadInternal,
+        workload_named: &WorkloadNamed,
         workload_id: WorkloadId,
         workload_state_sender: WorkloadStateSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,
     ) -> Self {
-        let workload_spec = workload_spec.clone();
-        let workload_name = workload_spec.instance_name.workload_name().to_owned();
+        let workload_named = workload_named.clone();
+        let workload_name = workload_named.instance_name.workload_name().to_owned();
         let task_handle = tokio::spawn(async move {
             let mut last_state =
                 ExecutionStateInternal::unknown("Never received an execution state.");
@@ -56,7 +56,7 @@ where
                 if current_state != last_state {
                     log::debug!(
                         "The workload {} has changed its state to {:?}",
-                        workload_spec.instance_name.workload_name(),
+                        workload_named.instance_name.workload_name(),
                         current_state
                     );
                     last_state = current_state.clone();
@@ -64,7 +64,7 @@ where
                     // [impl->swdd~generic-state-checker-sends-workload-state~2]
                     workload_state_sender
                         .report_workload_execution_state(
-                            &workload_spec.instance_name,
+                            &workload_named.instance_name,
                             current_state,
                         )
                         .await;

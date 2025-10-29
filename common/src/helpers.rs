@@ -11,16 +11,15 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use serde::{Serialize, Serializer};
-use serde_yaml::Value;
-use std::collections::{BTreeMap, HashMap};
 
 use crate::{
     ANKAIOS_VERSION,
     objects::{CURRENT_API_VERSION, PREVIOUS_API_VERSION},
     std_extensions::IllegalStateResult,
 };
+
 use semver::Version;
+use serde_yaml::Value;
 
 // [impl->swdd~common-helper-methods~1]
 pub fn try_into_vec<S, T, E>(input: Vec<S>) -> Result<Vec<T>, E>
@@ -28,17 +27,6 @@ where
     T: TryFrom<S, Error = E>,
 {
     input.into_iter().map(|x| x.try_into()).collect()
-}
-
-pub fn serialize_to_ordered_map<S, T: Serialize>(
-    value: &HashMap<String, T>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let ordered: BTreeMap<_, _> = value.iter().collect();
-    ordered.serialize(serializer)
 }
 
 // [impl->swdd~common-version-checking~1]

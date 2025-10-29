@@ -15,10 +15,10 @@ use super::CliCommands;
 use crate::{
     cli_commands::{agent_table_row::AgentTableRow, cli_table::CliTable},
     cli_error::CliError,
-    filtered_complete_state::FilteredAgentAttributes,
     output_debug,
 };
 
+use api::ank_base::AgentAttributes;
 use common::objects::WorkloadStatesMap;
 
 const EMPTY_FILTER_MASK: [String; 0] = [];
@@ -36,7 +36,13 @@ impl CliCommands {
 
         let connected_agents = filtered_complete_state
             .agents
-            .and_then(|agents| agents.agents)
+            .and_then(|agents| {
+                if !agents.agents.is_empty() {
+                    Some(agents.agents)
+                } else {
+                    None
+                }
+            })
             .unwrap_or_default()
             .into_iter();
 
@@ -50,7 +56,7 @@ impl CliCommands {
 }
 
 fn transform_into_table_rows(
-    agents_map: impl Iterator<Item = (String, FilteredAgentAttributes)>,
+    agents_map: impl Iterator<Item = (String, AgentAttributes)>,
     workload_states_map: &WorkloadStatesMap,
 ) -> Vec<AgentTableRow> {
     let mut agent_table_rows: Vec<AgentTableRow> = agents_map

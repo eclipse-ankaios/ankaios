@@ -266,7 +266,7 @@ impl From<ank_base::WorkloadStatesMap> for WorkloadStatesMap {
 
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_states_map_from_specs(
-    workloads: Vec<WorkloadInternal>,
+    workloads: Vec<WorkloadNamed>,
 ) -> WorkloadStatesMap {
     let mut wl_states_map = WorkloadStatesMap::new();
 
@@ -331,9 +331,7 @@ mod tests {
     use super::{
         ExecutionState, WorkloadStatesMap, generate_test_workload_states_map_from_workload_states,
     };
-    use crate::objects::{
-        WorkloadState, generate_test_workload_state_with_agent,
-    };
+    use crate::objects::{WorkloadState, generate_test_workload_state_with_agent};
     use api::test_utils::generate_test_workload_with_runtime_config;
     use std::vec;
 

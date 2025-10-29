@@ -15,11 +15,11 @@
 use std::{collections::HashMap, fmt};
 
 use super::WorkloadInstanceNameInternal;
-use api::ank_base::{FileContentInternal, FileInternal, WorkloadInternal};
+use api::ank_base::{FileContentInternal, FileInternal, WorkloadInternal, WorkloadNamed};
 use common::objects::ConfigItem;
 use handlebars::{Handlebars, RenderError};
 
-pub type RenderedWorkloads = HashMap<String, WorkloadInternal>;
+pub type RenderedWorkloads = HashMap<String, WorkloadNamed>;
 
 #[cfg(test)]
 use mockall::mock;
@@ -92,7 +92,7 @@ impl ConfigRenderer {
                 log::debug!(
                     "Skipping to render workload '{workload_name}' as no config is assigned to the workload"
                 );
-                workload.clone()
+                WorkloadNamed::from((workload_name.to_owned(), workload.clone()))
             } else {
                 let wl_config_map = self.create_config_map_for_workload(workload, configs)?;
                 log::debug!("Rendering workload '{workload_name}' with config '{wl_config_map:?}'");
@@ -108,11 +108,11 @@ impl ConfigRenderer {
     // [impl->swdd~config-renderer-renders-workload-configuration~2]
     fn create_config_map_for_workload<'a>(
         &self,
-        workload_spec: &'a WorkloadInternal,
+        workload: &'a WorkloadInternal,
         configs: &'a HashMap<String, ConfigItem>,
     ) -> Result<HashMap<&'a String, &'a ConfigItem>, ConfigRenderError> {
         let mut wl_config_map = HashMap::new();
-        for (config_alias, config_key) in &workload_spec.configs.configs {
+        for (config_alias, config_key) in &workload.configs.configs {
             if let Some(config_value) = configs.get(config_key) {
                 wl_config_map.insert(config_alias, config_value);
             } else {
@@ -128,7 +128,7 @@ impl ConfigRenderer {
         workload_name: &str,
         workload: &WorkloadInternal,
         wl_config_map: &HashMap<&String, &ConfigItem>,
-    ) -> Result<WorkloadInternal, ConfigRenderError> {
+    ) -> Result<WorkloadNamed, ConfigRenderError> {
         let rendered_runtime_config = self
             .template_engine
             .render_template(&workload.runtime_config, &wl_config_map)
@@ -141,21 +141,23 @@ impl ConfigRenderer {
 
         let rendered_files = self.render_files_field(&workload.files.files, wl_config_map)?;
 
-        Ok(WorkloadInternal {
-            agent: rendered_agent_name.clone(),
+        Ok(WorkloadNamed {
             instance_name: WorkloadInstanceNameInternal::builder()
                 .workload_name(workload_name)
-                .agent_name(rendered_agent_name)
+                .agent_name(rendered_agent_name.clone())
                 .config(&rendered_runtime_config)
                 .build(),
-            runtime: workload.runtime.clone(),
-            runtime_config: rendered_runtime_config,
-            tags: workload.tags.clone(),
-            dependencies: workload.dependencies.clone(),
-            restart_policy: workload.restart_policy,
-            files: rendered_files.into(),
-            configs: Default::default(),
-            control_interface_access: workload.control_interface_access.clone(),
+            workload: WorkloadInternal {
+                agent: rendered_agent_name.clone(),
+                runtime: workload.runtime.clone(),
+                runtime_config: rendered_runtime_config,
+                tags: workload.tags.clone(),
+                dependencies: workload.dependencies.clone(),
+                restart_policy: workload.restart_policy,
+                files: rendered_files.into(),
+                configs: Default::default(),
+                control_interface_access: workload.control_interface_access.clone(),
+            },
         })
     }
 

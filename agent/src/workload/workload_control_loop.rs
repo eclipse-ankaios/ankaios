@@ -20,7 +20,7 @@ use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 use api::ank_base::{
-    ExecutionStateInternal, RestartPolicy, WorkloadInstanceNameInternal, WorkloadInternal,
+    ExecutionStateInternal, RestartPolicy, WorkloadInstanceNameInternal, WorkloadNamed,
 };
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
@@ -51,7 +51,7 @@ impl WorkloadControlLoop {
                 // [impl->swdd~workload-control-loop-receives-workload-states~1]
                 received_workload_state = control_loop_state.state_checker_workload_state_receiver.recv() => {
                     log::trace!("Received new workload state for workload '{}'",
-                        control_loop_state.workload_spec.instance_name.workload_name());
+                        control_loop_state.workload_named.instance_name.workload_name());
 
                     let new_workload_state = received_workload_state
                         .ok_or("Channel to listen to workload states of state checker closed.")
@@ -70,7 +70,7 @@ impl WorkloadControlLoop {
                         ).await;
 
                         // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
-                        if Self::restart_policy_matches_execution_state(&control_loop_state.workload_spec.restart_policy, &new_workload_state.execution_state) {
+                        if Self::restart_policy_matches_execution_state(&control_loop_state.workload_named.workload.restart_policy, &new_workload_state.execution_state) {
                             // [impl->swdd~workload-control-loop-handles-workload-restarts~2]
                             control_loop_state = Self::restart_workload_on_runtime(control_loop_state).await;
                         }
@@ -188,20 +188,20 @@ impl WorkloadControlLoop {
         log::debug!(
             "Restart workload '{}' with restart policy '{}'",
             control_loop_state
-                .workload_spec
+                .workload_named
                 .instance_name
                 .workload_name(),
-            control_loop_state.workload_spec.restart_policy,
+            control_loop_state.workload_named.workload.restart_policy,
         );
 
-        let workload_spec = control_loop_state.workload_spec.clone();
+        let workload_named = control_loop_state.workload_named.clone();
         let control_interface_path = control_loop_state.control_interface_path.clone();
 
         // update the workload with its existing config since a restart is represented by an update operation
         // [impl->swdd~workload-control-loop-restarts-workloads-using-update~1]
         Self::update_workload_on_runtime(
             control_loop_state,
-            Some(Box::new(workload_spec)),
+            Some(Box::new(workload_named)),
             control_interface_path,
         )
         .await
@@ -290,12 +290,12 @@ impl WorkloadControlLoop {
                 }
             };
 
-        let new_instance_name = control_loop_state.workload_spec.instance_name.clone();
+        let new_instance_name = control_loop_state.workload_named.instance_name.clone();
 
         match control_loop_state
             .runtime
             .create_workload(
-                control_loop_state.workload_spec.clone(),
+                control_loop_state.workload_named.clone(),
                 control_loop_state.workload_id.clone(),
                 control_loop_state
                     .control_interface_path
@@ -362,7 +362,7 @@ impl WorkloadControlLoop {
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        if control_loop_state.workload_spec.has_files() {
+        if control_loop_state.workload_named.workload.has_files() {
             let workload_files_base_path = WorkloadFilesBasePath::from((
                 &control_loop_state.run_folder,
                 control_loop_state.instance_name(),
@@ -370,7 +370,7 @@ impl WorkloadControlLoop {
 
             match WorkloadFilesCreator::create_files(
                 &workload_files_base_path,
-                &control_loop_state.workload_spec.files.files,
+                &control_loop_state.workload_named.workload.files.files,
             )
             .await
             {
@@ -467,7 +467,7 @@ impl WorkloadControlLoop {
     // [impl->swdd~agent-workload-control-loop-executes-update~3]
     async fn update_workload_on_runtime<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        new_workload_spec: Option<Box<WorkloadInternal>>,
+        new_workload_named: Option<Box<WorkloadNamed>>,
         control_interface_path: Option<ControlInterfacePath>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
@@ -520,15 +520,15 @@ impl WorkloadControlLoop {
         )))
         .await;
 
-        let new_workload_spec = if let Some(new_spec) = new_workload_spec {
-            if !Self::is_same_workload(control_loop_state.instance_name(), &new_spec.instance_name)
+        let new_workload_named = if let Some(new_named) = new_workload_named {
+            if !Self::is_same_workload(control_loop_state.instance_name(), &new_named.instance_name)
             {
                 let workload_dir = control_loop_state
                     .instance_name()
                     .pipes_folder_name(&control_loop_state.run_folder);
                 Self::delete_folder(&workload_dir).await;
             }
-            Some(new_spec)
+            Some(new_named)
         } else {
             None
         };
@@ -542,9 +542,9 @@ impl WorkloadControlLoop {
         .await;
 
         // [impl->swdd~agent-workload-control-loop-executes-update-delete-only~1]
-        if let Some(spec) = new_workload_spec {
+        if let Some(named) = new_workload_named {
             // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
-            control_loop_state.workload_spec = *spec;
+            control_loop_state.workload_named = *named;
             control_loop_state.control_interface_path = control_interface_path;
 
             Self::send_workload_state_to_agent(
@@ -598,7 +598,7 @@ impl WorkloadControlLoop {
         let workload_name = control_loop_state.instance_name().workload_name();
         let workload_id = control_loop_state
             .runtime
-            .get_workload_id(&control_loop_state.workload_spec.instance_name)
+            .get_workload_id(&control_loop_state.workload_named.instance_name)
             .await;
 
         let state_checker: Option<StChecker> = match workload_id.as_ref() {
@@ -606,7 +606,7 @@ impl WorkloadControlLoop {
                 .runtime
                 .start_checker(
                     wl_id,
-                    control_loop_state.workload_spec.clone(),
+                    control_loop_state.workload_named.clone(),
                     control_loop_state
                         .state_checker_workload_state_sender
                         .clone(),

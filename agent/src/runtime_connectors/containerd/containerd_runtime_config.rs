@@ -43,14 +43,14 @@ impl From<ContainerdRuntimeConfig> for NerdctlRunConfig {
 
 impl TryFrom<&WorkloadInternal> for ContainerdRuntimeConfig {
     type Error = String;
-    fn try_from(workload_spec: &WorkloadInternal) -> Result<Self, Self::Error> {
-        if CONTAINERD_RUNTIME_NAME != workload_spec.runtime {
+    fn try_from(workload_internal: &WorkloadInternal) -> Result<Self, Self::Error> {
+        if CONTAINERD_RUNTIME_NAME != workload_internal.runtime {
             return Err(format!(
                 "Received a spec for the wrong runtime: '{}'",
-                workload_spec.runtime
+                workload_internal.runtime
             ));
         }
-        match serde_yaml::from_str(workload_spec.runtime_config.as_str()) {
+        match serde_yaml::from_str(workload_internal.runtime_config.as_str()) {
             Ok(workload_cfg) => Ok(workload_cfg),
             Err(e) => Err(e.to_string()),
         }
