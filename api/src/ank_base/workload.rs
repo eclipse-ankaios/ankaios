@@ -16,7 +16,7 @@
 use crate::ank_base::TagsInternal;
 use crate::ank_base::{
     AddCondition, DependenciesInternal, ExecutionStateInternal, Workload,
-    WorkloadInstanceNameInternal, WorkloadInternal,
+    WorkloadInstanceNameInternal, WorkloadInternal, RestartPolicy,
 };
 use crate::helpers::serialize_to_ordered_map;
 #[cfg(any(feature = "test_utils", test))]
@@ -264,6 +264,16 @@ impl TryFrom<i32> for DeleteCondition {
     }
 }
 
+impl std::fmt::Display for RestartPolicy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RestartPolicy::Never => write!(f, "Never"),
+            RestartPolicy::OnFailure => write!(f, "OnFailure"),
+            RestartPolicy::Always => write!(f, "Always"),
+        }
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -273,7 +283,7 @@ impl TryFrom<i32> for DeleteCondition {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-use crate::ank_base::{ConfigMappingsInternal, FilesInternal, RestartPolicy};
+use crate::ank_base::{ConfigMappingsInternal, FilesInternal};
 
 #[cfg(any(feature = "test_utils", test))]
 fn generate_test_dependencies() -> DependenciesInternal {

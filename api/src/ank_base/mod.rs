@@ -44,24 +44,41 @@ pub(crate) mod config;
 pub use request::RequestContent;
 pub use response::ResponseContent;
 
-// Use a local error type and From conversion so `?` can convert
-// prost::UnknownEnumValue into your function's error type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct UnknownEnumErr(pub prost::UnknownEnumValue);
+//////////////////////////////////////////////////////////////////////////////
+//                  ####   ##     ##   ########    ##                       //
+//                   ##    ###   ###   ##     ##   ##                       //
+//                   ##    #### ####   ########    ##                       //
+//                   ##    ## ### ##   ##          ##                       //
+//                  ####   ##     ##   ##          #########                //
+//////////////////////////////////////////////////////////////////////////////
 
-impl From<prost::UnknownEnumValue> for UnknownEnumErr {
-    fn from(v: prost::UnknownEnumValue) -> Self {
-        UnknownEnumErr(v)
+use serde::{Serialize, Serializer};
+use std::collections::{BTreeMap, HashMap};
+
+pub fn serialize_option_to_ordered_map<S, T: Serialize>(
+    value: &Option<HashMap<String, T>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    if let Some(value) = value {
+        serialize_to_ordered_map(value, serializer)
+    } else {
+        serializer.serialize_none()
     }
 }
 
-impl std::fmt::Display for UnknownEnumErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "UnknownEnumValue({})", (self.0).0)
-    }
+pub fn serialize_to_ordered_map<S, T: Serialize>(
+    value: &HashMap<String, T>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let ordered: BTreeMap<_, _> = value.iter().collect();
+    ordered.serialize(serializer)
 }
-
-impl std::error::Error for UnknownEnumErr {}
 
 impl Response {
     pub fn access_denied(request_id: String) -> Response {
@@ -71,16 +88,6 @@ impl Response {
                 message: "Access denied".into(),
             })
             .into(),
-        }
-    }
-}
-
-impl std::fmt::Display for RestartPolicy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RestartPolicy::Never => write!(f, "Never"),
-            RestartPolicy::OnFailure => write!(f, "OnFailure"),
-            RestartPolicy::Always => write!(f, "Always"),
         }
     }
 }
