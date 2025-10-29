@@ -26,6 +26,7 @@ use ankaios_api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
 use prost::Message;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, VecDeque};
 use std::env::args;
 use std::path::PathBuf;
 use std::{
@@ -227,6 +228,7 @@ struct Connection {
     id_counter: i32,
     output: File,
     input: InputPipe,
+    response_store: HashMap<String, VecDeque<ResponseContent>>,
 }
 
 enum InputPipe {
@@ -253,6 +255,7 @@ impl Connection {
             id_counter: 0,
             output,
             input: InputPipe::Path(input_fifo),
+            response_store: HashMap::new(),
         })
     }
 
@@ -426,6 +429,15 @@ impl Connection {
         &mut self,
         target_request_id: String,
     ) -> Result<ResponseContent, CommandError> {
+        if let Some(old_response) = self.response_store.get_mut(&target_request_id) {
+            if let Some(response_content) = old_response.pop_front() {
+                logging::log(&format!(
+                    "Using stored response for request id: {target_request_id}"
+                ));
+                return Ok(response_content);
+            }
+        }
+
         loop {
             let message = self.read_message().map_err(CommandError::GenericError)?;
             logging::log(&format!("Received message: {message:?}"));
@@ -443,9 +455,15 @@ impl Connection {
                         }
                     } else {
                         logging::log(&format!(
-                            "Received unexpected response for request {:}",
+                            "Storing unexpected response for request {:}",
                             response.request_id
                         ));
+                        self.response_store
+                            .entry(response.request_id.clone())
+                            .or_default()
+                            .push_back(response.response_content.expect(
+                                "Received Response without content."
+                            ));
                     }
                 }
                 FromAnkaiosEnum::ControlInterfaceAccepted(_) => {
