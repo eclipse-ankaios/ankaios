@@ -261,6 +261,8 @@ impl AnkaiosServer {
                                 &self.to_agents,
                             )
                             .await;
+
+                        self.event_handler.remove_subscribers_of_agent(&agent_name);
                     }
 
                     // [impl->swdd~server-distribute-workload-state-on-disconnect~1]
@@ -3162,6 +3164,13 @@ mod tests {
                 ]),
                 mockall::predicate::always(),
             )
+            .once()
+            .return_const(());
+
+        server
+            .event_handler
+            .expect_remove_subscribers_of_agent()
+            .with(mockall::predicate::eq(AGENT_A.to_owned()))
             .once()
             .return_const(());
 

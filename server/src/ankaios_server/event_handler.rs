@@ -157,6 +157,17 @@ impl EventHandler {
         self.subscriber_store.remove(&request_id.into());
     }
 
+    // [impl->swdd~event-handler-removes-subscribers-of-specific-agent-from-event-store~1]
+    pub fn remove_subscribers_of_agent(&mut self, agent_name: &str) {
+        self.subscriber_store.retain(|request_id, _| {
+            if let RequestId::AgentRequestId(agent_request_id) = request_id {
+                agent_request_id.agent_name != agent_name
+            } else {
+                true
+            }
+        });
+    }
+
     // [impl->swdd~event-handler-provides-subscriber-exists-functionality~1]
     pub fn has_subscribers(&self) -> bool {
         !self.subscriber_store.is_empty()
@@ -275,6 +286,7 @@ mod tests {
 
     const REQUEST_ID_1: &str = "agent_A@workload_1@1234";
     const REQUEST_ID_2: &str = "agent_B@workload_2@5678";
+    const REQUEST_ID_3: &str = "agent_A@workload_3@9876";
 
     // [utest->swdd~event-handler-adds-new-subscribers-to-event-store~1]
     #[test]
@@ -326,6 +338,26 @@ mod tests {
         event_handler.remove_subscriber(REQUEST_ID_2.to_owned());
         assert!(!event_handler.has_subscribers());
         assert_eq!(event_handler.subscriber_store.len(), 0);
+    }
+
+    // [utest->swdd~event-handler-removes-subscribers-of-specific-agent-from-event-store~1]
+    #[test]
+    fn utest_event_handler_removes_subscribers_of_agent() {
+        let mut event_handler = EventHandler {
+            subscriber_store: HashMap::from([
+                (REQUEST_ID_1.into(), vec!["path.to.field".into()]),
+                (REQUEST_ID_2.into(), vec!["more.paths".into()]),
+                (REQUEST_ID_3.into(), vec!["another.path".into()]),
+            ]),
+        };
+
+        event_handler.remove_subscribers_of_agent("agent_A");
+        assert_eq!(event_handler.subscriber_store.len(), 1);
+        assert!(
+            event_handler
+                .subscriber_store
+                .contains_key(&REQUEST_ID_2.into())
+        );
     }
 
     // [utest->swdd~event-handler-provides-subscriber-exists-functionality~1]

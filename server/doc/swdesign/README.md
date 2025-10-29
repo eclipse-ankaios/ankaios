@@ -1349,6 +1349,7 @@ the Ankaios Server shall request the EventHandler to send an:
 
 * event with removed field with field mask `agents.<agent_name>`
 * event with updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state with execution state `AgentDisconnected` managed by the agent.
+* remove all subscribers for this agent
 
 Tags:
 - AnkaiosServer
@@ -1461,6 +1462,26 @@ The EventHandler shall provide a method to remove a subscriber from its internal
 
 Comment:
 The event store is an associative data structure.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler removes subscribers of specific agent from event store
+`swdd~event-handler-removes-subscribers-of-specific-agent-from-event-store~1`
+
+Status: approved
+
+The EventHandler shall provide a method to remove all subscribers of a specific agent from its internal event store.
+
+Comment:
+The event store is an associative data structure.
+
+Rationale:
+Workloads with event subscriptions must be removed when the Ankaios Agent disconnects.
 
 Tags:
 - EventHandler
