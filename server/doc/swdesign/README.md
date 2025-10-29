@@ -1307,7 +1307,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server updates its internal state
+When the Ankaios Server successfully updates its internal state after receiving the `ToServer` message `UpdateStateRequest`
 and there is at least one subscriber for events,
 the Ankaios Server shall:
 * request the StateComparator of the Common library to determine the state differences between the current and the new state
