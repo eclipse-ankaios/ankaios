@@ -15,7 +15,7 @@
 #[cfg(any(feature = "test_utils", test))]
 use crate::ank_base::TagsInternal;
 use crate::ank_base::{
-    AddCondition, DependenciesInternal, ExecutionStateInternal, Workload,
+    AddCondition, DependenciesInternal, ExecutionStateInternal,
     WorkloadInstanceNameInternal, WorkloadInternal, RestartPolicy,
 };
 use crate::helpers::serialize_to_ordered_map;
@@ -30,6 +30,35 @@ pub const ALLOWED_SYMBOLS: &str = "[a-zA-Z0-9_-]";
 pub const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]*$";
 pub const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
 pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct WorkloadNamed {
+    #[serde(skip)]
+    pub instance_name: WorkloadInstanceNameInternal,
+    #[serde(flatten)]
+    pub workload: WorkloadInternal,
+}
+
+impl From<(String, WorkloadInternal)> for WorkloadNamed {
+    fn from((workload_name, workload): (String, WorkloadInternal)) -> Self {
+        let instance_name = WorkloadInstanceNameInternal::builder()
+            .agent_name(workload.agent.clone())
+            .workload_name(workload_name)
+            .config(&workload.runtime_config)
+            .build();
+
+        WorkloadNamed {
+            instance_name,
+            workload,
+        }
+    }
+}
+
+impl From<WorkloadNamed> for WorkloadInternal {
+    fn from(item: WorkloadNamed) -> Self {
+        item.workload
+    }
+}
 
 // [impl->swdd~common-workload-naming-convention~1]
 pub fn verify_workload_name_format(workload_name: &str) -> Result<(), String> {
@@ -68,7 +97,7 @@ pub fn verify_workload_name_not_empty(length: usize) -> Result<(), String> {
 }
 
 // [impl->swdd~common-agent-naming-convention~3]
-fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
+fn _verify_agent_name_format(agent_name: &str) -> Result<(), String> {
     let re_agent = Regex::new(STR_RE_AGENT).unwrap();
     if !re_agent.is_match(agent_name) {
         Err(format!(
@@ -93,8 +122,9 @@ impl WorkloadInternal {
     // [impl->swdd~common-agent-naming-convention~3]
     // [impl->swdd~common-access-rules-filter-mask-convention~1]
     pub fn verify_fields_format(&self) -> Result<(), String> {
-        verify_workload_name_format(self.instance_name.workload_name())?;
-        verify_agent_name_format(self.instance_name.agent_name())?;
+        // TODO
+        // verify_workload_name_format(self.instance_name.workload_name())?;
+        // verify_agent_name_format(self.instance_name.agent_name())?;
         self.control_interface_access.verify_format()?;
         Ok(())
     }
@@ -118,80 +148,6 @@ impl WorkloadInternal {
             }
         }
         Ok(())
-    }
-}
-
-impl TryFrom<(String, Workload)> for WorkloadInternal {
-    type Error = String;
-
-    fn try_from((name, orig): (String, Workload)) -> Result<Self, Self::Error> {
-        let agent = orig
-            .agent
-            .clone()
-            .ok_or_else(|| "Missing field agent".to_string())?;
-        let res =
-            WorkloadInternal {
-                instance_name: WorkloadInstanceNameInternal::builder()
-                    .workload_name(name)
-                    .agent_name(agent.clone())
-                    .config(
-                        orig.runtime_config
-                            .as_ref()
-                            .ok_or_else(|| "Missing field runtime_config".to_string())?,
-                    )
-                    .build(),
-                agent,
-                tags: match orig.tags {
-                    Some(t) => t.try_into()?,
-                    None => Default::default(),
-                },
-                dependencies: match orig.dependencies {
-                    Some(deps) => deps.try_into()?,
-                    None => Default::default(),
-                },
-                restart_policy: orig.restart_policy.unwrap_or_default().try_into().map_err(
-                    |e| {
-                        format!(
-                            "Failed to convert restart_policy '{:?}': {e}",
-                            orig.restart_policy
-                        )
-                    },
-                )?,
-                runtime: orig
-                    .runtime
-                    .as_ref()
-                    .ok_or_else(|| "Missing field runtime".to_string())?
-                    .to_string(),
-                runtime_config: orig
-                    .runtime_config
-                    .as_ref()
-                    .ok_or_else(|| "Missing field runtime config".to_string())?
-                    .clone(),
-                files: match orig.files {
-                    Some(files) => files.try_into()?,
-                    None => Default::default(),
-                },
-                configs: match orig.configs {
-                    Some(configs) => configs.try_into()?,
-                    None => Default::default(),
-                },
-                // control_interface_access: orig
-                //     .control_interface_access
-                //     .clone()
-                //     .ok_or_else(|| "Missing field control_interface_access".to_string())?
-                //     .try_into()
-                //     .map_err(|e| {
-                //         format!(
-                //             "Failed to convert control_interface_access '{:?}': {e}",
-                //             orig.control_interface_access
-                //         )
-                //     })?,
-                control_interface_access: orig
-                    .control_interface_access
-                    .unwrap_or_default()
-                    .try_into()?,
-            };
-        Ok(res)
     }
 }
 
@@ -319,20 +275,20 @@ pub fn generate_test_workload_with_param(
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_with_runtime_config(
     agent_name: impl Into<String>,
-    workload_name: impl Into<String>,
+    _workload_name: impl Into<String>,
     runtime_name: impl Into<String>,
     runtime_config: impl Into<String>,
 ) -> WorkloadInternal {
     let agent_name = agent_name.into();
     let runtime_config = runtime_config.into();
-    let instance_name = WorkloadInstanceNameInternal::builder()
-        .agent_name(agent_name.clone())
-        .workload_name(workload_name)
-        .config(&runtime_config)
-        .build();
+    // let instance_name = WorkloadInstanceNameInternal::builder()
+    //     .agent_name(agent_name.clone())
+    //     .workload_name(workload_name)
+    //     .config(&runtime_config)
+    //     .build();
 
     WorkloadInternal {
-        instance_name,
+        // instance_name,
         agent: agent_name,
         dependencies: generate_test_dependencies(),
         restart_policy: RestartPolicy::Always,

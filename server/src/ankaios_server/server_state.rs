@@ -14,7 +14,7 @@
 
 use super::config_renderer::RenderedWorkloads;
 use api::ank_base;
-use api::ank_base::{
+use api::ank_base::{WorkloadNamed,
     AgentAttributesInternal, DeletedWorkload,
     WorkloadInstanceNameInternal, WorkloadInternal,
 };
@@ -114,7 +114,7 @@ pub struct ServerState {
     config_renderer: ConfigRenderer,
 }
 
-pub type AddedDeletedWorkloads = Option<(Vec<WorkloadInternal>, Vec<DeletedWorkload>)>;
+pub type AddedDeletedWorkloads = Option<(Vec<WorkloadNamed>, Vec<DeletedWorkload>)>;
 
 #[cfg_attr(test, automock)]
 impl ServerState {

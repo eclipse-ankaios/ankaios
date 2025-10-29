@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
+
 use crate::objects::CompleteState;
 use api::ank_base;
 use api::ank_base::{DeletedWorkload, WorkloadInstanceNameInternal, WorkloadInternal};
@@ -230,12 +232,12 @@ impl TryFrom<ank_base::UpdateStateRequest> for UpdateStateRequest {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ServerHello {
     pub agent_name: Option<String>,
-    pub added_workloads: Vec<WorkloadInternal>,
+    pub added_workloads: HashMap<String, WorkloadInternal>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UpdateWorkload {
-    pub added_workloads: Vec<WorkloadInternal>,
+    pub added_workloads: HashMap<String, WorkloadInternal>,
     pub deleted_workloads: Vec<DeletedWorkload>,
 }
 

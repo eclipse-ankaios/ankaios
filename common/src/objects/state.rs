@@ -18,7 +18,9 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use api::ank_base::{self, STR_RE_CONFIG_REFERENCES, WorkloadInternal};
+use api::ank_base::{
+    self, STR_RE_CONFIG_REFERENCES, WorkloadInternal,
+};
 
 pub const API_VERSION_0_1: &str = "v0.1";
 pub const API_VERSION_1_0: &str = "v1";
@@ -80,7 +82,7 @@ impl TryFrom<ank_base::State> for State {
                 .unwrap_or_default()
                 .workloads
                 .into_iter()
-                .map(|(k, v)| Ok((k.to_owned(), (k, v).try_into()?)))
+                .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))
                 .collect::<Result<HashMap<String, WorkloadInternal>, String>>()?,
             configs: item
                 .configs
@@ -143,7 +145,7 @@ impl State {
 #[cfg(test)]
 mod tests {
     use api::ank_base;
-    use api::test_utils::{generate_test_workload, generate_test_proto_state};
+    use api::test_utils::{generate_test_proto_state, generate_test_workload};
     use std::collections::HashMap;
 
     use crate::{

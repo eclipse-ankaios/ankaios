@@ -105,6 +105,8 @@ pub fn generate_test_agent_map_from_specs(
     workloads
         .iter()
         .fold(AgentMapInternal::new(), |mut agent_map, spec| {
+            use crate::ank_base::AgentStatusInternal;
+
             let agent_name = &spec.agent;
             agent_map
                 .entry(agent_name.to_owned())

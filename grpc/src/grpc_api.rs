@@ -12,7 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{self, DependenciesInternal, FilesInternal, TagsInternal, WorkloadInternal};
+use api::ank_base::{
+    self,  
+    WorkloadInstanceNameInternal, WorkloadInternal,
+};
 use common::commands;
 use std::collections::HashMap;
 
@@ -104,69 +107,27 @@ impl From<ank_base::DeletedWorkload> for DeletedWorkload {
     }
 }
 
-impl TryFrom<AddedWorkload> for WorkloadInternal {
+impl TryFrom<AddedWorkload> for (String, WorkloadInternal) {
     type Error = String;
 
     fn try_from(workload: AddedWorkload) -> Result<Self, String> {
         let instance_name = workload.instance_name.ok_or("No instance name")?;
-        Ok(WorkloadInternal {
-            agent: instance_name.agent_name.clone(),
-            dependencies: DependenciesInternal {
-                dependencies: workload
-                    .dependencies
-                    .into_iter()
-                    .map(|(k, v)| {
-                        Ok((
-                            k,
-                            v.try_into()
-                                .map_err(|_| "Invalid AddCondition value".to_string())?,
-                        ))
-                    })
-                    .collect::<Result<HashMap<String, ank_base::AddCondition>, String>>()?,
-            },
-            restart_policy: workload
-                .restart_policy
-                .try_into()
-                .map_err(|_| "Invalid RestartPolicy value".to_string())?,
-            runtime: workload.runtime,
-            instance_name: instance_name.try_into().unwrap(),
-            tags: TagsInternal {
-                tags: workload.tags.into_iter().collect(),
-            },
-            runtime_config: workload.runtime_config,
-            control_interface_access: workload
-                .control_interface_access
-                .unwrap_or_default()
-                .try_into()?,
-            files: FilesInternal {
-                files: workload
-                    .files
-                    .into_iter()
-                    .map(TryInto::try_into)
-                    .collect::<Result<_, _>>()?,
-            },
-            configs: Default::default(),
-        })
+        let workload = workload.workload.ok_or("No workload")?;
+        Ok((instance_name.workload_name, workload.try_into()?))
     }
 }
 
-impl From<WorkloadInternal> for AddedWorkload {
-    fn from(workload: WorkloadInternal) -> Self {
+impl From<(String, WorkloadInternal)> for AddedWorkload {
+    fn from((name, workload): (String, WorkloadInternal)) -> Self {
+        let instance_name = WorkloadInstanceNameInternal::builder()
+            .workload_name(name)
+            .agent_name(workload.agent.clone())
+            .config(&workload.runtime_config.clone())
+            .build();
+
         AddedWorkload {
-            instance_name: super::ank_base::WorkloadInstanceName::from(workload.instance_name)
-                .into(),
-            dependencies: workload
-                .dependencies
-                .dependencies
-                .into_iter()
-                .map(|(k, v)| (k, v as i32))
-                .collect(),
-            restart_policy: workload.restart_policy as i32,
-            runtime: workload.runtime,
-            runtime_config: workload.runtime_config,
-            tags: workload.tags.tags,
-            files: workload.files.files.into_iter().map(Into::into).collect(),
-            control_interface_access: Some(workload.control_interface_access.into()),
+            instance_name: Some(instance_name.into()),
+            workload: Some(workload.into()),
         }
     }
 }

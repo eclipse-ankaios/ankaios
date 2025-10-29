@@ -21,9 +21,7 @@ use crate::grpc_api::{self, from_server::FromServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::ank_base;
 use api::ank_base::response::ResponseContent;
-use api::ank_base::{
-    DeletedWorkload, WorkloadInstanceNameInternal, WorkloadInternal,
-};
+use api::ank_base::{DeletedWorkload, WorkloadInstanceNameInternal, WorkloadInternal};
 
 use async_trait::async_trait;
 use common::commands::LogsRequest;
@@ -72,8 +70,18 @@ pub async fn forward_from_proto_to_ankaios(
                             None,
                             obj.added_workloads
                                 .into_iter()
-                                .map(|added_workload| added_workload.try_into())
-                                .collect::<Result<Vec<WorkloadInternal>, _>>()
+                                .map(|added_workload| {
+                                    // let name = added_workload
+                                    //     .instance_name
+                                    //     .clone()
+                                    //     .unwrap_or_unreachable()
+                                    //     .workload_name;
+                                    // let workload = added_workload.try_into()?;
+                                    // Ok((name, workload))
+                                    added_workload
+                                        .try_into()
+                                })
+                                .collect::<Result<HashMap<String, WorkloadInternal>, _>>()
                                 .map_err(GrpcMiddlewareError::ConversionError)?,
                         )
                         .await?;
@@ -83,8 +91,18 @@ pub async fn forward_from_proto_to_ankaios(
                         .update_workload(
                             obj.added_workloads
                                 .into_iter()
-                                .map(|added_workload| added_workload.try_into())
-                                .collect::<Result<Vec<WorkloadInternal>, _>>()
+                                .map(|added_workload| {
+                                    // let name = added_workload
+                                    //     .instance_name
+                                    //     .clone()
+                                    //     .unwrap_or_unreachable()
+                                    //     .workload_name;
+                                    // let workload = added_workload.try_into()?;
+                                    // Ok((name, workload))
+                                    added_workload
+                                        .try_into()
+                                })
+                                .collect::<Result<HashMap<String, WorkloadInternal>, _>>()
                                 .map_err(GrpcMiddlewareError::ConversionError)?,
                             obj.deleted_workloads
                                 .into_iter()
@@ -276,25 +294,20 @@ async fn distribute_workload_states_to_agents(
     }
 }
 
-type AgentWorkloadMap = HashMap<String, (Vec<WorkloadInternal>, Vec<DeletedWorkload>)>;
+type AgentWorkloadMap = HashMap<String, (HashMap<String, WorkloadInternal>, Vec<DeletedWorkload>)>;
 
 fn get_workloads_per_agent(
-    added_workloads: Vec<WorkloadInternal>,
+    added_workloads: HashMap<String, WorkloadInternal>,
     deleted_workloads: Vec<DeletedWorkload>,
 ) -> AgentWorkloadMap {
     let mut agent_workloads: AgentWorkloadMap = HashMap::new();
 
-    for added_workload in added_workloads {
-        if let Some((added_workload_vector, _)) =
-            agent_workloads.get_mut(added_workload.instance_name.agent_name())
-        {
-            added_workload_vector.push(added_workload);
-        } else if !added_workload.instance_name.agent_name().is_empty() {
-            agent_workloads.insert(
-                added_workload.instance_name.agent_name().to_owned(),
-                (vec![added_workload], vec![]),
-            );
-        }
+    for (name, added_workload) in added_workloads {
+        agent_workloads
+            .entry(added_workload.agent.to_owned())
+            .or_insert((HashMap::new(), vec![]))
+            .0
+            .insert(name, added_workload);
     }
 
     for deleted_workload in deleted_workloads {
@@ -305,7 +318,7 @@ fn get_workloads_per_agent(
         } else {
             agent_workloads.insert(
                 deleted_workload.instance_name.agent_name().to_owned(),
-                (vec![], vec![deleted_workload]),
+                (HashMap::new(), vec![deleted_workload]),
             );
         }
     }
@@ -316,7 +329,7 @@ fn get_workloads_per_agent(
 // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workloads_to_agents(
     agent_senders: &AgentSendersMap,
-    added_workloads: Vec<WorkloadInternal>,
+    added_workloads: HashMap<String, WorkloadInternal>,
     deleted_workloads: Vec<DeletedWorkload>,
 ) {
     // [impl->swdd~grpc-server-sorts-commands-according-agents~1]

@@ -15,7 +15,7 @@
 use super::CliCommands;
 use crate::{cli_error::CliError, output_debug};
 
-use api::ank_base::{TagsInternal, WorkloadInstanceNameBuilder, WorkloadInternal};
+use api::ank_base::{TagsInternal, WorkloadInternal};
 use common::objects::CompleteState;
 
 use std::collections::HashMap;
@@ -41,11 +41,6 @@ impl CliCommands {
             control_interface_access: Default::default(),
             configs: Default::default(),
             files: Default::default(),
-            instance_name: WorkloadInstanceNameBuilder::default()
-                .workload_name(workload_name.clone())
-                .config(&runtime_config.clone())
-                .agent_name(agent_name)
-                .build(),
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 

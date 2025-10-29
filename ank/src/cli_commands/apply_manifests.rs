@@ -126,6 +126,21 @@ pub fn handle_agent_overwrite(
             }
         }
     }
+
+
+
+    // println!("state_obj before conversion: {state_obj:?}");
+
+    // let base_object: api::ank_base::State = state_obj.try_into().map_err(|err| {
+    //     format!(
+    //         "Invalid manifest data provided, could not convert to ank_base::State: {err}"
+    //     )
+    // })?;
+
+    // base_object
+    //     .try_into()
+    //     .map_err(|err| format!("Invalid manifest data provided: {err}"))
+
     state_obj
         .try_into()
         .map_err(|err| format!("Invalid manifest data provided: {err}"))

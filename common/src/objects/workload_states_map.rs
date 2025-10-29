@@ -15,7 +15,7 @@
 use std::collections::{HashMap, hash_map::Entry};
 
 use api::ank_base;
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadInternal};
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
 use serde::{Deserialize, Serialize};
 
 use super::WorkloadState;
@@ -107,7 +107,7 @@ impl WorkloadStatesMap {
         }
     }
 
-    pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadInternal>) {
+    pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadNamed>) {
         for spec in workload_specs {
             self.entry(spec.instance_name.agent_name().to_owned())
                 .or_default()
