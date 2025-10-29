@@ -145,19 +145,19 @@ fn expand_wildcards_in_subscriber_mask(subscriber_mask: &Path, altered_field_mas
 
 #[cfg_attr(test, automock)]
 impl EventHandler {
-    // [impl->swdd~event-handler-adds-new-subscribers-to-event-store~1]
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn add_subscriber(&mut self, request_id: String, field_masks: SubscribedFieldMasks) {
         log::debug!("Adding subscriber '{request_id}' with field masks: {field_masks:?}",);
         self.subscriber_store.insert(request_id.into(), field_masks);
     }
 
-    // [impl->swdd~event-handler-removes-subscribers-from-event-store~1]
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn remove_subscriber(&mut self, request_id: String) {
         log::debug!("Removing subscriber '{request_id}'");
         self.subscriber_store.remove(&request_id.into());
     }
 
-    // [impl->swdd~event-handler-provides-subscriber-exists-functionality~1]
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn has_subscribers(&self) -> bool {
         !self.subscriber_store.is_empty()
     }
@@ -276,7 +276,7 @@ mod tests {
     const REQUEST_ID_1: &str = "agent_A@workload_1@1234";
     const REQUEST_ID_2: &str = "agent_B@workload_2@5678";
 
-    // [utest->swdd~event-handler-adds-new-subscribers-to-event-store~1]
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
     fn utest_event_handler_add_subscriber() {
         let mut event_handler = EventHandler::default();
@@ -297,7 +297,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~event-handler-removes-subscribers-from-event-store~1]
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
     fn utest_event_handler_remove_subscriber() {
         let mut event_handler = EventHandler {
@@ -328,7 +328,7 @@ mod tests {
         assert_eq!(event_handler.subscriber_store.len(), 0);
     }
 
-    // [utest->swdd~event-handler-provides-subscriber-exists-functionality~1]
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
     #[test]
     fn utest_event_handler_has_subscribers() {
         let mut event_handler = EventHandler {
