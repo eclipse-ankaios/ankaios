@@ -1282,6 +1282,24 @@ Needs:
 - impl
 - utest
 
+#### Server removes event subscription for disconnected cli
+`swdd~server-removes-event-subscription-for-disconnected-cli~1`
+
+Status: approved
+
+When the Ankaios server receives a `Goodbye` message from the channel provided by the communication middleware, the Ankaios Server shall request the EventHandler to remove the subscription of the cli by providing the cli connection name.
+
+Rationale:
+This serves to prevent subscription corpses that remain in the system when a client disconnects.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
 #### Server provides functionality to calculate state differences
 `swdd~server-calculates-state-differences~1`
 
@@ -1345,11 +1363,14 @@ Status: approved
 
 When the Ankaios Server receives an `AgentGone` message
 and there is at least one subscriber for events,
-the Ankaios Server shall request the EventHandler to send an:
+the Ankaios Server shall request the EventHandler to:
 
-* event with removed field with field mask `agents.<agent_name>`
-* event with updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state with execution state `AgentDisconnected` managed by the agent.
+* send an event with removed field with field mask `agents.<agent_name>`
+* send an event with updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state with execution state `AgentDisconnected` managed by the agent.
 * remove all subscribers for this agent
+
+Rationale:
+This serves to prevent subscription corpses that remain in the system when an Ankaios Agent managing workloads with event subscriptions disconnects.
 
 Tags:
 - AnkaiosServer
@@ -1481,7 +1502,27 @@ Comment:
 The event store is an associative data structure.
 
 Rationale:
-Workloads with event subscriptions must be removed when the Ankaios Agent disconnects.
+This serves to prevent subscription corpses that remain in the system when an Ankaios Agent managing workloads with event subscriptions disconnects.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler removes subscribers of cli connection
+`swdd~event-handler-removes-cli-subscriber-from-event-store~1`
+
+Status: approved
+
+The EventHandler shall provide a method to remove all subscribers of a specific cli connection from its internal event store.
+
+Comment:
+The event store is an associative data structure.
+
+Rationale:
+This serves to prevent subscription corpses that remain in the system when the cli with event subscriptions disconnects.
 
 Tags:
 - EventHandler

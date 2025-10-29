@@ -570,6 +570,10 @@ impl AnkaiosServer {
                         removed_cli_log_requests,
                     )
                     .await;
+
+                    // [impl->swdd~server-removes-event-subscription-for-disconnected-cli~1]
+                    self.event_handler
+                        .remove_cli_subscriber(&goodbye.connection_name);
                 }
                 ToServer::Stop(_method_obj) => {
                     log::debug!("Received Stop from communications server");

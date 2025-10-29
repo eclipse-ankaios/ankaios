@@ -15,7 +15,7 @@ use crate::ankaios_server::request_id::to_string_id;
 #[cfg_attr(test, mockall_double::double)]
 use crate::ankaios_server::server_state::ServerState;
 
-use super::request_id::RequestId;
+use super::request_id::{CliConnectionName, RequestId};
 use common::{
     from_server_interface::{FromServerInterface, FromServerSender},
     objects::{AgentMap, WorkloadStatesMap},
@@ -168,6 +168,17 @@ impl EventHandler {
         });
     }
 
+    // [impl->swdd~event-handler-removes-cli-subscriber-from-event-store~1]
+    pub fn remove_cli_subscriber(&mut self, cli_connection_name: &CliConnectionName) {
+        self.subscriber_store.retain(|request_id, _| {
+            if let RequestId::CliRequestId(cli_request_id) = request_id {
+                cli_request_id.cli_name != *cli_connection_name
+            } else {
+                true
+            }
+        });
+    }
+
     // [impl->swdd~event-handler-provides-subscriber-exists-functionality~1]
     pub fn has_subscribers(&self) -> bool {
         !self.subscriber_store.is_empty()
@@ -284,27 +295,40 @@ mod tests {
         state_comparator::FieldDifference,
     };
 
-    const REQUEST_ID_1: &str = "agent_A@workload_1@1234";
-    const REQUEST_ID_2: &str = "agent_B@workload_2@5678";
-    const REQUEST_ID_3: &str = "agent_A@workload_3@9876";
+    const AGENT_A_REQUEST_ID_1: &str = "agent_A@workload_1@1234";
+    const AGENT_B_REQUEST_ID_1: &str = "agent_B@workload_2@5678";
+    const AGENT_A_REQUEST_ID_2: &str = "agent_A@workload_3@9876";
+    const CLI_CONN_1_REQUEST_ID_1: &str = "cli-conn-1@cli_request_id_1";
+    const CLI_CONN_1_REQUEST_ID_2: &str = "cli-conn-1@cli_request_id_2";
+    const CLI_CONN_2_REQUEST_ID_1: &str = "cli-conn-2@cli_request_id_2";
 
     // [utest->swdd~event-handler-adds-new-subscribers-to-event-store~1]
     #[test]
     fn utest_event_handler_add_subscriber() {
         let mut event_handler = EventHandler::default();
         let subscriber_1_field_masks = vec!["path.to.field".into()];
-        event_handler.add_subscriber(REQUEST_ID_1.to_owned(), subscriber_1_field_masks.clone());
+        event_handler.add_subscriber(
+            AGENT_A_REQUEST_ID_1.to_owned(),
+            subscriber_1_field_masks.clone(),
+        );
         assert!(event_handler.has_subscribers());
         assert_eq!(event_handler.subscriber_store.len(), 1);
         assert_eq!(
-            event_handler.subscriber_store.get(&REQUEST_ID_1.into()),
+            event_handler
+                .subscriber_store
+                .get(&AGENT_A_REQUEST_ID_1.into()),
             Some(&subscriber_1_field_masks)
         );
         let subscriber_2_field_masks = vec!["another.path".into(), "more.paths".into()];
-        event_handler.add_subscriber(REQUEST_ID_2.to_owned(), subscriber_2_field_masks.clone());
+        event_handler.add_subscriber(
+            CLI_CONN_1_REQUEST_ID_1.to_owned(),
+            subscriber_2_field_masks.clone(),
+        );
         assert_eq!(event_handler.subscriber_store.len(), 2);
         assert_eq!(
-            event_handler.subscriber_store.get(&REQUEST_ID_2.into()),
+            event_handler
+                .subscriber_store
+                .get(&CLI_CONN_1_REQUEST_ID_1.into()),
             Some(&subscriber_2_field_masks)
         );
     }
@@ -314,28 +338,28 @@ mod tests {
     fn utest_event_handler_remove_subscriber() {
         let mut event_handler = EventHandler {
             subscriber_store: HashMap::from([
-                (REQUEST_ID_1.into(), vec!["path.to.field".into()]),
+                (AGENT_A_REQUEST_ID_1.into(), vec!["path.to.field".into()]),
                 (
-                    REQUEST_ID_2.into(),
+                    AGENT_B_REQUEST_ID_1.into(),
                     vec!["another.path".into(), "more.paths".into()],
                 ),
             ]),
         };
 
-        event_handler.remove_subscriber(REQUEST_ID_1.to_owned());
+        event_handler.remove_subscriber(AGENT_A_REQUEST_ID_1.to_owned());
         assert_eq!(event_handler.subscriber_store.len(), 1);
         assert!(
             !event_handler
                 .subscriber_store
-                .contains_key(&REQUEST_ID_1.into())
+                .contains_key(&AGENT_A_REQUEST_ID_1.into())
         );
         assert!(
             event_handler
                 .subscriber_store
-                .contains_key(&REQUEST_ID_2.into())
+                .contains_key(&AGENT_B_REQUEST_ID_1.into())
         );
 
-        event_handler.remove_subscriber(REQUEST_ID_2.to_owned());
+        event_handler.remove_subscriber(AGENT_B_REQUEST_ID_1.to_owned());
         assert!(!event_handler.has_subscribers());
         assert_eq!(event_handler.subscriber_store.len(), 0);
     }
@@ -345,18 +369,57 @@ mod tests {
     fn utest_event_handler_removes_subscribers_of_agent() {
         let mut event_handler = EventHandler {
             subscriber_store: HashMap::from([
-                (REQUEST_ID_1.into(), vec!["path.to.field".into()]),
-                (REQUEST_ID_2.into(), vec!["more.paths".into()]),
-                (REQUEST_ID_3.into(), vec!["another.path".into()]),
+                (AGENT_A_REQUEST_ID_1.into(), vec!["path.to.field".into()]),
+                (AGENT_B_REQUEST_ID_1.into(), vec!["more.paths".into()]),
+                (AGENT_A_REQUEST_ID_2.into(), vec!["another.path".into()]),
+                (CLI_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
             ]),
         };
 
         event_handler.remove_subscribers_of_agent("agent_A");
-        assert_eq!(event_handler.subscriber_store.len(), 1);
+        assert_eq!(event_handler.subscriber_store.len(), 2);
         assert!(
             event_handler
                 .subscriber_store
-                .contains_key(&REQUEST_ID_2.into())
+                .contains_key(&AGENT_B_REQUEST_ID_1.into())
+        );
+
+        assert!(
+            event_handler
+                .subscriber_store
+                .contains_key(&CLI_CONN_1_REQUEST_ID_1.into())
+        );
+    }
+
+    // [utest->swdd~event-handler-removes-cli-subscriber-from-event-store~1]
+    #[test]
+    fn utest_event_handler_removes_cli_subscriber() {
+        let mut event_handler = EventHandler {
+            subscriber_store: HashMap::from([
+                (CLI_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
+                (
+                    CLI_CONN_1_REQUEST_ID_2.into(),
+                    vec!["another.cli.path".into()],
+                ),
+                (
+                    CLI_CONN_2_REQUEST_ID_1.into(),
+                    vec!["different.cli.path".into()],
+                ),
+                (AGENT_A_REQUEST_ID_1.into(), vec!["another.path".into()]),
+            ]),
+        };
+
+        event_handler.remove_cli_subscriber(&"cli-conn-1".to_owned());
+        assert_eq!(event_handler.subscriber_store.len(), 2);
+        assert!(
+            event_handler
+                .subscriber_store
+                .contains_key(&CLI_CONN_2_REQUEST_ID_1.into())
+        );
+        assert!(
+            event_handler
+                .subscriber_store
+                .contains_key(&AGENT_A_REQUEST_ID_1.into())
         );
     }
 
@@ -364,7 +427,10 @@ mod tests {
     #[test]
     fn utest_event_handler_has_subscribers() {
         let mut event_handler = EventHandler {
-            subscriber_store: HashMap::from([(REQUEST_ID_1.into(), vec!["path.to.field".into()])]),
+            subscriber_store: HashMap::from([(
+                AGENT_A_REQUEST_ID_1.into(),
+                vec!["path.to.field".into()],
+            )]),
         };
 
         assert!(event_handler.has_subscribers());
@@ -433,7 +499,7 @@ mod tests {
 
         let mut event_handler = EventHandler::default();
         event_handler.subscriber_store.insert(
-            REQUEST_ID_1.into(),
+            AGENT_A_REQUEST_ID_1.into(),
             vec![
                 added_field_mask.into(),
                 updated_field_mask.into(),
@@ -464,7 +530,7 @@ mod tests {
             panic!("Expected FromServer::Response message");
         };
 
-        assert_eq!(response.request_id, REQUEST_ID_1.to_owned());
+        assert_eq!(response.request_id, AGENT_A_REQUEST_ID_1.to_owned());
         let ResponseContent::CompleteStateResponse(complete_state_response) =
             response.response_content.unwrap()
         else {
