@@ -14,8 +14,8 @@
 
 use api::ank_base::response::ResponseContent;
 use api::ank_base::{
-    CompleteStateResponse, LogEntriesResponse, LogsCancelAccepted, LogsRequestAccepted, State,
-    UpdateStateRequest,
+    AlteredFields, CompleteStateResponse, EventsCancelAccepted, LogEntriesResponse,
+    LogsCancelAccepted, LogsRequestAccepted, State, UpdateStateRequest,
 };
 
 use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
@@ -23,6 +23,7 @@ use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
 use prost::Message;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, VecDeque};
 use std::env::args;
 use std::path::PathBuf;
 use std::{
@@ -65,6 +66,8 @@ enum CommandEnum {
     RequestLogs(RequestLogs),
     GetLogs(GetLogs),
     CancelLogs(CancelLogs),
+    GetEvents(GetEvents),
+    CancelEvents(CancelEvents),
 }
 
 #[derive(Deserialize, Debug)]
@@ -81,6 +84,8 @@ struct UpdateState {
 #[derive(Deserialize, Debug)]
 struct GetState {
     field_mask: Vec<String>,
+    request_id: Option<String>,
+    subscribe_for_events: bool,
 }
 
 #[derive(Deserialize)]
@@ -96,7 +101,17 @@ struct GetLogs {
 }
 
 #[derive(Deserialize)]
+struct GetEvents {
+    request_id: String,
+}
+
+#[derive(Deserialize)]
 struct CancelLogs {
+    request_id: String,
+}
+
+#[derive(Deserialize)]
+struct CancelEvents {
     request_id: String,
 }
 
@@ -113,6 +128,8 @@ enum TestResultEnum {
     LogRequestResponse(TagSerializedResult<LogsRequestAccepted>),
     LogEntriesResponse(TagSerializedResult<LogEntriesResponse>),
     LogCancelResponse(TagSerializedResult<LogsCancelAccepted>),
+    EventEntriesResponse(TagSerializedResult<(Option<State>, AlteredFields)>),
+    EventsCancelResponse(TagSerializedResult<EventsCancelAccepted>),
     NoApi,
     SendHelloResult(TagSerializedResult<()>),
     ConnectionClosed,
@@ -208,6 +225,7 @@ struct Connection {
     id_counter: i32,
     output: File,
     input: InputPipe,
+    response_store: HashMap<String, VecDeque<ResponseContent>>,
 }
 
 enum InputPipe {
@@ -234,6 +252,7 @@ impl Connection {
             id_counter: 0,
             output,
             input: InputPipe::Path(input_fifo),
+            response_store: HashMap::new(),
         })
     }
 
@@ -263,6 +282,14 @@ impl Connection {
                     logging::log("Executing command: CancelLogs");
 
                     self.handle_cancel_logs_command(request_id)?
+                }
+                CommandEnum::CancelEvents(CancelEvents { request_id }) => {
+                    logging::log("Executing command: CancelEvents");
+                    self.handle_cancel_events_command(request_id)?
+                }
+                CommandEnum::GetEvents(GetEvents { request_id }) => {
+                    logging::log("Executing command: GetEvents");
+                    self.handle_get_events_command(request_id)?
                 }
             },
         })
@@ -342,15 +369,21 @@ impl Connection {
     pub fn get_complete_state(
         &mut self,
         field_mask: Vec<String>,
+        request_id: Option<String>,
+        subscribe_for_events: bool,
     ) -> Result<ResponseContent, CommandError> {
-        let request_id = self.get_next_id();
+        let request_id = if let Some(request_id) = request_id {
+            request_id
+        } else {
+            self.get_next_id()
+        };
 
         let request = common::commands::Request {
             request_id: request_id.clone(),
             request_content: common::commands::RequestContent::CompleteStateRequest(
                 common::commands::CompleteStateRequest {
                     field_mask,
-                    subscribe_for_events: false,
+                    subscribe_for_events,
                 },
             ),
         };
@@ -372,7 +405,11 @@ impl Connection {
         &mut self,
         get_state_command: GetState,
     ) -> Result<TestResultEnum, CommandError> {
-        let response = self.get_complete_state(get_state_command.field_mask)?;
+        let response = self.get_complete_state(
+            get_state_command.field_mask,
+            get_state_command.request_id,
+            get_state_command.subscribe_for_events,
+        )?;
 
         Ok(TestResultEnum::GetStateResult(match response {
             ResponseContent::CompleteStateResponse(complete_state) => {
@@ -393,6 +430,15 @@ impl Connection {
         &mut self,
         target_request_id: String,
     ) -> Result<ResponseContent, CommandError> {
+        if let Some(old_response) = self.response_store.get_mut(&target_request_id) {
+            if let Some(response_content) = old_response.pop_front() {
+                logging::log(&format!(
+                    "Using stored response for request id: {target_request_id}"
+                ));
+                return Ok(response_content);
+            }
+        }
+
         loop {
             let message = self.read_message().map_err(CommandError::GenericError)?;
             logging::log(&format!("Received message: {message:?}"));
@@ -410,9 +456,15 @@ impl Connection {
                         }
                     } else {
                         logging::log(&format!(
-                            "Received unexpected response for request {:}",
+                            "Storing unexpected response for request {:}",
                             response.request_id
                         ));
+                        self.response_store
+                            .entry(response.request_id.clone())
+                            .or_default()
+                            .push_back(response.response_content.expect(
+                                "Received Response without content."
+                            ));
                     }
                 }
                 FromAnkaiosEnum::ControlInterfaceAccepted(_) => {
@@ -449,7 +501,8 @@ impl Connection {
         }
 
         // Get the workload states to extract the workload instance names
-        let workload_states_response = self.get_complete_state(vec!["workloadStates".into()])?;
+        let workload_states_response =
+            self.get_complete_state(vec!["workloadStates".into()], None, false)?;
         let workload_states = match workload_states_response {
             ResponseContent::CompleteStateResponse(complete_state) => {
                 match *complete_state {
@@ -587,6 +640,62 @@ impl Connection {
                 "Received wrong response type. Expected LogsCancelAccepted, received: '{response_content:?}'"
             ))),
         }
+    }
+
+    fn handle_cancel_events_command(
+        &mut self,
+        request_id: String,
+    ) -> Result<TestResultEnum, CommandError> {
+        let request = common::commands::Request {
+            request_id: request_id.clone(),
+            request_content: common::commands::RequestContent::EventsCancelRequest,
+        };
+
+        let proto = api::control_api::ToAnkaios {
+            to_ankaios_enum: Some(api::control_api::to_ankaios::ToAnkaiosEnum::Request(
+                request.into(),
+            )),
+        };
+
+        self.output
+            .write_all(&proto.encode_length_delimited_to_vec())
+            .unwrap();
+
+        let response = self.wait_for_response(request_id)?;
+        match response {
+            ResponseContent::EventsCancelAccepted(logs_response) => Ok(
+                TestResultEnum::EventsCancelResponse(TagSerializedResult::Ok(logs_response)),
+            ),
+            ResponseContent::Error(error) => Ok(TestResultEnum::LogEntriesResponse(
+                TagSerializedResult::Err(error.message),
+            )),
+            response_content => Err(CommandError::GenericError(format!(
+                "Received wrong response type. Expected LogsCancelAccepted, received: '{response_content:?}'"
+            ))),
+        }
+    }
+
+    fn handle_get_events_command(
+        &mut self,
+        request_id: String,
+    ) -> Result<TestResultEnum, CommandError> {
+        let response = self.wait_for_response(request_id)?;
+
+        Ok(TestResultEnum::EventEntriesResponse(match response {
+            ResponseContent::CompleteStateResponse(complete_state) => {
+                match (complete_state.complete_state, complete_state.altered_fields) {
+                    (Some(complete_state), Some(altered_fields)) => {
+                        TagSerializedResult::Ok((complete_state.desired_state, altered_fields))
+                    }
+                    _ => TagSerializedResult::Err(
+                        "Received CompleteStateResponse without complete_state field.".to_string(),
+                    ),
+                }
+            }
+            response => TagSerializedResult::Err(format!(
+                "Received wrong response type. Expected CompleteState, received: '{response:?}'"
+            )),
+        }))
     }
 
     fn read_message(&mut self) -> Result<FromAnkaiosEnum, String> {
