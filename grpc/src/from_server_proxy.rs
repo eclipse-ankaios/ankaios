@@ -814,7 +814,7 @@ mod tests {
         };
 
         let complete_state_result = to_manager
-            .complete_state(prefixed_my_request_id, test_complete_state.clone())
+            .complete_state(prefixed_my_request_id, test_complete_state.clone(), None)
             .await;
         assert!(complete_state_result.is_ok());
 
