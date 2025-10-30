@@ -23,8 +23,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .boxed("FromAnkaios.FromAnkaiosEnum.response")
         .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")
         // TODO #313 Setup camelCase and SCREAMING_SNAKE_CASE for each object individually (if needed)
-        .type_attribute(".", "#[serde(rename_all = \"camelCase\")]")
-        // .message_attribute(".", "#[serde(rename_all = \"camelCase\")]")
+        .message_attribute(".", "#[serde(rename_all = \"camelCase\")]")
+        .enum_attribute("AddCondition", "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]")
+        .enum_attribute("RestartPolicy", "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]")
+        .field_attribute("ReadWriteEnum.RW_NOTHING", "#[serde(rename = \"Nothing\")]")
+        .field_attribute("ReadWriteEnum.RW_READ", "#[serde(rename = \"Read\")]")
+        .field_attribute("ReadWriteEnum.RW_WRITE", "#[serde(rename = \"Write\")]")
+        .field_attribute("ReadWriteEnum.RW_READ_WRITE", "#[serde(rename = \"ReadWrite\")]")
         // .enum_attribute(".", "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]")
         .type_attribute(
             "ank_base.ConfigItem",

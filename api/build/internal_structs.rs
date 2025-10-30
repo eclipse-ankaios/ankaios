@@ -96,13 +96,13 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
         .field_attribute("Workload.configs", "#[internal_field_attr(#[serde(flatten)])]")
         .field_attribute("Workload.files", "#[internal_field_attr(#[serde(flatten)])]")
 
-        // .field_attribute("Workload.restartPolicy", "#[internal_field_attr(#[serde(default)])]")
-        // .field_attribute("Workload.dependencies", "#[internal_field_attr(#[serde(default)])]")
-        // .field_attribute("Workload.tags", "#[internal_field_attr(#[serde(default)])]")
-        // .field_attribute("Workload.controlInterfaceAccess", "#[internal_field_attr(#[serde(default)])]")
-        // .field_attribute("Workload.configs", "#[internal_field_attr(#[serde(default)])]")
-        // .field_attribute("Workload.files", "#[internal_field_attr(#[serde(default)])]")
-        // .field_attribute("Workload.instanceName", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("Workload.restartPolicy", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("Workload.controlInterfaceAccess", "#[internal_field_attr(#[serde(default)])]")
+
+        .field_attribute("Dependencies.dependencies", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("Tags.tags", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("ConfigMappings.configs", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("Files.files", "#[internal_field_attr(#[serde(default)])]")
 
         .type_attribute(
             "Dependencies",
@@ -156,14 +156,14 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
             "ControlInterfaceAccess",
             "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
-        // .field_attribute(
-        //     "ControlInterfaceAccess.allow_rules",
-        //     "#[internal_field_attr(#[serde(default)])]",
-        // )
-        // .field_attribute(
-        //     "ControlInterfaceAccess.deny_rules",
-        //     "#[internal_field_attr(#[serde(default)])]",
-        // )
+        .field_attribute(
+            "ControlInterfaceAccess.allowRules",
+            "#[internal_field_attr(#[serde(default)])]",
+        )
+        .field_attribute(
+            "ControlInterfaceAccess.denyRules",
+            "#[internal_field_attr(#[serde(default)])]",
+        )
         .type_attribute(
             "AccessRightsRule",
             "#[derive(internal_derive_macros::Internal)]",
