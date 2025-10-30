@@ -826,6 +826,7 @@ mod tests {
     const REQUEST_ID_A2: &str = "agent_A@workload_2@request_2";
     const INSTANCE_ID: &str = "instance_id";
     const MESSAGE: &str = "message";
+    const CLI_CONNECTION_NAME: &str = "cli-conn-1234";
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-fails-on-invalid-startup-state~1]
@@ -2951,19 +2952,18 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let cli_connection_name = "cli-conn-1234".to_string();
-        let cli_request_id = format!("{cli_connection_name}@cli-request-id-1");
+        let cli_request_id = format!("{CLI_CONNECTION_NAME}@cli-request-id-1");
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         server
             .log_campaign_store
             .expect_remove_cli_log_campaign_entry()
-            .with(mockall::predicate::eq(cli_connection_name.clone()))
+            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
             .once()
             .return_const(HashSet::from([cli_request_id.clone()]));
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let result = to_server.goodbye(cli_connection_name).await;
+        let result = to_server.goodbye(CLI_CONNECTION_NAME.to_owned()).await;
         assert!(result.is_ok());
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
@@ -3499,6 +3499,40 @@ mod tests {
         assert!(update_agent_load_status_result.is_ok());
 
         drop(to_server);
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-removes-event-subscription-for-disconnected-cli~1]
+    #[tokio::test]
+    async fn utest_server_removes_event_subscriber_on_cli_disconnect() {
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .log_campaign_store
+            .expect_remove_cli_log_campaign_entry()
+            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
+            .once()
+            .return_const(HashSet::default());
+
+        server
+            .event_handler
+            .expect_remove_cli_subscriber()
+            .with(mockall::predicate::eq(CLI_CONNECTION_NAME.to_owned()))
+            .once()
+            .return_const(());
+
+        assert!(
+            to_server
+                .goodbye(CLI_CONNECTION_NAME.to_owned())
+                .await
+                .is_ok()
+        );
+        assert!(to_server.stop().await.is_ok());
+
         let result = server.start(None).await;
         assert!(result.is_ok());
     }
