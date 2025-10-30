@@ -274,7 +274,13 @@ async fn distribute_workload_states_to_agents(
     }
 }
 
-type AgentWorkloadMap = HashMap<String, (Vec<WorkloadNamed>, Vec<DeletedWorkload>)>;
+#[derive(Debug, Default)]
+struct UpdatedWorkloads {
+    added_workloads: Vec<WorkloadNamed>,
+    deleted_workloads: Vec<DeletedWorkload>,
+}
+
+type AgentWorkloadMap = HashMap<String, UpdatedWorkloads>;
 
 fn get_workloads_per_agent(
     added_workloads: Vec<WorkloadNamed>,
@@ -282,24 +288,21 @@ fn get_workloads_per_agent(
 ) -> AgentWorkloadMap {
     let mut agent_workloads: AgentWorkloadMap = HashMap::new();
 
-    for added_workload in added_workloads {
+    added_workloads.into_iter().for_each(|added_workload| {
         agent_workloads
             .entry(added_workload.instance_name.agent_name.to_owned())
-            .or_insert((vec![added_workload], vec![]));
-    }
+            .or_default()
+            .added_workloads
+            .push(added_workload);
+    });
 
-    for deleted_workload in deleted_workloads {
-        if let Some((_, deleted_workload_vector)) =
-            agent_workloads.get_mut(deleted_workload.instance_name.agent_name())
-        {
-            deleted_workload_vector.push(deleted_workload);
-        } else {
-            agent_workloads.insert(
-                deleted_workload.instance_name.agent_name().to_owned(),
-                (vec![], vec![deleted_workload]),
-            );
-        }
-    }
+    deleted_workloads.into_iter().for_each(|deleted_workload| {
+        agent_workloads
+            .entry(deleted_workload.instance_name.agent_name().to_owned())
+            .or_default()
+            .deleted_workloads
+            .push(deleted_workload);
+    });
 
     agent_workloads
 }
@@ -311,22 +314,22 @@ async fn distribute_workloads_to_agents(
     deleted_workloads: Vec<DeletedWorkload>,
 ) {
     // [impl->swdd~grpc-server-sorts-commands-according-agents~1]
-    for (agent_name, (added_workload_vector, deleted_workload_vector)) in
+    for (agent_name, UpdatedWorkloads{added_workloads, deleted_workloads}) in
         get_workloads_per_agent(added_workloads, deleted_workloads)
     {
         if let Some(sender) = agent_senders.get(&agent_name) {
             log::trace!(
-                "Sending added and deleted workloads to agent '{agent_name}'.\n\tAdded workloads: {added_workload_vector:?}.\n\tDeleted workloads: {deleted_workload_vector:?}."
+                "Sending added and deleted workloads to agent '{agent_name}'.\n\tAdded workloads: {added_workloads:?}.\n\tDeleted workloads: {deleted_workloads:?}."
             );
             let result = sender
                 .send(Ok(grpc_api::FromServer {
                     from_server_enum: Some(FromServerEnum::UpdateWorkload(
                         grpc_api::UpdateWorkload {
-                            added_workloads: added_workload_vector
+                            added_workloads: added_workloads
                                 .into_iter()
                                 .map(|x| x.into())
                                 .collect(),
-                            deleted_workloads: deleted_workload_vector
+                            deleted_workloads: deleted_workloads
                                 .into_iter()
                                 .map(|x| x.into())
                                 .collect(),
