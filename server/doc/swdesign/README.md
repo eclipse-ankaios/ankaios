@@ -1451,6 +1451,25 @@ Needs:
 - impl
 - utest
 
+#### Server removes subscription for deleted subscriber workload
+`swdd~server-removes-subscription-for-deleted-subscriber-workload~1`
+
+Status: approved
+
+When the Ankaios Server detects deleted workloads,
+for each workload subscribed to events the Ankaios Server shall request the EventHandler to remove the event subscription of the workload by providing agent and workload name of this workload.
+
+Rationale:
+This serves to prevent subscription corpses that remain in the system when a workload subscribed to events is deleted.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
 #### EventHandler handles event notifications
 
 ##### EventHandler provides functionality to handle event subscriptions
@@ -1465,6 +1484,7 @@ The EventHandler shall provide the following methods to manage the subscriptions
 * checking if there is any subscriber inside its internal event store
 * removing all subscribers of a specific agent from its internal event store
 * removing all subscribers of a specific cli connection from its internal event store
+* removing a subscriber by its agent and workload name from the internal event store
 
 Comment:
 The event subscription store is an associative data structure.
@@ -1473,8 +1493,9 @@ One subscriber can subscribe to multiple field masks.
 Rationale:
 The EventHandler sends events to specific subscribers identified by their request ID.
 For efficiency, providing a check for existing subscribers allows to skip costly event related calculations if there are no subscribers available.
-This serves to prevent subscription corpses that remain in the system when an Ankaios Agent managing workloads with event subscriptions disconnects.
-This serves to prevent subscription corpses that remain in the system when the cli with event subscriptions disconnects.
+Removing subscribers of an agent prevents subscription corpses that remain in the system when an Ankaios Agent managing workloads with event subscriptions disconnects.
+Removing the cli subscriptions prevents subscription corpses that remain in the system when the cli with event subscriptions disconnects.
+Removing the subscriber by agent and name prevents subscription corpses that remain in the system when the workload is removed.
 
 Tags:
 - EventHandler

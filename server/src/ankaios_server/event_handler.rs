@@ -11,7 +11,7 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::ankaios_server::request_id::to_string_id;
+use crate::ankaios_server::request_id::{AgentName, WorkloadName, to_string_id};
 #[cfg_attr(test, mockall_double::double)]
 use crate::ankaios_server::server_state::ServerState;
 
@@ -173,6 +173,22 @@ impl EventHandler {
         self.subscriber_store.retain(|request_id, _| {
             if let RequestId::CliRequestId(cli_request_id) = request_id {
                 cli_request_id.cli_name != *cli_connection_name
+            } else {
+                true
+            }
+        });
+    }
+
+    // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
+    pub fn remove_workload_subscriber(
+        &mut self,
+        agent_name: &AgentName,
+        workload_name: &WorkloadName,
+    ) {
+        self.subscriber_store.retain(|request_id, _| {
+            if let RequestId::AgentRequestId(agent_request_id) = request_id {
+                agent_request_id.agent_name != *agent_name
+                    || agent_request_id.workload_name != *workload_name
             } else {
                 true
             }
@@ -420,6 +436,33 @@ mod tests {
             event_handler
                 .subscriber_store
                 .contains_key(&AGENT_A_REQUEST_ID_1.into())
+        );
+    }
+
+    // [utest->swdd~provides-functionality-to-handle-event-subscriptions~1]
+    #[test]
+    fn utest_event_handler_remove_workload_subscribers() {
+        let agent_a_request_id_3 = "agent_B@workload_1@19234";
+        let mut event_handler = EventHandler {
+            subscriber_store: HashMap::from([
+                (CLI_CONN_1_REQUEST_ID_1.into(), vec!["cli.path".into()]),
+                (AGENT_A_REQUEST_ID_1.into(), vec!["another.path".into()]),
+                (agent_a_request_id_3.into(), vec!["more.paths".into()]),
+                (AGENT_B_REQUEST_ID_1.into(), vec!["different.path".into()]),
+            ]),
+        };
+
+        event_handler.remove_workload_subscriber(&"agent_A".to_owned(), &"workload_1".to_owned());
+        assert_eq!(event_handler.subscriber_store.len(), 3);
+        assert!(
+            !event_handler
+                .subscriber_store
+                .contains_key(&AGENT_A_REQUEST_ID_1.into())
+        );
+        assert!(
+            event_handler
+                .subscriber_store
+                .contains_key(&agent_a_request_id_3.into())
         );
     }
 

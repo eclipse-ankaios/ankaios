@@ -511,6 +511,11 @@ impl AnkaiosServer {
                             .iter()
                             .map(|ws| {
                                 if ws.execution_state.is_removed() {
+                                    // [impl->swdd~server-removes-subscription-for-deleted-subscriber-workload~1]
+                                    self.event_handler.remove_workload_subscriber(
+                                        &ws.instance_name.agent_name().to_owned(),
+                                        &ws.instance_name.workload_name().to_owned(),
+                                    );
                                     // [impl->swdd~server-sends-event-for-removed-workload-states~1]
                                     FieldDifference::removed_workload_state(&ws.instance_name)
                                 } else {
@@ -3533,6 +3538,55 @@ mod tests {
         );
         assert!(to_server.stop().await.is_ok());
 
+        let result = server.start(None).await;
+        assert!(result.is_ok());
+    }
+
+    // [utest->swdd~server-removes-subscription-for-deleted-subscriber-workload~1]
+    #[tokio::test]
+    async fn utest_server_remove_subscription_for_deleted_subscriber_workload() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        server.server_state.expect_cleanup_state().return_const(());
+
+        server
+            .event_handler
+            .expect_has_subscribers()
+            .return_const(true);
+
+        let removed_workload_state = common::objects::generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_1,
+            AGENT_A,
+            ExecutionState::removed(),
+        );
+
+        server
+            .event_handler
+            .expect_remove_workload_subscriber()
+            .with(
+                mockall::predicate::eq(AGENT_A.to_owned()),
+                mockall::predicate::eq(WORKLOAD_NAME_1.to_owned()),
+            )
+            .once()
+            .return_const(());
+
+        server
+            .event_handler
+            .expect_send_events()
+            .once()
+            .return_const(());
+
+        let update_workload_state_result = to_server
+            .update_workload_state(vec![removed_workload_state])
+            .await;
+        assert!(update_workload_state_result.is_ok());
+
+        drop(to_server);
         let result = server.start(None).await;
         assert!(result.is_ok());
     }
