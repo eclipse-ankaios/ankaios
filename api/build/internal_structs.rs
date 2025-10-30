@@ -100,7 +100,8 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
         .field_attribute("Workload.controlInterfaceAccess", "#[internal_field_attr(#[serde(default)])]")
 
         .field_attribute("Dependencies.dependencies", "#[internal_field_attr(#[serde(default)])]")
-        .field_attribute("Tags.tags", "#[internal_field_attr(#[serde(default)])]")
+        // The custom deserializer is added to support the deprecated apiVersions: v0.1
+        .field_attribute("Tags.tags", "#[internal_field_attr(#[serde(default, deserialize_with = \"tag_adapter_deserializer\")])]")
         .field_attribute("ConfigMappings.configs", "#[internal_field_attr(#[serde(default)])]")
         .field_attribute("Files.files", "#[internal_field_attr(#[serde(default)])]")
 
@@ -201,6 +202,8 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
             "StateRule",
             "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
+        // The alias to filterMask is added to support the deprecated apiVersions: v0.1
+        .field_attribute("StateRule.filterMasks", "#[internal_field_attr(#[serde(alias = \"filterMask\")])]")
         .type_attribute("LogRule", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "LogRule",

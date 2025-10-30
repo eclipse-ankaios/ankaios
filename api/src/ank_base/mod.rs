@@ -15,6 +15,11 @@
 // [impl->swdd~ank-base-provides-object-definitions~1]
 tonic::include_proto!("ank_base"); // The string specified here must match the proto package name
 
+use crate::helpers::tag_adapter_deserializer;
+
+pub use crate::helpers::serialize_to_ordered_map;
+pub use crate::helpers::serialize_option_to_ordered_map;
+
 pub(crate) mod workload_instance_name;
 pub use workload_instance_name::{
     ConfigHash, INSTANCE_NAME_SEPARATOR, WorkloadInstanceNameBuilder,
@@ -33,7 +38,7 @@ pub use control_interface_access::WILDCARD_SYMBOL;
 pub(crate) mod workload;
 pub use workload::{
     ALLOWED_SYMBOLS, DeleteCondition, DeletedWorkload, FulfilledBy, STR_RE_AGENT,
-    STR_RE_CONFIG_REFERENCES, verify_workload_name_format, WorkloadNamed
+    STR_RE_CONFIG_REFERENCES, WorkloadNamed, verify_workload_name_format,
 };
 
 pub(crate) mod workload_state;
@@ -52,33 +57,8 @@ pub use response::ResponseContent;
 //                  ####   ##     ##   ##          #########                //
 //////////////////////////////////////////////////////////////////////////////
 
-use serde::{Serialize, Serializer};
-use std::collections::{BTreeMap, HashMap};
 
-pub fn serialize_option_to_ordered_map<S, T: Serialize>(
-    value: &Option<HashMap<String, T>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    if let Some(value) = value {
-        serialize_to_ordered_map(value, serializer)
-    } else {
-        serializer.serialize_none()
-    }
-}
 
-pub fn serialize_to_ordered_map<S, T: Serialize>(
-    value: &HashMap<String, T>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let ordered: BTreeMap<_, _> = value.iter().collect();
-    ordered.serialize(serializer)
-}
 
 impl Response {
     pub fn access_denied(request_id: String) -> Response {
