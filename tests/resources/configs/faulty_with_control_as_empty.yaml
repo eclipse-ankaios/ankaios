@@ -11,6 +11,6 @@ workloads:
       allowRules:
         - type: StateRule
           operation: ReadWrite
-          filterMask:
+          filterMasks:
             # An empty string for the filter mask is not allowed
             - ""

@@ -633,3 +633,4 @@ fn read_yaml_file<T: DeserializeOwned>(path: &Path) -> Result<T, String> {
     serde_yaml::from_reader(file)
         .map_err(|err| format!("Could not parse '{}': {}", path.to_str().unwrap(), err))
 }
+
