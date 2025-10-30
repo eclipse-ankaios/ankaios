@@ -3440,6 +3440,12 @@ mod tests {
 
         server
             .event_handler
+            .expect_remove_workload_subscriber()
+            .once()
+            .return_const(());
+
+        server
+            .event_handler
             .expect_send_events()
             .with(
                 mockall::predicate::always(),

@@ -11,7 +11,7 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::ankaios_server::request_id::{AgentName, WorkloadName, to_string_id};
+use crate::ankaios_server::request_id::{AgentName, AgentRequestId, WorkloadName, to_string_id};
 #[cfg_attr(test, mockall_double::double)]
 use crate::ankaios_server::server_state::ServerState;
 
@@ -147,21 +147,24 @@ fn expand_wildcards_in_subscriber_mask(subscriber_mask: &Path, altered_field_mas
 impl EventHandler {
     // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn add_subscriber(&mut self, request_id: String, field_masks: SubscribedFieldMasks) {
-        log::debug!("Adding subscriber '{request_id}' with field masks: {field_masks:?}",);
+        log::debug!("Adding event subscriber '{request_id}' with field masks: {field_masks:?}",);
         self.subscriber_store.insert(request_id.into(), field_masks);
     }
 
     // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn remove_subscriber(&mut self, request_id: String) {
-        log::debug!("Removing subscriber '{request_id}'");
+        log::debug!("Removing event subscriber '{request_id}'");
         self.subscriber_store.remove(&request_id.into());
     }
 
     // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
-    pub fn remove_subscribers_of_agent(&mut self, agent_name: &str) {
+    pub fn remove_subscribers_of_agent(&mut self, agent_name: &AgentName) {
         self.subscriber_store.retain(|request_id, _| {
-            if let RequestId::AgentRequestId(agent_request_id) = request_id {
-                agent_request_id.agent_name != agent_name
+            if let RequestId::AgentRequestId(agent_request_id) = request_id
+                && agent_request_id.agent_name == *agent_name
+            {
+                log::debug!("Removing event subscriber '{request_id}' of agent '{agent_name}'",);
+                false
             } else {
                 true
             }
@@ -171,8 +174,11 @@ impl EventHandler {
     // [impl->swdd~provides-functionality-to-handle-event-subscriptions~1]
     pub fn remove_cli_subscriber(&mut self, cli_connection_name: &CliConnectionName) {
         self.subscriber_store.retain(|request_id, _| {
-            if let RequestId::CliRequestId(cli_request_id) = request_id {
-                cli_request_id.cli_name != *cli_connection_name
+            if let RequestId::CliRequestId(cli_request_id) = request_id && cli_request_id.cli_name == *cli_connection_name {
+                log::debug!(
+                    "Removing event subscriber '{request_id}' of CLI connection '{cli_connection_name}'",
+                );
+                false
             } else {
                 true
             }
@@ -186,9 +192,11 @@ impl EventHandler {
         workload_name: &WorkloadName,
     ) {
         self.subscriber_store.retain(|request_id, _| {
-            if let RequestId::AgentRequestId(agent_request_id) = request_id {
-                agent_request_id.agent_name != *agent_name
-                    || agent_request_id.workload_name != *workload_name
+            if let RequestId::AgentRequestId(agent_request_id) = request_id
+                && request_id_matches_agent_and_workload_name(agent_request_id, agent_name, workload_name)
+            {
+                log::debug!("Removing event subscriber '{request_id}' of agent '{agent_name}' and workload '{workload_name}'");
+                false
             } else {
                 true
             }
@@ -281,6 +289,14 @@ impl EventHandler {
             }
         }
     }
+}
+
+fn request_id_matches_agent_and_workload_name(
+    agent_request_id: &AgentRequestId,
+    agent_name: &AgentName,
+    workload_name: &WorkloadName,
+) -> bool {
+    agent_request_id.agent_name == *agent_name && agent_request_id.workload_name == *workload_name
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -392,7 +408,7 @@ mod tests {
             ]),
         };
 
-        event_handler.remove_subscribers_of_agent("agent_A");
+        event_handler.remove_subscribers_of_agent(&"agent_A".to_owned());
         assert_eq!(event_handler.subscriber_store.len(), 2);
         assert!(
             event_handler
