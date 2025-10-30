@@ -31,7 +31,7 @@ Test events
 
     When the controller workload subscribes to the state of fields desiredState.workloads.*.agent
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
-    And the controller workload get events for fields desiredState.workloads.*.agent
+    And the controller workload gets events for fields desiredState.workloads.*.agent
     Then the last result contains exactly the workloads simple
     And in the last result the workload simple has exactly the fields agent
 
