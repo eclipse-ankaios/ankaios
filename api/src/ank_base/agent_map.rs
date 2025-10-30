@@ -99,15 +99,15 @@ pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMapInterna
 }
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_agent_map_from_specs(
+pub fn generate_test_agent_map_from_workloads(
     workloads: &[crate::ank_base::WorkloadInternal],
 ) -> AgentMapInternal {
     workloads
         .iter()
-        .fold(AgentMapInternal::new(), |mut agent_map, spec| {
+        .fold(AgentMapInternal::new(), |mut agent_map, wl| {
             use crate::ank_base::AgentStatusInternal;
 
-            let agent_name = &spec.agent;
+            let agent_name = &wl.agent;
             agent_map
                 .entry(agent_name.to_owned())
                 .or_insert(AgentAttributesInternal {

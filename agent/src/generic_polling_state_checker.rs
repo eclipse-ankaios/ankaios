@@ -155,7 +155,7 @@ mod tests {
         )
         .await;
 
-        let expected_state = common::objects::generate_test_workload_state_with_workload_spec(
+        let expected_state = common::objects::generate_test_workload_state_with_workload_named(
             &workload_spec,
             ExecutionStateInternal::running(),
         );

@@ -13,27 +13,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    AddCondition, CompleteState, ConfigMappings, ControlInterfaceAccess, DeleteCondition,
-    DeletedWorkload, Dependencies, File, FileContent, Files, RestartPolicy, State, Tags, Workload,
-    WorkloadInstanceNameInternal, WorkloadMap,
+    CompleteState, DeleteCondition, DeletedWorkload, State, Workload, WorkloadInstanceNameInternal,
+    WorkloadMap,
 };
 pub use crate::ank_base::{
-    agent_map::{generate_test_agent_map, generate_test_agent_map_from_specs},
+    agent_map::{generate_test_agent_map, generate_test_agent_map_from_workloads},
     control_interface_access::generate_test_control_interface_access,
-    file_internal::generate_test_rendered_workload_files,
+    file_internal::generate_test_workload_files,
     workload::{
-        generate_test_runtime_config, generate_test_workload,
-        generate_test_workload_with_control_interface_access,
-        generate_test_workload_with_dependencies, generate_test_workload_with_files,
+        TestWorkloadFixture, generate_test_runtime_config, generate_test_workload,
         generate_test_workload_with_param, generate_test_workload_with_runtime_config,
     },
     workload_instance_name::generate_test_workload_instance_name,
 };
 use std::collections::HashMap;
 
-const RUNTIME_NAME: &str = "runtime";
 const API_VERSION: &str = "v1";
-const AGENT_NAME: &str = "agent";
 const WORKLOAD_1_NAME: &str = "workload_name_1";
 const WORKLOAD_2_NAME: &str = "workload_name_2";
 
@@ -67,8 +62,8 @@ pub fn generate_test_proto_state() -> State {
     let workload_name_2 = WORKLOAD_2_NAME.to_string();
 
     let mut workloads = HashMap::new();
-    workloads.insert(workload_name_1, generate_test_proto_workload());
-    workloads.insert(workload_name_2, generate_test_proto_workload());
+    workloads.insert(workload_name_1, generate_test_workload());
+    workloads.insert(workload_name_2, generate_test_workload());
     let proto_workloads: Option<WorkloadMap> = Some(WorkloadMap { workloads });
 
     State {
@@ -78,84 +73,11 @@ pub fn generate_test_proto_state() -> State {
     }
 }
 
-fn generate_test_proto_dependencies() -> Dependencies {
-    Dependencies {
-        dependencies: (HashMap::from([
-            (
-                String::from("workload_A"),
-                AddCondition::AddCondRunning.into(),
-            ),
-            (
-                String::from("workload_C"),
-                AddCondition::AddCondSucceeded.into(),
-            ),
-        ])),
-    }
-}
-
 fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
     HashMap::from([(
         String::from("workload_A"),
         DeleteCondition::DelCondNotPendingNorRunning,
     )])
-}
-
-pub fn generate_test_proto_workload_with_param(
-    agent_name: impl Into<String>,
-    runtime_name: impl Into<String>,
-) -> Workload {
-    Workload {
-        agent: Some(agent_name.into()),
-        dependencies: Some(generate_test_proto_dependencies()),
-        restart_policy: Some(RestartPolicy::Always.into()),
-        runtime: Some(runtime_name.into()),
-        runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
-            .to_string()),
-        tags: Some(Tags {
-            tags: HashMap::from([("key".into(), "value".into())]),
-        }),
-        control_interface_access: Default::default(),
-        configs: Some(ConfigMappings{configs: [
-            ("ref1".into(), "config_1".into()),
-            ("ref2".into(), "config_2".into()),
-        ].into()}),
-        files: Some(generate_test_proto_workload_files()),
-    }
-}
-
-pub fn generate_test_proto_workload() -> Workload {
-    Workload {
-        agent: Some(String::from(AGENT_NAME)),
-        dependencies: Some(generate_test_proto_dependencies()),
-        restart_policy: Some(RestartPolicy::Always.into()),
-        runtime: Some(String::from(RUNTIME_NAME)),
-        runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
-            .to_string()),
-        tags: Some(Tags {
-            tags: HashMap::from([("key".into(), "value".into())]),
-        }),
-        control_interface_access: Some(ControlInterfaceAccess::default()),
-        configs: Some(ConfigMappings{configs: [
-            ("ref1".into(), "config_1".into()),
-            ("ref2".into(), "config_2".into()),
-        ].into()}),
-        files: Some(generate_test_proto_workload_files()),
-    }
-}
-
-pub fn generate_test_proto_workload_files() -> Files {
-    Files {
-        files: vec![
-            File {
-                mount_point: "/file.json".into(),
-                file_content: Some(FileContent::Data("text data".into())),
-            },
-            File {
-                mount_point: "/binary_file".into(),
-                file_content: Some(FileContent::BinaryData("base64_data".into())),
-            },
-        ],
-    }
 }
 
 pub fn generate_test_deleted_workload(agent: String, name: String) -> DeletedWorkload {

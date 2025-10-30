@@ -142,7 +142,7 @@ impl State {
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
-    use api::ank_base;
+    use api::ank_base::{self, WorkloadInternal};
     use api::test_utils::{generate_test_proto_state, generate_test_workload};
     use std::collections::HashMap;
 
@@ -269,7 +269,7 @@ mod tests {
     // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
     #[test]
     fn utest_verify_configs_format_incompatible_workload_config_alias() {
-        let mut workload = generate_test_workload();
+        let mut workload: WorkloadInternal = generate_test_workload();
         workload
             .configs
             .configs

@@ -172,13 +172,16 @@ impl WorkloadInstanceNameBuilder {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
+use crate::test_utils::generate_test_runtime_config;
+
+#[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_instance_name(
     name: impl Into<String>,
 ) -> WorkloadInstanceNameInternal {
     WorkloadInstanceNameInternal::builder()
         .agent_name("agent_name")
         .workload_name(name)
-        .config(&String::from("my cool config"))
+        .config(&generate_test_runtime_config())
         .build()
 }
 

@@ -12,15 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(any(feature = "test_utils", test))]
-use crate::ank_base::TagsInternal;
 use crate::ank_base::{
-    AddCondition, DependenciesInternal, ExecutionStateInternal,
-    WorkloadInstanceNameInternal, WorkloadInternal, RestartPolicy,
+    AddCondition, DependenciesInternal, ExecutionStateInternal, RestartPolicy,
+    WorkloadInstanceNameInternal, WorkloadInternal,
 };
 use crate::helpers::serialize_to_ordered_map;
-#[cfg(any(feature = "test_utils", test))]
-use crate::test_utils::generate_test_control_interface_access;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -97,7 +93,7 @@ pub fn verify_workload_name_not_empty(length: usize) -> Result<(), String> {
 }
 
 // [impl->swdd~common-agent-naming-convention~3]
-fn _verify_agent_name_format(agent_name: &str) -> Result<(), String> {
+fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
     let re_agent = Regex::new(STR_RE_AGENT).unwrap();
     if !re_agent.is_match(agent_name) {
         Err(format!(
@@ -122,9 +118,9 @@ impl WorkloadInternal {
     // [impl->swdd~common-agent-naming-convention~3]
     // [impl->swdd~common-access-rules-filter-mask-convention~1]
     pub fn verify_fields_format(&self) -> Result<(), String> {
-        // TODO
+        // TODO #313 workload name was removed from WorkloadInternal
         // verify_workload_name_format(self.instance_name.workload_name())?;
-        // verify_agent_name_format(self.instance_name.agent_name())?;
+        verify_agent_name_format(&self.agent)?;
         self.control_interface_access.verify_format()?;
         Ok(())
     }
@@ -239,16 +235,168 @@ impl std::fmt::Display for RestartPolicy {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-use crate::ank_base::{ConfigMappingsInternal, FilesInternal};
+use crate::ank_base::{ConfigMappingsInternal, TagsInternal, Workload};
+#[cfg(any(feature = "test_utils", test))]
+use crate::test_utils::{generate_test_control_interface_access, generate_test_workload_files};
 
 #[cfg(any(feature = "test_utils", test))]
-fn generate_test_dependencies() -> DependenciesInternal {
-    DependenciesInternal {
-        dependencies: HashMap::from([
-            (String::from("workload_A"), AddCondition::AddCondRunning),
-            (String::from("workload_C"), AddCondition::AddCondSucceeded),
-        ]),
+impl WorkloadNamed {
+    pub fn name<T: Into<String>>(mut self, name: T) -> Self {
+        self.instance_name.workload_name = name.into();
+        self
     }
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub trait TestWorkloadFixture: Default {
+    fn generate_workload() -> Self;
+    fn generate_workload_with_params(
+        agent_name: impl Into<String>,
+        runtime_name: impl Into<String>,
+    ) -> Self;
+    fn generate_workload_with_runtime_config(
+        agent_name: impl Into<String>,
+        runtime_name: impl Into<String>,
+        runtime_config: impl Into<String>,
+    ) -> Self;
+}
+
+#[cfg(any(feature = "test_utils", test))]
+impl TestWorkloadFixture for WorkloadInternal {
+    fn generate_workload() -> Self {
+        generate_test_workload_with_param("agent_A", "podman")
+    }
+
+    fn generate_workload_with_params(
+        agent_name: impl Into<String>,
+        runtime_name: impl Into<String>,
+    ) -> Self {
+        generate_test_workload_with_runtime_config(
+            agent_name,
+            runtime_name,
+            generate_test_runtime_config(),
+        )
+    }
+
+    fn generate_workload_with_runtime_config(
+        agent_name: impl Into<String>,
+        runtime_name: impl Into<String>,
+        runtime_config: impl Into<String>,
+    ) -> Self {
+        WorkloadInternal {
+            agent: agent_name.into(),
+            dependencies: DependenciesInternal {
+                dependencies: HashMap::from([
+                    (String::from("workload_B"), AddCondition::AddCondRunning),
+                    (String::from("workload_C"), AddCondition::AddCondSucceeded),
+                ]),
+            },
+            restart_policy: RestartPolicy::Always,
+            runtime: runtime_name.into(),
+            tags: TagsInternal {
+                tags: HashMap::from([
+                    ("tag1".into(), "val_1".into()),
+                    ("tag2".into(), "val_2".into()),
+                ]),
+            },
+            runtime_config: runtime_config.into(),
+            configs: ConfigMappingsInternal {
+                configs: HashMap::from([
+                    ("ref1".into(), "config_1".into()),
+                    ("ref2".into(), "config_2".into()),
+                ]),
+            },
+            control_interface_access: generate_test_control_interface_access(),
+            files: generate_test_workload_files(),
+        }
+    }
+}
+
+#[cfg(any(feature = "test_utils", test))]
+impl TestWorkloadFixture for Workload {
+    fn generate_workload() -> Self {
+        WorkloadInternal::generate_workload().into()
+    }
+
+    fn generate_workload_with_params(
+        agent_name: impl Into<String>,
+        runtime_name: impl Into<String>,
+    ) -> Self {
+        WorkloadInternal::generate_workload_with_params(agent_name, runtime_name).into()
+    }
+
+    fn generate_workload_with_runtime_config(
+        agent_name: impl Into<String>,
+        runtime_name: impl Into<String>,
+        runtime_config: impl Into<String>,
+    ) -> Self {
+        WorkloadInternal::generate_workload_with_runtime_config(
+            agent_name,
+            runtime_name,
+            runtime_config,
+        )
+        .into()
+    }
+}
+
+#[cfg(any(feature = "test_utils", test))]
+impl TestWorkloadFixture for WorkloadNamed {
+    fn generate_workload() -> Self {
+        (
+            String::from("workload_A"),
+            WorkloadInternal::generate_workload(),
+        )
+            .into()
+    }
+
+    fn generate_workload_with_params(
+        agent_name: impl Into<String>,
+        runtime_name: impl Into<String>,
+    ) -> Self {
+        (
+            String::from("workload_A"),
+            WorkloadInternal::generate_workload_with_params(agent_name, runtime_name),
+        )
+            .into()
+    }
+
+    fn generate_workload_with_runtime_config(
+        agent_name: impl Into<String>,
+        runtime_name: impl Into<String>,
+        runtime_config: impl Into<String>,
+    ) -> Self {
+        (
+            String::from("workload_A"),
+            WorkloadInternal::generate_workload_with_runtime_config(
+                agent_name,
+                runtime_name,
+                runtime_config,
+            ),
+        )
+            .into()
+    }
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload<T: TestWorkloadFixture>() -> T {
+    T::generate_workload()
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_with_param<T: TestWorkloadFixture>(
+    agent_name: impl Into<String>,
+    runtime_name: impl Into<String>,
+) -> T {
+    T::generate_workload_with_params(agent_name, runtime_name)
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_with_runtime_config<T: TestWorkloadFixture>(
+    agent_name: impl Into<String>,
+    runtime_name: impl Into<String>,
+    runtime_config: impl Into<String>,
+) -> T {
+    T::generate_workload_with_runtime_config(agent_name, runtime_name, runtime_config)
 }
 
 #[cfg(any(feature = "test_utils", test))]
@@ -256,102 +404,14 @@ pub fn generate_test_runtime_config() -> String {
     "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()
 }
 
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_with_param(
-    agent_name: impl Into<String>,
-    workload_name: impl Into<String>,
-    runtime_name: impl Into<String>,
-) -> WorkloadInternal {
-    let runtime_config = generate_test_runtime_config();
+// #[cfg(any(feature = "test_utils", test))]
+// pub fn test() {
+//     let wl1: WorkloadInternal = generate_test_workload();
+//     let wl2: WorkloadNamed = generate_test_workload();
+//     let wl3: Workload = generate_test_workload();
 
-    generate_test_workload_with_runtime_config(
-        agent_name,
-        workload_name,
-        runtime_name,
-        runtime_config,
-    )
-}
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_with_runtime_config(
-    agent_name: impl Into<String>,
-    _workload_name: impl Into<String>,
-    runtime_name: impl Into<String>,
-    runtime_config: impl Into<String>,
-) -> WorkloadInternal {
-    let agent_name = agent_name.into();
-    let runtime_config = runtime_config.into();
-    // let instance_name = WorkloadInstanceNameInternal::builder()
-    //     .agent_name(agent_name.clone())
-    //     .workload_name(workload_name)
-    //     .config(&runtime_config)
-    //     .build();
-
-    WorkloadInternal {
-        // instance_name,
-        agent: agent_name,
-        dependencies: generate_test_dependencies(),
-        restart_policy: RestartPolicy::Always,
-        runtime: runtime_name.into(),
-        tags: TagsInternal {
-            tags: HashMap::from([("key".into(), "value".into())]),
-        },
-        runtime_config,
-        configs: ConfigMappingsInternal {
-            configs: HashMap::from([
-                ("ref1".into(), "config_1".into()),
-                ("ref2".into(), "config_2".into()),
-            ]),
-        },
-        control_interface_access: Default::default(),
-        files: Default::default(),
-    }
-}
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_with_control_interface_access(
-    agent_name: impl Into<String>,
-    workload_name: impl Into<String>,
-    runtime_name: impl Into<String>,
-) -> WorkloadInternal {
-    let mut workload_spec =
-        generate_test_workload_with_param(agent_name, workload_name, runtime_name);
-    workload_spec.control_interface_access = generate_test_control_interface_access();
-    workload_spec
-}
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_with_files(
-    agent_name: impl Into<String>,
-    workload_name: impl Into<String>,
-    runtime_name: impl Into<String>,
-    files: FilesInternal,
-) -> WorkloadInternal {
-    let mut workload_spec =
-        generate_test_workload_with_param(agent_name, workload_name, runtime_name);
-    workload_spec.files = files;
-    workload_spec
-}
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload() -> WorkloadInternal {
-    generate_test_workload_with_param("agent", "name", "runtime")
-}
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_with_dependencies(
-    agent_name: impl Into<String>,
-    workload_name: impl Into<String>,
-    runtime_name: impl Into<String>,
-    dependencies: HashMap<String, AddCondition>,
-) -> WorkloadInternal {
-    let mut workload_spec =
-        generate_test_workload_with_param(agent_name, workload_name, runtime_name);
-    workload_spec.dependencies = DependenciesInternal {
-        dependencies: dependencies.iter().map(|(k, v)| (k.clone(), *v)).collect(),
-    };
-    workload_spec
-}
+//     // let wl2 = generate_test_workload::<WorkloadNamed>().name("workload_X");
+// }
 
 // [utest->swdd~common-conversions-between-ankaios-and-proto~1]
 // [utest->swdd~common-object-representation~1]
@@ -360,16 +420,12 @@ pub fn generate_test_workload_with_dependencies(
 mod tests {
     use crate::ank_base::{
         AddCondition, DeleteCondition, ExecutionStateInternal, FulfilledBy, RestartPolicy,
-        WorkloadInternal, verify_workload_name_format,
+        WorkloadInternal, WorkloadNamed, verify_workload_name_format,
     };
     use crate::test_utils::{
-        generate_test_control_interface_access, generate_test_deleted_workload,
-        generate_test_rendered_workload_files, generate_test_workload,
-        generate_test_workload_with_files, generate_test_workload_with_param,
+        generate_test_deleted_workload, generate_test_workload, generate_test_workload_with_param,
     };
     use std::collections::HashMap;
-
-    const RUNTIME: &str = "runtime";
 
     // one test for a failing case, other cases are tested on the caller side to not repeat test code
     // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
@@ -506,11 +562,11 @@ mod tests {
     // [utest->swdd~common-workload-needs-control-interface~1]
     #[test]
     fn utest_needs_control_interface() {
-        let mut workload_spec = generate_test_workload();
-        assert!(!workload_spec.needs_control_interface());
+        let mut workload: WorkloadInternal = generate_test_workload(); // Generates with control interface access
+        assert!(workload.needs_control_interface());
 
-        workload_spec.control_interface_access = generate_test_control_interface_access();
-        assert!(workload_spec.needs_control_interface());
+        workload.control_interface_access = Default::default(); // No rules
+        assert!(!workload.needs_control_interface());
     }
 
     // [utest->swdd~common-workload-naming-convention~1]
@@ -518,8 +574,8 @@ mod tests {
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_workload_verify_fields_format_success() {
-        let compatible_workload_spec = generate_test_workload();
-        assert!(compatible_workload_spec.verify_fields_format().is_ok());
+        let compatible_workload: WorkloadInternal = generate_test_workload();
+        assert!(compatible_workload.verify_fields_format().is_ok());
     }
 
     // [utest->swdd~common-workload-naming-convention~1]
@@ -535,17 +591,16 @@ mod tests {
     // [utest->swdd~common-workload-naming-convention~1]
     #[test]
     fn utest_workload_verify_fields_incompatible_workload_name() {
-        let spec_with_wrong_workload_name = generate_test_workload_with_param(
-            "agent_A".to_owned(),
-            "incompatible.workload_name".to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let workload_with_wrong_name =
+            generate_test_workload::<WorkloadNamed>().name("incompatible.workload_name");
 
+        // TODO #313 check the test if it's still needed
         assert_eq!(
-            spec_with_wrong_workload_name.verify_fields_format(),
+            // workload_with_wrong_name.workload.verify_fields_format(),
+            verify_workload_name_format(workload_with_wrong_name.instance_name.workload_name()),
             Err(format!(
                 "Unsupported workload name '{}'. Expected to have characters in {}.",
-                spec_with_wrong_workload_name.instance_name.workload_name(),
+                workload_with_wrong_name.instance_name.workload_name(),
                 super::ALLOWED_SYMBOLS
             ))
         );
@@ -554,17 +609,14 @@ mod tests {
     // [utest->swdd~common-agent-naming-convention~3]
     #[test]
     fn utest_workload_verify_fields_incompatible_agent_name() {
-        let spec_with_wrong_agent_name = generate_test_workload_with_param(
-            "incompatible.agent_name".to_owned(),
-            "workload_1".to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let workload_with_wrong_agent_name: WorkloadInternal =
+            generate_test_workload_with_param("incompatible.agent_name", "runtime");
 
         assert_eq!(
-            spec_with_wrong_agent_name.verify_fields_format(),
+            workload_with_wrong_agent_name.verify_fields_format(),
             Err(format!(
                 "Unsupported agent name. Received '{}', expected to have characters in {}",
-                spec_with_wrong_agent_name.instance_name.agent_name(),
+                workload_with_wrong_agent_name.agent,
                 super::ALLOWED_SYMBOLS
             ))
         );
@@ -573,13 +625,14 @@ mod tests {
     // [utest->swdd~common-agent-naming-convention~3]
     #[test]
     fn utest_workload_spec_with_valid_empty_agent_name() {
-        let spec_with_wrong_agent_name = generate_test_workload_with_param(
-            "".to_owned(),
-            "workload_1".to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let workload_with_valid_missing_agent_name: WorkloadInternal =
+            generate_test_workload_with_param("", "runtime");
 
-        assert!(spec_with_wrong_agent_name.verify_fields_format().is_ok());
+        assert!(
+            workload_with_valid_missing_agent_name
+                .verify_fields_format()
+                .is_ok()
+        );
     }
 
     // [utest->swdd~common-workload-naming-convention~1]
@@ -600,19 +653,15 @@ mod tests {
     // [utest->swdd~common-workload-has-files~1]
     #[test]
     fn utest_workload_has_files() {
-        let workload_spec = generate_test_workload_with_files(
-            "agent",
-            "name",
-            "runtime",
-            generate_test_rendered_workload_files(),
-        );
-        assert!(workload_spec.has_files());
+        let workload: WorkloadInternal = generate_test_workload();
+        assert!(workload.has_files());
     }
 
     // [utest->swdd~common-workload-has-files~1]
     #[test]
     fn utest_workload_has_files_empty() {
-        let workload_spec = generate_test_workload();
-        assert!(!workload_spec.has_files());
+        let mut workload: WorkloadInternal = generate_test_workload();
+        workload.files = Default::default(); // empty
+        assert!(!workload.has_files());
     }
 }

@@ -297,23 +297,14 @@ mod tests {
         objects::{CompleteState, State, generate_test_workload_states_map_with_data},
         test_utils::generate_test_state_from_workloads,
     };
-    use api::ank_base::ExecutionStateInternal;
-    use api::test_utils::{
-        generate_test_agent_map_from_specs, generate_test_rendered_workload_files,
-        generate_test_workload_with_files,
-    };
+    use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
+    use api::test_utils::{generate_test_agent_map_from_workloads, generate_test_workload};
     use serde_yaml::Value;
 
     use super::Object;
     #[test]
     fn utest_object_from_state() {
-        let state: State =
-            generate_test_state_from_workloads(vec![generate_test_workload_with_files(
-                "agent".to_string(),
-                "name".to_string(),
-                "runtime".to_string(),
-                generate_test_rendered_workload_files(),
-            )]);
+        let state: State = generate_test_state_from_workloads(vec![generate_test_workload()]);
 
         let expected = Object {
             data: object::generate_test_state().into(),
@@ -329,33 +320,23 @@ mod tests {
         };
 
         let actual: State = object.try_into().unwrap();
-        let expected = generate_test_state_from_workloads(vec![generate_test_workload_with_files(
-            "agent".to_string(),
-            "name".to_string(),
-            "runtime".to_string(),
-            generate_test_rendered_workload_files(),
-        )]);
+        let expected = generate_test_state_from_workloads(vec![generate_test_workload()]);
 
         assert_eq!(actual, expected)
     }
 
     #[test]
     fn utest_object_from_complete_state() {
-        let wl_spec = generate_test_workload_with_files(
-            "agent".to_string(),
-            "name".to_string(),
-            "runtime".to_string(),
-            generate_test_rendered_workload_files(),
-        );
-        let specs = vec![wl_spec];
-        let agent_map = generate_test_agent_map_from_specs(&specs);
-        let state = generate_test_state_from_workloads(specs);
+        let wl_named: WorkloadNamed = generate_test_workload();
+        let agent_map = generate_test_agent_map_from_workloads(&vec![wl_named.workload.clone()]);
+        let workloads = vec![wl_named];
+        let state = generate_test_state_from_workloads(workloads);
 
         let complete_state = CompleteState {
             desired_state: state,
             workload_states: generate_test_workload_states_map_with_data(
-                "agent",
-                "name",
+                "agent_A",
+                "workload_A",
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
                 ExecutionStateInternal::running(),
             ),
@@ -375,21 +356,16 @@ mod tests {
         let object = Object {
             data: object::generate_test_complete_state_mapping().into(),
         };
-        let wl_spec = generate_test_workload_with_files(
-            "agent".to_string(),
-            "name".to_string(),
-            "runtime".to_string(),
-            generate_test_rendered_workload_files(),
-        );
-        let specs = vec![wl_spec];
-        let agent_map = generate_test_agent_map_from_specs(&specs);
+        let wl_named: WorkloadNamed = generate_test_workload();
+        let agent_map = generate_test_agent_map_from_workloads(&vec![wl_named.workload.clone()]);
+        let workloads = vec![wl_named];
 
-        let expected_state = generate_test_state_from_workloads(specs);
+        let expected_state = generate_test_state_from_workloads(workloads);
         let expected = CompleteState {
             desired_state: expected_state,
             workload_states: generate_test_workload_states_map_with_data(
-                "agent",
-                "name",
+                "agent_A",
+                "workload_A",
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
                 ExecutionStateInternal::running(),
             ),
@@ -730,21 +706,22 @@ mod tests {
         use api::test_utils::generate_test_runtime_config;
 
         pub fn generate_test_complete_state_mapping() -> Mapping {
-            let agent_name = "agent";
+            let agent_name = "agent_A";
             let config_hash: &dyn api::ank_base::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
                 .entry("desiredState", generate_test_state())
                 .entry(
                     "workloadStates",
-                    Mapping::default().entry(
+                    Mapping::default()
+                    .entry(
                         agent_name,
                         Mapping::default().entry(
-                            "name",
+                            "workload_A",
                             Mapping::default().entry(
                                 config_hash.hash_config(),
                                 Mapping::default()
                                     .entry("state", "Running")
-                                    .entry("subState", "OK")
+                                    .entry("subState", "Ok")
                                     .entry("additionalInfo", ""),
                             ),
                         ),
@@ -752,83 +729,90 @@ mod tests {
                 )
                 .entry(
                     "agents",
-                    Mapping::default().entry(
+                    Mapping::default()
+                    .entry(
                         "agents",
-                        Mapping::default().entry(
+                        Mapping::default()
+                        .entry(
                             agent_name,
-                            Mapping::default().entry(
-                                "status",
-                                Mapping::default()
-                                    .entry("cpu_usage", Mapping::default().entry("cpu_usage", 42))
-                                    .entry(
-                                        "free_memory",
-                                        Mapping::default().entry("free_memory", 42),
-                                    ),
-                            ).entry("tags", Value::Null),
+                            Mapping::default()
+                                .entry(
+                                    "status",
+                                    Mapping::default()
+                                        .entry(
+                                            "cpu_usage",
+                                            Mapping::default().entry("cpu_usage", 42),
+                                        )
+                                        .entry(
+                                            "free_memory",
+                                            Mapping::default().entry("free_memory", 42),
+                                        ),
+                                )
+                                .entry("tags", Value::Null),
                         ),
                     ),
                 )
         }
 
         pub fn generate_test_state() -> Mapping {
+            let config_hash: &dyn api::ank_base::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
                 .entry("apiVersion", CURRENT_API_VERSION)
                 .entry(
                     "workloads",
-                    Mapping::default().entry(
-                        "name",
+                    Mapping::default()
+                    .entry(
+                        "workload_A",
                         Mapping::default()
-                            .entry("agent", "agent")
+                            .entry("agent", "agent_A")
                             .entry("tags",
-                            Mapping::default()
-                                .entry(
-                                "tags",
                                 Mapping::default()
-                                .entry("key", "value"))
+                                .entry("tag1", "val_1")
+                                .entry("tag2", "val_2")
                             )
-                            .entry(
-                                "dependencies",
-                                Mapping::default()
-                                    .entry("dependencies", Mapping::default()
-                                        .entry("workload_A", "ADD_COND_RUNNING")
-                                        .entry("workload_C", "ADD_COND_SUCCEEDED"),
-                                    )
+                            .entry("dependencies", Mapping::default()
+                                .entry("workload_B", "ADD_COND_RUNNING")
+                                .entry("workload_C", "ADD_COND_SUCCEEDED"),
                             )
                             .entry("restartPolicy", "ALWAYS")
-                            .entry("runtime", "runtime")
-                            .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n")
+                            .entry("runtime", "podman")
+                            .entry("runtimeConfig", generate_test_runtime_config())
                             .entry(
                                 "controlInterfaceAccess",
                                 Mapping::default()
-                                    .entry("allowRules", vec![] as Vec<Value>)
-                                    .entry("denyRules", vec![] as Vec<Value>),
+                                    .entry("allowRules", vec![
+                                        Mapping::default()
+                                            .entry("type", "StateRule")
+                                            .entry("operation", "ReadWrite")
+                                            .entry("filterMasks", vec!["desiredState"])
+                                    ])
+                                    .entry("denyRules", vec![
+                                        Mapping::default()
+                                            .entry("type", "StateRule")
+                                            .entry("operation", "Write")
+                                            .entry("filterMasks", vec!["desiredState.workload.workload_B"])
+                                    ]),
+                            )
+                            .entry("configs", Mapping::default()
+                                .entry("ref1", "config_1")
+                                .entry("ref2", "config_2")
                             )
                             .entry(
-                                "configs",
-                                Mapping::default()
-                                    .entry("configs", Mapping::default()
-                                        .entry("ref1", "config_1")
-                                        .entry("ref2", "config_2")
-                                    )
-                            )
-                            .entry(
-                                "files",
-                                Mapping::default()
-                                .entry("files", vec![
+                                "files", vec![
                                     Mapping::default()
                                         .entry("mountPoint", "/file.json")
                                         .entry("data", "text data"),
                                     Mapping::default()
                                         .entry("mountPoint", "/binary_file")
                                         .entry("binaryData", "base64_data"),
-                                ]),
+                                ],
                             )
                             .entry(
                                 "instanceName",
                                 Mapping::default()
                                 .entry("workloadName", "name")
                                 .entry("agentName", "agent")
-                                .entry("id", "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed")
+                                .entry("id", config_hash.hash_config())
                             )
                     ),
                 )

@@ -703,10 +703,10 @@ mod tests {
         WorkloadInstanceNameInternal,
     };
     use api::test_utils::{
-        generate_test_rendered_workload_files, generate_test_workload_with_files,
+        generate_test_workload_files, generate_test_workload_with_files,
         generate_test_workload_with_param,
     };
-    use common::objects::generate_test_workload_state_with_workload_spec;
+    use common::objects::generate_test_workload_state_with_workload_named;
 
     use mockall::predicate;
     use std::collections::HashMap;
@@ -1830,7 +1830,7 @@ mod tests {
             .state_checker_workload_state_sender
             .clone();
 
-        let workload_state = generate_test_workload_state_with_workload_spec(
+        let workload_state = generate_test_workload_state_with_workload_named(
             &workload_spec,
             ExecutionStateInternal::running(),
         );
@@ -1993,7 +1993,7 @@ mod tests {
             .state_checker_workload_state_sender
             .clone();
 
-        let workload_state = generate_test_workload_state_with_workload_spec(
+        let workload_state = generate_test_workload_state_with_workload_named(
             &workload_spec,
             ExecutionStateInternal::succeeded(),
         );
@@ -2135,7 +2135,7 @@ mod tests {
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
-            generate_test_rendered_workload_files(),
+            generate_test_workload_files(),
         );
 
         let workload_configs_dir =
@@ -2219,7 +2219,7 @@ mod tests {
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
-            generate_test_rendered_workload_files(),
+            generate_test_workload_files(),
         );
 
         let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
@@ -2290,7 +2290,7 @@ mod tests {
             AGENT_NAME,
             WORKLOAD_1_NAME,
             RUNTIME_NAME,
-            generate_test_rendered_workload_files(),
+            generate_test_workload_files(),
         );
 
         let mut runtime_mock = MockRuntimeConnector::new();

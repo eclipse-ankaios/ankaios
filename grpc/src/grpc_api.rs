@@ -176,7 +176,7 @@ mod tests {
 
     use api::ank_base::{self, ConfigHash, ExecutionStateInternal, WorkloadInternal};
     use api::test_utils::{
-        generate_test_deleted_workload, generate_test_rendered_workload_files,
+        generate_test_deleted_workload, generate_test_workload_files,
         generate_test_workload,
     };
 
@@ -219,7 +219,7 @@ mod tests {
     #[test]
     fn utest_converts_to_proto_added_workload() {
         let mut workload_spec = generate_test_workload();
-        workload_spec.files = generate_test_rendered_workload_files();
+        workload_spec.files = generate_test_workload_files();
 
         let proto_workload = AddedWorkload {
             instance_name: Some(ank_base::WorkloadInstanceName {
@@ -284,7 +284,7 @@ mod tests {
             tags: Default::default(),
             runtime_config: String::from("some config"),
             control_interface_access: Default::default(),
-            files: generate_test_rendered_workload_files(),
+            files: generate_test_workload_files(),
             configs: Default::default(),
         };
 

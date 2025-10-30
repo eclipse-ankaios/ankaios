@@ -15,7 +15,7 @@ use crate::BUFFER_SIZE;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
 use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
-use api::ank_base::{WorkloadNamed, WorkloadInstanceNameInternal};
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed};
 use common::objects::WorkloadState;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -187,7 +187,7 @@ mod tests {
     };
     use api::ank_base::ExecutionStateInternal;
     use api::test_utils::generate_test_workload;
-    use common::objects::generate_test_workload_state_with_workload_spec;
+    use common::objects::generate_test_workload_state_with_workload_named;
     use tokio::time;
 
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 20;
@@ -227,7 +227,7 @@ mod tests {
         assert!(control_loop_state.state_checker.is_none());
 
         // workload state for testing the channel between state checker and workload control loop
-        let state_checker_wl_state = generate_test_workload_state_with_workload_spec(
+        let state_checker_wl_state = generate_test_workload_state_with_workload_named(
             &workload_spec,
             ExecutionStateInternal::running(),
         );
@@ -252,7 +252,7 @@ mod tests {
         );
 
         // workload state for testing the channel between workload control loop and agent manager
-        let forwarded_wl_state_to_agent = generate_test_workload_state_with_workload_spec(
+        let forwarded_wl_state_to_agent = generate_test_workload_state_with_workload_named(
             &workload_spec,
             ExecutionStateInternal::succeeded(),
         );

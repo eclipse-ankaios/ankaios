@@ -15,35 +15,31 @@
 use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 
-use crate::objects::{ConfigItem, State};
-
-use api::ank_base::{ConfigMappingsInternal, WorkloadInternal};
-#[cfg(any(feature = "test_utils", test))]
-use api::test_utils::{
-    generate_test_rendered_workload_files, generate_test_runtime_config,
-    generate_test_workload_with_runtime_config,
+use crate::objects::{
+    CompleteState, ConfigItem, State, generate_test_workload_states_map_from_specs,
 };
 
-const RUNTIME_NAME: &str = "runtime";
+use api::ank_base::{ConfigMappingsInternal, WorkloadNamed};
+use api::test_utils::{generate_test_agent_map_from_workloads, generate_test_workload};
+
 const API_VERSION: &str = "v1";
-const AGENT_NAME: &str = "agent";
 const WORKLOAD_1_NAME: &str = "workload_name_1";
 const WORKLOAD_2_NAME: &str = "workload_name_2";
 
-pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadInternal>) -> State {
+pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadNamed>) -> State {
     State {
         api_version: API_VERSION.into(),
         workloads: workloads
             .into_iter()
             .map(|mut w| {
                 let name = w.instance_name.workload_name().to_owned();
-                w.configs = ConfigMappingsInternal {
+                w.workload.configs = ConfigMappingsInternal {
                     configs: HashMap::from([
                         ("ref1".into(), "config_1".into()),
                         ("ref2".into(), "config_2".into()),
                     ]),
                 };
-                (name, w)
+                (name, w.workload)
             })
             .collect(),
         configs: [
@@ -56,22 +52,17 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadInternal>) -> S
 }
 
 pub fn generate_test_complete_state(
-    workloads: Vec<WorkloadInternal>,
+    workloads: Vec<WorkloadNamed>,
 ) -> crate::objects::CompleteState {
-    use crate::objects::{CompleteState, generate_test_workload_states_map_from_specs};
-    use api::test_utils::generate_test_agent_map_from_specs;
-
-    let agents = generate_test_agent_map_from_specs(&workloads);
+    let agents = generate_test_agent_map_from_workloads(
+        workloads
+            .iter()
+            .map(|w| w.workload.clone())
+            .collect::<Vec<_>>()
+            .as_slice(),
+    );
     CompleteState {
-        desired_state: State {
-            api_version: API_VERSION.into(),
-            workloads: workloads
-                .clone()
-                .into_iter()
-                .map(|w| (w.instance_name.workload_name().to_owned(), w))
-                .collect(),
-            configs: HashMap::new(),
-        },
+        desired_state: generate_test_state_from_workloads(workloads.clone()),
         workload_states: generate_test_workload_states_map_from_specs(workloads),
         agents,
     }
@@ -95,29 +86,9 @@ pub fn generate_test_complete_state_with_configs(
 }
 
 pub fn generate_test_state() -> State {
-    let workload_name_1 = WORKLOAD_1_NAME.to_string();
-    let workload_name_2 = WORKLOAD_2_NAME.to_string();
-
     let mut ankaios_workloads = HashMap::new();
-
-    let mut workload_1 = generate_test_workload_with_runtime_config(
-        AGENT_NAME,
-        WORKLOAD_1_NAME,
-        RUNTIME_NAME,
-        generate_test_runtime_config(),
-    );
-    workload_1.files = generate_test_rendered_workload_files();
-
-    let mut workload_2 = generate_test_workload_with_runtime_config(
-        AGENT_NAME,
-        WORKLOAD_2_NAME,
-        RUNTIME_NAME,
-        generate_test_runtime_config(),
-    );
-    workload_2.files = generate_test_rendered_workload_files();
-
-    ankaios_workloads.insert(workload_name_1, workload_1);
-    ankaios_workloads.insert(workload_name_2, workload_2);
+    ankaios_workloads.insert(WORKLOAD_1_NAME.to_owned(), generate_test_workload());
+    ankaios_workloads.insert(WORKLOAD_2_NAME.to_owned(), generate_test_workload());
 
     State {
         api_version: API_VERSION.into(),

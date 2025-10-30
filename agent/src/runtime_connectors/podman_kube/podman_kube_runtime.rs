@@ -714,7 +714,7 @@ mod tests {
         WorkloadInstanceNameInternal,
     };
     use api::test_utils::{
-        generate_test_rendered_workload_files, generate_test_workload_with_files,
+        generate_test_workload_files, generate_test_workload_with_files,
         generate_test_workload_with_param, generate_test_workload_with_runtime_config,
     };
 
@@ -1055,7 +1055,7 @@ mod tests {
             SAMPLE_AGENT,
             SAMPLE_WORKLOAD_1,
             PODMAN_KUBE_RUNTIME_NAME,
-            generate_test_rendered_workload_files(),
+            generate_test_workload_files(),
         );
 
         let (sender, _) = tokio::sync::mpsc::channel(1);

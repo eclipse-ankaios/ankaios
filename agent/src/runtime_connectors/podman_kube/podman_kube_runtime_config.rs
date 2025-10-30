@@ -65,7 +65,7 @@ impl TryFrom<&WorkloadInternal> for PodmanKubeRuntimeConfig {
 #[cfg(test)]
 mod tests {
     use api::test_utils::{
-        generate_test_rendered_workload_files, generate_test_workload_with_files,
+        generate_test_workload_files, generate_test_workload_with_files,
         generate_test_workload_with_param,
     };
 
@@ -105,7 +105,7 @@ mod tests {
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             DIFFERENT_RUNTIME_NAME.to_string(),
-            generate_test_rendered_workload_files(),
+            generate_test_workload_files(),
         );
 
         assert!(PodmanKubeRuntimeConfig::try_from(&workload_spec_with_files).is_err());

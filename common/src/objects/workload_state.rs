@@ -68,6 +68,9 @@ impl From<ank_base::WorkloadState> for WorkloadState {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
+use api::test_utils::generate_test_runtime_config;
+
+#[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_state_with_agent(
     workload_name: &str,
     agent_name: &str,
@@ -77,18 +80,18 @@ pub fn generate_test_workload_state_with_agent(
         instance_name: WorkloadInstanceNameInternal::builder()
             .workload_name(workload_name)
             .agent_name(agent_name)
-            .config(&"config".to_string())
+            .config(&generate_test_runtime_config())
             .build(),
         execution_state,
     }
 }
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_state_with_workload_spec(
-    workload_spec: &api::ank_base::WorkloadInternal,
+pub fn generate_test_workload_state_with_workload_named(
+    workload_named: &api::ank_base::WorkloadNamed,
     execution_state: ExecutionStateInternal,
 ) -> WorkloadState {
     WorkloadState {
-        instance_name: workload_spec.instance_name.clone(),
+        instance_name: workload_named.instance_name.clone(),
         execution_state,
     }
 }

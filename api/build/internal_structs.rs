@@ -99,10 +99,10 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
         .field_attribute("Workload.restartPolicy", "#[internal_field_attr(#[serde(default)])]")
         .field_attribute("Workload.controlInterfaceAccess", "#[internal_field_attr(#[serde(default)])]")
 
-        .field_attribute("Dependencies.dependencies", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("Dependencies.dependencies", "#[internal_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\")])]")
         // The custom deserializer is added to support the deprecated apiVersions: v0.1
-        .field_attribute("Tags.tags", "#[internal_field_attr(#[serde(default, deserialize_with = \"tag_adapter_deserializer\")])]")
-        .field_attribute("ConfigMappings.configs", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("Tags.tags", "#[internal_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\", deserialize_with = \"tag_adapter_deserializer\")])]")
+        .field_attribute("ConfigMappings.configs", "#[internal_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\")])]")
         .field_attribute("Files.files", "#[internal_field_attr(#[serde(default)])]")
 
         .type_attribute(

@@ -345,7 +345,7 @@ mod tests {
     use api::test_utils::{
         generate_test_deleted_workload, generate_test_workload, generate_test_workload_with_param,
     };
-    use common::objects::{WorkloadState, generate_test_workload_state_with_workload_spec};
+    use common::objects::{WorkloadState, generate_test_workload_state_with_workload_named};
     use tokio::sync::mpsc::channel;
 
     use super::WorkloadScheduler;
@@ -397,7 +397,7 @@ mod tests {
             )
             .await;
 
-        let expected_workload_state = generate_test_workload_state_with_workload_spec(
+        let expected_workload_state = generate_test_workload_state_with_workload_named(
             &pending_reusable_workload.workload_spec.clone(),
             ExecutionStateInternal::waiting_to_start(),
         );

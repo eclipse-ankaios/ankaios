@@ -11,6 +11,7 @@
         "nerdctlcli",
         "Northstar",
         "peekable",
+        "prost",
         "proto",
         "protobuf",
         "Substate",

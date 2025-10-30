@@ -258,7 +258,7 @@ pub struct Stop {}
 #[cfg(test)]
 mod tests {
     use crate::objects::CURRENT_API_VERSION;
-    use api::test_utils::generate_test_proto_workload_files;
+    use api::test_utils::generate_test_workload_files;
     use std::collections::HashMap;
 
     mod ank_base {
@@ -279,7 +279,7 @@ mod tests {
         };
         pub use api::ank_base::{
             ExecutionStateInternal, FileContentInternal, FileInternal, RestartPolicy, TagsInternal,
-            WorkloadInstanceNameBuilder, WorkloadInstanceNameInternal, WorkloadInternal,
+            WorkloadInstanceNameInternal, WorkloadInternal,
         };
         pub use api::test_utils::generate_test_agent_map;
     }
@@ -437,14 +437,14 @@ mod tests {
         (ank_base) => {
             ank_base::Workload {
                 agent: Some(AGENT_NAME.to_string()),
-                dependencies: None,
+                dependencies: Some(ank_base::Dependencies::default()),
                 restart_policy: Some(ank_base::RestartPolicy::Always.into()),
                 runtime: Some(RUNTIME.to_string()),
                 runtime_config: Some(RUNTIME_CONFIG.to_string()),
                 tags: Some(api::ank_base::Tags {
                     tags: HashMap::from([("key".into(), "value".into())]),
                 }),
-                control_interface_access: Default::default(),
+                control_interface_access: Some(Default::default()),
                 configs: Some(ank_base::ConfigMappings {
                     configs: [
                         ("ref1".into(), "config_1".into()),
@@ -452,17 +452,12 @@ mod tests {
                     ]
                     .into(),
                 }),
-                files: Some(generate_test_proto_workload_files()),
+                files: Some(generate_test_workload_files().into()),
             }
         };
         (ankaios) => {
             ankaios::WorkloadInternal {
                 agent: AGENT_NAME.to_string(),
-                instance_name: ankaios::WorkloadInstanceNameBuilder::default()
-                    .workload_name("workload_name")
-                    .config(&RUNTIME_CONFIG.to_owned())
-                    .agent_name(AGENT_NAME)
-                    .build(),
                 tags: ankaios::TagsInternal {
                     tags: HashMap::from([("key".into(), "value".into())]),
                 },

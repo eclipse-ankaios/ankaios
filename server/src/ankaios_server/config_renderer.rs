@@ -222,7 +222,7 @@ mod tests {
 
     use api::ank_base::{FileContentInternal, FileInternal};
     use api::test_utils::{
-        generate_test_rendered_workload_files, generate_test_workload_with_files,
+        generate_test_workload_files, generate_test_workload_with_files,
         generate_test_workload_with_runtime_config,
     };
     use common::objects::{ConfigItem, generate_test_configs};
@@ -302,7 +302,7 @@ mod tests {
             AGENT_A,
             WORKLOAD_NAME_1,
             RUNTIME,
-            generate_test_rendered_workload_files(),
+            generate_test_workload_files(),
         );
         expected_workload_spec.configs.configs.clear();
 

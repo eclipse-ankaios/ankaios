@@ -123,7 +123,7 @@ pub fn generate_test_control_interface_access() -> ControlInterfaceAccessInterna
         )],
         deny_rules: vec![AccessRightsRuleInternal::state_rule(
             ReadWriteEnum::RwWrite,
-            vec!["desiredState.workload.watchDog".to_string()],
+            vec!["desiredState.workload.workload_B".to_string()],
         )],
     }
 }

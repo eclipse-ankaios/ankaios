@@ -332,7 +332,8 @@ mod tests {
         ExecutionState, WorkloadStatesMap, generate_test_workload_states_map_from_workload_states,
     };
     use crate::objects::{WorkloadState, generate_test_workload_state_with_agent};
-    use api::test_utils::generate_test_workload_with_runtime_config;
+    use api::ank_base::WorkloadNamed;
+    use api::test_utils::generate_test_workload_with_param;
     use std::vec;
 
     const AGENT_A: &str = "agent_A";
@@ -587,18 +588,11 @@ mod tests {
     fn utest_workload_states_initial_state() {
         let mut wls_db = WorkloadStatesMap::new();
 
-        let wl_state_1 = generate_test_workload_with_runtime_config(
-            "".to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            "some runtime".to_string(),
-            "config".to_string(),
-        );
-        let wl_state_3 = generate_test_workload_with_runtime_config(
-            AGENT_B.to_string(),
-            WORKLOAD_NAME_3.to_string(),
-            "some runtime".to_string(),
-            "config".to_string(),
-        );
+        let wl_state_1 = generate_test_workload_with_param::<WorkloadNamed>("", "some runtime")
+            .name(WORKLOAD_NAME_1);
+        let wl_state_3 =
+            generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, "some runtime")
+                .name(WORKLOAD_NAME_3);
 
         wls_db.initial_state(&vec![wl_state_1, wl_state_3]);
 

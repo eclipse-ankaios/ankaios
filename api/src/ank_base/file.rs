@@ -35,7 +35,7 @@ impl From<Vec<FileInternal>> for FilesInternal {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_rendered_workload_files() -> FilesInternal {
+pub fn generate_test_workload_files() -> FilesInternal {
     FilesInternal {
         files: vec![
             crate::ank_base::FileInternal {

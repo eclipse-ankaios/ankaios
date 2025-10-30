@@ -95,7 +95,7 @@ mod tests {
     };
     use api::ank_base::{self, AgentMapInternal, ExecutionStateInternal};
     use api::test_utils::{
-        generate_test_agent_map, generate_test_agent_map_from_specs,
+        generate_test_agent_map, generate_test_agent_map_from_workloads,
         generate_test_workload_with_param,
     };
     use common::objects::generate_test_workload_states_map_with_data;
@@ -263,7 +263,7 @@ mod tests {
                     ),
                 ]);
 
-                complete_state.agents = generate_test_agent_map_from_specs(&[workload1]);
+                complete_state.agents = generate_test_agent_map_from_workloads(&[workload1]);
                 Ok(ank_base::CompleteState::from(complete_state).into())
             });
 
