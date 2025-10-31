@@ -47,6 +47,14 @@ pub fn has_skip_try_from(attrs: &[Attribute]) -> bool {
         .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("internal_skip_try_from")))
 }
 
+pub fn get_doc_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStream> {
+    attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("doc"))
+        .map(Attribute::to_token_stream)
+        .collect()
+}
+
 pub fn get_internal_type_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStream> {
     let mut internal_type_attrs = Vec::new();
     for attr in attrs {
@@ -349,7 +357,7 @@ pub fn wrap_in_option(inner: Type) -> Type {
 #[cfg(test)]
 mod tests {
     use proc_macro2::TokenStream;
-    use quote::{quote, ToTokens};
+    use quote::{ToTokens, quote};
     use syn::{
         Attribute, Type, TypePath,
         parse::{Parse, Parser},

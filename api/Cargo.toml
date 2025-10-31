@@ -18,6 +18,7 @@ sha256 = "1.5"
 regex = "1.10"
 semver = "1.0"
 log = "0.4"
+schemars = "1.0"
 
 [build-dependencies]
 tonic-prost-build = "0.14"

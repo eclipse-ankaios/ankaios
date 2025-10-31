@@ -17,9 +17,7 @@ use quote::{format_ident, quote};
 use syn::{Fields, FieldsUnnamed, Ident, Token, Type, Visibility, punctuated::Punctuated};
 
 use crate::derive_internal::utils::{
-    DerivedInternal, check_for_forbidden_mandatory_attr, get_internal_field_attrs,
-    get_prost_enum_type, has_enum_named_attr, inner_boxed_type_path, is_custom_type_path,
-    is_option_type_path, pascal_to_snake_case, to_internal_type,
+    DerivedInternal, check_for_forbidden_mandatory_attr, get_doc_attrs, get_internal_field_attrs, get_prost_enum_type, has_enum_named_attr, inner_boxed_type_path, is_custom_type_path, is_option_type_path, pascal_to_snake_case, to_internal_type
 };
 
 pub fn derive_internal_enum(
@@ -39,6 +37,8 @@ pub fn derive_internal_enum(
 
         let variant_ident = &variant.ident;
         let internal_field_attrs = get_internal_field_attrs(&variant.attrs);
+        let doc_attrs = get_doc_attrs(&variant.attrs);
+        let combined_attrs = internal_field_attrs.into_iter().chain(doc_attrs).collect::<Vec<_>>();
 
         match &variant.fields {
             Fields::Named(_) => {
@@ -87,7 +87,7 @@ pub fn derive_internal_enum(
                     let new_field_name = format_ident!("{}", pascal_to_snake_case(&variant_name));
 
                     internal_variants.push(quote! {
-                        #(#internal_field_attrs )*
+                        #(#combined_attrs )*
                         #variant_ident { #new_field_name: #new_ty }
                     });
 
@@ -172,7 +172,7 @@ pub fn derive_internal_enum(
                     }
 
                     internal_variants.push(quote! {
-                        #(#internal_field_attrs )*
+                        #(#combined_attrs )*
                         #variant_ident ( #(#new_variant),* )
                     });
 
@@ -193,7 +193,7 @@ pub fn derive_internal_enum(
 
             Fields::Unit => {
                 internal_variants.push(quote! {
-                    #(#internal_field_attrs )*
+                    #(#combined_attrs )*
                     #variant_ident
                 });
 
@@ -563,4 +563,36 @@ mod tests {
         assert_eq!(derived.from_impl.to_string(), expected_from_impl.to_string());
     }
 
+    #[test]
+    fn test_derive_internal_enum_with_docs() {
+        let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
+            /// This is variant A
+            VariantA,
+            /// This is variant B
+            VariantB(u32),
+        };
+        let orig_name = format_ident!("TestEnum");
+        let vis: Visibility = parse_quote! { pub };
+        let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
+        let skip_try_from = false;
+        let derived = derive_internal_enum(
+            variants,
+            orig_name.clone(),
+            vis.clone(),
+            type_attrs.clone(),
+            skip_try_from,
+        )
+        .unwrap();
+
+        let expected_internal_enum = quote! {
+            #(#type_attrs )*
+            #vis enum TestEnumInternal {
+                /// This is variant A
+                VariantA,
+                /// This is variant B
+                VariantB(u32),
+            }
+        };
+        assert_eq!(derived.obj.to_string(), expected_internal_enum.to_string());
+    }
 }

@@ -101,8 +101,8 @@ message LogEntry {
 * An enum type describing the expected workload state. Used for dependency management.
 */
 enum AddCondition {
-    ADD_COND_RUNNING = 0; /// The workload is operational.
-    ADD_COND_SUCCEEDED = 1; /// The workload has successfully exited.
+    ADD_COND_RUNNING = 0; // The workload is operational.
+    ADD_COND_SUCCEEDED = 1; // The workload has successfully exited.
     ADD_COND_FAILED = 2; /// The workload has exited with an error or could not be started.
 }
 
@@ -337,11 +337,11 @@ message Tags {
     map<string, string> tags = 1;
 }
 
-/**
+/*
 * This is a workaround for proto not supporting optional maps
 */
 message Dependencies {
-    map<string, AddCondition> dependencies = 1;
+    map<string, AddCondition> dependencies = 1; // Just a test comment to see how it works.
 }
 
 /**

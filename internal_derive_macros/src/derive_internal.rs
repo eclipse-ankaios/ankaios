@@ -29,15 +29,18 @@ pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
     let orig_name = input.ident;
     let vis = input.vis.clone();
     let skip_try_from = has_skip_try_from(&input.attrs);
+    let current_doc_attrs = utils::get_doc_attrs(&input.attrs);
     let new_type_attrs = get_internal_type_attrs(&input.attrs);
+
+    let combined_attrs = current_doc_attrs.clone().into_iter().chain(new_type_attrs).collect::<Vec<_>>();
 
     let internal = match input.data {
         Data::Struct(DataStruct {
             fields: Fields::Named(fields),
             ..
-        }) => derive_internal_struct(fields, orig_name, vis, new_type_attrs, skip_try_from)?,
+        }) => derive_internal_struct(fields, orig_name, vis, combined_attrs, skip_try_from)?,
         Data::Enum(DataEnum { variants, .. }) => {
-            derive_internal_enum(variants, orig_name, vis, new_type_attrs, skip_try_from)?
+            derive_internal_enum(variants, orig_name, vis, combined_attrs, skip_try_from)?
         }
         _ => Err(syn::Error::new_spanned(
             orig_name,

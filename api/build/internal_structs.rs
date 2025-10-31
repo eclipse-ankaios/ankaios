@@ -113,6 +113,12 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
             "Dependencies",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
+
+        .type_attribute(
+            "Dependencies",
+            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+        )
+
         .type_attribute("Tags", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "Tags",

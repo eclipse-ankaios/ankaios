@@ -17,10 +17,7 @@ use quote::{format_ident, quote};
 use syn::{FieldsNamed, Ident, Type, Visibility, parse_quote};
 
 use crate::derive_internal::utils::{
-    DerivedInternal, extract_inner, get_internal_field_attrs, get_prost_enum_type,
-    get_prost_map_enum_value_type, has_mandatory_attr, inner_hashmap_type_path,
-    inner_vec_type_path, is_custom_type_path, is_option_type_path, to_internal_type,
-    wrap_in_option,
+    DerivedInternal, extract_inner, get_doc_attrs, get_internal_field_attrs, get_prost_enum_type, get_prost_map_enum_value_type, has_mandatory_attr, inner_hashmap_type_path, inner_vec_type_path, is_custom_type_path, is_option_type_path, to_internal_type, wrap_in_option
 };
 
 pub fn derive_internal_struct(
@@ -174,8 +171,11 @@ pub fn derive_internal_struct(
         }
 
         let internal_field_attrs = get_internal_field_attrs(&field.attrs);
+        let doc_attrs = get_doc_attrs(&field.attrs);
+        let combined_attrs = internal_field_attrs.into_iter().chain(doc_attrs).collect::<Vec<_>>();
+
         internal_fields.push(quote! {
-            #(#internal_field_attrs )*
+            #(#combined_attrs )*
             #field_vis #field_name: #new_field_type
         });
 
@@ -452,5 +452,31 @@ mod tests {
             derived.from_impl.to_string(),
             expected_from_impl.to_string()
         );
+    }
+
+    #[test]
+    fn test_derive_internal_struct_preserves_doc_comments() {
+        use syn::{FieldsNamed, parse_quote};
+        let fields_named: FieldsNamed = parse_quote! {
+            {
+                /// This is a test field
+                pub field1: i32,
+            }
+        };
+        let orig_name: Ident = parse_quote! { MyStruct };
+        let vis: Visibility = parse_quote! { pub };
+        let type_attrs: Vec<TokenStream> = vec![];
+        let skip_try_from = false;
+        let derived =
+            derive_internal_struct(fields_named, orig_name, vis, type_attrs, skip_try_from)
+                .unwrap();
+        let expected_obj = quote! {
+            pub struct MyStructInternal {
+                /// This is a test field
+                pub field1: i32,
+            }
+        };
+
+        assert_eq!(derived.obj.to_string(), expected_obj.to_string());
     }
 }
