@@ -170,6 +170,22 @@ async fn main() {
                     Err(error) => output_and_error!("Failed to get configs: '{}'", error),
                 }
             }
+
+            Some(cli::GetCommands::Events {
+                output_format,
+                object_field_mask,
+            }) => {
+                output_debug!(
+                    "Received get events with output_format='{:?}', object_field_mask='{:?}'",
+                    output_format,
+                    object_field_mask
+                );
+
+                if let Err(error) = cmd.get_events(object_field_mask, output_format).await {
+                    output_and_error!("Failed to get events: '{}'", error);
+                }
+            }
+
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Set(set_args) => match set_args.command {
