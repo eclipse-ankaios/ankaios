@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2025 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -13,6 +13,56 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use tonic_prost_build::Builder;
+
+pub fn setup_internal_state(builder: Builder) -> Builder {
+    builder
+        .message_attribute(
+            "State",
+            "#[derive(internal_derive_macros::Internal)]",
+        )
+        .message_attribute(
+            "State",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+        )
+        .field_attribute("State.workloads","#[internal_mandatory]")
+        .field_attribute("State.workloads", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("State.configs","#[internal_mandatory]")
+        .field_attribute("State.configs", "#[internal_field_attr(#[serde(default)])]")
+        .message_attribute("WorkloadMap", "#[derive(internal_derive_macros::Internal)]")
+        .field_attribute("WorkloadMap.workloads", "#[internal_field_attr(#[serde(flatten)])]")
+        .message_attribute(
+            "WorkloadMap",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
+        )
+        .message_attribute("ConfigMap", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute(
+            "ConfigMap",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
+        )
+        .field_attribute("ConfigMap.configs", "#[internal_field_attr(#[serde(flatten)])]")
+
+
+        .message_attribute("ConfigItem", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute(
+            "ConfigItem",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+        )
+        .enum_attribute("ConfigItemEnum", "#[derive(internal_derive_macros::Internal)]")
+        .enum_attribute(
+            "ConfigItemEnum",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+        )
+        .message_attribute("ConfigArray", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute(
+            "ConfigArray",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+        )
+        .message_attribute("ConfigObject", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute(
+            "ConfigObject",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+        )
+}
 
 /// This function is used to create and configure the following structs:
 /// - FilesInternal
@@ -113,12 +163,6 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
             "Dependencies",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
-
-        .type_attribute(
-            "Dependencies",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
-        )
-
         .type_attribute("Tags", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "Tags",
