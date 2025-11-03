@@ -1,30 +1,34 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "StateInternal",
-  "description": "*\n\nA message containing the state information.",
+  "description": "A message containing the state information.",
   "type": "object",
   "properties": {
     "api_version": {
-      "description": "/ The current version of the API.",
+      "description": "The current version of the API.",
       "type": "string"
     },
     "configs": {
-      "description": "/ Configuration values which can be referenced in workload configurations.",
-      "$ref": "#/$defs/ConfigMapInternal",
-      "default": {}
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/ConfigItemInternal"
+      }
     },
     "workloads": {
-      "description": "/ A mapping from workload names to workload configurations.",
-      "$ref": "#/$defs/WorkloadMapInternal",
-      "default": {}
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/WorkloadInternal"
+      }
     }
   },
   "required": [
-    "api_version"
+    "api_version",
+    "workloads",
+    "configs"
   ],
   "$defs": {
     "AccessRightsRuleInternal": {
-      "description": "*\n\nA message containing an allow or deny rule.",
+      "description": "A message containing an allow or deny rule.",
       "type": "object",
       "oneOf": [
         {
@@ -58,7 +62,7 @@
       ]
     },
     "AddCondition": {
-      "description": "*\n\nAn enum type describing the expected workload state. Used for dependency management.",
+      "description": "An enum type describing the expected workload state. Used for dependency management.",
       "oneOf": [
         {
           "description": "The workload is operational.",
@@ -71,7 +75,7 @@
           "const": "ADD_COND_SUCCEEDED"
         },
         {
-          "description": "/ The workload has exited with an error or could not be started.",
+          "description": "The workload has exited with an error or could not be started.",
           "type": "string",
           "const": "ADD_COND_FAILED"
         }
@@ -132,7 +136,7 @@
       ]
     },
     "ConfigItemInternal": {
-      "description": "*\n\nAn enum type describing possible configuration objects.",
+      "description": "An enum type describing possible configuration objects.",
       "type": "object",
       "properties": {
         "config_item_enum": {
@@ -145,13 +149,6 @@
             }
           ]
         }
-      }
-    },
-    "ConfigMapInternal": {
-      "description": "*\n\nThis is a workaround for proto not supporting optional maps",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/ConfigItemInternal"
       }
     },
     "ConfigObjectInternal": {
@@ -169,7 +166,7 @@
       ]
     },
     "ControlInterfaceAccessInternal": {
-      "description": "*\n\nA message containing the parts of the control interface the workload as authorized to access.\nBy default, all access is denied.\nOnly if a matching allow rule is found, and no matching deny rules is found, the access is allowed.",
+      "description": "A message containing the parts of the control interface the workload as authorized to access.\nBy default, all access is denied.\nOnly if a matching allow rule is found, and no matching deny rules is found, the access is allowed.",
       "type": "object",
       "properties": {
         "allowRules": {
@@ -191,17 +188,17 @@
       }
     },
     "FileInternal": {
-      "description": "*\n\nA message describing a file with a mount point and file content.",
+      "description": "A message describing a file with a mount point and file content.",
       "type": "object",
       "properties": {
         "mountPoint": {
-          "description": "/ The path where the file is mounted inside the workload.",
+          "description": "The path where the file is mounted inside the workload.",
           "type": "string"
         }
       },
       "anyOf": [
         {
-          "description": "/ The content of the file.",
+          "description": "The content of the file.",
           "type": "object",
           "properties": {
             "data": {
@@ -213,7 +210,7 @@
           ]
         },
         {
-          "description": "/ The base64 encoded content of the file.",
+          "description": "The base64 encoded content of the file.",
           "type": "object",
           "properties": {
             "binaryData": {
@@ -230,7 +227,7 @@
       ]
     },
     "LogRuleInternal": {
-      "description": "*\n\nMessage containing a rule for getting workload logs",
+      "description": "Message containing a rule for getting workload logs",
       "type": "object",
       "properties": {
         "workloadNames": {
@@ -246,7 +243,7 @@
       ]
     },
     "ReadWriteEnum": {
-      "description": "*\n\nAn enum type describing which action is allowed.",
+      "description": "An enum type describing which action is allowed.",
       "oneOf": [
         {
           "description": "Allow nothing",
@@ -271,27 +268,27 @@
       ]
     },
     "RestartPolicy": {
-      "description": "*\n\nAn enum type describing the restart behavior of a workload.",
+      "description": "An enum type describing the restart behavior of a workload.",
       "oneOf": [
         {
-          "description": "/ The workload is never restarted. Once the workload exits, it remains in the exited state.",
+          "description": "The workload is never restarted. Once the workload exits, it remains in the exited state.",
           "type": "string",
           "const": "NEVER"
         },
         {
-          "description": "/ If the workload exits with a non-zero exit code, it will be restarted.",
+          "description": "If the workload exits with a non-zero exit code, it will be restarted.",
           "type": "string",
           "const": "ON_FAILURE"
         },
         {
-          "description": "/ The workload is restarted upon termination, regardless of the exit code.",
+          "description": "The workload is restarted upon termination, regardless of the exit code.",
           "type": "string",
           "const": "ALWAYS"
         }
       ]
     },
     "StateRuleInternal": {
-      "description": "*\n\nMessage containing a rule for getting or setting the state",
+      "description": "Message containing a rule for getting or setting the state",
       "type": "object",
       "properties": {
         "filterMasks": {
@@ -312,11 +309,11 @@
       ]
     },
     "WorkloadInternal": {
-      "description": "*\n\nA message containing the configuration of a workload.",
+      "description": "A message containing the configuration of a workload.",
       "type": "object",
       "properties": {
         "agent": {
-          "description": "/ The name of the owning Agent.",
+          "description": "The name of the owning Agent.",
           "type": "string"
         },
         "configs": {
@@ -349,16 +346,16 @@
           }
         },
         "restartPolicy": {
-          "description": "/ An enum value that defines the condition under which a workload is restarted.",
+          "description": "An enum value that defines the condition under which a workload is restarted.",
           "$ref": "#/$defs/RestartPolicy",
           "default": "NEVER"
         },
         "runtime": {
-          "description": "/ The name of the runtime e.g. podman.",
+          "description": "The name of the runtime e.g. podman.",
           "type": "string"
         },
         "runtimeConfig": {
-          "description": "/ The configuration information specific to the runtime.",
+          "description": "The configuration information specific to the runtime.",
           "type": "string"
         },
         "tags": {
@@ -374,13 +371,6 @@
         "runtime",
         "runtimeConfig"
       ]
-    },
-    "WorkloadMapInternal": {
-      "description": "*\n\nThis is a workaround for proto not supporting optional maps\nWorkload names shall not be shorter than 1 symbol longer then 63 symbols and can contain only regular characters, digits, the \"-\" and \"\\_\" symbols.",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/WorkloadInternal"
-      }
     }
   }
 }
