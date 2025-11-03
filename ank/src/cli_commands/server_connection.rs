@@ -16,7 +16,9 @@ use crate::cli::LogsArgs;
 #[cfg_attr(test, mockall_double::double)]
 use crate::cli_signals::SignalHandler;
 use crate::filtered_complete_state::FilteredCompleteState;
-use crate::{output_and_error, output_debug};
+use crate::{output, output_and_error, output_debug};
+use chrono::Utc;
+use serde::Serialize;
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
 use api::ank_base::{self, LogsRequestAccepted};
@@ -399,6 +401,122 @@ impl ServerConnection {
                 }
             }
         }
+    }
+
+    pub async fn subscribe_and_listen_for_events(
+        &mut self,
+        field_mask: Vec<String>,
+        output_format: crate::cli::OutputFormat,
+    ) -> Result<(), ServerConnectionError> {
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let events_request = CompleteStateRequest {
+            field_mask,
+            subscribe_for_events: true,
+        };
+
+        self.to_server
+            .request_complete_state(request_id.clone(), events_request)
+            .await
+            .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
+
+        let mut initial_response_received = false;
+
+        loop {
+            tokio::select! {
+                _ = SignalHandler::wait_for_signals() => {
+                    output_debug!("Received signal to stop event listening.");
+                    break Ok(());
+                }
+                server_message = self.from_server.recv() => {
+                    match server_message {
+                        Some(FromServer::Response(ank_base::Response {
+                            request_id: received_request_id,
+                            response_content:
+                                Some(ank_base::response::ResponseContent::CompleteStateResponse(res)),
+                        })) if received_request_id == request_id => {
+                            if !initial_response_received {
+                                output_debug!("Received initial state response, subscription active");
+                                initial_response_received = true;
+                            } else {
+                                output_debug!("Received event from server: {res:?}");
+                                self.output_event(&res, &output_format)?;
+                            }
+                        }
+                        Some(FromServer::Response(ank_base::Response {
+                            request_id: received_request_id,
+                            response_content:
+                                Some(ank_base::response::ResponseContent::Error(error)),
+                        })) if received_request_id == request_id => {
+                            break Err(ServerConnectionError::ExecutionError(format!(
+                                "Event subscription failed: '{}'",
+                                error.message
+                            )));
+                        }
+                        None => {
+                            break Err(ServerConnectionError::ExecutionError(
+                                "Connection to server interrupted".into(),
+                            ));
+                        }
+                        Some(message) => {
+                            output_debug!("Received unexpected message: {:?}", message);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn output_event(
+        &self,
+        event: &ank_base::CompleteStateResponse,
+        output_format: &crate::cli::OutputFormat,
+    ) -> Result<(), ServerConnectionError> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct EventOutput {
+            timestamp: String,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            altered_fields: Option<AlteredFieldsOutput>,
+            complete_state: FilteredCompleteState,
+        }
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct AlteredFieldsOutput {
+            #[serde(skip_serializing_if = "Vec::is_empty")]
+            added_fields: Vec<String>,
+            #[serde(skip_serializing_if = "Vec::is_empty")]
+            updated_fields: Vec<String>,
+            #[serde(skip_serializing_if = "Vec::is_empty")]
+            removed_fields: Vec<String>,
+        }
+
+        let filtered_state: FilteredCompleteState = (*event).clone().into();
+
+        let timestamp_str = Utc::now().to_rfc3339();
+
+        let altered_fields = event.altered_fields.as_ref().map(|af| AlteredFieldsOutput {
+            added_fields: af.added_fields.clone(),
+            updated_fields: af.updated_fields.clone(),
+            removed_fields: af.removed_fields.clone(),
+        });
+
+        let event_output = EventOutput {
+            timestamp: timestamp_str,
+            altered_fields,
+            complete_state: filtered_state,
+        };
+
+        let output = match output_format {
+            crate::cli::OutputFormat::Yaml => serde_yaml::to_string(&event_output)
+                .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?,
+            crate::cli::OutputFormat::Json => serde_json::to_string_pretty(&event_output)
+                .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?,
+        };
+
+        output!("{output}");
+
+        Ok(())
     }
 }
 

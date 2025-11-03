@@ -67,6 +67,7 @@ pub trait FromServerInterface {
         &self,
         request_id: String,
         complete_state: ank_base::CompleteState,
+        altered_fields: Option<ank_base::AlteredFields>,
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_state_success(
         &self,
@@ -163,6 +164,7 @@ impl FromServerInterface for FromServerSender {
         &self,
         request_id: String,
         complete_state: api::ank_base::CompleteState,
+        altered_fields: Option<api::ank_base::AlteredFields>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::Response(ank_base::Response {
@@ -170,7 +172,7 @@ impl FromServerInterface for FromServerSender {
                 response_content: ank_base::response::ResponseContent::CompleteStateResponse(
                     Box::new(ank_base::CompleteStateResponse {
                         complete_state: Some(complete_state),
-                        altered_fields: Default::default(),
+                        altered_fields,
                     }),
                 )
                 .into(),
@@ -405,7 +407,7 @@ mod tests {
         let complete_state: ank_base::CompleteState =
             generate_test_complete_state(vec![generate_test_workload_spec()]).into();
         assert!(
-            tx.complete_state(REQUEST_ID.to_string(), complete_state.clone())
+            tx.complete_state(REQUEST_ID.to_string(), complete_state.clone(), None,)
                 .await
                 .is_ok()
         );

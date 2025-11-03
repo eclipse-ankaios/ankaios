@@ -87,6 +87,10 @@ The ConfigRenderer is responsible for rendering the templated configuration of w
 The LogCampaignStore holds metadata about log collections triggered by workloads or the CLI and enables the Ankaios server to cancel log campaigns or send logs stop responses automatically in certain situations.
 In the following a workload requesting logs is sometimes also called log collector and workloads providing logs are also called log providers. All information on a collector and the providers is stored in one log campaign giving the name of the component.
 
+### EventHandler
+
+The EventHandler holds metadata about the event subscribers and their subscribed field masks. It is responsible for sending out events to the corresponding event subscribers.
+
 ## Behavioral view
 
 ### Startup sequence
@@ -747,31 +751,6 @@ Needs:
 - utest
 - itest
 
-#### Server calculates state differences for configured events
-`swdd~server-calculates-state-differences-for-events~1`
-
-Status: approved
-
-When the Ankaios Server gets the `ToServer` message `UpdateStateRequest`
-and there is at least one subscriber for events,
-the Ankaios Server shall calculate the state differences between the current and the new state by determining the field masks for added, updated and deleted fields.
-
-Comment:
-A custom Depth-Search-First (DFS) implementation comparing the current and new state fields is used.
-A sequence is treated as a leaf and in mappings only `string`s are supported as keys.
-An update from an empty sequence to a non-empty sequence is treated as an added field and the other way around as a removed field.
-Any other changes to a sequence field is treated as an updated field.
-
-Rationale:
-The determined field masks are forwarded to the subscriber.
-
-Tags:
-- AnkaiosServer
-
-Needs:
-- impl
-- utest
-
 #### ServerState compares rendered workload configurations
 `swdd~server-state-compares-rendered-workloads~1`
 
@@ -1263,6 +1242,290 @@ The agents collecting logs from workloads must be informed by the server to stop
 Tags:
 - AnkaiosServer
 - LogCampaignStore
+
+Needs:
+- impl
+- utest
+
+### Handle events
+
+#### Server stores new event subscription
+`swdd~server-stores-new-event-subscription~1`
+
+Status: approved
+
+When the Ankaios Server receives a `CompleteStateRequest` message with enabled `subscribe_for_events` field, the Ankaios Server shall request the EventHandler to store the requester as new event subscriber.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server removes event subscription
+`swdd~server-removes-event-subscription~1`
+
+Status: approved
+
+When the Ankaios Server receives an `EventsCancelRequest` message, the Ankaios Server shall:
+
+* request the EventHandler to remove the subscriber from its internal subscription store
+* forward the `EventsCancelRequest` message to the Ankaios Agent via the communication middleware.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends state differences as events
+`swdd~server-sends-state-differences-as-events~1`
+
+Status: approved
+
+When the Ankaios Server updates its internal state
+and there is at least one subscriber for events,
+the Ankaios Server shall:
+* request the StateComparator of the Common library to determine the state differences between the current and the new state
+* request the EventHandler to send events for state differences to event subscribers.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends event for newly connected agent
+`swdd~server-sends-event-for-newly-connected-agent~1`
+
+Status: approved
+
+When the Ankaios Server receives an `AgentHello` message
+and there is at least one subscriber for events,
+the Ankaios Server shall request the EventHandler to send an event containing an added field with field mask `agents.<agent_name>`.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends events for disconnected agent
+`swdd~server-sends-events-for-disconnected-agent~1`
+
+Status: approved
+
+When the Ankaios Server receives an `AgentGone` message
+and there is at least one subscriber for events,
+the Ankaios Server shall request the EventHandler to send an:
+
+* event with removed field with field mask `agents.<agent_name>`
+* event with updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state with execution state `AgentDisconnected` managed by the agent.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends event for updated agent resource availability
+`swdd~server-sends-event-for-updated-agent-resource-availability~1`
+
+Status: approved
+
+When the Ankaios Server receives an `AgentLoadStatus` message,
+and there is at least one subscriber for events,
+the Ankaios Server shall request the EventHandler to send an event for the newly received resource availability data containing an updated field with field mask `agents.<agent_name>.<resource_availability_type>`.
+
+Comment:
+Since null values for resource availability entries are created for each newly connected agent, each overwrite of resource availability data is treated as an updated field for events.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends event for initial workload states
+`swdd~server-sends-event-for-initial-workload-states~1`
+
+Status: approved
+
+When the Ankaios Server detects added workloads
+and there is at least one subscriber for events,
+the Ankaios Server shall request the EventHandler to send an event containing an added field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends event for updated workload states
+`swdd~server-sends-event-for-updated-workload-states~1`
+
+Status: approved
+
+When the Ankaios Server gets the `ToServer` message `UpdateWorkloadState`
+and there is at least one subscriber for events,
+the Ankaios Server shall request the EventHandler to send an event containing an updated field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state not having the execution state `Removed`.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### Server sends event for removed workload states
+`swdd~server-sends-event-for-removed-workload-states~1`
+
+Status: approved
+
+When the Ankaios Server detects deleted workloads
+and there is at least one subscriber for events,
+the Ankaios Server shall request the EventHandler to send an event containing a removed field with field mask `workloadStates.<agent_name>.<workload_name>.<workload_id>` for each workload state having the execution state `Removed`.
+
+Tags:
+- AnkaiosServer
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+#### EventHandler handles event notifications
+
+##### EventHandler adds new subscribers to the event store
+`swdd~event-handler-adds-new-subscribers-to-event-store~1`
+
+Status: approved
+
+The EventHandler shall provide a method to add a new subscriber to its internal event store by adding a new entry with the subscriber's request ID as key and the subscriber's field masks as value.
+
+Comment:
+The event store is an associative data structure.
+One subscriber can subscribe to multiple field masks.
+
+Rationale:
+The EventHandler sends events to specific subscribers identified by their request ID.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler removes subscribers from event store
+`swdd~event-handler-removes-subscribers-from-event-store~1`
+
+Status: approved
+
+The EventHandler shall provide a method to remove a subscriber from its internal event store.
+
+Comment:
+The event store is an associative data structure.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler provides subscriber exists functionality
+`swdd~event-handler-provides-subscriber-exists-functionality~1`
+
+Status: approved
+
+The EventHandler shall provide a method to check if there is any subscriber inside its internal event store.
+
+Comment:
+The event store is an associative data structure.
+
+Rationale:
+For efficiency, the Ankaios Server skips the state difference calculation if there are no subscribers available.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler sends complete state differences including altered fields
+`swdd~event-handler-sends-complete-state-differences-including-altered-fields~1`
+
+Status: approved
+
+When the EventHandler is triggered to send events, for each event subscriber the EventHandler shall:
+
+* create the altered fields for added, updated and deleted fields for each field difference of the state matching a subscriber's field mask
+* generate filter masks for creating a CompleteState containing only the state differences
+* send a `CompleteStateResponse` message containing the altered fields and the CompleteState difference if there is at least one entry in one of the altered fields.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler creates altered fields and filter masks
+`swdd~event-handler-creates-altered-fields-and-filter-masks~1`
+
+Status: approved
+
+When the EventHandler creates altered fields and filter masks for the CompleteState differences, the EventHandler shall:
+
+* compare each field mask of the event subscriber with the field mask of the altered field
+* add the field mask of the altered field to the event's altered fields and filter masks if the subscriber's field mask is shorter than the altered field mask or both have equal length
+* add the expanded subscriber field mask to the event's altered fields and filter masks if field mask of the altered field is shorter than the subscriber field mask
+* skip events for subscriber field masks not matching any altered field masks.
+
+Comment:
+The comparison is done by splitting the field mask into parts by the separator `.`.
+
+Rationale:
+The most specific field masks are used as altered field and filter mask to get the CompleteState differences.
+For example, subscriber field mask `desiredState.workloads.*` and altered field mask `desiredState.workloads.workload_1.agent` leads to altered field `desiredState.workloads.workload_1.agent` and filter mask `desiredState.workloads.workload_1.agent` for the CompleteState differences.
+Subscriber field mask `desiredState.workloads.*.agent` and altered field mask `desiredState.workloads.workload_1` leads to altered field `desiredState.workloads.workload_1.agent` and filter mask `desiredState.workloads.workload_1.agent`.
+
+Tags:
+- EventHandler
+
+Needs:
+- impl
+- utest
+
+##### EventHandler expands subscriber field mask using altered field masks
+`swdd~event-handler-expands-subscriber-field-mask-using-altered-field-masks~1`
+
+Status: approved
+
+When the EventHandler expands the subscriber's field mask, the EventHandler shall replace all parts containing the wild card symbol (`*`) with the corresponding part of the altered field mask.
+
+Rationale:
+The expansion of wild cards is required in the case of the altered field mask is shorter than the subscriber's field mask to fill CompleteState differences only with the most specific data.
+
+Tags:
+- EventHandler
 
 Needs:
 - impl

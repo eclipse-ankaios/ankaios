@@ -24,9 +24,8 @@ use super::delete_graph::DeleteGraph;
 use common::objects::{AgentMap, State, WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
 use common::std_extensions::IllegalStateResult;
 use common::{
-    commands::CompleteStateRequest,
     objects::{CompleteState, DeletedWorkload, WorkloadSpec},
-    state_manipulation::{FieldDifference, Object, Path},
+    state_manipulation::{Object, Path, StateComparator},
 };
 use std::fmt::Display;
 
@@ -156,7 +155,7 @@ impl ServerState {
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
-        request_complete_state: CompleteStateRequest,
+        field_masks: Vec<String>,
         workload_states_map: &WorkloadStatesMap,
         agent_map: &AgentMap,
     ) -> Result<ank_base::CompleteState, String> {
@@ -167,8 +166,8 @@ impl ServerState {
         }
         .into();
 
-        if !request_complete_state.field_mask.is_empty() {
-            let mut filters = request_complete_state.field_mask;
+        if !field_masks.is_empty() {
+            let mut filters = field_masks;
             if filters
                 .iter()
                 .any(|field| field.starts_with(Self::DESIRED_STATE_FIELD_MASK_PART))
@@ -303,10 +302,7 @@ impl ServerState {
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         if update_mask.is_empty() {
             return Ok(StateGenerationResult {
-                state_comparator: StateComparator {
-                    old_state,
-                    new_state: state_from_update,
-                },
+                state_comparator: StateComparator::new(old_state.into(), state_from_update.into()),
                 new_desired_state: updated_state.desired_state,
             });
         }
@@ -329,10 +325,7 @@ impl ServerState {
         })?;
 
         Ok(StateGenerationResult {
-            state_comparator: StateComparator {
-                old_state,
-                new_state,
-            },
+            state_comparator: StateComparator::new(old_state.into(), new_state.into()),
             new_desired_state: new_complete_state.desired_state,
         })
     }
@@ -444,7 +437,7 @@ mod tests {
 
         let received_complete_state = server_state
             .get_complete_state_by_field_mask(
-                request_complete_state,
+                request_complete_state.field_mask,
                 &workload_states_map,
                 &agent_map,
             )
@@ -485,7 +478,7 @@ mod tests {
 
         let received_complete_state = server_state
             .get_complete_state_by_field_mask(
-                request_complete_state,
+                request_complete_state.field_mask,
                 &WorkloadStatesMap::default(),
                 &AgentMap::default(),
             )
@@ -545,7 +538,7 @@ mod tests {
 
         let complete_state = server_state
             .get_complete_state_by_field_mask(
-                request_complete_state,
+                request_complete_state.field_mask,
                 &workload_state_map,
                 &AgentMap::default(),
             )

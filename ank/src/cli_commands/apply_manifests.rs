@@ -34,7 +34,7 @@ const WORKLOAD_LEVEL: usize = 1;
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
     let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
         .map_err(|err| format!("Invalid manifest data provided: {err}"))?;
-    let obj = state_obj_parsing_check.into();
+    let obj: Object = state_obj_parsing_check.into();
 
     let mut workload_paths: HashSet<Path> = HashSet::new();
     let obj_paths = Vec::<Path>::from(&obj);
