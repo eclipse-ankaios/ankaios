@@ -121,6 +121,21 @@ async fn main() {
                 }
             }
 
+            Some(cli::GetCommands::Events {
+                output_format,
+                object_field_mask,
+            }) => {
+                output_debug!(
+                    "Received get events with output_format='{:?}', object_field_mask='{:?}'",
+                    output_format,
+                    object_field_mask
+                );
+
+                if let Err(error) = cmd.get_events(object_field_mask, output_format).await {
+                    output_and_error!("Failed to get events: '{}'", error);
+                }
+            }
+
             // [impl->swdd~cli-provides-list-of-workloads~1]
             Some(cli::GetCommands::Workload {
                 workload_name,
