@@ -26,22 +26,22 @@ pub fn setup_internal_state(builder: Builder) -> Builder {
         )
         .field_attribute("State.workloads","#[internal_mandatory]")
         .field_attribute("State.workloads", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("State.workloads", "#[internal_field_attr(#[serde(flatten)])]")
         .field_attribute("State.configs","#[internal_mandatory]")
         .field_attribute("State.configs", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("State.configs", "#[internal_field_attr(#[serde(flatten)])]")
+
         .message_attribute("WorkloadMap", "#[derive(internal_derive_macros::Internal)]")
-        .field_attribute("WorkloadMap.workloads", "#[internal_field_attr(#[serde(flatten)])]")
         .message_attribute(
             "WorkloadMap",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
+
         .message_attribute("ConfigMap", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "ConfigMap",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
-        .field_attribute("ConfigMap.configs", "#[internal_field_attr(#[serde(flatten)])]")
-
-
         .message_attribute("ConfigItem", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "ConfigItem",
