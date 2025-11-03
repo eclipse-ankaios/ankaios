@@ -1,0 +1,42 @@
+api_version: v1
+workloads:
+  test_workload:
+    agent: agent_A
+    runtime: podman
+    runtimeConfig: |
+      image: alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]
+    dependencies:
+      hello1: ADD_COND_SUCCEEDED
+    restartPolicy: ON_FAILURE
+    controlInterfaceAccess:
+      allowRules:
+        - type: StateRule
+          operation: Read
+          filterMasks:
+            - "*"
+        - type: LogRule
+          workloadNames:
+            - "*"
+        - type: LogRule # The Red Hat YAML parser cannot cope with this and does not recognize the wrong type
+          hereperationfdvdfv: Read
+          filterMasks:
+            - "*"
+    files:
+      - mountPoint: /tmp/somefile.txt
+        data: |
+          some data
+    tags:
+      owner: Ankaios team
+    configs:
+      my_config: general_config
+configs:
+  general_config:
+    foo: bar
+  my_other_config:
+    baz:
+    - qux
+    - quux
+    - corge
+
+
