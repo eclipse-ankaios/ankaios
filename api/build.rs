@@ -16,6 +16,10 @@
 mod internal_structs;
 use internal_structs::*;
 
+#[path = "build/schema_annotations.rs"]
+mod schema_annotations;
+use schema_annotations::*;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut builder = tonic_prost_build::configure()
         .build_server(true)
@@ -25,11 +29,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // TODO #313 Setup camelCase and SCREAMING_SNAKE_CASE for each object individually (if needed)
         .message_attribute(".", "#[serde(rename_all = \"camelCase\")]")
         .enum_attribute("AddCondition", "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]")
-
-        .enum_attribute("AddCondition", "#[derive(schemars::JsonSchema)]")
-        .enum_attribute("ReadWriteEnum", "#[derive(schemars::JsonSchema)]")
-
-
         .enum_attribute("RestartPolicy", "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]")
         .field_attribute("ReadWriteEnum.RW_NOTHING", "#[serde(rename = \"Nothing\")]")
         .field_attribute("ReadWriteEnum.RW_READ", "#[serde(rename = \"Read\")]")
@@ -111,6 +110,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     builder = setup_internal_agent_map(builder);
     builder = setup_internal_configs(builder);
     builder = setup_internal_workload_state(builder);
+
+    builder = setup_internal_state(builder);
+
+    builder = setup_schema_annotations(builder);
+
 
     builder
         .compile_protos(&["proto/control_api.proto"], &["proto"])

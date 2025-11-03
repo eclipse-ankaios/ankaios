@@ -14,9 +14,9 @@
 
 fn main() {
 
-    let schema = schemars::schema_for!(api::ank_base::DependenciesInternal);
+    let schema = schemars::schema_for!(api::ank_base::StateInternal);
     println!(
-        "Generated JSON Schema for DependenciesInternal:\n{}",
+        "{}",
         serde_json::to_string_pretty(&schema).unwrap()
     );
 }
