@@ -21,7 +21,7 @@ package ank_base;
  * A message containing a request to the Ankaios server to update the state or to request the complete state of the Ankaios system.
  */
 message Request {
-    string requestId = 1;
+    string requestId = 1; // The unique request Id for this request.
     oneof RequestContent {
         UpdateStateRequest updateStateRequest = 2; // A message to Ankaios server to update the state of one or more agent(s).
         CompleteStateRequest completeStateRequest = 3; // A message to Ankaios server to request the complete state by the given request id and the optional field mask.
@@ -35,11 +35,11 @@ message Request {
  * The response content depends on the request content previously sent to the Ankaios server.
  */
 message Response {
-    string requestId = 1;
+    string requestId = 1; // The Id corresponding to the one of the request for this response.
     oneof ResponseContent {
         Error error = 3;
-        CompleteState completeState = 4;
-        UpdateStateSuccess UpdateStateSuccess = 5;
+        CompleteState completeState = 4; // A message containing the complete state (or a filtered part) on the Ankaios cluster.
+        UpdateStateSuccess UpdateStateSuccess = 5; // A message confirming the state update and providing information on the changed workloads.
         LogsRequestAccepted logsRequestAccepted = 6; // A message containing the workload names for which the logs were successfully requested.
         LogEntriesResponse logEntriesResponse = 7; // A message containing workload logs.
         LogsStopResponse logsStopResponse = 8; // A message containing the workload instance name indicating the stop of the log streaming.
@@ -364,8 +364,11 @@ enum RestartPolicy {
     ALWAYS = 2; // The workload is restarted upon termination, regardless of the exit code.
 }
 
+/*
+ * Indicated an error in the communication with Ankaios.
+ */
 message Error {
-    string message = 1;
+    string message = 1; // A message specifying the reason for the error.
 }
 
 /*
@@ -452,6 +455,9 @@ message ConfigMap {
 /*
  * A configuration can be a simple string or a mapping or an array
  * of other configurations items.
+ *
+ * This is a test comment.
+ *
  */
 message ConfigItem {
     oneof ConfigItemEnum {
