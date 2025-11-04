@@ -72,8 +72,7 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use api::ank_base::{
-        self, ExecutionStateInternal, TagsInternal, UpdateStateSuccess,
-        WorkloadInstanceNameBuilder, WorkloadInternal,
+        self, ExecutionStateInternal, TagsInternal, UpdateStateSuccess, WorkloadInternal,
     };
     use common::{
         commands::UpdateWorkloadState,
@@ -111,11 +110,6 @@ mod tests {
                 tags: HashMap::from([("key".to_string(), "value".to_string())]),
             },
             runtime_config: test_workload_runtime_cfg.clone(),
-            instance_name: WorkloadInstanceNameBuilder::default()
-                .workload_name(TEST_WORKLOAD_NAME)
-                .config(&test_workload_runtime_cfg)
-                .agent_name(test_workload_agent.to_owned())
-                .build(),
             restart_policy: Default::default(),
             dependencies: Default::default(),
             control_interface_access: Default::default(),

@@ -185,7 +185,7 @@ mod tests {
         workload::workload_command_channel::WorkloadCommandSender,
         workload_state::WorkloadStateSenderInterface,
     };
-    use api::ank_base::ExecutionStateInternal;
+    use api::ank_base::{WorkloadNamed, ExecutionStateInternal};
     use api::test_utils::generate_test_workload;
     use common::objects::generate_test_workload_state_with_workload_named;
     use tokio::time;
@@ -195,7 +195,7 @@ mod tests {
     #[tokio::test]
     async fn utest_control_loop_state_builder_build_success() {
         let control_interface_path = Some(ControlInterfacePath::new("/some/path".into()));
-        let workload_spec = generate_test_workload();
+        let workload_named: WorkloadNamed = generate_test_workload();
 
         let (workload_state_sender, mut workload_state_receiver) =
             tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
@@ -203,7 +203,7 @@ mod tests {
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec.clone())
+            .workload_named(workload_named.clone())
             .control_interface_path(control_interface_path.clone())
             .run_folder("/some/path".into())
             .workload_state_sender(workload_state_sender)
@@ -215,8 +215,8 @@ mod tests {
         assert!(control_loop_state.is_ok());
         let mut control_loop_state = control_loop_state.unwrap();
         assert_eq!(
-            control_loop_state.workload_spec.instance_name,
-            workload_spec.instance_name
+            control_loop_state.workload_named.instance_name,
+            workload_named.instance_name
         );
         assert_eq!(
             control_loop_state.control_interface_path,
@@ -228,7 +228,7 @@ mod tests {
 
         // workload state for testing the channel between state checker and workload control loop
         let state_checker_wl_state = generate_test_workload_state_with_workload_named(
-            &workload_spec,
+            &workload_named,
             ExecutionStateInternal::running(),
         );
 
@@ -253,7 +253,7 @@ mod tests {
 
         // workload state for testing the channel between workload control loop and agent manager
         let forwarded_wl_state_to_agent = generate_test_workload_state_with_workload_named(
-            &workload_spec,
+            &workload_named,
             ExecutionStateInternal::succeeded(),
         );
 
@@ -283,7 +283,7 @@ mod tests {
 
     #[test]
     fn utest_control_loop_state_instance_name() {
-        let workload_named = generate_test_workload();
+        let workload_named: api::ank_base::WorkloadNamed = generate_test_workload();
         let (workload_state_sender, _workload_state_receiver) =
             tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
@@ -308,7 +308,7 @@ mod tests {
 
         assert_eq!(
             *control_loop_state.instance_name(),
-            workload_spec.instance_name
+            workload_named.instance_name
         );
     }
 }

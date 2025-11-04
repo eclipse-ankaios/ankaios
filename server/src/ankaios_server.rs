@@ -567,11 +567,10 @@ mod tests {
 
     use api::ank_base::{
         CpuUsageInternal, DeletedWorkload, ExecutionStateEnumInternal, ExecutionStateInternal,
-        FreeMemoryInternal, LogsStopResponse, Pending as PendingSubstate, WorkloadMap,
+        FreeMemoryInternal, LogsStopResponse, Pending as PendingSubstate, Workload,
+        WorkloadInternal, WorkloadMap, WorkloadNamed,
     };
-    use api::test_utils::{
-        generate_test_proto_workload_with_param, generate_test_workload_with_param,
-    };
+    use api::test_utils::{generate_test_workload, generate_test_workload_with_param};
     use common::commands::{
         CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
     };
@@ -609,11 +608,11 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         // contains a self cycle to workload_A
-        let workload = generate_test_workload_with_param(AGENT_A, "workload_A", RUNTIME_NAME);
+        let workload: WorkloadInternal = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
 
         let startup_state = CompleteState {
             desired_state: State {
-                workloads: HashMap::from([("workload_A".to_string(), workload)]),
+                workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
                 ..Default::default()
             },
             ..Default::default()
@@ -629,14 +628,16 @@ mod tests {
             )
             .once()
             .return_const(Err(UpdateStateError::CycleInDependencies(
-                "workload_A part of cycle.".to_string(),
+                WORKLOAD_NAME_1.to_string() + " part of cycle.",
             )));
         server.server_state = mock_server_state;
 
         let result = server.start(Some(startup_state)).await;
         assert_eq!(
             result,
-            Err("workload dependency 'workload_A part of cycle.' is part of a cycle.".into())
+            Err(format!(
+                "workload dependency '{WORKLOAD_NAME_1} part of cycle.' is part of a cycle."
+            ))
         );
 
         assert!(comm_middle_ware_receiver.try_recv().is_err());
@@ -676,13 +677,14 @@ mod tests {
         /* new workload invalidates the state because
         it contains a self cycle in the inter workload dependencies config */
         let mut updated_workload =
-            generate_test_workload_with_param(AGENT_A, "workload_A", RUNTIME_NAME);
+            generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
+                .name(WORKLOAD_NAME_1);
 
         let new_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([(
                     updated_workload.instance_name.workload_name().to_owned(),
-                    updated_workload.clone(),
+                    updated_workload.workload.clone(),
                 )]),
                 ..Default::default()
             },
@@ -691,10 +693,10 @@ mod tests {
 
         // fix new state by deleting the dependencies
         let mut fixed_state = new_state.clone();
-        updated_workload.dependencies.dependencies.clear();
+        updated_workload.workload.dependencies.dependencies.clear();
         fixed_state.desired_state.workloads = HashMap::from([(
             updated_workload.instance_name.workload_name().to_owned(),
-            updated_workload.clone(),
+            updated_workload.workload.clone(),
         )]);
 
         let update_mask = vec!["desiredState.workloads".to_string()];
@@ -711,7 +713,7 @@ mod tests {
             .once()
             .in_sequence(&mut seq)
             .return_const(Err(UpdateStateError::CycleInDependencies(
-                "workload_A".to_string(),
+                WORKLOAD_NAME_1.to_string(),
             )));
 
         let added_workloads = vec![updated_workload.clone()];
@@ -798,17 +800,14 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let workload = generate_test_workload_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_string(), RUNTIME_NAME.to_string());
 
         let startup_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([(
                     workload.instance_name.workload_name().to_owned(),
-                    workload.clone(),
+                    workload.workload.clone(),
                 )]),
                 ..Default::default()
             },
@@ -880,17 +879,11 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
-        let w1 = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
+            .name(WORKLOAD_NAME_1);
 
-        let w2 = generate_test_workload_with_param(
-            AGENT_B.to_owned(),
-            WORKLOAD_NAME_2.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let w2 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
+            .name(WORKLOAD_NAME_2);
 
         let mut mock_server_state = MockServerState::new();
 
@@ -1041,16 +1034,13 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut w1 = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
-        w1.runtime_config = "changed".to_string();
+        let mut w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
+            .name(WORKLOAD_NAME_1);
+        w1.workload.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
             desired_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]
                     .into_iter()
                     .collect(),
                 ..Default::default()
@@ -1128,12 +1118,13 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut w1 = generate_test_workload_with_param(AGENT_A, WORKLOAD_NAME_1, RUNTIME_NAME);
-        w1.runtime_config = "changed".to_string();
+        let mut w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
+            .name(WORKLOAD_NAME_1);
+        w1.workload.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
             desired_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]
                     .into_iter()
                     .collect(),
                 ..Default::default()
@@ -1194,7 +1185,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_workload_with_param(AGENT_A, WORKLOAD_NAME_1, RUNTIME_NAME);
+        let w1: WorkloadInternal = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
 
         let update_state = CompleteState {
             desired_state: State {
@@ -1424,11 +1415,12 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_proto_workload_with_param(AGENT_A, RUNTIME_NAME);
-
-        let w2 = generate_test_proto_workload_with_param(AGENT_A, RUNTIME_NAME);
-
-        let w3 = generate_test_proto_workload_with_param(AGENT_B, RUNTIME_NAME);
+        let w1: Workload = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
+        let w2 = w1.clone();
+        let w3 = Workload {
+            agent: Some(AGENT_B.to_string()),
+            ..w1.clone()
+        };
 
         let workloads = HashMap::from([
             (WORKLOAD_NAME_1.to_owned(), w1),
@@ -1777,17 +1769,10 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let w2 = generate_test_workload_with_param(
-            AGENT_B.to_owned(),
-            WORKLOAD_NAME_2.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
+            .name(WORKLOAD_NAME_1);
+        let w2 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
+            .name(WORKLOAD_NAME_2);
 
         let mut updated_w1 = w1.clone();
         updated_w1.instance_name = WorkloadInstanceNameInternal::builder()
@@ -1797,7 +1782,7 @@ mod tests {
             .build();
         let update_state = CompleteState {
             desired_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone())]
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.workload.clone())]
                     .into_iter()
                     .collect(),
                 ..Default::default()
@@ -2141,17 +2126,13 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let workload_without_agent = generate_test_workload_with_param(
-            "".to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload_without_agent =
+            generate_test_workload_with_param::<WorkloadNamed>("", RUNTIME_NAME)
+                .name(WORKLOAD_NAME_1);
 
-        let workload_with_agent = generate_test_workload_with_param(
-            AGENT_B.to_owned(),
-            WORKLOAD_NAME_2.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload_with_agent =
+            generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
+                .name(WORKLOAD_NAME_2);
 
         let update_state = CompleteState::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
@@ -2237,11 +2218,9 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let log_collecting_workload = generate_test_workload_with_param(
-            AGENT_B.to_owned(),
-            WORKLOAD_NAME_2.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let log_collecting_workload =
+            generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
+                .name(WORKLOAD_NAME_2);
 
         let update_state = CompleteState::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
@@ -2365,11 +2344,7 @@ mod tests {
             .once()
             .return_const(false);
 
-        let workload = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload: WorkloadNamed = generate_test_workload();
 
         server.server_state = mock_server_state;
         server.workload_states_map = generate_test_workload_states_map_with_data(

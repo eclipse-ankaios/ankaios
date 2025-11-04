@@ -62,9 +62,8 @@ mod tests {
     // [utest->swdd~agent-skips-unknown-runtime~2]
     #[tokio::test]
     async fn utest_dummy_state_checker() {
-        let workload_spec = generate_test_workload_with_param(
+        let workload_spec: WorkloadNamed = generate_test_workload_with_param(
             "agent_name".to_string(),
-            "workload_name".to_string(),
             "runtime_name".to_string(),
         );
         let workload_id = "test_id".to_string();

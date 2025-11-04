@@ -56,10 +56,7 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use api::ank_base;
-    use api::test_utils::{
-        generate_test_proto_complete_state,
-        generate_test_proto_workload_with_param,
-    };
+    use api::test_utils::{generate_test_proto_complete_state, generate_test_workload_with_param};
     use mockall::predicate::eq;
 
     use crate::{
@@ -79,15 +76,15 @@ mod tests {
             generate_test_proto_complete_state(&[
                 (
                     "name1",
-                    generate_test_proto_workload_with_param("agent_A", "runtime"),
+                    generate_test_workload_with_param("agent_A", "runtime"),
                 ),
                 (
                     "name2",
-                    generate_test_proto_workload_with_param("agent_B", "runtime"),
+                    generate_test_workload_with_param("agent_B", "runtime"),
                 ),
                 (
                     "name3",
-                    generate_test_proto_workload_with_param("agent_B", "runtime"),
+                    generate_test_workload_with_param("agent_B", "runtime"),
                 ),
             ]),
         );
@@ -119,15 +116,15 @@ mod tests {
             generate_test_proto_complete_state(&[
                 (
                     "name1",
-                    generate_test_proto_workload_with_param("agent_A", "runtime"),
+                    generate_test_workload_with_param("agent_A", "runtime"),
                 ),
                 (
                     "name2",
-                    generate_test_proto_workload_with_param("agent_B", "runtime"),
+                    generate_test_workload_with_param("agent_B", "runtime"),
                 ),
                 (
                     "name3",
-                    generate_test_proto_workload_with_param("agent_B", "runtime"),
+                    generate_test_workload_with_param("agent_B", "runtime"),
                 ),
             ]),
         );
@@ -161,15 +158,15 @@ mod tests {
             generate_test_proto_complete_state(&[
                 (
                     "name1",
-                    generate_test_proto_workload_with_param("agent_A", "runtime"),
+                    generate_test_workload_with_param("agent_A", "runtime"),
                 ),
                 (
                     "name2",
-                    generate_test_proto_workload_with_param("agent_B", "runtime"),
+                    generate_test_workload_with_param("agent_B", "runtime"),
                 ),
                 (
                     "name3",
-                    generate_test_proto_workload_with_param("agent_B", "runtime"),
+                    generate_test_workload_with_param("agent_B", "runtime"),
                 ),
             ]),
         );
@@ -209,15 +206,15 @@ mod tests {
             generate_test_proto_complete_state(&[
                 (
                     "name1",
-                    generate_test_proto_workload_with_param("agent_A", "runtime"),
+                    generate_test_workload_with_param("agent_A", "runtime"),
                 ),
                 (
                     "name2",
-                    generate_test_proto_workload_with_param("agent_B", "runtime"),
+                    generate_test_workload_with_param("agent_B", "runtime"),
                 ),
                 (
                     "name3",
-                    generate_test_proto_workload_with_param("agent_B", "runtime"),
+                    generate_test_workload_with_param("agent_B", "runtime"),
                 ),
             ]),
         );

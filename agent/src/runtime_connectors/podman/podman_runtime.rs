@@ -302,7 +302,7 @@ mod tests {
     use std::path::PathBuf;
     use std::str::FromStr;
 
-    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
+    use api::ank_base::{WorkloadNamed, ExecutionStateInternal, WorkloadInstanceNameInternal};
     use api::test_utils::generate_test_workload_with_param;
     use common::objects::AgentName;
     use mockall::Sequence;
@@ -314,9 +314,7 @@ mod tests {
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     const BUFFER_SIZE: usize = 20;
-
     const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
 
     // [utest->swdd~podman-name-returns-podman~1]
     #[test]
@@ -418,12 +416,11 @@ mod tests {
         let run_context = PodmanCli::podman_run_context();
         run_context.expect().return_const(Ok("test_id".into()));
 
-        let resest_cache_context = PodmanCli::reset_ps_cache_context();
-        resest_cache_context.expect().return_const(());
+        let reset_cache_context = PodmanCli::reset_ps_cache_context();
+        reset_cache_context.expect().return_const(());
 
-        let workload_spec = generate_test_workload_with_param(
+        let workload: WorkloadNamed = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
@@ -431,7 +428,7 @@ mod tests {
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
-                workload_spec,
+                workload,
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
@@ -457,12 +454,11 @@ mod tests {
             .expect()
             .returning(|start_config, _| Ok(start_config.container_id));
 
-        let resest_cache_context = PodmanCli::reset_ps_cache_context();
-        resest_cache_context.expect().return_const(());
+        let reset_cache_context = PodmanCli::reset_ps_cache_context();
+        reset_cache_context.expect().return_const(());
 
-        let workload_spec = generate_test_workload_with_param(
+        let workload: WorkloadNamed = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
@@ -470,7 +466,7 @@ mod tests {
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
-                workload_spec,
+                workload,
                 Some(PodmanWorkloadId::from_str(reusable_workload_id).unwrap()),
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
@@ -494,8 +490,8 @@ mod tests {
 
         let mut seq = Sequence::new();
 
-        let resest_cache_context = PodmanCli::reset_ps_cache_context();
-        resest_cache_context
+        let reset_cache_context = PodmanCli::reset_ps_cache_context();
+        reset_cache_context
             .expect()
             .once()
             .return_const(())
@@ -508,9 +504,8 @@ mod tests {
             .return_const(Ok(Some(ExecutionStateInternal::running())))
             .in_sequence(&mut seq);
 
-        let workload_spec = generate_test_workload_with_param(
+        let workload: WorkloadNamed = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
         let (state_change_tx, mut state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
@@ -518,7 +513,7 @@ mod tests {
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
-                workload_spec,
+                workload,
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
@@ -565,9 +560,8 @@ mod tests {
         let delete_context = PodmanCli::remove_workloads_by_id_context();
         delete_context.expect().return_const(Ok(()));
 
-        let workload_spec = generate_test_workload_with_param(
+        let workload: WorkloadNamed = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
@@ -575,7 +569,7 @@ mod tests {
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
-                workload_spec,
+                workload,
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
@@ -601,9 +595,8 @@ mod tests {
             .expect()
             .return_const(Err("simulated error".into()));
 
-        let workload_spec = generate_test_workload_with_param(
+        let workload: WorkloadNamed = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
@@ -611,7 +604,7 @@ mod tests {
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
-                workload_spec,
+                workload,
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
@@ -626,19 +619,18 @@ mod tests {
     async fn utest_create_workload_parsing_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let mut workload_spec = generate_test_workload_with_param(
+        let mut workload: WorkloadNamed = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
-        workload_spec.runtime_config = "broken runtime config".to_string();
+        workload.workload.runtime_config = "broken runtime config".to_string();
 
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
-                workload_spec,
+                workload,
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,

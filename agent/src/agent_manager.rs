@@ -294,7 +294,9 @@ mod tests {
         workload_state_store::{MockWorkloadStateStore, mock_parameter_storage_new_returns},
     };
 
-    use api::ank_base::{self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal};
+    use api::ank_base::{
+        self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, WorkloadNamed,
+    };
     use api::test_utils::generate_test_workload_with_param;
     use common::{
         commands::UpdateWorkloadState,
@@ -351,10 +353,12 @@ mod tests {
         );
 
         let workload_spec_1 =
-            generate_test_workload_with_param(AGENT_NAME, WORKLOAD_1_NAME, RUNTIME_NAME);
+            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
+                .name(WORKLOAD_1_NAME);
 
         let workload_spec_2 =
-            generate_test_workload_with_param(AGENT_NAME, WORKLOAD_2_NAME, RUNTIME_NAME);
+            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
+                .name(WORKLOAD_2_NAME);
 
         let handle = tokio::spawn(async move { agent_manager.start().await });
 
@@ -700,8 +704,7 @@ mod tests {
         let (to_server, _server_receiver) = channel(BUFFER_SIZE);
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload_spec =
-            generate_test_workload_with_param(AGENT_NAME, WORKLOAD_1_NAME, RUNTIME_NAME);
+        let workload_spec: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
 
         let mock_runtime_manager = RuntimeManager::default();
 

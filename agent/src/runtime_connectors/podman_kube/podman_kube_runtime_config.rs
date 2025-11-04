@@ -64,48 +64,37 @@ impl TryFrom<&WorkloadInternal> for PodmanKubeRuntimeConfig {
 
 #[cfg(test)]
 mod tests {
-    use api::test_utils::{
-        generate_test_workload_files, generate_test_workload_with_files,
-        generate_test_workload_with_param,
-    };
+    use api::ank_base::WorkloadInternal;
+    use api::test_utils::generate_test_workload_with_param;
 
     use super::{PODMAN_KUBE_RUNTIME_NAME, PodmanKubeRuntimeConfig};
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
     const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
     const MANIFEST_CONTENT: &str = "kube, man";
 
     #[tokio::test]
     async fn utest_podman_kube_config_failure_missing_manifest() {
-        let workload_spec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            PODMAN_KUBE_RUNTIME_NAME.to_string(),
-        );
+        let workload: WorkloadInternal =
+            generate_test_workload_with_param(AGENT_NAME, PODMAN_KUBE_RUNTIME_NAME);
 
-        assert!(PodmanKubeRuntimeConfig::try_from(&workload_spec).is_err());
+        assert!(PodmanKubeRuntimeConfig::try_from(&workload).is_err());
     }
 
     #[tokio::test]
     async fn utest_podman_kube_config_failure_wrong_runtime() {
-        let workload_spec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            DIFFERENT_RUNTIME_NAME.to_string(),
-        );
+        let workload: WorkloadInternal =
+            generate_test_workload_with_param(AGENT_NAME, DIFFERENT_RUNTIME_NAME);
 
-        assert!(PodmanKubeRuntimeConfig::try_from(&workload_spec).is_err());
+        assert!(PodmanKubeRuntimeConfig::try_from(&workload).is_err());
     }
 
     // [utest->swdd~podman-kube-rejects-workload-files~1]
     #[tokio::test]
     async fn utest_podman_kube_config_failure_unsupported_files_field() {
-        let workload_spec_with_files = generate_test_workload_with_files(
+        let workload_spec_with_files = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             DIFFERENT_RUNTIME_NAME.to_string(),
-            generate_test_workload_files(),
         );
 
         assert!(PodmanKubeRuntimeConfig::try_from(&workload_spec_with_files).is_err());
@@ -113,16 +102,15 @@ mod tests {
 
     #[tokio::test]
     async fn utest_podman_kube_config_success() {
-        let mut workload_spec = generate_test_workload_with_param(
+        let mut workload: WorkloadInternal = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
         );
-
-        workload_spec.runtime_config = format!("manifest: {MANIFEST_CONTENT}");
+        workload.files = Default::default();
+        workload.runtime_config = format!("manifest: {MANIFEST_CONTENT}");
 
         assert!(
-            PodmanKubeRuntimeConfig::try_from(&workload_spec)
+            PodmanKubeRuntimeConfig::try_from(&workload)
                 .unwrap()
                 .manifest
                 == *MANIFEST_CONTENT

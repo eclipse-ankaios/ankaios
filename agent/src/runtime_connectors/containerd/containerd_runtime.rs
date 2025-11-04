@@ -164,8 +164,8 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
         update_state_tx: WorkloadStateSender,
         workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
     ) -> Result<(ContainerdWorkloadId, GenericPollingStateChecker), RuntimeError> {
-        let workload_cfg =
-            ContainerdRuntimeConfig::try_from(&workload_named.workload).map_err(RuntimeError::Unsupported)?;
+        let workload_cfg = ContainerdRuntimeConfig::try_from(&workload_named.workload)
+            .map_err(RuntimeError::Unsupported)?;
 
         let cli_result = match reusable_workload_id {
             Some(workload_id) => {
@@ -304,25 +304,26 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
 // [utest->swdd~agent-functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-    use std::str::FromStr;
-
-    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
-    use api::test_utils::generate_test_workload_with_param;
-    use common::objects::AgentName;
-    use mockall::Sequence;
-
     use super::ContainerdRuntime;
     use super::NerdctlCli;
-    use super::{CONTAINERD_RUNTIME_NAME, ContainerdStateGetter, ContainerdWorkloadId};
+    use super::{ContainerdStateGetter, ContainerdWorkloadId};
     use crate::runtime_connectors::LogRequestOptions;
+    use crate::runtime_connectors::containerd::containerd_runtime::CONTAINERD_RUNTIME_NAME;
     use crate::runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
+
+    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+    use api::test_utils::generate_test_workload_with_param;
+    use common::objects::AgentName;
+
+    use mockall::Sequence;
+    use std::path::PathBuf;
+    use std::str::FromStr;
 
     const BUFFER_SIZE: usize = 20;
 
     const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
+    // const WORKLOAD_1_NAME: &str = "workload1";
 
     // [utest->swdd~containerd-name-returns-containerd~1]
     #[test]
@@ -424,20 +425,17 @@ mod tests {
         let run_context = NerdctlCli::nerdctl_run_context();
         run_context.expect().return_const(Ok("test_id".into()));
 
-        let resest_cache_context = NerdctlCli::reset_ps_cache_context();
-        resest_cache_context.expect().return_const(());
+        let reset_cache_context = NerdctlCli::reset_ps_cache_context();
+        reset_cache_context.expect().return_const(());
 
-        let workload_spec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            CONTAINERD_RUNTIME_NAME.to_string(),
-        );
+        let workload_named: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_NAME, CONTAINERD_RUNTIME_NAME);
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
         let containerd_runtime = ContainerdRuntime {};
         let res = containerd_runtime
             .create_workload(
-                workload_spec,
+                workload_named,
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
@@ -463,20 +461,16 @@ mod tests {
             .expect()
             .returning(|start_config, _| Ok(start_config.container_id));
 
-        let resest_cache_context = NerdctlCli::reset_ps_cache_context();
-        resest_cache_context.expect().return_const(());
+        let reset_cache_context = NerdctlCli::reset_ps_cache_context();
+        reset_cache_context.expect().return_const(());
 
-        let workload_spec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            CONTAINERD_RUNTIME_NAME.to_string(),
-        );
+        let workload_named = generate_test_workload_with_param(AGENT_NAME, CONTAINERD_RUNTIME_NAME);
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
         let containerd_runtime = ContainerdRuntime {};
         let res = containerd_runtime
             .create_workload(
-                workload_spec,
+                workload_named,
                 Some(ContainerdWorkloadId::from_str(reusable_workload_id).unwrap()),
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
@@ -500,8 +494,8 @@ mod tests {
 
         let mut seq = Sequence::new();
 
-        let resest_cache_context = NerdctlCli::reset_ps_cache_context();
-        resest_cache_context
+        let reset_cache_context = NerdctlCli::reset_ps_cache_context();
+        reset_cache_context
             .expect()
             .once()
             .return_const(())
@@ -514,17 +508,13 @@ mod tests {
             .return_const(Ok(Some(ExecutionStateInternal::running())))
             .in_sequence(&mut seq);
 
-        let workload_spec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            CONTAINERD_RUNTIME_NAME.to_string(),
-        );
+        let workload_named = generate_test_workload_with_param(AGENT_NAME, CONTAINERD_RUNTIME_NAME);
         let (state_change_tx, mut state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
         let containerd_runtime = ContainerdRuntime {};
         let res = containerd_runtime
             .create_workload(
-                workload_spec,
+                workload_named,
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
@@ -571,17 +561,13 @@ mod tests {
         let delete_context = NerdctlCli::remove_workloads_by_id_context();
         delete_context.expect().return_const(Ok(()));
 
-        let workload_spec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            CONTAINERD_RUNTIME_NAME.to_string(),
-        );
+        let workload_named = generate_test_workload_with_param(AGENT_NAME, CONTAINERD_RUNTIME_NAME);
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
         let containerd_runtime = ContainerdRuntime {};
         let res = containerd_runtime
             .create_workload(
-                workload_spec,
+                workload_named,
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
@@ -608,17 +594,13 @@ mod tests {
             .expect()
             .return_const(Err("simulated error".into()));
 
-        let workload_spec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            CONTAINERD_RUNTIME_NAME.to_string(),
-        );
+        let workload_named = generate_test_workload_with_param(AGENT_NAME, CONTAINERD_RUNTIME_NAME);
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
         let containerd_runtime = ContainerdRuntime {};
         let res = containerd_runtime
             .create_workload(
-                workload_spec,
+                workload_named,
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,
@@ -633,19 +615,16 @@ mod tests {
     async fn utest_create_workload_parsing_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let mut workload_spec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            CONTAINERD_RUNTIME_NAME.to_string(),
-        );
-        workload_spec.runtime_config = "broken runtime config".to_string();
+        let mut workload_named: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_NAME, CONTAINERD_RUNTIME_NAME);
+        workload_named.workload.runtime_config = "broken runtime config".to_string();
 
         let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
         let containerd_runtime = ContainerdRuntime {};
         let res = containerd_runtime
             .create_workload(
-                workload_spec,
+                workload_named,
                 None,
                 Some(PathBuf::from("run_folder")),
                 state_change_tx,

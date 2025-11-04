@@ -119,7 +119,7 @@ mod tests {
         runtime_connectors::{LogRequestOptions, log_fetcher::MockLogFetcher},
         workload::retry_manager::MockRetryToken,
     };
-    use api::ank_base::WorkloadInternal;
+    use api::ank_base::WorkloadNamed;
     use api::test_utils::generate_test_workload;
 
     use super::{ControlInterfacePath, WorkloadCommand, WorkloadCommandSender};
@@ -137,7 +137,7 @@ mod tests {
     };
 
     lazy_static! {
-        pub static ref WORKLOAD_SPEC: WorkloadInternal = generate_test_workload();
+        pub static ref WORKLOAD_SPEC: WorkloadNamed = generate_test_workload();
         pub static ref CONTROL_INTERFACE_PATH: Option<ControlInterfacePath> =
             Some(ControlInterfacePath::new(PathBuf::from(PIPES_LOCATION)));
     }

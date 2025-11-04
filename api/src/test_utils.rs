@@ -13,16 +13,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    CompleteState, DeleteCondition, DeletedWorkload, State, Workload, WorkloadInstanceNameInternal,
-    WorkloadMap,
+    CompleteState, ConfigItem, ConfigItemEnum, ConfigMap, DeleteCondition, DeletedWorkload, State,
+    Workload, WorkloadInstanceNameInternal, WorkloadMap,
 };
 pub use crate::ank_base::{
     agent_map::{generate_test_agent_map, generate_test_agent_map_from_workloads},
     control_interface_access::generate_test_control_interface_access,
     file_internal::generate_test_workload_files,
     workload::{
-        TestWorkloadFixture, generate_test_runtime_config, generate_test_workload,
-        generate_test_workload_with_param, generate_test_workload_with_runtime_config,
+        generate_test_runtime_config, generate_test_workload, generate_test_workload_with_param,
+        generate_test_workload_with_runtime_config,
     },
     workload_instance_name::generate_test_workload_instance_name,
 };
@@ -44,7 +44,34 @@ pub fn generate_test_proto_complete_state(workloads: &[(&str, Workload)]) -> Com
                     .map(|(x, y)| (x.to_string(), y.clone()))
                     .collect(),
             }),
-            configs: Some(Default::default()),
+            configs: Some(ConfigMap {
+                configs: HashMap::from([
+                    (
+                        "config_1".to_string(),
+                        ConfigItem {
+                            config_item_enum: Some(ConfigItemEnum::String(
+                                "value 1".to_string(),
+                            )),
+                        },
+                    ),
+                    (
+                        "config_2".to_string(),
+                        ConfigItem {
+                            config_item_enum: Some(ConfigItemEnum::String(
+                                "value 2".to_string(),
+                            )),
+                        },
+                    ),
+                    (
+                        "config_3".to_string(),
+                        ConfigItem {
+                            config_item_enum: Some(ConfigItemEnum::String(
+                                "value 3".to_string(),
+                            )),
+                        },
+                    ),
+                ]),
+            }),
         }),
         workload_states: None,
         agents: None,

@@ -238,7 +238,6 @@ impl Workload {
 
 #[cfg(test)]
 mod tests {
-    use super::ank_base::{self, Response, response::ResponseContent};
     use crate::{
         control_interface::{
             ControlInterfacePath, MockControlInterface, authorizer::MockAuthorizer,
@@ -248,9 +247,10 @@ mod tests {
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
-    use api::test_utils::{
-        generate_test_workload_with_control_interface_access, generate_test_workload_with_param,
+    use api::ank_base::{
+        self, Response, WorkloadInternal, WorkloadNamed, response::ResponseContent,
     };
+    use api::test_utils::generate_test_workload_with_param;
     use common::{
         from_server_interface::FromServer, objects::CompleteState,
         test_utils::generate_test_complete_state,
@@ -407,11 +407,8 @@ mod tests {
         let mut test_workload =
             Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
 
-        let workload_spec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload_spec: WorkloadInternal =
+            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         test_workload.exchange_control_interface(None, workload_spec.needs_control_interface());
 
@@ -433,11 +430,8 @@ mod tests {
             .once()
             .return_const(());
 
-        let workload_spec = generate_test_workload_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut new_control_interface_mock = MockControlInterface::default();
         new_control_interface_mock
@@ -526,11 +520,9 @@ mod tests {
             .once()
             .return_const(CONTROL_INTERFACE_PATH.clone());
 
-        let workload_spec = generate_test_workload_with_control_interface_access(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload_spec =
+            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
+                .name(WORKLOAD_1_NAME);
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
@@ -631,11 +623,13 @@ mod tests {
             workload_command_sender,
             Some(control_interface_mock),
         );
-        let complete_state = generate_test_complete_state(vec![generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        )]);
+        let complete_state = generate_test_complete_state(vec![
+            generate_test_workload_with_param::<WorkloadNamed>(
+                AGENT_NAME.to_string(),
+                RUNTIME_NAME.to_string(),
+            )
+            .name(WORKLOAD_1_NAME),
+        ]);
 
         test_workload
             .forward_response(ank_base::Response {

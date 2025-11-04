@@ -183,7 +183,7 @@ pub mod test {
         sync::{Arc, Mutex},
     };
 
-    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadInternal};
+    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
     use async_trait::async_trait;
     use common::objects::AgentName;
 
@@ -223,7 +223,7 @@ pub mod test {
     #[async_trait]
     impl StateChecker<String> for StubStateChecker {
         fn start_checker(
-            _workload_spec: &WorkloadInternal,
+            _workload_spec: &WorkloadNamed,
             _workload_id: String,
             _manager_interface: WorkloadStateSender,
             _state_getter: impl RuntimeStateGetter<String>,
@@ -438,7 +438,7 @@ pub mod test {
         async fn start_checker(
             &self,
             workload_id: &String,
-            runtime_workload_config: WorkloadInternal,
+            runtime_workload_config: WorkloadNamed,
             update_state_tx: WorkloadStateSender,
         ) -> Result<StubStateChecker, RuntimeError> {
             match self.get_expected_call() {

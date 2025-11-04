@@ -112,13 +112,12 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use api::ank_base::AddCondition;
+    use api::ank_base::{AddCondition, WorkloadInternal};
     use api::test_utils::generate_test_workload_with_param;
     use common::test_utils::generate_test_complete_state;
     use std::{collections::HashSet, ops::Deref};
 
     const AGENT_NAME: &str = "agent_A";
-    const WORKLOAD_NAME: &str = "workload_name";
     const RUNTIME: &str = "runtime X";
 
     fn fn_assert_cycle(
@@ -591,10 +590,10 @@ mod tests {
 
         fn with_workloads(mut self, workloads: &[&str]) -> Self {
             for w in workloads {
-                let mut test_workload_spec =
-                    generate_test_workload_with_param(AGENT_NAME, WORKLOAD_NAME, RUNTIME);
-                test_workload_spec.dependencies.dependencies.clear();
-                self.0.workloads.insert(w.to_string(), test_workload_spec);
+                let mut test_workload: WorkloadInternal =
+                    generate_test_workload_with_param(AGENT_NAME, RUNTIME);
+                test_workload.dependencies.dependencies.clear();
+                self.0.workloads.insert(w.to_string(), test_workload);
             }
             self
         }

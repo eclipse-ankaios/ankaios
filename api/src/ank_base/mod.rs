@@ -17,8 +17,8 @@ tonic::include_proto!("ank_base"); // The string specified here must match the p
 
 use crate::helpers::tag_adapter_deserializer;
 
-pub use crate::helpers::serialize_to_ordered_map;
 pub use crate::helpers::serialize_option_to_ordered_map;
+pub use crate::helpers::serialize_to_ordered_map;
 
 pub(crate) mod workload_instance_name;
 pub use workload_instance_name::{
@@ -45,6 +45,7 @@ pub(crate) mod workload_state;
 pub use execution_state::{ExecutionStateEnum, ExecutionStateEnumInternal};
 
 pub(crate) mod config;
+pub use config_item::ConfigItemEnum;
 
 pub use request::RequestContent;
 pub use response::ResponseContent;
@@ -56,9 +57,6 @@ pub use response::ResponseContent;
 //                   ##    ## ### ##   ##          ##                       //
 //                  ####   ##     ##   ##          #########                //
 //////////////////////////////////////////////////////////////////////////////
-
-
-
 
 impl Response {
     pub fn access_denied(request_id: String) -> Response {

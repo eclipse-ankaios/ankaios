@@ -234,7 +234,7 @@ mod tests {
     #[test]
     fn utest_overwrite_using_field_mask() {
         let workload_spec = WorkloadInternal::default();
-        let complete_state = CompleteState {
+        let mut complete_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
                 ..Default::default()
@@ -249,20 +249,17 @@ mod tests {
         complete_state_object =
             overwrite_using_field_mask(complete_state_object, &update_mask, &temp_object).unwrap();
 
-        // complete_state = complete_state_object.try_into().unwrap();
-        // TODO #313 Fix the conversion for this test - Error("invalid type: sequence, expected struct TagsInternal")
-        assert!(TryInto::<CompleteState>::try_into(complete_state_object).is_err());
-
-        // assert!(complete_state.desired_state.workloads.contains_key("nginx"));
-        // assert_eq!(
-        //     complete_state
-        //         .desired_state
-        //         .workloads
-        //         .get("nginx")
-        //         .unwrap()
-        //         .restart_policy,
-        //     RestartPolicy::Always
-        // )
+        complete_state = complete_state_object.try_into().unwrap();
+        assert!(complete_state.desired_state.workloads.contains_key("nginx"));
+        assert_eq!(
+            complete_state
+                .desired_state
+                .workloads
+                .get("nginx")
+                .unwrap()
+                .restart_policy,
+            RestartPolicy::Always
+        )
     }
 
     // [utest->swdd~cli-supports-yaml-to-set-desired-state~1]

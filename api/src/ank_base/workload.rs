@@ -264,7 +264,7 @@ pub trait TestWorkloadFixture: Default {
 #[cfg(any(feature = "test_utils", test))]
 impl TestWorkloadFixture for WorkloadInternal {
     fn generate_workload() -> Self {
-        generate_test_workload_with_param("agent_A", "podman")
+        generate_test_workload_with_param("agent_A", "runtime_A")
     }
 
     fn generate_workload_with_params(
@@ -403,15 +403,6 @@ pub fn generate_test_workload_with_runtime_config<T: TestWorkloadFixture>(
 pub fn generate_test_runtime_config() -> String {
     "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()
 }
-
-// #[cfg(any(feature = "test_utils", test))]
-// pub fn test() {
-//     let wl1: WorkloadInternal = generate_test_workload();
-//     let wl2: WorkloadNamed = generate_test_workload();
-//     let wl3: Workload = generate_test_workload();
-
-//     // let wl2 = generate_test_workload::<WorkloadNamed>().name("workload_X");
-// }
 
 // [utest->swdd~common-conversions-between-ankaios-and-proto~1]
 // [utest->swdd~common-object-representation~1]

@@ -417,7 +417,7 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("name") {
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("workload_A") {
                     workload_1.insert("update_strategy".into(), "AT_MOST_ONCE".into());
                 }
             }
@@ -428,14 +428,14 @@ mod tests {
         };
 
         let res = actual.set(
-            &"workloads.name.update_strategy".into(),
+            &"workloads.workload_A.update_strategy".into(),
             "AT_MOST_ONCE".into(),
         );
 
         assert!(res.is_ok());
         assert_eq!(
             actual
-                .get(&"workloads.name.update_strategy".into())
+                .get(&"workloads.workload_A.update_strategy".into())
                 .unwrap(),
             "AT_MOST_ONCE"
         );
@@ -449,7 +449,7 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("name") {
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("workload_A") {
                     workload_1.insert("new_key".into(), "new value".into());
                 }
             }
@@ -459,11 +459,11 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.set(&"workloads.name.new_key".into(), "new value".into());
+        let res = actual.set(&"workloads.workload_A.new_key".into(), "new value".into());
 
         assert!(res.is_ok());
         assert_eq!(
-            actual.get(&"workloads.name.new_key".into()).unwrap(),
+            actual.get(&"workloads.workload_A.new_key".into()).unwrap(),
             "new value"
         );
         assert_eq!(actual, expected);
@@ -476,7 +476,7 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("name") {
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("workload_A") {
                     let new_entry = object::Mapping::default().entry("new_key", "new value");
                     workload_1.insert("new_map".into(), new_entry.into());
                 }
@@ -487,12 +487,12 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.set(&"workloads.name.new_map.new_key".into(), "new value".into());
+        let res = actual.set(&"workloads.workload_A.new_map.new_key".into(), "new value".into());
 
         assert!(res.is_ok());
         assert_eq!(
             actual
-                .get(&"workloads.name.new_map.new_key".into())
+                .get(&"workloads.workload_A.new_map.new_key".into())
                 .unwrap(),
             "new value"
         );
@@ -516,10 +516,10 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.remove(&"workloads.name.access_rights".into());
+        let res = actual.remove(&"workloads.workload_A.access_rights".into());
 
         assert!(res.is_ok());
-        assert!(actual.get(&"workloads.name.access_rights".into()).is_none());
+        assert!(actual.get(&"workloads.workload_A.access_rights".into()).is_none());
         assert_eq!(actual, expected);
     }
 
@@ -533,7 +533,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.remove(&"workloads.name.non_existing".into());
+        let res = actual.remove(&"workloads.workload_A.non_existing".into());
 
         assert!(res.is_ok());
         assert_eq!(actual, expected);
@@ -593,7 +593,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&"workloads.name.restartPolicy".into());
+        let res = data.get(&"workloads.workload_A.restartPolicy".into());
 
         assert!(res.is_some());
         assert_eq!(res.expect(""), &serde_yaml::Value::from("ALWAYS"));
@@ -755,7 +755,7 @@ mod tests {
         }
 
         pub fn generate_test_state() -> Mapping {
-            let config_hash: &dyn api::ank_base::ConfigHash = &generate_test_runtime_config();
+            // let config_hash: &dyn api::ank_base::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
                 .entry("apiVersion", CURRENT_API_VERSION)
                 .entry(
@@ -775,7 +775,7 @@ mod tests {
                                 .entry("workload_C", "ADD_COND_SUCCEEDED"),
                             )
                             .entry("restartPolicy", "ALWAYS")
-                            .entry("runtime", "podman")
+                            .entry("runtime", "runtime_A")
                             .entry("runtimeConfig", generate_test_runtime_config())
                             .entry(
                                 "controlInterfaceAccess",
@@ -807,13 +807,13 @@ mod tests {
                                         .entry("binaryData", "base64_data"),
                                 ],
                             )
-                            .entry(
-                                "instanceName",
-                                Mapping::default()
-                                .entry("workloadName", "name")
-                                .entry("agentName", "agent")
-                                .entry("id", config_hash.hash_config())
-                            )
+                            // .entry(
+                            //     "instanceName",
+                            //     Mapping::default()
+                            //     .entry("workloadName", "name")
+                            //     .entry("agentName", "agent")
+                            //     .entry("id", config_hash.hash_config())
+                            // )
                     ),
                 )
                 .entry(

@@ -12,9 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{
-    ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed,
-};
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
 use common::objects::AgentName;
 use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
@@ -711,10 +709,9 @@ mod tests {
 
     use api::ank_base::{
         AccessRightsRuleInternal, ExecutionStateInternal, ReadWriteEnum,
-        WorkloadInstanceNameInternal,
+        WorkloadInstanceNameInternal, WorkloadInternal, WorkloadNamed,
     };
     use api::test_utils::{
-        generate_test_workload_files, generate_test_workload_with_files,
         generate_test_workload_with_param, generate_test_workload_with_runtime_config,
     };
 
@@ -726,13 +723,13 @@ mod tests {
     const SAMPLE_KUBE_CONFIG: &str = "kube_config";
     const SAMPLE_RUNTIME_CONFIG: &str = r#"{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], "manifest": "kube_config"}"#;
     const SAMPLE_AGENT: &str = "agent_A";
-    const SAMPLE_WORKLOAD_1: &str = "workload_1";
+    const SAMPLE_WORKLOAD: &str = "workload_A";
 
     lazy_static! {
         pub static ref WORKLOAD_INSTANCE_NAME: WorkloadInstanceNameInternal =
             WorkloadInstanceNameInternal::builder()
                 .agent_name(SAMPLE_AGENT)
-                .workload_name(SAMPLE_WORKLOAD_1)
+                .workload_name(SAMPLE_WORKLOAD)
                 .config(&SAMPLE_RUNTIME_CONFIG.to_string())
                 .build();
         pub static ref SAMPLE_POD_LIST: Vec<String> = vec!["pod1".to_string(), "pod2".to_string()];
@@ -769,18 +766,17 @@ mod tests {
             workload_instance_2.as_config_volume(),
         ]));
 
-        let mut workload_spec = generate_test_workload_with_param(
+        let mut workload: WorkloadInternal = generate_test_workload_with_param(
             "agent_A".to_string(),
-            "workload_2".to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
         );
 
-        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
+        workload.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
         mock_context
             .read_data
             .expect()
-            .return_const(Ok(workload_spec.runtime_config));
+            .return_const(Ok(workload.runtime_config));
 
         let runtime = PodmanKubeRuntime {};
 
@@ -824,13 +820,12 @@ mod tests {
         let invalid_workload_instance = "hash_1.agent_A";
         let workload_instance = "workload_2.hash_2.agent_A";
 
-        let mut workload_spec = generate_test_workload_with_param(
+        let mut workload: WorkloadInternal = generate_test_workload_with_param(
             "agent_A".to_string(),
-            "workload_2".to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
         );
 
-        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
+        workload.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
         let mock_context = MockContext::new().await;
         mock_context.list_agent_config_volumes_returns(Ok(vec![
@@ -841,7 +836,7 @@ mod tests {
         mock_context
             .read_data
             .expect()
-            .return_const(Ok(workload_spec.runtime_config));
+            .return_const(Ok(workload.runtime_config));
 
         mock_context
             .list_states_from_pods
@@ -861,13 +856,12 @@ mod tests {
     async fn utest_get_reusable_workloads_handles_to_short_volume_name() {
         let workload_instance = "workload_2.hash_2.agent_A";
 
-        let mut workload_spec = generate_test_workload_with_param(
+        let mut workload: WorkloadInternal = generate_test_workload_with_param(
             "agent_A".to_string(),
-            "workload_2".to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
         );
 
-        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
+        workload.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
         let mock_context = MockContext::new().await;
         mock_context.list_agent_config_volumes_returns(Ok(vec![
@@ -878,7 +872,7 @@ mod tests {
         mock_context
             .read_data
             .expect()
-            .return_const(Ok(workload_spec.runtime_config));
+            .return_const(Ok(workload.runtime_config));
 
         // let list_states_by_id_context = PodmanCli::list_states_by_id_context();
         // list_states_by_id_context
@@ -929,16 +923,17 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload_named: WorkloadNamed = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             SAMPLE_RUNTIME_CONFIG.to_string(),
         );
+        workload_named.workload.files = Default::default();
+        workload_named.workload.control_interface_access = Default::default();
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender, Default::default())
+            .create_workload(workload_named, None, None, sender, Default::default())
             .await;
         // [utest->swdd~podman-kube-create-workload-returns-workload-id~1]
         assert!(matches!(workload, Ok((workload_id, _)) if
@@ -979,16 +974,17 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload_named: WorkloadNamed = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             SAMPLE_RUNTIME_CONFIG.to_string(),
         );
+        workload_named.workload.files = Default::default();
+        workload_named.workload.control_interface_access = Default::default();
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender, Default::default())
+            .create_workload(workload_named, None, None, sender, Default::default())
             .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
@@ -1028,16 +1024,17 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload_named: WorkloadNamed = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             SAMPLE_RUNTIME_CONFIG.to_string(),
         );
+        workload_named.workload.files = Default::default();
+        workload_named.workload.control_interface_access = Default::default();
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender, Default::default())
+            .create_workload(workload_named, None, None, sender, Default::default())
             .await;
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
@@ -1051,22 +1048,12 @@ mod tests {
     async fn utest_create_workload_unsupported_workload_files_error() {
         let runtime = PodmanKubeRuntime {};
 
-        let workload_spec_with_files = generate_test_workload_with_files(
-            SAMPLE_AGENT,
-            SAMPLE_WORKLOAD_1,
-            PODMAN_KUBE_RUNTIME_NAME,
-            generate_test_workload_files(),
-        );
+        let workload_named: WorkloadNamed =
+            generate_test_workload_with_param(SAMPLE_AGENT, PODMAN_KUBE_RUNTIME_NAME);
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let result = runtime
-            .create_workload(
-                workload_spec_with_files,
-                None,
-                None,
-                sender,
-                Default::default(),
-            )
+            .create_workload(workload_named, None, None, sender, Default::default())
             .await;
         assert!(
             matches!(&result, Err(RuntimeError::Unsupported(_))),
@@ -1119,16 +1106,17 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload_named: WorkloadNamed = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             SAMPLE_RUNTIME_CONFIG.to_string(),
         );
+        workload_named.workload.files = Default::default();
+        workload_named.workload.control_interface_access = Default::default();
 
         let (sender, mut receiver) = tokio::sync::mpsc::channel(1);
         let _workload = runtime
-            .create_workload(workload_spec, None, None, sender, Default::default())
+            .create_workload(workload_named, None, None, sender, Default::default())
             .await;
 
         receiver.recv().await;
@@ -1156,16 +1144,17 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload_named: WorkloadNamed = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             SAMPLE_RUNTIME_CONFIG.to_string(),
         );
+        workload_named.workload.files = Default::default();
+        workload_named.workload.control_interface_access = Default::default();
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime
-            .create_workload(workload_spec, None, None, sender, Default::default())
+            .create_workload(workload_named, None, None, sender, Default::default())
             .await;
 
         assert!(matches!(workload, Err(RuntimeError::Create(msg)) if msg == SAMPLE_ERROR));
@@ -1523,14 +1512,14 @@ spec:
         let runtime_config = format!(
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
         );
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload: WorkloadInternal = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
         );
+        workload.files = Default::default();
 
-        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload_spec).unwrap();
+        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload).unwrap();
 
         let target = ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config);
         assert!(
@@ -1553,14 +1542,14 @@ spec:
         let runtime_config = format!(
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod-test-container", "manifest": {manifest_str:?}}}"#
         );
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload: WorkloadInternal = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
         );
+        workload.files = Default::default();
 
-        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload_spec).unwrap();
+        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload).unwrap();
 
         let target = ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config);
         assert!(target.is_err());
@@ -1581,14 +1570,14 @@ spec:
         let runtime_config = format!(
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], "manifest": {manifest_str:?}}}"#
         );
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload: WorkloadInternal = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
         );
+        workload.files = Default::default();
 
-        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload_spec).unwrap();
+        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload).unwrap();
         let target = ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config);
         assert!(matches!(target, Ok(None)));
     }
@@ -1612,16 +1601,17 @@ spec:
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
         );
 
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload: WorkloadInternal = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
         );
+        workload.files = Default::default();
+        workload.control_interface_access = Default::default();
 
-        assert!(!workload_spec.needs_control_interface());
+        assert!(!workload.needs_control_interface());
 
-        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload_spec).unwrap();
+        let workload_config = PodmanKubeRuntimeConfig::try_from(&workload).unwrap();
 
         assert_eq!(workload_config.manifest, manifest_str);
         assert!(
@@ -1793,20 +1783,19 @@ spec:
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
         );
 
-        let mut workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload: WorkloadNamed = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
         );
-
-        workload_spec.control_interface_access.allow_rules =
+        workload.workload.files = Default::default();
+        workload.workload.control_interface_access.allow_rules =
             vec![AccessRightsRuleInternal::state_rule(
                 ReadWriteEnum::RwReadWrite,
                 vec!["desiredState".to_string()],
             )];
 
-        let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload_spec).unwrap();
+        let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload.workload).unwrap();
         let control_interface_target =
             ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)
                 .unwrap()
@@ -1815,7 +1804,7 @@ spec:
         assert!(
             PodmanKubeRuntime::enrich_manifest_with_control_interface(
                 &mut workload_config,
-                &workload_spec,
+                &workload,
                 &control_interface_target,
             )
             .is_ok()
@@ -1947,7 +1936,7 @@ image: test-image
 
     // [utest->swdd~podman-kube-injects-control-interface-volume~1]
     #[test]
-    fn utest_inject_control_volume_success_with_existing_volume_spec() {
+    fn utest_inject_control_volume_success_with_existing_volume_wl() {
         let mut manifest = serde_yaml::from_str::<Value>(
             r#"
 apiVersion: v1
@@ -1961,14 +1950,13 @@ spec:
         )
         .unwrap();
 
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let workload: WorkloadNamed = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             SAMPLE_RUNTIME_CONFIG.to_string(),
         );
 
-        let result = PodmanKubeRuntime::inject_control_volume(&mut manifest, &workload_spec);
+        let result = PodmanKubeRuntime::inject_control_volume(&mut manifest, &workload);
         assert!(result.is_ok());
 
         let volumes = manifest["spec"]["volumes"].as_sequence().unwrap();
@@ -1979,7 +1967,7 @@ spec:
 
     // [utest->swdd~podman-kube-injects-control-interface-volume-mount~1]
     #[test]
-    fn utest_inject_control_volume_success_with_missing_volume_spec() {
+    fn utest_inject_control_volume_success_with_missing_volume_wl() {
         let mut manifest = serde_yaml::from_str::<Value>(
             r#"
 apiVersion: v1
@@ -1990,14 +1978,13 @@ spec:
         )
         .unwrap();
 
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let workload: WorkloadNamed = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             SAMPLE_RUNTIME_CONFIG.to_string(),
         );
 
-        let result = PodmanKubeRuntime::inject_control_volume(&mut manifest, &workload_spec);
+        let result = PodmanKubeRuntime::inject_control_volume(&mut manifest, &workload);
         assert!(result.is_ok());
 
         let volumes = manifest["spec"]["volumes"].as_sequence().unwrap();
@@ -2009,14 +1996,13 @@ spec:
     // [utest->swdd~podman-kube-injects-control-interface-volume~1]
     #[test]
     fn utest_create_control_interface_volume() {
-        let workload_spec = generate_test_workload_with_runtime_config(
+        let workload: WorkloadNamed = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             SAMPLE_RUNTIME_CONFIG.to_string(),
         );
 
-        let volume = PodmanKubeRuntime::create_control_interface_volume(&workload_spec);
+        let volume = PodmanKubeRuntime::create_control_interface_volume(&workload);
 
         assert_eq!(volume["name"], "control-interface-volume");
         assert!(volume["hostPath"].is_mapping());
@@ -2024,9 +2010,9 @@ spec:
 
         let expected_path = format!(
             "/tmp/ankaios/{}_io/{}.{}/control_interface/",
-            workload_spec.instance_name.agent_name(),
-            workload_spec.instance_name.workload_name(),
-            workload_spec.instance_name.id()
+            workload.instance_name.agent_name(),
+            workload.instance_name.workload_name(),
+            workload.instance_name.id()
         );
         assert_eq!(volume["hostPath"]["path"], expected_path);
     }
@@ -2085,14 +2071,13 @@ spec:
         .unwrap();
 
         let manifests = vec![pod_manifest, service_manifest];
-        let mut workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload: WorkloadNamed = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             SAMPLE_RUNTIME_CONFIG.to_string(),
         );
 
-        workload_spec.control_interface_access.allow_rules =
+        workload.workload.control_interface_access.allow_rules =
             vec![AccessRightsRuleInternal::state_rule(
                 ReadWriteEnum::RwReadWrite,
                 vec!["desiredState".to_string()],
@@ -2105,7 +2090,7 @@ spec:
 
         let result = PodmanKubeRuntime::process_manifest_list(
             manifests,
-            &workload_spec,
+            &workload,
             &control_interface_target,
         );
 
@@ -2145,20 +2130,20 @@ spec:
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "target-pod/target-container", "manifest": {manifest_str:?}}}"#
         );
 
-        let mut workload_spec = generate_test_workload_with_runtime_config(
+        let mut workload: WorkloadNamed = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
-            SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
         );
 
-        workload_spec.control_interface_access.allow_rules =
+        workload.workload.files = Default::default();
+        workload.workload.control_interface_access.allow_rules =
             vec![AccessRightsRuleInternal::state_rule(
                 ReadWriteEnum::RwReadWrite,
                 vec!["desiredState".to_string()],
             )];
 
-        let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload_spec).unwrap();
+        let mut workload_config = PodmanKubeRuntimeConfig::try_from(&workload.workload).unwrap();
         let control_interface_target =
             ControlInterfaceTarget::from_podman_kube_runtime_config(&workload_config)
                 .unwrap()
@@ -2167,7 +2152,7 @@ spec:
         assert!(
             PodmanKubeRuntime::enrich_manifest_with_control_interface(
                 &mut workload_config,
-                &workload_spec,
+                &workload,
                 &control_interface_target,
             )
             .is_ok()

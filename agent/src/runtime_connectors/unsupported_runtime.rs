@@ -103,11 +103,13 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
 
 #[cfg(test)]
 mod tests {
+    use super::{RuntimeError, UnsupportedRuntime, WorkloadInstanceNameInternal};
     use crate::runtime_connectors::{LogRequestOptions, RuntimeConnector};
 
-    use super::{RuntimeError, UnsupportedRuntime, WorkloadInstanceNameInternal};
+    use api::ank_base::WorkloadNamed;
     use api::test_utils::{generate_test_workload, generate_test_workload_with_param};
     use common::objects::AgentName;
+
     use std::collections::HashMap;
 
     const TEST_RUNTIME_NAME: &str = "test_runtime";
@@ -138,8 +140,8 @@ mod tests {
     #[tokio::test]
     async fn utest_create_workload_returns_unsupported_error_for_matching_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let workload_spec =
-            generate_test_workload_with_param("test-agent", "test-workload", TEST_RUNTIME_NAME);
+        let workload_spec: WorkloadNamed =
+            generate_test_workload_with_param("test-agent", TEST_RUNTIME_NAME);
 
         let result = unsupported_runtime
             .create_workload(
@@ -161,8 +163,8 @@ mod tests {
     #[tokio::test]
     async fn utest_create_workload_returns_unsupported_error_for_different_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let workload_spec =
-            generate_test_workload_with_param("test-agent", "test-workload", "different_runtime");
+        let workload_spec: WorkloadNamed =
+            generate_test_workload_with_param("test-agent", "different_runtime");
 
         let result = unsupported_runtime
             .create_workload(

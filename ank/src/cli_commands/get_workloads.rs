@@ -222,7 +222,7 @@ mod tests {
         workload_table_row::WorkloadTableRow,
     };
 
-    use api::ank_base::{self, ExecutionStateInternal};
+    use api::ank_base::{self, ExecutionStateInternal, WorkloadNamed};
     use api::test_utils::generate_test_workload_with_param;
     use common::{
         commands::UpdateWorkloadState,
@@ -274,21 +274,9 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workloads_no_filtering() {
         let test_data = test_utils::generate_test_complete_state(vec![
-            generate_test_workload_with_param(
-                "agent_A".to_string(),
-                "name1".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_with_param(
-                "agent_B".to_string(),
-                "name2".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_with_param(
-                "agent_B".to_string(),
-                "name3".to_string(),
-                "runtime".to_string(),
-            ),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
         ]);
 
         let mut mock_server_connection = MockServerConnection::default();
@@ -321,21 +309,9 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workloads_filter_workload_name() {
         let test_data = test_utils::generate_test_complete_state(vec![
-            generate_test_workload_with_param(
-                "agent_A".to_string(),
-                "name1".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_with_param(
-                "agent_B".to_string(),
-                "name2".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_with_param(
-                "agent_B".to_string(),
-                "name3".to_string(),
-                "runtime".to_string(),
-            ),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
         ]);
 
         let mut mock_server_connection = MockServerConnection::default();
@@ -367,21 +343,9 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workloads_filter_agent() {
         let test_data = test_utils::generate_test_complete_state(vec![
-            generate_test_workload_with_param(
-                "agent_A".to_string(),
-                "name1".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_with_param(
-                "agent_B".to_string(),
-                "name2".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_with_param(
-                "agent_B".to_string(),
-                "name3".to_string(),
-                "runtime".to_string(),
-            ),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
         ]);
 
         let mut mock_server_connection = MockServerConnection::default();
@@ -413,21 +377,9 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workloads_filter_state() {
         let test_data = test_utils::generate_test_complete_state(vec![
-            generate_test_workload_with_param(
-                "agent_A".to_string(),
-                "name1".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_with_param(
-                "agent_B".to_string(),
-                "name2".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_with_param(
-                "agent_B".to_string(),
-                "name3".to_string(),
-                "runtime".to_string(),
-            ),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
         ]);
 
         let mut mock_server_connection = MockServerConnection::default();
@@ -514,16 +466,10 @@ mod tests {
     // [utest->swdd~cli-get-workloads-with-watch~1]
     #[tokio::test]
     async fn utest_watch_workloads_addition() {
-        let initial_wl = generate_test_workload_with_param(
-            "agent_A".to_string(),
-            "name1".to_string(),
-            "runtime".to_string(),
-        );
-        let new_wl = generate_test_workload_with_param(
-            "agent_A".to_string(),
-            "name2".to_string(),
-            "runtime".to_string(),
-        );
+        let initial_wl =
+            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1");
+        let new_wl =
+            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name2");
         let initial_key = initial_wl.instance_name.to_string();
 
         let initial_state = test_utils::generate_test_complete_state(vec![initial_wl.clone()]);
@@ -591,7 +537,7 @@ mod tests {
             WorkloadTableRow::new(
                 initial_wl.instance_name.workload_name(),
                 initial_wl.instance_name.agent_name(),
-                initial_wl.runtime.clone(),
+                initial_wl.workload.runtime.clone(),
                 ExecutionStateInternal::running().to_string(),
                 String::new(),
             ),
@@ -601,7 +547,7 @@ mod tests {
             WorkloadTableRow::new(
                 new_wl.instance_name.workload_name(),
                 new_wl.instance_name.agent_name(),
-                new_wl.runtime.clone(),
+                new_wl.workload.runtime.clone(),
                 ExecutionStateInternal::running().to_string(),
                 String::new(),
             ),
@@ -612,11 +558,8 @@ mod tests {
     // [utest->swdd~cli-process-workload-updates~1]
     #[tokio::test]
     async fn utest_process_workload_updates_removal() {
-        let wl1 = generate_test_workload_with_param(
-            "agent_A".to_string(),
-            "name1".to_string(),
-            "runtime".to_string(),
-        );
+        let wl1 =
+            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1");
 
         let key_wl1 = wl1.instance_name.to_string();
 
@@ -627,7 +570,7 @@ mod tests {
             WorkloadTableRow::new(
                 wl1.instance_name.workload_name().to_string(),
                 wl1.instance_name.agent_name().to_string(),
-                wl1.runtime.clone(),
+                wl1.workload.runtime.clone(),
                 ExecutionStateInternal::running().to_string(),
                 String::new(),
             ),
@@ -674,35 +617,29 @@ mod tests {
     // [utest->swdd~cli-process-workload-updates~1]
     #[tokio::test]
     async fn utest_process_workload_updates_state_change() {
-        let wl1_spec = generate_test_workload_with_param(
-            "agent_B".to_string(),
-            "workload_alpha".to_string(),
-            "runtime_1".to_string(),
-        );
-        let wl2_spec = generate_test_workload_with_param(
-            "agent_B".to_string(),
-            "workload_beta".to_string(),
-            "runtime_2".to_string(),
-        );
+        let workload_1 = generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_1")
+            .name("workload_alpha");
+        let workload_2 = generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_2")
+            .name("workload_beta");
 
-        let key_wl1 = wl1_spec.instance_name.to_string();
-        let key_wl2 = wl2_spec.instance_name.to_string();
+        let key_wl1 = workload_1.instance_name.to_string();
+        let key_wl2 = workload_2.instance_name.to_string();
 
         let mut initial_table_data = BTreeMap::new();
 
         let wl1_initial_row = WorkloadTableRow::new(
-            wl1_spec.instance_name.workload_name().to_string(),
-            wl1_spec.instance_name.agent_name().to_string(),
-            wl1_spec.runtime.clone(),
+            workload_1.instance_name.workload_name().to_string(),
+            workload_1.instance_name.agent_name().to_string(),
+            workload_1.workload.runtime.clone(),
             ExecutionStateInternal::running().to_string(),
             "Initial state".to_string(),
         );
         initial_table_data.insert(key_wl1.clone(), wl1_initial_row.clone());
 
         let wl2_initial_row = WorkloadTableRow::new(
-            wl2_spec.instance_name.workload_name().to_string(),
-            wl2_spec.instance_name.agent_name().to_string(),
-            wl2_spec.runtime.clone(),
+            workload_2.instance_name.workload_name().to_string(),
+            workload_2.instance_name.agent_name().to_string(),
+            workload_2.workload.runtime.clone(),
             ExecutionStateInternal::running().to_string(),
             "Stable".to_string(),
         );
@@ -714,7 +651,7 @@ mod tests {
 
         let update_event = UpdateWorkloadState {
             workload_states: vec![objects::WorkloadState {
-                instance_name: wl1_spec.instance_name.clone(),
+                instance_name: workload_1.instance_name.clone(),
                 execution_state: wl1_updated_execution_state_obj.clone(),
             }],
         };
@@ -752,9 +689,9 @@ mod tests {
         expected_table_data.insert(
             key_wl1.clone(),
             WorkloadTableRow::new(
-                wl1_spec.instance_name.workload_name().to_string(),
-                wl1_spec.instance_name.agent_name().to_string(),
-                wl1_spec.runtime.clone(),
+                workload_1.instance_name.workload_name().to_string(),
+                workload_1.instance_name.agent_name().to_string(),
+                workload_1.workload.runtime.clone(),
                 wl1_updated_execution_state_obj.state().to_string(),
                 new_additional_info_for_wl1,
             ),

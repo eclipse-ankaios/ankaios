@@ -425,7 +425,7 @@ mockall::mock! {
 
         fn resume_workload(
             &self,
-            runtime_workload: WorkloadInternal,
+            runtime_workload: WorkloadNamed,
             control_interface: Option<ControlInterfaceInfo>,
             update_state_tx: &WorkloadStateSender,
         ) -> Workload;
@@ -463,9 +463,9 @@ mod tests {
         workload_state::assert_execution_state_sequence,
     };
 
-    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
+    use api::ank_base::{WorkloadNamed, ExecutionStateInternal, WorkloadInstanceNameInternal};
     use api::test_utils::{
-        generate_test_workload_with_control_interface_access, generate_test_workload_with_param,
+        generate_test_workload_with_param,
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -529,9 +529,8 @@ mod tests {
         const WORKLOAD_ID: &str = "workload_id_1";
 
         let reusable_workload_spec = ReusableWorkloadSpec::new(
-            generate_test_workload_with_control_interface_access(
+            generate_test_workload_with_param(
                 AGENT_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
                 RUNTIME_NAME.to_string(),
             ),
             Some(WORKLOAD_ID.to_string()),
@@ -558,7 +557,7 @@ mod tests {
         control_interface_info_mock
             .expect_get_instance_name()
             .once()
-            .return_const(reusable_workload_spec.workload_spec.instance_name.clone());
+            .return_const(reusable_workload_spec.workload_named.instance_name.clone());
 
         control_interface_info_mock
             .expect_move_authorizer()
@@ -639,9 +638,8 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| Ok(MockControlInterface::default()));
 
-        let workload_spec = generate_test_workload_with_control_interface_access(
+        let workload_spec: WorkloadNamed = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
 
@@ -691,9 +689,8 @@ mod tests {
         let control_interface_new_context = MockControlInterface::new_context();
         control_interface_new_context.expect().never();
 
-        let workload_spec = generate_test_workload_with_param(
+        let workload_spec: WorkloadNamed = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
 

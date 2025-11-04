@@ -109,14 +109,13 @@ mod tests {
         runtime_connectors::{MockRuntimeStateGetter, StateChecker},
     };
 
-    use api::ank_base::ExecutionStateInternal;
+    use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
     use api::test_utils::generate_test_workload_with_param;
 
     use std::time::Duration;
 
     const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_ID: &str = "some strange Id";
 
     // [utest->swdd~agent-provides-generic-state-checker-implementation~1]
@@ -135,11 +134,8 @@ mod tests {
 
         let (state_sender, mut state_receiver) = tokio::sync::mpsc::channel(20);
 
-        let workload_spec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let generic_state_state_checker = GenericPollingStateChecker::start_checker(
             &workload_spec,

@@ -29,7 +29,9 @@ impl DeleteGraph {
     // [impl->swdd~server-state-stores-delete-condition~1]
     pub fn insert(&mut self, new_workloads: &[WorkloadNamed]) {
         for workload_named in new_workloads {
-            for (dependency_name, add_condition) in workload_named.workload.dependencies.dependencies.iter() {
+            for (dependency_name, add_condition) in
+                workload_named.workload.dependencies.dependencies.iter()
+            {
                 /* currently for other add conditions besides AddCondRunning
                 the workload can be deleted immediately and does not need a delete condition */
                 if add_condition == &AddCondition::AddCondRunning {
@@ -83,8 +85,8 @@ impl DeleteGraph {
 #[cfg(test)]
 mod tests {
     use super::{super::WorkloadInstanceNameInternal, AddCondition, DeleteCondition, DeleteGraph};
-    use api::ank_base::{DeletedWorkload, ExecutionStateInternal};
-    use api::test_utils::generate_test_workload_with_param;
+    use api::ank_base::{DeletedWorkload, ExecutionStateInternal, WorkloadNamed};
+    use api::test_utils::generate_test_workload;
     use common::objects::generate_test_workload_state_with_agent;
     use std::collections::HashMap;
 
@@ -95,7 +97,6 @@ mod tests {
     const WORKLOAD_NAME_4: &str = "workload_4";
     const WORKLOAD_NAME_5: &str = "workload_5";
     const WORKLOAD_NAME_6: &str = "workload_6";
-    const RUNTIME: &str = "runtime";
 
     // [utest->swdd~server-state-stores-delete-condition~1]
     #[test]
@@ -116,61 +117,35 @@ mod tests {
         */
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let mut workload_1 = generate_test_workload_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME.to_string(),
-        );
+        let mut workload_1 = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_NAME_1);
+        let mut workload_2 = workload_1.clone().name(WORKLOAD_NAME_2);
+        let mut workload_3 = workload_1.clone().name(WORKLOAD_NAME_3);
+        let mut workload_4 = workload_1.clone().name(WORKLOAD_NAME_4);
+        let mut workload_5 = workload_1.clone().name(WORKLOAD_NAME_5);
+        let mut workload_6 = workload_1.clone().name(WORKLOAD_NAME_6);
 
-        let mut workload_2 = generate_test_workload_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_2.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_3 = generate_test_workload_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_3.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_4 = generate_test_workload_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_4.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_5 = generate_test_workload_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_5.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_6 = generate_test_workload_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_6.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        workload_1.dependencies = HashMap::from([(
+        workload_1.workload.dependencies = HashMap::from([(
             workload_2.instance_name.workload_name().to_owned(),
             AddCondition::AddCondRunning,
-        )]).into();
+        )])
+        .into();
 
-        workload_2.dependencies.dependencies.clear();
+        workload_2.workload.dependencies.dependencies.clear();
 
-        workload_3.dependencies = HashMap::from([(
+        workload_3.workload.dependencies = HashMap::from([(
             workload_5.instance_name.workload_name().to_owned(),
             AddCondition::AddCondRunning,
-        )]).into();
+        )])
+        .into();
 
-        workload_4.dependencies = HashMap::from([(
+        workload_4.workload.dependencies = HashMap::from([(
             workload_1.instance_name.workload_name().to_owned(),
             AddCondition::AddCondFailed,
-        )]).into();
+        )])
+        .into();
 
-        workload_5.dependencies.dependencies.clear();
-        workload_6.dependencies.dependencies.clear();
+        workload_5.workload.dependencies.dependencies.clear();
+        workload_6.workload.dependencies.dependencies.clear();
 
         let mut delete_graph = DeleteGraph::default();
         delete_graph.insert(&vec![
