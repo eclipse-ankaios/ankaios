@@ -28,12 +28,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")
         // TODO #313 Setup camelCase and SCREAMING_SNAKE_CASE for each object individually (if needed)
         .message_attribute(".", "#[serde(rename_all = \"camelCase\")]")
-        .enum_attribute("AddCondition", "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]")
-        .enum_attribute("RestartPolicy", "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]")
+        .enum_attribute(
+            "AddCondition",
+            "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]",
+        )
+        .enum_attribute(
+            "RestartPolicy",
+            "#[serde(rename_all = \"SCREAMING_SNAKE_CASE\")]",
+        )
         .field_attribute("ReadWriteEnum.RW_NOTHING", "#[serde(rename = \"Nothing\")]")
         .field_attribute("ReadWriteEnum.RW_READ", "#[serde(rename = \"Read\")]")
         .field_attribute("ReadWriteEnum.RW_WRITE", "#[serde(rename = \"Write\")]")
-        .field_attribute("ReadWriteEnum.RW_READ_WRITE", "#[serde(rename = \"ReadWrite\")]")
+        .field_attribute(
+            "ReadWriteEnum.RW_READ_WRITE",
+            "#[serde(rename = \"ReadWrite\")]",
+        )
         .type_attribute(
             "ank_base.ConfigItem",
             "#[serde(into = \"serde_yaml::Value\")]",
@@ -107,16 +116,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     builder = setup_internal_files(builder);
     builder = setup_internal_control_interface_access(builder);
-    builder = setup_internal_workload(builder);
     builder = setup_internal_workload_instance_name(builder);
     builder = setup_internal_agent_map(builder);
     builder = setup_internal_configs(builder);
-    builder = setup_internal_workload_state(builder);
-
+    builder = setup_internal_workload_states(builder);
+    builder = setup_internal_workload(builder);
     builder = setup_internal_state(builder);
 
     builder = setup_schema_annotations(builder);
-
 
     builder
         .compile_protos(&["proto/control_api.proto"], &["proto"])
