@@ -82,10 +82,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "AgentStatus.cpu_usage",
             "#[serde(skip_serializing_if = \"::core::option::Option::is_none\")]",
         )
+        .field_attribute("AgentStatus.cpu_usage", "#[serde(flatten)]")
         .field_attribute(
             "AgentStatus.free_memory",
             "#[serde(skip_serializing_if = \"::core::option::Option::is_none\")]",
         )
+        .field_attribute("AgentStatus.free_memory", "#[serde(flatten)]")
         .field_attribute(
             "AgentAttributes.status",
             "#[serde(skip_serializing_if = \"::core::option::Option::is_none\")]",

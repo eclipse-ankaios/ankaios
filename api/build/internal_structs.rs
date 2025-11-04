@@ -344,6 +344,8 @@ pub fn setup_internal_agent_map(builder: Builder) -> Builder {
             "AgentStatus",
             "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
+        .field_attribute("AgentStatus.cpu_usage", "#[internal_field_attr(#[serde(flatten)])]")
+        .field_attribute("AgentStatus.free_memory", "#[internal_field_attr(#[serde(flatten)])]")
         .type_attribute("CpuUsage", "#[derive(internal_derive_macros::Internal)]")
         .type_attribute(
             "CpuUsage",
