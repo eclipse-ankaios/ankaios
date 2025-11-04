@@ -78,6 +78,9 @@ message LogEntriesResponse {
     repeated LogEntry logEntries = 1; // The logs of the requested workloads.
 }
 
+/*
+ * This message is sent when no more logs can be sampled from a workload.
+ */
 message LogsStopResponse {
     WorkloadInstanceName workloadName = 1; // The name of the workload for which the log streaming was stopped.
 }
@@ -292,6 +295,9 @@ message WorkloadState {
     ExecutionState executionState = 2; // The workload execution state.
 }
 
+/*
+ * A message describing the unique instance name of a workload
+ */
 message WorkloadInstanceName {
     string workloadName = 1; // The name of the workload.
     string agentName = 2; // The name of the owning Agent.
@@ -336,17 +342,17 @@ message Workload {
 }
 
 /*
- * This is a workaround for proto not supporting optional maps
+ * This is a workaround for proto not supporting optional maps.
  */
 message Tags {
-    map<string, string> tags = 1;
+    map<string, string> tags = 1; // Tags describing custom properties.
 }
 
-/**
-  * This is a workaround for proto not supporting optional maps
-  */
+/*
+ * This is a workaround for proto not supporting optional maps.
+ */
 message Dependencies {
-    map<string, AddCondition> dependencies = 1; // Just a test comment to see how it works.
+    map<string, AddCondition> dependencies = 1; // A mapping from a workload name to an expected state.
 }
 
 /*
@@ -391,14 +397,14 @@ message StateRule {
 }
 
 /*
- * Message containing a rule for getting workload logs
+ * Message containing a rule for getting workload logs.
  */
 message LogRule {
   repeated string workloadNames = 1; // The names of the workloads the rule applies to. If empty, the rule does not apply to any workload. Wildcard "*" can be used to match all workloads.
 }
 
 /*
- * An enum type describing which action is allowed.
+ * An enum type describing if reads and/or write actions are allowed.
  */
 enum ReadWriteEnum {
   RW_NOTHING = 0; // Allow nothing

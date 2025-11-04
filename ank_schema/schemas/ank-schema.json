@@ -84,7 +84,7 @@
       ]
     },
     "ConfigArrayInternal": {
-      "description": "blabla",
+      "description": "A container for the array of config items.",
       "type": "object",
       "properties": {
         "values": {
@@ -156,7 +156,7 @@
       }
     },
     "ConfigObjectInternal": {
-      "description": "funny comment",
+      "description": "A container for the mapping of config items.",
       "type": "object",
       "properties": {
         "fields": {
@@ -233,7 +233,7 @@
       ]
     },
     "LogRuleInternal": {
-      "description": "Message containing a rule for getting workload logs",
+      "description": "Message containing a rule for getting workload logs.",
       "type": "object",
       "properties": {
         "workloadNames": {
@@ -249,7 +249,7 @@
       ]
     },
     "ReadWriteEnum": {
-      "description": "An enum type describing which action is allowed.",
+      "description": "An enum type describing if reads and/or write actions are allowed.",
       "oneOf": [
         {
           "description": "Allow nothing",
@@ -337,7 +337,7 @@
           }
         },
         "dependencies": {
-          "description": "Just a test comment to see how it works.",
+          "description": "A mapping from a workload name to an expected state.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/AddCondition"
@@ -345,6 +345,7 @@
           "default": {}
         },
         "files": {
+          "description": "A vector with files assigned to a workload.",
           "type": "array",
           "default": [],
           "items": {
@@ -365,6 +366,7 @@
           "type": "string"
         },
         "tags": {
+          "description": "Tags describing custom properties.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
