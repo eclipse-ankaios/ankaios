@@ -149,35 +149,35 @@ fn object_field_mask_completer(current: &OsStr) -> Vec<CompletionCandidate> {
 pub struct AnkCli {
     #[command(subcommand)]
     pub command: Commands,
-    #[clap(required = false, short = 'x', long = "ank-config")]
+    #[arg(required = false, short = 'x', long = "ank-config", value_hint = ValueHint::FilePath)]
     /// The path to the server config file.
     /// The default path is $HOME/.config/ankaios/ank.conf
     pub config_path: Option<String>,
-    #[clap(short = 's', long = "server-url", required=false, env = ANK_SERVER_URL_ENV_KEY)]
+    #[arg(short = 's', long = "server-url", required=false, env = ANK_SERVER_URL_ENV_KEY)]
     /// The url to Ankaios server.
     pub server_url: Option<String>,
-    #[clap(long = "response-timeout", required = false)]
+    #[arg(long = "response-timeout", required = false)]
     /// The timeout in milliseconds to wait for a response.
     pub response_timeout_ms: Option<u64>,
-    #[clap(short = 'v', long = "verbose", action=ArgAction::Set, num_args=0, default_missing_value="true")]
+    #[arg(short = 'v', long = "verbose", action=ArgAction::Set, num_args=0, default_missing_value="true")]
     /// Enable debug traces
     pub verbose: Option<bool>,
-    #[clap(short = 'q', long = "quiet", action=ArgAction::Set, num_args=0, default_missing_value="true")]
+    #[arg(short = 'q', long = "quiet", action=ArgAction::Set, num_args=0, default_missing_value="true")]
     /// Disable all output
     pub quiet: Option<bool>,
-    #[clap(long = "no-wait", action=ArgAction::Set, num_args=0, default_missing_value="true")]
+    #[arg(long = "no-wait", action=ArgAction::Set, num_args=0, default_missing_value="true")]
     /// Do not wait for workloads to be created/deleted
     pub no_wait: Option<bool>,
-    #[clap(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANK_INSECURE")]
+    #[arg(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANK_INSECURE")]
     /// Flag to disable TLS communication between ank CLI and Ankaios server.
     pub insecure: Option<bool>,
-    #[clap(long = "ca_pem", env = "ANK_CA_PEM")]
+    #[arg(long = "ca_pem", env = "ANK_CA_PEM", value_hint = ValueHint::FilePath)]
     /// Path to cli ca pem file.
     pub ca_pem: Option<String>,
-    #[clap(long = "crt_pem", env = "ANK_CRT_PEM")]
+    #[arg(long = "crt_pem", env = "ANK_CRT_PEM", value_hint = ValueHint::FilePath)]
     /// Path to cli certificate pem file.
     pub crt_pem: Option<String>,
-    #[clap(long = "key_pem", env = "ANK_KEY_PEM")]
+    #[arg(long = "key_pem", env = "ANK_KEY_PEM", value_hint = ValueHint::FilePath)]
     /// Path to cli key pem file.
     pub key_pem: Option<String>,
 }
@@ -227,7 +227,7 @@ pub enum GetCommands {
     },
     /// Information about workloads of the Ankaios system
     /// For automation use "ank get state -o json" and process the workloadStates
-    #[clap(visible_alias("workloads"), verbatim_doc_comment)]
+    #[command(visible_alias("workloads"), verbatim_doc_comment)]
     Workload {
         /// Only workloads of the given agent shall be output
         #[arg(short = 'a', long = "agent", required = false)]
@@ -244,11 +244,11 @@ pub enum GetCommands {
     },
     /// Information about the Ankaios agents connected to the Ankaios server
     /// For automation use "ank get state -o json" and process the agents
-    #[clap(visible_alias("agents"), verbatim_doc_comment)]
+    #[command(visible_alias("agents"), verbatim_doc_comment)]
     Agent {},
     /// Information about the Ankaios configs present in the Ankaios system
     /// For automation use "ank get state -o json" and process desiredState.configs
-    #[clap(visible_alias("configs"), verbatim_doc_comment)]
+    #[command(visible_alias("configs"), verbatim_doc_comment)]
     Config {},
 }
 
@@ -285,13 +285,13 @@ pub struct DeleteArgs {
 #[derive(Debug, Subcommand)]
 pub enum DeleteCommands {
     /// Delete a workload(s)
-    #[clap(visible_alias("workloads"))]
+    #[command(visible_alias("workloads"))]
     Workload {
         /// One or more workload(s) to be deleted
         #[arg(required = true, add = ArgValueCompleter::new(workload_completer))]
         workload_name: Vec<String>,
     },
-    #[clap(visible_alias("configs"))]
+    #[command(visible_alias("configs"))]
     Config {
         /// One or more config(s) to be deleted
         #[arg(required = true, add = ArgValueCompleter::new(config_completer))]

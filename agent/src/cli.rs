@@ -17,35 +17,35 @@ use clap::{ArgAction, Parser};
 // [impl->swdd~agent-supports-cli-argument-for-insecure-communication~1]
 // [impl->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
 #[derive(Parser, Debug)]
-#[clap( author="The Ankaios team",
-        version=env!("CARGO_PKG_VERSION"),
-        about="Ankaios - your friendly automotive workload orchestrator.\nWhat can the agent do for you?")
+#[command( author="The Ankaios team",
+           version=env!("CARGO_PKG_VERSION"),
+           about="Ankaios - your friendly automotive workload orchestrator.\nWhat can the agent do for you?")
 ]
 pub struct Arguments {
-    #[clap(required = false, short = 'x', long = "agent-config")]
+    #[arg(required = false, short = 'x', long = "agent-config")]
     /// The path to the agent config file.
     /// The default path is /etc/ankaios/ank-agent.conf
     pub config_path: Option<String>,
-    #[clap(short = 'n', long = "name", required = false)]
+    #[arg(short = 'n', long = "name", required = false)]
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
     /// Agent name shall contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_".
     pub agent_name: Option<String>,
-    #[clap(short = 's', long = "server-url", required = false)]
+    #[arg(short = 's', long = "server-url", required = false)]
     /// The server url.
     pub server_url: Option<String>,
     /// An existing directory where agent specific runtime files will be stored. If not specified, a default folder is created.
-    #[clap(short = 'r', long = "run-folder", required = false)]
+    #[arg(short = 'r', long = "run-folder", required = false)]
     pub run_folder: Option<String>,
-    #[clap(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANKAGENT_INSECURE")]
+    #[arg(short = 'k', long = "insecure", action=ArgAction::Set, num_args=0, default_missing_value="true", env = "ANKAGENT_INSECURE")]
     /// Flag to disable TLS communication between Ankaios agent and server.
     pub insecure: Option<bool>,
-    #[clap(long = "ca_pem", env = "ANKAGENT_CA_PEM")]
+    #[arg(long = "ca_pem", env = "ANKAGENT_CA_PEM")]
     /// Path to agent ca pem file.
     pub ca_pem: Option<String>,
-    #[clap(long = "crt_pem", env = "ANKAGENT_CRT_PEM")]
+    #[arg(long = "crt_pem", env = "ANKAGENT_CRT_PEM")]
     /// Path to agent certificate pem file.
     pub crt_pem: Option<String>,
-    #[clap(long = "key_pem", env = "ANKAGENT_KEY_PEM")]
+    #[arg(long = "key_pem", env = "ANKAGENT_KEY_PEM")]
     /// Path to agent key pem file.
     pub key_pem: Option<String>,
 }
