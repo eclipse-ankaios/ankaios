@@ -31,12 +31,22 @@ workloads:
     configs:
       my_config: general_config
 configs:
-  general_config:
-    foo: bar
-  my_other_config:
-    baz:
-    - qux
-    - quux
-    - corge
+  can_be:
+    simple: strings
+  mapping_of_objects:
+    with:
+      arbitrary: depth
+  arrays_of:
+    items:
+    - some
+    - of
+    - which:
+      can:
+        be:
+          mappings:
+            again:
+            - and
+            - some
+            - arrays
 
 
