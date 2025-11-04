@@ -15,12 +15,12 @@
 use tonic_prost_build::Builder;
 
 pub fn setup_schema_annotations(mut builder: Builder) -> Builder {
+    // Setup the State schema annotations
     builder = builder
         .message_attribute(
             "State",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
-        // TODO we need to annotate all objects with the correct names
         .message_attribute(
             "State",
             "#[internal_type_attr(#[serde(rename = \"desiredState\")])]",
@@ -41,52 +41,95 @@ pub fn setup_schema_annotations(mut builder: Builder) -> Builder {
             "ConfigItem",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
+        .message_attribute(
+            "ConfigItem",
+            "#[internal_type_attr(#[serde(rename = \"configItem\")])]",
+        )
         .enum_attribute(
             "ConfigItemEnum",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+        )
+        .enum_attribute(
+            "ConfigItemEnum",
+            "#[internal_type_attr(#[serde(rename = \"configItemEnum\")])]",
         )
         .message_attribute(
             "ConfigObject",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
+            "ConfigObject",
+            "#[internal_type_attr(#[serde(rename = \"configObject\")])]",
+        )
+        .message_attribute(
             "ConfigArray",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
-        )
-        ;
+        ).message_attribute(
+            "ConfigArray",
+            "#[internal_type_attr(#[serde(rename = \"configArray\")])]",
+        );
 
+    // Setup the Workload related schema annotations
     builder
         .enum_attribute("RestartPolicy", "#[derive(schemars::JsonSchema)]")
-        .type_attribute(
+        .enum_attribute(
+            "RestartPolicy",
+            "#[serde(rename = \"restartPolicy\")]",
+        )
+        .message_attribute(
             "ControlInterfaceAccess",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
-        .type_attribute(
+        .message_attribute(
+            "ControlInterfaceAccess",
+            "#[internal_type_attr(#[serde(rename = \"controlInterfaceAccess\")])]",
+        )
+        .message_attribute(
             "AccessRightsRule",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+        )
+        .message_attribute(
+            "AccessRightsRule",
+            "#[internal_type_attr(#[serde(rename = \"accessRightsRule\")])]",
         )
         .enum_attribute(
             "AccessRightsRuleEnum",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
-        .type_attribute(
+        .message_attribute(
             "StateRule",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
+        .message_attribute(
+            "StateRule",
+            "#[internal_type_attr(#[serde(rename = \"stateRule\")])]",
+        )
         .enum_attribute("ReadWriteEnum", "#[derive(schemars::JsonSchema)]")
-        .type_attribute(
+        .enum_attribute(
+            "ReadWriteEnum",
+            "#[serde(rename = \"readWriteEnum\")]",
+        )
+        .message_attribute(
             "LogRule",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
-        .type_attribute(
+        .message_attribute(
+            "LogRule",
+            "#[internal_type_attr(#[serde(rename = \"logRule\")])]",
+        )
+        .message_attribute(
             "ConfigMappings",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
-        .type_attribute(
+        .message_attribute(
             "File",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
-        .type_attribute(
+        .message_attribute(
+            "File",
+            "#[internal_type_attr(#[serde(rename = \"file\")])]",
+        )
+        .message_attribute(
             "Files",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
@@ -94,16 +137,20 @@ pub fn setup_schema_annotations(mut builder: Builder) -> Builder {
             "FileContent",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
-        .type_attribute(
+        .message_attribute(
             "Tags",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
-        .type_attribute(
+        .message_attribute(
             "Dependencies",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .enum_attribute("AddCondition", "#[derive(schemars::JsonSchema)]")
-        .type_attribute(
+        .enum_attribute(
+            "AddCondition",
+            "#[serde(rename = \"addCondition\")]",
+        )
+        .message_attribute(
             "Workload",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )

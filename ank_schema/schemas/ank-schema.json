@@ -12,7 +12,7 @@
       "description": "Configuration values which can be referenced in workload configurations\nby mapping them the configs field of the workload definition.",
       "type": "object",
       "additionalProperties": {
-        "$ref": "#/$defs/ConfigItemInternal"
+        "$ref": "#/$defs/configItem"
       }
     },
     "workloads": {
@@ -29,7 +29,7 @@
     "configs"
   ],
   "$defs": {
-    "AccessRightsRuleInternal": {
+    "accessRightsRule": {
       "description": "A message containing an allow or deny rule.",
       "type": "object",
       "oneOf": [
@@ -42,7 +42,7 @@
               "const": "StateRule"
             }
           },
-          "$ref": "#/$defs/StateRuleInternal",
+          "$ref": "#/$defs/stateRule",
           "required": [
             "type"
           ]
@@ -56,14 +56,14 @@
               "const": "LogRule"
             }
           },
-          "$ref": "#/$defs/LogRuleInternal",
+          "$ref": "#/$defs/logRule",
           "required": [
             "type"
           ]
         }
       ]
     },
-    "AddCondition": {
+    "addCondition": {
       "description": "An enum type describing the expected workload state. Used for dependency management.",
       "oneOf": [
         {
@@ -83,7 +83,7 @@
         }
       ]
     },
-    "ConfigArrayInternal": {
+    "configArray": {
       "description": "A container for the array of config items.",
       "type": "object",
       "properties": {
@@ -91,7 +91,7 @@
           "description": "An array of configuration items.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/ConfigItemInternal"
+            "$ref": "#/$defs/configItem"
           }
         }
       },
@@ -99,7 +99,23 @@
         "values"
       ]
     },
-    "ConfigItemEnumInternal": {
+    "configItem": {
+      "description": "A configuration can be a simple string or a mapping or an array\nof other configurations items.\n\nThis is a test comment.",
+      "type": "object",
+      "properties": {
+        "config_item_enum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/configItemEnum"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "configItemEnum": {
       "oneOf": [
         {
           "type": "object",
@@ -117,7 +133,7 @@
           "type": "object",
           "properties": {
             "Array": {
-              "$ref": "#/$defs/ConfigArrayInternal"
+              "$ref": "#/$defs/configArray"
             }
           },
           "additionalProperties": false,
@@ -129,7 +145,7 @@
           "type": "object",
           "properties": {
             "Object": {
-              "$ref": "#/$defs/ConfigObjectInternal"
+              "$ref": "#/$defs/configObject"
             }
           },
           "additionalProperties": false,
@@ -139,23 +155,7 @@
         }
       ]
     },
-    "ConfigItemInternal": {
-      "description": "A configuration can be a simple string or a mapping or an array\nof other configurations items.",
-      "type": "object",
-      "properties": {
-        "config_item_enum": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConfigItemEnumInternal"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
-    "ConfigObjectInternal": {
+    "configObject": {
       "description": "A container for the mapping of config items.",
       "type": "object",
       "properties": {
@@ -163,7 +163,7 @@
           "description": "A mapping of configuration items.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/ConfigItemInternal"
+            "$ref": "#/$defs/configItem"
           }
         }
       },
@@ -171,7 +171,7 @@
         "fields"
       ]
     },
-    "ControlInterfaceAccessInternal": {
+    "controlInterfaceAccess": {
       "description": "A message containing the parts of the control interface the workload as authorized to access.\nBy default, all access is denied.\nOnly if a matching allow rule is found, and no matching deny rules is found, the access is allowed.",
       "type": "object",
       "properties": {
@@ -180,7 +180,7 @@
           "type": "array",
           "default": [],
           "items": {
-            "$ref": "#/$defs/AccessRightsRuleInternal"
+            "$ref": "#/$defs/accessRightsRule"
           }
         },
         "denyRules": {
@@ -188,12 +188,12 @@
           "type": "array",
           "default": [],
           "items": {
-            "$ref": "#/$defs/AccessRightsRuleInternal"
+            "$ref": "#/$defs/accessRightsRule"
           }
         }
       }
     },
-    "FileInternal": {
+    "file": {
       "description": "A message describing a file with a mount point and file content.",
       "type": "object",
       "properties": {
@@ -232,7 +232,7 @@
         "mountPoint"
       ]
     },
-    "LogRuleInternal": {
+    "logRule": {
       "description": "Message containing a rule for getting workload logs.",
       "type": "object",
       "properties": {
@@ -248,7 +248,7 @@
         "workloadNames"
       ]
     },
-    "ReadWriteEnum": {
+    "readWriteEnum": {
       "description": "An enum type describing if reads and/or write actions are allowed.",
       "oneOf": [
         {
@@ -273,7 +273,7 @@
         }
       ]
     },
-    "RestartPolicy": {
+    "restartPolicy": {
       "description": "An enum type describing the restart behavior of a workload.",
       "oneOf": [
         {
@@ -293,7 +293,7 @@
         }
       ]
     },
-    "StateRuleInternal": {
+    "stateRule": {
       "description": "Message containing a rule for getting or setting the state",
       "type": "object",
       "properties": {
@@ -306,7 +306,7 @@
         },
         "operation": {
           "description": "Defines which actions are allowed",
-          "$ref": "#/$defs/ReadWriteEnum"
+          "$ref": "#/$defs/readWriteEnum"
         }
       },
       "required": [
@@ -330,7 +330,7 @@
           "default": {}
         },
         "controlInterfaceAccess": {
-          "$ref": "#/$defs/ControlInterfaceAccessInternal",
+          "$ref": "#/$defs/controlInterfaceAccess",
           "default": {
             "allowRules": [],
             "denyRules": []
@@ -340,7 +340,7 @@
           "description": "A mapping from a workload name to an expected state.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/AddCondition"
+            "$ref": "#/$defs/addCondition"
           },
           "default": {}
         },
@@ -349,12 +349,12 @@
           "type": "array",
           "default": [],
           "items": {
-            "$ref": "#/$defs/FileInternal"
+            "$ref": "#/$defs/file"
           }
         },
         "restartPolicy": {
           "description": "An enum value that defines the condition under which a workload is restarted.",
-          "$ref": "#/$defs/RestartPolicy",
+          "$ref": "#/$defs/restartPolicy",
           "default": "NEVER"
         },
         "runtime": {
