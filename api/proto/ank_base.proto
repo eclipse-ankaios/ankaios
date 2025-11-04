@@ -309,9 +309,14 @@ message State {
 
 /*
  * This is a workaround for proto not supporting optional maps
- * Workload names shall not be shorter than 1 symbol longer then 63 symbols and can contain only regular characters, digits, the "-" and "_" symbols.
-  */
+ */
 message WorkloadMap {
+    /*
+     * A mapping from workload name to workload configurations.
+     *
+     * Workload names shall not be shorter than 1 symbol longer then 63 symbols
+     * and can contain only regular characters, digits, the "-" and "_" symbols.
+     */
     map<string, Workload> workloads = 1;
 }
 
@@ -410,10 +415,10 @@ message ConfigMappings {
 }
 
 /*
- * A message containing the files assigned to a workload.
+ * This is a workaround for proto not supporting optional arrays.
  */
 message Files {
-   repeated File files = 1;
+   repeated File files = 1; // A vector with files assigned to a workload.
 }
 
 /*
@@ -431,11 +436,16 @@ message File {
  * This is a workaround for proto not supporting optional maps
  */
 message ConfigMap {
+    /*
+     * Configuration values which can be referenced in workload configurations
+     * by mapping them the configs field of the workload definition.
+     */
     map<string, ConfigItem> configs = 1;
 }
 
 /*
- * An enum type describing possible configuration objects.
+ * A configuration can be a simple string or a mapping or an array
+ * of other configurations items.
  */
 message ConfigItem {
     oneof ConfigItemEnum {
@@ -445,10 +455,12 @@ message ConfigItem {
     }
 }
 
+// A container for the array of config items.
 message ConfigArray {
-    repeated ConfigItem values = 1;
+    repeated ConfigItem values = 1; // An array of configuration items.
 }
 
+// A container for the mapping of config items.
 message ConfigObject {
-    map<string, ConfigItem> fields = 1;
+    map<string, ConfigItem> fields = 1; // A mapping of configuration items.
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "StateInternal",
+  "title": "desiredState",
   "description": "A message containing the state information.",
   "type": "object",
   "properties": {
@@ -9,15 +9,17 @@
       "type": "string"
     },
     "configs": {
+      "description": "Configuration values which can be referenced in workload configurations\nby mapping them the configs field of the workload definition.",
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/ConfigItemInternal"
       }
     },
     "workloads": {
+      "description": "A mapping from workload name to workload configurations.\n\nWorkload names shall not be shorter than 1 symbol longer then 63 symbols\nand can contain only regular characters, digits, the \"-\" and \"\\_\" symbols.",
       "type": "object",
       "additionalProperties": {
-        "$ref": "#/$defs/WorkloadInternal"
+        "$ref": "#/$defs/workload"
       }
     }
   },
@@ -82,9 +84,11 @@
       ]
     },
     "ConfigArrayInternal": {
+      "description": "blabla",
       "type": "object",
       "properties": {
         "values": {
+          "description": "An array of configuration items.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/ConfigItemInternal"
@@ -136,7 +140,7 @@
       ]
     },
     "ConfigItemInternal": {
-      "description": "An enum type describing possible configuration objects.",
+      "description": "A configuration can be a simple string or a mapping or an array\nof other configurations items.",
       "type": "object",
       "properties": {
         "config_item_enum": {
@@ -152,9 +156,11 @@
       }
     },
     "ConfigObjectInternal": {
+      "description": "funny comment",
       "type": "object",
       "properties": {
         "fields": {
+          "description": "A mapping of configuration items.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/ConfigItemInternal"
@@ -308,7 +314,7 @@
         "filterMasks"
       ]
     },
-    "WorkloadInternal": {
+    "workload": {
       "description": "A message containing the configuration of a workload.",
       "type": "object",
       "properties": {

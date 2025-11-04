@@ -20,9 +20,18 @@ pub fn setup_schema_annotations(mut builder: Builder) -> Builder {
             "State",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
+        // TODO we need to annotate all objects with the correct names
+        .message_attribute(
+            "State",
+            "#[internal_type_attr(#[serde(rename = \"desiredState\")])]",
+        )
         .message_attribute(
             "WorkloadMap",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+        )
+        .message_attribute(
+            "Workload",
+            "#[internal_type_attr(#[serde(rename = \"workload\")])]",
         )
         .message_attribute(
             "ConfigMap",
