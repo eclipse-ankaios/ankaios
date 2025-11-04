@@ -45,7 +45,7 @@ workloads:
       allowRules:
       - type: StateRule
         operation: Read
-        filterMask:
+        filterMasks:
           - "desiredState.workloads.*.tags"
       - type: LogRule
         workloadNames:
@@ -53,7 +53,7 @@ workloads:
       denyRules:
       - type: StateRule
         operation: Read
-        filterMask:
+        filterMasks:
           - "desiredState.workloads.ivi_updater.tag"
       - type: LogRule
         workloadNames:

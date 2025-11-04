@@ -25,7 +25,7 @@ Ankaios supports the following dependency types:
 The user configures the `AddCondition` for each dependency in the `dependencies` field to define one or multiple dependencies for a workload.
 
 ```yaml
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   logger:
     agent: agent_A
@@ -64,7 +64,7 @@ The logging service requires an operational storage provider to write logs. Ther
 The Ankaios manifest below includes the configuration of each workload and its dependencies:
 
 ```yaml linenums="1" hl_lines="6 7 15 16 31 32"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   logger:
     runtime: podman

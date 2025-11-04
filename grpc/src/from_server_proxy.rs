@@ -21,16 +21,14 @@ use crate::grpc_api::{self, from_server::FromServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::ank_base;
 use api::ank_base::response::ResponseContent;
+use api::ank_base::{DeletedWorkload, WorkloadInstanceNameInternal, WorkloadNamed};
 
 use async_trait::async_trait;
 use common::commands::LogsRequest;
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
 };
-use common::objects::{
-    DeletedWorkload, DeletedWorkloadCollection, WorkloadCollection, WorkloadInstanceName,
-    WorkloadSpec, WorkloadState, get_workloads_per_agent,
-};
+use common::objects::WorkloadState;
 use common::request_id_prepending::detach_prefix_from_request_id;
 
 use tonic::Streaming;
@@ -73,7 +71,7 @@ pub async fn forward_from_proto_to_ankaios(
                             obj.added_workloads
                                 .into_iter()
                                 .map(|added_workload| added_workload.try_into())
-                                .collect::<Result<Vec<WorkloadSpec>, _>>()
+                                .collect::<Result<Vec<WorkloadNamed>, _>>()
                                 .map_err(GrpcMiddlewareError::ConversionError)?,
                         )
                         .await?;
@@ -84,7 +82,7 @@ pub async fn forward_from_proto_to_ankaios(
                             obj.added_workloads
                                 .into_iter()
                                 .map(|added_workload| added_workload.try_into())
-                                .collect::<Result<Vec<WorkloadSpec>, _>>()
+                                .collect::<Result<Vec<WorkloadNamed>, _>>()
                                 .map_err(GrpcMiddlewareError::ConversionError)?,
                             obj.deleted_workloads
                                 .into_iter()
@@ -276,29 +274,67 @@ async fn distribute_workload_states_to_agents(
     }
 }
 
+#[derive(Debug, Default)]
+struct UpdatedWorkloads {
+    added_workloads: Vec<WorkloadNamed>,
+    deleted_workloads: Vec<DeletedWorkload>,
+}
+
+type AgentWorkloadMap = HashMap<String, UpdatedWorkloads>;
+
+fn get_workloads_per_agent(
+    added_workloads: Vec<WorkloadNamed>,
+    deleted_workloads: Vec<DeletedWorkload>,
+) -> AgentWorkloadMap {
+    let mut agent_workloads: AgentWorkloadMap = HashMap::new();
+
+    added_workloads.into_iter().for_each(|added_workload| {
+        agent_workloads
+            .entry(added_workload.instance_name.agent_name.to_owned())
+            .or_default()
+            .added_workloads
+            .push(added_workload);
+    });
+
+    deleted_workloads.into_iter().for_each(|deleted_workload| {
+        agent_workloads
+            .entry(deleted_workload.instance_name.agent_name().to_owned())
+            .or_default()
+            .deleted_workloads
+            .push(deleted_workload);
+    });
+
+    agent_workloads
+}
+
 // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workloads_to_agents(
     agent_senders: &AgentSendersMap,
-    added_workloads: WorkloadCollection,
-    deleted_workloads: DeletedWorkloadCollection,
+    added_workloads: Vec<WorkloadNamed>,
+    deleted_workloads: Vec<DeletedWorkload>,
 ) {
     // [impl->swdd~grpc-server-sorts-commands-according-agents~1]
-    for (agent_name, (added_workload_vector, deleted_workload_vector)) in
-        get_workloads_per_agent(added_workloads, deleted_workloads)
+    for (
+        agent_name,
+        UpdatedWorkloads {
+            added_workloads,
+            deleted_workloads,
+        },
+    ) in get_workloads_per_agent(added_workloads, deleted_workloads)
     {
         if let Some(sender) = agent_senders.get(&agent_name) {
             log::trace!(
-                "Sending added and deleted workloads to agent '{agent_name}'.\n\tAdded workloads: {added_workload_vector:?}.\n\tDeleted workloads: {deleted_workload_vector:?}."
+                "Sending added and deleted workloads to agent '{agent_name}'.\n\tAdded workloads: {added_workloads:?}.\n\tDeleted workloads: {deleted_workloads:?}."
             );
             let result = sender
                 .send(Ok(grpc_api::FromServer {
                     from_server_enum: Some(FromServerEnum::UpdateWorkload(
                         grpc_api::UpdateWorkload {
-                            added_workloads: added_workload_vector
+                            added_workloads: added_workloads
                                 .into_iter()
                                 .map(|x| x.into())
                                 .collect(),
-                            deleted_workloads: deleted_workload_vector
+                            deleted_workloads: deleted_workloads
                                 .into_iter()
                                 .map(|x| x.into())
                                 .collect(),
@@ -377,9 +413,9 @@ async fn distribute_log_cancel_requests_to_agent(
 }
 
 fn group_workload_instance_names_by_agent(
-    workloads: Vec<WorkloadInstanceName>,
-) -> HashMap<String, Vec<WorkloadInstanceName>> {
-    let mut res: HashMap<String, Vec<WorkloadInstanceName>> = HashMap::new();
+    workloads: Vec<WorkloadInstanceNameInternal>,
+) -> HashMap<String, Vec<WorkloadInstanceNameInternal>> {
+    let mut res: HashMap<String, Vec<WorkloadInstanceNameInternal>> = HashMap::new();
     for w in workloads {
         res.entry(w.agent_name().to_owned()).or_default().push(w);
     }
@@ -398,17 +434,20 @@ fn group_workload_instance_names_by_agent(
 mod tests {
     extern crate serde;
     extern crate tonic;
-    use super::ank_base;
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use crate::grpc_api::{self, FromServer, UpdateWorkload, from_server::FromServerEnum};
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
-    use api::ank_base::{WorkloadMap, response};
-    use async_trait::async_trait;
-    use common::from_server_interface::FromServerInterface;
-    use common::objects::{
-        self, generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
+
+    use api::ank_base::{
+        self, ExecutionStateInternal, Workload, WorkloadMap, WorkloadNamed, response,
     };
-    use common::{commands, test_utils::*};
+    use api::test_utils::{
+        generate_test_deleted_workload, generate_test_workload, generate_test_workload_with_param,
+    };
+    use common::commands;
+    use common::from_server_interface::FromServerInterface;
+
+    use async_trait::async_trait;
     use std::collections::{HashMap, LinkedList};
     use tokio::sync::mpsc::error::TryRecvError;
     use tokio::{
@@ -466,6 +505,68 @@ mod tests {
         }
     }
 
+    #[test]
+    fn utest_get_workloads_per_agent_one_agent_one_workload() {
+        let added_workloads = vec![
+            generate_test_workload_with_param::<WorkloadNamed>("agent1", "runtime1")
+                .name("name 1".to_string()),
+            generate_test_workload_with_param::<WorkloadNamed>("agent1", "runtime2")
+                .name("name 2".to_string()),
+            generate_test_workload_with_param::<WorkloadNamed>("agent2", "runtime3")
+                .name("name 3".to_string()),
+        ];
+
+        let deleted_workloads = vec![
+            generate_test_deleted_workload("agent1".to_string(), "workload 8".to_string()),
+            generate_test_deleted_workload("agent4".to_string(), "workload 9".to_string()),
+        ];
+
+        let workload_map = super::get_workloads_per_agent(added_workloads, deleted_workloads);
+        assert_eq!(workload_map.len(), 3);
+
+        let agent1_workloads = workload_map.get("agent1").unwrap();
+        let agent1_added_workloads = &agent1_workloads.added_workloads;
+        let agent1_deleted_workloads = &agent1_workloads.deleted_workloads;
+        assert_eq!(agent1_added_workloads.len(), 2);
+        assert_eq!(agent1_deleted_workloads.len(), 1);
+
+        let workload1 = &agent1_added_workloads[0];
+        let workload2 = &agent1_added_workloads[1];
+        assert_eq!(workload1.instance_name.agent_name(), "agent1");
+        assert_eq!(workload1.workload.runtime, "runtime1");
+        assert_eq!(workload2.instance_name.agent_name(), "agent1");
+        assert_eq!(workload2.workload.runtime, "runtime2");
+
+        let deleted_workload1 = &agent1_deleted_workloads[0];
+        assert_eq!(deleted_workload1.instance_name.agent_name(), "agent1");
+        assert_eq!(
+            deleted_workload1.instance_name.workload_name(),
+            "workload 8"
+        );
+
+        let agent2_workloads = workload_map.get("agent2").unwrap();
+        let agent2_added_workloads = &agent2_workloads.added_workloads;
+        let agent2_deleted_workloads = &agent2_workloads.deleted_workloads;
+        assert_eq!(agent2_added_workloads.len(), 1);
+        assert_eq!(agent2_deleted_workloads.len(), 0);
+
+        let workload3 = &agent2_added_workloads[0];
+        assert_eq!(workload3.instance_name.agent_name(), "agent2");
+        assert_eq!(workload3.workload.runtime, "runtime3");
+
+        assert!(!workload_map.contains_key("agent3"));
+
+        let agent4_workloads = workload_map.get("agent4").unwrap();
+        let agent4_added_workloads = &agent4_workloads.added_workloads;
+        let agent4_deleted_workloads = &agent4_workloads.deleted_workloads;
+        assert_eq!(agent4_added_workloads.len(), 0);
+        assert_eq!(agent4_deleted_workloads.len(), 1);
+
+        let workload3 = &agent4_deleted_workloads[0];
+        assert_eq!(workload3.instance_name.agent_name(), "agent4");
+        assert_eq!(workload3.instance_name.workload_name(), "workload 9");
+    }
+
     #[tokio::test]
     async fn utest_from_server_proxy_forward_from_ankaios_to_proto_update_workload() {
         let agent = "agent_X";
@@ -475,11 +576,10 @@ mod tests {
         // As the channel capacity is big enough the await is satisfied right away
         let update_workload_result = to_manager
             .update_workload(
-                vec![generate_test_workload_spec_with_param(
-                    agent.into(),
-                    "name".to_string(),
-                    "my_runtime".into(),
-                )],
+                vec![
+                    generate_test_workload_with_param::<WorkloadNamed>(agent, "my_runtime")
+                        .name("name"),
+                ],
                 vec![generate_test_deleted_workload(
                     agent.to_string(),
                     "workload X".to_string(),
@@ -514,7 +614,7 @@ mod tests {
                 common::objects::generate_test_workload_state_with_agent(
                     WORKLOAD_NAME,
                     "other_agent",
-                    common::objects::ExecutionState::running(),
+                    ExecutionStateInternal::running(),
                 ),
             ])
             .await;
@@ -571,24 +671,21 @@ mod tests {
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        let mut workload: grpc_api::AddedWorkload = generate_test_workload_spec_with_param(
-            "agent_name".to_string(),
-            "name".to_string(),
-            "workload1".to_string(),
-        )
-        .into();
-
-        *workload
-            .dependencies
-            .get_mut(&String::from("workload_A"))
-            .unwrap() = -1;
+        let mut workload: Workload = generate_test_workload();
+        workload.dependencies = Some(ank_base::Dependencies {
+            dependencies: HashMap::from([("workload_B".to_string(), -1)]), // Set invalid AddCondition
+        });
+        let added_workload = grpc_api::AddedWorkload {
+            workload: Some(workload),
+            ..Default::default()
+        };
 
         // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
             MockGRPCFromServerStreaming::new(LinkedList::from([
                 Some(FromServer {
                     from_server_enum: Some(FromServerEnum::UpdateWorkload(UpdateWorkload {
-                        added_workloads: vec![workload],
+                        added_workloads: vec![added_workload],
                         deleted_workloads: vec![],
                     })),
                 }),
@@ -723,11 +820,12 @@ mod tests {
 
         join!(super::distribute_workloads_to_agents(
             &agent_senders,
-            vec![generate_test_workload_spec_with_param(
-                agent_name.to_string(),
-                "name".to_string(),
-                "workload1".to_string()
-            ),],
+            // vec![generate_test_workload_with_param(
+            //     agent_name.to_string(),
+            //     "name".to_string(),
+            //     "workload1".to_string()
+            // ),],
+            vec![generate_test_workload_with_param(agent_name, "runtime")],
             vec![]
         ))
         .0;
@@ -749,11 +847,15 @@ mod tests {
 
         join!(super::distribute_workloads_to_agents(
             &agent_senders,
-            vec![generate_test_workload_spec_with_param(
-                "not_existing_agent".to_string(),
-                "name".to_string(),
-                "workload1".to_string()
-            ),],
+            // vec![generate_test_workload_with_param(
+            //     "not_existing_agent".to_string(),
+            //     "name".to_string(),
+            //     "workload1".to_string()
+            // ),],
+            vec![generate_test_workload_with_param(
+                "non_existing_agent",
+                "runtime"
+            )],
             vec![]
         ))
         .0;
@@ -773,7 +875,7 @@ mod tests {
             vec![common::objects::generate_test_workload_state_with_agent(
                 "workload1",
                 "other_agent",
-                common::objects::ExecutionState::running()
+                ExecutionStateInternal::running()
             )],
         ))
         .0;
@@ -796,8 +898,7 @@ mod tests {
         let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
-            generate_test_stored_workload_spec(agent_name.to_string(), "my_runtime".to_string())
-                .into(),
+            generate_test_workload_with_param(agent_name, "my_runtime"),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -956,8 +1057,7 @@ mod tests {
         let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
-            generate_test_stored_workload_spec(agent_name.to_string(), "my_runtime".to_string())
-                .into(),
+            generate_test_workload_with_param(agent_name, "my_runtime"),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -1027,8 +1127,7 @@ mod tests {
         let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
-            generate_test_stored_workload_spec(agent_name.to_string(), "my_runtime".to_string())
-                .into(),
+            generate_test_workload_with_param(agent_name, "my_runtime"),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -1080,7 +1179,7 @@ mod tests {
                     since,
                     until
                 }
-            ) if request_id == my_request_id && workload_names == vec![objects::WorkloadInstanceName::new(agent_name, WORKLOAD_NAME, "id")] && follow && tail == 10 &&since.is_none() && until.is_none()
+            ) if request_id == my_request_id && workload_names == vec![api::ank_base::WorkloadInstanceNameInternal::new(agent_name, WORKLOAD_NAME, "id")] && follow && tail == 10 &&since.is_none() && until.is_none()
         ));
     }
 
@@ -1093,8 +1192,7 @@ mod tests {
         let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
-            generate_test_stored_workload_spec(agent_name.to_string(), "my_runtime".to_string())
-                .into(),
+            generate_test_workload_with_param(agent_name, "my_runtime"),
         );
 
         let my_request_id = "my_request_id".to_owned();

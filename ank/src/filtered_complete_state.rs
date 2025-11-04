@@ -12,32 +12,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
-
-use api::ank_base;
-use common::{
-    helpers::serialize_to_ordered_map,
-    objects::{
-        AddCondition, ConfigItem, ControlInterfaceAccess, File, RestartPolicy, WorkloadStatesMap,
-    },
-};
-use serde::{Deserialize, Serialize, Serializer};
-
 use crate::{output_and_error, output_warn};
 
-pub fn serialize_option_to_ordered_map<S, T: Serialize>(
-    value: &Option<HashMap<String, T>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    if let Some(value) = value {
-        serialize_to_ordered_map(value, serializer)
-    } else {
-        serializer.serialize_none()
-    }
-}
+use api::ank_base::{
+    self, AddCondition, ControlInterfaceAccessInternal, FileInternal, RestartPolicy,
+};
+use common::objects::{ConfigItem, WorkloadStatesMap};
+
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -53,75 +36,79 @@ pub struct FilteredCompleteState {
     pub agents: Option<FilteredAgentMap>,
 }
 
+// pub type FilteredCompleteStateInternal = api::ank_base::CompleteState;
+
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilteredState {
     // [impl->swdd~cli-returns-api-version-with-desired-state~1]
     pub api_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
+    // #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
     pub workloads: Option<HashMap<String, FilteredWorkloadSpec>>,
-    #[serde(serialize_with = "serialize_option_to_ordered_map")]
+    // #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub configs: Option<HashMap<String, ConfigItem>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FilteredAgentMap {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
-    pub agents: Option<HashMap<String, FilteredAgentAttributes>>,
-}
+// #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct FilteredAgentMap {
+//     #[serde(skip_serializing_if = "Option::is_none")]
+//     // #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
+//     pub agents: Option<HashMap<String, FilteredAgentAttributes>>,
+// }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct FilteredCpuUsage {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cpu_usage: Option<u32>,
-}
+pub type FilteredAgentMap = api::ank_base::AgentMap;
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct FilteredFreeMemory {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub free_memory: Option<u64>,
-}
+// #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
+// #[serde(rename_all = "camelCase")]
+// pub struct FilteredCpuUsage {
+//     #[serde(skip_serializing_if = "Option::is_none")]
+//     pub cpu_usage: Option<u32>,
+// }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FilteredAgentAttributes {
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub cpu_usage: Option<FilteredCpuUsage>,
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    pub free_memory: Option<FilteredFreeMemory>,
-}
+// #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
+// #[serde(rename_all = "camelCase")]
+// pub struct FilteredFreeMemory {
+//     #[serde(skip_serializing_if = "Option::is_none")]
+//     pub free_memory: Option<u64>,
+// }
 
-impl FilteredAgentAttributes {
-    pub fn get_cpu_usage_as_string(&mut self) -> String {
-        if let Some(cpu_usage) = &self.cpu_usage {
-            if let Some(cpu_usage_value) = cpu_usage.cpu_usage {
-                format!("{cpu_usage_value}%")
-            } else {
-                "".to_string()
-            }
-        } else {
-            "".to_string()
-        }
-    }
+// #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct FilteredAgentAttributes {
+//     #[serde(flatten, skip_serializing_if = "Option::is_none")]
+//     pub cpu_usage: Option<FilteredCpuUsage>,
+//     #[serde(flatten, skip_serializing_if = "Option::is_none")]
+//     pub free_memory: Option<FilteredFreeMemory>,
+// }
 
-    pub fn get_free_memory_as_string(&mut self) -> String {
-        if let Some(free_memory) = &self.free_memory {
-            if let Some(free_memory_value) = free_memory.free_memory {
-                format!("{free_memory_value}B")
-            } else {
-                "".to_string()
-            }
-        } else {
-            "".to_string()
-        }
-    }
-}
+// impl FilteredAgentAttributes {
+//     pub fn get_cpu_usage_as_string(&mut self) -> String {
+//         if let Some(cpu_usage) = &self.cpu_usage {
+//             if let Some(cpu_usage_value) = cpu_usage.cpu_usage {
+//                 format!("{cpu_usage_value}%")
+//             } else {
+//                 "".to_string()
+//             }
+//         } else {
+//             "".to_string()
+//         }
+//     }
+
+//     pub fn get_free_memory_as_string(&mut self) -> String {
+//         if let Some(free_memory) = &self.free_memory {
+//             if let Some(free_memory_value) = free_memory.free_memory {
+//                 format!("{free_memory_value}B")
+//             } else {
+//                 "".to_string()
+//             }
+//         } else {
+//             "".to_string()
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -130,7 +117,7 @@ pub struct FilteredWorkloadSpec {
     pub agent: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<HashMap<String, String>>,
-    #[serde(serialize_with = "serialize_option_to_ordered_map")]
+    // #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dependencies: Option<HashMap<String, AddCondition>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -140,12 +127,12 @@ pub struct FilteredWorkloadSpec {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime_config: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub control_interface_access: Option<ControlInterfaceAccess>,
-    #[serde(serialize_with = "serialize_option_to_ordered_map")]
+    pub control_interface_access: Option<ControlInterfaceAccessInternal>,
+    // #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub configs: Option<HashMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub files: Option<Vec<File>>,
+    pub files: Option<Vec<FileInternal>>,
 }
 
 impl From<ank_base::CompleteState> for FilteredCompleteState {
@@ -153,7 +140,7 @@ impl From<ank_base::CompleteState> for FilteredCompleteState {
         FilteredCompleteState {
             desired_state: value.desired_state.map(Into::into),
             workload_states: value.workload_states.map(Into::into),
-            agents: value.agents.map(Into::into),
+            agents: value.agents,
         }
     }
 }
@@ -223,41 +210,35 @@ impl From<ank_base::Workload> for FilteredWorkloadSpec {
     }
 }
 
-impl From<ank_base::AgentMap> for FilteredAgentMap {
-    fn from(value: ank_base::AgentMap) -> Self {
-        FilteredAgentMap {
-            agents: Some(
-                value
-                    .agents
-                    .into_iter()
-                    .map(|(agent_name, agent_attributes)| (agent_name, agent_attributes.into()))
-                    .collect(),
-            ),
-        }
-    }
-}
+// impl From<ank_base::AgentMap> for FilteredAgentMap {
+//     fn from(value: ank_base::AgentMap) -> Self {
+//         FilteredAgentMap {
+//             agents: Some(value.agents.into_iter().collect()),
+//         }
+//     }
+// }
 
-impl From<ank_base::AgentAttributes> for FilteredAgentAttributes {
-    fn from(value: ank_base::AgentAttributes) -> Self {
-        FilteredAgentAttributes {
-            cpu_usage: value.cpu_usage.map(Into::into),
-            free_memory: value.free_memory.map(Into::into),
-        }
-    }
-}
+// impl From<ank_base::AgentAttributes> for FilteredAgentAttributes {
+//     fn from(value: ank_base::AgentAttributes) -> Self {
+//         FilteredAgentAttributes {
+//             cpu_usage: value.cpu_usage,
+//             free_memory: value.free_memory,
+//         }
+//     }
+// }
 
-impl From<ank_base::CpuUsage> for FilteredCpuUsage {
-    fn from(value: ank_base::CpuUsage) -> Self {
-        FilteredCpuUsage {
-            cpu_usage: Some(value.cpu_usage),
-        }
-    }
-}
+// impl From<ank_base::CpuUsage> for FilteredCpuUsage {
+//     fn from(value: ank_base::CpuUsage) -> Self {
+//         FilteredCpuUsage {
+//             cpu_usage: value.cpu_usage,
+//         }
+//     }
+// }
 
-impl From<ank_base::FreeMemory> for FilteredFreeMemory {
-    fn from(value: ank_base::FreeMemory) -> Self {
-        FilteredFreeMemory {
-            free_memory: Some(value.free_memory),
-        }
-    }
-}
+// impl From<ank_base::FreeMemory> for FilteredFreeMemory {
+//     fn from(value: ank_base::FreeMemory) -> Self {
+//         FilteredFreeMemory {
+//             free_memory: value.free_memory,
+//         }
+//     }
+// }

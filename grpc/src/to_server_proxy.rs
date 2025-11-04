@@ -21,6 +21,7 @@ use api::ank_base::{
     request::RequestContent,
 };
 
+use common::objects::AgentLoadStatus;
 use common::request_id_prepending::prepend_request_id;
 use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender};
 
@@ -226,7 +227,7 @@ pub async fn forward_from_ankaios_to_proto(
                 grpc_tx
                     .send(grpc_api::ToServer {
                         to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentLoadStatus(
-                            common::commands::AgentLoadStatus {
+                            AgentLoadStatus {
                                 agent_name: status.agent_name,
                                 cpu_usage: status.cpu_usage,
                                 free_memory: status.free_memory,
@@ -301,23 +302,20 @@ pub async fn forward_from_ankaios_to_proto(
 
 #[cfg(test)]
 mod tests {
-
-    use std::collections::LinkedList;
-
     use super::{GRPCStreaming, forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
-    use async_trait::async_trait;
-    use common::objects::{CpuUsage, FreeMemory};
-    use common::test_utils::generate_test_complete_state;
-    use common::{
-        objects::generate_test_workload_spec_with_param,
-        to_server_interface::{ToServer, ToServerInterface},
-    };
-    use tokio::sync::mpsc;
-
     use crate::grpc_api::{self, to_server::ToServerEnum};
+
     use api::ank_base::{
-        self, LogEntriesResponse, LogEntry, LogsStopResponse, WorkloadInstanceName,
+        self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogEntriesResponse,
+        LogEntry, LogsStopResponse, WorkloadInstanceName, WorkloadNamed,
     };
+    use api::test_utils::generate_test_workload;
+
+    use async_trait::async_trait;
+    use common::test_utils::generate_test_complete_state;
+    use common::to_server_interface::{ToServer, ToServerInterface};
+    use std::collections::LinkedList;
+    use tokio::sync::mpsc;
 
     #[derive(Default, Clone)]
     struct MockGRPCToServerStreaming {
@@ -344,7 +342,6 @@ mod tests {
     const AGENT_B_NAME: &str = "agent_B";
     const WORKLOAD_1_NAME: &str = "workload_1";
     const WORKLOAD_2_NAME: &str = "workload_2";
-    const RUNTIME_NAME: &str = "runtime";
     const WORKLOAD_ID_1: &str = "id_1";
     const WORKLOAD_ID_2: &str = "id_2";
     const LOG_MESSAGE_1: &str = "message_1";
@@ -356,10 +353,10 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let agent_load_status = common::commands::AgentLoadStatus {
+        let agent_load_status = common::objects::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: CpuUsage { cpu_usage: 42 },
-            free_memory: FreeMemory { free_memory: 42 },
+            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
+            free_memory: FreeMemoryInternal { free_memory: 42 },
         };
 
         let agent_resource_result = server_tx.agent_load_status(agent_load_status.clone()).await;
@@ -386,10 +383,10 @@ mod tests {
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
-        let agent_load_status = common::commands::AgentLoadStatus {
+        let agent_load_status = common::objects::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: CpuUsage { cpu_usage: 42 },
-            free_memory: FreeMemory { free_memory: 42 },
+            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
+            free_memory: FreeMemoryInternal { free_memory: 42 },
         };
 
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
@@ -427,12 +424,8 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let input_state =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                AGENT_A_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )]);
+        let workload_named = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_1_NAME);
+        let input_state = generate_test_complete_state(vec![workload_named]);
         let update_mask = vec!["bla".into()];
 
         // As the channel capacity is big enough the await is satisfied right away
@@ -471,7 +464,7 @@ mod tests {
         let wl_state = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_A_NAME,
-            common::objects::ExecutionState::running(),
+            ExecutionStateInternal::running(),
         );
 
         let update_workload_state_result = server_tx
@@ -515,9 +508,7 @@ mod tests {
         assert!(forward_result.is_err());
         assert_eq!(
             forward_result.unwrap_err().to_string(),
-            String::from(
-                "Connection interrupted: 'status: 'Unknown error', self: \"test\"'"
-            )
+            String::from("Connection interrupted: 'status: 'Unknown error', self: \"test\"'")
         );
 
         // pick received from server message
@@ -563,14 +554,11 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_fail_on_invalid_state() {
         let (server_tx, mut _server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+        let workload_named = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_1_NAME);
+        let agent_name = workload_named.workload.agent.clone();
 
         let mut ankaios_state: ank_base::CompleteState =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                AGENT_A_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )])
-            .into();
+            generate_test_complete_state(vec![workload_named]).into();
         *ankaios_state
             .desired_state
             .as_mut()
@@ -585,7 +573,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .dependencies
-            .get_mut(&String::from("workload_A"))
+            .get_mut(&String::from("workload_B"))
             .unwrap() = -1;
 
         let ankaios_update_mask = vec!["bla".into()];
@@ -611,7 +599,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            agent_name,
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -623,14 +611,10 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_update_workload() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+        let workload_named = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_1_NAME);
+        let agent_name = workload_named.workload.agent.clone();
 
-        let ankaios_state =
-            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                AGENT_A_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )]);
-
+        let ankaios_state = generate_test_complete_state(vec![workload_named]);
         let ankaios_update_mask = vec!["bla".into()];
 
         // simulate the reception of an update workload state grpc from server message
@@ -654,7 +638,7 @@ mod tests {
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
-            AGENT_A_NAME.to_string(),
+            agent_name.clone(),
             &mut mock_grpc_ex_request_streaming,
             server_tx,
         )
@@ -664,7 +648,7 @@ mod tests {
 
         // pick received from server message
         let result = server_rx.recv().await.unwrap();
-        let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
+        let expected_prefixed_my_request_id = format!("{agent_name}@{REQUEST_ID}");
 
         assert!(matches!(
             result,
@@ -684,7 +668,7 @@ mod tests {
             common::objects::generate_test_workload_state_with_agent(
                 "fake_workload",
                 AGENT_A_NAME,
-                common::objects::ExecutionState::running(),
+                ExecutionStateInternal::running(),
             )
             .into();
 
@@ -847,13 +831,13 @@ mod tests {
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
         let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
-        let expected_workload_names: Vec<common::objects::WorkloadInstanceName> = vec![
-            common::objects::WorkloadInstanceName::new(
+        let expected_workload_names: Vec<api::ank_base::WorkloadInstanceNameInternal> = vec![
+            api::ank_base::WorkloadInstanceNameInternal::new(
                 AGENT_A_NAME,
                 WORKLOAD_1_NAME,
                 WORKLOAD_ID_1,
             ),
-            common::objects::WorkloadInstanceName::new(
+            api::ank_base::WorkloadInstanceNameInternal::new(
                 AGENT_A_NAME,
                 WORKLOAD_2_NAME,
                 WORKLOAD_ID_2,

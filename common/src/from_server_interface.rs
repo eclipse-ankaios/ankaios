@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::{self, LogsRequest};
-use crate::objects::{DeletedWorkload, WorkloadSpec, WorkloadState};
-use api::ank_base;
+use crate::objects::WorkloadState;
+use api::ank_base::{self, DeletedWorkload, WorkloadNamed};
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -51,11 +51,11 @@ pub trait FromServerInterface {
     async fn server_hello(
         &self,
         agent_name: Option<String>,
-        added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadNamed>,
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_workload(
         &self,
-        added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadNamed>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_workload_state(
@@ -117,7 +117,7 @@ impl FromServerInterface for FromServerSender {
         &self,
         // This is a workaround for not having a request-response model dedicated for the communication middleware
         agent_name: Option<String>,
-        added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadNamed>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::ServerHello(commands::ServerHello {
@@ -129,7 +129,7 @@ impl FromServerInterface for FromServerSender {
 
     async fn update_workload(
         &self,
-        added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadNamed>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
@@ -305,16 +305,14 @@ impl FromServerInterface for FromServerSender {
 
 #[cfg(test)]
 mod tests {
-    use super::ank_base;
     use crate::{
         commands,
         from_server_interface::{FromServer, FromServerInterface},
-        objects::{
-            ExecutionState, WorkloadInstanceName, generate_test_workload_spec,
-            generate_test_workload_state,
-        },
-        test_utils::{generate_test_complete_state, generate_test_deleted_workload},
+        objects::generate_test_workload_state,
+        test_utils::generate_test_complete_state,
     };
+    use api::ank_base::{self, ExecutionStateInternal, WorkloadInstanceNameInternal};
+    use api::test_utils::{generate_test_deleted_workload, generate_test_workload};
 
     use super::{FromServerReceiver, FromServerSender};
 
@@ -330,7 +328,7 @@ mod tests {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        let added_workloads = vec![generate_test_workload_spec()];
+        let added_workloads = vec![generate_test_workload()];
         let deleted_workloads = vec![generate_test_deleted_workload(
             AGENT_NAME.to_string(),
             WORKLOAD_NAME_1.to_string(),
@@ -357,7 +355,7 @@ mod tests {
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
         let workload_state =
-            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionState::running());
+            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionStateInternal::running());
         assert!(
             tx.update_workload_state(vec![workload_state.clone()])
                 .await
@@ -379,7 +377,7 @@ mod tests {
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
         let complete_state: ank_base::CompleteState =
-            generate_test_complete_state(vec![generate_test_workload_spec()]).into();
+            generate_test_complete_state(vec![generate_test_workload()]).into();
         assert!(
             tx.complete_state(REQUEST_ID.to_string(), complete_state.clone())
                 .await
@@ -490,8 +488,8 @@ mod tests {
                 REQUEST_ID.into(),
                 commands::LogsRequest {
                     workload_names: vec![
-                        WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_NAME_1, "1"),
-                        WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_NAME_2, "2")
+                        WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_NAME_1, "1"),
+                        WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_NAME_2, "2")
                     ],
                     follow: true,
                     tail: 10,

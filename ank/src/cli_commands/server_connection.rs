@@ -19,14 +19,13 @@ use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
-use api::ank_base::{self, LogsRequestAccepted};
+use api::ank_base::{self, LogsRequestAccepted, WorkloadInstanceNameInternal};
 use common::{
     commands::{CompleteStateRequest, LogsRequest, UpdateWorkloadState},
     communications_client::CommunicationsClient,
     communications_error::CommunicationMiddlewareError,
     from_server_interface::{FromServer, FromServerReceiver},
     objects::CompleteState,
-    objects::WorkloadInstanceName,
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 use grpc::{client::GRPCCommunicationsClient, security::TLSConfig};
@@ -229,7 +228,7 @@ impl ServerConnection {
     // [impl->swdd~cli-streams-logs-from-the-server~1]
     pub async fn stream_logs(
         &mut self,
-        instance_names: BTreeSet<WorkloadInstanceName>,
+        instance_names: BTreeSet<WorkloadInstanceNameInternal>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
         let request_id = uuid::Uuid::new_v4().to_string();
@@ -260,7 +259,7 @@ impl ServerConnection {
     async fn send_logs_request_for_workloads(
         &mut self,
         request_id: &str,
-        workload_instance_names: Vec<WorkloadInstanceName>,
+        workload_instance_names: Vec<WorkloadInstanceNameInternal>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
         let logs_request = LogsRequest {
@@ -339,7 +338,7 @@ impl ServerConnection {
 
     fn compare_requested_with_accepted_workloads(
         &self,
-        requested_workloads: &BTreeSet<WorkloadInstanceName>,
+        requested_workloads: &BTreeSet<WorkloadInstanceNameInternal>,
         accepted_workloads: Vec<ank_base::WorkloadInstanceName>,
     ) -> Result<(), ServerConnectionError> {
         for instance_name in requested_workloads {
@@ -358,7 +357,7 @@ impl ServerConnection {
     async fn listen_for_workload_logs(
         &mut self,
         request_id: String,
-        mut instance_names: BTreeSet<WorkloadInstanceName>,
+        mut instance_names: BTreeSet<WorkloadInstanceNameInternal>,
         output_log_format_function: fn(Vec<ank_base::LogEntry>),
     ) -> Result<(), ServerConnectionError> {
         loop {
@@ -429,7 +428,7 @@ fn handle_server_log_response(
                 workload_instance_name
             );
             Ok(LogStreamingState::StopForWorkload(
-                workload_instance_name.into(),
+                workload_instance_name.try_into().unwrap(),
             ))
         }
 
@@ -452,7 +451,7 @@ fn handle_server_log_response(
 
 // [impl->swdd~cli-outputs-logs-in-specific-format~1]
 fn select_log_format_function(
-    instance_names: &BTreeSet<WorkloadInstanceName>,
+    instance_names: &BTreeSet<WorkloadInstanceNameInternal>,
     force_output_names: bool,
 ) -> fn(Vec<ank_base::LogEntry>) {
     if is_output_with_workload_names(instance_names, force_output_names) {
@@ -463,14 +462,14 @@ fn select_log_format_function(
 }
 
 fn is_output_with_workload_names(
-    instance_names: &BTreeSet<WorkloadInstanceName>,
+    instance_names: &BTreeSet<WorkloadInstanceNameInternal>,
     force_output_names: bool,
 ) -> bool {
     instance_names.len() > 1 || force_output_names
 }
 
 enum LogStreamingState {
-    StopForWorkload(WorkloadInstanceName),
+    StopForWorkload(WorkloadInstanceNameInternal),
     Continue,
     Output(api::ank_base::LogEntriesResponse),
 }
@@ -551,8 +550,7 @@ lazy_static! {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeSet, HashMap};
-
+    use super::ServerConnection;
     use crate::{
         cli::LogsArgs,
         cli_commands::server_connection::{
@@ -562,20 +560,20 @@ mod tests {
         test_helper::MOCKALL_CONTEXT_SYNC,
     };
 
-    use super::ank_base::{self, UpdateStateSuccess};
+    use api::ank_base::{
+        self, ExecutionStateInternal, UpdateStateSuccess, WorkloadInstanceNameInternal,
+        WorkloadInternal,
+    };
+    use api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
         commands::{CompleteStateRequest, RequestContent, UpdateStateRequest, UpdateWorkloadState},
         from_server_interface::FromServer,
-        objects::{
-            CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadInstanceName,
-            WorkloadState,
-        },
-        test_utils::{self, generate_test_proto_workload_files},
+        objects::{CompleteState, State, WorkloadState},
         to_server_interface::ToServer,
     };
-    use tokio::sync::mpsc::Receiver;
 
-    use super::ServerConnection;
+    use std::collections::{BTreeSet, HashMap};
+    use tokio::sync::mpsc::Receiver;
 
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
@@ -591,7 +589,7 @@ mod tests {
         actions: Vec<CommunicationSimulatorAction>,
     }
 
-    struct CorrectCommuncationChecker {
+    struct CorrectCommunicationChecker {
         join_handle: tokio::task::JoinHandle<()>,
         is_ready: tokio::sync::oneshot::Receiver<Receiver<ToServer>>,
     }
@@ -604,7 +602,7 @@ mod tests {
     }
 
     impl CommunicationSimulator {
-        fn create_server_connection(self) -> (CorrectCommuncationChecker, ServerConnection) {
+        fn create_server_connection(self) -> (CorrectCommunicationChecker, ServerConnection) {
             let (from_server, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(1);
             let (to_server, mut server_receiver) = tokio::sync::mpsc::channel::<ToServer>(1);
 
@@ -646,7 +644,7 @@ mod tests {
             });
 
             (
-                CorrectCommuncationChecker {
+                CorrectCommunicationChecker {
                     join_handle,
                     is_ready,
                 },
@@ -685,7 +683,7 @@ mod tests {
         }
     }
 
-    impl CorrectCommuncationChecker {
+    impl CorrectCommunicationChecker {
         fn check_communication(mut self) {
             let Ok(mut to_server) = self.is_ready.try_recv() else {
                 panic!("Not all messages have been sent or received");
@@ -697,7 +695,7 @@ mod tests {
         }
     }
 
-    impl Drop for CorrectCommuncationChecker {
+    impl Drop for CorrectCommunicationChecker {
         fn drop(&mut self) {
             self.join_handle.abort();
         }
@@ -708,7 +706,7 @@ mod tests {
             desired_state: State {
                 workloads: [(
                     workload_name.into(),
-                    StoredWorkloadSpec {
+                    WorkloadInternal {
                         agent: AGENT_A.into(),
                         runtime: RUNTIME.into(),
                         ..Default::default()
@@ -721,7 +719,7 @@ mod tests {
         }
     }
 
-    fn instance_name(workload_name: &str) -> WorkloadInstanceName {
+    fn instance_name(workload_name: &str) -> WorkloadInstanceNameInternal {
         format!("{workload_name}.{ID}.{AGENT_A}")
             .try_into()
             .unwrap()
@@ -737,29 +735,30 @@ mod tests {
             }),
         );
 
-        let proto_complete_state = test_utils::generate_test_proto_complete_state(&[(
+        let proto_complete_state = generate_test_proto_complete_state(&[(
             WORKLOAD_NAME_1,
-            ank_base::Workload {
-                agent: Some(AGENT_A.to_string()),
-                runtime: Some(RUNTIME.to_string()),
-                tags: Some(ank_base::Tags {
-                    tags: HashMap::new(),
-                }),
-                dependencies: Some(ank_base::Dependencies {
-                    dependencies: HashMap::new(),
-                }),
-                restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                runtime_config: Some(String::default()),
-                control_interface_access: None,
-                configs: Some(ank_base::ConfigMappings {
-                    configs: [
-                        ("ref1".into(), "config_1".into()),
-                        ("ref2".into(), "config_2".into()),
-                    ]
-                    .into(),
-                }),
-                files: Some(generate_test_proto_workload_files()),
-            },
+            // ank_base::Workload {
+            //     agent: Some(AGENT_A.to_string()),
+            //     runtime: Some(RUNTIME.to_string()),
+            //     tags: Some(ank_base::Tags {
+            //         tags: HashMap::new(),
+            //     }),
+            //     dependencies: Some(ank_base::Dependencies {
+            //         dependencies: HashMap::new(),
+            //     }),
+            //     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+            //     runtime_config: Some(String::default()),
+            //     control_interface_access: None,
+            //     configs: Some(ank_base::ConfigMappings {
+            //         configs: [
+            //             ("ref1".into(), "config_1".into()),
+            //             ("ref2".into(), "config_2".into()),
+            //         ]
+            //         .into(),
+            //     }),
+            //     files: Some(generate_test_proto_workload_files()),
+            // },
+            generate_test_workload(),
         )]);
 
         sim.will_send_response(
@@ -812,57 +811,59 @@ mod tests {
     // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_get_complete_state_other_response_in_between() {
-        let proto_complete_state = test_utils::generate_test_proto_complete_state(&[(
+        let proto_complete_state = generate_test_proto_complete_state(&[(
             WORKLOAD_NAME_1,
-            ank_base::Workload {
-                agent: Some(AGENT_A.to_string()),
-                runtime: Some(RUNTIME.to_string()),
-                tags: Some(ank_base::Tags {
-                    tags: HashMap::new(),
-                }),
-                dependencies: Some(ank_base::Dependencies {
-                    dependencies: HashMap::new(),
-                }),
-                restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                runtime_config: Some("".to_string()),
-                control_interface_access: None,
-                configs: Some(ank_base::ConfigMappings {
-                    configs: [
-                        ("ref1".into(), "config_1".into()),
-                        ("ref2".into(), "config_2".into()),
-                    ]
-                    .into(),
-                }),
-                files: Some(generate_test_proto_workload_files()),
-            },
+            // ank_base::Workload {
+            //     agent: Some(AGENT_A.to_string()),
+            //     runtime: Some(RUNTIME.to_string()),
+            //     tags: Some(ank_base::Tags {
+            //         tags: HashMap::new(),
+            //     }),
+            //     dependencies: Some(ank_base::Dependencies {
+            //         dependencies: HashMap::new(),
+            //     }),
+            //     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+            //     runtime_config: Some("".to_string()),
+            //     control_interface_access: None,
+            //     configs: Some(ank_base::ConfigMappings {
+            //         configs: [
+            //             ("ref1".into(), "config_1".into()),
+            //             ("ref2".into(), "config_2".into()),
+            //         ]
+            //         .into(),
+            //     }),
+            //     files: Some(generate_test_proto_workload_files()),
+            // },
+            generate_test_workload(),
         )]);
 
         let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
+                generate_test_proto_complete_state(&[(
                     WORKLOAD_NAME_2,
-                    ank_base::Workload {
-                        agent: Some(AGENT_A.to_string()),
-                        runtime: Some(RUNTIME.to_string()),
-                        tags: Some(ank_base::Tags {
-                            tags: HashMap::new(),
-                        }),
-                        dependencies: Some(ank_base::Dependencies {
-                            dependencies: HashMap::new(),
-                        }),
-                        restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                        runtime_config: Some("".to_string()),
-                        control_interface_access: None,
-                        configs: Some(ank_base::ConfigMappings {
-                            configs: [
-                                ("ref1".into(), "config_1".into()),
-                                ("ref2".into(), "config_2".into()),
-                            ]
-                            .into(),
-                        }),
-                        files: Some(generate_test_proto_workload_files()),
-                    },
+                    // ank_base::Workload {
+                    //     agent: Some(AGENT_A.to_string()),
+                    //     runtime: Some(RUNTIME.to_string()),
+                    //     tags: Some(ank_base::Tags {
+                    //         tags: HashMap::new(),
+                    //     }),
+                    //     dependencies: Some(ank_base::Dependencies {
+                    //         dependencies: HashMap::new(),
+                    //     }),
+                    //     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                    //     runtime_config: Some("".to_string()),
+                    //     control_interface_access: None,
+                    //     configs: Some(ank_base::ConfigMappings {
+                    //         configs: [
+                    //             ("ref1".into(), "config_1".into()),
+                    //             ("ref2".into(), "config_2".into()),
+                    //         ]
+                    //         .into(),
+                    //     }),
+                    //     files: Some(generate_test_proto_workload_files()),
+                    // },
+                    generate_test_workload(),
                 )]),
             )),
         });
@@ -899,29 +900,30 @@ mod tests {
         let other_message = FromServer::UpdateWorkloadState(UpdateWorkloadState {
             workload_states: vec![],
         });
-        let proto_complete_state = test_utils::generate_test_proto_complete_state(&[(
+        let proto_complete_state = generate_test_proto_complete_state(&[(
             WORKLOAD_NAME_1,
-            ank_base::Workload {
-                agent: Some(AGENT_A.to_string()),
-                runtime: Some(RUNTIME.to_string()),
-                tags: Some(ank_base::Tags {
-                    tags: HashMap::new(),
-                }),
-                dependencies: Some(ank_base::Dependencies {
-                    dependencies: HashMap::new(),
-                }),
-                restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                runtime_config: Some("".to_string()),
-                control_interface_access: None,
-                configs: Some(ank_base::ConfigMappings {
-                    configs: [
-                        ("ref1".into(), "config_1".into()),
-                        ("ref2".into(), "config_2".into()),
-                    ]
-                    .into(),
-                }),
-                files: Some(generate_test_proto_workload_files()),
-            },
+            // ank_base::Workload {
+            //     agent: Some(AGENT_A.to_string()),
+            //     runtime: Some(RUNTIME.to_string()),
+            //     tags: Some(ank_base::Tags {
+            //         tags: HashMap::new(),
+            //     }),
+            //     dependencies: Some(ank_base::Dependencies {
+            //         dependencies: HashMap::new(),
+            //     }),
+            //     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+            //     runtime_config: Some("".to_string()),
+            //     control_interface_access: None,
+            //     configs: Some(ank_base::ConfigMappings {
+            //         configs: [
+            //             ("ref1".into(), "config_1".into()),
+            //             ("ref2".into(), "config_2".into()),
+            //         ]
+            //         .into(),
+            //     }),
+            //     files: Some(generate_test_proto_workload_files()),
+            // },
+            generate_test_workload(),
         )]);
 
         let mut sim = CommunicationSimulator::default();
@@ -1073,29 +1075,30 @@ mod tests {
         let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
+                generate_test_proto_complete_state(&[(
                     WORKLOAD_NAME_2,
-                    ank_base::Workload {
-                        agent: Some(AGENT_A.to_string()),
-                        runtime: Some(RUNTIME.to_string()),
-                        tags: Some(ank_base::Tags {
-                            tags: HashMap::new(),
-                        }),
-                        dependencies: Some(ank_base::Dependencies {
-                            dependencies: HashMap::new(),
-                        }),
-                        restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                        runtime_config: Some("".to_string()),
-                        control_interface_access: None,
-                        configs: Some(ank_base::ConfigMappings {
-                            configs: [
-                                ("ref1".into(), "config_1".into()),
-                                ("ref2".into(), "config_2".into()),
-                            ]
-                            .into(),
-                        }),
-                        files: Some(generate_test_proto_workload_files()),
-                    },
+                    // ank_base::Workload {
+                    //     agent: Some(AGENT_A.to_string()),
+                    //     runtime: Some(RUNTIME.to_string()),
+                    //     tags: Some(ank_base::Tags {
+                    //         tags: HashMap::new(),
+                    //     }),
+                    //     dependencies: Some(ank_base::Dependencies {
+                    //         dependencies: HashMap::new(),
+                    //     }),
+                    //     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                    //     runtime_config: Some("".to_string()),
+                    //     control_interface_access: None,
+                    //     configs: Some(ank_base::ConfigMappings {
+                    //         configs: [
+                    //             ("ref1".into(), "config_1".into()),
+                    //             ("ref2".into(), "config_2".into()),
+                    //         ]
+                    //         .into(),
+                    //     }),
+                    //     files: Some(generate_test_proto_workload_files()),
+                    // },
+                    generate_test_workload(),
                 )]),
             )),
         });
@@ -1172,7 +1175,7 @@ mod tests {
         let update_workload_state = UpdateWorkloadState {
             workload_states: vec![WorkloadState {
                 instance_name: instance_name(WORKLOAD_NAME_1),
-                execution_state: ExecutionState::running(),
+                execution_state: ExecutionStateInternal::running(),
             }],
         };
 
@@ -1201,7 +1204,7 @@ mod tests {
         let update_workload_state = UpdateWorkloadState {
             workload_states: vec![WorkloadState {
                 instance_name: instance_name(WORKLOAD_NAME_1),
-                execution_state: ExecutionState::running(),
+                execution_state: ExecutionStateInternal::running(),
             }],
         };
 
@@ -1255,7 +1258,7 @@ mod tests {
 
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone(), instance_name_2.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
@@ -1463,7 +1466,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
@@ -1534,7 +1537,7 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
@@ -1610,7 +1613,7 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
@@ -1669,7 +1672,7 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
@@ -1751,7 +1754,7 @@ mod tests {
         let instance_name_2 = instance_name(WORKLOAD_NAME_2);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(

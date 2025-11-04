@@ -1,4 +1,4 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   simple:
     runtime: podman-kube
@@ -8,15 +8,14 @@ workloads:
       allowRules:
       - type: StateRule
         operation: Read
-        filterMask:
+        filterMasks:
         - "*"
       - type: StateRule
         operation: Write
-        filterMask:
+        filterMasks:
         - "*"
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       controlInterfaceTarget: pod_A/container_A
       manifest: |

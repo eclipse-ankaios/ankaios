@@ -14,7 +14,7 @@
 
 use std::fmt::Display;
 
-use crate::objects::workload_instance_name::INSTANCE_NAME_SEPARATOR;
+use api::ank_base::INSTANCE_NAME_SEPARATOR;
 
 // [impl->swdd~common-object-representation~1]
 

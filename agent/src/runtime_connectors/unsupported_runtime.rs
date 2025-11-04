@@ -14,13 +14,14 @@
 
 use std::{collections::HashMap, path::PathBuf};
 
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed};
 use async_trait::async_trait;
-use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec};
+use common::objects::AgentName;
 
 use crate::workload_state::WorkloadStateSender;
 
 use super::{
-    dummy_state_checker::DummyStateChecker, ReusableWorkloadState, RuntimeConnector, RuntimeError,
+    ReusableWorkloadState, RuntimeConnector, RuntimeError, dummy_state_checker::DummyStateChecker,
 };
 
 #[derive(Clone)]
@@ -43,25 +44,25 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
 
     async fn create_workload(
         &self,
-        runtime_workload_config: WorkloadSpec,
+        runtime_workload_config: WorkloadNamed,
         _reusable_workload_id: Option<String>,
         _control_interface_path: Option<PathBuf>,
         _update_state_tx: WorkloadStateSender,
         _workload_file_path_mapping: HashMap<PathBuf, PathBuf>,
     ) -> Result<(String, DummyStateChecker<String>), RuntimeError> {
-        if runtime_workload_config.runtime == self.0 {
+        if runtime_workload_config.workload.runtime == self.0 {
             Err(RuntimeError::Unsupported("Unsupported Runtime".into()))
         } else {
             Err(RuntimeError::Unsupported(format!(
                 "Received a spec for the wrong runtime: '{}'",
-                runtime_workload_config.runtime
+                runtime_workload_config.workload.runtime
             )))
         }
     }
 
     async fn get_workload_id(
         &self,
-        _instance_name: &WorkloadInstanceName,
+        _instance_name: &WorkloadInstanceNameInternal,
     ) -> Result<String, RuntimeError> {
         Err(RuntimeError::List(
             "Cannot get information about workload with unsupported runtime".into(),
@@ -71,7 +72,7 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
     async fn start_checker(
         &self,
         _workload_id: &String,
-        _runtime_workload_config: WorkloadSpec,
+        _runtime_workload_config: WorkloadNamed,
         _update_state_tx: WorkloadStateSender,
     ) -> Result<DummyStateChecker<String>, RuntimeError> {
         Ok(DummyStateChecker::new())
@@ -102,10 +103,13 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
 
 #[cfg(test)]
 mod tests {
+    use super::{RuntimeError, UnsupportedRuntime, WorkloadInstanceNameInternal};
     use crate::runtime_connectors::{LogRequestOptions, RuntimeConnector};
 
-    use super::{RuntimeError, UnsupportedRuntime};
-    use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec};
+    use api::ank_base::WorkloadNamed;
+    use api::test_utils::{generate_test_workload, generate_test_workload_with_param};
+    use common::objects::AgentName;
+
     use std::collections::HashMap;
 
     const TEST_RUNTIME_NAME: &str = "test_runtime";
@@ -136,11 +140,8 @@ mod tests {
     #[tokio::test]
     async fn utest_create_workload_returns_unsupported_error_for_matching_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-
-        let workload_spec = WorkloadSpec {
-            runtime: TEST_RUNTIME_NAME.to_string(),
-            ..WorkloadSpec::default()
-        };
+        let workload_spec: WorkloadNamed =
+            generate_test_workload_with_param("test-agent", TEST_RUNTIME_NAME);
 
         let result = unsupported_runtime
             .create_workload(
@@ -162,10 +163,8 @@ mod tests {
     #[tokio::test]
     async fn utest_create_workload_returns_unsupported_error_for_different_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let workload_spec = WorkloadSpec {
-            runtime: "different_runtime".to_string(),
-            ..WorkloadSpec::default()
-        };
+        let workload_spec: WorkloadNamed =
+            generate_test_workload_with_param("test-agent", "different_runtime");
 
         let result = unsupported_runtime
             .create_workload(
@@ -187,7 +186,8 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workload_id_returns_list_error() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let instance_name = WorkloadInstanceName::new("test-agent", "test-workload", "test-id");
+        let instance_name =
+            WorkloadInstanceNameInternal::new("test-agent", "test-workload", "test-id");
 
         let result = unsupported_runtime.get_workload_id(&instance_name).await;
 
@@ -202,7 +202,7 @@ mod tests {
     async fn utest_start_checker_returns_dummy_checker() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
         let workload_id = "test_id".to_string();
-        let workload_spec = WorkloadSpec::default();
+        let workload_spec = generate_test_workload();
 
         let result = unsupported_runtime
             .start_checker(&workload_id, workload_spec, tokio::sync::mpsc::channel(1).0)

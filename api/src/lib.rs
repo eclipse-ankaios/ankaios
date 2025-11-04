@@ -12,27 +12,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod ank_base {
-
-    // [impl->swdd~ank-base-provides-object-definitions~1]
-    tonic::include_proto!("ank_base"); // The string specified here must match the proto package name
-
-    impl Response {
-        pub fn access_denied(request_id: String) -> Response {
-            Response {
-                request_id,
-                response_content: response::ResponseContent::Error(Error {
-                    message: "Access denied".into(),
-                })
-                .into(),
-            }
-        }
-    }
-}
+pub const ANKAIOS_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod control_api {
     // [impl->swdd~control-api-provides-control-interface-definitions~1]
     tonic::include_proto!("control_api"); // The string specified here must match the proto package name
 }
 
+pub mod ank_base;
 mod convert;
+mod helpers;
+pub mod std_extensions;
+
+#[cfg(any(feature = "test_utils", test))]
+pub mod test_utils;

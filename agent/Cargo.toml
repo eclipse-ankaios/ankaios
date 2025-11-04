@@ -9,10 +9,10 @@ authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
 repository = "https://github.com/eclipse-ankaios/ankaios"
 
 [dependencies]
-api = { path = "../api" }
-base64 = "0.22"
+api = { path = "../api", features = ["test_utils"] }
 common = { path = "../common" }
 grpc = { path = "../grpc" }
+base64 = "0.22"
 prost = "0.14"
 log = "0.4"
 env_logger = "0.11"

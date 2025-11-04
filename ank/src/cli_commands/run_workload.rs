@@ -12,13 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
-
-use common::objects::{CompleteState, StoredWorkloadSpec};
-
+use super::CliCommands;
 use crate::{cli_error::CliError, output_debug};
 
-use super::CliCommands;
+use api::ank_base::{TagsInternal, WorkloadInternal};
+use common::objects::CompleteState;
+
+use std::collections::HashMap;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-run-workload~1]
@@ -31,12 +31,16 @@ impl CliCommands {
         agent_name: String,
         tags: HashMap<String, String>,
     ) -> Result<(), CliError> {
-        let new_workload = StoredWorkloadSpec {
-            agent: agent_name,
+        let new_workload = WorkloadInternal {
+            agent: agent_name.clone(),
             runtime: runtime_name,
-            tags,
-            runtime_config,
-            ..Default::default()
+            tags: TagsInternal { tags },
+            runtime_config: runtime_config.clone(),
+            restart_policy: Default::default(),
+            dependencies: Default::default(),
+            control_interface_access: Default::default(),
+            configs: Default::default(),
+            files: Default::default(),
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 
@@ -67,18 +71,19 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
-    use api::ank_base::{self, UpdateStateSuccess};
+    use api::ank_base::{
+        self, ExecutionStateInternal, TagsInternal, UpdateStateSuccess, WorkloadInternal,
+    };
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::FromServer,
-        objects::{self, CompleteState, ExecutionState, StoredWorkloadSpec, WorkloadState},
+        objects::{CompleteState, WorkloadState},
     };
     use mockall::predicate::eq;
+    use std::collections::HashMap;
 
     use crate::{
-        cli_commands::{server_connection::MockServerConnection, CliCommands},
+        cli_commands::{CliCommands, server_connection::MockServerConnection},
         filtered_complete_state::FilteredCompleteState,
     };
 
@@ -98,12 +103,18 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let new_workload = StoredWorkloadSpec {
+        let new_workload = WorkloadInternal {
             agent: test_workload_agent.to_owned(),
             runtime: test_workload_runtime_name.clone(),
-            tags: HashMap::from([("key".to_string(), "value".to_string())]),
+            tags: TagsInternal {
+                tags: HashMap::from([("key".to_string(), "value".to_string())]),
+            },
             runtime_config: test_workload_runtime_cfg.clone(),
-            ..Default::default()
+            restart_policy: Default::default(),
+            dependencies: Default::default(),
+            control_interface_access: Default::default(),
+            configs: Default::default(),
+            files: Default::default(),
         };
         let mut complete_state_update = CompleteState::default();
         complete_state_update
@@ -147,12 +158,7 @@ mod tests {
                 vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
                     workload_states: vec![WorkloadState {
                         instance_name: "name4.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionState {
-                            state: objects::ExecutionStateEnum::Running(
-                                objects::RunningSubstate::Ok,
-                            ),
-                            additional_info: "".to_string(),
-                        },
+                        execution_state: ExecutionStateInternal::running(),
                     }],
                 })]
             });

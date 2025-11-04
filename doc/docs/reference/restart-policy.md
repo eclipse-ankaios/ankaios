@@ -27,7 +27,7 @@ The field `restartPolicy` enables the user to define the restart policy for each
 The following Ankaios manifest contains workloads with different restart policies:
 
 ```yaml linenums="1" hl_lines="6 14 29"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   restarted_always:
     runtime: podman

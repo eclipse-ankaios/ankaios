@@ -29,6 +29,6 @@ pub mod objects;
 pub mod request_id_prepending;
 pub mod state_manipulation;
 pub mod std_extensions;
-#[cfg(feature = "test_utils")]
+#[cfg(any(feature = "test_utils", test))]
 pub mod test_utils;
 pub mod to_server_interface;

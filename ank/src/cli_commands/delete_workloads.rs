@@ -48,20 +48,22 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, UpdateStateSuccess};
-    use common::{
-        commands::UpdateWorkloadState,
-        from_server_interface::FromServer,
-        objects::{self, CompleteState, ExecutionState, WorkloadState},
-    };
-    use mockall::predicate::eq;
-
     use crate::{
         cli_commands::{CliCommands, server_connection::MockServerConnection},
         filtered_complete_state::FilteredCompleteState,
     };
+
+    use api::ank_base::{self, ExecutionStateInternal, UpdateStateSuccess};
+    use common::{
+        commands::UpdateWorkloadState,
+        from_server_interface::FromServer,
+        objects::{CompleteState, WorkloadState},
+    };
+
+    use mockall::predicate::eq;
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
@@ -111,17 +113,11 @@ mod tests {
                     workload_states: vec![
                         WorkloadState {
                             instance_name: "name1.abc.agent_B".try_into().unwrap(),
-                            execution_state: ExecutionState {
-                                state: objects::ExecutionStateEnum::Removed,
-                                additional_info: "".to_string(),
-                            },
+                            execution_state: ExecutionStateInternal::removed(),
                         },
                         WorkloadState {
                             instance_name: "name2.abc.agent_B".try_into().unwrap(),
-                            execution_state: ExecutionState {
-                                state: objects::ExecutionStateEnum::Removed,
-                                additional_info: "".to_string(),
-                            },
+                            execution_state: ExecutionStateInternal::removed(),
                         },
                     ],
                 })]

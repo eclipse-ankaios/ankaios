@@ -3,9 +3,11 @@ resolver = "2"
 
 members = [
     "api",
+    "ank_schema",
     "common",
     "agent",
     "server",
+    "internal_derive_macros",
     "grpc",
     "ank",
     "tests/resources/control_interface_tester",

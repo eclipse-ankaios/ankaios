@@ -456,7 +456,7 @@ def internal_state_allow_control_interface(operation: str, filter_mask: str):
     control_interface_allow_rules.append({
         "type": "StateRule",
         "operation": state_control_interface_convert_operation(operation),
-        "filterMask": filter_mask
+        "filterMasks": filter_mask
     })
 
 
@@ -468,7 +468,7 @@ def internal_state_deny_control_interface(operation: str, filter_mask: str):
     control_interface_deny_rules.append({
         "type": "StateRule",
         "operation": state_control_interface_convert_operation(operation),
-        "filterMask": filter_mask
+        "filterMasks": filter_mask
     })
 
 

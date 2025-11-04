@@ -12,16 +12,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{HashMap, hash_map::Entry};
 
 use api::ank_base;
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
 use serde::{Deserialize, Serialize};
 
-use super::{ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState};
+use super::WorkloadState;
 
 type AgentName = String;
 type WorkloadName = String;
 type WorkloadId = String;
+
+type ExecutionState = ExecutionStateInternal;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct WorkloadStatesMap(
@@ -49,7 +52,9 @@ impl WorkloadStatesMap {
                     .iter()
                     .flat_map(|(wl_name, id_map)| {
                         id_map.iter().map(move |(wl_id, exec_state)| WorkloadState {
-                            instance_name: WorkloadInstanceName::new(agent_name, wl_name, wl_id),
+                            instance_name: WorkloadInstanceNameInternal::new(
+                                agent_name, wl_name, wl_id,
+                            ),
                             execution_state: exec_state.to_owned(),
                         })
                     })
@@ -72,7 +77,7 @@ impl WorkloadStatesMap {
                         id_state_map
                             .iter()
                             .map(move |(wl_id, exec_state)| WorkloadState {
-                                instance_name: WorkloadInstanceName::new(
+                                instance_name: WorkloadInstanceNameInternal::new(
                                     agent_name, wl_name, wl_id,
                                 ),
                                 execution_state: exec_state.to_owned(),
@@ -84,7 +89,7 @@ impl WorkloadStatesMap {
 
     pub fn get_workload_state_for_workload(
         &self,
-        instance_name: &WorkloadInstanceName,
+        instance_name: &WorkloadInstanceNameInternal,
     ) -> Option<&ExecutionState> {
         self.0
             .get(instance_name.agent_name())
@@ -102,7 +107,7 @@ impl WorkloadStatesMap {
         }
     }
 
-    pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadSpec>) {
+    pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadNamed>) {
         for spec in workload_specs {
             self.entry(spec.instance_name.agent_name().to_owned())
                 .or_default()
@@ -117,7 +122,7 @@ impl WorkloadStatesMap {
         }
     }
 
-    pub fn remove(&mut self, instance_name: &WorkloadInstanceName) {
+    pub fn remove(&mut self, instance_name: &WorkloadInstanceNameInternal) {
         if let Some(agent_states) = self.0.get_mut(instance_name.agent_name()) {
             if let Some(workload_states) = agent_states.get_mut(instance_name.workload_name()) {
                 workload_states.remove(instance_name.id());
@@ -162,7 +167,7 @@ impl From<WorkloadStatesMap> for Vec<WorkloadState> {
                         id_state_map
                             .into_iter()
                             .map(move |(wl_id, exec_state)| WorkloadState {
-                                instance_name: WorkloadInstanceName::new(
+                                instance_name: WorkloadInstanceNameInternal::new(
                                     agent_name.clone(),
                                     wl_name.clone(),
                                     wl_id,
@@ -237,7 +242,9 @@ impl From<ank_base::WorkloadStatesMap> for WorkloadStatesMap {
                                     id_map
                                         .id_state_map
                                         .into_iter()
-                                        .map(|(id, exec_state)| (id, exec_state.into()))
+                                        .map(|(id, exec_state)| {
+                                            (id, exec_state.try_into().unwrap())
+                                        })
                                         .collect(),
                                 )
                             })
@@ -259,7 +266,7 @@ impl From<ank_base::WorkloadStatesMap> for WorkloadStatesMap {
 
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_states_map_from_specs(
-    workloads: Vec<WorkloadSpec>,
+    workloads: Vec<WorkloadNamed>,
 ) -> WorkloadStatesMap {
     let mut wl_states_map = WorkloadStatesMap::new();
 
@@ -321,16 +328,13 @@ pub fn generate_test_workload_states_map_from_workload_states(
 // [utest->swdd~state-map-for-workload-execution-states~2]
 #[cfg(test)]
 mod tests {
-    use std::vec;
-
-    use crate::objects::{
-        generate_test_workload_spec_with_runtime_config, generate_test_workload_state_with_agent,
-        WorkloadState,
+    use super::{
+        ExecutionState, WorkloadStatesMap, generate_test_workload_states_map_from_workload_states,
     };
-
-    use crate::objects::ExecutionState;
-
-    use super::{generate_test_workload_states_map_from_workload_states, WorkloadStatesMap};
+    use crate::objects::{WorkloadState, generate_test_workload_state_with_agent};
+    use api::ank_base::WorkloadNamed;
+    use api::test_utils::generate_test_workload_with_param;
+    use std::vec;
 
     const AGENT_A: &str = "agent_A";
     const AGENT_B: &str = "agent_B";
@@ -584,18 +588,11 @@ mod tests {
     fn utest_workload_states_initial_state() {
         let mut wls_db = WorkloadStatesMap::new();
 
-        let wl_state_1 = generate_test_workload_spec_with_runtime_config(
-            "".to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            "some runtime".to_string(),
-            "config".to_string(),
-        );
-        let wl_state_3 = generate_test_workload_spec_with_runtime_config(
-            AGENT_B.to_string(),
-            WORKLOAD_NAME_3.to_string(),
-            "some runtime".to_string(),
-            "config".to_string(),
-        );
+        let wl_state_1 = generate_test_workload_with_param::<WorkloadNamed>("", "some runtime")
+            .name(WORKLOAD_NAME_1);
+        let wl_state_3 =
+            generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, "some runtime")
+                .name(WORKLOAD_NAME_3);
 
         wls_db.initial_state(&vec![wl_state_1, wl_state_3]);
 
@@ -642,8 +639,10 @@ mod tests {
             ExecutionState::running(),
         );
 
-        assert!(wls_db
-            .get_workload_state_for_workload(&wl_state.instance_name)
-            .is_none())
+        assert!(
+            wls_db
+                .get_workload_state_for_workload(&wl_state.instance_name)
+                .is_none()
+        )
     }
 }

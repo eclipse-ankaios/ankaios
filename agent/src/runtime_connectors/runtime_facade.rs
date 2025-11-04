@@ -11,15 +11,16 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::io_utils::FileSystemError;
 
-use std::{path::PathBuf, str::FromStr};
+use crate::io_utils::FileSystemError;
+use api::ank_base::{
+    ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed,
+};
 
 use async_trait::async_trait;
-use common::{
-    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
-    std_extensions::IllegalStateResult,
-};
+use common::{objects::AgentName, std_extensions::IllegalStateResult};
+use std::{path::PathBuf, str::FromStr};
+use tokio::task::JoinHandle;
 
 #[cfg(test)]
 use crate::runtime_connectors::dummy_state_checker::DummyStateChecker;
@@ -49,8 +50,6 @@ use crate::workload::control_loop_state::ControlLoopState;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::workload_control_loop::WorkloadControlLoop;
 
-use tokio::task::JoinHandle;
-
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait RuntimeFacade: Send + Sync + 'static {
@@ -68,14 +67,14 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 
     fn resume_workload(
         &self,
-        runtime_workload: WorkloadSpec,
+        runtime_workload: WorkloadNamed,
         control_interface: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload;
 
     fn delete_workload(
         &self,
-        instance_name: WorkloadInstanceName,
+        instance_name: WorkloadInstanceNameInternal,
         update_state_tx: &WorkloadStateSender,
     );
 }
@@ -142,13 +141,13 @@ impl<
     // [impl->swdd~agent-resume-workload~2]
     fn resume_workload(
         &self,
-        workload_spec: WorkloadSpec,
+        runtime_workload: WorkloadNamed,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let (_task_handle, workload) = Self::resume_workload_non_blocking(
             self,
-            workload_spec,
+            runtime_workload,
             control_interface_info,
             update_state_tx,
         );
@@ -158,7 +157,7 @@ impl<
     // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload(
         &self,
-        instance_name: WorkloadInstanceName,
+        instance_name: WorkloadInstanceNameInternal,
         update_state_tx: &WorkloadStateSender,
     ) {
         let _task_handle = Self::delete_workload_non_blocking(self, instance_name, update_state_tx);
@@ -177,7 +176,7 @@ impl<
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
-        let workload_spec = reusable_workload_spec.workload_spec;
+        let workload_named = reusable_workload_spec.workload_named;
         let workload_id = match reusable_workload_spec.workload_id {
             Some(id) => match WorkloadId::from_str(&id) {
                 Ok(id) => Some(id),
@@ -191,7 +190,7 @@ impl<
 
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
-        let workload_name = workload_spec.instance_name.workload_name().to_owned();
+        let workload_name = workload_named.instance_name.workload_name().to_owned();
 
         let (control_interface_path, control_interface) = if let Some(info) = control_interface_info
         {
@@ -241,7 +240,7 @@ impl<
                 });
 
             let control_loop_state = ControlLoopState::builder()
-                .workload_spec(workload_spec)
+                .workload_named(workload_named)
                 .workload_id(workload_id)
                 .control_interface_path(control_interface_path)
                 .run_folder(run_folder)
@@ -264,11 +263,11 @@ impl<
     // [impl->swdd~agent-resume-workload~2]
     fn resume_workload_non_blocking(
         &self,
-        workload_spec: WorkloadSpec,
+        workload_named: WorkloadNamed,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
-        let workload_name = workload_spec.instance_name.workload_name().to_owned();
+        let workload_name = workload_named.instance_name.workload_name().to_owned();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
@@ -294,7 +293,7 @@ impl<
                 Err(err) => {
                     log::warn!(
                         "Could not reuse or create control interface when resuming workload '{}': '{}'",
-                        workload_spec.instance_name,
+                        workload_named.instance_name,
                         err
                     );
                     None
@@ -303,7 +302,7 @@ impl<
         } else {
             log::info!(
                 "No control interface access rights specified for resumed workload '{}'. Skipping creation of control interface.",
-                workload_spec.instance_name.clone().workload_name()
+                workload_named.instance_name.clone().workload_name()
             );
             None
         };
@@ -317,7 +316,7 @@ impl<
         let run_folder = self.run_folder.clone();
         let task_handle = tokio::spawn(async move {
             let control_loop_state = ControlLoopState::builder()
-                .workload_spec(workload_spec)
+                .workload_named(workload_named)
                 .workload_state_sender(update_state_tx)
                 .runtime(runtime)
                 .run_folder(run_folder)
@@ -338,7 +337,7 @@ impl<
     // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload_non_blocking(
         &self,
-        instance_name: WorkloadInstanceName,
+        instance_name: WorkloadInstanceNameInternal,
         update_state_tx: &WorkloadStateSender,
     ) -> JoinHandle<()> {
         let runtime = self.runtime.to_owned();
@@ -356,7 +355,7 @@ impl<
             update_state_tx
                 .report_workload_execution_state(
                     &instance_name,
-                    ExecutionState::stopping_requested(),
+                    ExecutionStateInternal::stopping_requested(),
                 )
                 .await;
 
@@ -365,7 +364,7 @@ impl<
                     update_state_tx
                         .report_workload_execution_state(
                             &instance_name,
-                            ExecutionState::delete_failed(err),
+                            ExecutionStateInternal::delete_failed(err),
                         )
                         .await;
 
@@ -397,7 +396,7 @@ impl<
             }
 
             update_state_tx
-                .report_workload_execution_state(&instance_name, ExecutionState::removed())
+                .report_workload_execution_state(&instance_name, ExecutionStateInternal::removed())
                 .await;
         })
     }
@@ -426,14 +425,14 @@ mockall::mock! {
 
         fn resume_workload(
             &self,
-            runtime_workload: WorkloadSpec,
+            runtime_workload: WorkloadNamed,
             control_interface: Option<ControlInterfaceInfo>,
             update_state_tx: &WorkloadStateSender,
         ) -> Workload;
 
         fn delete_workload(
             &self,
-            instance_name: WorkloadInstanceName,
+            instance_name: WorkloadInstanceNameInternal,
             update_state_tx: &WorkloadStateSender,
         );
     }
@@ -449,12 +448,6 @@ mockall::mock! {
 
 #[cfg(test)]
 mod tests {
-    use common::objects::{
-        ExecutionState, WorkloadInstanceName,
-        generate_test_workload_spec_with_control_interface_access,
-        generate_test_workload_spec_with_param,
-    };
-
     use crate::{
         control_interface::{
             ControlInterfacePath, MockControlInterface, authorizer::MockAuthorizer,
@@ -470,6 +463,11 @@ mod tests {
         workload_state::assert_execution_state_sequence,
     };
 
+    use api::ank_base::{WorkloadNamed, ExecutionStateInternal, WorkloadInstanceNameInternal};
+    use api::test_utils::{
+        generate_test_workload_with_param,
+    };
+
     const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
@@ -483,13 +481,13 @@ mod tests {
     async fn utest_runtime_facade_reusable_running_workloads() {
         let mut runtime_mock = MockRuntimeConnector::new();
 
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
         let workload_state = ReusableWorkloadState::new(
             workload_instance_name.clone(),
-            ExecutionState::initial(),
+            ExecutionStateInternal::initial(),
             None,
         );
 
@@ -512,7 +510,7 @@ mod tests {
                 .unwrap()
                 .iter()
                 .map(|x| x.workload_state.instance_name.clone())
-                .collect::<Vec<WorkloadInstanceName>>(),
+                .collect::<Vec<WorkloadInstanceNameInternal>>(),
             vec![workload_instance_name]
         );
 
@@ -531,9 +529,8 @@ mod tests {
         const WORKLOAD_ID: &str = "workload_id_1";
 
         let reusable_workload_spec = ReusableWorkloadSpec::new(
-            generate_test_workload_spec_with_control_interface_access(
+            generate_test_workload_with_param(
                 AGENT_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
                 RUNTIME_NAME.to_string(),
             ),
             Some(WORKLOAD_ID.to_string()),
@@ -560,7 +557,7 @@ mod tests {
         control_interface_info_mock
             .expect_get_instance_name()
             .once()
-            .return_const(reusable_workload_spec.workload_spec.instance_name.clone());
+            .return_const(reusable_workload_spec.workload_named.instance_name.clone());
 
         control_interface_info_mock
             .expect_move_authorizer()
@@ -626,7 +623,7 @@ mod tests {
             .expect_get_instance_name()
             .once()
             .return_const(
-                WorkloadInstanceName::builder()
+                WorkloadInstanceNameInternal::builder()
                     .workload_name(WORKLOAD_1_NAME)
                     .build(),
             );
@@ -641,9 +638,8 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| Ok(MockControlInterface::default()));
 
-        let workload_spec = generate_test_workload_spec_with_control_interface_access(
+        let workload_spec: WorkloadNamed = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
 
@@ -693,9 +689,8 @@ mod tests {
         let control_interface_new_context = MockControlInterface::new_context();
         control_interface_new_context.expect().never();
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec: WorkloadNamed = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
 
@@ -743,7 +738,7 @@ mod tests {
         let (wl_state_sender, wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
@@ -771,9 +766,9 @@ mod tests {
             vec![
                 (
                     &workload_instance_name,
-                    ExecutionState::stopping_requested(),
+                    ExecutionStateInternal::stopping_requested(),
                 ),
-                (&workload_instance_name, ExecutionState::removed()),
+                (&workload_instance_name, ExecutionStateInternal::removed()),
             ],
         )
         .await;
@@ -789,7 +784,7 @@ mod tests {
         let (wl_state_sender, wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
@@ -819,11 +814,11 @@ mod tests {
             vec![
                 (
                     &workload_instance_name,
-                    ExecutionState::stopping_requested(),
+                    ExecutionStateInternal::stopping_requested(),
                 ),
                 (
                     &workload_instance_name,
-                    ExecutionState::delete_failed("delete failed".to_owned()),
+                    ExecutionStateInternal::delete_failed("delete failed".to_owned()),
                 ),
             ],
         )

@@ -17,7 +17,7 @@ use std::{
     fmt::{self, Display},
 };
 
-use common::objects::WorkloadInstanceName;
+use api::ank_base::WorkloadInstanceNameInternal;
 
 use crate::cli_commands::workload_table_row::WorkloadTableRowWithSpinner;
 
@@ -28,8 +28,8 @@ pub(crate) const COMPLETED_SYMBOL: &str = " ";
 const SPINNER_SYMBOLS: [&str; 4] = ["|", "/", "-", "\\"];
 
 pub struct WaitListDisplay {
-    pub data: HashMap<WorkloadInstanceName, WorkloadTableRow>,
-    pub not_completed: HashSet<WorkloadInstanceName>,
+    pub data: HashMap<WorkloadInstanceNameInternal, WorkloadTableRow>,
+    pub not_completed: HashSet<WorkloadInstanceNameInternal>,
     pub spinner: Spinner,
 }
 
@@ -67,12 +67,12 @@ impl Display for WaitListDisplay {
 impl WaitListDisplayTrait for WaitListDisplay {
     fn update(&mut self, workload_state: &common::objects::WorkloadState) {
         if let Some(entry) = self.data.get_mut(&workload_state.instance_name) {
-            entry.execution_state = workload_state.execution_state.state.to_string();
+            entry.execution_state = workload_state.execution_state.state().to_string();
             entry.set_additional_info(&workload_state.execution_state.additional_info);
         }
     }
 
-    fn set_complete(&mut self, workload: &WorkloadInstanceName) {
+    fn set_complete(&mut self, workload: &WorkloadInstanceNameInternal) {
         self.not_completed.remove(workload);
     }
 
@@ -110,7 +110,8 @@ mod tests {
 
     use std::collections::{HashMap, HashSet};
 
-    use common::objects::{ExecutionState, WorkloadInstanceName, WorkloadState};
+    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
+    use common::objects::WorkloadState;
 
     use crate::cli_commands::{
         wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow,
@@ -120,7 +121,7 @@ mod tests {
 
     #[test]
     fn update_table() {
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameInternal::builder()
             .agent_name("agent")
             .config(&String::from("runtime"))
             .workload_name("workload")
@@ -150,7 +151,7 @@ mod tests {
         );
         wait_list_display.update(&WorkloadState {
             instance_name: workload_instance_name.clone(),
-            execution_state: ExecutionState::succeeded(),
+            execution_state: ExecutionStateInternal::succeeded(),
         });
         assert_eq!(
             wait_list_display

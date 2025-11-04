@@ -294,26 +294,17 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use crate::{
-        objects::{
-            CompleteState, ExecutionState, State, generate_test_agent_map_from_specs,
-            generate_test_rendered_workload_files, generate_test_workload_spec_with_rendered_files,
-            generate_test_workload_states_map_with_data,
-        },
+        objects::{CompleteState, State, generate_test_workload_states_map_with_data},
         test_utils::generate_test_state_from_workloads,
     };
+    use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
+    use api::test_utils::{generate_test_agent_map_from_workloads, generate_test_workload};
     use serde_yaml::Value;
 
     use super::Object;
     #[test]
     fn utest_object_from_state() {
-        let state: State = generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_rendered_files(
-                "agent".to_string(),
-                "name".to_string(),
-                "runtime".to_string(),
-                generate_test_rendered_workload_files(),
-            ),
-        ]);
+        let state: State = generate_test_state_from_workloads(vec![generate_test_workload()]);
 
         let expected = Object {
             data: object::generate_test_state().into(),
@@ -329,43 +320,31 @@ mod tests {
         };
 
         let actual: State = object.try_into().unwrap();
-        let expected = generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_rendered_files(
-                "agent".to_string(),
-                "name".to_string(),
-                "runtime".to_string(),
-                generate_test_rendered_workload_files(),
-            ),
-        ]);
+        let expected = generate_test_state_from_workloads(vec![generate_test_workload()]);
 
         assert_eq!(actual, expected)
     }
 
     #[test]
     fn utest_object_from_complete_state() {
-        let wl_spec = generate_test_workload_spec_with_rendered_files(
-            "agent".to_string(),
-            "name".to_string(),
-            "runtime".to_string(),
-            generate_test_rendered_workload_files(),
-        );
-        let specs = vec![wl_spec];
-        let agent_map = generate_test_agent_map_from_specs(&specs);
-        let state = generate_test_state_from_workloads(specs);
+        let wl_named: WorkloadNamed = generate_test_workload();
+        let agent_map = generate_test_agent_map_from_workloads(&vec![wl_named.workload.clone()]);
+        let workloads = vec![wl_named];
+        let state = generate_test_state_from_workloads(workloads);
 
         let complete_state = CompleteState {
             desired_state: state,
             workload_states: generate_test_workload_states_map_with_data(
-                "agent",
-                "name",
+                "agent_A",
+                "workload_A",
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
-                ExecutionState::running(),
+                ExecutionStateInternal::running(),
             ),
             agents: agent_map,
         };
 
         let expected = Object {
-            data: object::generate_test_complete_state().into(),
+            data: object::generate_test_complete_state_mapping().into(),
         };
         let actual: Object = complete_state.try_into().unwrap();
 
@@ -375,28 +354,24 @@ mod tests {
     #[test]
     fn utest_complete_state_from_object() {
         let object = Object {
-            data: object::generate_test_complete_state().into(),
+            data: object::generate_test_complete_state_mapping().into(),
         };
-        let wl_spec = generate_test_workload_spec_with_rendered_files(
-            "agent".to_string(),
-            "name".to_string(),
-            "runtime".to_string(),
-            generate_test_rendered_workload_files(),
-        );
-        let specs = vec![wl_spec];
-        let agent_map = generate_test_agent_map_from_specs(&specs);
+        let wl_named: WorkloadNamed = generate_test_workload();
+        let agent_map = generate_test_agent_map_from_workloads(&vec![wl_named.workload.clone()]);
+        let workloads = vec![wl_named];
 
-        let expected_state = generate_test_state_from_workloads(specs);
+        let expected_state = generate_test_state_from_workloads(workloads);
         let expected = CompleteState {
             desired_state: expected_state,
             workload_states: generate_test_workload_states_map_with_data(
-                "agent",
-                "name",
+                "agent_A",
+                "workload_A",
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
-                ExecutionState::running(),
+                ExecutionStateInternal::running(),
             ),
             agents: agent_map,
         };
+
         let actual: CompleteState = object.try_into().unwrap();
 
         assert_eq!(actual, expected);
@@ -442,7 +417,7 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("name") {
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("workload_A") {
                     workload_1.insert("update_strategy".into(), "AT_MOST_ONCE".into());
                 }
             }
@@ -453,14 +428,14 @@ mod tests {
         };
 
         let res = actual.set(
-            &"workloads.name.update_strategy".into(),
+            &"workloads.workload_A.update_strategy".into(),
             "AT_MOST_ONCE".into(),
         );
 
         assert!(res.is_ok());
         assert_eq!(
             actual
-                .get(&"workloads.name.update_strategy".into())
+                .get(&"workloads.workload_A.update_strategy".into())
                 .unwrap(),
             "AT_MOST_ONCE"
         );
@@ -473,8 +448,8 @@ mod tests {
             data: object::generate_test_state().into(),
         };
         if let Value::Mapping(state) = &mut expected.data {
-            if let Some(Value::Mapping(worklaods)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = worklaods.get_mut("name") {
+            if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("workload_A") {
                     workload_1.insert("new_key".into(), "new value".into());
                 }
             }
@@ -484,11 +459,11 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.set(&"workloads.name.new_key".into(), "new value".into());
+        let res = actual.set(&"workloads.workload_A.new_key".into(), "new value".into());
 
         assert!(res.is_ok());
         assert_eq!(
-            actual.get(&"workloads.name.new_key".into()).unwrap(),
+            actual.get(&"workloads.workload_A.new_key".into()).unwrap(),
             "new value"
         );
         assert_eq!(actual, expected);
@@ -501,7 +476,7 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("name") {
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("workload_A") {
                     let new_entry = object::Mapping::default().entry("new_key", "new value");
                     workload_1.insert("new_map".into(), new_entry.into());
                 }
@@ -512,12 +487,12 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.set(&"workloads.name.new_map.new_key".into(), "new value".into());
+        let res = actual.set(&"workloads.workload_A.new_map.new_key".into(), "new value".into());
 
         assert!(res.is_ok());
         assert_eq!(
             actual
-                .get(&"workloads.name.new_map.new_key".into())
+                .get(&"workloads.workload_A.new_map.new_key".into())
                 .unwrap(),
             "new value"
         );
@@ -530,8 +505,8 @@ mod tests {
             data: object::generate_test_state().into(),
         };
         if let Value::Mapping(state) = &mut expected.data {
-            if let Some(Value::Mapping(worklaods)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = worklaods.get_mut("name") {
+            if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut("name") {
                     workload_1.remove("access_rights");
                 }
             }
@@ -541,10 +516,10 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.remove(&"workloads.name.access_rights".into());
+        let res = actual.remove(&"workloads.workload_A.access_rights".into());
 
         assert!(res.is_ok());
-        assert!(actual.get(&"workloads.name.access_rights".into()).is_none());
+        assert!(actual.get(&"workloads.workload_A.access_rights".into()).is_none());
         assert_eq!(actual, expected);
     }
 
@@ -558,7 +533,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.remove(&"workloads.name.non_existing".into());
+        let res = actual.remove(&"workloads.workload_A.non_existing".into());
 
         assert!(res.is_ok());
         assert_eq!(actual, expected);
@@ -618,7 +593,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&"workloads.name.restartPolicy".into());
+        let res = data.get(&"workloads.workload_A.restartPolicy".into());
 
         assert!(res.is_some());
         assert_eq!(res.expect(""), &serde_yaml::Value::from("ALWAYS"));
@@ -727,19 +702,21 @@ mod tests {
     mod object {
         use serde_yaml::Value;
 
-        use crate::objects::{generate_test_runtime_config, CURRENT_API_VERSION};
+        use crate::objects::CURRENT_API_VERSION;
+        use api::test_utils::generate_test_runtime_config;
 
-        pub fn generate_test_complete_state() -> Mapping {
-            let agent_name = "agent";
-            let config_hash: &dyn crate::objects::ConfigHash = &generate_test_runtime_config();
+        pub fn generate_test_complete_state_mapping() -> Mapping {
+            let agent_name = "agent_A";
+            let config_hash: &dyn api::ank_base::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
                 .entry("desiredState", generate_test_state())
                 .entry(
                     "workloadStates",
-                    Mapping::default().entry(
+                    Mapping::default()
+                    .entry(
                         agent_name,
                         Mapping::default().entry(
-                            "name",
+                            "workload_A",
                             Mapping::default().entry(
                                 config_hash.hash_config(),
                                 Mapping::default()
@@ -752,58 +729,91 @@ mod tests {
                 )
                 .entry(
                     "agents",
-                    Mapping::default().entry(
-                        agent_name,
+                    Mapping::default()
+                    .entry(
+                        "agents",
                         Mapping::default()
-                            .entry("cpu_usage", Mapping::default().entry("cpu_usage", 42))
-                            .entry("free_memory", Mapping::default().entry("free_memory", 42)),
+                        .entry(
+                            agent_name,
+                            Mapping::default()
+                                .entry(
+                                    "status",
+                                    Mapping::default()
+                                        .entry(
+                                            "cpu_usage",
+                                            Mapping::default().entry("cpu_usage", 42),
+                                        )
+                                        .entry(
+                                            "free_memory",
+                                            Mapping::default().entry("free_memory", 42),
+                                        ),
+                                )
+                                .entry("tags", Value::Null),
+                        ),
                     ),
                 )
         }
 
         pub fn generate_test_state() -> Mapping {
+            // let config_hash: &dyn api::ank_base::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
                 .entry("apiVersion", CURRENT_API_VERSION)
                 .entry(
                     "workloads",
-                    Mapping::default().entry(
-                        "name",
+                    Mapping::default()
+                    .entry(
+                        "workload_A",
                         Mapping::default()
-                            .entry("agent", "agent")
-                            .entry(
-                                "tags",
+                            .entry("agent", "agent_A")
+                            .entry("tags",
                                 Mapping::default()
-                                    .entry("key", "value"),
+                                .entry("tag1", "val_1")
+                                .entry("tag2", "val_2")
                             )
-                            .entry(
-                                "dependencies",
-                                Mapping::default()
-                                    .entry("workload_A", "ADD_COND_RUNNING")
-                                    .entry("workload_C", "ADD_COND_SUCCEEDED"),
+                            .entry("dependencies", Mapping::default()
+                                .entry("workload_B", "ADD_COND_RUNNING")
+                                .entry("workload_C", "ADD_COND_SUCCEEDED"),
                             )
                             .entry("restartPolicy", "ALWAYS")
-                            .entry("runtime", "runtime")
-                            .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n")
+                            .entry("runtime", "runtime_A")
+                            .entry("runtimeConfig", generate_test_runtime_config())
                             .entry(
                                 "controlInterfaceAccess",
                                 Mapping::default()
-                                    .entry("allowRules", vec![] as Vec<Value>)
-                                    .entry("denyRules", vec![] as Vec<Value>),
+                                    .entry("allowRules", vec![
+                                        Mapping::default()
+                                            .entry("type", "StateRule")
+                                            .entry("operation", "ReadWrite")
+                                            .entry("filterMasks", vec!["desiredState"])
+                                    ])
+                                    .entry("denyRules", vec![
+                                        Mapping::default()
+                                            .entry("type", "StateRule")
+                                            .entry("operation", "Write")
+                                            .entry("filterMasks", vec!["desiredState.workload.workload_B"])
+                                    ]),
+                            )
+                            .entry("configs", Mapping::default()
+                                .entry("ref1", "config_1")
+                                .entry("ref2", "config_2")
                             )
                             .entry(
-                                "configs",
-                                Mapping::default()
-                                    .entry("ref1", "config_1")
-                                    .entry("ref2", "config_2")
+                                "files", vec![
+                                    Mapping::default()
+                                        .entry("mountPoint", "/file.json")
+                                        .entry("data", "text data"),
+                                    Mapping::default()
+                                        .entry("mountPoint", "/binary_file")
+                                        .entry("binaryData", "base64_data"),
+                                ],
                             )
-                            .entry("files", vec![
-                                Mapping::default()
-                                    .entry("mountPoint", "/file.json")
-                                    .entry("data", "text data"),
-                                Mapping::default()
-                                    .entry("mountPoint", "/binary_file")
-                                    .entry("binaryData", "base64_data"),
-                            ]),
+                            // .entry(
+                            //     "instanceName",
+                            //     Mapping::default()
+                            //     .entry("workloadName", "name")
+                            //     .entry("agentName", "agent")
+                            //     .entry("id", config_hash.hash_config())
+                            // )
                     ),
                 )
                 .entry(

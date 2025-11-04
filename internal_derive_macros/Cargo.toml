@@ -1,0 +1,18 @@
+[package]
+name = "internal_derive_macros"
+version = "0.7.0-pre"
+edition = "2024"
+license = "Apache-2.0"
+description = "Eclipse Ankaios agent component"
+documentation = "https://eclipse-ankaios.github.io/ankaios"
+authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
+repository = "https://github.com/eclipse-ankaios/ankaios"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+log = "0.4"
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"

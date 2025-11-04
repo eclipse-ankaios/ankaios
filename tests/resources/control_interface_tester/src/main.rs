@@ -478,7 +478,7 @@ impl Connection {
                     ))
                 })?;
 
-            workload_instance_names.push(common::objects::WorkloadInstanceName::new(
+            workload_instance_names.push(api::ank_base::WorkloadInstanceNameInternal::new(
                 agent_name.clone(),
                 workload_name.clone(),
                 workload_id.clone(),
@@ -633,3 +633,4 @@ fn read_yaml_file<T: DeserializeOwned>(path: &Path) -> Result<T, String> {
     serde_yaml::from_reader(file)
         .map_err(|err| format!("Could not parse '{}': {}", path.to_str().unwrap(), err))
 }
+

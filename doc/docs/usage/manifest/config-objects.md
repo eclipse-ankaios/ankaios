@@ -13,7 +13,7 @@ For a basic example of separating configurations from workloads, see [here](../.
 When using the default handlebars template syntax (`{{config_variable}}`), the line indentation of the current context is not considered. To ensure the validity of certain layouts that rely on the indentation level of multi-line configuration, utilize the following custom `indent` control structure, highlighted below:
 
 ```yaml linenums="1" hl_lines="16"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   frontend:
     agent: agent_A

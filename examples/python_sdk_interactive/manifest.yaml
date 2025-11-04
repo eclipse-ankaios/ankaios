@@ -8,7 +8,7 @@ workloads:
       allowRules:
         - type: StateRule
           operation: ReadWrite
-          filterMask:
+          filterMasks:
             # workload has full access to the state of the cluster
             - "*"
           # Workload is allowed to read the logs of all workloads

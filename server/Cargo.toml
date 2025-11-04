@@ -9,7 +9,7 @@ authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
 repository = "https://github.com/eclipse-ankaios/ankaios"
 
 [dependencies]
-api ={ path = "../api" }
+api ={ path = "../api", features = ["test_utils"] }
 common = { path = "../common" }
 grpc = { path = "../grpc" }
 log = "0.4"

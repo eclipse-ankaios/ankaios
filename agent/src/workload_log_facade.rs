@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base;
+use api::ank_base::WorkloadInstanceNameInternal;
 use common::commands::LogsRequest;
-use common::objects::WorkloadInstanceName;
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerInterface, ToServerSender};
 use futures_util::{StreamExt, stream::FuturesUnordered};
@@ -46,7 +46,7 @@ use crate::subscription_store::MockSubscriptionEntry as SubscriptionEntry;
 
 pub struct WorkloadLogFacade;
 
-type ContinuableResult = (WorkloadInstanceName, Receiver, Option<Vec<String>>);
+type ContinuableResult = (WorkloadInstanceNameInternal, Receiver, Option<Vec<String>>);
 type UnorderedLogReceiverFutures =
     FuturesUnordered<Pin<Box<dyn Future<Output = ContinuableResult> + Send>>>;
 
@@ -104,7 +104,7 @@ impl WorkloadLogFacade {
     }
 
     fn convert_log_receivers_to_futures(
-        receivers: Vec<(WorkloadInstanceName, Receiver)>,
+        receivers: Vec<(WorkloadInstanceNameInternal, Receiver)>,
     ) -> UnorderedLogReceiverFutures {
         FuturesUnordered::from_iter(receivers.into_iter().map(
             |workload_log_info| -> Pin<Box<dyn Future<Output = ContinuableResult> + Send>> {
@@ -333,11 +333,11 @@ mod tests {
             .return_once(|_| {
                 vec![
                     (
-                        workload_instance_name_1.into(),
+                        workload_instance_name_1.try_into().unwrap(),
                         Box::new(mock_log_fetcher_1),
                     ),
                     (
-                        workload_instance_name_2.into(),
+                        workload_instance_name_2.try_into().unwrap(),
                         Box::new(mock_log_fetcher_2),
                     ),
                 ]
@@ -448,7 +448,7 @@ mod tests {
             .expect_get_log_fetchers()
             .return_once(|_| {
                 vec![(
-                    cloned_workload_instance_name_1.into(),
+                    cloned_workload_instance_name_1.try_into().unwrap(),
                     Box::new(mock_log_fetcher_1),
                 )]
             });

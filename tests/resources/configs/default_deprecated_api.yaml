@@ -4,9 +4,15 @@ workloads:
     runtime: podman
     agent: agent_A
     restartPolicy: NEVER
-    tags:
+    tags: # note that v1 uses a map for tags
       - key: owner
         value: Ankaios team
+    controlInterfaceAccess:
+      allowRules:
+      - type: StateRule
+        operation: Read
+        filterMask: # note that v1 uses filterMasks in plural ending with 's'
+        - "*"
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/tests/sleepy:latest
   hello1:

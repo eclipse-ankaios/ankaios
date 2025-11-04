@@ -163,7 +163,7 @@ The following examples assume that the installation script was used with the def
 We want the fleet connector to run when the vehicle is started and Ankaios is started. Therefore, we add the fleet connector to the startup configuration for Ankaios. Modify `/etc/ankaios/state.yaml` to include:
 
 ```yaml title="/etc/ankaios/state.yaml"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   fleetconnector:
     runtime: podman
@@ -172,7 +172,7 @@ workloads:
       allowRules:
         - type: StateRule
           operation: ReadWrite
-          filterMask:
+          filterMasks:
             - "*"
     restartPolicy: NEVER
     runtimeConfig: |
@@ -202,7 +202,7 @@ Now we want to use the fleet connector to remotely install a new containerized w
 First, we need to create a manifest and name that file `vehicle-data-sender.yaml`:
 
 ```yaml title="vehicle-data-sender.yaml"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   vehicle-data-sender:
     runtime: podman
@@ -269,7 +269,7 @@ Maybe sending speed values to the cloud once per second is a little too often. T
 Let's create a new file `config.yaml` with just the config for the vehicle data sender and increase the interval to 10 seconds.
 
 ```yaml title="config.yaml" hl_lines="11-12"
-apiVersion: v0.1
+apiVersion: v1
 configs:
   vehicle-data-sender-config:
     env:
