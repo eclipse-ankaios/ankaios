@@ -741,11 +741,11 @@ mod tests {
                                     Mapping::default()
                                         .entry(
                                             "cpu_usage",
-                                            Mapping::default().entry("cpu_usage", 42),
+                                            42,
                                         )
                                         .entry(
                                             "free_memory",
-                                            Mapping::default().entry("free_memory", 42),
+                                            42,
                                         ),
                                 )
                                 .entry("tags", Value::Null),
