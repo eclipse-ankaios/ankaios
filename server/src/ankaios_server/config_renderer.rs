@@ -15,8 +15,9 @@
 use std::{collections::HashMap, fmt};
 
 use super::WorkloadInstanceNameInternal;
-use api::ank_base::{FileContentInternal, FileInternal, WorkloadInternal, WorkloadNamed};
-use common::objects::ConfigItem;
+use api::ank_base::{
+    ConfigItemInternal, FileContentInternal, FileInternal, WorkloadInternal, WorkloadNamed,
+};
 use handlebars::{Handlebars, RenderError};
 
 pub type RenderedWorkloads = HashMap<String, WorkloadNamed>;
@@ -84,7 +85,7 @@ impl ConfigRenderer {
     pub fn render_workloads(
         &self,
         workloads: &HashMap<String, WorkloadInternal>,
-        configs: &HashMap<String, ConfigItem>,
+        configs: &HashMap<String, ConfigItemInternal>,
     ) -> Result<RenderedWorkloads, ConfigRenderError> {
         let mut rendered_workloads = HashMap::new();
         for (workload_name, workload) in workloads {
@@ -109,8 +110,8 @@ impl ConfigRenderer {
     fn create_config_map_for_workload<'a>(
         &self,
         workload: &'a WorkloadInternal,
-        configs: &'a HashMap<String, ConfigItem>,
-    ) -> Result<HashMap<&'a String, &'a ConfigItem>, ConfigRenderError> {
+        configs: &'a HashMap<String, ConfigItemInternal>,
+    ) -> Result<HashMap<&'a String, &'a ConfigItemInternal>, ConfigRenderError> {
         let mut wl_config_map = HashMap::new();
         for (config_alias, config_key) in &workload.configs.configs {
             if let Some(config_value) = configs.get(config_key) {
@@ -127,7 +128,7 @@ impl ConfigRenderer {
         &self,
         workload_name: &str,
         workload: &WorkloadInternal,
-        wl_config_map: &HashMap<&String, &ConfigItem>,
+        wl_config_map: &HashMap<&String, &ConfigItemInternal>,
     ) -> Result<WorkloadNamed, ConfigRenderError> {
         let rendered_runtime_config = self
             .template_engine
@@ -165,7 +166,7 @@ impl ConfigRenderer {
     fn render_files_field(
         &self,
         files: &[FileInternal],
-        wl_config_map: &HashMap<&String, &ConfigItem>,
+        wl_config_map: &HashMap<&String, &ConfigItemInternal>,
     ) -> Result<Vec<FileInternal>, ConfigRenderError> {
         let mut rendered_files = Vec::new();
         for current_file in files {
@@ -210,7 +211,7 @@ mock! {
         pub fn render_workloads(
             &self,
             workloads: &HashMap<String, WorkloadInternal>,
-            configs: &HashMap<String, ConfigItem>,
+            configs: &HashMap<String, ConfigItemInternal>,
         ) -> Result<RenderedWorkloads, ConfigRenderError>;
     }
 }
@@ -220,11 +221,14 @@ mod tests {
     use super::{ConfigRenderError, ConfigRenderer, RenderedWorkloads};
     use std::collections::HashMap;
 
-    use api::ank_base::{FileContentInternal, FileInternal, WorkloadInternal, WorkloadNamed};
-    use api::test_utils::{
-        generate_test_workload_with_param, generate_test_workload_with_runtime_config,
+    use api::ank_base::{
+        ConfigItemEnumInternal, ConfigItemInternal, FileContentInternal, FileInternal,
+        WorkloadInternal, WorkloadNamed,
     };
-    use common::objects::{ConfigItem, generate_test_configs};
+    use api::test_utils::{
+        generate_test_configs, generate_test_workload_with_param,
+        generate_test_workload_with_runtime_config,
+    };
 
     const WORKLOAD_NAME_1: &str = "workload_A";
     const AGENT_A: &str = "agent_A";
@@ -270,7 +274,7 @@ mod tests {
         );
         expected_workload.workload.configs.configs.clear();
 
-        let result = renderer.render_workloads(&workloads, &configs);
+        let result = renderer.render_workloads(&workloads, &configs.configs);
 
         assert_eq!(
             Ok(RenderedWorkloads::from([(
@@ -284,7 +288,8 @@ mod tests {
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_render_files_fields_successfully() {
-        let mut stored_workload: WorkloadInternal = generate_test_workload_with_param(AGENT_A, RUNTIME);
+        let mut stored_workload: WorkloadInternal =
+            generate_test_workload_with_param(AGENT_A, RUNTIME);
         stored_workload.files.files = generate_test_templated_workload_files();
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
@@ -295,7 +300,7 @@ mod tests {
             generate_test_workload_with_param(AGENT_A, RUNTIME);
         expected_workload.workload.configs.configs.clear();
 
-        let result = renderer.render_workloads(&workloads, &configs);
+        let result = renderer.render_workloads(&workloads, &configs.configs);
 
         assert_eq!(
             Ok(RenderedWorkloads::from([(
@@ -322,7 +327,7 @@ mod tests {
         let configs = generate_test_configs();
         let renderer = ConfigRenderer::default();
 
-        let result = renderer.render_workloads(&workloads, &configs);
+        let result = renderer.render_workloads(&workloads, &configs.configs);
         assert!(result.is_err());
         assert!(
             matches!(result.unwrap_err(), ConfigRenderError::Field(field, _) if field.starts_with("files"))
@@ -345,7 +350,11 @@ mod tests {
         let configs = generate_test_configs();
         let renderer = ConfigRenderer::default();
 
-        assert!(renderer.render_workloads(&workloads, &configs).is_err());
+        assert!(
+            renderer
+                .render_workloads(&workloads, &configs.configs)
+                .is_err()
+        );
     }
 
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
@@ -359,7 +368,11 @@ mod tests {
         let configs = generate_test_configs();
         let renderer = ConfigRenderer::default();
 
-        assert!(renderer.render_workloads(&workloads, &configs).is_err());
+        assert!(
+            renderer
+                .render_workloads(&workloads, &configs.configs)
+                .is_err()
+        );
     }
 
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
@@ -389,7 +402,7 @@ mod tests {
         // This test does not make sense
         expected_workload.workload.configs.configs.clear();
 
-        let result = renderer.render_workloads(&workloads, &configs);
+        let result = renderer.render_workloads(&workloads, &configs.configs);
 
         assert_eq!(
             Ok(RenderedWorkloads::from([(
@@ -404,11 +417,8 @@ mod tests {
     #[test]
     fn utest_render_workloads_fails_workload_references_not_existing_config_key() {
         let templated_runtime_config = "config_1: {{ref1.values.value_1}}";
-        let mut stored_workload: WorkloadInternal = generate_test_workload_with_runtime_config(
-            AGENT_A,
-            RUNTIME,
-            templated_runtime_config,
-        );
+        let mut stored_workload: WorkloadInternal =
+            generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, templated_runtime_config);
 
         stored_workload.configs =
             HashMap::from([("ref1".to_owned(), "not_existing_config_key".to_owned())]).into();
@@ -416,7 +426,7 @@ mod tests {
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let configs = generate_test_configs();
         let renderer = ConfigRenderer::default();
-        let result = renderer.render_workloads(&workloads, &configs);
+        let result = renderer.render_workloads(&workloads, &configs.configs);
         assert!(result.is_err());
         assert!(
             matches!(result.unwrap_err(), ConfigRenderError::NotExistingConfigKey(config_key) if config_key == "not_existing_config_key")
@@ -426,11 +436,8 @@ mod tests {
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_fails_workload_references_unused_not_existing_config_key() {
-        let mut stored_workload: WorkloadInternal = generate_test_workload_with_runtime_config(
-            AGENT_A,
-            RUNTIME,
-            "some runtime config",
-        );
+        let mut stored_workload: WorkloadInternal =
+            generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, "some runtime config");
 
         stored_workload.configs = HashMap::from([(
             "ref1".to_owned(),
@@ -441,7 +448,7 @@ mod tests {
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let configs = generate_test_configs();
         let renderer = ConfigRenderer::default();
-        let result = renderer.render_workloads(&workloads, &configs);
+        let result = renderer.render_workloads(&workloads, &configs.configs);
         assert!(result.is_err());
         assert!(
             matches!(result.unwrap_err(), ConfigRenderError::NotExistingConfigKey(config_key) if config_key == "not_existing_unused_config_key")
@@ -452,17 +459,14 @@ mod tests {
     #[test]
     fn utest_render_workloads_fails_runtime_config_contains_non_existing_config() {
         let templated_runtime_config = "config_1: {{config_1.values.not_existing_key}}";
-        let stored_workload: WorkloadInternal = generate_test_workload_with_runtime_config(
-            AGENT_A,
-            RUNTIME,
-            templated_runtime_config,
-        );
+        let stored_workload: WorkloadInternal =
+            generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, templated_runtime_config);
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let configs = generate_test_configs();
         let renderer = ConfigRenderer::default();
 
-        let result = renderer.render_workloads(&workloads, &configs);
+        let result = renderer.render_workloads(&workloads, &configs.configs);
 
         assert!(result.is_err());
         assert!(
@@ -483,7 +487,7 @@ mod tests {
         let configs = generate_test_configs();
         let renderer = ConfigRenderer::default();
 
-        let result = renderer.render_workloads(&workloads, &configs);
+        let result = renderer.render_workloads(&workloads, &configs.configs);
 
         assert!(result.is_err());
         assert!(
@@ -495,11 +499,8 @@ mod tests {
     #[test]
     fn utest_render_workloads_fails_workload_references_empty_configs() {
         let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
-        let stored_workload: WorkloadInternal = generate_test_workload_with_runtime_config(
-            AGENT_A,
-            RUNTIME,
-            templated_runtime_config,
-        );
+        let stored_workload: WorkloadInternal =
+            generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, templated_runtime_config);
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let configs = HashMap::default();
@@ -532,7 +533,9 @@ mod tests {
         let multi_line_config_value = "value_1\nvalue_2\nvalue_3".to_string();
         let configs = HashMap::from([(
             "config_1".to_string(),
-            ConfigItem::String(multi_line_config_value),
+            ConfigItemInternal {
+                config_item_enum: ConfigItemEnumInternal::String(multi_line_config_value),
+            },
         )]);
         let renderer = ConfigRenderer::default();
 
@@ -551,7 +554,10 @@ mod tests {
                 value_2
                 value_3"#;
 
-        assert_eq!(workload.workload.runtime_config, expected_expanded_runtime_config);
+        assert_eq!(
+            workload.workload.runtime_config,
+            expected_expanded_runtime_config
+        );
     }
 
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
@@ -571,7 +577,9 @@ mod tests {
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let configs = HashMap::from([(
             "config_special_chars".to_string(),
-            ConfigItem::String(CONFIG_VALUE.to_owned()),
+            ConfigItemInternal {
+                config_item_enum: ConfigItemEnumInternal::String(CONFIG_VALUE.to_owned()),
+            },
         )]);
 
         let renderer = ConfigRenderer::default();

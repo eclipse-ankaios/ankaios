@@ -27,8 +27,3 @@ pub use complete_state::CompleteState;
 
 mod agent_name;
 pub use agent_name::AgentName;
-
-mod config;
-pub use config::ConfigItem;
-#[cfg(any(feature = "test_utils", test))]
-pub use config::generate_test_configs;

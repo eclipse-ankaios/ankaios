@@ -13,6 +13,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub const ANKAIOS_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const API_VERSION_0_1: &str = "v0.1";
+pub const API_VERSION_1_0: &str = "v1";
+pub const CURRENT_API_VERSION: &str = API_VERSION_1_0;
+pub const PREVIOUS_API_VERSION: &str = API_VERSION_0_1;
 
 pub mod control_api {
     // [impl->swdd~control-api-provides-control-interface-definitions~1]

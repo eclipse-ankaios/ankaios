@@ -15,9 +15,11 @@
 use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 
-use crate::objects::{CompleteState, ConfigItem, State};
+use crate::objects::{CompleteState, State};
 
-use api::ank_base::{ConfigMappingsInternal, WorkloadNamed};
+use api::ank_base::{
+    ConfigItemEnumInternal, ConfigItemInternal, ConfigMappingsInternal, WorkloadNamed,
+};
 use api::test_utils::{
     generate_test_agent_map_from_workloads, generate_test_workload,
     generate_test_workload_states_map_from_specs,
@@ -44,9 +46,24 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadNamed>) -> Stat
             })
             .collect(),
         configs: [
-            ("config_1".into(), ConfigItem::String("value 1".into())),
-            ("config_2".into(), ConfigItem::String("value 2".into())),
-            ("config_3".into(), ConfigItem::String("value 3".into())),
+            (
+                "config_1".to_owned(),
+                ConfigItemInternal {
+                    config_item_enum: ConfigItemEnumInternal::String("value 1".to_owned()),
+                },
+            ),
+            (
+                "config_2".to_owned(),
+                ConfigItemInternal {
+                    config_item_enum: ConfigItemEnumInternal::String("value 2".to_owned()),
+                },
+            ),
+            (
+                "config_3".to_owned(),
+                ConfigItemInternal {
+                    config_item_enum: ConfigItemEnumInternal::String("value 3".to_owned()),
+                },
+            ),
         ]
         .into(),
     }
@@ -78,7 +95,14 @@ pub fn generate_test_complete_state_with_configs(
             api_version: API_VERSION.into(),
             configs: configs
                 .into_iter()
-                .map(|value| (value.clone(), ConfigItem::String(String::default())))
+                .map(|value| {
+                    (
+                        value.clone(),
+                        ConfigItemInternal {
+                            config_item_enum: ConfigItemEnumInternal::String(value),
+                        },
+                    )
+                })
                 .collect(),
             ..Default::default()
         },

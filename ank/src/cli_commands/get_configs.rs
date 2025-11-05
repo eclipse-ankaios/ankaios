@@ -16,7 +16,7 @@ use crate::cli_commands::config_table_row::ConfigTableRow;
 use crate::cli_commands::DESIRED_STATE_CONFIGS;
 use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{cli_commands::cli_table::CliTable, cli_error::CliError, output_debug};
-use common::objects::ConfigItem;
+use api::ank_base::ConfigItemInternal;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-list-of-configs~1]
@@ -44,7 +44,7 @@ impl CliCommands {
 }
 
 fn transform_into_table_rows(
-    configs: impl Iterator<Item = (String, ConfigItem)>,
+    configs: impl Iterator<Item = (String, ConfigItemInternal)>,
 ) -> Vec<ConfigTableRow> {
     let mut config_table_rows: Vec<ConfigTableRow> = configs
         .map(|(config_str, _config_item)| ConfigTableRow { config: config_str })

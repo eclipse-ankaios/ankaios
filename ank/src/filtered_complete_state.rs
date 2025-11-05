@@ -15,10 +15,9 @@
 use crate::{output_and_error, output_warn};
 
 use api::ank_base::{
-    self, AddCondition, ControlInterfaceAccessInternal, FileInternal, RestartPolicy,
-    WorkloadStatesMapInternal,
+    self, AddCondition, ConfigItemInternal, ControlInterfaceAccessInternal, FileInternal,
+    RestartPolicy, WorkloadStatesMapInternal,
 };
-use common::objects::ConfigItem;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -49,7 +48,7 @@ pub struct FilteredState {
     pub workloads: Option<HashMap<String, FilteredWorkloadSpec>>,
     // #[serde(serialize_with = "serialize_option_to_ordered_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub configs: Option<HashMap<String, ConfigItem>>,
+    pub configs: Option<HashMap<String, ConfigItemInternal>>,
 }
 
 // #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -159,7 +158,7 @@ impl From<ank_base::State> for FilteredState {
             configs: value.configs.map(|x| {
                 x.configs
                     .into_iter()
-                    .filter_map(|(key, value)| -> Option<(String, ConfigItem)> {
+                    .filter_map(|(key, value)| -> Option<(String, ConfigItemInternal)> {
                         match value.try_into() {
                             Ok(value) => Some((key, value)),
                             Err(err) => {

@@ -968,12 +968,14 @@ mod tests {
 
         let manifest_content = io::Cursor::new(
             b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1",
+            // b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: \n    config_item_enum: \"config_value_1\"",
         );
 
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
         let updated_state = CompleteState {
+            // TODO #313 This unwrap fails: called on Error("configs.config_1: invalid type: string \"config_value_1\", expected struct ConfigItemInternal")
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };

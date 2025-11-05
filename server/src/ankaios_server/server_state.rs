@@ -372,17 +372,18 @@ mod tests {
     use std::collections::HashMap;
 
     use api::ank_base::{
-        self, AgentMapInternal, CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, Workload,
-        WorkloadInternal, WorkloadNamed, WorkloadStatesMapInternal,
+        self, AgentMapInternal, ConfigItemEnumInternal, ConfigItemInternal, ConfigObjectInternal,
+        CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, Workload, WorkloadInternal,
+        WorkloadNamed, WorkloadStatesMapInternal,
     };
     use api::test_utils::{
-        generate_test_agent_map, generate_test_proto_complete_state, generate_test_workload,
-        generate_test_workload_with_param,
+        generate_test_agent_map, generate_test_configs, generate_test_proto_complete_state,
+        generate_test_workload, generate_test_workload_with_param,
     };
     use common::objects::AgentLoadStatus;
     use common::{
         commands::CompleteStateRequest,
-        objects::{CompleteState, ConfigItem, State, generate_test_configs},
+        objects::{CompleteState, State},
         test_utils::generate_test_complete_state,
     };
     use mockall::predicate;
@@ -820,7 +821,7 @@ mod tests {
     fn utest_server_state_update_state_update_configs_not_affecting_workloads() {
         let old_state = generate_test_old_state();
         let mut state_with_updated_config = old_state.clone();
-        state_with_updated_config.desired_state.configs = generate_test_configs();
+        state_with_updated_config.desired_state.configs = generate_test_configs().configs;
 
         let update_mask = vec!["desiredState".to_string()];
 
@@ -868,15 +869,21 @@ mod tests {
     #[test]
     fn utest_server_state_update_state_update_workload_with_existing_configs() {
         let mut old_state = generate_test_old_state();
-        old_state.desired_state.configs = generate_test_configs();
+        old_state.desired_state.configs = generate_test_configs().configs;
 
         let mut updated_state = old_state.clone();
         updated_state.desired_state.configs = HashMap::from([(
             "config_1".to_string(),
-            ConfigItem::ConfigObject(HashMap::from([(
-                "agent_name".to_string(),
-                ConfigItem::String(AGENT_B.to_owned()), // changed agent name in configs
-            )])),
+            ConfigItemInternal {
+                config_item_enum: ConfigItemEnumInternal::Object(ConfigObjectInternal {
+                    fields: HashMap::from([(
+                        "agent_name".to_string(),
+                        ConfigItemInternal {
+                            config_item_enum: ConfigItemEnumInternal::String(AGENT_B.to_owned()), // changed agent name in configs
+                        },
+                    )]),
+                }),
+            },
         )]);
 
         let updated_workload = updated_state
@@ -940,15 +947,21 @@ mod tests {
     #[test]
     fn utest_server_state_update_state_update_workload_on_changed_configs() {
         let mut old_state = generate_test_old_state();
-        old_state.desired_state.configs = generate_test_configs();
+        old_state.desired_state.configs = generate_test_configs().configs;
 
         let mut updated_state = old_state.clone();
         updated_state.desired_state.configs = HashMap::from([(
             "config_1".to_string(),
-            ConfigItem::ConfigObject(HashMap::from([(
-                "agent_name".to_string(),
-                ConfigItem::String(AGENT_B.to_owned()), // changed agent name in configs
-            )])),
+            ConfigItemInternal {
+                config_item_enum: ConfigItemEnumInternal::Object(ConfigObjectInternal {
+                    fields: HashMap::from([(
+                        "agent_name".to_string(),
+                        ConfigItemInternal {
+                            config_item_enum: ConfigItemEnumInternal::String(AGENT_B.to_owned()), // changed agent name in configs
+                        },
+                    )]),
+                }),
+            },
         )]);
 
         let update_mask = vec!["desiredState.configs".to_string()];
@@ -1015,7 +1028,7 @@ mod tests {
     fn utest_server_state_update_state_workload_references_removed_configs() {
         let _ = env_logger::builder().is_test(true).try_init();
         let mut old_state = generate_test_old_state();
-        old_state.desired_state.configs = generate_test_configs();
+        old_state.desired_state.configs = generate_test_configs().configs;
 
         let mut updated_state = old_state.clone();
         updated_state.desired_state.configs.clear();

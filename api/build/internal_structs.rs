@@ -59,6 +59,7 @@ pub fn setup_internal_state(builder: Builder) -> Builder {
             "WorkloadMap",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
+        .field_attribute("WorkloadMap.workloads", "#[internal_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\")])]")
 }
 
 /// This function is used to create and configure the following structs:
@@ -286,11 +287,14 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
             "ConfigMap",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
+        .field_attribute("ConfigMap.configs", "#[internal_field_attr(#[serde(flatten)])]")
         .message_attribute("ConfigItem", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "ConfigItem",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
+        .field_attribute("ConfigItem.ConfigItemEnum", "#[internal_mandatory]")
+        .field_attribute("ConfigItem.ConfigItemEnum", "#[internal_field_attr(#[serde(flatten)])]")
         .enum_attribute("ConfigItemEnum", "#[derive(internal_derive_macros::Internal)]")
         .enum_attribute(
             "ConfigItemEnum",
@@ -305,11 +309,13 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
             "ConfigArray",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
+        .field_attribute("ConfigArray.values", "#[internal_field_attr(#[serde(flatten)])]")
         .message_attribute("ConfigObject", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "ConfigObject",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
+        .field_attribute("ConfigObject.fields", "#[internal_field_attr(#[serde(flatten)])]")
 }
 
 /// This function is used to create and configure the following structs:

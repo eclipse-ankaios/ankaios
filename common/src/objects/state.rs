@@ -12,9 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::objects::ConfigItem;
-
-use api::ank_base::{self, STR_RE_CONFIG_REFERENCES, WorkloadInternal, serialize_to_ordered_map};
+use api::ank_base::{
+    self, ConfigItemInternal, STR_RE_CONFIG_REFERENCES, WorkloadInternal, serialize_to_ordered_map,
+};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -34,8 +34,10 @@ pub struct State {
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub workloads: HashMap<String, WorkloadInternal>,
     #[serde(default)]
-    pub configs: HashMap<String, ConfigItem>,
+    pub configs: HashMap<String, ConfigItemInternal>,
 }
+
+// pub type State = api::ank_base::StateInternal;
 
 impl Default for State {
     fn default() -> Self {
@@ -142,14 +144,13 @@ impl State {
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, WorkloadInternal};
-    use api::test_utils::{generate_test_proto_state, generate_test_workload};
+    use api::ank_base::{self, ConfigItemEnumInternal, ConfigItemInternal, WorkloadInternal};
+    use api::test_utils::{
+        generate_test_configs, generate_test_proto_state, generate_test_workload,
+    };
     use std::collections::HashMap;
 
-    use crate::{
-        objects::{ConfigItem, State, generate_test_configs},
-        test_utils::generate_test_state,
-    };
+    use crate::{objects::State, test_utils::generate_test_state};
 
     const WORKLOAD_NAME_1: &str = "workload_1";
     const INVALID_CONFIG_KEY: &str = "invalid%key";
@@ -238,7 +239,7 @@ mod tests {
         let state = State {
             api_version: super::CURRENT_API_VERSION.into(),
             workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
-            configs: generate_test_configs(),
+            configs: generate_test_configs().configs,
         };
 
         assert_eq!(State::verify_configs_format(&state), Ok(()));
@@ -251,7 +252,9 @@ mod tests {
             api_version: super::CURRENT_API_VERSION.into(),
             configs: HashMap::from([(
                 INVALID_CONFIG_KEY.to_owned(),
-                ConfigItem::String("value".to_string()),
+                ConfigItemInternal {
+                    config_item_enum: ConfigItemEnumInternal::String("value".to_owned()),
+                },
             )]),
             ..Default::default()
         };
