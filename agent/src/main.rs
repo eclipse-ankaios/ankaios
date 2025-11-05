@@ -12,9 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::STR_RE_AGENT;
+use api::ank_base::{STR_RE_AGENT, WorkloadStateInternal};
 use common::communications_client::CommunicationsClient;
-use common::objects::{AgentName, WorkloadState};
+use common::objects::AgentName;
 use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use grpc::security::TLSConfig;
@@ -137,7 +137,7 @@ async fn main() {
     let (to_manager, manager_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
     let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
     let (workload_state_sender, workload_state_receiver) =
-        tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
+        tokio::sync::mpsc::channel::<WorkloadStateInternal>(BUFFER_SIZE);
 
     // [impl->swdd~agent-prepares-dedicated-run-folder~1]
     let run_directory = io_utils::prepare_agent_run_directory(

@@ -16,7 +16,7 @@ use crate::{
     commands::{self, LogsRequest, RequestContent},
     objects::{AgentLoadStatus, CompleteState},
 };
-use api::ank_base;
+use api::ank_base::{self, WorkloadStateInternal};
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -65,7 +65,7 @@ pub trait ToServerInterface {
     ) -> Result<(), ToServerError>;
     async fn update_workload_state(
         &self,
-        workload_running: Vec<crate::objects::WorkloadState>,
+        workload_running: Vec<WorkloadStateInternal>,
     ) -> Result<(), ToServerError>;
     async fn request_complete_state(
         &self,
@@ -136,7 +136,7 @@ impl ToServerInterface for ToServerSender {
 
     async fn update_workload_state(
         &self,
-        workload_running: Vec<crate::objects::WorkloadState>,
+        workload_running: Vec<WorkloadStateInternal>,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::UpdateWorkloadState(
@@ -230,7 +230,7 @@ mod tests {
     use super::{ToServerReceiver, ToServerSender};
     use crate::{
         commands::{self, RequestContent},
-        objects::{AgentLoadStatus, generate_test_workload_state},
+        objects::AgentLoadStatus,
         test_utils::generate_test_complete_state,
         to_server_interface::{ToServer, ToServerInterface},
     };
@@ -238,7 +238,7 @@ mod tests {
         self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogEntriesResponse,
         LogEntry, WorkloadInstanceNameInternal,
     };
-    use api::test_utils::generate_test_workload;
+    use api::test_utils::{generate_test_workload, generate_test_workload_state};
 
     const TEST_CHANNEL_CAP: usize = 5;
     const WORKLOAD_NAME: &str = "X";

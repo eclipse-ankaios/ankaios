@@ -59,7 +59,11 @@ impl From<common::objects::AgentLoadStatus> for AgentLoadStatus {
 impl From<commands::UpdateWorkloadState> for UpdateWorkloadState {
     fn from(item: commands::UpdateWorkloadState) -> Self {
         UpdateWorkloadState {
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
+            workload_states: item
+                .workload_states
+                .into_iter()
+                .map(|x| x.into())
+                .collect(),
         }
     }
 }
@@ -67,7 +71,11 @@ impl From<commands::UpdateWorkloadState> for UpdateWorkloadState {
 impl From<UpdateWorkloadState> for commands::UpdateWorkloadState {
     fn from(item: UpdateWorkloadState) -> Self {
         commands::UpdateWorkloadState {
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
+            workload_states: item
+                .workload_states
+                .into_iter()
+                .map(|x| x.try_into().unwrap())
+                .collect(),
         }
     }
 }
@@ -136,6 +144,9 @@ impl From<WorkloadNamed> for AddedWorkload {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
+use api::test_utils::generate_test_workload_state_with_agent;
+
+#[cfg(test)]
 fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
     HashMap::from([(
         String::from("workload_A"),
@@ -163,7 +174,7 @@ pub fn generate_test_failed_update_workload_state(
     workload_name: &str,
 ) -> common::to_server_interface::ToServer {
     common::to_server_interface::ToServer::UpdateWorkloadState(commands::UpdateWorkloadState {
-        workload_states: vec![common::objects::generate_test_workload_state_with_agent(
+        workload_states: vec![generate_test_workload_state_with_agent(
             workload_name,
             agent_name,
             api::ank_base::ExecutionStateInternal::failed("additional_info"),
@@ -180,11 +191,11 @@ mod tests {
 
     use crate::{DeletedWorkload, generate_test_proto_deleted_workload};
 
-    use api::ank_base::{self, ConfigHash, ExecutionStateInternal};
+    use api::ank_base::{self, ConfigHash, ExecutionStateInternal, WorkloadStateInternal};
     use api::test_utils::generate_test_deleted_workload;
 
     mod ankaios {
-        pub use common::{commands::*, objects::*};
+        pub use common::commands::*;
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -388,7 +399,7 @@ mod tests {
                     self.0.clone()
                 }
             }
-            ankaios::WorkloadState {
+            WorkloadStateInternal {
                 instance_name: api::ank_base::WorkloadInstanceNameInternal::builder()
                     .workload_name(WORKLOAD_NAME_1)
                     .config(&HashableString(HASH.into()))

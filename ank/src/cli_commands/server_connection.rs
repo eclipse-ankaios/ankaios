@@ -562,13 +562,13 @@ mod tests {
 
     use api::ank_base::{
         self, ExecutionStateInternal, UpdateStateSuccess, WorkloadInstanceNameInternal,
-        WorkloadInternal,
+        WorkloadInternal, WorkloadStateInternal,
     };
     use api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
         commands::{CompleteStateRequest, RequestContent, UpdateStateRequest, UpdateWorkloadState},
         from_server_interface::FromServer,
-        objects::{CompleteState, State, WorkloadState},
+        objects::{CompleteState, State},
         to_server_interface::ToServer,
     };
 
@@ -1173,7 +1173,7 @@ mod tests {
     #[tokio::test]
     async fn utest_read_next_update_workload_state() {
         let update_workload_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
+            workload_states: vec![WorkloadStateInternal {
                 instance_name: instance_name(WORKLOAD_NAME_1),
                 execution_state: ExecutionStateInternal::running(),
             }],
@@ -1202,7 +1202,7 @@ mod tests {
             )),
         });
         let update_workload_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
+            workload_states: vec![WorkloadStateInternal {
                 instance_name: instance_name(WORKLOAD_NAME_1),
                 execution_state: ExecutionStateInternal::running(),
             }],

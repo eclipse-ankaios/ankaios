@@ -12,9 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base::WorkloadStateInternal;
 use common::{
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{AgentLoadStatus, WorkloadState},
+    objects::AgentLoadStatus,
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -221,7 +222,7 @@ impl AgentManager {
 
     async fn store_and_forward_own_workload_states(
         &mut self,
-        mut new_workload_state: WorkloadState,
+        mut new_workload_state: WorkloadStateInternal,
     ) {
         // execute hysteresis on the local workload states as we could be stopping
         // [impl->swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1]
@@ -297,7 +298,9 @@ mod tests {
     use api::ank_base::{
         self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, WorkloadNamed,
     };
-    use api::test_utils::generate_test_workload_with_param;
+    use api::test_utils::{
+        generate_test_workload_state_with_agent, generate_test_workload_with_param,
+    };
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::{FromServer, FromServerInterface},
@@ -389,7 +392,7 @@ mod tests {
         let (to_server, _) = channel(BUFFER_SIZE);
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload_state = common::objects::generate_test_workload_state_with_agent(
+        let workload_state = generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
             ExecutionStateInternal::running(),
@@ -547,13 +550,13 @@ mod tests {
         let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
         let (workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload_state_incoming = common::objects::generate_test_workload_state_with_agent(
+        let workload_state_incoming = generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
             ExecutionStateInternal::running(),
         );
 
-        let wl_state_after_hysteresis = common::objects::generate_test_workload_state_with_agent(
+        let wl_state_after_hysteresis = generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
             ExecutionStateInternal::stopping_requested(),
@@ -704,7 +707,8 @@ mod tests {
         let (to_server, _server_receiver) = channel(BUFFER_SIZE);
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
+        let workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
 
         let mock_runtime_manager = RuntimeManager::default();
 

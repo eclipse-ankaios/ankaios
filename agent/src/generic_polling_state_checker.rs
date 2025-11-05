@@ -110,7 +110,9 @@ mod tests {
     };
 
     use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
-    use api::test_utils::generate_test_workload_with_param;
+    use api::test_utils::{
+        generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
+    };
 
     use std::time::Duration;
 
@@ -151,7 +153,7 @@ mod tests {
         )
         .await;
 
-        let expected_state = common::objects::generate_test_workload_state_with_workload_named(
+        let expected_state = generate_test_workload_state_with_workload_named(
             &workload_spec,
             ExecutionStateInternal::running(),
         );

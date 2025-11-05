@@ -16,6 +16,7 @@ use super::config_renderer::RenderedWorkloads;
 use api::ank_base;
 use api::ank_base::{
     AgentAttributesInternal, DeletedWorkload, WorkloadInstanceNameInternal, WorkloadNamed,
+    WorkloadStateInternal,
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -24,7 +25,7 @@ use super::config_renderer::ConfigRenderer;
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-use common::objects::{State, WorkloadState, WorkloadStatesMap};
+use common::objects::{State, WorkloadStatesMap};
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
@@ -300,7 +301,7 @@ impl ServerState {
     }
 
     // [impl->swdd~server-cleans-up-state~1]
-    pub fn cleanup_state(&mut self, new_workload_states: &[WorkloadState]) {
+    pub fn cleanup_state(&mut self, new_workload_states: &[WorkloadStateInternal]) {
         // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
         self.delete_graph
             .remove_deleted_workloads_from_delete_graph(new_workload_states);

@@ -12,13 +12,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::{HashMap, hash_map::Entry};
+// use std::collections::{HashMap, hash_map::Entry};
+// use api::ank_base;
+// use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+// use serde::{Deserialize, Serialize};
+// use super::WorkloadState;
 
-use api::ank_base;
-use api::ank_base::{
-    ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
+use crate::ank_base::{
+    ExecutionStateInternal, ExecutionsStatesOfWorkloadInternal, WorkloadInstanceNameInternal,
+    WorkloadNamed, WorkloadState, WorkloadStatesMapInternal,
 };
-use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, hash_map::Entry};
 
 type AgentName = String;
 type WorkloadName = String;
@@ -26,38 +30,63 @@ type WorkloadId = String;
 
 type ExecutionState = ExecutionStateInternal;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-pub struct WorkloadStatesMap(
-    HashMap<AgentName, HashMap<WorkloadName, HashMap<WorkloadId, ExecutionState>>>,
-);
+// #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+// pub struct WorkloadStatesMap(
+//     HashMap<AgentName, HashMap<WorkloadName, HashMap<WorkloadId, ExecutionState>>>,
+// );
 
 // [impl->swdd~state-map-for-workload-execution-states~2]
-impl WorkloadStatesMap {
-    pub fn new() -> WorkloadStatesMap {
-        WorkloadStatesMap(HashMap::new())
+impl WorkloadStatesMapInternal {
+    pub fn new() -> WorkloadStatesMapInternal {
+        Default::default()
     }
 
-    fn entry(
-        &mut self,
-        key: String,
-    ) -> Entry<'_, String, HashMap<String, HashMap<String, ExecutionState>>> {
-        self.0.entry(key)
+    fn to_hashmap(self) -> HashMap<String, HashMap<String, HashMap<String, ExecutionState>>> {
+        self.agent_state_map
+            .into_iter()
+            .map(|(agent_name, wl_map)| {
+                (
+                    agent_name,
+                    wl_map
+                        .wl_name_state_map
+                        .into_iter()
+                        .map(|(wl_name, id_map)| {
+                            (
+                                wl_name,
+                                id_map
+                                    .id_state_map
+                                    .into_iter()
+                                    .map(|(id, exec_state)| (id, exec_state))
+                                    .collect(),
+                            )
+                        })
+                        .collect(),
+                )
+            })
+            .collect()
     }
 
-    pub fn get_workload_state_for_agent(&self, agent_name: &str) -> Vec<WorkloadStateInternal> {
-        self.0
+    fn entry(&mut self, key: String) -> Entry<'_, String, ExecutionsStatesOfWorkloadInternal> {
+        self.agent_state_map.entry(key)
+    }
+
+    pub fn get_workload_state_for_agent(&self, agent_name: &str) -> Vec<WorkloadState> {
+        self.agent_state_map
             .get(agent_name)
             .map(|name_map| {
                 name_map
+                    .wl_name_state_map
                     .iter()
                     .flat_map(|(wl_name, id_map)| {
                         id_map
+                            .id_state_map
                             .iter()
-                            .map(move |(wl_id, exec_state)| WorkloadStateInternal {
-                                instance_name: WorkloadInstanceNameInternal::new(
-                                    agent_name, wl_name, wl_id,
+                            .map(move |(wl_id, exec_state)| WorkloadState {
+                                instance_name: Some(
+                                    WorkloadInstanceNameInternal::new(agent_name, wl_name, wl_id)
+                                        .into(),
                                 ),
-                                execution_state: exec_state.to_owned(),
+                                execution_state: Some(exec_state.clone().into()),
                             })
                     })
                     .collect()
@@ -68,21 +97,24 @@ impl WorkloadStatesMap {
     pub fn get_workload_state_excluding_agent(
         &self,
         excluding_agent_name: &str,
-    ) -> Vec<WorkloadStateInternal> {
-        self.0
+    ) -> Vec<WorkloadState> {
+        self.agent_state_map
             .iter()
             .filter(|(agent_name, _)| *agent_name != excluding_agent_name)
-            .flat_map(|(agent_name, name_state_map)| {
-                name_state_map
+            .flat_map(|(agent_name, name_map)| {
+                name_map
+                    .wl_name_state_map
                     .iter()
-                    .flat_map(move |(wl_name, id_state_map)| {
-                        id_state_map
+                    .flat_map(move |(wl_name, id_map)| {
+                        id_map
+                            .id_state_map
                             .iter()
-                            .map(move |(wl_id, exec_state)| WorkloadStateInternal {
-                                instance_name: WorkloadInstanceNameInternal::new(
-                                    agent_name, wl_name, wl_id,
+                            .map(move |(wl_id, exec_state)| WorkloadState {
+                                instance_name: Some(
+                                    WorkloadInstanceNameInternal::new(agent_name, wl_name, wl_id)
+                                        .into(),
                                 ),
-                                execution_state: exec_state.to_owned(),
+                                execution_state: Some(exec_state.clone().into()),
                             })
                     })
             })
@@ -93,30 +125,40 @@ impl WorkloadStatesMap {
         &self,
         instance_name: &WorkloadInstanceNameInternal,
     ) -> Option<&ExecutionState> {
-        self.0
+        self.agent_state_map
             .get(instance_name.agent_name())
-            .and_then(|name_map| name_map.get(instance_name.workload_name()))
-            .and_then(|id_map| id_map.get(instance_name.id()))
+            .and_then(|name_map| {
+                name_map
+                    .wl_name_state_map
+                    .get(instance_name.workload_name())
+            })
+            .and_then(|id_map| id_map.id_state_map.get(instance_name.id()))
     }
 
     pub fn agent_disconnected(&mut self, agent_name: &str) {
-        if let Some(agent_states) = self.0.get_mut(agent_name) {
-            agent_states.iter_mut().for_each(|(_, name_map)| {
-                name_map
-                    .iter_mut()
-                    .for_each(|(_, exec_state)| *exec_state = ExecutionState::agent_disconnected())
-            })
+        if let Some(agent_states) = self.agent_state_map.get_mut(agent_name) {
+            agent_states
+                .wl_name_state_map
+                .iter_mut()
+                .for_each(|(_, id_map)| {
+                    id_map.id_state_map.iter_mut().for_each(|(_, exec_state)| {
+                        *exec_state = ExecutionState::agent_disconnected()
+                    })
+                })
         }
     }
 
-    pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadNamed>) {
-        for spec in workload_specs {
-            self.entry(spec.instance_name.agent_name().to_owned())
+    pub fn initial_state(&mut self, workloads: &Vec<WorkloadNamed>) {
+        for wl in workloads {
+            self.agent_state_map
+                .entry(wl.instance_name.agent_name().to_owned())
                 .or_default()
-                .entry(spec.instance_name.workload_name().to_owned())
+                .wl_name_state_map
+                .entry(wl.instance_name.workload_name().to_owned())
                 .or_default()
-                .entry(spec.instance_name.id().to_owned())
-                .or_insert(if spec.instance_name.agent_name().is_empty() {
+                .id_state_map
+                .entry(wl.instance_name.id().to_owned())
+                .or_insert(if wl.instance_name.agent_name().is_empty() {
                     ExecutionState::not_scheduled()
                 } else {
                     ExecutionState::initial()
@@ -125,57 +167,79 @@ impl WorkloadStatesMap {
     }
 
     pub fn remove(&mut self, instance_name: &WorkloadInstanceNameInternal) {
-        if let Some(agent_states) = self.0.get_mut(instance_name.agent_name()) {
-            if let Some(workload_states) = agent_states.get_mut(instance_name.workload_name()) {
-                workload_states.remove(instance_name.id());
-                // the following part is needed to cleanup empty paths in the state map
-                if workload_states.is_empty() {
-                    agent_states.remove(instance_name.workload_name());
-                    if agent_states.is_empty() {
-                        self.0.remove(instance_name.agent_name());
-                    }
+        if let Some(agent_states) = self.agent_state_map.get_mut(instance_name.agent_name())
+            && let Some(workload_states) = agent_states
+                .wl_name_state_map
+                .get_mut(instance_name.workload_name())
+        {
+            workload_states.id_state_map.remove(instance_name.id());
+            // the following part is needed to cleanup empty paths in the state map
+            if workload_states.id_state_map.is_empty() {
+                agent_states
+                    .wl_name_state_map
+                    .remove(instance_name.workload_name());
+                if agent_states.wl_name_state_map.is_empty() {
+                    self.agent_state_map.remove(instance_name.agent_name());
                 }
             }
         }
     }
 
-    pub fn process_new_states(&mut self, workload_states: Vec<WorkloadStateInternal>) {
-        workload_states.into_iter().for_each(|workload_state| {
-            if workload_state.execution_state.is_removed() {
-                self.remove(&workload_state.instance_name);
-            } else {
-                self.entry(workload_state.instance_name.agent_name().to_owned())
-                    .or_default()
-                    .entry(workload_state.instance_name.workload_name().to_owned())
-                    .or_default()
-                    .insert(
-                        workload_state.instance_name.id().to_owned(),
-                        workload_state.execution_state,
-                    );
+    pub fn process_new_states(&mut self, workload_states: Vec<WorkloadState>) {
+        // for workload_state in workload_states {
+        //     if workload_state.execution_state.is_removed() {
+        //         self.remove(&workload_state.instance_name);
+        //     } else {
+        //         self.entry(workload_state.instance_name.agent_name().to_owned())
+        //             .or_default()
+        //             .wl_name_state_map
+        //             .entry(workload_state.instance_name.workload_name().to_owned())
+        //             .or_default()
+        //             .id_state_map
+        //             .insert(
+        //                 workload_state.instance_name.id().to_owned(),
+        //                 workload_state.execution_state,
+        //             );
+        //     }
+        // }
+        for workload_state in workload_states {
+            if let Some(instance_name) = workload_state.instance_name && let Some(exec_state) = workload_state.execution_state {
+                if exec_state.is_removed() {
+                    self.remove(&instance_name);
+                } else {
+                    self.entry(instance_name.agent_name().to_owned())
+                        .or_default()
+                        .wl_name_state_map
+                        .entry(instance_name.workload_name().to_owned())
+                        .or_default()
+                        .id_state_map
+                        .insert(instance_name.id().to_owned(), exec_state);
+                }
             }
-        });
+        }
     }
 }
 
-impl From<WorkloadStatesMap> for Vec<WorkloadStateInternal> {
-    fn from(value: WorkloadStatesMap) -> Self {
+impl From<WorkloadStatesMapInternal> for Vec<WorkloadState> {
+    fn from(value: WorkloadStatesMapInternal) -> Self {
         value
+            .agent_state_map
             .into_iter()
             .flat_map(|(agent_name, name_state_map)| {
                 name_state_map
                     .into_iter()
                     .flat_map(move |(wl_name, id_state_map)| {
                         let agent_name = agent_name.clone();
-                        id_state_map.into_iter().map(move |(wl_id, exec_state)| {
-                            WorkloadStateInternal {
+                        id_state_map
+                            .into_iter()
+                            .map(move |(wl_id, exec_state)| WorkloadState {
                                 instance_name: WorkloadInstanceNameInternal::new(
                                     agent_name.clone(),
                                     wl_name.clone(),
                                     wl_id,
                                 ),
                                 execution_state: exec_state,
-                            }
-                        })
+                            })
                     })
             })
             .collect()
@@ -308,7 +372,7 @@ pub fn generate_test_workload_states_map_with_data(
 
 #[cfg(test)]
 pub fn generate_test_workload_states_map_from_workload_states(
-    workload_states: Vec<WorkloadStateInternal>,
+    workload_states: Vec<WorkloadState>,
 ) -> WorkloadStatesMap {
     let mut wl_states_map = WorkloadStatesMap::new();
 
@@ -333,10 +397,9 @@ mod tests {
     use super::{
         ExecutionState, WorkloadStatesMap, generate_test_workload_states_map_from_workload_states,
     };
-    use api::ank_base::{WorkloadNamed, WorkloadStateInternal};
-    use api::test_utils::{
-        generate_test_workload_state_with_agent, generate_test_workload_with_param,
-    };
+    use crate::objects::{WorkloadState, generate_test_workload_state_with_agent};
+    use api::ank_base::WorkloadNamed;
+    use api::test_utils::generate_test_workload_with_param;
     use std::vec;
 
     const AGENT_A: &str = "agent_A";
@@ -370,7 +433,7 @@ mod tests {
     fn utest_workload_states_map_into_vec_of_workload_states() {
         let wls_db = create_test_setup();
 
-        let mut wls_res: Vec<WorkloadStateInternal> = wls_db.into();
+        let mut wls_res: Vec<WorkloadState> = wls_db.into();
         wls_res.sort_by(|a, b| {
             a.instance_name
                 .workload_name()

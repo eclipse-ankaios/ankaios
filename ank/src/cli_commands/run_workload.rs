@@ -73,11 +73,10 @@ impl CliCommands {
 mod tests {
     use api::ank_base::{
         self, ExecutionStateInternal, TagsInternal, UpdateStateSuccess, WorkloadInternal,
+        WorkloadStateInternal,
     };
     use common::{
-        commands::UpdateWorkloadState,
-        from_server_interface::FromServer,
-        objects::{CompleteState, WorkloadState},
+        commands::UpdateWorkloadState, from_server_interface::FromServer, objects::CompleteState,
     };
     use mockall::predicate::eq;
     use std::collections::HashMap;
@@ -156,7 +155,7 @@ mod tests {
             .expect_take_missed_from_server_messages()
             .return_once(|| {
                 vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                    workload_states: vec![WorkloadState {
+                    workload_states: vec![WorkloadStateInternal {
                         instance_name: "name4.abc.agent_B".try_into().unwrap(),
                         execution_state: ExecutionStateInternal::running(),
                     }],

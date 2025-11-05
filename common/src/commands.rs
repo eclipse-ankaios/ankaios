@@ -13,8 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::objects::CompleteState;
-use api::ank_base::{self, WorkloadNamed};
-use api::ank_base::{DeletedWorkload, WorkloadInstanceNameInternal};
+use api::ank_base::{self, WorkloadNamed, WorkloadStateInternal, DeletedWorkload, WorkloadInstanceNameInternal};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -29,7 +28,7 @@ pub struct AgentGone {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UpdateWorkloadState {
-    pub workload_states: Vec<crate::objects::WorkloadState>,
+    pub workload_states: Vec<WorkloadStateInternal>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

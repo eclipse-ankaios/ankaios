@@ -32,14 +32,6 @@ pub use workload_states_map::{
     generate_test_workload_states_map_from_specs, generate_test_workload_states_map_with_data,
 };
 
-mod workload_state;
-pub use workload_state::WorkloadState;
-#[cfg(any(feature = "test_utils", test))]
-pub use workload_state::{
-    generate_test_workload_state, generate_test_workload_state_with_agent,
-    generate_test_workload_state_with_workload_named,
-};
-
 mod agent_name;
 pub use agent_name::AgentName;
 

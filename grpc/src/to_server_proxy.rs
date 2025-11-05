@@ -116,7 +116,7 @@ pub async fn forward_from_proto_to_ankaios(
                     update_workload_state
                         .workload_states
                         .into_iter()
-                        .map(|x| x.into())
+                        .filter_map(|x| x.try_into().ok())
                         .collect(),
                 )
                 .await?;
@@ -309,7 +309,7 @@ mod tests {
         self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogEntriesResponse,
         LogEntry, LogsStopResponse, WorkloadInstanceName, WorkloadNamed,
     };
-    use api::test_utils::generate_test_workload;
+    use api::test_utils::{generate_test_workload, generate_test_workload_state_with_agent};
 
     use async_trait::async_trait;
     use common::test_utils::generate_test_complete_state;
@@ -461,7 +461,7 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let wl_state = common::objects::generate_test_workload_state_with_agent(
+        let wl_state = generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_A_NAME,
             ExecutionStateInternal::running(),
@@ -664,13 +664,12 @@ mod tests {
     async fn utest_to_server_command_forward_from_proto_to_ankaios_update_workload_state() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        let proto_wl_state: ank_base::WorkloadState =
-            common::objects::generate_test_workload_state_with_agent(
-                "fake_workload",
-                AGENT_A_NAME,
-                ExecutionStateInternal::running(),
-            )
-            .into();
+        let proto_wl_state: ank_base::WorkloadState = generate_test_workload_state_with_agent(
+            "fake_workload",
+            AGENT_A_NAME,
+            ExecutionStateInternal::running(),
+        )
+        .into();
 
         // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
@@ -702,7 +701,7 @@ mod tests {
             result,
             // TODO do a proper check here ...
             ToServer::UpdateWorkloadState(common::commands::UpdateWorkloadState{workload_states})
-            if workload_states == vec!(proto_wl_state.into())
+            if workload_states == vec!(proto_wl_state.try_into().unwrap())
         ));
     }
 

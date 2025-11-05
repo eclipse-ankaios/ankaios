@@ -15,8 +15,9 @@
 use std::{collections::HashSet, fmt::Display};
 
 use api::ank_base;
-use api::ank_base::{ExecutionStateEnumInternal, Pending, WorkloadInstanceNameInternal};
-use common::objects::WorkloadState;
+use api::ank_base::{
+    ExecutionStateEnumInternal, Pending, WorkloadInstanceNameInternal, WorkloadStateInternal,
+};
 
 #[cfg(test)]
 use mockall::mock;
@@ -50,7 +51,7 @@ impl TryFrom<ank_base::UpdateStateSuccess> for ParsedUpdateStateSuccess {
 }
 
 pub trait WaitListDisplayTrait: Display {
-    fn update(&mut self, workload_state: &WorkloadState);
+    fn update(&mut self, workload_state: &WorkloadStateInternal);
     fn set_complete(&mut self, workload: &WorkloadInstanceNameInternal);
     fn step_spinner(&mut self);
 }
@@ -65,7 +66,7 @@ mock! {
     }
 
     impl WaitListDisplayTrait for MyWaitListDisplay {
-        fn update(&mut self, workload_state: &WorkloadState);
+        fn update(&mut self, workload_state: &WorkloadStateInternal);
         fn set_complete(&mut self, workload: &WorkloadInstanceNameInternal);
         fn step_spinner(&mut self);
     }
@@ -93,7 +94,7 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
     }
 
     // [impl->swdd~cli-checks-for-final-workload-state~3]
-    pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadState>) {
+    pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadStateInternal>) {
         for workload_state in values.into_iter() {
             self.display.update(&workload_state);
             match workload_state.execution_state.state() {
@@ -197,9 +198,10 @@ fn generate_test_wait_list(
 mod tests {
     use std::collections::HashSet;
 
-    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
+    use api::ank_base::{
+        ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
+    };
     use api::test_utils::generate_test_workload_instance_name;
-    use common::objects::WorkloadState;
     use mockall::predicate::eq;
 
     use crate::cli_commands::wait_list::generate_test_wait_list;
@@ -222,7 +224,7 @@ mod tests {
     }
 
     fn prepare_wait_list_display_mock(
-        update_expectation: &WorkloadState,
+        update_expectation: &WorkloadStateInternal,
         set_complete_expectation: &WorkloadInstanceNameInternal,
     ) -> MockMyWaitListDisplay {
         let mut my_mock = MockMyWaitListDisplay::new();
@@ -246,7 +248,7 @@ mod tests {
     fn utest_update_wait_list_added_running() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadState {
+        let workload_state = WorkloadStateInternal {
             instance_name: i_name_1.clone(),
             execution_state: ExecutionStateInternal::running(),
         };
@@ -272,7 +274,7 @@ mod tests {
     fn utest_update_wait_list_added_succeeded() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadState {
+        let workload_state = WorkloadStateInternal {
             instance_name: i_name_1.clone(),
             execution_state: ExecutionStateInternal::succeeded(),
         };
@@ -298,7 +300,7 @@ mod tests {
     fn utest_update_wait_list_added_not_scheduled() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadState {
+        let workload_state = WorkloadStateInternal {
             instance_name: i_name_2.clone(),
             execution_state: ExecutionStateInternal::not_scheduled(),
         };
@@ -324,7 +326,7 @@ mod tests {
     fn utest_update_wait_list_added_failed() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadState {
+        let workload_state = WorkloadStateInternal {
             instance_name: i_name_2.clone(),
             execution_state: ExecutionStateInternal::failed("some info"),
         };
@@ -350,7 +352,7 @@ mod tests {
     fn utest_update_wait_list_added_starting_failed_no_more_retries() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadState {
+        let workload_state = WorkloadStateInternal {
             instance_name: i_name_2.clone(),
             execution_state: ExecutionStateInternal::retry_failed_no_retry("some error"),
         };
@@ -376,7 +378,7 @@ mod tests {
     fn utest_update_wait_list_deleted_removed() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadState {
+        let workload_state = WorkloadStateInternal {
             instance_name: i_name_3.clone(),
             execution_state: ExecutionStateInternal::removed(),
         };

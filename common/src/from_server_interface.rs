@@ -13,8 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::{self, LogsRequest};
-use crate::objects::WorkloadState;
-use api::ank_base::{self, DeletedWorkload, WorkloadNamed};
+use api::ank_base::{self, DeletedWorkload, WorkloadNamed, WorkloadStateInternal};
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -60,7 +59,7 @@ pub trait FromServerInterface {
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_workload_state(
         &self,
-        workload_running: Vec<WorkloadState>,
+        workload_running: Vec<WorkloadStateInternal>,
     ) -> Result<(), FromServerInterfaceError>;
     async fn response(&self, response: ank_base::Response) -> Result<(), FromServerInterfaceError>;
     async fn complete_state(
@@ -142,7 +141,7 @@ impl FromServerInterface for FromServerSender {
 
     async fn update_workload_state(
         &self,
-        workload_states: Vec<WorkloadState>,
+        workload_states: Vec<WorkloadStateInternal>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::UpdateWorkloadState(
@@ -308,11 +307,12 @@ mod tests {
     use crate::{
         commands,
         from_server_interface::{FromServer, FromServerInterface},
-        objects::generate_test_workload_state,
         test_utils::generate_test_complete_state,
     };
     use api::ank_base::{self, ExecutionStateInternal, WorkloadInstanceNameInternal};
-    use api::test_utils::{generate_test_deleted_workload, generate_test_workload};
+    use api::test_utils::{
+        generate_test_deleted_workload, generate_test_workload, generate_test_workload_state,
+    };
 
     use super::{FromServerReceiver, FromServerSender};
 

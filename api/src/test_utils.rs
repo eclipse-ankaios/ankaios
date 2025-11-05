@@ -25,6 +25,10 @@ pub use crate::ank_base::{
         generate_test_workload_with_runtime_config,
     },
     workload_instance_name::generate_test_workload_instance_name,
+    workload_state::{
+        generate_test_workload_state, generate_test_workload_state_with_agent,
+        generate_test_workload_state_with_workload_named,
+    },
 };
 use std::collections::HashMap;
 
@@ -49,25 +53,19 @@ pub fn generate_test_proto_complete_state(workloads: &[(&str, Workload)]) -> Com
                     (
                         "config_1".to_string(),
                         ConfigItem {
-                            config_item_enum: Some(ConfigItemEnum::String(
-                                "value 1".to_string(),
-                            )),
+                            config_item_enum: Some(ConfigItemEnum::String("value 1".to_string())),
                         },
                     ),
                     (
                         "config_2".to_string(),
                         ConfigItem {
-                            config_item_enum: Some(ConfigItemEnum::String(
-                                "value 2".to_string(),
-                            )),
+                            config_item_enum: Some(ConfigItemEnum::String("value 2".to_string())),
                         },
                     ),
                     (
                         "config_3".to_string(),
                         ConfigItem {
-                            config_item_enum: Some(ConfigItemEnum::String(
-                                "value 3".to_string(),
-                            )),
+                            config_item_enum: Some(ConfigItemEnum::String("value 3".to_string())),
                         },
                     ),
                 ]),

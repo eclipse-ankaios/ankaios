@@ -267,12 +267,14 @@ mod tests {
         filtered_complete_state::FilteredCompleteState,
     };
 
-    use api::ank_base::{self, ExecutionStateInternal, UpdateStateSuccess, WorkloadNamed};
+    use api::ank_base::{
+        self, ExecutionStateInternal, UpdateStateSuccess, WorkloadNamed, WorkloadStateInternal,
+    };
     use api::test_utils::generate_test_workload_with_param;
     use common::{
         commands::UpdateWorkloadState,
         // from_server_interface::FromServer,
-        objects::{CompleteState, State, WorkloadState},
+        objects::{CompleteState, State},
         state_manipulation::{Object, Path},
         test_utils,
     };
@@ -825,7 +827,7 @@ mod tests {
             .expect_read_next_update_workload_state()
             .return_once(|| {
                 Ok(UpdateWorkloadState {
-                    workload_states: vec![WorkloadState {
+                    workload_states: vec![WorkloadStateInternal {
                         instance_name: "name4.abc.agent_B".try_into().unwrap(),
                         execution_state: ExecutionStateInternal::removed(),
                     }],
@@ -923,7 +925,7 @@ mod tests {
     //                     )),
     //                 }),
     //                 FromServer::UpdateWorkloadState(UpdateWorkloadState {
-    //                     workload_states: vec![WorkloadState {
+    //                     workload_states: vec![WorkloadStateInternal {
     //                         instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
     //                         execution_state: ExecutionStateInternal::running(),
     //                     }],
@@ -934,7 +936,7 @@ mod tests {
     //         .expect_read_next_update_workload_state()
     //         .return_once(|| {
     //             Ok(UpdateWorkloadState {
-    //                 workload_states: vec![WorkloadState {
+    //                 workload_states: vec![WorkloadStateInternal {
     //                     instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
     //                     execution_state: ExecutionStateInternal::running(),
     //                 }],
@@ -1140,7 +1142,7 @@ mod tests {
     //                     )),
     //                 }),
     //                 FromServer::UpdateWorkloadState(UpdateWorkloadState {
-    //                     workload_states: vec![WorkloadState {
+    //                     workload_states: vec![WorkloadStateInternal {
     //                         instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
     //                         execution_state: ExecutionStateInternal::running(),
     //                     }],
@@ -1151,7 +1153,7 @@ mod tests {
     //         .expect_read_next_update_workload_state()
     //         .return_once(|| {
     //             Ok(UpdateWorkloadState {
-    //                 workload_states: vec![WorkloadState {
+    //                 workload_states: vec![WorkloadStateInternal {
     //                     instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
     //                     execution_state: ExecutionStateInternal::running(),
     //                 }],

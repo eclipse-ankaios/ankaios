@@ -21,14 +21,15 @@ use crate::grpc_api::{self, from_server::FromServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::ank_base;
 use api::ank_base::response::ResponseContent;
-use api::ank_base::{DeletedWorkload, WorkloadInstanceNameInternal, WorkloadNamed};
+use api::ank_base::{
+    DeletedWorkload, WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
+};
 
 use async_trait::async_trait;
 use common::commands::LogsRequest;
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
 };
-use common::objects::WorkloadState;
 use common::request_id_prepending::detach_prefix_from_request_id;
 
 use tonic::Streaming;
@@ -95,7 +96,11 @@ pub async fn forward_from_proto_to_ankaios(
                 FromServerEnum::UpdateWorkloadState(obj) => {
                     agent_tx
                         .update_workload_state(
-                            obj.workload_states.into_iter().map(|x| x.into()).collect(),
+                            obj.workload_states
+                                .into_iter()
+                                .map(|x| x.try_into())
+                                .collect::<Result<Vec<_>, _>>()
+                                .map_err(GrpcMiddlewareError::ConversionError)?,
                         )
                         .await?;
                 }
@@ -231,7 +236,7 @@ pub async fn forward_from_ankaios_to_proto(
 // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workload_states_to_agents(
     agent_senders: &AgentSendersMap,
-    workload_state_collection: Vec<WorkloadState>,
+    workload_state_collection: Vec<WorkloadStateInternal>,
 ) {
     // Workload states are agent related. Sending a flattened set here is not very good for the performance ...
 
@@ -442,7 +447,8 @@ mod tests {
         self, ExecutionStateInternal, Workload, WorkloadMap, WorkloadNamed, response,
     };
     use api::test_utils::{
-        generate_test_deleted_workload, generate_test_workload, generate_test_workload_with_param,
+        generate_test_deleted_workload, generate_test_workload,
+        generate_test_workload_state_with_agent, generate_test_workload_with_param,
     };
     use common::commands;
     use common::from_server_interface::FromServerInterface;
@@ -610,13 +616,11 @@ mod tests {
             create_test_setup("agent_X");
 
         let update_workload_state_result = to_manager
-            .update_workload_state(vec![
-                common::objects::generate_test_workload_state_with_agent(
-                    WORKLOAD_NAME,
-                    "other_agent",
-                    ExecutionStateInternal::running(),
-                ),
-            ])
+            .update_workload_state(vec![generate_test_workload_state_with_agent(
+                WORKLOAD_NAME,
+                "other_agent",
+                ExecutionStateInternal::running(),
+            )])
             .await;
         assert!(update_workload_state_result.is_ok());
 
@@ -872,7 +876,7 @@ mod tests {
 
         join!(super::distribute_workload_states_to_agents(
             &agent_senders,
-            vec![common::objects::generate_test_workload_state_with_agent(
+            vec![generate_test_workload_state_with_agent(
                 "workload1",
                 "other_agent",
                 ExecutionStateInternal::running()

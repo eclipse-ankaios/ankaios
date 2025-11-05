@@ -14,8 +14,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use api::ank_base::WorkloadInstanceNameInternal;
-use common::objects::WorkloadState;
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadStateInternal};
 
 use crate::cli::LogsArgs;
 use crate::cli_error::CliError;
@@ -49,17 +48,16 @@ impl CliCommands {
 
         if let Some(wl_states) = complete_state.workload_states {
             let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceNameInternal>> =
-                Vec::<WorkloadState>::from(wl_states).into_iter().fold(
-                    HashMap::new(),
-                    |mut acc, wl_state| {
+                Vec::<WorkloadStateInternal>::from(wl_states)
+                    .into_iter()
+                    .fold(HashMap::new(), |mut acc, wl_state| {
                         let instance_name = wl_state.instance_name.clone();
                         let workload_name = instance_name.workload_name();
                         acc.entry(workload_name.to_owned())
                             .or_default()
                             .insert(instance_name);
                         acc
-                    },
-                );
+                    });
 
             let mut converted_instance_names = BTreeSet::new();
             for wl_name in workload_names {

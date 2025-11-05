@@ -341,11 +341,11 @@ impl WorkloadScheduler {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{WorkloadNamed, ExecutionStateInternal};
+    use api::ank_base::{ExecutionStateInternal, WorkloadNamed, WorkloadStateInternal};
     use api::test_utils::{
-        generate_test_deleted_workload, generate_test_workload, generate_test_workload_with_param,
+        generate_test_deleted_workload, generate_test_workload,
+        generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
     };
-    use common::objects::{WorkloadState, generate_test_workload_state_with_workload_named};
     use tokio::sync::mpsc::channel;
 
     use super::WorkloadScheduler;
@@ -379,10 +379,8 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let pending_workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let pending_workload: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let pending_reusable_workload = ReusableWorkloadSpec::new(pending_workload, None);
 
@@ -438,10 +436,7 @@ mod tests {
             .return_const(true);
 
         let ready_workload = ReusableWorkloadSpec::new(
-            generate_test_workload_with_param(
-                AGENT_A.to_owned(),
-                RUNTIME.to_owned(),
-            ),
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned()),
             None,
         );
 
@@ -517,7 +512,7 @@ mod tests {
                 .get(pending_deleted_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadState {
+        let expected_workload_state = WorkloadStateInternal {
             instance_name: pending_deleted_workload.instance_name,
             execution_state: ExecutionStateInternal::waiting_to_stop(),
         };
@@ -610,10 +605,8 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let ready_new_workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_new_workload: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let pending_deleted_workload = generate_test_deleted_workload(
             ready_new_workload.instance_name.agent_name().to_owned(),
@@ -643,7 +636,7 @@ mod tests {
                 .get(pending_deleted_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadState {
+        let expected_workload_state = WorkloadStateInternal {
             instance_name: pending_deleted_workload.instance_name,
             execution_state: ExecutionStateInternal::waiting_to_stop(),
         };
@@ -680,10 +673,8 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let ready_new_workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_new_workload: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let pending_deleted_workload = generate_test_deleted_workload(
             ready_new_workload.instance_name.agent_name().to_owned(),
@@ -713,7 +704,7 @@ mod tests {
                 .get(pending_deleted_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadState {
+        let expected_workload_state = WorkloadStateInternal {
             instance_name: pending_deleted_workload.instance_name,
             execution_state: ExecutionStateInternal::waiting_to_stop(),
         };
@@ -750,10 +741,8 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let pending_new_workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let pending_new_workload: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let ready_deleted_workload = generate_test_deleted_workload(
             pending_new_workload.instance_name.agent_name().to_owned(),
@@ -785,7 +774,7 @@ mod tests {
                 .get(pending_new_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadState {
+        let expected_workload_state = WorkloadStateInternal {
             instance_name: pending_new_workload.instance_name,
             execution_state: ExecutionStateInternal::waiting_to_start(),
         };
@@ -821,10 +810,8 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let pending_new_workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let pending_new_workload: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let ready_deleted_workload = generate_test_deleted_workload(
             pending_new_workload.instance_name.agent_name().to_owned(),
@@ -873,10 +860,8 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_new_workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_new_workload: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let ready_deleted_workload = generate_test_deleted_workload(
             ready_new_workload.instance_name.agent_name().to_owned(),
@@ -923,10 +908,8 @@ mod tests {
             .once()
             .return_const(true);
 
-        let ready_new_workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_new_workload: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let ready_deleted_workload = generate_test_deleted_workload(
             ready_new_workload.instance_name.agent_name().to_owned(),
@@ -1010,10 +993,8 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let new_workload_spec: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let new_workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let instance_name_new_workload = new_workload_spec.instance_name.clone();
 
@@ -1071,10 +1052,8 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let new_workload_spec: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let new_workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let instance_name_new_workload = new_workload_spec.instance_name.clone();
 
@@ -1189,10 +1168,7 @@ mod tests {
             .return_const(false);
 
         let pending_workload_spec = ReusableWorkloadSpec::new(
-            generate_test_workload_with_param(
-                AGENT_A.to_owned(),
-                RUNTIME.to_owned(),
-            ),
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned()),
             None,
         );
 
@@ -1233,10 +1209,7 @@ mod tests {
             .return_const(false);
 
         let pending_workload_spec = ReusableWorkloadSpec::new(
-            generate_test_workload_with_param(
-                AGENT_A.to_owned(),
-                RUNTIME.to_owned(),
-            ),
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned()),
             None,
         );
 
@@ -1276,10 +1249,8 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let ready_workload_spec: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let instance_name = ready_workload_spec.instance_name.clone();
 
@@ -1330,10 +1301,8 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let ready_workload_spec: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let instance_name = ready_workload_spec.instance_name.clone();
 
@@ -1378,10 +1347,8 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload_spec: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let instance_name = ready_workload_spec.instance_name.clone();
 
@@ -1433,10 +1400,8 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload_spec: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let instance_name = ready_workload_spec.instance_name.clone();
 
@@ -1476,10 +1441,7 @@ mod tests {
             .return_const(true);
 
         let ready_workload_spec = ReusableWorkloadSpec::new(
-            generate_test_workload_with_param(
-                AGENT_A.to_owned(),
-                RUNTIME.to_owned(),
-            ),
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned()),
             None,
         );
 
@@ -1563,10 +1525,8 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload_spec: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let instance_name = ready_workload_spec.instance_name.clone();
 
@@ -1616,10 +1576,8 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload_spec: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_A.to_owned(),
-            RUNTIME.to_owned(),
-        );
+        let ready_workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
         let instance_name = ready_workload_spec.instance_name.clone();
 

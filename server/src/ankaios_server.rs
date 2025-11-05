@@ -19,10 +19,12 @@ mod log_campaign_store;
 mod server_state;
 
 use api::ank_base;
-use api::ank_base::{DeletedWorkload, ExecutionStateInternal, WorkloadInstanceNameInternal};
+use api::ank_base::{
+    DeletedWorkload, ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
+};
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
-use common::objects::{CompleteState, State, WorkloadState, WorkloadStatesMap};
+use common::objects::{CompleteState, State, WorkloadStatesMap};
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -454,7 +456,7 @@ impl AnkaiosServer {
                 || self.deleted_workload_never_started_on_agent(deleted_wl)
             {
                 self.workload_states_map.remove(&deleted_wl.instance_name);
-                deleted_states.push(WorkloadState {
+                deleted_states.push(WorkloadStateInternal {
                     instance_name: deleted_wl.instance_name.clone(),
                     execution_state: ExecutionStateInternal::removed(),
                 });
@@ -568,16 +570,18 @@ mod tests {
     use api::ank_base::{
         CpuUsageInternal, DeletedWorkload, ExecutionStateEnumInternal, ExecutionStateInternal,
         FreeMemoryInternal, LogsStopResponse, Pending as PendingSubstate, Workload,
-        WorkloadInternal, WorkloadMap, WorkloadNamed,
+        WorkloadInternal, WorkloadMap, WorkloadNamed, WorkloadStateInternal,
     };
-    use api::test_utils::{generate_test_workload, generate_test_workload_with_param};
+    use api::test_utils::{
+        generate_test_workload, generate_test_workload_state,
+        generate_test_workload_state_with_agent, generate_test_workload_with_param,
+    };
     use common::commands::{
         CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
     use common::objects::{
-        AgentLoadStatus, CompleteState, State, WorkloadState,
-        generate_test_workload_states_map_with_data,
+        AgentLoadStatus, CompleteState, State, generate_test_workload_states_map_with_data,
     };
     use common::to_server_interface::ToServerInterface;
 
@@ -851,7 +855,7 @@ mod tests {
             server
                 .workload_states_map
                 .get_workload_state_for_agent(AGENT_A),
-            vec![WorkloadState {
+            vec![WorkloadStateInternal {
                 instance_name: workload.instance_name,
                 execution_state: ExecutionStateInternal {
                     execution_state_enum: ExecutionStateEnumInternal::Pending(
@@ -939,10 +943,8 @@ mod tests {
         // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
         // [utest->swdd~server-starts-without-startup-config~1]
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_1_state_running = common::objects::generate_test_workload_state(
-            WORKLOAD_NAME_1,
-            ExecutionStateInternal::running(),
-        );
+        let test_wl_1_state_running =
+            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionStateInternal::running());
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_running.clone()])
             .await;
@@ -981,10 +983,8 @@ mod tests {
 
         // [utest->swdd~server-forwards-workload-state~1]
         // send update_workload_state for second agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_2_state_succeeded = common::objects::generate_test_workload_state(
-            WORKLOAD_NAME_2,
-            ExecutionStateInternal::succeeded(),
-        );
+        let test_wl_2_state_succeeded =
+            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionStateInternal::succeeded());
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_2_state_succeeded.clone()])
             .await;
@@ -1000,10 +1000,8 @@ mod tests {
         );
 
         // send update_workload_state for first agent again which is then updated in the workload_state_db in ankaios server
-        let test_wl_1_state_succeeded = common::objects::generate_test_workload_state(
-            WORKLOAD_NAME_2,
-            ExecutionStateInternal::succeeded(),
-        );
+        let test_wl_1_state_succeeded =
+            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionStateInternal::succeeded());
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_succeeded.clone()])
             .await;
@@ -1571,7 +1569,7 @@ mod tests {
         server.server_state = mock_server_state;
 
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_1_state_running = common::objects::generate_test_workload_state_with_agent(
+        let test_wl_1_state_running = generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
             ExecutionStateInternal::running(),
@@ -1603,7 +1601,7 @@ mod tests {
             .workload_states_map
             .get_workload_state_for_agent(AGENT_A);
 
-        let expected_workload_state = common::objects::generate_test_workload_state_with_agent(
+        let expected_workload_state = generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
             ExecutionStateInternal::agent_disconnected(),
@@ -1900,7 +1898,7 @@ mod tests {
             server
                 .workload_states_map
                 .get_workload_state_for_agent(AGENT_A),
-            vec![WorkloadState {
+            vec![WorkloadStateInternal {
                 instance_name: updated_w1.instance_name,
                 execution_state: ExecutionStateInternal {
                     execution_state_enum: ExecutionStateEnumInternal::Pending(
@@ -2099,7 +2097,7 @@ mod tests {
 
         let mut mock_server_state = MockServerState::new();
 
-        let workload_states = vec![common::objects::generate_test_workload_state(
+        let workload_states = vec![generate_test_workload_state(
             WORKLOAD_NAME_1,
             ExecutionStateInternal::removed(),
         )];
@@ -2183,7 +2181,7 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
+                workload_states: vec![WorkloadStateInternal {
                     instance_name: workload_without_agent.instance_name,
                     execution_state: ExecutionStateInternal::removed()
                 }]
@@ -2374,7 +2372,7 @@ mod tests {
             )
             .await,
             Ok(Some(FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
+                workload_states: vec![WorkloadStateInternal {
                     instance_name: workload.instance_name,
                     execution_state: ExecutionStateInternal::removed()
                 }]

@@ -702,8 +702,9 @@ mod tests {
         ExecutionStateEnumInternal, ExecutionStateInternal, Pending, RestartPolicy,
         WorkloadInstanceNameInternal, WorkloadNamed,
     };
-    use api::test_utils::generate_test_workload_with_param;
-    use common::objects::generate_test_workload_state_with_workload_named;
+    use api::test_utils::{
+        generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
+    };
 
     use mockall::predicate;
     use std::collections::HashMap;

@@ -12,8 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{AddCondition, DeleteCondition, DeletedWorkload, WorkloadNamed};
-use common::objects::WorkloadState;
+use api::ank_base::{
+    AddCondition, DeleteCondition, DeletedWorkload, WorkloadNamed, WorkloadStateInternal,
+};
 use std::collections::HashMap;
 
 #[cfg(test)]
@@ -60,7 +61,7 @@ impl DeleteGraph {
     // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
     pub fn remove_deleted_workloads_from_delete_graph(
         &mut self,
-        workload_states: &[WorkloadState],
+        workload_states: &[WorkloadStateInternal],
     ) {
         for wl_state in workload_states {
             if wl_state.execution_state.is_removed()
@@ -86,8 +87,7 @@ impl DeleteGraph {
 mod tests {
     use super::{super::WorkloadInstanceNameInternal, AddCondition, DeleteCondition, DeleteGraph};
     use api::ank_base::{DeletedWorkload, ExecutionStateInternal, WorkloadNamed};
-    use api::test_utils::generate_test_workload;
-    use common::objects::generate_test_workload_state_with_agent;
+    use api::test_utils::{generate_test_workload, generate_test_workload_state_with_agent};
     use std::collections::HashMap;
 
     const AGENT_A: &str = "agent_A";

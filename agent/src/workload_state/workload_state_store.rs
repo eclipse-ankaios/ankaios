@@ -12,8 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::ExecutionStateInternal;
-use common::objects::WorkloadState;
+use api::ank_base::{ExecutionStateInternal, WorkloadStateInternal};
 use std::collections::HashMap;
 #[cfg(test)]
 use std::collections::VecDeque;
@@ -31,11 +30,14 @@ impl WorkloadStateStore {
         }
     }
 
-    pub fn get_state_of_workload<'a>(&'a self, workload_name: &str) -> Option<&'a ExecutionStateInternal> {
+    pub fn get_state_of_workload<'a>(
+        &'a self,
+        workload_name: &str,
+    ) -> Option<&'a ExecutionStateInternal> {
         self.states_storage.get(workload_name)
     }
 
-    pub fn update_workload_state(&mut self, workload_state: WorkloadState) {
+    pub fn update_workload_state(&mut self, workload_state: WorkloadStateInternal) {
         let workload_name = workload_state.instance_name.workload_name().to_owned();
         if !workload_state.execution_state.is_removed() {
             self.states_storage
@@ -58,7 +60,7 @@ pub fn mock_parameter_storage_new_returns(mock_parameter_storage: MockWorkloadSt
 #[cfg(test)]
 #[derive(Default)]
 pub struct MockWorkloadStateStore {
-    pub expected_update_workload_state_parameters: VecDeque<WorkloadState>,
+    pub expected_update_workload_state_parameters: VecDeque<WorkloadStateInternal>,
     pub states_storage: HashMap<String, ExecutionStateInternal>,
 }
 
@@ -72,7 +74,7 @@ impl MockWorkloadStateStore {
             .expect("Return value for MockWorkloadStateStore::new() not set")
     }
 
-    pub fn update_workload_state(&mut self, workload_state: WorkloadState) {
+    pub fn update_workload_state(&mut self, workload_state: WorkloadStateInternal) {
         let expected_workload_state = self
             .expected_update_workload_state_parameters
             .pop_front()
@@ -83,7 +85,10 @@ impl MockWorkloadStateStore {
         );
     }
 
-    pub fn get_state_of_workload<'a>(&'a self, workload_name: &str) -> Option<&'a ExecutionStateInternal> {
+    pub fn get_state_of_workload<'a>(
+        &'a self,
+        workload_name: &str,
+    ) -> Option<&'a ExecutionStateInternal> {
         self.states_storage.get(workload_name)
     }
 }
@@ -99,13 +104,14 @@ impl Drop for MockWorkloadStateStore {
 mod tests {
     use super::WorkloadStateStore;
     use api::ank_base::ExecutionStateInternal;
+    use api::test_utils::generate_test_workload_state_with_agent;
 
     #[test]
     fn utest_update_storage_empty_storage_add_one() {
         let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
-        let test_update = common::objects::generate_test_workload_state_with_agent(
+        let test_update = generate_test_workload_state_with_agent(
             "test_workload",
             "test_agent",
             ExecutionStateInternal::running(),
@@ -131,7 +137,7 @@ mod tests {
         let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
-        let test_update = common::objects::generate_test_workload_state_with_agent(
+        let test_update = generate_test_workload_state_with_agent(
             "test_workload",
             "test_agent",
             ExecutionStateInternal::running(),
@@ -152,7 +158,7 @@ mod tests {
         let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
-        let test_update = common::objects::generate_test_workload_state_with_agent(
+        let test_update = generate_test_workload_state_with_agent(
             "test_workload",
             "test_agent",
             ExecutionStateInternal::running(),
@@ -186,14 +192,14 @@ mod tests {
         let workload_name_1 = String::from("test_workload_1");
         let workload_name_2 = String::from("test_workload_2");
 
-        let test_update1 = common::objects::generate_test_workload_state_with_agent(
+        let test_update1 = generate_test_workload_state_with_agent(
             &workload_name_1,
             &agent_name_b,
             ExecutionStateInternal::running(),
         );
         storage.update_workload_state(test_update1);
 
-        let test_update2 = common::objects::generate_test_workload_state_with_agent(
+        let test_update2 = generate_test_workload_state_with_agent(
             &workload_name_2,
             &agent_name_a,
             ExecutionStateInternal::failed("Some error"),
@@ -211,7 +217,7 @@ mod tests {
             Some(&ExecutionStateInternal::failed("Some error"))
         );
 
-        let test_update3 = common::objects::generate_test_workload_state_with_agent(
+        let test_update3 = generate_test_workload_state_with_agent(
             &workload_name_1,
             &agent_name_b,
             ExecutionStateInternal::starting("Some info"),

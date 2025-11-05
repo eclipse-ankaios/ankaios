@@ -17,7 +17,7 @@ use std::{
     fmt::{self, Display},
 };
 
-use api::ank_base::WorkloadInstanceNameInternal;
+use api::ank_base::{WorkloadStateInternal, WorkloadInstanceNameInternal};
 
 use crate::cli_commands::workload_table_row::WorkloadTableRowWithSpinner;
 
@@ -65,7 +65,7 @@ impl Display for WaitListDisplay {
 }
 
 impl WaitListDisplayTrait for WaitListDisplay {
-    fn update(&mut self, workload_state: &common::objects::WorkloadState) {
+    fn update(&mut self, workload_state: &WorkloadStateInternal) {
         if let Some(entry) = self.data.get_mut(&workload_state.instance_name) {
             entry.execution_state = workload_state.execution_state.state().to_string();
             entry.set_additional_info(&workload_state.execution_state.additional_info);
@@ -110,8 +110,7 @@ mod tests {
 
     use std::collections::{HashMap, HashSet};
 
-    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
-    use common::objects::WorkloadState;
+    use api::ank_base::{ExecutionStateInternal, WorkloadStateInternal, WorkloadInstanceNameInternal};
 
     use crate::cli_commands::{
         wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow,
@@ -149,7 +148,7 @@ mod tests {
                 .execution_state,
             "execution_state"
         );
-        wait_list_display.update(&WorkloadState {
+        wait_list_display.update(&WorkloadStateInternal {
             instance_name: workload_instance_name.clone(),
             execution_state: ExecutionStateInternal::succeeded(),
         });

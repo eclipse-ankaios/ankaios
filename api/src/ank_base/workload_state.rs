@@ -292,6 +292,45 @@ impl Display for ExecutionStateInternal {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
+#[cfg(any(feature = "test_utils", test))]
+use crate::ank_base::{WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadNamed};
+#[cfg(any(feature = "test_utils", test))]
+use crate::test_utils::generate_test_runtime_config;
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_state_with_agent(
+    workload_name: &str,
+    agent_name: &str,
+    execution_state: ExecutionStateInternal,
+) -> WorkloadStateInternal {
+    WorkloadStateInternal {
+        instance_name: WorkloadInstanceNameInternal::builder()
+            .workload_name(workload_name)
+            .agent_name(agent_name)
+            .config(&generate_test_runtime_config())
+            .build(),
+        execution_state,
+    }
+}
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_state_with_workload_named(
+    workload_named: &WorkloadNamed,
+    execution_state: ExecutionStateInternal,
+) -> WorkloadStateInternal {
+    WorkloadStateInternal {
+        instance_name: workload_named.instance_name.clone(),
+        execution_state,
+    }
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_state(
+    workload_name: &str,
+    execution_state: ExecutionStateInternal,
+) -> WorkloadStateInternal {
+    generate_test_workload_state_with_agent(workload_name, "agent_name", execution_state)
+}
+
 // [utest->swdd~common-conversions-between-ankaios-and-proto~1]
 // [utest->swdd~common-object-representation~1]
 #[cfg(test)]

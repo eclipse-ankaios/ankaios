@@ -29,6 +29,8 @@ pub struct CompleteState {
     pub agents: AgentMapInternal,
 }
 
+// pub type CompleteState = ank_base::CompleteStateInternal;
+
 impl From<CompleteState> for ank_base::CompleteState {
     fn from(item: CompleteState) -> ank_base::CompleteState {
         ank_base::CompleteState {

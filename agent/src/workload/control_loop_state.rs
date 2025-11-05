@@ -15,8 +15,7 @@ use crate::BUFFER_SIZE;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
 use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
-use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed};
-use common::objects::WorkloadState;
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal};
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -137,7 +136,7 @@ where
     pub fn build(self) -> Result<ControlLoopState<WorkloadId, StChecker>, String> {
         // new channel for receiving the workload states from the state checker
         let (state_checker_wl_state_sender, state_checker_wl_state_receiver) =
-            tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<WorkloadStateInternal>(BUFFER_SIZE);
 
         Ok(ControlLoopState {
             workload_named: self
@@ -185,9 +184,10 @@ mod tests {
         workload::workload_command_channel::WorkloadCommandSender,
         workload_state::WorkloadStateSenderInterface,
     };
-    use api::ank_base::{WorkloadNamed, ExecutionStateInternal};
-    use api::test_utils::generate_test_workload;
-    use common::objects::generate_test_workload_state_with_workload_named;
+    use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
+    use api::test_utils::{
+        generate_test_workload, generate_test_workload_state_with_workload_named,
+    };
     use tokio::time;
 
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 20;

@@ -19,13 +19,12 @@ use crate::control_interface::authorizer::Authorizer;
 
 use api::ank_base::{
     DeletedWorkload, ExecutionStateInternal, Response, WorkloadInstanceNameInternal, WorkloadNamed,
+    WorkloadStateInternal,
 };
 
 use common::{
-    commands::LogsRequest,
-    objects::{AgentName, WorkloadState},
-    request_id_prepending::detach_prefix_from_request_id,
-    to_server_interface::ToServerSender,
+    commands::LogsRequest, objects::AgentName,
+    request_id_prepending::detach_prefix_from_request_id, to_server_interface::ToServerSender,
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -400,7 +399,7 @@ impl RuntimeManager {
     }
 
     fn is_resumable_workload(
-        workload_state_existing_workload: &WorkloadState,
+        workload_state_existing_workload: &WorkloadStateInternal,
         new_instance_name: &WorkloadInstanceNameInternal,
     ) -> bool {
         workload_state_existing_workload
@@ -412,7 +411,7 @@ impl RuntimeManager {
     }
 
     fn is_reusable_workload(
-        workload_state_existing_workload: &WorkloadState,
+        workload_state_existing_workload: &WorkloadStateInternal,
         workload_id_existing_workload: &Option<String>,
         new_instance_name: &WorkloadInstanceNameInternal,
     ) -> bool {
@@ -697,6 +696,7 @@ mod tests {
     use api::ank_base::{
         self, CompleteState, ExecutionStateInternal, Response, ResponseContent,
         WorkloadInstanceNameBuilder, WorkloadInstanceNameInternal, WorkloadNamed,
+        WorkloadStateInternal,
     };
     use api::test_utils::{
         generate_test_control_interface_access, generate_test_deleted_workload,
@@ -704,7 +704,6 @@ mod tests {
         generate_test_workload_with_param,
     };
     use common::commands::LogsRequest;
-    use common::objects::WorkloadState;
     use common::test_utils::generate_test_complete_state;
     use common::to_server_interface::ToServerReceiver;
 
@@ -2634,7 +2633,7 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
         assert_ne!(wl_state_msg, None);
 
-        let WorkloadState {
+        let WorkloadStateInternal {
             instance_name: actual_instance_name,
             execution_state: actual_execution_state,
         } = wl_state_msg.unwrap();

@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal};
 use async_trait::async_trait;
-use common::{objects::WorkloadState, std_extensions::IllegalStateResult};
+use common::std_extensions::IllegalStateResult;
 
-pub type WorkloadStateReceiver = tokio::sync::mpsc::Receiver<WorkloadState>;
-pub type WorkloadStateSender = tokio::sync::mpsc::Sender<WorkloadState>;
+pub type WorkloadStateReceiver = tokio::sync::mpsc::Receiver<WorkloadStateInternal>;
+pub type WorkloadStateSender = tokio::sync::mpsc::Sender<WorkloadStateInternal>;
 
 #[async_trait]
 pub trait WorkloadStateSenderInterface {
@@ -35,7 +35,7 @@ impl WorkloadStateSenderInterface for WorkloadStateSender {
         instance_name: &WorkloadInstanceNameInternal,
         execution_state: ExecutionStateInternal,
     ) {
-        self.send(WorkloadState {
+        self.send(WorkloadStateInternal {
             instance_name: instance_name.to_owned(),
             execution_state,
         })
@@ -66,7 +66,7 @@ pub async fn assert_execution_state_sequence(
             .await
             .unwrap()
             .unwrap(),
-            WorkloadState {
+            WorkloadStateInternal {
                 instance_name: expected_state.0.clone(),
                 execution_state: expected_state.1
             }
@@ -76,8 +76,9 @@ pub async fn assert_execution_state_sequence(
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
-    use common::objects::WorkloadState;
+    use api::ank_base::{
+        ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
+    };
 
     use crate::workload_state::WorkloadStateSenderInterface;
 
@@ -86,7 +87,7 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_state_sender_interface_report() {
         let (wl_state_tx, mut wl_state_rx) =
-            tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<WorkloadStateInternal>(BUFFER_SIZE);
 
         let instance_name = WorkloadInstanceNameInternal::builder()
             .workload_name("name1")
@@ -99,7 +100,7 @@ mod tests {
             .report_workload_execution_state(&instance_name, exec_state)
             .await;
 
-        let expected_execution_state = WorkloadState {
+        let expected_execution_state = WorkloadStateInternal {
             instance_name,
             execution_state: ExecutionStateInternal::running(),
         };

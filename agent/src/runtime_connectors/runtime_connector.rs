@@ -16,11 +16,10 @@ use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 use async_trait::async_trait;
 
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
-use common::{
-    commands::LogsRequest,
-    objects::{AgentName, WorkloadState},
+use api::ank_base::{
+    ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
 };
+use common::{commands::LogsRequest, objects::AgentName};
 
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
@@ -84,7 +83,7 @@ impl From<LogsRequest> for LogRequestOptions {
 
 #[derive(Debug, PartialEq)]
 pub struct ReusableWorkloadState {
-    pub workload_state: WorkloadState,
+    pub workload_state: WorkloadStateInternal,
     pub workload_id: Option<String>,
 }
 
@@ -95,7 +94,7 @@ impl ReusableWorkloadState {
         workload_id: Option<String>,
     ) -> ReusableWorkloadState {
         ReusableWorkloadState {
-            workload_state: WorkloadState {
+            workload_state: WorkloadStateInternal {
                 instance_name,
                 execution_state,
             },

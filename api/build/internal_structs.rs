@@ -20,21 +20,24 @@ use tonic_prost_build::Builder;
 /// - WorkloadMapInternal
 pub fn setup_internal_state(builder: Builder) -> Builder {
     builder
-        .message_attribute(
-            "CompleteState",
-            "#[derive(internal_derive_macros::Internal)]",
-        )
-        .message_attribute(
-            "CompleteState",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
-        )
-        .message_attribute(
-            "CompleteState",
-            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
-        )
-        .field_attribute("CompleteState.desiredState", "#[internal_field_attr(#[serde(default)])]")
-        .field_attribute("CompleteState.workloadStates", "#[internal_field_attr(#[serde(default)])]")
-        .field_attribute("CompleteState.agents", "#[internal_field_attr(#[serde(default)])]")
+        // .message_attribute(
+        //     "CompleteState",
+        //     "#[derive(internal_derive_macros::Internal)]",
+        // )
+        // .message_attribute(
+        //     "CompleteState",
+        //     "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+        // )
+        // .message_attribute(
+        //     "CompleteState",
+        //     "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
+        // )
+        // .field_attribute("CompleteState.desiredState", "#[internal_mandatory]")
+        // .field_attribute("CompleteState.desiredState", "#[internal_field_attr(#[serde(default)])]")
+        // .field_attribute("CompleteState.workloadStates", "#[internal_mandatory]")
+        // .field_attribute("CompleteState.workloadStates", "#[internal_field_attr(#[serde(default)])]")
+        // .field_attribute("CompleteState.agents", "#[internal_mandatory]")
+        // .field_attribute("CompleteState.agents", "#[internal_field_attr(#[serde(default)])]")
 
         .message_attribute(
             "State",
@@ -351,7 +354,7 @@ pub fn setup_internal_agent_map(builder: Builder) -> Builder {
 }
 
 /// This function is used to create and configure the following structs:
-/// - WorkloadStateInternal - TODO remove this
+/// - WorkloadStateInternal
 /// - WorkloadStatesMapInternal
 /// - ExecutionsStatesOfWorkloadInternal
 /// - ExecutionsStatesForIdInternal
@@ -359,10 +362,20 @@ pub fn setup_internal_agent_map(builder: Builder) -> Builder {
 /// - ExecutionStateEnumInternal
 pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     builder
-    // .message_attribute(
-    //     "WorkloadState",
-    //     "#[derive(internal_derive_macros::Internal)]",
-    // )
+    .message_attribute(
+        "WorkloadState",
+        "#[derive(internal_derive_macros::Internal)]",
+    )
+    .message_attribute(
+        "WorkloadState",
+        "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+    )
+    .message_attribute(
+        "WorkloadState",
+        "#[internal_type_attr(#[serde(default, rename_all = \"camelCase\")])]",
+    )
+    .field_attribute("WorkloadState.instanceName", "#[internal_mandatory]")
+    .field_attribute("WorkloadState.executionState", "#[internal_mandatory]")
 
     .message_attribute(
         "WorkloadStatesMap",

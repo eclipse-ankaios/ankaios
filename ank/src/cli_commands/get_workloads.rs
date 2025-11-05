@@ -222,7 +222,7 @@ mod tests {
         workload_table_row::WorkloadTableRow,
     };
 
-    use api::ank_base::{self, ExecutionStateInternal, WorkloadNamed};
+    use api::ank_base::{self, ExecutionStateInternal, WorkloadNamed, WorkloadStateInternal};
     use api::test_utils::generate_test_workload_with_param;
     use common::{
         commands::UpdateWorkloadState,
@@ -476,7 +476,7 @@ mod tests {
         let updated_state =
             test_utils::generate_test_complete_state(vec![initial_wl.clone(), new_wl.clone()]);
 
-        let new_workload = objects::WorkloadState {
+        let new_workload = WorkloadStateInternal {
             instance_name: new_wl.clone().instance_name,
             execution_state: ExecutionStateInternal::running(),
         };
@@ -576,7 +576,7 @@ mod tests {
             ),
         );
 
-        let removed_workload_state = objects::WorkloadState {
+        let removed_workload_state = WorkloadStateInternal {
             instance_name: wl1.instance_name.clone(),
             execution_state: ExecutionStateInternal::removed(),
         };
@@ -650,7 +650,7 @@ mod tests {
             ExecutionStateInternal::failed(new_additional_info_for_wl1.clone()); // The actual ExecutionStateInternal object
 
         let update_event = UpdateWorkloadState {
-            workload_states: vec![objects::WorkloadState {
+            workload_states: vec![WorkloadStateInternal {
                 instance_name: workload_1.instance_name.clone(),
                 execution_state: wl1_updated_execution_state_obj.clone(),
             }],
