@@ -15,6 +15,7 @@
         "proto",
         "protobuf",
         "schemars",
+        "serde",
         "Substate",
         "swdd",
         "templating",

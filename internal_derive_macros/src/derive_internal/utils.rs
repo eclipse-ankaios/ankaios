@@ -41,12 +41,6 @@ impl ToTokens for DerivedInternal {
     }
 }
 
-pub fn has_skip_try_from(attrs: &[Attribute]) -> bool {
-    attrs
-        .iter()
-        .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("internal_skip_try_from")))
-}
-
 pub fn get_doc_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStream> {
     attrs
         .iter()
@@ -382,15 +376,6 @@ mod tests {
         };
 
         assert_eq!(tokens.to_string(), expected.to_string());
-    }
-
-    #[test]
-    fn test_has_skip_try_from() {
-        let attrs_with_skip: Vec<Attribute> = vec![parse_quote!(#[internal_skip_try_from])];
-        let attrs_without_skip: Vec<Attribute> = vec![parse_quote!(#[serde(rename = "foo")])];
-
-        assert!(super::has_skip_try_from(&attrs_with_skip));
-        assert!(!super::has_skip_try_from(&attrs_without_skip));
     }
 
     #[test]

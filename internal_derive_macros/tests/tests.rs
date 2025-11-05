@@ -15,10 +15,9 @@
 #[cfg(test)]
 mod tests {
     use internal_derive_macros::Internal;
-    use internal_derive_macros::add_field;
 
     #[test]
-    fn itest_internal_derive_and_add_field_basic_functionality() {
+    fn itest_internal_derive_basic_functionality() {
         #[derive(Debug, Clone, Internal)]
         #[internal_derive(Debug, Clone, Eq, PartialEq)]
         struct Address {
@@ -29,11 +28,6 @@ mod tests {
             zip: String,
         }
 
-        #[add_field(
-            name = "extra_item",
-            ty = "Option<String>",
-            attrs = "#[internal_mandatory]"
-        )]
         #[derive(Internal, Debug, Clone)]
         #[internal_derive(Debug, Clone, Eq, PartialEq)]
         struct Person {
@@ -64,7 +58,6 @@ mod tests {
         let person = Person {
             name: vec!["Alice".to_string()].into(),
             middle_name: None,
-            extra_item: Some("Something extra".to_string()),
             address: Some(address),
             second_address: None,
         };
@@ -72,7 +65,6 @@ mod tests {
         let person_internal_expected = PersonInternal {
             name: vec!["Alice".to_string()],
             middle_name: None,
-            extra_item: "Something extra".to_string(),
             address: address_internal,
             second_address: None,
         };
@@ -87,7 +79,6 @@ mod tests {
             #[internal_enum_named]
             B(Person),
             C(Box<Person>),
-            D,
         }
 
         let my_enum_a = MyEnum::A("Test String".to_string());

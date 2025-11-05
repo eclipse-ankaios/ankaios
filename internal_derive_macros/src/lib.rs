@@ -13,19 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, ItemStruct};
+use syn::{parse_macro_input, DeriveInput};
 
-mod add_field;
 mod derive_internal;
-
-#[proc_macro_attribute]
-pub fn add_field(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(attr as add_field::AddFieldArgs);
-    let input_struct = parse_macro_input!(item as ItemStruct);
-    add_field::add_field(args, input_struct)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
-}
 
 #[proc_macro_derive(
     Internal,
@@ -35,7 +25,6 @@ pub fn add_field(attr: TokenStream, item: TokenStream) -> TokenStream {
         internal_derive,
         internal_type_attr,
         internal_field_attr,
-        internal_skip_try_from,
     )
 )]
 pub fn derive_internal(input: TokenStream) -> TokenStream {
