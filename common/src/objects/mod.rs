@@ -25,13 +25,6 @@ pub use state::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 mod complete_state;
 pub use complete_state::CompleteState;
 
-mod workload_states_map;
-pub use workload_states_map::WorkloadStatesMap;
-#[cfg(any(feature = "test_utils", test))]
-pub use workload_states_map::{
-    generate_test_workload_states_map_from_specs, generate_test_workload_states_map_with_data,
-};
-
 mod agent_name;
 pub use agent_name::AgentName;
 

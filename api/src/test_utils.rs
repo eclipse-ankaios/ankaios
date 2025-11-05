@@ -29,6 +29,11 @@ pub use crate::ank_base::{
         generate_test_workload_state, generate_test_workload_state_with_agent,
         generate_test_workload_state_with_workload_named,
     },
+    workload_states_map::{
+        generate_test_workload_states_map_from_specs,
+        generate_test_workload_states_map_from_workload_states,
+        generate_test_workload_states_map_with_data,
+    },
 };
 use std::collections::HashMap;
 

@@ -21,10 +21,11 @@ mod server_state;
 use api::ank_base;
 use api::ank_base::{
     DeletedWorkload, ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
+    WorkloadStatesMapInternal,
 };
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
-use common::objects::{CompleteState, State, WorkloadStatesMap};
+use common::objects::{CompleteState, State};
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -62,7 +63,7 @@ pub struct AnkaiosServer {
     // [impl->swdd~communication-to-from-server-middleware~1]
     to_agents: FromServerSender,
     server_state: ServerState,
-    workload_states_map: WorkloadStatesMap,
+    workload_states_map: WorkloadStatesMapInternal,
     log_campaign_store: LogCampaignStore,
 }
 
@@ -72,7 +73,7 @@ impl AnkaiosServer {
             receiver,
             to_agents,
             server_state: ServerState::default(),
-            workload_states_map: WorkloadStatesMap::default(),
+            workload_states_map: WorkloadStatesMapInternal::default(),
             log_campaign_store: LogCampaignStore::default(),
         }
     }
@@ -574,15 +575,14 @@ mod tests {
     };
     use api::test_utils::{
         generate_test_workload, generate_test_workload_state,
-        generate_test_workload_state_with_agent, generate_test_workload_with_param,
+        generate_test_workload_state_with_agent, generate_test_workload_states_map_with_data,
+        generate_test_workload_with_param,
     };
     use common::commands::{
         CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
-    use common::objects::{
-        AgentLoadStatus, CompleteState, State, generate_test_workload_states_map_with_data,
-    };
+    use common::objects::{AgentLoadStatus, CompleteState, State};
     use common::to_server_interface::ToServerInterface;
 
     use mockall::predicate;

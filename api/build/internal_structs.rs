@@ -373,6 +373,9 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     .message_attribute(
         "WorkloadState",
         "#[internal_type_attr(#[serde(default, rename_all = \"camelCase\")])]",
+    ).message_attribute(
+        "WorkloadState",
+        "#[internal_type_attr(#[serde(rename = \"workloadState\")])]",
     )
     .field_attribute("WorkloadState.instanceName", "#[internal_mandatory]")
     .field_attribute("WorkloadState.executionState", "#[internal_mandatory]")
@@ -385,6 +388,10 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
         "WorkloadStatesMap",
         "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
     )
+    .field_attribute(
+        "WorkloadStatesMap.agentStateMap",
+        "#[internal_field_attr(#[serde(flatten)])]",
+    )
     .message_attribute(
         "ExecutionsStatesOfWorkload",
         "#[derive(internal_derive_macros::Internal)]",
@@ -393,6 +400,10 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
         "ExecutionsStatesOfWorkload",
         "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
     )
+    .field_attribute(
+        "ExecutionsStatesOfWorkload.wlNameStateMap",
+        "#[internal_field_attr(#[serde(flatten)])]",
+    )
     .message_attribute(
         "ExecutionsStatesForId",
         "#[derive(internal_derive_macros::Internal)]",
@@ -400,6 +411,10 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     .message_attribute(
         "ExecutionsStatesForId",
         "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+    )
+    .field_attribute(
+        "ExecutionsStatesForId.idStateMap",
+        "#[internal_field_attr(#[serde(flatten)])]",
     )
 
     .message_attribute(

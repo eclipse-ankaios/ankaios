@@ -18,8 +18,7 @@ use crate::{
     output_debug,
 };
 
-use api::ank_base::AgentAttributes;
-use common::objects::WorkloadStatesMap;
+use api::ank_base::{AgentAttributes, WorkloadStatesMapInternal};
 
 const EMPTY_FILTER_MASK: [String; 0] = [];
 
@@ -57,7 +56,7 @@ impl CliCommands {
 
 fn transform_into_table_rows(
     agents_map: impl Iterator<Item = (String, AgentAttributes)>,
-    workload_states_map: &WorkloadStatesMap,
+    workload_states_map: &WorkloadStatesMapInternal,
 ) -> Vec<AgentTableRow> {
     let mut agent_table_rows: Vec<AgentTableRow> = agents_map
         .map(|(agent_name, mut agent_attributes)| {
@@ -96,9 +95,8 @@ mod tests {
     use api::ank_base::{self, AgentMapInternal, ExecutionStateInternal, WorkloadNamed};
     use api::test_utils::{
         generate_test_agent_map, generate_test_agent_map_from_workloads,
-        generate_test_workload_with_param,
+        generate_test_workload_states_map_with_data, generate_test_workload_with_param,
     };
-    use common::objects::generate_test_workload_states_map_with_data;
     use common::test_utils::generate_test_complete_state;
     use mockall::predicate::eq;
 

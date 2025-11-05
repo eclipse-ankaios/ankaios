@@ -294,11 +294,14 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use crate::{
-        objects::{CompleteState, State, generate_test_workload_states_map_with_data},
+        objects::{CompleteState, State},
         test_utils::generate_test_state_from_workloads,
     };
     use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
-    use api::test_utils::{generate_test_agent_map_from_workloads, generate_test_workload};
+    use api::test_utils::{
+        generate_test_agent_map_from_workloads, generate_test_workload,
+        generate_test_workload_states_map_with_data,
+    };
     use serde_yaml::Value;
 
     use super::Object;
@@ -487,7 +490,10 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.set(&"workloads.workload_A.new_map.new_key".into(), "new value".into());
+        let res = actual.set(
+            &"workloads.workload_A.new_map.new_key".into(),
+            "new value".into(),
+        );
 
         assert!(res.is_ok());
         assert_eq!(
@@ -519,7 +525,11 @@ mod tests {
         let res = actual.remove(&"workloads.workload_A.access_rights".into());
 
         assert!(res.is_ok());
-        assert!(actual.get(&"workloads.workload_A.access_rights".into()).is_none());
+        assert!(
+            actual
+                .get(&"workloads.workload_A.access_rights".into())
+                .is_none()
+        );
         assert_eq!(actual, expected);
     }
 
@@ -712,8 +722,7 @@ mod tests {
                 .entry("desiredState", generate_test_state())
                 .entry(
                     "workloadStates",
-                    Mapping::default()
-                    .entry(
+                    Mapping::default().entry(
                         agent_name,
                         Mapping::default().entry(
                             "workload_A",
@@ -729,24 +738,16 @@ mod tests {
                 )
                 .entry(
                     "agents",
-                    Mapping::default()
-                    .entry(
+                    Mapping::default().entry(
                         "agents",
-                        Mapping::default()
-                        .entry(
+                        Mapping::default().entry(
                             agent_name,
                             Mapping::default()
                                 .entry(
                                     "status",
                                     Mapping::default()
-                                        .entry(
-                                            "cpu_usage",
-                                            42,
-                                        )
-                                        .entry(
-                                            "free_memory",
-                                            42,
-                                        ),
+                                        .entry("cpu_usage", 42)
+                                        .entry("free_memory", 42),
                                 )
                                 .entry("tags", Value::Null),
                         ),
@@ -760,19 +761,21 @@ mod tests {
                 .entry("apiVersion", CURRENT_API_VERSION)
                 .entry(
                     "workloads",
-                    Mapping::default()
-                    .entry(
+                    Mapping::default().entry(
                         "workload_A",
                         Mapping::default()
                             .entry("agent", "agent_A")
-                            .entry("tags",
+                            .entry(
+                                "tags",
                                 Mapping::default()
-                                .entry("tag1", "val_1")
-                                .entry("tag2", "val_2")
+                                    .entry("tag1", "val_1")
+                                    .entry("tag2", "val_2"),
                             )
-                            .entry("dependencies", Mapping::default()
-                                .entry("workload_B", "ADD_COND_RUNNING")
-                                .entry("workload_C", "ADD_COND_SUCCEEDED"),
+                            .entry(
+                                "dependencies",
+                                Mapping::default()
+                                    .entry("workload_B", "ADD_COND_RUNNING")
+                                    .entry("workload_C", "ADD_COND_SUCCEEDED"),
                             )
                             .entry("restartPolicy", "ALWAYS")
                             .entry("runtime", "runtime_A")
@@ -780,25 +783,37 @@ mod tests {
                             .entry(
                                 "controlInterfaceAccess",
                                 Mapping::default()
-                                    .entry("allowRules", vec![
-                                        Mapping::default()
-                                            .entry("type", "StateRule")
-                                            .entry("operation", "ReadWrite")
-                                            .entry("filterMasks", vec!["desiredState"])
-                                    ])
-                                    .entry("denyRules", vec![
-                                        Mapping::default()
-                                            .entry("type", "StateRule")
-                                            .entry("operation", "Write")
-                                            .entry("filterMasks", vec!["desiredState.workload.workload_B"])
-                                    ]),
-                            )
-                            .entry("configs", Mapping::default()
-                                .entry("ref1", "config_1")
-                                .entry("ref2", "config_2")
+                                    .entry(
+                                        "allowRules",
+                                        vec![
+                                            Mapping::default()
+                                                .entry("type", "StateRule")
+                                                .entry("operation", "ReadWrite")
+                                                .entry("filterMasks", vec!["desiredState"]),
+                                        ],
+                                    )
+                                    .entry(
+                                        "denyRules",
+                                        vec![
+                                            Mapping::default()
+                                                .entry("type", "StateRule")
+                                                .entry("operation", "Write")
+                                                .entry(
+                                                    "filterMasks",
+                                                    vec!["desiredState.workload.workload_B"],
+                                                ),
+                                        ],
+                                    ),
                             )
                             .entry(
-                                "files", vec![
+                                "configs",
+                                Mapping::default()
+                                    .entry("ref1", "config_1")
+                                    .entry("ref2", "config_2"),
+                            )
+                            .entry(
+                                "files",
+                                vec![
                                     Mapping::default()
                                         .entry("mountPoint", "/file.json")
                                         .entry("data", "text data"),
@@ -806,14 +821,13 @@ mod tests {
                                         .entry("mountPoint", "/binary_file")
                                         .entry("binaryData", "base64_data"),
                                 ],
-                            )
-                            // .entry(
-                            //     "instanceName",
-                            //     Mapping::default()
-                            //     .entry("workloadName", "name")
-                            //     .entry("agentName", "agent")
-                            //     .entry("id", config_hash.hash_config())
-                            // )
+                            ), // .entry(
+                               //     "instanceName",
+                               //     Mapping::default()
+                               //     .entry("workloadName", "name")
+                               //     .entry("agentName", "agent")
+                               //     .entry("id", config_hash.hash_config())
+                               // )
                     ),
                 )
                 .entry(
@@ -821,7 +835,7 @@ mod tests {
                     Mapping::default()
                         .entry("config_1", "value 1")
                         .entry("config_2", "value 2")
-                        .entry("config_3", "value 3")
+                        .entry("config_3", "value 3"),
                 )
         }
 

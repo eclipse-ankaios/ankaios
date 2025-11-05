@@ -15,12 +15,13 @@
 use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 
-use crate::objects::{
-    CompleteState, ConfigItem, State, generate_test_workload_states_map_from_specs,
-};
+use crate::objects::{CompleteState, ConfigItem, State};
 
 use api::ank_base::{ConfigMappingsInternal, WorkloadNamed};
-use api::test_utils::{generate_test_agent_map_from_workloads, generate_test_workload};
+use api::test_utils::{
+    generate_test_agent_map_from_workloads, generate_test_workload,
+    generate_test_workload_states_map_from_specs,
+};
 
 const API_VERSION: &str = "v1";
 const WORKLOAD_1_NAME: &str = "workload_name_1";

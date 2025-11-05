@@ -16,7 +16,7 @@ use super::config_renderer::RenderedWorkloads;
 use api::ank_base;
 use api::ank_base::{
     AgentAttributesInternal, DeletedWorkload, WorkloadInstanceNameInternal, WorkloadNamed,
-    WorkloadStateInternal,
+    WorkloadStateInternal, WorkloadStatesMapInternal,
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -25,7 +25,7 @@ use super::config_renderer::ConfigRenderer;
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-use common::objects::{State, WorkloadStatesMap};
+use common::objects::State;
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
@@ -126,7 +126,7 @@ impl ServerState {
     pub fn get_complete_state_by_field_mask(
         &self,
         request_complete_state: CompleteStateRequest,
-        workload_states_map: &WorkloadStatesMap,
+        workload_states_map: &WorkloadStatesMapInternal,
     ) -> Result<ank_base::CompleteState, String> {
         let current_complete_state: ank_base::CompleteState = CompleteState {
             desired_state: self.state.desired_state.clone(),
@@ -373,7 +373,7 @@ mod tests {
 
     use api::ank_base::{
         self, AgentMapInternal, CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, Workload,
-        WorkloadInternal, WorkloadNamed,
+        WorkloadInternal, WorkloadNamed, WorkloadStatesMapInternal,
     };
     use api::test_utils::{
         generate_test_agent_map, generate_test_proto_complete_state, generate_test_workload,
@@ -382,7 +382,7 @@ mod tests {
     use common::objects::AgentLoadStatus;
     use common::{
         commands::CompleteStateRequest,
-        objects::{CompleteState, ConfigItem, State, WorkloadStatesMap, generate_test_configs},
+        objects::{CompleteState, ConfigItem, State, generate_test_configs},
         test_utils::generate_test_complete_state,
     };
     use mockall::predicate;
@@ -430,7 +430,7 @@ mod tests {
 
         let request_complete_state = CompleteStateRequest { field_mask: vec![] };
 
-        let mut workload_state_db = WorkloadStatesMap::default();
+        let mut workload_state_db = WorkloadStatesMapInternal::default();
         workload_state_db.process_new_states(server_state.state.workload_states.clone().into());
 
         let received_complete_state = server_state
@@ -459,7 +459,7 @@ mod tests {
             ],
         };
 
-        let mut workload_state_map = WorkloadStatesMap::default();
+        let mut workload_state_map = WorkloadStatesMapInternal::default();
         workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
 
         let received_complete_state = server_state
@@ -499,7 +499,7 @@ mod tests {
             ],
         };
 
-        let mut workload_state_map = WorkloadStatesMap::default();
+        let mut workload_state_map = WorkloadStatesMapInternal::default();
         workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
 
         let complete_state = server_state

@@ -40,11 +40,13 @@ mod get_workloads;
 mod run_workload;
 mod set_state;
 
-use api::ank_base::{WorkloadInstanceNameInternal, WorkloadStateInternal};
+use api::ank_base::{
+    WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadStatesMapInternal,
+};
 use common::{
     communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServer,
-    objects::{CompleteState, State, WorkloadStatesMap},
+    objects::{CompleteState, State},
 };
 
 use wait_list_display::WaitListDisplay;
@@ -125,8 +127,8 @@ impl IntoIterator for WorkloadInfos {
     }
 }
 
-impl From<WorkloadStatesMap> for WorkloadInfos {
-    fn from(workload_states_map: WorkloadStatesMap) -> Self {
+impl From<WorkloadStatesMapInternal> for WorkloadInfos {
+    fn from(workload_states_map: WorkloadStatesMapInternal) -> Self {
         WorkloadInfos(
             // invoking this from is cheaper then repeating the code to flatten the wl state map
             Vec::<WorkloadStateInternal>::from(workload_states_map)

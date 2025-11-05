@@ -16,8 +16,9 @@ use crate::{output_and_error, output_warn};
 
 use api::ank_base::{
     self, AddCondition, ControlInterfaceAccessInternal, FileInternal, RestartPolicy,
+    WorkloadStatesMapInternal,
 };
-use common::objects::{ConfigItem, WorkloadStatesMap};
+use common::objects::ConfigItem;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -30,7 +31,7 @@ pub struct FilteredCompleteState {
     pub desired_state: Option<FilteredState>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    pub workload_states: Option<WorkloadStatesMap>,
+    pub workload_states: Option<WorkloadStatesMapInternal>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default, flatten)]
     pub agents: Option<FilteredAgentMap>,
@@ -139,7 +140,7 @@ impl From<ank_base::CompleteState> for FilteredCompleteState {
     fn from(value: ank_base::CompleteState) -> Self {
         FilteredCompleteState {
             desired_state: value.desired_state.map(Into::into),
-            workload_states: value.workload_states.map(Into::into),
+            workload_states: value.workload_states.and_then(|ws| ws.try_into().ok()),
             agents: value.agents,
         }
     }

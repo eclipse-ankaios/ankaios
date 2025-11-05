@@ -13,7 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::objects::CompleteState;
-use api::ank_base::{self, WorkloadNamed, WorkloadStateInternal, DeletedWorkload, WorkloadInstanceNameInternal};
+use api::ank_base::{
+    self, DeletedWorkload, WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -274,13 +276,15 @@ mod tests {
                 CompleteStateRequest, LogsCancelRequest, LogsRequest, Request, RequestContent,
                 UpdateStateRequest,
             },
-            objects::{CompleteState, State, generate_test_workload_states_map_with_data},
+            objects::{CompleteState, State},
         };
         pub use api::ank_base::{
             ExecutionStateInternal, FileContentInternal, FileInternal, RestartPolicy, TagsInternal,
             WorkloadInstanceNameInternal, WorkloadInternal,
         };
-        pub use api::test_utils::generate_test_agent_map;
+        pub use api::test_utils::{
+            generate_test_agent_map, generate_test_workload_states_map_with_data,
+        };
     }
 
     const REQUEST_ID: &str = "request_id";
@@ -499,13 +503,15 @@ mod tests {
             )
         }};
         (ank_base) => {
-            ankaios::generate_test_workload_states_map_with_data(
-                AGENT_NAME,
-                WORKLOAD_NAME_1,
-                HASH,
-                ankaios::ExecutionStateInternal::running(),
+            Some(
+                ankaios::generate_test_workload_states_map_with_data(
+                    AGENT_NAME,
+                    WORKLOAD_NAME_1,
+                    HASH,
+                    ankaios::ExecutionStateInternal::running(),
+                )
+                .into(),
             )
-            .into()
         };
     }
 

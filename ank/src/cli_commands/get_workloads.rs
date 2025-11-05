@@ -223,10 +223,12 @@ mod tests {
     };
 
     use api::ank_base::{self, ExecutionStateInternal, WorkloadNamed, WorkloadStateInternal};
-    use api::test_utils::generate_test_workload_with_param;
+    use api::test_utils::{
+        generate_test_workload_states_map_with_data, generate_test_workload_with_param,
+    };
     use common::{
         commands::UpdateWorkloadState,
-        objects::{self, generate_test_workload_states_map_with_data},
+        objects::{self},
         test_utils,
     };
 

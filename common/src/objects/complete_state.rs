@@ -12,11 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base;
-use api::ank_base::AgentMapInternal;
+use api::ank_base::{self, AgentMapInternal, WorkloadStatesMapInternal};
 use serde::{Deserialize, Serialize};
 
-use super::{State, WorkloadStatesMap};
+use super::State;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -24,7 +23,7 @@ pub struct CompleteState {
     #[serde(default)]
     pub desired_state: State,
     #[serde(default)]
-    pub workload_states: WorkloadStatesMap,
+    pub workload_states: WorkloadStatesMapInternal,
     #[serde(default)]
     pub agents: AgentMapInternal,
 }
@@ -35,7 +34,7 @@ impl From<CompleteState> for ank_base::CompleteState {
     fn from(item: CompleteState) -> ank_base::CompleteState {
         ank_base::CompleteState {
             desired_state: Some(ank_base::State::from(item.desired_state)),
-            workload_states: item.workload_states.into(),
+            workload_states: Some(item.workload_states.into()),
             agents: Some(item.agents.into()),
         }
     }
@@ -47,7 +46,7 @@ impl TryFrom<ank_base::CompleteState> for CompleteState {
     fn try_from(item: ank_base::CompleteState) -> Result<Self, Self::Error> {
         Ok(CompleteState {
             desired_state: item.desired_state.unwrap_or_default().try_into()?,
-            workload_states: item.workload_states.unwrap_or_default().into(),
+            workload_states: item.workload_states.unwrap_or_default().try_into()?,
             agents: item.agents.unwrap_or_default().try_into()?,
         })
     }
