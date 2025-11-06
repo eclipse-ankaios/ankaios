@@ -127,7 +127,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     builder = setup_internal_workload(builder);
     builder = setup_internal_state(builder);
 
-    // builder = setup_schema_annotations(builder);
+    builder = setup_schema_annotations(builder);
 
     builder
         .compile_protos(&["proto/control_api.proto"], &["proto"])

@@ -288,16 +288,13 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
         .field_attribute("ConfigMap.configs", "#[internal_field_attr(#[serde(flatten)])]")
-        .type_attribute("ConfigItem", "#[derive(internal_derive_macros::Internal)]")
-        .type_attribute(
+        .message_attribute("ConfigItem", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute(
             "ConfigItem",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
 
-        // TODO: this breaks the schema generation, fix it later
-        .type_attribute("ConfigItem", "#[internal_type_attr(#[serde(into = \"serde_yaml::Value\")])]")
-        .type_attribute("ConfigItem", "#[internal_type_attr(#[serde(try_from = \"serde_yaml::Value\")])]")
-
+        .message_attribute("ConfigItem", "#[internal_type_attr(#[serde(transparent)])]")
 
         .field_attribute("ConfigItem.ConfigItemEnum", "#[internal_mandatory]")
         .field_attribute("ConfigItem.ConfigItemEnum", "#[internal_field_attr(#[serde(flatten)])]")
