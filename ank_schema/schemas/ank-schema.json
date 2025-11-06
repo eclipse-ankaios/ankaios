@@ -8,25 +8,20 @@
       "description": "The current version of the API.",
       "type": "string"
     },
-    "configs": {
-      "description": "Configuration values which can be referenced in workload configurations\nby mapping them the configs field of the workload definition.",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/configItem"
-      }
-    },
     "workloads": {
       "description": "A mapping from workload name to workload configurations.\n\nWorkload names shall not be shorter than 1 symbol longer then 63 symbols\nand can contain only regular characters, digits, the \"-\" and \"\\_\" symbols.",
       "type": "object",
       "additionalProperties": {
         "$ref": "#/$defs/workload"
-      }
+      },
+      "default": {}
     }
   },
+  "additionalProperties": {
+    "$ref": "#/$defs/configItem"
+  },
   "required": [
-    "api_version",
-    "workloads",
-    "configs"
+    "api_version"
   ],
   "$defs": {
     "accessRightsRule": {
@@ -86,90 +81,33 @@
     "configArray": {
       "description": "A container for the array of config items.",
       "type": "object",
-      "properties": {
-        "values": {
-          "description": "An array of configuration items.",
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/configItem"
-          }
-        }
-      },
-      "required": [
-        "values"
-      ]
+      "items": {
+        "$ref": "#/$defs/configItem"
+      }
     },
     "configItem": {
       "description": "A configuration can be a simple string or a mapping or an array\nof other configurations items.\n\nThis is a test comment.",
-      "type": "object",
-      "properties": {
-        "config_item_enum": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/configItemEnum"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
+      "$ref": "#/$defs/configItemEnum"
     },
     "configItemEnum": {
-      "oneOf": [
+      "anyOf": [
         {
-          "type": "object",
-          "properties": {
-            "String": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "String"
-          ]
+          "type": "string"
         },
         {
-          "type": "object",
-          "properties": {
-            "Array": {
-              "$ref": "#/$defs/configArray"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Array"
-          ]
+          "$ref": "#/$defs/configArray"
         },
         {
-          "type": "object",
-          "properties": {
-            "Object": {
-              "$ref": "#/$defs/configObject"
-            }
-          },
-          "additionalProperties": false,
-          "required": [
-            "Object"
-          ]
+          "$ref": "#/$defs/configObject"
         }
       ]
     },
     "configObject": {
       "description": "A container for the mapping of config items.",
       "type": "object",
-      "properties": {
-        "fields": {
-          "description": "A mapping of configuration items.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/configItem"
-          }
-        }
-      },
-      "required": [
-        "fields"
-      ]
+      "additionalProperties": {
+        "$ref": "#/$defs/configItem"
+      }
     },
     "controlInterfaceAccess": {
       "description": "A message containing the parts of the control interface the workload as authorized to access.\nBy default, all access is denied.\nOnly if a matching allow rule is found, and no matching deny rules is found, the access is allowed.",
