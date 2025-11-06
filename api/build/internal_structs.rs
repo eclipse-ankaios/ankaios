@@ -312,7 +312,10 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
             "ConfigArray",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
-        .field_attribute("ConfigArray.values", "#[internal_field_attr(#[serde(flatten)])]")
+        .message_attribute(
+            "ConfigArray",
+            "#[internal_type_attr(#[serde(transparent)])]",
+        )
         .message_attribute("ConfigObject", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "ConfigObject",
