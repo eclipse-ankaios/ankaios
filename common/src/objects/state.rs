@@ -34,6 +34,7 @@ pub struct State {
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub workloads: HashMap<String, WorkloadInternal>,
     #[serde(default)]
+    #[serde(flatten)] // TODO: we should use the StateInternal and will not need an extra config here
     pub configs: HashMap<String, ConfigItemInternal>,
 }
 

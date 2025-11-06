@@ -14,7 +14,25 @@
 
 use std::collections::HashMap;
 
-use crate::ank_base::{ConfigArray, ConfigItem, ConfigObject, config_item};
+use crate::ank_base::{ConfigArray, ConfigItem, ConfigItemInternal, ConfigObject, config_item};
+
+// TODO: think about adding better conversions instead of twofold conversions here
+impl TryFrom<serde_yaml::Value> for ConfigItemInternal {
+    type Error = String;
+
+    fn try_from(value: serde_yaml::Value) -> Result<Self, Self::Error> {
+
+        let config_item: ConfigItem = value.try_into()?;
+        config_item.try_into()
+    }
+}
+
+impl From<ConfigItemInternal> for serde_yaml::Value {
+    fn from(value: ConfigItemInternal) -> Self {
+        let config_item: ConfigItem = value.into();
+        serde_yaml::Value::from(config_item)
+    }
+}
 
 impl TryFrom<serde_yaml::Value> for ConfigItem {
     type Error = String;

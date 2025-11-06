@@ -288,11 +288,17 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
         .field_attribute("ConfigMap.configs", "#[internal_field_attr(#[serde(flatten)])]")
-        .message_attribute("ConfigItem", "#[derive(internal_derive_macros::Internal)]")
-        .message_attribute(
+        .type_attribute("ConfigItem", "#[derive(internal_derive_macros::Internal)]")
+        .type_attribute(
             "ConfigItem",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
+
+        // TODO: this breaks the schema generation, fix it later
+        .type_attribute("ConfigItem", "#[internal_type_attr(#[serde(into = \"serde_yaml::Value\")])]")
+        .type_attribute("ConfigItem", "#[internal_type_attr(#[serde(try_from = \"serde_yaml::Value\")])]")
+
+
         .field_attribute("ConfigItem.ConfigItemEnum", "#[internal_mandatory]")
         .field_attribute("ConfigItem.ConfigItemEnum", "#[internal_field_attr(#[serde(flatten)])]")
         .enum_attribute("ConfigItemEnum", "#[derive(internal_derive_macros::Internal)]")
@@ -300,10 +306,10 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
             "ConfigItemEnum",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
-        // .enum_attribute(
-        //     "ConfigItemEnum",
-        //     "#[internal_type_attr(#[serde(untagged)])]",
-        // )
+        .enum_attribute(
+            "ConfigItemEnum",
+            "#[internal_type_attr(#[serde(untagged)])]",
+        )
         .message_attribute("ConfigArray", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "ConfigArray",

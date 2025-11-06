@@ -51,6 +51,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "ank_base.ConfigItem",
             "#[serde(try_from = \"serde_yaml::Value\")]",
         )
+        .enum_attribute(
+            "ConfigItemEnum",
+            "#[serde(untagged)]",
+        )
         .type_attribute(
             "ExecutionStateEnum",
             "#[serde(tag = \"state\", content = \"subState\")]",
@@ -123,7 +127,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     builder = setup_internal_workload(builder);
     builder = setup_internal_state(builder);
 
-    builder = setup_schema_annotations(builder);
+    // builder = setup_schema_annotations(builder);
 
     builder
         .compile_protos(&["proto/control_api.proto"], &["proto"])
