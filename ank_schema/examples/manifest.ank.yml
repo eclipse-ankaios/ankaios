@@ -9,6 +9,7 @@ workloads:
     dependencies:
       hello1: ADD_COND_SUCCEEDED
     restartPolicy: ON_FAILURE
+
     controlInterfaceAccess:
       allowRules:
         - type: StateRule
@@ -18,35 +19,36 @@ workloads:
         - type: LogRule
           workloadNames:
             - "*"
-        - type: LogRule # The Red Hat YAML parser cannot cope with this and does not recognize the wrong type
-          hereperationfdvdfv: Read
-          filterMasks:
-            - "*"
+        # - type: LogRule # The Red Hat YAML parser cannot cope with this and does not recognize the wrong type
+        #   hereperationfdvdfv: Read
+        #   filterMasks:
+        #     - "*"
     files:
       - mountPoint: /tmp/somefile.txt
         data: |
           some data
+    configs:
+      my_config: mapping_of_objects
     tags:
       owner: Ankaios team
-    configs:
-      my_config: general_config
 configs:
-  can_be:
-    simple: strings
+  can_be: simple_strings
   mapping_of_objects:
     with:
       arbitrary: depth
+    can_be:
+      simple: strings
   arrays_of:
     items:
     - some
     - of
     - which:
-      can:
-        be:
-          mappings:
-            again:
-            - and
-            - some
-            - arrays
+        can:
+          be:
+            mappings:
+              again:
+              - and
+              - some
+              - arrays
 
 

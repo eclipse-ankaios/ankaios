@@ -12,3 +12,9 @@ repository = "https://github.com/eclipse-ankaios/ankaios"
 api = { path = "../api", features = ["test_utils"] }
 serde_json = "1.0"
 schemars = "1.0"
+
+[build-dependencies]
+api = { path = "../api", features = ["test_utils"] }
+serde_json = "1.0"
+schemars = "1.0"
+env = "1.0"

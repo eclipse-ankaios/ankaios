@@ -96,6 +96,7 @@ name = "ank-schema"
 version = "0.8.0-pre"
 dependencies = [
  "api",
+ "env",
  "schemars",
  "serde_json",
 ]
@@ -706,6 +707,15 @@ name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
+
+[[package]]
+name = "env"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc95de49ad098572c02d3fbf368c9a020bfff5ae78483685b77f51d8a7e9486d"
+dependencies = [
+ "num_threads",
+]
 
 [[package]]
 name = "env_filter"
@@ -1408,6 +1418,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "num_threads"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c7398b9c8b70908f6371f47ed36737907c87c52af34c268fed0bf0ceb92ead9"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

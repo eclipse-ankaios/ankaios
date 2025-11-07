@@ -12,11 +12,18 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-fn main() {
+use std::path::PathBuf;
 
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let schema = schemars::schema_for!(api::ank_base::StateInternal);
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&schema).unwrap()
-    );
+
+    let schemars_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("schemas");
+    std::fs::create_dir_all(&schemars_dir).unwrap();
+
+    std::fs::write(
+        schemars_dir.join("ank_schema.json"),
+        serde_json::to_string_pretty(&schema)?,
+    )?;
+
+    Ok(())
 }
