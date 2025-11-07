@@ -283,7 +283,7 @@ impl ServerState {
     // [impl->swdd~server-updates-resource-availability~1]
     pub fn update_agent_resource_availability(
         &mut self,
-        agent_load_status: common::objects::AgentLoadStatus,
+        agent_load_status: common::commands::AgentLoadStatus,
     ) {
         self.state
             .agents
@@ -380,7 +380,7 @@ mod tests {
         generate_test_agent_map, generate_test_configs, generate_test_proto_complete_state,
         generate_test_workload, generate_test_workload_with_param,
     };
-    use common::objects::AgentLoadStatus;
+    use common::commands::AgentLoadStatus;
     use common::{
         commands::CompleteStateRequest,
         objects::{CompleteState, State},

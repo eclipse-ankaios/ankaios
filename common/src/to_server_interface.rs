@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    commands::{self, LogsRequest, RequestContent},
-    objects::{AgentLoadStatus, CompleteState},
+    commands::{self, AgentLoadStatus, LogsRequest, RequestContent},
+    objects::CompleteState,
 };
 use api::ank_base::{self, WorkloadStateInternal};
 use async_trait::async_trait;
@@ -229,8 +229,7 @@ impl ToServerInterface for ToServerSender {
 mod tests {
     use super::{ToServerReceiver, ToServerSender};
     use crate::{
-        commands::{self, RequestContent},
-        objects::AgentLoadStatus,
+        commands::{self, AgentLoadStatus, RequestContent},
         test_utils::generate_test_complete_state,
         to_server_interface::{ToServer, ToServerInterface},
     };

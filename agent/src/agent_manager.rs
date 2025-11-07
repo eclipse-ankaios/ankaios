@@ -15,7 +15,7 @@
 use api::ank_base::WorkloadStateInternal;
 use common::{
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::AgentLoadStatus,
+    commands::AgentLoadStatus,
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };

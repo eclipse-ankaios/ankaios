@@ -21,7 +21,7 @@ use api::ank_base::{
     request::RequestContent,
 };
 
-use common::objects::AgentLoadStatus;
+use common::commands::AgentLoadStatus;
 use common::request_id_prepending::prepend_request_id;
 use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender};
 
@@ -353,7 +353,7 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let agent_load_status = common::objects::AgentLoadStatus {
+        let agent_load_status = common::commands::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
             cpu_usage: CpuUsageInternal { cpu_usage: 42 },
             free_memory: FreeMemoryInternal { free_memory: 42 },
@@ -383,7 +383,7 @@ mod tests {
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
-        let agent_load_status = common::objects::AgentLoadStatus {
+        let agent_load_status = common::commands::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
             cpu_usage: CpuUsageInternal { cpu_usage: 42 },
             free_memory: FreeMemoryInternal { free_memory: 42 },

@@ -14,7 +14,8 @@
 
 use crate::objects::CompleteState;
 use api::ank_base::{
-    self, DeletedWorkload, WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
+    self, CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, WorkloadInstanceNameInternal,
+    WorkloadNamed, WorkloadStateInternal,
 };
 use serde::{Deserialize, Serialize};
 
@@ -247,6 +248,13 @@ pub struct Goodbye {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Stop {}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct AgentLoadStatus {
+    pub agent_name: String,
+    pub cpu_usage: CpuUsageInternal,
+    pub free_memory: FreeMemoryInternal,
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //

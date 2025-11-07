@@ -36,9 +36,9 @@ impl CommanderHello {
     }
 }
 
-impl From<AgentLoadStatus> for common::objects::AgentLoadStatus {
+impl From<AgentLoadStatus> for common::commands::AgentLoadStatus {
     fn from(item: AgentLoadStatus) -> Self {
-        common::objects::AgentLoadStatus {
+        common::commands::AgentLoadStatus {
             agent_name: item.agent_name,
             cpu_usage: item.cpu_usage.unwrap_or_default().try_into().unwrap(),
             free_memory: item.free_memory.unwrap_or_default().try_into().unwrap(),
@@ -46,8 +46,8 @@ impl From<AgentLoadStatus> for common::objects::AgentLoadStatus {
     }
 }
 
-impl From<common::objects::AgentLoadStatus> for AgentLoadStatus {
-    fn from(item: common::objects::AgentLoadStatus) -> Self {
+impl From<common::commands::AgentLoadStatus> for AgentLoadStatus {
+    fn from(item: common::commands::AgentLoadStatus) -> Self {
         AgentLoadStatus {
             agent_name: item.agent_name,
             cpu_usage: Some(item.cpu_usage.into()),

@@ -579,10 +579,11 @@ mod tests {
         generate_test_workload_with_param,
     };
     use common::commands::{
-        CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
+        AgentLoadStatus, CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload,
+        UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
-    use common::objects::{AgentLoadStatus, CompleteState, State};
+    use common::objects::{CompleteState, State};
     use common::to_server_interface::ToServerInterface;
 
     use mockall::predicate;
