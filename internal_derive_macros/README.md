@@ -86,7 +86,7 @@ The supported helper annotations are:
 * `#[prost(enumeration = "RestartPolicy", optional, tag = "2")]` where the type of value is changed to the enum specified by prost. This annotation is supported for both structs and enums.
 * `#[prost(map = "string, enumeration(AddCondition)", tag = "1")]` where the type of value type of a HashMap entry is changed to the type specified by prost. This annotation is currently only supported for structs.
 
-For a detailed example 
+For a detailed usage example, you can take a look in the [api crate](../api), but beware that the macros annotations there are added in the build code to the generated from proto Rust objects.
 
 ### Debugging
 
