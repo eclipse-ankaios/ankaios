@@ -453,7 +453,6 @@ version = "0.8.0-pre"
 dependencies = [
  "api",
  "async-trait",
- "common",
  "log",
  "regex",
  "semver",
