@@ -59,13 +59,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "ConfigItemEnum",
             "#[serde(untagged)]",
         )
-        .type_attribute(
+        .enum_attribute(
             "ExecutionStateEnum",
             "#[serde(tag = \"state\", content = \"subState\")]",
         )
-        .type_attribute("Tags", "#[derive(Eq)]")
-        .type_attribute("AgentAttributes", "#[derive(Eq)]")
-        .type_attribute("AgentMap", "#[derive(Eq)]")
+        .message_attribute("Tags", "#[derive(Eq)]")
+        .message_attribute("AgentAttributes", "#[derive(Eq)]")
+        .message_attribute("AgentMap", "#[derive(Eq)]")
         .field_attribute("Workload.tags", "#[serde(flatten)]")
         .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")
