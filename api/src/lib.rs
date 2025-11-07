@@ -24,7 +24,6 @@ pub mod control_api {
 }
 
 pub mod ank_base;
-mod convert;
 mod helpers;
 pub mod std_extensions;
 

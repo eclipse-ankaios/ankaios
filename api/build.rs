@@ -43,13 +43,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "ReadWriteEnum.RW_READ_WRITE",
             "#[serde(rename = \"ReadWrite\")]",
         )
-        .type_attribute(
+        .message_attribute(
             "ank_base.ConfigItem",
-            "#[serde(into = \"serde_yaml::Value\")]",
+            "#[serde(transparent)]",
         )
-        .type_attribute(
-            "ank_base.ConfigItem",
-            "#[serde(try_from = \"serde_yaml::Value\")]",
+        .message_attribute(
+            "ank_base.ConfigArray",
+            "#[serde(transparent)]",
+        )
+        .message_attribute(
+            "ank_base.ConfigObject",
+            "#[serde(transparent)]",
         )
         .enum_attribute(
             "ConfigItemEnum",
