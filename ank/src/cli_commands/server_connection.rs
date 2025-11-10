@@ -17,8 +17,6 @@ use crate::cli::LogsArgs;
 use crate::cli_signals::SignalHandler;
 use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output, output_and_error, output_debug};
-use chrono::Utc;
-use serde::Serialize;
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
 use api::ank_base::{self, LogsRequestAccepted};
@@ -406,8 +404,11 @@ impl ServerConnection {
     pub async fn subscribe_and_listen_for_events(
         &mut self,
         field_mask: Vec<String>,
-        output_format: crate::cli::OutputFormat,
-    ) -> Result<(), ServerConnectionError> {
+    ) -> Result<EventSubscription, ServerConnectionError> {
+        output!(
+            "Subscribing for events from server with field mask: {:?}",
+            field_mask
+        );
         let request_id = uuid::Uuid::new_v4().to_string();
         let events_request = CompleteStateRequest {
             field_mask,
@@ -419,13 +420,22 @@ impl ServerConnection {
             .await
             .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
 
-        let mut initial_response_received = false;
+        Ok(EventSubscription {
+            request_id,
+            initial_response_received: false,
+        })
+    }
 
+    pub async fn receive_next_event(
+        &mut self,
+        subscription: &mut EventSubscription,
+    ) -> Result<Option<ank_base::CompleteStateResponse>, ServerConnectionError> {
+        output!("Listening for events from server...");
         loop {
             tokio::select! {
                 _ = SignalHandler::wait_for_signals() => {
                     output_debug!("Received signal to stop event listening.");
-                    break Ok(());
+                    return Ok(None);
                 }
                 server_message = self.from_server.recv() => {
                     match server_message {
@@ -433,27 +443,28 @@ impl ServerConnection {
                             request_id: received_request_id,
                             response_content:
                                 Some(ank_base::response::ResponseContent::CompleteStateResponse(res)),
-                        })) if received_request_id == request_id => {
-                            if !initial_response_received {
+                        })) if received_request_id == subscription.request_id => {
+                            if !subscription.initial_response_received {
                                 output_debug!("Received initial state response, subscription active");
-                                initial_response_received = true;
+                                subscription.initial_response_received = true;
+                                continue;
                             } else {
                                 output_debug!("Received event from server: {res:?}");
-                                self.output_event(&res, &output_format)?;
+                                return Ok(Some(*res));
                             }
                         }
                         Some(FromServer::Response(ank_base::Response {
                             request_id: received_request_id,
                             response_content:
                                 Some(ank_base::response::ResponseContent::Error(error)),
-                        })) if received_request_id == request_id => {
-                            break Err(ServerConnectionError::ExecutionError(format!(
+                        })) if received_request_id == subscription.request_id => {
+                            return Err(ServerConnectionError::ExecutionError(format!(
                                 "Event subscription failed: '{}'",
                                 error.message
                             )));
                         }
                         None => {
-                            break Err(ServerConnectionError::ExecutionError(
+                            return Err(ServerConnectionError::ExecutionError(
                                 "Connection to server interrupted".into(),
                             ));
                         }
@@ -465,59 +476,11 @@ impl ServerConnection {
             }
         }
     }
+}
 
-    fn output_event(
-        &self,
-        event: &ank_base::CompleteStateResponse,
-        output_format: &crate::cli::OutputFormat,
-    ) -> Result<(), ServerConnectionError> {
-        #[derive(Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct EventOutput {
-            timestamp: String,
-            #[serde(skip_serializing_if = "Option::is_none")]
-            altered_fields: Option<AlteredFieldsOutput>,
-            complete_state: FilteredCompleteState,
-        }
-
-        #[derive(Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct AlteredFieldsOutput {
-            #[serde(skip_serializing_if = "Vec::is_empty")]
-            added_fields: Vec<String>,
-            #[serde(skip_serializing_if = "Vec::is_empty")]
-            updated_fields: Vec<String>,
-            #[serde(skip_serializing_if = "Vec::is_empty")]
-            removed_fields: Vec<String>,
-        }
-
-        let filtered_state: FilteredCompleteState = (*event).clone().into();
-
-        let timestamp_str = Utc::now().to_rfc3339();
-
-        let altered_fields = event.altered_fields.as_ref().map(|af| AlteredFieldsOutput {
-            added_fields: af.added_fields.clone(),
-            updated_fields: af.updated_fields.clone(),
-            removed_fields: af.removed_fields.clone(),
-        });
-
-        let event_output = EventOutput {
-            timestamp: timestamp_str,
-            altered_fields,
-            complete_state: filtered_state,
-        };
-
-        let output = match output_format {
-            crate::cli::OutputFormat::Yaml => serde_yaml::to_string(&event_output)
-                .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?,
-            crate::cli::OutputFormat::Json => serde_json::to_string_pretty(&event_output)
-                .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?,
-        };
-
-        output!("{output}");
-
-        Ok(())
-    }
+pub struct EventSubscription {
+    pub(crate) request_id: String,
+    pub(crate) initial_response_received: bool,
 }
 
 // [impl->swdd~cli-handles-log-responses-from-server~1]

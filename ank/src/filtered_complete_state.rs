@@ -42,6 +42,29 @@ where
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct FilteredEvent {
+    pub timestamp: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, flatten)]
+    pub altered_fields: Option<FilteredAlteredFields>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub complete_state: Option<FilteredCompleteState>,
+}
+
+#[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FilteredAlteredFields {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub added_fields: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub updated_fields: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub removed_fields: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FilteredCompleteState {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
