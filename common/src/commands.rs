@@ -288,7 +288,7 @@ mod tests {
         };
         pub use api::ank_base::{
             ExecutionStateInternal, FileContentInternal, FileInternal, RestartPolicy, TagsInternal,
-            WorkloadInstanceNameInternal, WorkloadInternal,
+            WorkloadInstanceNameInternal, WorkloadInternal, ConfigMappingsInternal,
         };
         pub use api::test_utils::{
             generate_test_agent_map, generate_test_workload_states_map_with_data,
@@ -477,11 +477,12 @@ mod tests {
                 runtime: RUNTIME.to_string(),
                 runtime_config: RUNTIME_CONFIG.to_string(),
                 control_interface_access: Default::default(),
-                configs: [
-                    ("ref1".into(), "config_1".into()),
-                    ("ref2".into(), "config_2".into()),
-                ]
-                .into(),
+                configs: ankaios::ConfigMappingsInternal{
+                    configs: HashMap::from([
+                        ("ref1".into(), "config_1".into()),
+                        ("ref2".into(), "config_2".into()),
+                    ]),
+                },
                 files: vec![
                     ankaios::FileInternal {
                         mount_point: "/file.json".to_string(),

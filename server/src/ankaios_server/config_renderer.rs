@@ -420,8 +420,9 @@ mod tests {
         let mut stored_workload: WorkloadInternal =
             generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, templated_runtime_config);
 
-        stored_workload.configs =
-            HashMap::from([("ref1".to_owned(), "not_existing_config_key".to_owned())]).into();
+        stored_workload.configs = api::ank_base::ConfigMappingsInternal {
+            configs: HashMap::from([("ref1".to_owned(), "not_existing_config_key".to_owned())]),
+        };
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let configs = generate_test_configs();
@@ -439,11 +440,12 @@ mod tests {
         let mut stored_workload: WorkloadInternal =
             generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, "some runtime config");
 
-        stored_workload.configs = HashMap::from([(
-            "ref1".to_owned(),
-            "not_existing_unused_config_key".to_owned(),
-        )])
-        .into();
+        stored_workload.configs = api::ank_base::ConfigMappingsInternal {
+            configs: HashMap::from([(
+                "ref1".to_owned(),
+                "not_existing_unused_config_key".to_owned(),
+            )]),
+        };
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let configs = generate_test_configs();
@@ -526,8 +528,9 @@ mod tests {
             runtime_config_with_partial_template,
         );
 
-        stored_workload.configs =
-            HashMap::from([("ref1".to_owned(), "config_1".to_owned())]).into();
+        stored_workload.configs = api::ank_base::ConfigMappingsInternal {
+            configs: HashMap::from([("ref1".to_owned(), "config_1".to_owned())]),
+        };
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let multi_line_config_value = "value_1\nvalue_2\nvalue_3".to_string();
@@ -571,8 +574,9 @@ mod tests {
             "config_of_special_char_sequences: {{special_conf}}",
         );
 
-        stored_workload.configs =
-            HashMap::from([("special_conf".into(), "config_special_chars".into())]).into();
+        stored_workload.configs = api::ank_base::ConfigMappingsInternal {
+            configs: HashMap::from([("special_conf".into(), "config_special_chars".into())]),
+        };
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let configs = HashMap::from([(

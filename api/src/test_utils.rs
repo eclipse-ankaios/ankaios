@@ -13,12 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    CompleteState, ConfigItem, ConfigItemEnum, ConfigMap, DeleteCondition, DeletedWorkload, State,
-    Workload, WorkloadInstanceNameInternal, WorkloadMap,
+    CompleteState, ConfigItem, ConfigItemEnum, ConfigMap, ConfigMapInternal, DeleteCondition,
+    DeletedWorkload, State, Workload, WorkloadInstanceNameInternal, WorkloadMap,
 };
 pub use crate::ank_base::{
     agent_map::{generate_test_agent_map, generate_test_agent_map_from_workloads},
-    config::{generate_test_config_item, generate_test_configs},
     control_interface_access::generate_test_control_interface_access,
     file_internal::generate_test_workload_files,
     workload::{
@@ -131,4 +130,22 @@ pub fn generate_test_deleted_workload_with_dependencies(
     let mut deleted_workload = generate_test_deleted_workload(agent, name);
     deleted_workload.dependencies = dependencies;
     deleted_workload
+}
+
+pub fn generate_test_configs() -> ConfigMapInternal {
+    serde_yaml::from_str(
+        "
+        config_1:
+          values:
+            value_1: value123
+            value_2:
+              - list_value_1
+              - list_value_2
+          agent_name: agent_A
+          config_file: text data
+          binary_file: base64_data
+        config_2: value_3
+        ",
+    )
+    .unwrap()
 }
