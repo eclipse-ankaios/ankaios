@@ -41,7 +41,7 @@ impl TryFrom<&WorkloadInternal> for PodmanKubeRuntimeConfig {
         }
 
         // [impl->swdd~podman-kube-rejects-workload-files~1]
-        if !workload_spec.files.is_empty() {
+        if !workload_spec.files.files.is_empty() {
             return Err(format!(
                 "Workload files are not supported for runtime {PODMAN_KUBE_RUNTIME_NAME}. Use ConfigMaps instead."
             ));

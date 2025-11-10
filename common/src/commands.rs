@@ -267,14 +267,13 @@ pub struct AgentLoadStatus {
 #[cfg(test)]
 mod tests {
     use crate::objects::CURRENT_API_VERSION;
-    use api::test_utils::generate_test_workload_files;
     use std::collections::HashMap;
 
     mod ank_base {
         pub use api::ank_base::{
-            CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, LogsCancelRequest,
-            LogsRequest, Request, RequestContent, RestartPolicy, State, UpdateStateRequest,
-            Workload, WorkloadInstanceName, WorkloadMap,
+            CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, File, Files,
+            LogsCancelRequest, LogsRequest, Request, RequestContent, RestartPolicy, State,
+            UpdateStateRequest, Workload, WorkloadInstanceName, WorkloadMap, file::FileContent,
         };
     }
 
@@ -287,8 +286,9 @@ mod tests {
             objects::{CompleteState, State},
         };
         pub use api::ank_base::{
-            ExecutionStateInternal, FileContentInternal, FileInternal, RestartPolicy, TagsInternal,
-            WorkloadInstanceNameInternal, WorkloadInternal, ConfigMappingsInternal,
+            ConfigMappingsInternal, ExecutionStateInternal, FileContentInternal, FileInternal,
+            FilesInternal, RestartPolicy, TagsInternal, WorkloadInstanceNameInternal,
+            WorkloadInternal,
         };
         pub use api::test_utils::{
             generate_test_agent_map, generate_test_workload_states_map_with_data,
@@ -463,7 +463,20 @@ mod tests {
                     ]
                     .into(),
                 }),
-                files: Some(generate_test_workload_files().into()),
+                files: Some(ank_base::Files {
+                    files: vec![
+                        ank_base::File {
+                            mount_point: "/file.json".to_string(),
+                            file_content: Some(ank_base::FileContent::Data("text data".into())),
+                        },
+                        ank_base::File {
+                            mount_point: "/binary_file".to_string(),
+                            file_content: Some(ank_base::FileContent::BinaryData(
+                                "base64_data".into(),
+                            )),
+                        },
+                    ],
+                }),
             }
         };
         (ankaios) => {
@@ -477,27 +490,28 @@ mod tests {
                 runtime: RUNTIME.to_string(),
                 runtime_config: RUNTIME_CONFIG.to_string(),
                 control_interface_access: Default::default(),
-                configs: ankaios::ConfigMappingsInternal{
+                configs: ankaios::ConfigMappingsInternal {
                     configs: HashMap::from([
                         ("ref1".into(), "config_1".into()),
                         ("ref2".into(), "config_2".into()),
                     ]),
                 },
-                files: vec![
-                    ankaios::FileInternal {
-                        mount_point: "/file.json".to_string(),
-                        file_content: ankaios::FileContentInternal::Data {
-                            data: "text data".into(),
+                files: ankaios::FilesInternal {
+                    files: vec![
+                        ankaios::FileInternal {
+                            mount_point: "/file.json".to_string(),
+                            file_content: ankaios::FileContentInternal::Data {
+                                data: "text data".into(),
+                            },
                         },
-                    },
-                    ankaios::FileInternal {
-                        mount_point: "/binary_file".to_string(),
-                        file_content: ankaios::FileContentInternal::BinaryData {
-                            binary_data: "base64_data".into(),
+                        ankaios::FileInternal {
+                            mount_point: "/binary_file".to_string(),
+                            file_content: ankaios::FileContentInternal::BinaryData {
+                                binary_data: "base64_data".into(),
+                            },
                         },
-                    },
-                ]
-                .into(),
+                    ],
+                },
             }
         };
     }

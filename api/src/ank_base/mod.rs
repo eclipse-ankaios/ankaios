@@ -25,8 +25,6 @@ pub use workload_instance_name::{
     ConfigHash, INSTANCE_NAME_SEPARATOR, WorkloadInstanceNameBuilder,
 };
 
-#[path = "file.rs"]
-pub(crate) mod file_internal; // Rename needed to avoid conflict with tonic generated module
 pub use file::{FileContent, FileContentInternal};
 
 pub(crate) mod agent_map;

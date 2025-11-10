@@ -16,7 +16,7 @@ use std::{collections::HashMap, fmt};
 
 use super::WorkloadInstanceNameInternal;
 use api::ank_base::{
-    ConfigItemInternal, FileContentInternal, FileInternal, WorkloadInternal, WorkloadNamed,
+    ConfigItemInternal, FileContentInternal, FileInternal, FilesInternal, WorkloadInternal, WorkloadNamed
 };
 use handlebars::{Handlebars, RenderError};
 
@@ -155,7 +155,7 @@ impl ConfigRenderer {
                 tags: workload.tags.clone(),
                 dependencies: workload.dependencies.clone(),
                 restart_policy: workload.restart_policy,
-                files: rendered_files.into(),
+                files: rendered_files,
                 configs: Default::default(),
                 control_interface_access: workload.control_interface_access.clone(),
             },
@@ -167,7 +167,7 @@ impl ConfigRenderer {
         &self,
         files: &[FileInternal],
         wl_config_map: &HashMap<&String, &ConfigItemInternal>,
-    ) -> Result<Vec<FileInternal>, ConfigRenderError> {
+    ) -> Result<FilesInternal, ConfigRenderError> {
         let mut rendered_files = Vec::new();
         for current_file in files {
             let mut rendered_file = current_file.clone();
@@ -191,7 +191,9 @@ impl ConfigRenderer {
 
             rendered_files.push(rendered_file);
         }
-        Ok(rendered_files)
+        Ok(FilesInternal {
+            files: rendered_files,
+        })
     }
 
     // fn render_file_content(self, file_content: &FileContentInternal, wl_config_map: &HashMap<&String, &ConfigItem>) -> Result<FileContentInternal, ConfigRenderError> {

@@ -111,7 +111,7 @@ impl WorkloadInternal {
 
     // [impl->swdd~common-workload-has-files~1]
     pub fn has_files(&self) -> bool {
-        !self.files.is_empty()
+        !self.files.files.is_empty()
     }
 
     // [impl->swdd~common-workload-naming-convention~1]
@@ -237,7 +237,10 @@ impl std::fmt::Display for RestartPolicy {
 #[cfg(any(feature = "test_utils", test))]
 use crate::ank_base::{ConfigMappingsInternal, TagsInternal, Workload};
 #[cfg(any(feature = "test_utils", test))]
-use crate::test_utils::{generate_test_control_interface_access, generate_test_workload_files};
+use crate::test_utils::{
+    generate_test_control_interface_access,
+    // generate_test_workload_files
+};
 
 #[cfg(any(feature = "test_utils", test))]
 impl WorkloadNamed {
@@ -283,6 +286,8 @@ impl TestWorkloadFixture for WorkloadInternal {
         runtime_name: impl Into<String>,
         runtime_config: impl Into<String>,
     ) -> Self {
+        use crate::ank_base::FilesInternal;
+
         WorkloadInternal {
             agent: agent_name.into(),
             dependencies: DependenciesInternal {
@@ -307,7 +312,22 @@ impl TestWorkloadFixture for WorkloadInternal {
                 ]),
             },
             control_interface_access: generate_test_control_interface_access(),
-            files: generate_test_workload_files(),
+            files: FilesInternal {
+                files: vec![
+                    crate::ank_base::FileInternal {
+                        mount_point: "/file.json".to_string(),
+                        file_content: crate::ank_base::FileContentInternal::Data {
+                            data: "text data".into(),
+                        },
+                    },
+                    crate::ank_base::FileInternal {
+                        mount_point: "/binary_file".to_string(),
+                        file_content: crate::ank_base::FileContentInternal::BinaryData {
+                            binary_data: "base64_data".into(),
+                        },
+                    },
+                ],
+            },
         }
     }
 }

@@ -19,7 +19,6 @@ use crate::ank_base::{
 pub use crate::ank_base::{
     agent_map::{generate_test_agent_map, generate_test_agent_map_from_workloads},
     control_interface_access::generate_test_control_interface_access,
-    file_internal::generate_test_workload_files,
     workload::{
         generate_test_runtime_config, generate_test_workload, generate_test_workload_with_param,
         generate_test_workload_with_runtime_config,
