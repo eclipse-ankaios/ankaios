@@ -12,11 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    ANKAIOS_VERSION,
-    objects::{CURRENT_API_VERSION, PREVIOUS_API_VERSION},
-    std_extensions::IllegalStateResult,
-};
+use crate::{ANKAIOS_VERSION, std_extensions::IllegalStateResult};
+use api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 
 use semver::Version;
 use serde_yaml::Value;

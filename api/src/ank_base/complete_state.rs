@@ -12,34 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{
-    self, ConfigItemInternal, STR_RE_CONFIG_REFERENCES, WorkloadInternal, serialize_to_ordered_map,
-};
-
+use crate::ank_base::{STR_RE_CONFIG_REFERENCES, StateInternal, WorkloadInternal};
+use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
-pub const API_VERSION_0_1: &str = "v0.1";
-pub const API_VERSION_1_0: &str = "v1";
-pub const CURRENT_API_VERSION: &str = API_VERSION_1_0;
-pub const PREVIOUS_API_VERSION: &str = API_VERSION_0_1;
-
-// [impl->swdd~common-object-representation~1]
-// [impl->swdd~common-object-serialization~1]
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct State {
-    pub api_version: String,
-    #[serde(default, serialize_with = "serialize_to_ordered_map")]
-    pub workloads: HashMap<String, WorkloadInternal>,
-    #[serde(default)]
-    pub configs: HashMap<String, ConfigItemInternal>,
-}
-
-// pub type State = api::ank_base::StateInternal;
-
-impl Default for State {
+impl Default for StateInternal {
     fn default() -> Self {
         Self {
             api_version: CURRENT_API_VERSION.into(),
@@ -49,54 +26,8 @@ impl Default for State {
     }
 }
 
-impl From<State> for ank_base::State {
-    fn from(item: State) -> Self {
-        ank_base::State {
-            api_version: item.api_version,
-            workloads: Some(ank_base::WorkloadMap {
-                workloads: item
-                    .workloads
-                    .into_iter()
-                    .map(|(k, v)| (k, v.into()))
-                    .collect(),
-            }),
-            configs: Some(ank_base::ConfigMap {
-                configs: item
-                    .configs
-                    .into_iter()
-                    .map(|(key, config_item)| (key, config_item.into()))
-                    .collect(),
-            }),
-        }
-    }
-}
-
-impl TryFrom<ank_base::State> for State {
-    type Error = String;
-
-    fn try_from(item: ank_base::State) -> Result<Self, Self::Error> {
-        Ok(State {
-            api_version: item.api_version,
-            workloads: item
-                .workloads
-                .unwrap_or_default()
-                .workloads
-                .into_iter()
-                .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))
-                .collect::<Result<HashMap<String, WorkloadInternal>, String>>()?,
-            configs: item
-                .configs
-                .unwrap_or_default()
-                .configs
-                .into_iter()
-                .map(|(k, v)| Ok((k, v.try_into()?)))
-                .collect::<Result<_, Self::Error>>()?,
-        })
-    }
-}
-
-impl State {
-    pub fn verify_api_version(provided_state: &State) -> Result<(), String> {
+impl StateInternal {
+    pub fn verify_api_version(provided_state: &StateInternal) -> Result<(), String> {
         match provided_state.api_version.as_str() {
             CURRENT_API_VERSION => Ok(()),
             PREVIOUS_API_VERSION => {
@@ -113,9 +44,9 @@ impl State {
     }
 
     // [impl->swdd~common-config-item-key-naming-convention~1]
-    pub fn verify_configs_format(provided_state: &State) -> Result<(), String> {
+    pub fn verify_configs_format(provided_state: &StateInternal) -> Result<(), String> {
         let re_config_items = Regex::new(STR_RE_CONFIG_REFERENCES).unwrap();
-        for config_key in provided_state.configs.keys() {
+        for config_key in provided_state.configs.configs.keys() {
             if !re_config_items.is_match(config_key.as_str()) {
                 return Err(format!(
                     "Unsupported config item key. Received '{config_key}', expected to have characters in {STR_RE_CONFIG_REFERENCES}"
@@ -123,7 +54,7 @@ impl State {
             }
         }
 
-        for workload in provided_state.workloads.values() {
+        for workload in provided_state.workloads.workloads.values() {
             // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
             WorkloadInternal::verify_config_reference_format(&workload.configs.configs)?;
         }
@@ -144,32 +75,17 @@ impl State {
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, ConfigItemEnumInternal, ConfigItemInternal, WorkloadInternal};
-    use api::test_utils::{
-        generate_test_configs, generate_test_proto_state, generate_test_workload,
+    use crate::ank_base::{
+        self, ConfigMapInternal, StateInternal, WorkloadInternal, WorkloadMapInternal,
+    };
+    use crate::test_utils::{
+        generate_test_config_item, generate_test_configs, generate_test_state,
+        generate_test_workload,
     };
     use std::collections::HashMap;
 
-    use crate::{objects::State, test_utils::generate_test_state};
-
     const WORKLOAD_NAME_1: &str = "workload_1";
     const INVALID_CONFIG_KEY: &str = "invalid%key";
-
-    #[test]
-    fn utest_converts_to_proto_state() {
-        let ankaios_state = generate_test_state();
-        let proto_state = generate_test_proto_state();
-
-        assert_eq!(ank_base::State::from(ankaios_state), proto_state);
-    }
-
-    #[test]
-    fn utest_converts_to_ankaios_state() {
-        let ankaios_state = generate_test_state();
-        let proto_state = generate_test_proto_state();
-
-        assert_eq!(State::try_from(proto_state), Ok(ankaios_state));
-    }
 
     #[test]
     fn utest_serialize_state_into_ordered_output() {
@@ -189,19 +105,22 @@ mod tests {
 
     #[test]
     fn utest_state_accepts_compatible_state() {
-        let state_compatible_version = State::default();
-        assert_eq!(State::verify_api_version(&state_compatible_version), Ok(()));
+        let state_compatible_version = StateInternal::default();
+        assert_eq!(
+            StateInternal::verify_api_version(&state_compatible_version),
+            Ok(())
+        );
     }
 
     #[test]
     fn utest_state_rejects_incompatible_state_on_api_version() {
         let api_version = "incompatible_version".to_string();
-        let state_incompatible_version = State {
+        let state_incompatible_version = StateInternal {
             api_version: api_version.clone(),
             ..Default::default()
         };
         assert_eq!(
-            State::verify_api_version(&state_incompatible_version),
+            StateInternal::verify_api_version(&state_incompatible_version),
             Err(format!(
                 "Unsupported API version. Received '{}', expected '{}'",
                 api_version,
@@ -221,14 +140,15 @@ mod tests {
                 configs: HashMap::new(),
             }),
         };
-        let state_ankaios_no_version = State::try_from(state_proto_no_version).unwrap();
+        let state_ankaios_no_version = StateInternal::try_from(state_proto_no_version).unwrap();
 
         assert_eq!(state_ankaios_no_version.api_version, "".to_string());
 
         let file_without_api_version = "";
-        let deserialization_result = serde_yaml::from_str::<State>(file_without_api_version)
-            .unwrap_err()
-            .to_string();
+        let deserialization_result =
+            serde_yaml::from_str::<StateInternal>(file_without_api_version)
+                .unwrap_err()
+                .to_string();
         assert_eq!(deserialization_result, "missing field `apiVersion`");
     }
 
@@ -236,31 +156,33 @@ mod tests {
     #[test]
     fn utest_verify_configs_format_compatible_config_item_keys_and_config_references() {
         let workload = generate_test_workload();
-        let state = State {
+        let state = StateInternal {
             api_version: super::CURRENT_API_VERSION.into(),
-            workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
-            configs: generate_test_configs().configs,
+            workloads: WorkloadMapInternal {
+                workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+            },
+            configs: generate_test_configs(),
         };
 
-        assert_eq!(State::verify_configs_format(&state), Ok(()));
+        assert_eq!(StateInternal::verify_configs_format(&state), Ok(()));
     }
 
     // [utest->swdd~common-config-item-key-naming-convention~1]
     #[test]
     fn utest_verify_configs_format_incompatible_config_item_key() {
-        let state = State {
+        let state = StateInternal {
             api_version: super::CURRENT_API_VERSION.into(),
-            configs: HashMap::from([(
-                INVALID_CONFIG_KEY.to_owned(),
-                ConfigItemInternal {
-                    config_item_enum: ConfigItemEnumInternal::String("value".to_owned()),
-                },
-            )]),
+            configs: ConfigMapInternal {
+                configs: HashMap::from([(
+                    INVALID_CONFIG_KEY.to_owned(),
+                    generate_test_config_item("value".to_owned()),
+                )]),
+            },
             ..Default::default()
         };
 
         assert_eq!(
-            State::verify_configs_format(&state),
+            StateInternal::verify_configs_format(&state),
             Err(format!(
                 "Unsupported config item key. Received '{}', expected to have characters in {}",
                 INVALID_CONFIG_KEY,
@@ -278,14 +200,16 @@ mod tests {
             .configs
             .insert(INVALID_CONFIG_KEY.to_owned(), "config_1".to_string());
 
-        let state = State {
+        let state = StateInternal {
             api_version: super::CURRENT_API_VERSION.into(),
-            workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+            workloads: WorkloadMapInternal {
+                workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+            },
             ..Default::default()
         };
 
         assert_eq!(
-            State::verify_configs_format(&state),
+            StateInternal::verify_configs_format(&state),
             Err(format!(
                 "Unsupported config alias. Received '{}', expected to have characters in {}",
                 INVALID_CONFIG_KEY,

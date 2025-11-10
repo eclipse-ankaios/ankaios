@@ -12,16 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{self, AgentMapInternal, WorkloadStatesMapInternal};
+use api::ank_base::{self, AgentMapInternal, StateInternal, WorkloadStatesMapInternal};
 use serde::{Deserialize, Serialize};
-
-use super::State;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CompleteState {
     #[serde(default)]
-    pub desired_state: State,
+    pub desired_state: StateInternal,
     #[serde(default)]
     pub workload_states: WorkloadStatesMapInternal,
     #[serde(default)]

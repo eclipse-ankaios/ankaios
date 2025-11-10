@@ -50,6 +50,7 @@ impl CliCommands {
         complete_state_update
             .desired_state
             .workloads
+            .workloads
             .insert(workload_name, new_workload);
 
         output_debug!(
@@ -118,6 +119,7 @@ mod tests {
         let mut complete_state_update = CompleteState::default();
         complete_state_update
             .desired_state
+            .workloads
             .workloads
             .insert(TEST_WORKLOAD_NAME.into(), new_workload);
 

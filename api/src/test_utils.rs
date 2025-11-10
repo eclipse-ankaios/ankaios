@@ -13,11 +13,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    CompleteState, ConfigItem, ConfigItemEnum, ConfigMap, ConfigMapInternal, DeleteCondition,
-    DeletedWorkload, State, Workload, WorkloadInstanceNameInternal, WorkloadMap,
+    CompleteState, ConfigMap, ConfigMapInternal, ConfigMappingsInternal, DeleteCondition,
+    DeletedWorkload, State, StateInternal, Workload, WorkloadInstanceNameInternal, WorkloadMap,
+    WorkloadMapInternal, WorkloadNamed,
 };
 pub use crate::ank_base::{
     agent_map::{generate_test_agent_map, generate_test_agent_map_from_workloads},
+    config::{generate_test_config_item},
     control_interface_access::generate_test_control_interface_access,
     workload::{
         generate_test_runtime_config, generate_test_workload, generate_test_workload_with_param,
@@ -40,7 +42,42 @@ const API_VERSION: &str = "v1";
 const WORKLOAD_1_NAME: &str = "workload_name_1";
 const WORKLOAD_2_NAME: &str = "workload_name_2";
 
-// pub fn generate_test_state_from_workloads
+pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadNamed>) -> StateInternal {
+    StateInternal {
+        api_version: API_VERSION.into(),
+        workloads: WorkloadMapInternal {
+            workloads: workloads
+                .into_iter()
+                .map(|mut w| {
+                    let name = w.instance_name.workload_name().to_owned();
+                    w.workload.configs = ConfigMappingsInternal {
+                        configs: HashMap::from([
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
+                        ]),
+                    };
+                    (name, w.workload)
+                })
+                .collect(),
+        },
+        configs: ConfigMapInternal {
+            configs: HashMap::from([
+                (
+                    "config_1".to_owned(),
+                    generate_test_config_item("value 1".to_owned()),
+                ),
+                (
+                    "config_2".to_owned(),
+                    generate_test_config_item("value 2".to_owned()),
+                ),
+                (
+                    "config_3".to_owned(),
+                    generate_test_config_item("value 3".to_owned()),
+                ),
+            ]),
+        },
+    }
+}
 
 pub fn generate_test_proto_complete_state(workloads: &[(&str, Workload)]) -> CompleteState {
     CompleteState {
@@ -56,21 +93,15 @@ pub fn generate_test_proto_complete_state(workloads: &[(&str, Workload)]) -> Com
                 configs: HashMap::from([
                     (
                         "config_1".to_string(),
-                        ConfigItem {
-                            config_item_enum: Some(ConfigItemEnum::String("value 1".to_string())),
-                        },
+                        generate_test_config_item("value 1".to_string()).into(),
                     ),
                     (
                         "config_2".to_string(),
-                        ConfigItem {
-                            config_item_enum: Some(ConfigItemEnum::String("value 2".to_string())),
-                        },
+                        generate_test_config_item("value 2".to_string()).into(),
                     ),
                     (
                         "config_3".to_string(),
-                        ConfigItem {
-                            config_item_enum: Some(ConfigItemEnum::String("value 3".to_string())),
-                        },
+                        generate_test_config_item("value 3".to_string()).into(),
                     ),
                 ]),
             }),
@@ -84,7 +115,18 @@ pub fn generate_test_proto_complete_state(workloads: &[(&str, Workload)]) -> Com
 
 // generate_test_complete_state_with_configs
 
-// generate_test_state
+pub fn generate_test_state() -> StateInternal {
+    StateInternal {
+        api_version: API_VERSION.into(),
+        workloads: WorkloadMapInternal {
+            workloads: HashMap::from([
+                (WORKLOAD_1_NAME.to_owned(), generate_test_workload()),
+                (WORKLOAD_2_NAME.to_owned(), generate_test_workload()),
+            ]),
+        },
+        configs: Default::default(),
+    }
+}
 
 pub fn generate_test_proto_state() -> State {
     let workload_name_1 = WORKLOAD_1_NAME.to_string();

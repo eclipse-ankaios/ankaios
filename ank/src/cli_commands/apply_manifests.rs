@@ -13,13 +13,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{CliCommands, InputSourcePair};
-use crate::cli_commands::State;
 use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
-use api::ank_base::ALLOWED_SYMBOLS;
+use api::ank_base::{ALLOWED_SYMBOLS, StateInternal};
+use api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use common::helpers::validate_tags;
-use common::objects::{CURRENT_API_VERSION, CompleteState, PREVIOUS_API_VERSION};
+use common::objects::CompleteState;
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
 
@@ -96,7 +96,7 @@ pub fn handle_agent_overwrite(
     filter_masks: &Vec<common::state_manipulation::Path>,
     cli_specified_agent_name: &Option<String>,
     mut state_obj: Object,
-) -> Result<State, String> {
+) -> Result<StateInternal, String> {
     for mask_path in filter_masks {
         if mask_path.parts().starts_with(&["workloads".into()]) {
             let workload_agent_mask: Path = format!("{}.agent", String::from(mask_path)).into();
@@ -176,7 +176,7 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
 ) -> Result<Option<(CompleteState, Vec<String>)>, String> {
-    let mut req_obj: Object = State::default().try_into().unwrap();
+    let mut req_obj: Object = StateInternal::default().try_into().unwrap();
     let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
     for manifest in manifests.iter_mut() {
         let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
@@ -256,15 +256,15 @@ mod tests {
     };
 
     use api::ank_base::{
-        self, ExecutionStateInternal, UpdateStateSuccess, WorkloadNamed, WorkloadStateInternal,
+        self, ExecutionStateInternal, StateInternal, UpdateStateSuccess, WorkloadNamed,
+        WorkloadStateInternal,
     };
-    use api::test_utils::generate_test_workload_with_param;
+    use api::test_utils::{generate_test_state_from_workloads, generate_test_workload_with_param};
     use common::{
         commands::UpdateWorkloadState,
         // from_server_interface::FromServer,
-        objects::{CompleteState, State},
+        objects::CompleteState,
         state_manipulation::{Object, Path},
-        test_utils,
     };
 
     use mockall::predicate::eq;
@@ -325,7 +325,7 @@ mod tests {
         ))
         .unwrap();
 
-        assert!(TryInto::<State>::try_into(obj).is_err());
+        assert!(TryInto::<StateInternal>::try_into(obj).is_err());
         assert!(paths.is_empty());
     }
 
@@ -532,13 +532,13 @@ mod tests {
     #[test]
     fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
         let workload: WorkloadNamed = generate_test_workload_with_param("agent_A", "runtime_X");
-        let state = test_utils::generate_test_state_from_workloads(vec![workload.clone()]);
+        let state = generate_test_state_from_workloads(vec![workload.clone()]);
 
         let overwritten_agent_name = "overwritten_agent_name";
         let mut new_workload = workload.clone();
         new_workload.workload.agent = overwritten_agent_name.to_owned();
         new_workload.instance_name.agent_name = overwritten_agent_name.to_owned();
-        let expected_state = test_utils::generate_test_state_from_workloads(vec![new_workload]);
+        let expected_state = generate_test_state_from_workloads(vec![new_workload]);
 
         assert_eq!(
             handle_agent_overwrite(
@@ -554,9 +554,10 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_one_agent_name_provided_in_workload_specs() {
-        let state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_with_param("agent_A", "runtime_X"),
-        ]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
+            "agent_A",
+            "runtime_X",
+        )]);
 
         assert_eq!(
             handle_agent_overwrite(
@@ -572,7 +573,7 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload_specs() {
-        let state = test_utils::generate_test_state_from_workloads(vec![
+        let state = generate_test_state_from_workloads(vec![
             generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime_X")
                 .name(WORKLOAD_NAME_1),
             generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_X")
@@ -597,9 +598,10 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
-        let state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_with_param("agent_A", "runtime_X"),
-        ]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
+            "agent_A",
+            "runtime_X",
+        )]);
 
         let mut obj: Object = state.try_into().unwrap();
 
@@ -619,16 +621,16 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_missing_agent_name() {
-        let state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_with_param("agent_A".to_string(), "runtime_X".to_string()),
-        ]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
+            "agent_A".to_string(),
+            "runtime_X".to_string(),
+        )]);
 
-        let expected_state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_with_param(
+        let expected_state =
+            generate_test_state_from_workloads(vec![generate_test_workload_with_param(
                 "overwritten_agent_name".to_string(),
                 "runtime_X".to_string(),
-            ),
-        ]);
+            )]);
 
         let mut obj: Object = state.try_into().unwrap();
 
@@ -649,13 +651,16 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_considers_only_workloads() {
-        let state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_with_param("agent_A".to_string(), "runtime_X".to_string()),
-        ]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
+            "agent_A".to_string(),
+            "runtime_X".to_string(),
+        )]);
 
-        let expected_state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_with_param("agent_A".to_string(), "runtime_X".to_string()),
-        ]);
+        let expected_state =
+            generate_test_state_from_workloads(vec![generate_test_workload_with_param(
+                "agent_A".to_string(),
+                "runtime_X".to_string(),
+            )]);
 
         let cli_specified_agent_name = None;
 

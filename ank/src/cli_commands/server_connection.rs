@@ -561,14 +561,14 @@ mod tests {
     };
 
     use api::ank_base::{
-        self, ExecutionStateInternal, UpdateStateSuccess, WorkloadInstanceNameInternal,
-        WorkloadInternal, WorkloadStateInternal,
+        self, ExecutionStateInternal, StateInternal, UpdateStateSuccess,
+        WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal, WorkloadStateInternal,
     };
     use api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
         commands::{CompleteStateRequest, RequestContent, UpdateStateRequest, UpdateWorkloadState},
         from_server_interface::FromServer,
-        objects::{CompleteState, State},
+        objects::CompleteState,
         to_server_interface::ToServer,
     };
 
@@ -703,16 +703,18 @@ mod tests {
 
     fn complete_state(workload_name: &str) -> CompleteState {
         CompleteState {
-            desired_state: State {
-                workloads: [(
-                    workload_name.into(),
-                    WorkloadInternal {
-                        agent: AGENT_A.into(),
-                        runtime: RUNTIME.into(),
-                        ..Default::default()
-                    },
-                )]
-                .into(),
+            desired_state: StateInternal {
+                workloads: WorkloadMapInternal {
+                    workloads: [(
+                        workload_name.into(),
+                        WorkloadInternal {
+                            agent: AGENT_A.into(),
+                            runtime: RUNTIME.into(),
+                            ..Default::default()
+                        },
+                    )]
+                    .into(),
+                },
                 ..Default::default()
             },
             ..Default::default()
@@ -735,31 +737,8 @@ mod tests {
             }),
         );
 
-        let proto_complete_state = generate_test_proto_complete_state(&[(
-            WORKLOAD_NAME_1,
-            // ank_base::Workload {
-            //     agent: Some(AGENT_A.to_string()),
-            //     runtime: Some(RUNTIME.to_string()),
-            //     tags: Some(ank_base::Tags {
-            //         tags: HashMap::new(),
-            //     }),
-            //     dependencies: Some(ank_base::Dependencies {
-            //         dependencies: HashMap::new(),
-            //     }),
-            //     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-            //     runtime_config: Some(String::default()),
-            //     control_interface_access: None,
-            //     configs: Some(ank_base::ConfigMappings {
-            //         configs: [
-            //             ("ref1".into(), "config_1".into()),
-            //             ("ref2".into(), "config_2".into()),
-            //         ]
-            //         .into(),
-            //     }),
-            //     files: Some(generate_test_proto_workload_files()),
-            // },
-            generate_test_workload(),
-        )]);
+        let proto_complete_state =
+            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
 
         sim.will_send_response(
             REQUEST,
@@ -811,60 +790,13 @@ mod tests {
     // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_get_complete_state_other_response_in_between() {
-        let proto_complete_state = generate_test_proto_complete_state(&[(
-            WORKLOAD_NAME_1,
-            // ank_base::Workload {
-            //     agent: Some(AGENT_A.to_string()),
-            //     runtime: Some(RUNTIME.to_string()),
-            //     tags: Some(ank_base::Tags {
-            //         tags: HashMap::new(),
-            //     }),
-            //     dependencies: Some(ank_base::Dependencies {
-            //         dependencies: HashMap::new(),
-            //     }),
-            //     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-            //     runtime_config: Some("".to_string()),
-            //     control_interface_access: None,
-            //     configs: Some(ank_base::ConfigMappings {
-            //         configs: [
-            //             ("ref1".into(), "config_1".into()),
-            //             ("ref2".into(), "config_2".into()),
-            //         ]
-            //         .into(),
-            //     }),
-            //     files: Some(generate_test_proto_workload_files()),
-            // },
-            generate_test_workload(),
-        )]);
+        let proto_complete_state =
+            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
 
         let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                generate_test_proto_complete_state(&[(
-                    WORKLOAD_NAME_2,
-                    // ank_base::Workload {
-                    //     agent: Some(AGENT_A.to_string()),
-                    //     runtime: Some(RUNTIME.to_string()),
-                    //     tags: Some(ank_base::Tags {
-                    //         tags: HashMap::new(),
-                    //     }),
-                    //     dependencies: Some(ank_base::Dependencies {
-                    //         dependencies: HashMap::new(),
-                    //     }),
-                    //     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                    //     runtime_config: Some("".to_string()),
-                    //     control_interface_access: None,
-                    //     configs: Some(ank_base::ConfigMappings {
-                    //         configs: [
-                    //             ("ref1".into(), "config_1".into()),
-                    //             ("ref2".into(), "config_2".into()),
-                    //         ]
-                    //         .into(),
-                    //     }),
-                    //     files: Some(generate_test_proto_workload_files()),
-                    // },
-                    generate_test_workload(),
-                )]),
+                generate_test_proto_complete_state(&[(WORKLOAD_NAME_2, generate_test_workload())]),
             )),
         });
 
@@ -900,31 +832,8 @@ mod tests {
         let other_message = FromServer::UpdateWorkloadState(UpdateWorkloadState {
             workload_states: vec![],
         });
-        let proto_complete_state = generate_test_proto_complete_state(&[(
-            WORKLOAD_NAME_1,
-            // ank_base::Workload {
-            //     agent: Some(AGENT_A.to_string()),
-            //     runtime: Some(RUNTIME.to_string()),
-            //     tags: Some(ank_base::Tags {
-            //         tags: HashMap::new(),
-            //     }),
-            //     dependencies: Some(ank_base::Dependencies {
-            //         dependencies: HashMap::new(),
-            //     }),
-            //     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-            //     runtime_config: Some("".to_string()),
-            //     control_interface_access: None,
-            //     configs: Some(ank_base::ConfigMappings {
-            //         configs: [
-            //             ("ref1".into(), "config_1".into()),
-            //             ("ref2".into(), "config_2".into()),
-            //         ]
-            //         .into(),
-            //     }),
-            //     files: Some(generate_test_proto_workload_files()),
-            // },
-            generate_test_workload(),
-        )]);
+        let proto_complete_state =
+            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
@@ -1075,31 +984,7 @@ mod tests {
         let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                generate_test_proto_complete_state(&[(
-                    WORKLOAD_NAME_2,
-                    // ank_base::Workload {
-                    //     agent: Some(AGENT_A.to_string()),
-                    //     runtime: Some(RUNTIME.to_string()),
-                    //     tags: Some(ank_base::Tags {
-                    //         tags: HashMap::new(),
-                    //     }),
-                    //     dependencies: Some(ank_base::Dependencies {
-                    //         dependencies: HashMap::new(),
-                    //     }),
-                    //     restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                    //     runtime_config: Some("".to_string()),
-                    //     control_interface_access: None,
-                    //     configs: Some(ank_base::ConfigMappings {
-                    //         configs: [
-                    //             ("ref1".into(), "config_1".into()),
-                    //             ("ref2".into(), "config_2".into()),
-                    //         ]
-                    //         .into(),
-                    //     }),
-                    //     files: Some(generate_test_proto_workload_files()),
-                    // },
-                    generate_test_workload(),
-                )]),
+                generate_test_proto_complete_state(&[(WORKLOAD_NAME_2, generate_test_workload())]),
             )),
         });
 

@@ -237,10 +237,7 @@ impl std::fmt::Display for RestartPolicy {
 #[cfg(any(feature = "test_utils", test))]
 use crate::ank_base::{ConfigMappingsInternal, TagsInternal, Workload};
 #[cfg(any(feature = "test_utils", test))]
-use crate::test_utils::{
-    generate_test_control_interface_access,
-    // generate_test_workload_files
-};
+use crate::test_utils::generate_test_control_interface_access;
 
 #[cfg(any(feature = "test_utils", test))]
 impl WorkloadNamed {

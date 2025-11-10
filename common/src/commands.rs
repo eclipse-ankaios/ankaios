@@ -266,7 +266,7 @@ pub struct AgentLoadStatus {
 
 #[cfg(test)]
 mod tests {
-    use crate::objects::CURRENT_API_VERSION;
+    use api::CURRENT_API_VERSION;
     use std::collections::HashMap;
 
     mod ank_base {
@@ -283,12 +283,12 @@ mod tests {
                 CompleteStateRequest, LogsCancelRequest, LogsRequest, Request, RequestContent,
                 UpdateStateRequest,
             },
-            objects::{CompleteState, State},
+            objects::CompleteState,
         };
         pub use api::ank_base::{
             ConfigMappingsInternal, ExecutionStateInternal, FileContentInternal, FileInternal,
-            FilesInternal, RestartPolicy, TagsInternal, WorkloadInstanceNameInternal,
-            WorkloadInternal,
+            FilesInternal, RestartPolicy, StateInternal, TagsInternal,
+            WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal,
         };
         pub use api::test_utils::{
             generate_test_agent_map, generate_test_workload_states_map_with_data,
@@ -416,10 +416,15 @@ mod tests {
     macro_rules! complete_state {
         (ankaios) => {
             ankaios::CompleteState {
-                desired_state: ankaios::State {
+                desired_state: ankaios::StateInternal {
                     api_version: CURRENT_API_VERSION.into(),
-                    workloads: HashMap::from([("workload_name".into(), workload!(ankaios))]),
-                    configs: HashMap::new(),
+                    workloads: ankaios::WorkloadMapInternal {
+                        workloads: HashMap::from([(
+                            "workload_name".to_string(),
+                            workload!(ankaios),
+                        )]),
+                    },
+                    configs: Default::default(),
                 }
                 .into(),
                 workload_states: workload_states_map!(ankaios),

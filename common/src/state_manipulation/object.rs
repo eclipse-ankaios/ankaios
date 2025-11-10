@@ -15,8 +15,8 @@
 use std::collections::HashSet;
 
 use super::Path;
-use crate::objects as ankaios;
-use api::ank_base as proto;
+use crate::objects::CompleteState;
+use api::ank_base::{self, State, StateInternal};
 use serde_yaml::{
     Mapping, Value, from_value,
     mapping::{Entry::Occupied, Entry::Vacant},
@@ -52,82 +52,82 @@ impl TryFrom<&toml::Value> for Object {
     }
 }
 
-impl TryFrom<&ankaios::State> for Object {
+impl TryFrom<&StateInternal> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: &ankaios::State) -> Result<Self, Self::Error> {
+    fn try_from(value: &StateInternal) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryFrom<ankaios::State> for Object {
+impl TryFrom<StateInternal> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: ankaios::State) -> Result<Self, Self::Error> {
+    fn try_from(value: StateInternal) -> Result<Self, Self::Error> {
         (&value).try_into()
     }
 }
 
-impl TryFrom<ankaios::CompleteState> for Object {
+impl TryFrom<CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: ankaios::CompleteState) -> Result<Self, Self::Error> {
+    fn try_from(value: CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryFrom<proto::CompleteState> for Object {
+impl TryFrom<ank_base::CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: proto::CompleteState) -> Result<Self, Self::Error> {
+    fn try_from(value: ank_base::CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryFrom<&ankaios::CompleteState> for Object {
+impl TryFrom<&CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: &ankaios::CompleteState) -> Result<Self, Self::Error> {
+    fn try_from(value: &CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryInto<ankaios::State> for Object {
+impl TryInto<StateInternal> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_into(self) -> Result<ankaios::State, Self::Error> {
+    fn try_into(self) -> Result<StateInternal, Self::Error> {
         from_value(self.data)
     }
 }
 
-impl TryInto<ankaios::CompleteState> for Object {
+impl TryInto<CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_into(self) -> Result<ankaios::CompleteState, Self::Error> {
+    fn try_into(self) -> Result<CompleteState, Self::Error> {
         from_value(self.data)
     }
 }
 
-impl TryInto<proto::State> for Object {
+impl TryInto<State> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_into(self) -> Result<proto::State, Self::Error> {
+    fn try_into(self) -> Result<State, Self::Error> {
         from_value(self.data)
     }
 }
 
-impl TryInto<proto::CompleteState> for Object {
+impl TryInto<ank_base::CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_into(self) -> Result<proto::CompleteState, Self::Error> {
+    fn try_into(self) -> Result<ank_base::CompleteState, Self::Error> {
         from_value(self.data)
     }
 }
@@ -293,21 +293,19 @@ impl Object {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        objects::{CompleteState, State},
-        test_utils::generate_test_state_from_workloads,
-    };
-    use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
+    use crate::objects::CompleteState;
+    use api::ank_base::{ExecutionStateInternal, StateInternal, WorkloadNamed};
     use api::test_utils::{
-        generate_test_agent_map_from_workloads, generate_test_workload,
-        generate_test_workload_states_map_with_data,
+        generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
+        generate_test_workload, generate_test_workload_states_map_with_data,
     };
     use serde_yaml::Value;
 
     use super::Object;
     #[test]
     fn utest_object_from_state() {
-        let state: State = generate_test_state_from_workloads(vec![generate_test_workload()]);
+        let state: StateInternal =
+            generate_test_state_from_workloads(vec![generate_test_workload()]);
 
         let expected = Object {
             data: object::generate_test_state().into(),
@@ -322,7 +320,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let actual: State = object.try_into().unwrap();
+        let actual: StateInternal = object.try_into().unwrap();
         let expected = generate_test_state_from_workloads(vec![generate_test_workload()]);
 
         assert_eq!(actual, expected)
@@ -375,7 +373,7 @@ mod tests {
             agents: agent_map,
         };
 
-        let actual: CompleteState = object.try_into().unwrap();
+        let actual: CompleteState = object.clone().try_into().unwrap();
 
         assert_eq!(actual, expected);
     }
@@ -712,7 +710,7 @@ mod tests {
     mod object {
         use serde_yaml::Value;
 
-        use crate::objects::CURRENT_API_VERSION;
+        use api::CURRENT_API_VERSION;
         use api::test_utils::generate_test_runtime_config;
 
         pub fn generate_test_complete_state_mapping() -> Mapping {
@@ -821,13 +819,7 @@ mod tests {
                                         .entry("mountPoint", "/binary_file")
                                         .entry("binaryData", "base64_data"),
                                 ],
-                            ), // .entry(
-                               //     "instanceName",
-                               //     Mapping::default()
-                               //     .entry("workloadName", "name")
-                               //     .entry("agentName", "agent")
-                               //     .entry("id", config_hash.hash_config())
-                               // )
+                            ),
                     ),
                 )
                 .entry(

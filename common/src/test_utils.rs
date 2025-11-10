@@ -15,59 +15,17 @@
 use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 
-use crate::objects::{CompleteState, State};
+use crate::objects::CompleteState;
 
 use api::ank_base::{
-    ConfigItemEnumInternal, ConfigItemInternal, ConfigMappingsInternal, WorkloadNamed,
+    ConfigItemEnumInternal, ConfigItemInternal, ConfigMapInternal, StateInternal, WorkloadNamed,
 };
 use api::test_utils::{
-    generate_test_agent_map_from_workloads, generate_test_workload,
+    generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
     generate_test_workload_states_map_from_specs,
 };
 
 const API_VERSION: &str = "v1";
-const WORKLOAD_1_NAME: &str = "workload_name_1";
-const WORKLOAD_2_NAME: &str = "workload_name_2";
-
-pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadNamed>) -> State {
-    State {
-        api_version: API_VERSION.into(),
-        workloads: workloads
-            .into_iter()
-            .map(|mut w| {
-                let name = w.instance_name.workload_name().to_owned();
-                w.workload.configs = ConfigMappingsInternal {
-                    configs: HashMap::from([
-                        ("ref1".into(), "config_1".into()),
-                        ("ref2".into(), "config_2".into()),
-                    ]),
-                };
-                (name, w.workload)
-            })
-            .collect(),
-        configs: [
-            (
-                "config_1".to_owned(),
-                ConfigItemInternal {
-                    config_item_enum: ConfigItemEnumInternal::String("value 1".to_owned()),
-                },
-            ),
-            (
-                "config_2".to_owned(),
-                ConfigItemInternal {
-                    config_item_enum: ConfigItemEnumInternal::String("value 2".to_owned()),
-                },
-            ),
-            (
-                "config_3".to_owned(),
-                ConfigItemInternal {
-                    config_item_enum: ConfigItemEnumInternal::String("value 3".to_owned()),
-                },
-            ),
-        ]
-        .into(),
-    }
-}
 
 pub fn generate_test_complete_state(
     workloads: Vec<WorkloadNamed>,
@@ -91,34 +49,24 @@ pub fn generate_test_complete_state_with_configs(
 ) -> crate::objects::CompleteState {
     use crate::objects::CompleteState;
     CompleteState {
-        desired_state: State {
+        desired_state: StateInternal {
             api_version: API_VERSION.into(),
-            configs: configs
-                .into_iter()
-                .map(|value| {
-                    (
-                        value.clone(),
-                        ConfigItemInternal {
-                            config_item_enum: ConfigItemEnumInternal::String(value),
-                        },
-                    )
-                })
-                .collect(),
+            configs: ConfigMapInternal {
+                configs: configs
+                    .into_iter()
+                    .map(|value| {
+                        (
+                            value.clone(),
+                            ConfigItemInternal {
+                                config_item_enum: ConfigItemEnumInternal::String(value),
+                            },
+                        )
+                    })
+                    .collect(),
+            },
             ..Default::default()
         },
         ..Default::default()
-    }
-}
-
-pub fn generate_test_state() -> State {
-    let mut ankaios_workloads = HashMap::new();
-    ankaios_workloads.insert(WORKLOAD_1_NAME.to_owned(), generate_test_workload());
-    ankaios_workloads.insert(WORKLOAD_2_NAME.to_owned(), generate_test_workload());
-
-    State {
-        api_version: API_VERSION.into(),
-        workloads: ankaios_workloads,
-        configs: HashMap::new(),
     }
 }
 

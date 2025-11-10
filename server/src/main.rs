@@ -19,11 +19,12 @@ mod server_config;
 use std::fs;
 use std::path::PathBuf;
 
+use api::ank_base::StateInternal;
+
 use common::helpers::validate_tags;
 use common::objects::CompleteState;
 
 use common::communications_server::CommunicationsServer;
-use common::objects::State;
 use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{AnkaiosServer, create_from_server_channel, create_to_server_channel};
@@ -116,7 +117,7 @@ async fn main() {
 
             // [impl->swdd~server-state-in-memory~1]
             // [impl->swdd~server-loads-startup-state-file~3]
-            let state: State = serde_yaml::from_str(&data)
+            let state: StateInternal = serde_yaml::from_str(&data)
                 .unwrap_or_exit("Parsing start config failed with error");
             log::trace!(
                 "The state is initialized with the following workloads: {:?}",

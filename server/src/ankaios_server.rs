@@ -20,12 +20,12 @@ mod server_state;
 
 use api::ank_base;
 use api::ank_base::{
-    DeletedWorkload, ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
-    WorkloadStatesMapInternal,
+    DeletedWorkload, ExecutionStateInternal, StateInternal, WorkloadInstanceNameInternal,
+    WorkloadStateInternal, WorkloadStatesMapInternal,
 };
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
-use common::objects::{CompleteState, State};
+use common::objects::CompleteState;
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -80,7 +80,7 @@ impl AnkaiosServer {
 
     pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
         if let Some(state) = startup_state {
-            State::verify_api_version(&state.desired_state)?;
+            StateInternal::verify_api_version(&state.desired_state)?;
 
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
@@ -254,8 +254,10 @@ impl AnkaiosServer {
                         // [impl->swdd~update-desired-state-with-missing-version~1]
                         // [impl->swdd~server-desired-state-field-conventions~1]
                         let updated_desired_state = &update_state_request.state.desired_state;
-                        if let Err(error_message) = State::verify_api_version(updated_desired_state)
-                            .and_then(|_| State::verify_configs_format(updated_desired_state))
+                        if let Err(error_message) = StateInternal::verify_api_version(
+                            updated_desired_state,
+                        )
+                        .and_then(|_| StateInternal::verify_configs_format(updated_desired_state))
                         {
                             log::warn!(
                                 "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
@@ -570,8 +572,8 @@ mod tests {
 
     use api::ank_base::{
         CpuUsageInternal, DeletedWorkload, ExecutionStateEnumInternal, ExecutionStateInternal,
-        FreeMemoryInternal, LogsStopResponse, Pending as PendingSubstate, Workload,
-        WorkloadInternal, WorkloadMap, WorkloadNamed, WorkloadStateInternal,
+        FreeMemoryInternal, LogsStopResponse, Pending as PendingSubstate, StateInternal, Workload,
+        WorkloadInternal, WorkloadMap, WorkloadMapInternal, WorkloadNamed, WorkloadStateInternal,
     };
     use api::test_utils::{
         generate_test_workload, generate_test_workload_state,
@@ -583,7 +585,7 @@ mod tests {
         UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
-    use common::objects::{CompleteState, State};
+    use common::objects::CompleteState;
     use common::to_server_interface::ToServerInterface;
 
     use mockall::predicate;
@@ -616,8 +618,10 @@ mod tests {
         let workload: WorkloadInternal = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
 
         let startup_state = CompleteState {
-            desired_state: State {
-                workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+            desired_state: StateInternal {
+                workloads: WorkloadMapInternal {
+                    workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+                },
                 ..Default::default()
             },
             ..Default::default()
@@ -656,7 +660,7 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let startup_state = CompleteState {
-            desired_state: State {
+            desired_state: StateInternal {
                 api_version: "invalidVersion".into(),
                 ..Default::default()
             },
@@ -686,11 +690,13 @@ mod tests {
                 .name(WORKLOAD_NAME_1);
 
         let new_state = CompleteState {
-            desired_state: State {
-                workloads: HashMap::from([(
-                    updated_workload.instance_name.workload_name().to_owned(),
-                    updated_workload.workload.clone(),
-                )]),
+            desired_state: StateInternal {
+                workloads: WorkloadMapInternal {
+                    workloads: HashMap::from([(
+                        updated_workload.instance_name.workload_name().to_owned(),
+                        updated_workload.workload.clone(),
+                    )]),
+                },
                 ..Default::default()
             },
             ..Default::default()
@@ -699,7 +705,7 @@ mod tests {
         // fix new state by deleting the dependencies
         let mut fixed_state = new_state.clone();
         updated_workload.workload.dependencies.dependencies.clear();
-        fixed_state.desired_state.workloads = HashMap::from([(
+        fixed_state.desired_state.workloads.workloads = HashMap::from([(
             updated_workload.instance_name.workload_name().to_owned(),
             updated_workload.workload.clone(),
         )]);
@@ -809,11 +815,13 @@ mod tests {
             generate_test_workload_with_param(AGENT_A.to_string(), RUNTIME_NAME.to_string());
 
         let startup_state = CompleteState {
-            desired_state: State {
-                workloads: HashMap::from([(
-                    workload.instance_name.workload_name().to_owned(),
-                    workload.workload.clone(),
-                )]),
+            desired_state: StateInternal {
+                workloads: WorkloadMapInternal {
+                    workloads: HashMap::from([(
+                        workload.instance_name.workload_name().to_owned(),
+                        workload.workload.clone(),
+                    )]),
+                },
                 ..Default::default()
             },
             ..Default::default()
@@ -1038,10 +1046,10 @@ mod tests {
         w1.workload.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
-            desired_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]
-                    .into_iter()
-                    .collect(),
+            desired_state: StateInternal {
+                workloads: WorkloadMapInternal {
+                    workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]),
+                },
                 ..Default::default()
             },
             ..Default::default()
@@ -1122,10 +1130,10 @@ mod tests {
         w1.workload.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
-            desired_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]
-                    .into_iter()
-                    .collect(),
+            desired_state: StateInternal {
+                workloads: WorkloadMapInternal {
+                    workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]),
+                },
                 ..Default::default()
             },
             ..Default::default()
@@ -1187,10 +1195,10 @@ mod tests {
         let w1: WorkloadInternal = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
 
         let update_state = CompleteState {
-            desired_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
-                    .into_iter()
-                    .collect(),
+            desired_state: StateInternal {
+                workloads: WorkloadMapInternal {
+                    workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.clone())]),
+                },
                 ..Default::default()
             },
             ..Default::default()
@@ -1780,10 +1788,13 @@ mod tests {
             .config(&String::from("changed"))
             .build();
         let update_state = CompleteState {
-            desired_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.workload.clone())]
-                    .into_iter()
-                    .collect(),
+            desired_state: StateInternal {
+                workloads: WorkloadMapInternal {
+                    workloads: HashMap::from([(
+                        WORKLOAD_NAME_1.to_owned(),
+                        updated_w1.workload.clone(),
+                    )]),
+                },
                 ..Default::default()
             },
             ..Default::default()
@@ -2000,7 +2011,7 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let update_state = CompleteState {
-            desired_state: State {
+            desired_state: StateInternal {
                 api_version: "incompatible_version".to_string(),
                 ..Default::default()
             },
@@ -2019,7 +2030,7 @@ mod tests {
 
         let error_message = format!(
             "Unsupported API version. Received 'incompatible_version', expected '{}'",
-            State::default().api_version
+            StateInternal::default().api_version
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
@@ -2067,7 +2078,7 @@ mod tests {
 
         let error_message = format!(
             "Unsupported API version. Received '', expected '{}'",
-            State::default().api_version
+            StateInternal::default().api_version
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(

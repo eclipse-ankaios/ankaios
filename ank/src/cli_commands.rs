@@ -44,9 +44,8 @@ use api::ank_base::{
     WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadStatesMapInternal,
 };
 use common::{
-    communications_error::CommunicationMiddlewareError,
-    from_server_interface::FromServer,
-    objects::{CompleteState, State},
+    communications_error::CommunicationMiddlewareError, from_server_interface::FromServer,
+    objects::CompleteState,
 };
 
 use wait_list_display::WaitListDisplay;

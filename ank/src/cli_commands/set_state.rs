@@ -43,7 +43,7 @@ fn create_state_with_default_workload_specs(update_mask: &[String]) -> CompleteS
         if mask_parts.len() >= WORKLOAD_ATTRIBUTE_LEVEL
             && mask_parts.starts_with(&workload_level_mask_parts)
         {
-            complete_state.desired_state.workloads.insert(
+            complete_state.desired_state.workloads.workloads.insert(
                 mask_parts[WORKLOAD_NAME_POSITION].to_string(),
                 WorkloadInternal::default(),
             );
@@ -154,11 +154,8 @@ mod tests {
         cli_commands::server_connection::MockServerConnection,
         filtered_complete_state::FilteredCompleteState,
     };
-    use api::ank_base::{RestartPolicy, UpdateStateSuccess};
-    use common::{
-        objects::{CompleteState, State},
-        state_manipulation::Object,
-    };
+    use api::ank_base::{RestartPolicy, StateInternal, UpdateStateSuccess, WorkloadMapInternal};
+    use common::{objects::CompleteState, state_manipulation::Object};
     use mockall::predicate::eq;
     use serde_yaml::Value;
     use std::{collections::HashMap, io::Cursor};
@@ -189,7 +186,7 @@ mod tests {
 
         let complete_state = create_state_with_default_workload_specs(&update_mask);
 
-        assert!(complete_state.desired_state.workloads.is_empty());
+        assert!(complete_state.desired_state.workloads.workloads.is_empty());
     }
 
     // [utest->swdd~cli-provides-set-desired-state~1]
@@ -204,17 +201,26 @@ mod tests {
         let complete_state = create_state_with_default_workload_specs(&update_mask);
 
         assert_eq!(
-            complete_state.desired_state.workloads.get("nginx"),
+            complete_state
+                .desired_state
+                .workloads
+                .workloads
+                .get("nginx"),
             Some(&WorkloadInternal::default())
         );
 
         assert_eq!(
-            complete_state.desired_state.workloads.get("nginx2"),
+            complete_state
+                .desired_state
+                .workloads
+                .workloads
+                .get("nginx2"),
             Some(&WorkloadInternal::default())
         );
         assert!(
             !complete_state
                 .desired_state
+                .workloads
                 .workloads
                 .contains_key("nginx3")
         );
@@ -227,7 +233,7 @@ mod tests {
 
         let complete_state = create_state_with_default_workload_specs(&update_mask);
 
-        assert!(complete_state.desired_state.workloads.is_empty());
+        assert!(complete_state.desired_state.workloads.workloads.is_empty());
     }
 
     // [utest->swdd~cli-provides-set-desired-state~1]
@@ -235,8 +241,10 @@ mod tests {
     fn utest_overwrite_using_field_mask() {
         let workload_spec = WorkloadInternal::default();
         let mut complete_state = CompleteState {
-            desired_state: State {
-                workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
+            desired_state: StateInternal {
+                workloads: WorkloadMapInternal {
+                    workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
+                },
                 ..Default::default()
             },
             ..Default::default()
@@ -250,10 +258,17 @@ mod tests {
             overwrite_using_field_mask(complete_state_object, &update_mask, &temp_object).unwrap();
 
         complete_state = complete_state_object.try_into().unwrap();
-        assert!(complete_state.desired_state.workloads.contains_key("nginx"));
+        assert!(
+            complete_state
+                .desired_state
+                .workloads
+                .workloads
+                .contains_key("nginx")
+        );
         assert_eq!(
             complete_state
                 .desired_state
+                .workloads
                 .workloads
                 .get("nginx")
                 .unwrap()
@@ -315,8 +330,10 @@ mod tests {
             ..Default::default()
         };
         let updated_state = CompleteState {
-            desired_state: State {
-                workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
+            desired_state: StateInternal {
+                workloads: WorkloadMapInternal {
+                    workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
+                },
                 ..Default::default()
             },
             ..Default::default()

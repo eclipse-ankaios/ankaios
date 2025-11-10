@@ -16,10 +16,6 @@
 
 // [impl->swdd~common-conversions-between-ankaios-and-proto~1]
 
-pub mod state;
-pub use state::State;
-pub use state::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
-
 mod complete_state;
 pub use complete_state::CompleteState;
 

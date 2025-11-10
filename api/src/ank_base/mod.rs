@@ -44,7 +44,10 @@ pub use execution_state::{ExecutionStateEnum, ExecutionStateEnumInternal};
 
 pub(crate) mod workload_states_map;
 
+pub(crate) mod config;
 pub use config_item::{ConfigItemEnumInternal, ConfigItemEnum};
+
+pub(crate) mod complete_state;
 
 pub use request::RequestContent;
 pub use response::ResponseContent;
