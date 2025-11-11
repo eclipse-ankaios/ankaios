@@ -101,7 +101,7 @@ mod tests {
             .times(2)
             .with(eq(vec![]))
             .returning(move |_| {
-                Ok((ank_base::CompleteState::from(complete_state_update.clone())).into())
+                Ok(ank_base::CompleteState::from(complete_state_update.clone()))
             });
 
         mock_server_connection

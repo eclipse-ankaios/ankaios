@@ -122,7 +122,7 @@ impl ServerConnection {
                             Some(ank_base::response::ResponseContent::CompleteState(res)),
                     })) if received_request_id == request_id => {
                         output_debug!("Received from server: {res:?} ");
-                        return Ok(res.into());
+                        return Ok(res);
                     }
                     None => return Err("Channel preliminary closed."),
                     Some(message) => {
@@ -749,7 +749,7 @@ mod tests {
         let received_complete_state = server_connection
             .get_complete_state(&[FIELD_MASK.into()])
             .await;
-        let expected_complete_state = proto_complete_state.into();
+        let expected_complete_state = proto_complete_state;
 
         assert!(received_complete_state.is_ok());
         assert_eq!(received_complete_state.unwrap(), expected_complete_state);
@@ -818,7 +818,7 @@ mod tests {
             .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), (proto_complete_state.into()));
+        assert_eq!(result.unwrap(), proto_complete_state);
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
             vec![other_response]
@@ -853,7 +853,7 @@ mod tests {
             .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), (proto_complete_state.into()));
+        assert_eq!(result.unwrap(), proto_complete_state);
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
             vec![other_message]

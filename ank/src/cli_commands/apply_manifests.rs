@@ -807,7 +807,7 @@ mod tests {
             .times(2)
             .with(eq(vec![]))
             .returning(move |_| {
-                Ok((ank_base::CompleteState::from(updated_state_clone.clone())).into())
+                Ok(ank_base::CompleteState::from(updated_state_clone.clone()))
             });
         mock_server_connection
             .expect_take_missed_from_server_messages()

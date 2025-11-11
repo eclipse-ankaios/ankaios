@@ -149,7 +149,7 @@ mod tests {
             .expect_get_complete_state()
             .once()
             .with(eq(vec![]))
-            .return_once(|_| Ok((ank_base::CompleteState::from(complete_state_update)).into()));
+            .return_once(|_| Ok(ank_base::CompleteState::from(complete_state_update)));
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(|| {

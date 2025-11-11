@@ -181,7 +181,7 @@ impl From<&ControlInterfaceAccessInternal> for Authorizer {
             T: PathPattern,
             T: for<'a> From<&'a str>,
         {
-            let mut res = ReadWriteFiltered {
+            let mut res: ReadWriteFiltered<T> = ReadWriteFiltered {
                 state_read: vec![],
                 state_write: vec![],
                 log: vec![],

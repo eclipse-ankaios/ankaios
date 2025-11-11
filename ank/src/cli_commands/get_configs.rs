@@ -17,8 +17,7 @@ use crate::cli_commands::DESIRED_STATE_CONFIGS;
 use crate::cli_commands::config_table_row::ConfigTableRow;
 use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{cli_commands::cli_table::CliTable, cli_error::CliError, output_debug};
-
-use api::ank_base::ConfigItemInternal;
+use api::ank_base::ConfigItem;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-list-of-configs~1]
@@ -33,6 +32,7 @@ impl CliCommands {
             .desired_state
             .and_then(|state| state.configs)
             .unwrap_or_default()
+            .configs
             .into_iter();
 
         // [impl->swdd~cli-shall-present-list-of-configs~1]
@@ -46,7 +46,7 @@ impl CliCommands {
 }
 
 fn transform_into_table_rows(
-    configs: impl Iterator<Item = (String, ConfigItemInternal)>,
+    configs: impl Iterator<Item = (String, ConfigItem)>,
 ) -> Vec<ConfigTableRow> {
     let mut config_table_rows: Vec<ConfigTableRow> = configs
         .map(|(config_str, _config_item)| ConfigTableRow { config: config_str })
@@ -93,13 +93,12 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
             .return_once(|_| {
-                Ok(
-                    CompleteState::from(generate_test_complete_state_with_configs(vec![
+                Ok(CompleteState::from(
+                    generate_test_complete_state_with_configs(vec![
                         CONFIG_1.to_string(),
                         CONFIG_2.to_string(),
-                    ]))
-                    .into(),
-                )
+                    ]),
+                ))
             });
 
         let mut cmd = CliCommands {
@@ -122,7 +121,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
-            .return_once(|_| Ok(CompleteState::default().into()));
+            .return_once(|_| Ok(CompleteState::default()));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,

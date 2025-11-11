@@ -66,6 +66,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .message_attribute("Tags", "#[derive(Eq)]")
         .message_attribute("AgentAttributes", "#[derive(Eq)]")
         .message_attribute("AgentMap", "#[derive(Eq)]")
+
+        // Enum serialization as string
+        .field_attribute(
+            "Workload.restartPolicy",
+            "#[serde(serialize_with = \"restart_policy_serializer\")]"
+        )
+
+        .message_attribute("Workload", "#[internal_derive_macros::fix_enum_serialization]")
         .field_attribute("Workload.tags", "#[serde(flatten)]")
         .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")

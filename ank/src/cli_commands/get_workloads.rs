@@ -244,9 +244,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(
-                |_| Ok((CompleteState::from(generate_test_complete_state(vec![]))).into()),
-            );
+            .return_once(|_| Ok(CompleteState::from(generate_test_complete_state(vec![]))));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -280,7 +278,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok((CompleteState::from(test_data)).into()));
+            .return_once(|_| Ok(CompleteState::from(test_data)));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
@@ -315,7 +313,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok((CompleteState::from(test_data)).into()));
+            .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -349,7 +347,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok((CompleteState::from(test_data)).into()));
+            .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -383,7 +381,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok((CompleteState::from(test_data)).into()));
+            .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -417,7 +415,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok((CompleteState::from(test_data)).into()));
+            .return_once(|_| Ok(CompleteState::from(test_data)));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -488,7 +486,7 @@ mod tests {
             .with(eq(vec![]))
             .times(1)
             .in_sequence(&mut seq)
-            .return_once(move |_| Ok((CompleteState::from(initial_state)).into()));
+            .return_once(move |_| Ok(CompleteState::from(initial_state)));
 
         mock_server
             .expect_read_next_update_workload_state()
@@ -506,7 +504,7 @@ mod tests {
             .with(eq(vec![]))
             .times(1)
             .in_sequence(&mut seq)
-            .return_once(move |_| Ok((CompleteState::from(updated_state)).into()));
+            .return_once(move |_| Ok(CompleteState::from(updated_state)));
 
         mock_server
             .expect_read_next_update_workload_state()

@@ -41,7 +41,7 @@ mod run_workload;
 mod set_state;
 
 use api::ank_base::{
-    CompleteStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
+    CompleteStateInternal, Workload, WorkloadInstanceNameInternal, WorkloadStateInternal,
     WorkloadStatesMapInternal,
 };
 use common::{
@@ -53,10 +53,8 @@ use wait_list_display::WaitListDisplay;
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
 use crate::{
-    cli_commands::wait_list::ParsedUpdateStateSuccess,
-    cli_error::CliError,
-    filtered_complete_state::{FilteredCompleteState, FilteredWorkloadSpec},
-    output, output_debug,
+    cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError,
+    filtered_complete_state::FilteredCompleteState, output, output_debug,
 };
 
 #[cfg(test)]
@@ -195,7 +193,12 @@ impl CliCommands {
         &self,
         complete_state: FilteredCompleteState,
     ) -> WorkloadInfos {
-        let workload_states_map = complete_state.workload_states.unwrap_or_default();
+        // TODO: fix the conversion and think about adding a proper from here
+        let workload_states_map: WorkloadStatesMapInternal = complete_state
+            .workload_states
+            .unwrap_or_default()
+            .try_into()
+            .unwrap();
         let workload_infos = WorkloadInfos::from(workload_states_map);
 
         let desired_state_workloads = complete_state
@@ -203,14 +206,14 @@ impl CliCommands {
             .and_then(|desired_state| desired_state.workloads)
             .unwrap_or_default();
 
-        self.add_runtime_name_to_workload_infos(workload_infos, desired_state_workloads)
+        self.add_runtime_name_to_workload_infos(workload_infos, desired_state_workloads.workloads)
     }
 
     // [impl->swdd~processes-complete-state-to-list-workloads~1]
     fn add_runtime_name_to_workload_infos(
         &self,
         mut workload_infos: WorkloadInfos,
-        workloads: HashMap<String, FilteredWorkloadSpec>,
+        workloads: HashMap<String, Workload>,
     ) -> WorkloadInfos {
         for (_, table_row) in workload_infos.get_mut() {
             let runtime_name = workloads

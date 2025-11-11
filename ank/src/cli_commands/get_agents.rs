@@ -46,7 +46,13 @@ impl CliCommands {
             .unwrap_or_default()
             .into_iter();
 
-        let agent_table_rows = transform_into_table_rows(connected_agents, &workload_states_map);
+        // TODO: think about the conversion here and if we can omit converting to Internal
+        let agent_table_rows = transform_into_table_rows(connected_agents, &workload_states_map.try_into().map_err(|err| {
+            CliError::ExecutionError(format!(
+                "Failed to convert workload states map: {err}"
+
+            ))
+        })?);
 
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
@@ -131,8 +137,7 @@ mod tests {
                             RUNTIME_NAME,
                         )
                         .name(WORKLOAD_NAME_2),
-                    ]))
-                    .into(),
+                    ])),
                 )
             });
 
@@ -169,7 +174,7 @@ mod tests {
                     )]);
 
                 complete_state.agents = AgentMapInternal::default();
-                Ok(ank_base::CompleteState::from(complete_state).into())
+                Ok(ank_base::CompleteState::from(complete_state))
             });
 
         let mut cmd = CliCommands {
@@ -196,7 +201,7 @@ mod tests {
                 let mut complete_state = generate_test_complete_state(vec![]);
 
                 complete_state.agents = generate_test_agent_map(AGENT_A_NAME);
-                Ok(ank_base::CompleteState::from(complete_state).into())
+                Ok(ank_base::CompleteState::from(complete_state))
             });
 
         let mut cmd = CliCommands {
@@ -261,7 +266,7 @@ mod tests {
 
                 complete_state.agents =
                     generate_test_agent_map_from_workloads(&[workload1.workload]);
-                Ok(ank_base::CompleteState::from(complete_state).into())
+                Ok(ank_base::CompleteState::from(complete_state))
             });
 
         let mut cmd = CliCommands {
@@ -298,7 +303,7 @@ mod tests {
                     "some workload id",
                     ExecutionStateInternal::waiting_to_stop(),
                 );
-                Ok(ank_base::CompleteState::from(complete_state).into())
+                Ok(ank_base::CompleteState::from(complete_state))
             });
 
         let mut cmd = CliCommands {
