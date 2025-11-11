@@ -114,17 +114,6 @@ impl WorkloadInternal {
         !self.files.files.is_empty()
     }
 
-    // [impl->swdd~common-workload-naming-convention~1]
-    // [impl->swdd~common-agent-naming-convention~3]
-    // [impl->swdd~common-access-rules-filter-mask-convention~1]
-    pub fn verify_fields_format(&self) -> Result<(), String> {
-        // TODO #313 workload name was removed from WorkloadInternal
-        // verify_workload_name_format(self.instance_name.workload_name())?;
-        verify_agent_name_format(&self.agent)?;
-        self.control_interface_access.verify_format()?;
-        Ok(())
-    }
-
     // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
     pub fn verify_config_reference_format(
         config_references: &HashMap<String, String>,
@@ -152,6 +141,19 @@ impl From<HashMap<String, AddCondition>> for DependenciesInternal {
         DependenciesInternal {
             dependencies: value,
         }
+    }
+}
+
+impl WorkloadNamed {
+    // [impl->swdd~common-workload-naming-convention~1]
+    // [impl->swdd~common-agent-naming-convention~3]
+    // [impl->swdd~common-access-rules-filter-mask-convention~1]
+    pub fn verify_fields_format(&self) -> Result<(), String> {
+        verify_workload_name_format(self.instance_name.workload_name())?;
+        verify_agent_name_format(self.instance_name.agent_name())?;
+        verify_agent_name_format(&self.workload.agent)?;
+        self.workload.control_interface_access.verify_format()?;
+        Ok(())
     }
 }
 
@@ -582,7 +584,7 @@ mod tests {
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_workload_verify_fields_format_success() {
-        let compatible_workload: WorkloadInternal = generate_test_workload();
+        let compatible_workload: WorkloadNamed = generate_test_workload();
         assert!(compatible_workload.verify_fields_format().is_ok());
     }
 
@@ -617,14 +619,14 @@ mod tests {
     // [utest->swdd~common-agent-naming-convention~3]
     #[test]
     fn utest_workload_verify_fields_incompatible_agent_name() {
-        let workload_with_wrong_agent_name: WorkloadInternal =
+        let workload_with_wrong_agent_name: WorkloadNamed =
             generate_test_workload_with_param("incompatible.agent_name", "runtime");
 
         assert_eq!(
             workload_with_wrong_agent_name.verify_fields_format(),
             Err(format!(
                 "Unsupported agent name. Received '{}', expected to have characters in {}",
-                workload_with_wrong_agent_name.agent,
+                workload_with_wrong_agent_name.instance_name.agent_name(),
                 super::ALLOWED_SYMBOLS
             ))
         );
@@ -633,7 +635,7 @@ mod tests {
     // [utest->swdd~common-agent-naming-convention~3]
     #[test]
     fn utest_workload_spec_with_valid_empty_agent_name() {
-        let workload_with_valid_missing_agent_name: WorkloadInternal =
+        let workload_with_valid_missing_agent_name: WorkloadNamed =
             generate_test_workload_with_param("", "runtime");
 
         assert!(
