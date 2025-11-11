@@ -170,6 +170,7 @@ async fn main() {
                     Err(error) => output_and_error!("Failed to get configs: '{}'", error),
                 }
             }
+
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Set(set_args) => match set_args.command {
