@@ -46,7 +46,7 @@ use crate::workload_scheduler::scheduler::WorkloadScheduler;
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 use crate::{
     runtime_connectors::RuntimeFacade,
-    workload_operation::{ReusableWorkloadSpec, WorkloadOperation},
+    workload_operation::{ReusableWorkload, WorkloadOperation},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
@@ -56,27 +56,25 @@ use crate::workload::Workload;
 #[cfg(test)]
 use mockall::automock;
 
-fn flatten(
-    mut runtime_workload_map: HashMap<String, Vec<WorkloadNamed>>,
-) -> Vec<ReusableWorkloadSpec> {
+fn flatten(mut runtime_workload_map: HashMap<String, Vec<WorkloadNamed>>) -> Vec<ReusableWorkload> {
     runtime_workload_map
         .drain()
         .flat_map(|(_, v)| {
             v.into_iter()
-                .map(|y| ReusableWorkloadSpec::new(y, None))
+                .map(|y| ReusableWorkload::new(y, None))
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>()
 }
 
 pub trait ToReusableWorkloadSpecs {
-    fn into_reusable_workload_specs(self) -> Vec<ReusableWorkloadSpec>;
+    fn into_reusable_workloads(self) -> Vec<ReusableWorkload>;
 }
 
 impl ToReusableWorkloadSpecs for Vec<WorkloadNamed> {
-    fn into_reusable_workload_specs(self) -> Vec<ReusableWorkloadSpec> {
+    fn into_reusable_workloads(self) -> Vec<ReusableWorkload> {
         self.into_iter()
-            .map(|w| ReusableWorkloadSpec::new(w, None))
+            .map(|w| ReusableWorkload::new(w, None))
             .collect()
     }
 }
@@ -129,7 +127,7 @@ impl RuntimeManager {
 
     pub async fn execute_workloads(
         &mut self,
-        added_workloads: Vec<ReusableWorkloadSpec>,
+        added_workloads: Vec<ReusableWorkload>,
         deleted_workloads: Vec<DeletedWorkload>,
         workload_state_db: &WorkloadStateStore,
     ) {
@@ -179,8 +177,8 @@ impl RuntimeManager {
             deleted_workloads.len()
         );
 
-        let new_added_workloads: Vec<ReusableWorkloadSpec> =
-            added_workloads.into_reusable_workload_specs();
+        let new_added_workloads: Vec<ReusableWorkload> =
+            added_workloads.into_reusable_workloads();
 
         self.execute_workloads(new_added_workloads, deleted_workloads, workload_state_db)
             .await;
@@ -205,7 +203,7 @@ impl RuntimeManager {
     async fn resume_and_remove_from_added_workloads(
         &mut self,
         added_workloads: Vec<WorkloadNamed>,
-    ) -> (Vec<ReusableWorkloadSpec>, Vec<DeletedWorkload>) {
+    ) -> (Vec<ReusableWorkload>, Vec<DeletedWorkload>) {
         log::debug!("Handling initial workload list.");
 
         // create a list per runtime
@@ -313,10 +311,8 @@ impl RuntimeManager {
                                     new_instance_name.workload_name()
                                 );
 
-                                new_added_workloads.push(ReusableWorkloadSpec::new(
-                                    new_workload_named,
-                                    workload_id,
-                                ));
+                                new_added_workloads
+                                    .push(ReusableWorkload::new(new_workload_named, workload_id));
                             } else {
                                 // [impl->swdd~agent-existing-workloads-replace-updated~4]
 
@@ -349,7 +345,7 @@ impl RuntimeManager {
                                     );
 
                                     new_added_workloads
-                                        .push(ReusableWorkloadSpec::new(new_workload_named, None));
+                                        .push(ReusableWorkload::new(new_workload_named, None));
 
                                     deleted_workloads.push(DeletedWorkload {
                                         instance_name: workload_state.instance_name,
@@ -360,7 +356,7 @@ impl RuntimeManager {
                                     The runtime manager will request an update of the workload
                                     when putting the workload into both added and deleted ones.*/
                                     new_added_workloads
-                                        .push(ReusableWorkloadSpec::new(new_workload_named, None));
+                                        .push(ReusableWorkload::new(new_workload_named, None));
 
                                     deleted_workloads.push(DeletedWorkload {
                                         instance_name: workload_state.instance_name,
@@ -427,22 +423,22 @@ impl RuntimeManager {
     // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
     fn transform_into_workload_operations(
         &self,
-        added_workloads: Vec<ReusableWorkloadSpec>,
+        added_workloads: Vec<ReusableWorkload>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) -> Vec<WorkloadOperation> {
         let mut workload_operations: Vec<WorkloadOperation> = Vec::new();
         // transform into a hashmap to be able to search for updates
         // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
-        let mut added_workloads: HashMap<String, ReusableWorkloadSpec> = added_workloads
+        let mut added_workloads: HashMap<String, ReusableWorkload> = added_workloads
             .into_iter()
-            .map(|reusable_workload_spec| {
+            .map(|reusable_workload| {
                 (
-                    reusable_workload_spec
+                    reusable_workload
                         .workload_named
                         .instance_name
                         .workload_name()
                         .to_owned(),
-                    reusable_workload_spec,
+                    reusable_workload,
                 )
             })
             .collect();
@@ -463,8 +459,8 @@ impl RuntimeManager {
             }
         }
 
-        for (_, reusable_workload_spec) in added_workloads {
-            let workload_name = reusable_workload_spec
+        for (_, reusable_workload) in added_workloads {
+            let workload_name = reusable_workload
                 .workload_named
                 .instance_name
                 .workload_name();
@@ -474,7 +470,7 @@ impl RuntimeManager {
                 );
                 // We know this workload, seems the server is sending it again, try an update
                 // [impl->swdd~agent-update-on-add-known-workload~1]
-                let workload_named = reusable_workload_spec.workload_named;
+                let workload_named = reusable_workload.workload_named;
                 let instance_name = workload_named.instance_name.clone();
                 workload_operations.push(WorkloadOperation::Update(
                     workload_named,
@@ -485,7 +481,7 @@ impl RuntimeManager {
                 ));
             } else {
                 // [impl->swdd~agent-added-creates-workload~1]
-                workload_operations.push(WorkloadOperation::Create(reusable_workload_spec));
+                workload_operations.push(WorkloadOperation::Create(reusable_workload));
             }
         }
 
@@ -495,9 +491,9 @@ impl RuntimeManager {
     async fn execute_workload_operations(&mut self, workload_operations: Vec<WorkloadOperation>) {
         for wl_operation in workload_operations {
             match wl_operation {
-                WorkloadOperation::Create(reusable_workload_spec) => {
+                WorkloadOperation::Create(reusable_workload) => {
                     // [impl->swdd~agent-executes-create-workload-operation~1]
-                    self.add_workload(reusable_workload_spec).await
+                    self.add_workload(reusable_workload).await
                 }
                 WorkloadOperation::Update(new_workload_named, _) => {
                     // [impl->swdd~agent-executes-update-workload-operation~1]
@@ -515,8 +511,8 @@ impl RuntimeManager {
         }
     }
 
-    async fn add_workload(&mut self, reusable_workload_spec: ReusableWorkloadSpec) {
-        let workload_named = &reusable_workload_spec.workload_named;
+    async fn add_workload(&mut self, reusable_workload: ReusableWorkload) {
+        let workload_named = &reusable_workload.workload_named;
         let workload_name = workload_named.instance_name.workload_name().to_owned();
         // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
         let control_interface_info = if workload_named.workload.needs_control_interface() {
@@ -552,7 +548,7 @@ impl RuntimeManager {
         };
         // [impl->swdd~agent-executes-create-workload-operation~1]
         let workload = runtime.create_workload(
-            reusable_workload_spec,
+            reusable_workload,
             control_interface_info,
             &self.update_state_tx,
         );
@@ -619,7 +615,7 @@ impl RuntimeManager {
         } else {
             log::warn!("Workload for update '{workload_name}' not found. Recreating.");
             // [impl->swdd~agent-add-on-update-missing-workload~1]
-            self.add_workload(ReusableWorkloadSpec::new(workload_named, None))
+            self.add_workload(ReusableWorkload::new(workload_named, None))
                 .await;
         }
     }
@@ -688,7 +684,7 @@ mod tests {
     };
     use crate::runtime_manager::ToReusableWorkloadSpecs;
     use crate::workload::{MockWorkload, WorkloadError};
-    use crate::workload_operation::ReusableWorkloadSpec;
+    use crate::workload_operation::ReusableWorkload;
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
     use crate::workload_state::WorkloadStateReceiver;
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
@@ -781,8 +777,8 @@ mod tests {
 
         let added_workloads = vec![new_workload_access.clone(), new_workload_no_access.clone()];
         let workload_operations = vec![
-            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload_access, None)),
-            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload_no_access, None)),
+            WorkloadOperation::Create(ReusableWorkload::new(new_workload_access, None)),
+            WorkloadOperation::Create(ReusableWorkload::new(new_workload_no_access, None)),
         ];
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -858,7 +854,7 @@ mod tests {
         );
         let added_workloads = vec![workload_with_unknown_runtime.clone()];
 
-        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             workload_with_unknown_runtime,
             None,
         ))];
@@ -926,7 +922,7 @@ mod tests {
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
         let added_workloads = vec![workload.clone()];
 
-        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             workload, None,
         ))];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -956,8 +952,8 @@ mod tests {
         runtime_facade_mock
             .expect_create_workload()
             .once()
-            .withf(|reusable_workload_spec, control_interface, to_server| {
-                reusable_workload_spec
+            .withf(|reusable_workload, control_interface, to_server| {
+                reusable_workload
                     .workload_named
                     .instance_name
                     .workload_name()
@@ -1163,8 +1159,8 @@ mod tests {
             )
             .build();
 
-        let expected_new_added_workloads: Vec<ReusableWorkloadSpec> =
-            added_workloads.clone().into_reusable_workload_specs();
+        let expected_new_added_workloads: Vec<ReusableWorkload> =
+            added_workloads.clone().into_reusable_workloads();
         let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
@@ -1220,8 +1216,8 @@ mod tests {
             )
             .build();
 
-        let expected_added_workloads: Vec<ReusableWorkloadSpec> =
-            added_workloads.clone().into_reusable_workload_specs();
+        let expected_added_workloads: Vec<ReusableWorkload> =
+            added_workloads.clone().into_reusable_workloads();
         let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
@@ -1279,8 +1275,8 @@ mod tests {
             .workloads
             .insert(WORKLOAD_1_NAME.to_owned(), MockWorkload::default()); // workload is known
 
-        let expected_added_workloads: Vec<ReusableWorkloadSpec> =
-            added_workloads.clone().into_reusable_workload_specs();
+        let expected_added_workloads: Vec<ReusableWorkload> =
+            added_workloads.clone().into_reusable_workloads();
         let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
@@ -1337,10 +1333,10 @@ mod tests {
             )
             .build();
 
-        let expected_new_added_workloads: Vec<ReusableWorkloadSpec> = added_workloads
+        let expected_new_added_workloads: Vec<ReusableWorkload> = added_workloads
             .clone()
             .into_iter()
-            .map(|w| ReusableWorkloadSpec::new(w, Some(WORKLOAD_ID.to_string())))
+            .map(|w| ReusableWorkload::new(w, Some(WORKLOAD_ID.to_string())))
             .collect();
         let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
@@ -1568,14 +1564,14 @@ mod tests {
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
         workload_spec_no_access.workload.control_interface_access = Default::default();
         runtime_manager
-            .add_workload(ReusableWorkloadSpec::new(workload_spec_no_access, None))
+            .add_workload(ReusableWorkload::new(workload_spec_no_access, None))
             .await;
 
         control_interface_info_new_context.expect().never();
         let workload_spec_has_access: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
         runtime_manager
-            .add_workload(ReusableWorkloadSpec::new(workload_spec_has_access, None))
+            .add_workload(ReusableWorkload::new(workload_spec_has_access, None))
             .await;
     }
 
@@ -1768,7 +1764,7 @@ mod tests {
 
         let workload_operations = vec![
             WorkloadOperation::Delete(deleted_workload.clone()),
-            WorkloadOperation::Create(ReusableWorkloadSpec::new(new_workload.clone(), None)),
+            WorkloadOperation::Create(ReusableWorkload::new(new_workload.clone(), None)),
         ];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
@@ -1795,8 +1791,8 @@ mod tests {
         runtime_facade_mock
             .expect_create_workload()
             .once()
-            .withf(|reusable_workload_spec, control_interface, to_server| {
-                reusable_workload_spec
+            .withf(|reusable_workload, control_interface, to_server| {
+                reusable_workload
                     .workload_named
                     .instance_name
                     .workload_name()
@@ -1855,7 +1851,7 @@ mod tests {
         let deleted_workload =
             generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
 
-        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             new_workload.clone(),
             None,
         ))];
@@ -1992,7 +1988,7 @@ mod tests {
         let new_workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
-        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             new_workload.clone(),
             None,
         ))];
@@ -2437,7 +2433,7 @@ mod tests {
         );
         workload_spec.workload.control_interface_access = generate_test_control_interface_access();
 
-        let next_workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+        let next_workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             workload_spec,
             None,
         ))];
@@ -2659,13 +2655,13 @@ mod tests {
 
         let new_workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_owned(), RUNTIME_NAME.to_owned());
-        let added_workloads = vec![ReusableWorkloadSpec::new(new_workload.clone(), None)];
+        let added_workloads = vec![ReusableWorkload::new(new_workload.clone(), None)];
         let deleted_workloads = vec![];
         let workload_operations =
             runtime_manager.transform_into_workload_operations(added_workloads, deleted_workloads);
 
         assert_eq!(
-            vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+            vec![WorkloadOperation::Create(ReusableWorkload::new(
                 new_workload,
                 None
             ))],
@@ -2719,7 +2715,7 @@ mod tests {
 
         let new_workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_owned(), RUNTIME_NAME.to_owned());
-        let added_workloads = vec![ReusableWorkloadSpec::new(new_workload.clone(), None)];
+        let added_workloads = vec![ReusableWorkload::new(new_workload.clone(), None)];
         let deleted_workload =
             generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
         let deleted_workloads = vec![deleted_workload.clone()];
@@ -2768,7 +2764,7 @@ mod tests {
 
         let new_workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_owned(), RUNTIME_NAME.to_owned());
-        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkloadSpec::new(
+        let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             new_workload,
             None,
         ))];

@@ -707,7 +707,7 @@ mod tests {
         let (to_server, _server_receiver) = channel(BUFFER_SIZE);
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
 
         let mock_runtime_manager = RuntimeManager::default();
@@ -719,7 +719,7 @@ mod tests {
             .return_once(MockResourceMonitor::default);
 
         let logs_request = common::commands::LogsRequest {
-            workload_names: vec![workload_spec.instance_name],
+            workload_names: vec![workload.instance_name],
             follow: false,
             tail: -1,
             since: None,

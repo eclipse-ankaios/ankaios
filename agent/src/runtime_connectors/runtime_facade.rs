@@ -13,9 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::io_utils::FileSystemError;
-use api::ank_base::{
-    ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed,
-};
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
 
 use async_trait::async_trait;
 use common::{objects::AgentName, std_extensions::IllegalStateResult};
@@ -39,7 +37,7 @@ use crate::io_utils::filesystem_async;
 
 use crate::{
     runtime_connectors::{OwnableRuntime, ReusableWorkloadState, RuntimeError, StateChecker},
-    workload_operation::ReusableWorkloadSpec,
+    workload_operation::ReusableWorkload,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
@@ -60,7 +58,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 
     fn create_workload(
         &self,
-        runtime_workload: ReusableWorkloadSpec,
+        runtime_workload: ReusableWorkload,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload;
@@ -125,13 +123,13 @@ impl<
     // [impl->swdd~agent-create-workload~2]
     fn create_workload(
         &self,
-        reusable_workload_spec: ReusableWorkloadSpec,
+        reusable_workload: ReusableWorkload,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let (_task_handle, workload) = Self::create_workload_non_blocking(
             self,
-            reusable_workload_spec,
+            reusable_workload,
             control_interface_info,
             update_state_tx,
         );
@@ -172,12 +170,12 @@ impl<
     // [impl->swdd~agent-create-workload~2]
     fn create_workload_non_blocking(
         &self,
-        reusable_workload_spec: ReusableWorkloadSpec,
+        reusable_workload: ReusableWorkload,
         control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
-        let workload_named = reusable_workload_spec.workload_named;
-        let workload_id = match reusable_workload_spec.workload_id {
+        let workload_named = reusable_workload.workload_named;
+        let workload_id = match reusable_workload.runtime_workload_id {
             Some(id) => match WorkloadId::from_str(&id) {
                 Ok(id) => Some(id),
                 Err(_) => {
@@ -418,7 +416,7 @@ mockall::mock! {
 
         fn create_workload(
             &self,
-            runtime_workload: ReusableWorkloadSpec,
+            runtime_workload: ReusableWorkload,
             control_interface_info: Option<ControlInterfaceInfo>,
             update_state_tx: &WorkloadStateSender,
         ) -> Workload;
@@ -459,14 +457,12 @@ mod tests {
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
         },
         workload::{ControlLoopState, MockWorkload, MockWorkloadControlLoop},
-        workload_operation::ReusableWorkloadSpec,
+        workload_operation::ReusableWorkload,
         workload_state::assert_execution_state_sequence,
     };
 
-    use api::ank_base::{WorkloadNamed, ExecutionStateInternal, WorkloadInstanceNameInternal};
-    use api::test_utils::{
-        generate_test_workload_with_param,
-    };
+    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+    use api::test_utils::generate_test_workload_with_param;
 
     const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";
@@ -528,11 +524,8 @@ mod tests {
 
         const WORKLOAD_ID: &str = "workload_id_1";
 
-        let reusable_workload_spec = ReusableWorkloadSpec::new(
-            generate_test_workload_with_param(
-                AGENT_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            ),
+        let reusable_workload = ReusableWorkload::new(
+            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string()),
             Some(WORKLOAD_ID.to_string()),
         );
 
@@ -557,7 +550,7 @@ mod tests {
         control_interface_info_mock
             .expect_get_instance_name()
             .once()
-            .return_const(reusable_workload_spec.workload_named.instance_name.clone());
+            .return_const(reusable_workload.workload_named.instance_name.clone());
 
         control_interface_info_mock
             .expect_move_authorizer()
@@ -591,7 +584,7 @@ mod tests {
             .return_once(|_: ControlLoopState<String, StubStateChecker>| ());
 
         let (task_handle, _workload) = test_runtime_facade.create_workload_non_blocking(
-            reusable_workload_spec.clone(),
+            reusable_workload.clone(),
             Some(control_interface_info_mock),
             &wl_state_sender,
         );
@@ -638,10 +631,8 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| Ok(MockControlInterface::default()));
 
-        let workload_spec: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let (wl_state_sender, _wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
@@ -689,10 +680,8 @@ mod tests {
         let control_interface_new_context = MockControlInterface::new_context();
         control_interface_new_context.expect().never();
 
-        let workload_spec: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload_spec: WorkloadNamed =
+            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let (wl_state_sender, _wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);

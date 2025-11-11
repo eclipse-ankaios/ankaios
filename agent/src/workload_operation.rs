@@ -15,16 +15,16 @@
 use api::ank_base::{DeletedWorkload, WorkloadNamed};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ReusableWorkloadSpec {
+pub struct ReusableWorkload {
     pub workload_named: WorkloadNamed,
-    pub workload_id: Option<String>,
+    pub runtime_workload_id: Option<String>,
 }
 
-impl ReusableWorkloadSpec {
-    pub fn new(workload_named: WorkloadNamed, workload_id: Option<String>) -> ReusableWorkloadSpec {
-        ReusableWorkloadSpec {
+impl ReusableWorkload {
+    pub fn new(workload_named: WorkloadNamed, runtime_workload_id: Option<String>) -> ReusableWorkload {
+        ReusableWorkload {
             workload_named,
-            workload_id,
+            runtime_workload_id,
         }
     }
 }
@@ -32,7 +32,7 @@ impl ReusableWorkloadSpec {
 #[derive(Debug, Clone, PartialEq)]
 // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
 pub enum WorkloadOperation {
-    Create(ReusableWorkloadSpec),
+    Create(ReusableWorkload),
     Update(WorkloadNamed, DeletedWorkload),
     UpdateDeleteOnly(DeletedWorkload),
     Delete(DeletedWorkload),

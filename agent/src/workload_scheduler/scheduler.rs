@@ -15,7 +15,7 @@
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::dependency_state_validator::DependencyStateValidator;
 use crate::{
-    workload_operation::ReusableWorkloadSpec,
+    workload_operation::ReusableWorkload,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 use api::ank_base::{
@@ -32,7 +32,7 @@ use mockall::automock;
 
 #[derive(Debug, Clone, PartialEq)]
 enum PendingEntry {
-    Create(ReusableWorkloadSpec),
+    Create(ReusableWorkload),
     Delete(DeletedWorkload),
     UpdateCreate(WorkloadNamed, DeletedWorkload),
     UpdateDelete(WorkloadNamed, DeletedWorkload),
@@ -192,7 +192,7 @@ impl WorkloadScheduler {
     // [impl->swdd~agent-enqueues-unfulfilled-create~1]
     async fn enqueue_pending_create(
         &mut self,
-        new_workload_spec: ReusableWorkloadSpec,
+        new_workload_spec: ReusableWorkload,
         workload_state_db: &WorkloadStateStore,
         notify_on_new_entry: bool,
     ) -> Vec<WorkloadOperation> {
@@ -350,7 +350,7 @@ mod tests {
 
     use super::WorkloadScheduler;
     use crate::{
-        workload_operation::{ReusableWorkloadSpec, WorkloadOperation},
+        workload_operation::{ReusableWorkload, WorkloadOperation},
         workload_scheduler::{
             dependency_state_validator::MockDependencyStateValidator, scheduler::PendingEntry,
         },
@@ -382,7 +382,7 @@ mod tests {
         let pending_workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned());
 
-        let pending_reusable_workload = ReusableWorkloadSpec::new(pending_workload, None);
+        let pending_reusable_workload = ReusableWorkload::new(pending_workload, None);
 
         let workload_operations =
             vec![WorkloadOperation::Create(pending_reusable_workload.clone())];
@@ -435,7 +435,7 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload = ReusableWorkloadSpec::new(
+        let ready_workload = ReusableWorkload::new(
             generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned()),
             None,
         );
@@ -1167,17 +1167,17 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let pending_workload_spec = ReusableWorkloadSpec::new(
+        let pending_workload = ReusableWorkload::new(
             generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned()),
             None,
         );
 
         let instance_name_create_workload =
-            pending_workload_spec.workload_named.instance_name.clone();
+            pending_workload.workload_named.instance_name.clone();
 
         workload_scheduler.queue.insert(
             instance_name_create_workload.workload_name().to_owned(),
-            PendingEntry::Create(pending_workload_spec.clone()),
+            PendingEntry::Create(pending_workload.clone()),
         );
 
         let ready_workload_operations = workload_scheduler
@@ -1208,17 +1208,17 @@ mod tests {
             .expect()
             .return_const(false);
 
-        let pending_workload_spec = ReusableWorkloadSpec::new(
+        let pending_workload = ReusableWorkload::new(
             generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned()),
             None,
         );
 
         let instance_name_create_workload =
-            pending_workload_spec.workload_named.instance_name.clone();
+            pending_workload.workload_named.instance_name.clone();
 
         workload_scheduler.queue.insert(
             instance_name_create_workload.workload_name().to_owned(),
-            PendingEntry::Create(pending_workload_spec.clone()),
+            PendingEntry::Create(pending_workload.clone()),
         );
 
         workload_scheduler
@@ -1440,18 +1440,18 @@ mod tests {
             .expect()
             .return_const(true);
 
-        let ready_workload_spec = ReusableWorkloadSpec::new(
+        let ready_workload = ReusableWorkload::new(
             generate_test_workload_with_param(AGENT_A.to_owned(), RUNTIME.to_owned()),
             None,
         );
 
         workload_scheduler.queue.insert(
-            ready_workload_spec
+            ready_workload
                 .workload_named
                 .instance_name
                 .workload_name()
                 .to_owned(),
-            PendingEntry::Create(ready_workload_spec.clone()),
+            PendingEntry::Create(ready_workload.clone()),
         );
 
         let ready_workload_operations = workload_scheduler
@@ -1459,7 +1459,7 @@ mod tests {
             .await;
 
         assert_eq!(
-            vec![WorkloadOperation::Create(ready_workload_spec)],
+            vec![WorkloadOperation::Create(ready_workload)],
             ready_workload_operations
         );
 
