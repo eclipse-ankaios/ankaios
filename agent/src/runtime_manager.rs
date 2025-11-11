@@ -699,12 +699,11 @@ mod tests {
         WorkloadStateInternal,
     };
     use api::test_utils::{
-        generate_test_control_interface_access, generate_test_deleted_workload,
-        generate_test_deleted_workload_with_dependencies, generate_test_proto_complete_state,
-        generate_test_workload_with_param,
+        generate_test_complete_state, generate_test_control_interface_access,
+        generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
+        generate_test_proto_complete_state, generate_test_workload_with_param,
     };
     use common::commands::LogsRequest;
-    use common::test_utils::generate_test_complete_state;
     use common::to_server_interface::ToServerReceiver;
 
     use mockall::{Sequence, predicate};

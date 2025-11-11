@@ -20,24 +20,24 @@ use tonic_prost_build::Builder;
 /// - WorkloadMapInternal
 pub fn setup_internal_state(builder: Builder) -> Builder {
     builder
-        // .message_attribute(
-        //     "CompleteState",
-        //     "#[derive(internal_derive_macros::Internal)]",
-        // )
-        // .message_attribute(
-        //     "CompleteState",
-        //     "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
-        // )
-        // .message_attribute(
-        //     "CompleteState",
-        //     "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
-        // )
-        // .field_attribute("CompleteState.desiredState", "#[internal_mandatory]")
-        // .field_attribute("CompleteState.desiredState", "#[internal_field_attr(#[serde(default)])]")
-        // .field_attribute("CompleteState.workloadStates", "#[internal_mandatory]")
-        // .field_attribute("CompleteState.workloadStates", "#[internal_field_attr(#[serde(default)])]")
-        // .field_attribute("CompleteState.agents", "#[internal_mandatory]")
-        // .field_attribute("CompleteState.agents", "#[internal_field_attr(#[serde(default)])]")
+        .message_attribute(
+            "CompleteState",
+            "#[derive(internal_derive_macros::Internal)]",
+        )
+        .message_attribute(
+            "CompleteState",
+            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
+        )
+        .message_attribute(
+            "CompleteState",
+            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
+        )
+        .field_attribute("CompleteState.desiredState", "#[internal_mandatory]")
+        .field_attribute("CompleteState.desiredState", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("CompleteState.workloadStates", "#[internal_mandatory]")
+        .field_attribute("CompleteState.workloadStates", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("CompleteState.agents", "#[internal_mandatory]")
+        .field_attribute("CompleteState.agents", "#[internal_field_attr(#[serde(default)])]")
 
         .message_attribute(
             "State",

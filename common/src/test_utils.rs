@@ -15,61 +15,6 @@
 use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 
-use crate::objects::CompleteState;
-
-use api::ank_base::{
-    ConfigItemEnumInternal, ConfigItemInternal, ConfigMapInternal, StateInternal, WorkloadNamed,
-};
-use api::test_utils::{
-    generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
-    generate_test_workload_states_map_from_specs,
-};
-
-const API_VERSION: &str = "v1";
-
-pub fn generate_test_complete_state(
-    workloads: Vec<WorkloadNamed>,
-) -> crate::objects::CompleteState {
-    let agents = generate_test_agent_map_from_workloads(
-        workloads
-            .iter()
-            .map(|w| w.workload.clone())
-            .collect::<Vec<_>>()
-            .as_slice(),
-    );
-    CompleteState {
-        desired_state: generate_test_state_from_workloads(workloads.clone()),
-        workload_states: generate_test_workload_states_map_from_specs(workloads),
-        agents,
-    }
-}
-
-pub fn generate_test_complete_state_with_configs(
-    configs: Vec<String>,
-) -> crate::objects::CompleteState {
-    use crate::objects::CompleteState;
-    CompleteState {
-        desired_state: StateInternal {
-            api_version: API_VERSION.into(),
-            configs: ConfigMapInternal {
-                configs: configs
-                    .into_iter()
-                    .map(|value| {
-                        (
-                            value.clone(),
-                            ConfigItemInternal {
-                                config_item_enum: ConfigItemEnumInternal::String(value),
-                            },
-                        )
-                    })
-                    .collect(),
-            },
-            ..Default::default()
-        },
-        ..Default::default()
-    }
-}
-
 pub struct MockAllContextSync {
     mutex_tokio: tokio::sync::Mutex<()>,
     mutex_std: std::sync::Mutex<()>,

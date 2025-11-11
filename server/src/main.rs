@@ -19,10 +19,9 @@ mod server_config;
 use std::fs;
 use std::path::PathBuf;
 
-use api::ank_base::StateInternal;
+use api::ank_base::{CompleteStateInternal, StateInternal};
 
 use common::helpers::validate_tags;
-use common::objects::CompleteState;
 
 use common::communications_server::CommunicationsServer;
 use common::std_extensions::GracefulExitResult;
@@ -123,7 +122,7 @@ async fn main() {
                 "The state is initialized with the following workloads: {:?}",
                 state.workloads
             );
-            Some(CompleteState {
+            Some(CompleteStateInternal {
                 desired_state: state,
                 ..Default::default()
             })

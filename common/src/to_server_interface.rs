@@ -12,11 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    commands::{self, AgentLoadStatus, LogsRequest, RequestContent},
-    objects::CompleteState,
-};
-use api::ank_base::{self, WorkloadStateInternal};
+use crate::commands::{self, AgentLoadStatus, LogsRequest, RequestContent};
+use api::ank_base::{self, CompleteStateInternal, WorkloadStateInternal};
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -60,7 +57,7 @@ pub trait ToServerInterface {
     async fn update_state(
         &self,
         request_id: String,
-        state: CompleteState,
+        state: CompleteStateInternal,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError>;
     async fn update_workload_state(
@@ -121,7 +118,7 @@ impl ToServerInterface for ToServerSender {
     async fn update_state(
         &self,
         request_id: String,
-        state: CompleteState,
+        state: CompleteStateInternal,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError> {
         Ok(self
@@ -230,14 +227,15 @@ mod tests {
     use super::{ToServerReceiver, ToServerSender};
     use crate::{
         commands::{self, AgentLoadStatus, RequestContent},
-        test_utils::generate_test_complete_state,
         to_server_interface::{ToServer, ToServerInterface},
     };
     use api::ank_base::{
         self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogEntriesResponse,
         LogEntry, WorkloadInstanceNameInternal,
     };
-    use api::test_utils::{generate_test_workload, generate_test_workload_state};
+    use api::test_utils::{
+        generate_test_complete_state, generate_test_workload, generate_test_workload_state,
+    };
 
     const TEST_CHANNEL_CAP: usize = 5;
     const WORKLOAD_NAME: &str = "X";

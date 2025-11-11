@@ -13,13 +13,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    CompleteState, ConfigMap, ConfigMapInternal, ConfigMappingsInternal, DeleteCondition,
-    DeletedWorkload, State, StateInternal, Workload, WorkloadInstanceNameInternal, WorkloadMap,
-    WorkloadMapInternal, WorkloadNamed,
+    CompleteState, CompleteStateInternal, ConfigMap, ConfigMapInternal, ConfigMappingsInternal,
+    DeleteCondition, DeletedWorkload, State, StateInternal, Workload, WorkloadInstanceNameInternal,
+    WorkloadMap, WorkloadMapInternal, WorkloadNamed,
 };
 pub use crate::ank_base::{
     agent_map::{generate_test_agent_map, generate_test_agent_map_from_workloads},
-    config::{generate_test_config_item},
+    config::generate_test_config_item,
     control_interface_access::generate_test_control_interface_access,
     workload::{
         generate_test_runtime_config, generate_test_workload, generate_test_workload_with_param,
@@ -111,9 +111,36 @@ pub fn generate_test_proto_complete_state(workloads: &[(&str, Workload)]) -> Com
     }
 }
 
-// generate_test_complete_state
+pub fn generate_test_complete_state(workloads: Vec<WorkloadNamed>) -> CompleteStateInternal {
+    let agents = generate_test_agent_map_from_workloads(
+        workloads
+            .iter()
+            .map(|w| w.workload.clone())
+            .collect::<Vec<_>>()
+            .as_slice(),
+    );
+    CompleteStateInternal {
+        desired_state: generate_test_state_from_workloads(workloads.clone()),
+        workload_states: generate_test_workload_states_map_from_specs(workloads),
+        agents,
+    }
+}
 
-// generate_test_complete_state_with_configs
+pub fn generate_test_complete_state_with_configs(configs: Vec<String>) -> CompleteStateInternal {
+    CompleteStateInternal {
+        desired_state: StateInternal {
+            api_version: API_VERSION.into(),
+            configs: ConfigMapInternal {
+                configs: configs
+                    .into_iter()
+                    .map(|value| (value.clone(), generate_test_config_item(value)))
+                    .collect(),
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
 
 pub fn generate_test_state() -> StateInternal {
     StateInternal {

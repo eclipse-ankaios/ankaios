@@ -19,13 +19,14 @@ use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
-use api::ank_base::{self, LogsRequestAccepted, WorkloadInstanceNameInternal};
+use api::ank_base::{
+    self, CompleteStateInternal, LogsRequestAccepted, WorkloadInstanceNameInternal,
+};
 use common::{
     commands::{CompleteStateRequest, LogsRequest, UpdateWorkloadState},
     communications_client::CommunicationsClient,
     communications_error::CommunicationMiddlewareError,
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::CompleteState,
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 use grpc::{client::GRPCCommunicationsClient, security::TLSConfig};
@@ -144,7 +145,7 @@ impl ServerConnection {
 
     pub async fn update_state(
         &mut self,
-        new_state: CompleteState,
+        new_state: CompleteStateInternal,
         update_mask: Vec<String>,
     ) -> Result<ank_base::UpdateStateSuccess, ServerConnectionError> {
         let request_id = uuid::Uuid::new_v4().to_string();
@@ -561,14 +562,13 @@ mod tests {
     };
 
     use api::ank_base::{
-        self, ExecutionStateInternal, StateInternal, UpdateStateSuccess,
+        self, CompleteStateInternal, ExecutionStateInternal, StateInternal, UpdateStateSuccess,
         WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal, WorkloadStateInternal,
     };
     use api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
         commands::{CompleteStateRequest, RequestContent, UpdateStateRequest, UpdateWorkloadState},
         from_server_interface::FromServer,
-        objects::CompleteState,
         to_server_interface::ToServer,
     };
 
@@ -701,8 +701,8 @@ mod tests {
         }
     }
 
-    fn complete_state(workload_name: &str) -> CompleteState {
-        CompleteState {
+    fn complete_state(workload_name: &str) -> CompleteStateInternal {
+        CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
                     workloads: [(

@@ -11,11 +11,13 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+
 use super::CliCommands;
-use crate::cli_commands::config_table_row::ConfigTableRow;
 use crate::cli_commands::DESIRED_STATE_CONFIGS;
+use crate::cli_commands::config_table_row::ConfigTableRow;
 use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{cli_commands::cli_table::CliTable, cli_error::CliError, output_debug};
+
 use api::ank_base::ConfigItemInternal;
 
 impl CliCommands {
@@ -67,12 +69,12 @@ fn transform_into_table_rows(
 #[cfg(test)]
 mod tests {
     use crate::cli_commands::{
-        server_connection::{MockServerConnection, ServerConnectionError},
         CliCommands, DESIRED_STATE_CONFIGS,
+        server_connection::{MockServerConnection, ServerConnectionError},
     };
 
-    use api::ank_base;
-    use common::test_utils;
+    use api::ank_base::CompleteState;
+    use api::test_utils::generate_test_complete_state_with_configs;
     use mockall::predicate::eq;
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
@@ -91,13 +93,13 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
             .return_once(|_| {
-                Ok(ank_base::CompleteState::from(
-                    test_utils::generate_test_complete_state_with_configs(vec![
+                Ok(
+                    CompleteState::from(generate_test_complete_state_with_configs(vec![
                         CONFIG_1.to_string(),
                         CONFIG_2.to_string(),
-                    ]),
+                    ]))
+                    .into(),
                 )
-                .into())
             });
 
         let mut cmd = CliCommands {
@@ -120,7 +122,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![DESIRED_STATE_CONFIGS.to_string()]))
-            .return_once(|_| Ok(ank_base::CompleteState::default().into()));
+            .return_once(|_| Ok(CompleteState::default().into()));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,

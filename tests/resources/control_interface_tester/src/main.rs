@@ -12,9 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::response::ResponseContent;
 use api::ank_base::{
-    LogEntriesResponse, LogsCancelAccepted, LogsRequestAccepted, State, UpdateStateRequest,
+    CompleteStateInternal, LogEntriesResponse, LogsCancelAccepted, LogsRequestAccepted,
+    ResponseContent, State, UpdateStateRequest,
 };
 
 use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
@@ -297,7 +297,7 @@ impl Connection {
     ) -> Result<TestResultEnum, CommandError> {
         let request_id = self.get_next_id();
 
-        let state: common::objects::CompleteState =
+        let state: CompleteStateInternal =
             read_yaml_file(Path::new(&update_state_command.manifest_file))
                 .map_err(CommandError::GenericError)?;
 
@@ -633,4 +633,3 @@ fn read_yaml_file<T: DeserializeOwned>(path: &Path) -> Result<T, String> {
     serde_yaml::from_reader(file)
         .map_err(|err| format!("Could not parse '{}': {}", path.to_str().unwrap(), err))
 }
-

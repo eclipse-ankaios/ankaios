@@ -307,11 +307,11 @@ mod tests {
     use crate::{
         commands,
         from_server_interface::{FromServer, FromServerInterface},
-        test_utils::generate_test_complete_state,
     };
     use api::ank_base::{self, ExecutionStateInternal, WorkloadInstanceNameInternal};
     use api::test_utils::{
-        generate_test_deleted_workload, generate_test_workload, generate_test_workload_state,
+        generate_test_complete_state, generate_test_deleted_workload, generate_test_workload,
+        generate_test_workload_state,
     };
 
     use super::{FromServerReceiver, FromServerSender};

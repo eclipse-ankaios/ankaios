@@ -16,10 +16,9 @@ use super::{CliCommands, InputSourcePair};
 use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
-use api::ank_base::{ALLOWED_SYMBOLS, StateInternal};
+use api::ank_base::{ALLOWED_SYMBOLS, CompleteStateInternal, StateInternal};
 use api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use common::helpers::validate_tags;
-use common::objects::CompleteState;
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
 
@@ -175,7 +174,7 @@ pub fn create_filter_masks_from_paths(
 pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
-) -> Result<Option<(CompleteState, Vec<String>)>, String> {
+) -> Result<Option<(CompleteStateInternal, Vec<String>)>, String> {
     let mut req_obj: Object = StateInternal::default().try_into().unwrap();
     let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
     for manifest in manifests.iter_mut() {
@@ -195,13 +194,13 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
 
     let complete_state_req_obj = if apply_args.delete_mode {
-        CompleteState {
+        CompleteStateInternal {
             ..Default::default()
         }
     } else {
         let state_from_req_obj =
             handle_agent_overwrite(&req_paths, &apply_args.agent_name, req_obj)?;
-        CompleteState {
+        CompleteStateInternal {
             desired_state: state_from_req_obj,
             ..Default::default()
         }
@@ -256,14 +255,13 @@ mod tests {
     };
 
     use api::ank_base::{
-        self, ExecutionStateInternal, StateInternal, UpdateStateSuccess, WorkloadNamed,
-        WorkloadStateInternal,
+        self, CompleteStateInternal, ExecutionStateInternal, StateInternal, UpdateStateSuccess,
+        WorkloadNamed, WorkloadStateInternal,
     };
     use api::test_utils::{generate_test_state_from_workloads, generate_test_workload_with_param};
     use common::{
         commands::UpdateWorkloadState,
         // from_server_interface::FromServer,
-        objects::CompleteState,
         state_manipulation::{Object, Path},
     };
 
@@ -709,7 +707,7 @@ mod tests {
     //         desired_state: serde_yaml::from_str(&data).unwrap(),
     //         ..Default::default()
     //     };
-    //     let expected_complete_state_obj: CompleteState =
+    //     let expected_complete_state_obj: CompleteStateInternal =
     //         expected_complete_state_obj.try_into().unwrap();
 
     //     let expected_filter_masks = vec!["desiredState.workloads.simple".to_string()];
@@ -745,7 +743,7 @@ mod tests {
             commandOptions: [\"-p\", \"8081:80\"]",
         );
 
-        let expected_complete_state_obj = CompleteState {
+        let expected_complete_state_obj = CompleteStateInternal {
             ..Default::default()
         };
 
@@ -788,7 +786,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteState {
+        let updated_state = CompleteStateInternal {
             ..Default::default()
         };
 
@@ -877,7 +875,7 @@ mod tests {
     //         ..Default::default()
     //     };
     //     // called `Result::unwrap()` on an `Err` value: "Missing field 'restart_policy'"
-    //     let updated_state: CompleteState = updated_state.try_into().unwrap();
+    //     let updated_state: CompleteStateInternal = updated_state.try_into().unwrap();
 
     //     let mut mock_server_connection = MockServerConnection::default();
     //     mock_server_connection
@@ -901,7 +899,7 @@ mod tests {
     //         .expect_get_complete_state()
     //         .with(eq(vec![]))
     //         .return_once(|_| {
-    //             Ok((ank_base::CompleteState::from(CompleteState {
+    //             Ok((ank_base::CompleteState::from(CompleteStateInternal {
     //                 desired_state: updated_state.desired_state,
     //                 ..Default::default()
     //             }))
@@ -979,7 +977,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteState {
+        let updated_state = CompleteStateInternal {
             // TODO #313 This unwrap fails: called on Error("configs.config_1: invalid type: string \"config_value_1\", expected struct ConfigItemInternal")
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
@@ -1101,7 +1099,7 @@ mod tests {
     //         ..Default::default()
     //     };
     //     // called `Result::unwrap()` on an `Err` value: "Missing field 'restart_policy'"
-    //     let updated_state: CompleteState = updated_state.try_into().unwrap();
+    //     let updated_state: CompleteStateInternal = updated_state.try_into().unwrap();
 
     //     let mut mock_server_connection = MockServerConnection::default();
     //     mock_server_connection
@@ -1120,7 +1118,7 @@ mod tests {
     //         .expect_get_complete_state()
     //         .with(eq(vec![]))
     //         .return_once(|_| {
-    //             Ok((ank_base::CompleteState::from(CompleteState {
+    //             Ok((ank_base::CompleteState::from(CompleteStateInternal {
     //                 desired_state: updated_state.desired_state,
     //                 ..Default::default()
     //             }))

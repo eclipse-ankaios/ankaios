@@ -100,8 +100,7 @@ mod tests {
     use crate::cli_error::CliError;
 
     use api::ank_base::{self, WorkloadInstanceNameInternal, WorkloadNamed};
-    use api::test_utils::generate_test_workload_with_param;
-    use common::test_utils::generate_test_complete_state;
+    use api::test_utils::{generate_test_complete_state, generate_test_workload_with_param};
 
     use mockall::predicate;
     use std::collections::BTreeSet;

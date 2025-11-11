@@ -20,12 +20,11 @@ mod server_state;
 
 use api::ank_base;
 use api::ank_base::{
-    DeletedWorkload, ExecutionStateInternal, StateInternal, WorkloadInstanceNameInternal,
-    WorkloadStateInternal, WorkloadStatesMapInternal,
+    CompleteStateInternal, DeletedWorkload, ExecutionStateInternal, StateInternal,
+    WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadStatesMapInternal,
 };
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
-use common::objects::CompleteState;
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -78,7 +77,10 @@ impl AnkaiosServer {
         }
     }
 
-    pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
+    pub async fn start(
+        &mut self,
+        startup_state: Option<CompleteStateInternal>,
+    ) -> Result<(), String> {
         if let Some(state) = startup_state {
             StateInternal::verify_api_version(&state.desired_state)?;
 
@@ -571,9 +573,10 @@ mod tests {
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
     use api::ank_base::{
-        CpuUsageInternal, DeletedWorkload, ExecutionStateEnumInternal, ExecutionStateInternal,
-        FreeMemoryInternal, LogsStopResponse, Pending as PendingSubstate, StateInternal, Workload,
-        WorkloadInternal, WorkloadMap, WorkloadMapInternal, WorkloadNamed, WorkloadStateInternal,
+        CompleteStateInternal, CpuUsageInternal, DeletedWorkload, ExecutionStateEnumInternal,
+        ExecutionStateInternal, FreeMemoryInternal, LogsStopResponse, Pending as PendingSubstate,
+        StateInternal, Workload, WorkloadInternal, WorkloadMap, WorkloadMapInternal, WorkloadNamed,
+        WorkloadStateInternal,
     };
     use api::test_utils::{
         generate_test_workload, generate_test_workload_state,
@@ -585,7 +588,6 @@ mod tests {
         UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
-    use common::objects::CompleteState;
     use common::to_server_interface::ToServerInterface;
 
     use mockall::predicate;
@@ -617,7 +619,7 @@ mod tests {
         // contains a self cycle to workload_A
         let workload: WorkloadInternal = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
 
-        let startup_state = CompleteState {
+        let startup_state = CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
                     workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
@@ -659,7 +661,7 @@ mod tests {
         let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let startup_state = CompleteState {
+        let startup_state = CompleteStateInternal {
             desired_state: StateInternal {
                 api_version: "invalidVersion".into(),
                 ..Default::default()
@@ -689,7 +691,7 @@ mod tests {
             generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
                 .name(WORKLOAD_NAME_1);
 
-        let new_state = CompleteState {
+        let new_state = CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
                     workloads: HashMap::from([(
@@ -814,7 +816,7 @@ mod tests {
         let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_A.to_string(), RUNTIME_NAME.to_string());
 
-        let startup_state = CompleteState {
+        let startup_state = CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
                     workloads: HashMap::from([(
@@ -1045,7 +1047,7 @@ mod tests {
             .name(WORKLOAD_NAME_1);
         w1.workload.runtime_config = "changed".to_string();
 
-        let update_state = CompleteState {
+        let update_state = CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
                     workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]),
@@ -1129,7 +1131,7 @@ mod tests {
             .name(WORKLOAD_NAME_1);
         w1.workload.runtime_config = "changed".to_string();
 
-        let update_state = CompleteState {
+        let update_state = CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
                     workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]),
@@ -1194,7 +1196,7 @@ mod tests {
 
         let w1: WorkloadInternal = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
 
-        let update_state = CompleteState {
+        let update_state = CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
                     workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.clone())]),
@@ -1787,7 +1789,7 @@ mod tests {
             .agent_name(w1.instance_name.agent_name())
             .config(&String::from("changed"))
             .build();
-        let update_state = CompleteState {
+        let update_state = CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
                     workloads: HashMap::from([(
@@ -2010,7 +2012,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let update_state = CompleteState {
+        let update_state = CompleteStateInternal {
             desired_state: StateInternal {
                 api_version: "incompatible_version".to_string(),
                 ..Default::default()
@@ -2057,7 +2059,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut update_state_ankaios_no_version: CompleteState = CompleteState {
+        let mut update_state_ankaios_no_version: CompleteStateInternal = CompleteStateInternal {
             ..Default::default()
         };
         update_state_ankaios_no_version.desired_state.api_version = "".to_string();
@@ -2144,7 +2146,7 @@ mod tests {
             generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
                 .name(WORKLOAD_NAME_2);
 
-        let update_state = CompleteState::default();
+        let update_state = CompleteStateInternal::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
 
         let deleted_workload_without_agent = DeletedWorkload {
@@ -2232,7 +2234,7 @@ mod tests {
             generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
                 .name(WORKLOAD_NAME_2);
 
-        let update_state = CompleteState::default();
+        let update_state = CompleteStateInternal::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
 
         let deleted_workload_with_agent = DeletedWorkload {

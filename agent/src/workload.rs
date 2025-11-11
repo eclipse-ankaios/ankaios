@@ -248,13 +248,11 @@ mod tests {
     };
 
     use api::ank_base::{
-        self, Response, WorkloadInternal, WorkloadNamed, response::ResponseContent,
+        self, CompleteStateInternal, Response, WorkloadInternal, WorkloadNamed,
+        response::ResponseContent,
     };
-    use api::test_utils::generate_test_workload_with_param;
-    use common::{
-        from_server_interface::FromServer, objects::CompleteState,
-        test_utils::generate_test_complete_state,
-    };
+    use api::test_utils::{generate_test_complete_state, generate_test_workload_with_param};
+    use common::from_server_interface::FromServer;
 
     use std::path::PathBuf;
     use std::time::Duration;
@@ -672,7 +670,7 @@ mod tests {
             workload_command_sender,
             Some(control_interface_mock),
         );
-        let complete_state = CompleteState::default();
+        let complete_state = CompleteStateInternal::default();
 
         assert!(matches!(
             test_workload
@@ -698,7 +696,7 @@ mod tests {
 
         let mut test_workload =
             Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
-        let complete_state = CompleteState::default();
+        let complete_state = CompleteStateInternal::default();
 
         assert!(matches!(
             test_workload

@@ -23,13 +23,13 @@ mod grpc_tests {
         time::Duration,
     };
 
+    use api::ank_base::CompleteStateInternal;
     use common::{
         commands::{self, CompleteStateRequest, Request, RequestContent},
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
         communications_server::CommunicationsServer,
         from_server_interface::{FromServer, FromServerSender},
-        objects::CompleteState,
         to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender},
     };
     use grpc::{
@@ -404,7 +404,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let update_state_result = to_grpc_client
             .update_state(
                 test_request_id.to_owned(),
-                CompleteState {
+                CompleteStateInternal {
                     ..Default::default()
                 },
                 vec![],

@@ -12,11 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::WorkloadInternal;
-use common::{
-    objects::CompleteState,
-    state_manipulation::{Object, Path},
-};
+use api::ank_base::{CompleteStateInternal, WorkloadInternal};
+use common::state_manipulation::{Object, Path};
 use std::io::{self, Read};
 
 #[cfg(not(test))]
@@ -29,8 +26,8 @@ use tests::read_to_string_mock as read_file_to_string;
 
 use super::CliCommands;
 
-fn create_state_with_default_workload_specs(update_mask: &[String]) -> CompleteState {
-    let mut complete_state = CompleteState::default();
+fn create_state_with_default_workload_specs(update_mask: &[String]) -> CompleteStateInternal {
+    let mut complete_state = CompleteStateInternal::default();
     const WORKLOAD_ATTRIBUTE_LEVEL: usize = 4;
     let workload_level_mask_parts = ["desiredState".to_string(), "workloads".to_string()];
     const WORKLOAD_NAME_POSITION: usize = 2;
@@ -154,8 +151,11 @@ mod tests {
         cli_commands::server_connection::MockServerConnection,
         filtered_complete_state::FilteredCompleteState,
     };
-    use api::ank_base::{RestartPolicy, StateInternal, UpdateStateSuccess, WorkloadMapInternal};
-    use common::{objects::CompleteState, state_manipulation::Object};
+    use api::ank_base::{
+        CompleteStateInternal, RestartPolicy, StateInternal, UpdateStateSuccess,
+        WorkloadMapInternal,
+    };
+    use common::state_manipulation::Object;
     use mockall::predicate::eq;
     use serde_yaml::Value;
     use std::{collections::HashMap, io::Cursor};
@@ -240,7 +240,7 @@ mod tests {
     #[test]
     fn utest_overwrite_using_field_mask() {
         let workload_spec = WorkloadInternal::default();
-        let mut complete_state = CompleteState {
+        let mut complete_state = CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
                     workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
@@ -329,7 +329,7 @@ mod tests {
             restart_policy: RestartPolicy::Always,
             ..Default::default()
         };
-        let updated_state = CompleteState {
+        let updated_state = CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
                     workloads: HashMap::from([("nginx".to_string(), workload_spec)]),

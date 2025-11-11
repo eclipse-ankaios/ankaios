@@ -16,8 +16,5 @@
 
 // [impl->swdd~common-conversions-between-ankaios-and-proto~1]
 
-mod complete_state;
-pub use complete_state::CompleteState;
-
 mod agent_name;
 pub use agent_name::AgentName;

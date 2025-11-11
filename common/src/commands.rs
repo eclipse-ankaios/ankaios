@@ -12,10 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::objects::CompleteState;
 use api::ank_base::{
-    self, CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, WorkloadInstanceNameInternal,
-    WorkloadNamed, WorkloadStateInternal,
+    self, CompleteStateInternal, CpuUsageInternal, DeletedWorkload, FreeMemoryInternal,
+    WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
 };
 use serde::{Deserialize, Serialize};
 
@@ -205,7 +204,7 @@ impl From<ank_base::CompleteStateRequest> for CompleteStateRequest {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UpdateStateRequest {
-    pub state: CompleteState,
+    pub state: CompleteStateInternal,
     pub update_mask: Vec<String>,
 }
 
@@ -278,17 +277,14 @@ mod tests {
     }
 
     mod ankaios {
-        pub use crate::{
-            commands::{
-                CompleteStateRequest, LogsCancelRequest, LogsRequest, Request, RequestContent,
-                UpdateStateRequest,
-            },
-            objects::CompleteState,
+        pub use crate::commands::{
+            CompleteStateRequest, LogsCancelRequest, LogsRequest, Request, RequestContent,
+            UpdateStateRequest,
         };
         pub use api::ank_base::{
-            ConfigMappingsInternal, ExecutionStateInternal, FileContentInternal, FileInternal,
-            FilesInternal, RestartPolicy, StateInternal, TagsInternal,
-            WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal,
+            CompleteStateInternal, ConfigMappingsInternal, ExecutionStateInternal,
+            FileContentInternal, FileInternal, FilesInternal, RestartPolicy, StateInternal,
+            TagsInternal, WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal,
         };
         pub use api::test_utils::{
             generate_test_agent_map, generate_test_workload_states_map_with_data,
@@ -414,23 +410,6 @@ mod tests {
     }
 
     macro_rules! complete_state {
-        (ankaios) => {
-            ankaios::CompleteState {
-                desired_state: ankaios::StateInternal {
-                    api_version: CURRENT_API_VERSION.into(),
-                    workloads: ankaios::WorkloadMapInternal {
-                        workloads: HashMap::from([(
-                            "workload_name".to_string(),
-                            workload!(ankaios),
-                        )]),
-                    },
-                    configs: Default::default(),
-                }
-                .into(),
-                workload_states: workload_states_map!(ankaios),
-                agents: agent_map!(ankaios),
-            }
-        };
         (ank_base) => {
             ank_base::CompleteState {
                 desired_state: Some(ank_base::State {
@@ -445,6 +424,23 @@ mod tests {
                 }),
                 workload_states: workload_states_map!(ank_base),
                 agents: agent_map!(ank_base),
+            }
+        };
+        (ankaios) => {
+            ankaios::CompleteStateInternal {
+                desired_state: ankaios::StateInternal {
+                    api_version: CURRENT_API_VERSION.into(),
+                    workloads: ankaios::WorkloadMapInternal {
+                        workloads: HashMap::from([(
+                            "workload_name".to_string(),
+                            workload!(ankaios),
+                        )]),
+                    },
+                    configs: Default::default(),
+                }
+                .into(),
+                workload_states: workload_states_map!(ankaios),
+                agents: agent_map!(ankaios),
             }
         };
     }
@@ -522,14 +518,6 @@ mod tests {
     }
 
     macro_rules! workload_states_map {
-        (ankaios) => {{
-            ankaios::generate_test_workload_states_map_with_data(
-                AGENT_NAME,
-                WORKLOAD_NAME_1,
-                HASH,
-                ankaios::ExecutionStateInternal::running(),
-            )
-        }};
         (ank_base) => {
             Some(
                 ankaios::generate_test_workload_states_map_with_data(
@@ -541,13 +529,21 @@ mod tests {
                 .into(),
             )
         };
+        (ankaios) => {{
+            ankaios::generate_test_workload_states_map_with_data(
+                AGENT_NAME,
+                WORKLOAD_NAME_1,
+                HASH,
+                ankaios::ExecutionStateInternal::running(),
+            )
+        }};
     }
 
     macro_rules! agent_map {
-        (ankaios) => {{ ankaios::generate_test_agent_map(AGENT_NAME) }};
         (ank_base) => {
             Some(ankaios::generate_test_agent_map(AGENT_NAME).into())
         };
+        (ankaios) => {{ ankaios::generate_test_agent_map(AGENT_NAME) }};
     }
 
     #[test]
@@ -593,7 +589,8 @@ mod tests {
                 }),
                 configs: Some(Default::default()),
             }),
-            ..Default::default()
+            workload_states: Some(Default::default()),
+            agents: Some(Default::default()),
         });
 
         let ankaios::RequestContent::UpdateStateRequest(ankaios_request_content) =
@@ -601,7 +598,7 @@ mod tests {
         else {
             unreachable!()
         };
-        ankaios_request_content.state = ankaios::CompleteState {
+        ankaios_request_content.state = ankaios::CompleteStateInternal {
             ..Default::default()
         };
 

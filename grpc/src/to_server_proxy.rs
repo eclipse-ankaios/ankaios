@@ -309,10 +309,12 @@ mod tests {
         self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogEntriesResponse,
         LogEntry, LogsStopResponse, WorkloadInstanceName, WorkloadNamed,
     };
-    use api::test_utils::{generate_test_workload, generate_test_workload_state_with_agent};
+    use api::test_utils::{
+        generate_test_complete_state, generate_test_workload,
+        generate_test_workload_state_with_agent,
+    };
 
     use async_trait::async_trait;
-    use common::test_utils::generate_test_complete_state;
     use common::to_server_interface::{ToServer, ToServerInterface};
     use std::collections::LinkedList;
     use tokio::sync::mpsc;

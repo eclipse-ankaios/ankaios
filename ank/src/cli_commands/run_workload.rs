@@ -15,8 +15,7 @@
 use super::CliCommands;
 use crate::{cli_error::CliError, output_debug};
 
-use api::ank_base::{TagsInternal, WorkloadInternal};
-use common::objects::CompleteState;
+use api::ank_base::{CompleteStateInternal, TagsInternal, WorkloadInternal};
 
 use std::collections::HashMap;
 
@@ -46,7 +45,7 @@ impl CliCommands {
 
         let update_mask = vec![format!("desiredState.workloads.{}", workload_name)];
 
-        let mut complete_state_update = CompleteState::default();
+        let mut complete_state_update = CompleteStateInternal::default();
         complete_state_update
             .desired_state
             .workloads
@@ -73,12 +72,10 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use api::ank_base::{
-        self, ExecutionStateInternal, TagsInternal, UpdateStateSuccess, WorkloadInternal,
-        WorkloadStateInternal,
+        self, CompleteStateInternal, ExecutionStateInternal, TagsInternal, UpdateStateSuccess,
+        WorkloadInternal, WorkloadStateInternal,
     };
-    use common::{
-        commands::UpdateWorkloadState, from_server_interface::FromServer, objects::CompleteState,
-    };
+    use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
     use mockall::predicate::eq;
     use std::collections::HashMap;
 
@@ -116,7 +113,7 @@ mod tests {
             configs: Default::default(),
             files: Default::default(),
         };
-        let mut complete_state_update = CompleteState::default();
+        let mut complete_state_update = CompleteStateInternal::default();
         complete_state_update
             .desired_state
             .workloads

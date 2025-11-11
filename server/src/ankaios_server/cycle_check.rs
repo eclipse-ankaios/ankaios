@@ -115,8 +115,7 @@ pub fn dfs(state: &StateInternal, start_nodes: Option<Vec<&str>>) -> Option<Stri
 mod tests {
     use super::*;
     use api::ank_base::{AddCondition, WorkloadInternal};
-    use api::test_utils::generate_test_workload_with_param;
-    use common::test_utils::generate_test_complete_state;
+    use api::test_utils::{generate_test_complete_state, generate_test_workload_with_param};
     use std::{collections::HashSet, ops::Deref};
 
     const AGENT_NAME: &str = "agent_A";

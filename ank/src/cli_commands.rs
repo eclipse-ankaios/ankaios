@@ -41,11 +41,11 @@ mod run_workload;
 mod set_state;
 
 use api::ank_base::{
-    WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadStatesMapInternal,
+    CompleteStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
+    WorkloadStatesMapInternal,
 };
 use common::{
     communications_error::CommunicationMiddlewareError, from_server_interface::FromServer,
-    objects::CompleteState,
 };
 
 use wait_list_display::WaitListDisplay;
@@ -236,7 +236,7 @@ impl CliCommands {
     // [impl->swdd~cli-requests-update-state-with-watch~2]
     async fn update_state_and_wait_for_complete(
         &mut self,
-        new_state: CompleteState,
+        new_state: CompleteStateInternal,
         update_mask: Vec<String>,
     ) -> Result<(), CliError> {
         /* to keep track of deleted not initially started workloads in the wait mode

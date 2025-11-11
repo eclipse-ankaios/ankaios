@@ -283,6 +283,7 @@ pub fn generate_test_workload_states_map_with_data(
     id: impl Into<String>,
     exec_state: ExecutionStateInternal,
 ) -> WorkloadStatesMapInternal {
+    println!("Generating test workload states map with data");
     let mut wl_states_map = WorkloadStatesMapInternal::new();
 
     wl_states_map

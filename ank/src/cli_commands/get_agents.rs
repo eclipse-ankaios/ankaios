@@ -11,6 +11,7 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+
 use super::CliCommands;
 use crate::{
     cli_commands::{agent_table_row::AgentTableRow, cli_table::CliTable},
@@ -95,9 +96,9 @@ mod tests {
     use api::ank_base::{self, AgentMapInternal, ExecutionStateInternal, WorkloadNamed};
     use api::test_utils::{
         generate_test_agent_map, generate_test_agent_map_from_workloads,
-        generate_test_workload_states_map_with_data, generate_test_workload_with_param,
+        generate_test_complete_state, generate_test_workload_states_map_with_data,
+        generate_test_workload_with_param,
     };
-    use common::test_utils::generate_test_complete_state;
     use mockall::predicate::eq;
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;

@@ -12,17 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::CompleteState;
-
+use super::CliCommands;
 use crate::{cli_commands::DESIRED_STATE_WORKLOADS, cli_error::CliError, output_debug};
 
-use super::CliCommands;
+use api::ank_base::CompleteStateInternal;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
-        let complete_state_update = CompleteState::default();
+        let complete_state_update = CompleteStateInternal::default();
 
         let update_mask = workload_names
             .into_iter()
@@ -56,10 +55,11 @@ mod tests {
         filtered_complete_state::FilteredCompleteState,
     };
 
-    use api::ank_base::{self, ExecutionStateInternal, UpdateStateSuccess, WorkloadStateInternal};
-    use common::{
-        commands::UpdateWorkloadState, from_server_interface::FromServer, objects::CompleteState,
+    use api::ank_base::{
+        self, CompleteStateInternal, ExecutionStateInternal, UpdateStateSuccess,
+        WorkloadStateInternal,
     };
+    use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
 
     use mockall::predicate::eq;
 
@@ -74,7 +74,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state_update = CompleteState::default();
+        let complete_state_update = CompleteStateInternal::default();
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
@@ -141,7 +141,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state_update = CompleteState::default();
+        let complete_state_update = CompleteStateInternal::default();
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection

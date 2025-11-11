@@ -222,15 +222,15 @@ mod tests {
         workload_table_row::WorkloadTableRow,
     };
 
-    use api::ank_base::{self, ExecutionStateInternal, WorkloadNamed, WorkloadStateInternal};
+    use api::ank_base::{
+        CompleteState, CompleteStateInternal, ExecutionStateInternal, WorkloadNamed,
+        WorkloadStateInternal,
+    };
     use api::test_utils::{
-        generate_test_workload_states_map_with_data, generate_test_workload_with_param,
+        generate_test_complete_state, generate_test_workload_states_map_with_data,
+        generate_test_workload_with_param,
     };
-    use common::{
-        commands::UpdateWorkloadState,
-        objects::{self},
-        test_utils,
-    };
+    use common::commands::UpdateWorkloadState;
 
     use mockall::{Sequence, predicate::eq};
     use std::collections::BTreeMap;
@@ -244,14 +244,9 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| {
-                Ok(
-                    (ank_base::CompleteState::from(test_utils::generate_test_complete_state(
-                        vec![],
-                    )))
-                    .into(),
-                )
-            });
+            .return_once(
+                |_| Ok((CompleteState::from(generate_test_complete_state(vec![]))).into()),
+            );
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -275,7 +270,7 @@ mod tests {
     // [utest->swdd~cli-shall-sort-list-of-workloads~1]
     #[tokio::test]
     async fn utest_get_workloads_no_filtering() {
-        let test_data = test_utils::generate_test_complete_state(vec![
+        let test_data = generate_test_complete_state(vec![
             generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
             generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
             generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
@@ -285,7 +280,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok((ank_base::CompleteState::from(test_data)).into()));
+            .return_once(|_| Ok((CompleteState::from(test_data)).into()));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
@@ -310,7 +305,7 @@ mod tests {
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
     #[tokio::test]
     async fn utest_get_workloads_filter_workload_name() {
-        let test_data = test_utils::generate_test_complete_state(vec![
+        let test_data = generate_test_complete_state(vec![
             generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
             generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
             generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
@@ -320,7 +315,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok((ank_base::CompleteState::from(test_data)).into()));
+            .return_once(|_| Ok((CompleteState::from(test_data)).into()));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -344,7 +339,7 @@ mod tests {
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
     #[tokio::test]
     async fn utest_get_workloads_filter_agent() {
-        let test_data = test_utils::generate_test_complete_state(vec![
+        let test_data = generate_test_complete_state(vec![
             generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
             generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
             generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
@@ -354,7 +349,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok((ank_base::CompleteState::from(test_data)).into()));
+            .return_once(|_| Ok((CompleteState::from(test_data)).into()));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -378,7 +373,7 @@ mod tests {
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
     #[tokio::test]
     async fn utest_get_workloads_filter_state() {
-        let test_data = test_utils::generate_test_complete_state(vec![
+        let test_data = generate_test_complete_state(vec![
             generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
             generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
             generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
@@ -388,7 +383,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok((ank_base::CompleteState::from(test_data)).into()));
+            .return_once(|_| Ok((CompleteState::from(test_data)).into()));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -408,7 +403,7 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[tokio::test]
     async fn utest_get_workloads_deleted_workload() {
-        let test_data = objects::CompleteState {
+        let test_data = CompleteStateInternal {
             workload_states: generate_test_workload_states_map_with_data(
                 "agent_A",
                 "Workload_1",
@@ -422,7 +417,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok((ank_base::CompleteState::from(test_data)).into()));
+            .return_once(|_| Ok((CompleteState::from(test_data)).into()));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -474,9 +469,8 @@ mod tests {
             generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name2");
         let initial_key = initial_wl.instance_name.to_string();
 
-        let initial_state = test_utils::generate_test_complete_state(vec![initial_wl.clone()]);
-        let updated_state =
-            test_utils::generate_test_complete_state(vec![initial_wl.clone(), new_wl.clone()]);
+        let initial_state = generate_test_complete_state(vec![initial_wl.clone()]);
+        let updated_state = generate_test_complete_state(vec![initial_wl.clone(), new_wl.clone()]);
 
         let new_workload = WorkloadStateInternal {
             instance_name: new_wl.clone().instance_name,
@@ -494,7 +488,7 @@ mod tests {
             .with(eq(vec![]))
             .times(1)
             .in_sequence(&mut seq)
-            .return_once(move |_| Ok((ank_base::CompleteState::from(initial_state)).into()));
+            .return_once(move |_| Ok((CompleteState::from(initial_state)).into()));
 
         mock_server
             .expect_read_next_update_workload_state()
@@ -512,7 +506,7 @@ mod tests {
             .with(eq(vec![]))
             .times(1)
             .in_sequence(&mut seq)
-            .return_once(move |_| Ok((ank_base::CompleteState::from(updated_state)).into()));
+            .return_once(move |_| Ok((CompleteState::from(updated_state)).into()));
 
         mock_server
             .expect_read_next_update_workload_state()
