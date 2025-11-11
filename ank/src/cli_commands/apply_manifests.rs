@@ -16,9 +16,8 @@ use super::{CliCommands, InputSourcePair};
 use crate::cli_error::CliError;
 use crate::output;
 use crate::{cli::ApplyArgs, output_debug};
-use api::ank_base::{ALLOWED_SYMBOLS, CompleteStateInternal, StateInternal};
+use api::ank_base::{ALLOWED_SYMBOLS, CompleteStateInternal, StateInternal, validate_tags};
 use api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
-use common::helpers::validate_tags;
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
 

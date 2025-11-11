@@ -19,9 +19,7 @@ mod server_config;
 use std::fs;
 use std::path::PathBuf;
 
-use api::ank_base::{CompleteStateInternal, StateInternal};
-
-use common::helpers::validate_tags;
+use api::ank_base::{CompleteStateInternal, StateInternal, validate_tags};
 
 use common::communications_server::CommunicationsServer;
 use common::std_extensions::GracefulExitResult;

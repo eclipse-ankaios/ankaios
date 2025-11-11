@@ -59,11 +59,7 @@ impl From<common::commands::AgentLoadStatus> for AgentLoadStatus {
 impl From<commands::UpdateWorkloadState> for UpdateWorkloadState {
     fn from(item: commands::UpdateWorkloadState) -> Self {
         UpdateWorkloadState {
-            workload_states: item
-                .workload_states
-                .into_iter()
-                .map(|x| x.into())
-                .collect(),
+            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
         }
     }
 }
@@ -184,15 +180,13 @@ pub fn generate_test_failed_update_workload_state(
 
 #[cfg(test)]
 mod tests {
-    // use crate::AddedWorkload;
-    // use api::ank_base::{WorkloadInternal, WorkloadNamed};
-    // use api::test_utils::{generate_test_workload, generate_test_workload_files};
-    // use std::collections::HashMap;
+    use crate::{AddedWorkload, DeletedWorkload, generate_test_proto_deleted_workload};
 
-    use crate::{DeletedWorkload, generate_test_proto_deleted_workload};
-
-    use api::ank_base::{self, ConfigHash, ExecutionStateInternal, WorkloadStateInternal};
-    use api::test_utils::generate_test_deleted_workload;
+    use api::ank_base::{
+        self, ConfigHash, ExecutionStateInternal, WorkloadNamed, WorkloadStateInternal,
+    };
+    use api::test_utils::{generate_test_deleted_workload, generate_test_workload};
+    use std::collections::HashMap;
 
     mod ankaios {
         pub use common::commands::*;
@@ -230,147 +224,54 @@ mod tests {
         assert!(ank_base::DeletedWorkload::try_from(proto_workload).is_err());
     }
 
-    // TODO #313 Check if the following test is still needed
-    // #[test]
-    // fn utest_converts_to_proto_added_workload() {
-    //     let mut workload_spec = generate_test_workload();
-    //     workload_spec.files = generate_test_workload_files();
+    #[test]
+    fn utest_converts_to_proto_added_workload() {
+        let workload: WorkloadNamed = generate_test_workload();
 
-    //     let proto_workload = AddedWorkload {
-    //         instance_name: Some(ank_base::WorkloadInstanceName {
-    //             workload_name: "name".to_string(),
-    //             agent_name: "agent".to_string(),
-    //             id: workload_spec.runtime_config.hash_config(),
-    //         }),
-    //         dependencies: HashMap::from([
-    //             (
-    //                 String::from("workload_A"),
-    //                 ank_base::AddCondition::AddCondRunning.into(),
-    //             ),
-    //             (
-    //                 String::from("workload_C"),
-    //                 ank_base::AddCondition::AddCondSucceeded.into(),
-    //             ),
-    //         ]),
-    //         restart_policy: ank_base::RestartPolicy::Always.into(),
-    //         runtime: String::from("runtime"),
-    //         runtime_config: workload_spec.runtime_config.clone(),
-    //         tags: HashMap::from([("key".into(), "value".into())]),
-    //         control_interface_access: Some(Default::default()),
-    //         files: vec![
-    //             ank_base::File {
-    //                 mount_point: "/file.json".into(),
-    //                 file_content: Some(ank_base::file::FileContent::Data("text data".into())),
-    //             },
-    //             ank_base::File {
-    //                 mount_point: "/binary_file".into(),
-    //                 file_content: Some(ank_base::file::FileContent::BinaryData(
-    //                     "base64_data".into(),
-    //                 )),
-    //             },
-    //         ],
-    //     };
+        let proto_workload = AddedWorkload {
+            instance_name: Some(workload.instance_name.clone().into()),
+            workload: Some(generate_test_workload()),
+        };
 
-    //     assert_eq!(AddedWorkload::from(workload_spec), proto_workload);
-    // }
+        assert_eq!(AddedWorkload::from(workload), proto_workload);
+    }
 
-    // TODO #313 Check if the following test is still needed
-    // #[test]
-    // fn utest_converts_to_ankaios_added_workload() {
-    //     let agent_name = "agent";
-    //     let ank_workload = WorkloadInternal {
-    //         agent: agent_name.to_string(),
-    //         dependencies: HashMap::from([
-    //             (
-    //                 String::from("workload_A"),
-    //                 ank_base::AddCondition::AddCondRunning,
-    //             ),
-    //             (
-    //                 String::from("workload_C"),
-    //                 ank_base::AddCondition::AddCondSucceeded,
-    //             ),
-    //         ])
-    //         .into(),
-    //         restart_policy: ank_base::RestartPolicy::Always,
-    //         runtime: String::from("runtime"),
-    //         instance_name: api::ank_base::WorkloadInstanceNameInternal::builder()
-    //             .agent_name(agent_name)
-    //             .workload_name("name")
-    //             .build(),
-    //         tags: Default::default(),
-    //         runtime_config: String::from("some config"),
-    //         control_interface_access: Default::default(),
-    //         files: generate_test_workload_files(),
-    //         configs: Default::default(),
-    //     };
+    #[test]
+    fn utest_converts_to_ankaios_added_workload() {
+        let workload: WorkloadNamed = generate_test_workload();
 
-    //     let proto_workload = AddedWorkload {
-    //         instance_name: Some(ank_base::WorkloadInstanceName {
-    //             workload_name: "name".to_string(),
-    //             agent_name: "agent".to_string(),
-    //             ..Default::default()
-    //         }),
-    //         dependencies: HashMap::from([
-    //             (
-    //                 String::from("workload_A"),
-    //                 ank_base::AddCondition::AddCondRunning.into(),
-    //             ),
-    //             (
-    //                 String::from("workload_C"),
-    //                 ank_base::AddCondition::AddCondSucceeded.into(),
-    //             ),
-    //         ]),
-    //         restart_policy: ank_base::RestartPolicy::Always.into(),
-    //         runtime: String::from("runtime"),
-    //         runtime_config: String::from("some config"),
-    //         tags: HashMap::new(),
-    //         control_interface_access: Default::default(),
-    //         files: vec![
-    //             ank_base::File {
-    //                 mount_point: "/file.json".into(),
-    //                 file_content: Some(ank_base::file::FileContent::Data("text data".into())),
-    //             },
-    //             ank_base::File {
-    //                 mount_point: "/binary_file".into(),
-    //                 file_content: Some(ank_base::file::FileContent::BinaryData(
-    //                     "base64_data".into(),
-    //                 )),
-    //             },
-    //         ],
-    //     };
+        let proto_workload = AddedWorkload {
+            instance_name: Some(workload.instance_name.clone().into()),
+            workload: Some(generate_test_workload()),
+        };
 
-    //     assert_eq!(WorkloadInternal::try_from(proto_workload), Ok(ank_workload));
-    // }
+        assert_eq!(WorkloadNamed::try_from(proto_workload), Ok(workload));
+    }
 
-    // TODO #313 Check if the following test is still needed
-    // #[test]
-    // fn utest_converts_to_ankaios_added_workload_fails() {
-    //     let proto_workload = AddedWorkload {
-    //         instance_name: Some(ank_base::WorkloadInstanceName {
-    //             workload_name: "name".to_string(),
-    //             ..Default::default()
-    //         }),
-    //         dependencies: HashMap::from([
-    //             (
-    //                 String::from("workload_A"),
-    //                 ank_base::AddCondition::AddCondRunning.into(),
-    //             ),
-    //             (String::from("workload_B"), -1),
-    //             (
-    //                 String::from("workload_C"),
-    //                 ank_base::AddCondition::AddCondSucceeded.into(),
-    //             ),
-    //         ]),
-    //         restart_policy: ank_base::RestartPolicy::Always.into(),
-    //         runtime: String::from("runtime"),
-    //         runtime_config: String::from("some config"),
-    //         tags: HashMap::new(),
-    //         control_interface_access: Default::default(),
-    //         files: Default::default(),
-    //     };
+    #[test]
+    fn utest_converts_to_ankaios_added_workload_fails() {
+        let mut proto_workload = AddedWorkload {
+            instance_name: None,
+            workload: Some(generate_test_workload()),
+        };
+        if let Some(workload) = proto_workload.workload.as_mut() {
+            workload.dependencies = Some(ank_base::Dependencies {
+                dependencies: HashMap::from([
+                    (
+                        String::from("workload_A"),
+                        ank_base::AddCondition::AddCondRunning.into(),
+                    ),
+                    (String::from("workload_B"), -1), // Invalid value for dependency
+                    (
+                        String::from("workload_C"),
+                        ank_base::AddCondition::AddCondSucceeded.into(),
+                    ),
+                ]),
+            })
+        }
 
-    //     assert!(WorkloadInternal::try_from(proto_workload).is_err());
-    // }
+        assert!(WorkloadNamed::try_from(proto_workload).is_err());
+    }
 
     // UpdateWorkloadState tests
     const AGENT_NAME: &str = "agent_1";

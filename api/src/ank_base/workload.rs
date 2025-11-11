@@ -17,8 +17,10 @@ use crate::ank_base::{
     WorkloadInstanceNameInternal, WorkloadInternal,
 };
 use crate::helpers::serialize_to_ordered_map;
+use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use serde_yaml::Value;
 use std::collections::HashMap;
 
 const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
@@ -226,6 +228,32 @@ impl std::fmt::Display for RestartPolicy {
             RestartPolicy::Always => write!(f, "Always"),
         }
     }
+}
+
+pub fn validate_tags(
+    api_version: &str,
+    tags_value: &Value,
+    workload_name: &str,
+) -> Result<(), String> {
+    match api_version {
+        CURRENT_API_VERSION => {
+            if !tags_value.is_mapping() {
+                return Err(format!(
+                    "For API version '{CURRENT_API_VERSION}', tags must be specified as a mapping (key-value pairs). Found tags as sequence for workload '{workload_name}'.",
+                ));
+            }
+        }
+        PREVIOUS_API_VERSION => {
+            if !tags_value.is_sequence() {
+                return Err(format!(
+                    "For API version '{PREVIOUS_API_VERSION}', tags must be specified as a sequence (list of key-value entries). Found tags as mapping for workload '{workload_name}'.",
+                ));
+            }
+        }
+        _ => {}
+    }
+
+    Ok(())
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -606,8 +634,7 @@ mod tests {
 
         // TODO #313 check the test if it's still needed
         assert_eq!(
-            // workload_with_wrong_name.workload.verify_fields_format(),
-            verify_workload_name_format(workload_with_wrong_name.instance_name.workload_name()),
+            workload_with_wrong_name.verify_fields_format(),
             Err(format!(
                 "Unsupported workload name '{}'. Expected to have characters in {}.",
                 workload_with_wrong_name.instance_name.workload_name(),

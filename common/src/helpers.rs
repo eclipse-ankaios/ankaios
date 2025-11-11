@@ -13,10 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{ANKAIOS_VERSION, std_extensions::IllegalStateResult};
-use api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 
 use semver::Version;
-use serde_yaml::Value;
 
 // [impl->swdd~common-helper-methods~1]
 pub fn try_into_vec<S, T, E>(input: Vec<S>) -> Result<Vec<T>, E>
@@ -51,34 +49,6 @@ pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), Strin
         "Unsupported protocol version '{}'. Currently supported '{supported_version}'",
         version.as_ref()
     ))
-}
-
-// TODO #313 Move validate_tags to api crate
-// [impl->swdd~common-helper-methods~1]
-pub fn validate_tags(
-    api_version: &str,
-    tags_value: &Value,
-    workload_name: &str,
-) -> Result<(), String> {
-    match api_version {
-        CURRENT_API_VERSION => {
-            if !tags_value.is_mapping() {
-                return Err(format!(
-                    "For API version '{CURRENT_API_VERSION}', tags must be specified as a mapping (key-value pairs). Found tags as sequence for workload '{workload_name}'.",
-                ));
-            }
-        }
-        PREVIOUS_API_VERSION => {
-            if !tags_value.is_sequence() {
-                return Err(format!(
-                    "For API version '{PREVIOUS_API_VERSION}', tags must be specified as a sequence (list of key-value entries). Found tags as mapping for workload '{workload_name}'.",
-                ));
-            }
-        }
-        _ => {}
-    }
-
-    Ok(())
 }
 
 //////////////////////////////////////////////////////////////////////////////
