@@ -1931,4 +1931,450 @@ mod tests {
 
         checker.check_communication();
     }
+
+    #[tokio::test]
+    async fn utest_subscribe_and_listen_for_events_success() {
+        let field_mask = vec!["desiredState.workloads".to_string()];
+
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: field_mask.clone(),
+                subscribe_for_events: true,
+            }),
+        );
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .subscribe_and_listen_for_events(field_mask)
+            .await;
+
+        assert!(result.is_ok());
+        let subscription = result.unwrap();
+        assert!(!subscription.initial_response_received);
+        assert!(!subscription.request_id.is_empty());
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_subscribe_and_listen_for_events_empty_field_mask() {
+        let field_mask = vec![];
+
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: field_mask.clone(),
+                subscribe_for_events: true,
+            }),
+        );
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .subscribe_and_listen_for_events(field_mask)
+            .await;
+
+        assert!(result.is_ok());
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_subscribe_and_listen_for_events_fails_channel_closed() {
+        let field_mask = vec!["desiredState.workloads".to_string()];
+
+        let sim = CommunicationSimulator::default();
+        let (_, mut server_connection) = sim.create_server_connection();
+
+        let (to_server, _) = tokio::sync::mpsc::channel(1);
+        server_connection.to_server = to_server;
+
+        let result = server_connection
+            .subscribe_and_listen_for_events(field_mask)
+            .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_receive_next_event_initial_state_then_event() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let mut sim = CommunicationSimulator::default();
+
+        sim.will_send_message(FromServer::Response(ank_base::Response {
+            request_id: REQUEST.to_string(),
+            response_content: Some(test_utils::generate_test_complete_state_response(&[(
+                WORKLOAD_NAME_1,
+                ank_base::Workload {
+                    agent: Some(AGENT_A.to_string()),
+                    runtime: Some(RUNTIME.to_string()),
+                    tags: Some(ank_base::Tags { tags: vec![] }),
+                    dependencies: Some(ank_base::Dependencies {
+                        dependencies: HashMap::new(),
+                    }),
+                    restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                    runtime_config: Some(String::default()),
+                    control_interface_access: None,
+                    configs: Some(ank_base::ConfigMappings {
+                        configs: [
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
+                        ]
+                        .into(),
+                    }),
+                    files: Some(generate_test_proto_workload_files()),
+                },
+            )])),
+        }));
+
+        sim.will_send_message(FromServer::Response(ank_base::Response {
+            request_id: REQUEST.to_string(),
+            response_content: Some(test_utils::generate_test_complete_state_response(&[(
+                WORKLOAD_NAME_2,
+                ank_base::Workload {
+                    agent: Some(AGENT_A.to_string()),
+                    runtime: Some(RUNTIME.to_string()),
+                    tags: Some(ank_base::Tags { tags: vec![] }),
+                    dependencies: Some(ank_base::Dependencies {
+                        dependencies: HashMap::new(),
+                    }),
+                    restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                    runtime_config: Some(String::default()),
+                    control_interface_access: None,
+                    configs: Some(ank_base::ConfigMappings {
+                        configs: [
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
+                        ]
+                        .into(),
+                    }),
+                    files: Some(generate_test_proto_workload_files()),
+                },
+            )])),
+        }));
+
+        sim.will_send_message(FromServer::Response(ank_base::Response {
+            request_id: REQUEST.to_string(),
+            response_content: Some(test_utils::generate_test_complete_state_response(&[(
+                "workload_3",
+                ank_base::Workload {
+                    agent: Some(AGENT_A.to_string()),
+                    runtime: Some(RUNTIME.to_string()),
+                    tags: Some(ank_base::Tags { tags: vec![] }),
+                    dependencies: Some(ank_base::Dependencies {
+                        dependencies: HashMap::new(),
+                    }),
+                    restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                    runtime_config: Some(String::default()),
+                    control_interface_access: None,
+                    configs: Some(ank_base::ConfigMappings {
+                        configs: [
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
+                        ]
+                        .into(),
+                    }),
+                    files: Some(generate_test_proto_workload_files()),
+                },
+            )])),
+        }));
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::pending()));
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let mut subscription = super::EventSubscription {
+            request_id: REQUEST.to_string(),
+            initial_response_received: false,
+        };
+
+        let result = server_connection
+            .receive_next_event(&mut subscription)
+            .await;
+        assert!(result.is_ok());
+        assert!(subscription.initial_response_received);
+        assert!(result.unwrap().is_some());
+
+        let result = server_connection
+            .receive_next_event(&mut subscription)
+            .await;
+        assert!(result.is_ok());
+        let event = result.unwrap();
+        assert!(event.is_some());
+
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_receive_next_event_signal_interruption() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let sim = CommunicationSimulator::default();
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::ready(())));
+
+        let (_, mut server_connection) = sim.create_server_connection();
+
+        let mut subscription = super::EventSubscription {
+            request_id: REQUEST.to_string(),
+            initial_response_received: true,
+        };
+
+        let result = server_connection
+            .receive_next_event(&mut subscription)
+            .await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn utest_receive_next_event_error_response() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let mut sim = CommunicationSimulator::default();
+        sim.will_send_message(FromServer::Response(ank_base::Response {
+            request_id: REQUEST.to_string(),
+            response_content: Some(ank_base::response::ResponseContent::Error(ank_base::Error {
+                message: "Event subscription error".to_string(),
+            })),
+        }));
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::pending()));
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let mut subscription = super::EventSubscription {
+            request_id: REQUEST.to_string(),
+            initial_response_received: true,
+        };
+
+        let result = server_connection
+            .receive_next_event(&mut subscription)
+            .await;
+
+        assert!(result.is_err());
+        match result {
+            Err(ServerConnectionError::ExecutionError(msg)) => {
+                assert!(msg.contains("Event subscription failed"));
+            }
+            _ => panic!("Expected ExecutionError"),
+        }
+
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_receive_next_event_connection_interrupted() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let sim = CommunicationSimulator::default();
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::pending()));
+
+        let (_, mut server_connection) = sim.create_server_connection();
+
+        server_connection.from_server.close();
+
+        let mut subscription = super::EventSubscription {
+            request_id: REQUEST.to_string(),
+            initial_response_received: true,
+        };
+
+        let result = server_connection
+            .receive_next_event(&mut subscription)
+            .await;
+
+        assert!(result.is_err());
+        match result {
+            Err(ServerConnectionError::ExecutionError(msg)) => {
+                assert!(msg.contains("Connection to server interrupted"));
+            }
+            _ => panic!("Expected ExecutionError"),
+        }
+    }
+
+    #[tokio::test]
+    async fn utest_receive_next_event_ignores_unexpected_messages() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let mut sim = CommunicationSimulator::default();
+
+        sim.will_send_message(FromServer::Response(ank_base::Response {
+            request_id: OTHER_REQUEST.into(),
+            response_content: Some(test_utils::generate_test_complete_state_response(&[(
+                WORKLOAD_NAME_1,
+                ank_base::Workload {
+                    agent: Some(AGENT_A.to_string()),
+                    runtime: Some(RUNTIME.to_string()),
+                    tags: Some(ank_base::Tags { tags: vec![] }),
+                    dependencies: Some(ank_base::Dependencies {
+                        dependencies: HashMap::new(),
+                    }),
+                    restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                    runtime_config: Some(String::default()),
+                    control_interface_access: None,
+                    configs: Some(ank_base::ConfigMappings {
+                        configs: [
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
+                        ]
+                        .into(),
+                    }),
+                    files: Some(generate_test_proto_workload_files()),
+                },
+            )])),
+        }));
+
+        sim.will_send_message(FromServer::Response(ank_base::Response {
+            request_id: REQUEST.to_string(),
+            response_content: Some(test_utils::generate_test_complete_state_response(&[(
+                WORKLOAD_NAME_2,
+                ank_base::Workload {
+                    agent: Some(AGENT_A.to_string()),
+                    runtime: Some(RUNTIME.to_string()),
+                    tags: Some(ank_base::Tags { tags: vec![] }),
+                    dependencies: Some(ank_base::Dependencies {
+                        dependencies: HashMap::new(),
+                    }),
+                    restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                    runtime_config: Some(String::default()),
+                    control_interface_access: None,
+                    configs: Some(ank_base::ConfigMappings {
+                        configs: [
+                            ("ref1".into(), "config_1".into()),
+                            ("ref2".into(), "config_2".into()),
+                        ]
+                        .into(),
+                    }),
+                    files: Some(generate_test_proto_workload_files()),
+                },
+            )])),
+        }));
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::pending()));
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let mut subscription = super::EventSubscription {
+            request_id: REQUEST.to_string(),
+            initial_response_received: true,
+        };
+
+        let result = server_connection
+            .receive_next_event(&mut subscription)
+            .await;
+
+        assert!(result.is_ok());
+        let event = result.unwrap();
+        assert!(event.is_some());
+
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_receive_next_event_multiple_events_in_sequence() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let mut sim = CommunicationSimulator::default();
+
+        sim.will_send_message(FromServer::Response(ank_base::Response {
+            request_id: REQUEST.to_string(),
+            response_content: Some(test_utils::generate_test_complete_state_response(&[(
+                WORKLOAD_NAME_1,
+                ank_base::Workload {
+                    agent: Some(AGENT_A.to_string()),
+                    runtime: Some(RUNTIME.to_string()),
+                    tags: Some(ank_base::Tags { tags: vec![] }),
+                    dependencies: Some(ank_base::Dependencies {
+                        dependencies: HashMap::new(),
+                    }),
+                    restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                    runtime_config: Some(String::default()),
+                    control_interface_access: None,
+                    configs: Some(ank_base::ConfigMappings {
+                        configs: HashMap::new(),
+                    }),
+                    files: Some(generate_test_proto_workload_files()),
+                },
+            )])),
+        }));
+
+        for i in 1..=3 {
+            sim.will_send_message(FromServer::Response(ank_base::Response {
+                request_id: REQUEST.to_string(),
+                response_content: Some(test_utils::generate_test_complete_state_response(&[(
+                    &format!("workload_{}", i),
+                    ank_base::Workload {
+                        agent: Some(AGENT_A.to_string()),
+                        runtime: Some(RUNTIME.to_string()),
+                        tags: Some(ank_base::Tags { tags: vec![] }),
+                        dependencies: Some(ank_base::Dependencies {
+                            dependencies: HashMap::new(),
+                        }),
+                        restart_policy: Some(ank_base::RestartPolicy::Never as i32),
+                        runtime_config: Some(String::default()),
+                        control_interface_access: None,
+                        configs: Some(ank_base::ConfigMappings {
+                            configs: HashMap::new(),
+                        }),
+                        files: Some(generate_test_proto_workload_files()),
+                    },
+                )])),
+            }));
+        }
+
+        let signal_handler_context = MockSignalHandler::wait_for_signals_context();
+        signal_handler_context
+            .expect()
+            .returning(|| Box::pin(std::future::pending()));
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let mut subscription = super::EventSubscription {
+            request_id: REQUEST.to_string(),
+            initial_response_received: false,
+        };
+
+        let result = server_connection
+            .receive_next_event(&mut subscription)
+            .await;
+        assert!(result.is_ok());
+        assert!(subscription.initial_response_received);
+        assert!(result.unwrap().is_some());
+
+        for _ in 1..=2 {
+            let result = server_connection
+                .receive_next_event(&mut subscription)
+                .await;
+            assert!(result.is_ok());
+            assert!(result.unwrap().is_some());
+        }
+
+        checker.check_communication();
+    }
 }

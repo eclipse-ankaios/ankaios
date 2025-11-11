@@ -84,3 +84,377 @@ impl CliCommands {
         Ok(())
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+    use api::ank_base;
+    use common::test_utils;
+    use mockall::predicate::eq;
+
+    use crate::{
+        cli::OutputFormat,
+        cli_commands::{CliCommands, server_connection::MockServerConnection},
+    };
+
+    const RESPONSE_TIMEOUT_MS: u64 = 3000;
+
+    #[tokio::test]
+    async fn utest_get_events_yaml_output() {
+        let field_mask = vec!["desiredState.workloads".to_string()];
+
+        let mut mock_server_connection = MockServerConnection::default();
+
+        mock_server_connection
+            .expect_subscribe_and_listen_for_events()
+            .with(eq(field_mask.clone()))
+            .times(1)
+            .returning(|_| {
+                Ok(crate::cli_commands::server_connection::EventSubscription {
+                    request_id: "test-request-id".to_string(),
+                    initial_response_received: false,
+                })
+            });
+
+        mock_server_connection
+            .expect_receive_next_event()
+            .times(2)
+            .returning(move |_| {
+                static mut CALL_COUNT: usize = 0;
+                unsafe {
+                    CALL_COUNT += 1;
+                    if CALL_COUNT == 1 {
+                        Ok(Some(ank_base::CompleteStateResponse {
+                            complete_state: Some(test_utils::generate_test_proto_complete_state(
+                                &[(
+                                    "test_workload",
+                                    test_utils::generate_test_proto_workload_with_param(
+                                        "agent_A", "runtime",
+                                    ),
+                                )],
+                            )),
+                            altered_fields: Some(ank_base::AlteredFields {
+                                added_fields: vec![
+                                    "desiredState.workloads.test_workload".to_string(),
+                                ],
+                                updated_fields: vec![],
+                                removed_fields: vec![],
+                            }),
+                        }))
+                    } else {
+                        Ok(None)
+                    }
+                }
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_get_events_json_output() {
+        let field_mask = vec!["workloadStates".to_string()];
+
+        let mut mock_server_connection = MockServerConnection::default();
+
+        mock_server_connection
+            .expect_subscribe_and_listen_for_events()
+            .with(eq(field_mask.clone()))
+            .times(1)
+            .returning(|_| {
+                Ok(crate::cli_commands::server_connection::EventSubscription {
+                    request_id: "test-request-id".to_string(),
+                    initial_response_received: false,
+                })
+            });
+
+        mock_server_connection
+            .expect_receive_next_event()
+            .times(1)
+            .returning(|_| Ok(None));
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let result = cmd.get_events(field_mask, OutputFormat::Json).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_get_events_empty_field_mask() {
+        let field_mask = vec![];
+
+        let mut mock_server_connection = MockServerConnection::default();
+
+        mock_server_connection
+            .expect_subscribe_and_listen_for_events()
+            .with(eq(field_mask.clone()))
+            .times(1)
+            .returning(|_| {
+                Ok(crate::cli_commands::server_connection::EventSubscription {
+                    request_id: "test-request-id".to_string(),
+                    initial_response_received: false,
+                })
+            });
+
+        mock_server_connection
+            .expect_receive_next_event()
+            .times(1)
+            .returning(|_| Ok(None));
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_get_events_subscription_fails() {
+        let field_mask = vec!["desiredState.workloads".to_string()];
+
+        let mut mock_server_connection = MockServerConnection::default();
+
+        mock_server_connection
+            .expect_subscribe_and_listen_for_events()
+            .with(eq(field_mask.clone()))
+            .times(1)
+            .returning(|_| {
+                Err(
+                    crate::cli_commands::server_connection::ServerConnectionError::ExecutionError(
+                        "Subscription failed".to_string(),
+                    ),
+                )
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_get_events_receive_event_fails() {
+        let field_mask = vec!["desiredState.workloads".to_string()];
+
+        let mut mock_server_connection = MockServerConnection::default();
+
+        mock_server_connection
+            .expect_subscribe_and_listen_for_events()
+            .with(eq(field_mask.clone()))
+            .times(1)
+            .returning(|_| {
+                Ok(crate::cli_commands::server_connection::EventSubscription {
+                    request_id: "test-request-id".to_string(),
+                    initial_response_received: false,
+                })
+            });
+
+        mock_server_connection
+            .expect_receive_next_event()
+            .times(1)
+            .returning(|_| {
+                Err(
+                    crate::cli_commands::server_connection::ServerConnectionError::ExecutionError(
+                        "Connection error".to_string(),
+                    ),
+                )
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_get_events_multiple_events() {
+        let field_mask = vec!["desiredState.workloads".to_string()];
+
+        let mut mock_server_connection = MockServerConnection::default();
+
+        mock_server_connection
+            .expect_subscribe_and_listen_for_events()
+            .with(eq(field_mask.clone()))
+            .times(1)
+            .returning(|_| {
+                Ok(crate::cli_commands::server_connection::EventSubscription {
+                    request_id: "test-request-id".to_string(),
+                    initial_response_received: false,
+                })
+            });
+
+        mock_server_connection
+            .expect_receive_next_event()
+            .times(4)
+            .returning(move |_| {
+                static mut CALL_COUNT: usize = 0;
+                unsafe {
+                    CALL_COUNT += 1;
+                    match CALL_COUNT {
+                        1 => Ok(Some(ank_base::CompleteStateResponse {
+                            complete_state: Some(test_utils::generate_test_proto_complete_state(
+                                &[(
+                                    "workload1",
+                                    test_utils::generate_test_proto_workload_with_param(
+                                        "agent_A", "runtime",
+                                    ),
+                                )],
+                            )),
+                            altered_fields: Some(ank_base::AlteredFields {
+                                added_fields: vec!["desiredState.workloads.workload1".to_string()],
+                                updated_fields: vec![],
+                                removed_fields: vec![],
+                            }),
+                        })),
+                        2 => Ok(Some(ank_base::CompleteStateResponse {
+                            complete_state: Some(test_utils::generate_test_proto_complete_state(
+                                &[(
+                                    "workload2",
+                                    test_utils::generate_test_proto_workload_with_param(
+                                        "agent_B", "runtime",
+                                    ),
+                                )],
+                            )),
+                            altered_fields: Some(ank_base::AlteredFields {
+                                added_fields: vec!["desiredState.workloads.workload2".to_string()],
+                                updated_fields: vec![],
+                                removed_fields: vec![],
+                            }),
+                        })),
+                        3 => Ok(Some(ank_base::CompleteStateResponse {
+                            complete_state: Some(test_utils::generate_test_proto_complete_state(
+                                &[],
+                            )),
+                            altered_fields: Some(ank_base::AlteredFields {
+                                added_fields: vec![],
+                                updated_fields: vec![],
+                                removed_fields: vec![
+                                    "desiredState.workloads.workload1".to_string(),
+                                ],
+                            }),
+                        })),
+                        _ => Ok(None),
+                    }
+                }
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let result = cmd.get_events(field_mask, OutputFormat::Yaml).await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn utest_output_event_yaml_format() {
+        let event = ank_base::CompleteStateResponse {
+            complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
+                "test_workload",
+                test_utils::generate_test_proto_workload_with_param("agent_A", "runtime"),
+            )])),
+            altered_fields: Some(ank_base::AlteredFields {
+                added_fields: vec!["desiredState.workloads.test_workload".to_string()],
+                updated_fields: vec![],
+                removed_fields: vec![],
+            }),
+        };
+
+        let result = CliCommands::output_event(&event, &OutputFormat::Yaml);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn utest_output_event_json_format() {
+        let event = ank_base::CompleteStateResponse {
+            complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
+                "test_workload",
+                test_utils::generate_test_proto_workload_with_param("agent_A", "runtime"),
+            )])),
+            altered_fields: Some(ank_base::AlteredFields {
+                added_fields: vec![],
+                updated_fields: vec!["desiredState.workloads.test_workload.agent".to_string()],
+                removed_fields: vec![],
+            }),
+        };
+
+        let result = CliCommands::output_event(&event, &OutputFormat::Json);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn utest_output_event_no_altered_fields() {
+        let event = ank_base::CompleteStateResponse {
+            complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
+                "test_workload",
+                test_utils::generate_test_proto_workload_with_param("agent_A", "runtime"),
+            )])),
+            altered_fields: None,
+        };
+
+        let result = CliCommands::output_event(&event, &OutputFormat::Yaml);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn utest_output_event_empty_complete_state() {
+        let event = ank_base::CompleteStateResponse {
+            complete_state: None,
+            altered_fields: Some(ank_base::AlteredFields {
+                added_fields: vec![],
+                updated_fields: vec![],
+                removed_fields: vec!["desiredState.workloads.removed_workload".to_string()],
+            }),
+        };
+
+        let result = CliCommands::output_event(&event, &OutputFormat::Yaml);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn utest_output_event_all_altered_fields_types() {
+        let event = ank_base::CompleteStateResponse {
+            complete_state: Some(test_utils::generate_test_proto_complete_state(&[(
+                "test_workload",
+                test_utils::generate_test_proto_workload_with_param("agent_A", "runtime"),
+            )])),
+            altered_fields: Some(ank_base::AlteredFields {
+                added_fields: vec!["desiredState.workloads.new_workload".to_string()],
+                updated_fields: vec!["desiredState.workloads.test_workload.agent".to_string()],
+                removed_fields: vec!["desiredState.workloads.old_workload".to_string()],
+            }),
+        };
+
+        let result = CliCommands::output_event(&event, &OutputFormat::Json);
+        assert!(result.is_ok());
+    }
+}
