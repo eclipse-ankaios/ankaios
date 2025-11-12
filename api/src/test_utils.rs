@@ -31,8 +31,8 @@ pub use crate::ank_base::{
         generate_test_workload_state_with_workload_named,
     },
     workload_states_map::{
-        generate_test_workload_states_map_from_specs,
         generate_test_workload_states_map_from_workload_states,
+        generate_test_workload_states_map_from_workloads,
         generate_test_workload_states_map_with_data,
     },
 };
@@ -121,7 +121,7 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadNamed>) -> CompleteSt
     );
     CompleteStateInternal {
         desired_state: generate_test_state_from_workloads(workloads.clone()),
-        workload_states: generate_test_workload_states_map_from_specs(workloads),
+        workload_states: generate_test_workload_states_map_from_workloads(workloads),
         agents,
     }
 }

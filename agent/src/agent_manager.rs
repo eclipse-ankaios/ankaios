@@ -356,21 +356,18 @@ mod tests {
             workload_state_receiver,
         );
 
-        let workload_spec_1 =
+        let workload_1 =
             generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
                 .name(WORKLOAD_1_NAME);
 
-        let workload_spec_2 =
+        let workload_2 =
             generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
                 .name(WORKLOAD_2_NAME);
 
         let handle = tokio::spawn(async move { agent_manager.start().await });
 
         let update_workload_result = to_manager
-            .update_workload(
-                vec![workload_spec_1.clone(), workload_spec_2.clone()],
-                vec![],
-            )
+            .update_workload(vec![workload_1.clone(), workload_2.clone()], vec![])
             .await;
         assert!(update_workload_result.is_ok());
 

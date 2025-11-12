@@ -69,7 +69,7 @@ pub fn dfs(state: &StateInternal, start_nodes: Option<Vec<&str>>) -> Option<Stri
         log::trace!("searching for workload = '{workload_name}'");
         stack.push_front(workload_name);
         while let Some(head) = stack.front() {
-            if let Some(workload_spec) = state.workloads.workloads.get(*head) {
+            if let Some(workload) = state.workloads.workloads.get(*head) {
                 if !visited.contains(head) {
                     log::trace!("visit '{head}'");
                     visited.insert(head);
@@ -82,7 +82,7 @@ pub fn dfs(state: &StateInternal, start_nodes: Option<Vec<&str>>) -> Option<Stri
 
                 // sort the map to have an constant equal outcome
                 let mut dependencies: Vec<&String> =
-                    workload_spec.dependencies.dependencies.keys().collect();
+                    workload.dependencies.dependencies.keys().collect();
                 dependencies.sort();
 
                 for dependency in dependencies {
@@ -608,16 +608,11 @@ mod tests {
             depend_on: &str,
             add_condition: AddCondition,
         ) -> Self {
-            self.0
-                .workloads
-                .workloads
-                .get_mut(workload)
-                .and_then(|w_spec| {
-                    w_spec
-                        .dependencies
-                        .dependencies
-                        .insert(depend_on.into(), add_condition)
-                });
+            self.0.workloads.workloads.get_mut(workload).and_then(|wl| {
+                wl.dependencies
+                    .dependencies
+                    .insert(depend_on.into(), add_condition)
+            });
             self
         }
 
@@ -626,11 +621,9 @@ mod tests {
             let entry = self.0.workloads.workloads.remove(start_node).unwrap();
             self.0.workloads.workloads.insert(new_name.clone(), entry);
 
-            for workload_spec in self.0.workloads.workloads.values_mut() {
-                if let Some(dep_condition) =
-                    workload_spec.dependencies.dependencies.remove(start_node)
-                {
-                    workload_spec
+            for workload in self.0.workloads.workloads.values_mut() {
+                if let Some(dep_condition) = workload.dependencies.dependencies.remove(start_node) {
+                    workload
                         .dependencies
                         .dependencies
                         .insert(new_name.clone(), dep_condition);

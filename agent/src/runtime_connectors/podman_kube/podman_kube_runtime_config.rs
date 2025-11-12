@@ -32,22 +32,22 @@ pub struct PodmanKubeRuntimeConfig {
 
 impl TryFrom<&WorkloadInternal> for PodmanKubeRuntimeConfig {
     type Error = String;
-    fn try_from(workload_spec: &WorkloadInternal) -> Result<Self, Self::Error> {
-        if PODMAN_KUBE_RUNTIME_NAME != workload_spec.runtime {
+    fn try_from(workload: &WorkloadInternal) -> Result<Self, Self::Error> {
+        if PODMAN_KUBE_RUNTIME_NAME != workload.runtime {
             return Err(format!(
                 "Received a spec for the wrong runtime: '{}'",
-                workload_spec.runtime
+                workload.runtime
             ));
         }
 
         // [impl->swdd~podman-kube-rejects-workload-files~1]
-        if !workload_spec.files.files.is_empty() {
+        if !workload.files.files.is_empty() {
             return Err(format!(
                 "Workload files are not supported for runtime {PODMAN_KUBE_RUNTIME_NAME}. Use ConfigMaps instead."
             ));
         }
 
-        match serde_yaml::from_str(workload_spec.runtime_config.as_str()) {
+        match serde_yaml::from_str(workload.runtime_config.as_str()) {
             Ok(workload_cfg) => Ok(workload_cfg),
             Err(e) => Err(e.to_string()),
         }
@@ -92,12 +92,12 @@ mod tests {
     // [utest->swdd~podman-kube-rejects-workload-files~1]
     #[tokio::test]
     async fn utest_podman_kube_config_failure_unsupported_files_field() {
-        let workload_spec_with_files = generate_test_workload_with_param(
+        let workload_with_files = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             DIFFERENT_RUNTIME_NAME.to_string(),
         );
 
-        assert!(PodmanKubeRuntimeConfig::try_from(&workload_spec_with_files).is_err());
+        assert!(PodmanKubeRuntimeConfig::try_from(&workload_with_files).is_err());
     }
 
     #[tokio::test]

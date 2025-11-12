@@ -661,7 +661,7 @@ mod tests {
 
     // [utest->swdd~common-agent-naming-convention~3]
     #[test]
-    fn utest_workload_spec_with_valid_empty_agent_name() {
+    fn utest_workload_with_valid_empty_agent_name() {
         let workload_with_valid_missing_agent_name: WorkloadNamed =
             generate_test_workload_with_param("", "runtime");
 

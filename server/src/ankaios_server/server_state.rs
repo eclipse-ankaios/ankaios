@@ -186,7 +186,7 @@ impl ServerState {
     ) -> bool {
         self.rendered_workloads
             .get(instance_name.workload_name())
-            .is_some_and(|workload_spec| workload_spec.instance_name == *instance_name)
+            .is_some_and(|workload| workload.instance_name == *instance_name)
     }
 
     pub fn update(
@@ -348,8 +348,8 @@ impl ServerState {
         &self,
         workloads: &RenderedWorkloads,
     ) -> Result<(), UpdateStateError> {
-        for workload_spec in workloads.values() {
-            workload_spec
+        for workload in workloads.values() {
+            workload
                 .verify_fields_format()
                 .map_err(UpdateStateError::ResultInvalid)?;
         }

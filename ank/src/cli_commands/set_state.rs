@@ -26,7 +26,7 @@ use tests::read_to_string_mock as read_file_to_string;
 
 use super::CliCommands;
 
-fn create_state_with_default_workload_specs(update_mask: &[String]) -> CompleteStateInternal {
+fn create_state_with_default_workloads(update_mask: &[String]) -> CompleteStateInternal {
     let mut complete_state = CompleteStateInternal::default();
     const WORKLOAD_ATTRIBUTE_LEVEL: usize = 4;
     let workload_level_mask_parts = ["desiredState".to_string(), "workloads".to_string()];
@@ -115,7 +115,7 @@ impl CliCommands {
         );
 
         let temp_obj = process_inputs(io::stdin(), &state_object_file).await?;
-        let default_complete_state = create_state_with_default_workload_specs(&object_field_mask);
+        let default_complete_state = create_state_with_default_workloads(&object_field_mask);
 
         // now overwrite with the values from the field mask
         let mut complete_state_object: Object = default_complete_state.try_into()?;
@@ -144,7 +144,7 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use super::{
-        CliCommands, WorkloadInternal, create_state_with_default_workload_specs, io,
+        CliCommands, WorkloadInternal, create_state_with_default_workloads, io,
         overwrite_using_field_mask, process_inputs,
     };
     use crate::{
@@ -181,24 +181,24 @@ mod tests {
 
     // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
-    fn utest_create_state_with_default_workload_specs_empty_update_mask() {
+    fn utest_create_state_with_default_workloads_empty_update_mask() {
         let update_mask = vec![];
 
-        let complete_state = create_state_with_default_workload_specs(&update_mask);
+        let complete_state = create_state_with_default_workloads(&update_mask);
 
         assert!(complete_state.desired_state.workloads.workloads.is_empty());
     }
 
     // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
-    fn utest_create_state_with_default_workload_specs_with_update_mask() {
+    fn utest_create_state_with_default_workloads_with_update_mask() {
         let update_mask = vec![
             "desiredState.workloads.nginx.restartPolicy".to_string(),
             "desiredState.workloads.nginx2.restartPolicy".to_string(),
             "desiredState.workloads.nginx3".to_string(),
         ];
 
-        let complete_state = create_state_with_default_workload_specs(&update_mask);
+        let complete_state = create_state_with_default_workloads(&update_mask);
 
         assert_eq!(
             complete_state
@@ -228,10 +228,10 @@ mod tests {
 
     // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
-    fn utest_create_state_with_default_workload_specs_invalid_path() {
+    fn utest_create_state_with_default_workloads_invalid_path() {
         let update_mask = vec!["invalid.path".to_string()];
 
-        let complete_state = create_state_with_default_workload_specs(&update_mask);
+        let complete_state = create_state_with_default_workloads(&update_mask);
 
         assert!(complete_state.desired_state.workloads.workloads.is_empty());
     }
@@ -239,11 +239,11 @@ mod tests {
     // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
     fn utest_overwrite_using_field_mask() {
-        let workload_spec = WorkloadInternal::default();
+        let workload = WorkloadInternal::default();
         let mut complete_state = CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
-                    workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
+                    workloads: HashMap::from([("nginx".to_string(), workload)]),
                 },
                 ..Default::default()
             },
@@ -325,14 +325,14 @@ mod tests {
         let update_mask = vec!["desiredState.workloads.nginx.restartPolicy".to_string()];
         let state_object_file = SAMPLE_CONFIG.to_owned();
 
-        let workload_spec = WorkloadInternal {
+        let workload = WorkloadInternal {
             restart_policy: RestartPolicy::Always,
             ..Default::default()
         };
         let updated_state = CompleteStateInternal {
             desired_state: StateInternal {
                 workloads: WorkloadMapInternal {
-                    workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
+                    workloads: HashMap::from([("nginx".to_string(), workload)]),
                 },
                 ..Default::default()
             },

@@ -871,7 +871,7 @@ mod tests {
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
 
-        let old_workload_spec: WorkloadNamed =
+        let old_workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -892,10 +892,10 @@ mod tests {
         // Send also a delete command so that we can properly get out of the loop
         workload_command_sender.delete().await.unwrap();
 
-        let old_instance_name = old_workload_spec.instance_name.clone();
+        let old_instance_name = old_workload.instance_name.clone();
 
         let mut control_loop_state = ControlLoopState::builder()
-            .workload_named(old_workload_spec)
+            .workload_named(old_workload)
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
@@ -1200,15 +1200,15 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let old_workload_spec: WorkloadNamed =
+        let old_workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
-        let mut new_workload_spec = old_workload_spec.clone();
-        new_workload_spec.workload.runtime_config = "changed config".to_string();
-        new_workload_spec.instance_name = WorkloadInstanceNameInternal::builder()
-            .agent_name(old_workload_spec.instance_name.agent_name())
-            .workload_name(old_workload_spec.instance_name.workload_name())
-            .config(&new_workload_spec.workload.runtime_config)
+        let mut new_workload = old_workload.clone();
+        new_workload.workload.runtime_config = "changed config".to_string();
+        new_workload.instance_name = WorkloadInstanceNameInternal::builder()
+            .agent_name(old_workload.instance_name.agent_name())
+            .workload_name(old_workload.instance_name.workload_name())
+            .config(&new_workload.workload.runtime_config)
             .build();
 
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -1227,19 +1227,16 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(
-                Some(new_workload_spec.clone()),
-                CONTROL_INTERFACE_PATH.clone(),
-            )
+            .update(Some(new_workload.clone()), CONTROL_INTERFACE_PATH.clone())
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
         workload_command_sender.delete().await.unwrap();
 
-        let old_instance_name = old_workload_spec.instance_name.clone();
+        let old_instance_name = old_workload.instance_name.clone();
 
         let mut control_loop_state = ControlLoopState::builder()
-            .workload_named(old_workload_spec)
+            .workload_named(old_workload)
             .workload_id(Some(OLD_WORKLOAD_ID.into()))
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
@@ -1316,13 +1313,13 @@ mod tests {
         // Send the delete command now. It will be buffered until the await receives it.
         workload_command_sender.delete().await.unwrap();
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
-        let instance_name = workload_spec.instance_name.clone();
+        let instance_name = workload.instance_name.clone();
 
         let mut control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec)
+            .workload_named(workload)
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
@@ -1382,11 +1379,11 @@ mod tests {
         // Send the delete command now. It will be buffered until the await receives it.
         workload_command_sender.delete().await.unwrap();
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec)
+            .workload_named(workload)
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
@@ -1511,7 +1508,7 @@ mod tests {
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut new_mock_state_checker = StubStateChecker::new();
@@ -1519,13 +1516,10 @@ mod tests {
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![
-            RuntimeCall::GetWorkloadId(
-                workload_spec.instance_name.clone(),
-                Ok(WORKLOAD_ID.to_string()),
-            ),
+            RuntimeCall::GetWorkloadId(workload.instance_name.clone(), Ok(WORKLOAD_ID.to_string())),
             RuntimeCall::StartChecker(
                 WORKLOAD_ID.to_string(),
-                workload_spec.clone(),
+                workload.clone(),
                 state_checker_workload_state_sender.clone(),
                 Ok(new_mock_state_checker),
             ),
@@ -1536,7 +1530,7 @@ mod tests {
         mock_remove_dir.expect().returning(|_| Ok(()));
 
         let mut control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec.clone())
+            .workload_named(workload.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
@@ -1585,25 +1579,22 @@ mod tests {
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![
-            RuntimeCall::GetWorkloadId(
-                workload_spec.instance_name.clone(),
-                Ok(WORKLOAD_ID.to_string()),
-            ),
+            RuntimeCall::GetWorkloadId(workload.instance_name.clone(), Ok(WORKLOAD_ID.to_string())),
             RuntimeCall::StartChecker(
                 WORKLOAD_ID.to_string(),
-                workload_spec.clone(),
+                workload.clone(),
                 state_checker_workload_state_sender.clone(),
                 Ok(StubStateChecker::new()),
             ),
         ]);
 
         let mut control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec.clone())
+            .workload_named(workload.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
@@ -1642,19 +1633,19 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![RuntimeCall::GetWorkloadId(
-            workload_spec.instance_name.clone(),
+            workload.instance_name.clone(),
             Err(crate::runtime_connectors::RuntimeError::List(
                 "some list workload error".to_string(),
             )),
         )]);
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec.clone())
+            .workload_named(workload.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
@@ -1687,18 +1678,15 @@ mod tests {
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![
-            RuntimeCall::GetWorkloadId(
-                workload_spec.instance_name.clone(),
-                Ok(WORKLOAD_ID.to_string()),
-            ),
+            RuntimeCall::GetWorkloadId(workload.instance_name.clone(), Ok(WORKLOAD_ID.to_string())),
             RuntimeCall::StartChecker(
                 WORKLOAD_ID.to_string(),
-                workload_spec.clone(),
+                workload.clone(),
                 state_checker_workload_state_sender.clone(),
                 Err(crate::runtime_connectors::RuntimeError::Create(
                     "some state checker error".to_string(),
@@ -1707,7 +1695,7 @@ mod tests {
         ]);
 
         let mut control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec.clone())
+            .workload_named(workload.clone())
             .workload_state_sender(state_change_tx)
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
@@ -1749,7 +1737,7 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -1763,7 +1751,7 @@ mod tests {
         });
 
         let mut control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec.clone())
+            .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
@@ -1785,7 +1773,7 @@ mod tests {
             .clone();
 
         let workload_state = generate_test_workload_state_with_workload_named(
-            &workload_spec,
+            &workload,
             ExecutionStateInternal::running(),
         );
 
@@ -1824,7 +1812,7 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -1836,7 +1824,7 @@ mod tests {
         });
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec.clone())
+            .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
@@ -2080,11 +2068,10 @@ mod tests {
         let (workload_state_forward_tx, _workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
+        let workload: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
 
         let workload_configs_dir =
-            WorkloadFilesBasePath::from((&PathBuf::from(RUN_FOLDER), &workload_spec.instance_name));
+            WorkloadFilesBasePath::from((&PathBuf::from(RUN_FOLDER), &workload.instance_name));
 
         let expected_mount_point_mappings = HashMap::from([
             (
@@ -2099,7 +2086,7 @@ mod tests {
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
-            workload_spec.clone(),
+            workload.clone(),
             None,
             expected_mount_point_mappings.clone(),
             Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
@@ -2111,12 +2098,12 @@ mod tests {
             .once()
             .with(
                 predicate::eq(workload_configs_dir),
-                predicate::eq(workload_spec.workload.files.files.clone()),
+                predicate::eq(workload.workload.files.files.clone()),
             )
             .returning(move |_, _| Ok(expected_mount_point_mappings.clone()));
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec.clone())
+            .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock))
@@ -2139,7 +2126,7 @@ mod tests {
 
         assert_eq!(
             new_control_loop_state.workload_named.workload.files,
-            workload_spec.workload.files
+            workload.workload.files
         );
 
         drop(new_control_loop_state);
@@ -2160,8 +2147,7 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
+        let workload: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
 
         let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
         mock_workload_files_creator_context
@@ -2177,7 +2163,7 @@ mod tests {
         mock_remove_dir.expect().once().returning(|_| Ok(()));
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec.clone())
+            .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(MockRuntimeConnector::new()))
@@ -2227,12 +2213,11 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
+        let workload: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
-            workload_spec.clone(),
+            workload.clone(),
             None,
             HashMap::default(),
             Err(RuntimeError::Unsupported("unsupported error".to_string())),
@@ -2245,7 +2230,7 @@ mod tests {
             .returning(move |_, _| Ok(HashMap::default()));
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec.clone())
+            .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .run_folder(RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock))
@@ -2572,10 +2557,10 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
-        let instance_name = workload_spec.instance_name.clone();
+        let instance_name = workload.instance_name.clone();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![
@@ -2603,7 +2588,7 @@ mod tests {
         });
 
         let mut control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec)
+            .workload_named(workload)
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
@@ -2734,7 +2719,7 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -2749,7 +2734,7 @@ mod tests {
         )]);
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec)
+            .workload_named(workload)
             .workload_id(Some(WORKLOAD_ID.into()))
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
@@ -2798,7 +2783,7 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -2813,7 +2798,7 @@ mod tests {
         )]);
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec)
+            .workload_named(workload)
             .workload_id(Some(WORKLOAD_ID.into()))
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
@@ -2862,13 +2847,13 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let runtime_mock = MockRuntimeConnector::new();
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec)
+            .workload_named(workload)
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
@@ -2916,7 +2901,7 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -2931,7 +2916,7 @@ mod tests {
         )]);
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_named(workload_spec)
+            .workload_named(workload)
             .workload_id(Some(WORKLOAD_ID.into()))
             .run_folder(RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())

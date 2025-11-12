@@ -254,7 +254,7 @@ impl IntoIterator for WorkloadStatesMapInternal {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_states_map_from_specs(
+pub fn generate_test_workload_states_map_from_workloads(
     workloads: Vec<WorkloadNamed>,
 ) -> WorkloadStatesMapInternal {
     let mut wl_states_map = WorkloadStatesMapInternal::new();

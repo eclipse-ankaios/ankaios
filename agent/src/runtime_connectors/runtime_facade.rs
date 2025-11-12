@@ -631,7 +631,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| Ok(MockControlInterface::default()));
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let (wl_state_sender, _wl_state_receiver) =
@@ -660,7 +660,7 @@ mod tests {
         ));
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
-            workload_spec.clone(),
+            workload.clone(),
             Some(control_interface_info_mock),
             &wl_state_sender,
         );
@@ -680,7 +680,7 @@ mod tests {
         let control_interface_new_context = MockControlInterface::new_context();
         control_interface_new_context.expect().never();
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let (wl_state_sender, _wl_state_receiver) =
@@ -709,7 +709,7 @@ mod tests {
         ));
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
-            workload_spec.clone(),
+            workload.clone(),
             None,
             &wl_state_sender,
         );

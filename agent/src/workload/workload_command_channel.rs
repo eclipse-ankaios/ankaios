@@ -185,21 +185,18 @@ mod tests {
     async fn utest_send_update() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
-        let workload_spec = WORKLOAD_SPEC.clone();
+        let workload = WORKLOAD_SPEC.clone();
         let control_interface_path = CONTROL_INTERFACE_PATH.clone();
 
         workload_command_sender
-            .update(Some(workload_spec.clone()), control_interface_path.clone())
+            .update(Some(workload.clone()), control_interface_path.clone())
             .await
             .unwrap();
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert_eq!(
-            WorkloadCommand::Update(
-                Some(Box::new(workload_spec)),
-                control_interface_path.clone()
-            ),
+            WorkloadCommand::Update(Some(Box::new(workload)), control_interface_path.clone()),
             workload_command
         );
     }

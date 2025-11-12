@@ -218,16 +218,13 @@ impl CliCommands {
         for (_, table_row) in workload_infos.get_mut() {
             let runtime_name = workloads
                 .iter()
-                .find(|&(wl_name, wl_spec)| {
+                .find(|&(wl_name, wl)| {
                     *wl_name == table_row.name
-                        && wl_spec
-                            .agent
-                            .as_deref()
-                            .is_some_and(|x| x == table_row.agent)
-                        && wl_spec.runtime.as_ref().is_some()
+                        && wl.agent.as_deref().is_some_and(|x| x == table_row.agent)
+                        && wl.runtime.as_ref().is_some()
                 })
                 // runtime is valid because the filter above has found one
-                .map(|(_, found_wl_spec)| found_wl_spec.runtime.as_ref().unwrap());
+                .map(|(_, found_wl)| found_wl.runtime.as_ref().unwrap());
 
             if let Some(runtime) = runtime_name {
                 table_row.runtime.clone_from(runtime);

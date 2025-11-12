@@ -73,8 +73,8 @@ fn validate_tags_format_in_manifest(data: &str) -> Result<(), String> {
     if let Some(workloads) = yaml_value.get("workloads")
         && let Some(workloads_map) = workloads.as_mapping()
     {
-        for (workload_name, workload_spec) in workloads_map {
-            if let Some(tags_value) = workload_spec.get("tags") {
+        for (workload_name, workload) in workloads_map {
+            if let Some(tags_value) = workload.get("tags") {
                 let workload_name_str = workload_name.as_str().unwrap_or("unknown");
                 validate_tags(&api_version, tags_value, workload_name_str)?;
             }

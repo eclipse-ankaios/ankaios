@@ -223,7 +223,7 @@ pub mod test {
     #[async_trait]
     impl StateChecker<String> for StubStateChecker {
         fn start_checker(
-            _workload_spec: &WorkloadNamed,
+            _workload: &WorkloadNamed,
             _workload_id: String,
             _manager_interface: WorkloadStateSender,
             _state_getter: impl RuntimeStateGetter<String>,

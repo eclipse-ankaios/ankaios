@@ -136,11 +136,11 @@ mod tests {
 
         let (state_sender, mut state_receiver) = tokio::sync::mpsc::channel(20);
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let generic_state_state_checker = GenericPollingStateChecker::start_checker(
-            &workload_spec,
+            &workload,
             WORKLOAD_ID.to_string(),
             state_sender.clone(),
             mock_runtime_getter,
@@ -154,7 +154,7 @@ mod tests {
         .await;
 
         let expected_state = generate_test_workload_state_with_workload_named(
-            &workload_spec,
+            &workload,
             ExecutionStateInternal::running(),
         );
 

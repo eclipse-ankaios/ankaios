@@ -142,9 +142,9 @@ pub fn update_request_obj(
                 "The provided path does not exist! This may be caused by improper naming. Names expected to have characters in '{ALLOWED_SYMBOLS}'"
             ));
         }
-        let cur_workload_spec = cur_obj.get(workload_path).unwrap();
+        let cur_workload = cur_obj.get(workload_path).unwrap();
         if req_obj.get(workload_path).is_none() {
-            let _ = req_obj.set(workload_path, cur_workload_spec.clone());
+            let _ = req_obj.set(workload_path, cur_workload.clone());
         } else {
             return Err(format!(
                 "Multiple workloads with the same name '{workload_name}' found!"
@@ -550,7 +550,7 @@ mod tests {
 
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
-    fn utest_handle_agent_overwrite_one_agent_name_provided_in_workload_specs() {
+    fn utest_handle_agent_overwrite_one_agent_name_provided_in_workloads() {
         let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
             "agent_A",
             "runtime_X",
@@ -569,7 +569,7 @@ mod tests {
 
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
-    fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload_specs() {
+    fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload() {
         let state = generate_test_state_from_workloads(vec![
             generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime_X")
                 .name(WORKLOAD_NAME_1),

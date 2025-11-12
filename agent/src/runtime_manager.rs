@@ -1026,19 +1026,15 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
-        let mut workload_spec_no_access: WorkloadNamed =
+        let mut workload_no_access: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
-        workload_spec_no_access.workload.control_interface_access = Default::default();
-        runtime_manager
-            .update_workload(workload_spec_no_access)
-            .await;
+        workload_no_access.workload.control_interface_access = Default::default();
+        runtime_manager.update_workload(workload_no_access).await;
 
         control_interface_info_new_context.expect().never();
-        let workload_spec_has_access =
+        let workload_has_access =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
-        runtime_manager
-            .update_workload(workload_spec_has_access)
-            .await;
+        runtime_manager.update_workload(workload_has_access).await;
     }
 
     // [utest->swdd~agent-existing-workloads-resume-existing~2]
@@ -1558,18 +1554,18 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
-        let mut workload_spec_no_access: WorkloadNamed =
+        let mut workload_no_access: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
-        workload_spec_no_access.workload.control_interface_access = Default::default();
+        workload_no_access.workload.control_interface_access = Default::default();
         runtime_manager
-            .add_workload(ReusableWorkload::new(workload_spec_no_access, None))
+            .add_workload(ReusableWorkload::new(workload_no_access, None))
             .await;
 
         control_interface_info_new_context.expect().never();
-        let workload_spec_has_access: WorkloadNamed =
+        let workload_has_access: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
         runtime_manager
-            .add_workload(ReusableWorkload::new(workload_spec_has_access, None))
+            .add_workload(ReusableWorkload::new(workload_has_access, None))
             .await;
     }
 
@@ -1703,13 +1699,9 @@ mod tests {
             .expect_update()
             .once()
             .with(
-                predicate::function(|workload_spec: &Option<WorkloadNamed>| {
-                    workload_spec.is_some()
-                        && workload_spec
-                            .as_ref()
-                            .unwrap()
-                            .instance_name
-                            .workload_name()
+                predicate::function(|workload: &Option<WorkloadNamed>| {
+                    workload.is_some()
+                        && workload.as_ref().unwrap().instance_name.workload_name()
                             == WORKLOAD_1_NAME
                 }),
                 predicate::function(|control_interface: &Option<ControlInterfaceInfo>| {
@@ -1943,14 +1935,9 @@ mod tests {
         workload_mock
             .expect_update()
             .once()
-            .withf(|workload_spec, control_interface| {
-                workload_spec.is_some()
-                    && workload_spec
-                        .as_ref()
-                        .unwrap()
-                        .instance_name
-                        .workload_name()
-                        == WORKLOAD_1_NAME
+            .withf(|workload, control_interface| {
+                workload.is_some()
+                    && workload.as_ref().unwrap().instance_name.workload_name() == WORKLOAD_1_NAME
                     && control_interface.is_some()
             })
             .return_once(move |_, _| Ok(()));
@@ -2006,8 +1993,8 @@ mod tests {
         runtime_facade_mock
             .expect_create_workload()
             .once()
-            .withf(|resuable_workload_spec, control_interface, to_server| {
-                resuable_workload_spec
+            .withf(|reusable_workload, control_interface, to_server| {
+                reusable_workload
                     .workload_named
                     .instance_name
                     .workload_name()
@@ -2424,16 +2411,15 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let mut workload_spec: WorkloadNamed = generate_test_workload_with_param(
+        let mut workload: WorkloadNamed = generate_test_workload_with_param(
             AGENT_NAME,
             RUNTIME_NAME,
             // HashMap::from([(WORKLOAD_2_NAME.to_string(), AddCondition::AddCondRunning)]),
         );
-        workload_spec.workload.control_interface_access = generate_test_control_interface_access();
+        workload.workload.control_interface_access = generate_test_control_interface_access();
 
         let next_workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
-            workload_spec,
-            None,
+            workload, None,
         ))];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler

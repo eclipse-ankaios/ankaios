@@ -140,12 +140,12 @@ mod tests {
     #[tokio::test]
     async fn utest_create_workload_returns_unsupported_error_for_matching_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param("test-agent", TEST_RUNTIME_NAME);
 
         let result = unsupported_runtime
             .create_workload(
-                workload_spec,
+                workload,
                 None,
                 None,
                 tokio::sync::mpsc::channel(1).0,
@@ -163,12 +163,12 @@ mod tests {
     #[tokio::test]
     async fn utest_create_workload_returns_unsupported_error_for_different_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param("test-agent", "different_runtime");
 
         let result = unsupported_runtime
             .create_workload(
-                workload_spec,
+                workload,
                 None,
                 None,
                 tokio::sync::mpsc::channel(1).0,
@@ -202,10 +202,10 @@ mod tests {
     async fn utest_start_checker_returns_dummy_checker() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
         let workload_id = "test_id".to_string();
-        let workload_spec = generate_test_workload();
+        let workload = generate_test_workload();
 
         let result = unsupported_runtime
-            .start_checker(&workload_id, workload_spec, tokio::sync::mpsc::channel(1).0)
+            .start_checker(&workload_id, workload, tokio::sync::mpsc::channel(1).0)
             .await;
 
         assert!(result.is_ok());

@@ -405,10 +405,10 @@ mod tests {
         let mut test_workload =
             Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
 
-        let workload_spec: WorkloadInternal =
+        let workload: WorkloadInternal =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
-        test_workload.exchange_control_interface(None, workload_spec.needs_control_interface());
+        test_workload.exchange_control_interface(None, workload.needs_control_interface());
 
         assert!(test_workload.control_interface.is_none());
     }
@@ -428,7 +428,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let workload_spec: WorkloadNamed =
+        let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         let mut new_control_interface_mock = MockControlInterface::default();
@@ -457,7 +457,7 @@ mod tests {
         new_control_interface_info_mock
             .expect_get_instance_name()
             .once()
-            .return_const(workload_spec.instance_name.clone());
+            .return_const(workload.instance_name.clone());
 
         new_control_interface_info_mock
             .expect_move_authorizer()
@@ -476,18 +476,18 @@ mod tests {
 
         test_workload
             .update(
-                Some(workload_spec.clone()),
+                Some(workload.clone()),
                 Some(new_control_interface_info_mock),
             )
             .await
             .unwrap();
 
-        let expected_workload_spec = Box::new(workload_spec);
+        let expected_workload = Box::new(workload);
         let expected_pipes_path_buf = CONTROL_INTERFACE_PATH.clone();
 
         assert_eq!(
             Ok(Some(WorkloadCommand::Update(
-                Some(expected_workload_spec),
+                Some(expected_workload),
                 Some(expected_pipes_path_buf)
             ))),
             timeout(Duration::from_millis(200), workload_command_receiver.recv()).await
@@ -518,9 +518,8 @@ mod tests {
             .once()
             .return_const(CONTROL_INTERFACE_PATH.clone());
 
-        let workload_spec =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_1_NAME);
+        let workload = generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
+            .name(WORKLOAD_1_NAME);
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
@@ -536,7 +535,7 @@ mod tests {
         new_control_interface_info_mock
             .expect_get_instance_name()
             .once()
-            .return_const(workload_spec.instance_name.clone());
+            .return_const(workload.instance_name.clone());
 
         new_control_interface_info_mock
             .expect_move_authorizer()
@@ -563,7 +562,7 @@ mod tests {
         assert!(matches!(
             test_workload
                 .update(
-                    Some(workload_spec.clone()),
+                    Some(workload.clone()),
                     Some(new_control_interface_info_mock)
                 )
                 .await,
