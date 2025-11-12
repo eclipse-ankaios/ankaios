@@ -806,9 +806,7 @@ mod tests {
             .expect_get_complete_state()
             .times(2)
             .with(eq(vec![]))
-            .returning(move |_| {
-                Ok(ank_base::CompleteState::from(updated_state_clone.clone()))
-            });
+            .returning(move |_| Ok(ank_base::CompleteState::from(updated_state_clone.clone())));
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(std::vec::Vec::new);
@@ -894,11 +892,10 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok((ank_base::CompleteState::from(CompleteStateInternal {
+                Ok(ank_base::CompleteState::from(CompleteStateInternal {
                     desired_state: updated_state.desired_state,
                     ..Default::default()
                 }))
-                .into())
             });
         mock_server_connection
             .expect_take_missed_from_server_messages()
@@ -1107,11 +1104,10 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok((ank_base::CompleteState::from(CompleteStateInternal {
+                Ok(ank_base::CompleteState::from(CompleteStateInternal {
                     desired_state: updated_state.desired_state,
                     ..Default::default()
                 }))
-                .into())
             });
         mock_server_connection
             .expect_take_missed_from_server_messages()

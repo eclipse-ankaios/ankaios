@@ -138,6 +138,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     builder = setup_schema_annotations(builder);
 
+    builder = setup_internal_requests(builder);
+
     builder
         .compile_protos(&["proto/control_api.proto"], &["proto"])
         .unwrap();

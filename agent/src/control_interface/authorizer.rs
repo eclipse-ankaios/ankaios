@@ -241,12 +241,10 @@ impl From<&ControlInterfaceAccessInternal> for Authorizer {
 #[cfg(test)]
 mod test {
     use api::ank_base::{
-        AccessRightsRuleInternal, ControlInterfaceAccessInternal, ReadWriteEnum,
-        WorkloadInstanceNameInternal,
+        AccessRightsRuleInternal, ControlInterfaceAccessInternal, LogsRequestInternal,
+        ReadWriteEnum, WorkloadInstanceNameInternal,
     };
-    use common::{
-        commands::{CompleteStateRequest, LogsRequest, Request, UpdateStateRequest}
-    };
+    use common::commands::{CompleteStateRequest, Request, UpdateStateRequest};
     use std::sync::Arc;
 
     use super::{
@@ -519,7 +517,7 @@ mod test {
     fn utest_log_request_empty_is_allowed() {
         let request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::LogsRequest(LogsRequest {
+            request_content: common::commands::RequestContent::LogsRequest(LogsRequestInternal {
                 workload_names: vec![],
                 follow: false,
                 tail: -1,
@@ -537,7 +535,7 @@ mod test {
     fn utest_log_requests_general_cases() {
         let request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::LogsRequest(LogsRequest {
+            request_content: common::commands::RequestContent::LogsRequest(LogsRequestInternal {
                 workload_names: vec![WorkloadInstanceNameInternal::new("", WORKLOAD_NAME, "")],
                 follow: false,
                 tail: -1,
@@ -574,16 +572,18 @@ mod test {
         fn request(workloads: &[&str]) -> Request {
             Request {
                 request_id: "".into(),
-                request_content: common::commands::RequestContent::LogsRequest(LogsRequest {
-                    workload_names: workloads
-                        .iter()
-                        .map(|name| WorkloadInstanceNameInternal::new("", *name, ""))
-                        .collect(),
-                    follow: false,
-                    tail: -1,
-                    since: None,
-                    until: None,
-                }),
+                request_content: common::commands::RequestContent::LogsRequest(
+                    LogsRequestInternal {
+                        workload_names: workloads
+                            .iter()
+                            .map(|name| WorkloadInstanceNameInternal::new("", *name, ""))
+                            .collect(),
+                        follow: false,
+                        tail: -1,
+                        since: None,
+                        until: None,
+                    },
+                ),
             }
         }
 

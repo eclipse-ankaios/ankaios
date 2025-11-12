@@ -14,8 +14,8 @@
 
 use api::ank_base::WorkloadStateInternal;
 use common::{
-    from_server_interface::{FromServer, FromServerReceiver},
     commands::AgentLoadStatus,
+    from_server_interface::{FromServer, FromServerReceiver},
     std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -296,7 +296,8 @@ mod tests {
     };
 
     use api::ank_base::{
-        self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, WorkloadNamed,
+        self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogsRequestInternal,
+        WorkloadNamed,
     };
     use api::test_utils::{
         generate_test_workload_state_with_agent, generate_test_workload_with_param,
@@ -707,8 +708,7 @@ mod tests {
         let (to_server, _server_receiver) = channel(BUFFER_SIZE);
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
+        let workload: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
 
         let mock_runtime_manager = RuntimeManager::default();
 
@@ -718,7 +718,7 @@ mod tests {
             .once()
             .return_once(MockResourceMonitor::default);
 
-        let logs_request = common::commands::LogsRequest {
+        let logs_request = LogsRequestInternal {
             workload_names: vec![workload.instance_name],
             follow: false,
             tail: -1,

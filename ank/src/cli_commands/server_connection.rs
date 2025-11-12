@@ -20,10 +20,11 @@ use crate::{output_and_error, output_debug};
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
 use api::ank_base::{
-    self, CompleteStateInternal, LogsRequestAccepted, WorkloadInstanceNameInternal,
+    self, CompleteStateInternal, LogsRequestAccepted, LogsRequestInternal,
+    WorkloadInstanceNameInternal,
 };
 use common::{
-    commands::{CompleteStateRequest, LogsRequest, UpdateWorkloadState},
+    commands::{CompleteStateRequest, UpdateWorkloadState},
     communications_client::CommunicationsClient,
     communications_error::CommunicationMiddlewareError,
     from_server_interface::{FromServer, FromServerReceiver},
@@ -263,7 +264,7 @@ impl ServerConnection {
         workload_instance_names: Vec<WorkloadInstanceNameInternal>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
-        let logs_request = LogsRequest {
+        let logs_request = LogsRequestInternal {
             workload_names: workload_instance_names,
             follow: args.follow,
             tail: args.tail,
@@ -272,7 +273,7 @@ impl ServerConnection {
         };
 
         self.to_server
-            .logs_request(request_id.to_string(), logs_request)
+            .logs_request(request_id.to_string(), logs_request.into())
             .await
             .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))
     }
@@ -562,8 +563,9 @@ mod tests {
     };
 
     use api::ank_base::{
-        self, CompleteStateInternal, ExecutionStateInternal, StateInternal, UpdateStateSuccess,
-        WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal, WorkloadStateInternal,
+        self, CompleteStateInternal, ExecutionStateInternal, LogsRequestInternal, StateInternal,
+        UpdateStateSuccess, WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal,
+        WorkloadStateInternal,
     };
     use api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
@@ -1148,7 +1150,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContent::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1356,7 +1358,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContent::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1427,7 +1429,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContent::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1503,7 +1505,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContent::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1562,7 +1564,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContent::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1644,7 +1646,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContent::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,

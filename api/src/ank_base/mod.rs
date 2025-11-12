@@ -52,6 +52,8 @@ pub(crate) mod complete_state;
 pub use request::RequestContent;
 pub use response::ResponseContent;
 
+pub(crate) mod requests;
+
 //////////////////////////////////////////////////////////////////////////////
 //                  ####   ##     ##   ########    ##                       //
 //                   ##    ###   ###   ##     ##   ##                       //

@@ -574,9 +574,9 @@ mod tests {
 
     use api::ank_base::{
         CompleteStateInternal, CpuUsageInternal, DeletedWorkload, ExecutionStateEnumInternal,
-        ExecutionStateInternal, FreeMemoryInternal, LogsStopResponse, Pending as PendingSubstate,
-        StateInternal, Workload, WorkloadInternal, WorkloadMap, WorkloadMapInternal, WorkloadNamed,
-        WorkloadStateInternal,
+        ExecutionStateInternal, FreeMemoryInternal, LogsRequestInternal, LogsStopResponse,
+        Pending as PendingSubstate, StateInternal, Workload, WorkloadInternal, WorkloadMap,
+        WorkloadMapInternal, WorkloadNamed, WorkloadStateInternal,
     };
     use api::test_utils::{
         generate_test_workload, generate_test_workload_state,
@@ -584,8 +584,7 @@ mod tests {
         generate_test_workload_with_param,
     };
     use common::commands::{
-        AgentLoadStatus, CompleteStateRequest, LogsRequest, ServerHello, UpdateWorkload,
-        UpdateWorkloadState,
+        AgentLoadStatus, CompleteStateRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
     };
     use common::from_server_interface::FromServer;
     use common::to_server_interface::ToServerInterface;
@@ -1290,7 +1289,7 @@ mod tests {
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let logs_request = LogsRequest {
+        let logs_request = LogsRequestInternal {
             workload_names: log_providing_workloads,
             follow: true,
             tail: 10,
@@ -1300,7 +1299,7 @@ mod tests {
 
         // send logs request to server
         let logs_request_result = to_server
-            .logs_request(REQUEST_ID_A.to_string(), logs_request)
+            .logs_request(REQUEST_ID_A.to_string(), logs_request.into())
             .await;
         assert!(logs_request_result.is_ok());
         drop(to_server);
@@ -1309,7 +1308,7 @@ mod tests {
         assert_eq!(
             FromServer::LogsRequest(
                 REQUEST_ID_A.into(),
-                LogsRequest {
+                LogsRequestInternal {
                     workload_names: vec![WorkloadInstanceNameInternal::new(
                         AGENT_A,
                         WORKLOAD_NAME_1,
@@ -1375,7 +1374,7 @@ mod tests {
             .expect_insert_log_campaign()
             .never();
 
-        let logs_request = LogsRequest {
+        let logs_request = LogsRequestInternal {
             workload_names: vec![WorkloadInstanceNameInternal::new(
                 AGENT_A,
                 WORKLOAD_NAME_1,
@@ -1389,7 +1388,7 @@ mod tests {
 
         // send logs request to server
         let logs_request_result = to_server
-            .logs_request(REQUEST_ID.to_string(), logs_request)
+            .logs_request(REQUEST_ID.to_string(), logs_request.into())
             .await;
         assert!(logs_request_result.is_ok());
 

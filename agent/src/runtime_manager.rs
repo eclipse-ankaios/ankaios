@@ -18,13 +18,13 @@ use std::{collections::HashMap, path::PathBuf};
 use crate::control_interface::authorizer::Authorizer;
 
 use api::ank_base::{
-    DeletedWorkload, ExecutionStateInternal, Response, WorkloadInstanceNameInternal, WorkloadNamed,
-    WorkloadStateInternal,
+    DeletedWorkload, ExecutionStateInternal, LogsRequestInternal, Response,
+    WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
 };
 
 use common::{
-    commands::LogsRequest, objects::AgentName,
-    request_id_prepending::detach_prefix_from_request_id, to_server_interface::ToServerSender,
+    objects::AgentName, request_id_prepending::detach_prefix_from_request_id,
+    to_server_interface::ToServerSender,
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -177,8 +177,7 @@ impl RuntimeManager {
             deleted_workloads.len()
         );
 
-        let new_added_workloads: Vec<ReusableWorkload> =
-            added_workloads.into_reusable_workloads();
+        let new_added_workloads: Vec<ReusableWorkload> = added_workloads.into_reusable_workloads();
 
         self.execute_workloads(new_added_workloads, deleted_workloads, workload_state_db)
             .await;
@@ -633,7 +632,7 @@ impl RuntimeManager {
     // [impl->swdd~agent-runtime-manager-creates-log-fetchers~1]
     pub async fn get_log_fetchers(
         &self,
-        log_request: LogsRequest,
+        log_request: LogsRequestInternal,
     ) -> Vec<(WorkloadInstanceNameInternal, Box<dyn LogFetcher>)> {
         let mut res = Vec::new();
         let log_request_options: LogRequestOptions = log_request.clone().into();
@@ -690,8 +689,8 @@ mod tests {
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
 
     use api::ank_base::{
-        self, CompleteState, ExecutionStateInternal, Response, ResponseContent,
-        WorkloadInstanceNameBuilder, WorkloadInstanceNameInternal, WorkloadNamed,
+        self, CompleteState, ExecutionStateInternal, LogsRequestInternal, Response,
+        ResponseContent, WorkloadInstanceNameBuilder, WorkloadInstanceNameInternal, WorkloadNamed,
         WorkloadStateInternal,
     };
     use api::test_utils::{
@@ -699,7 +698,6 @@ mod tests {
         generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
         generate_test_proto_complete_state, generate_test_workload_with_param,
     };
-    use common::commands::LogsRequest;
     use common::to_server_interface::ToServerReceiver;
 
     use mockall::{Sequence, predicate};
@@ -2936,7 +2934,7 @@ mod tests {
             .insert(WORKLOAD_2_NAME.to_string(), workload_2_mock);
 
         let res = runtime_manager
-            .get_log_fetchers(LogsRequest {
+            .get_log_fetchers(LogsRequestInternal {
                 workload_names: vec![
                     WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID),
                     WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_2_NAME, WORKLOAD_ID),

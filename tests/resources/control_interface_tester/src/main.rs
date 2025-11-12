@@ -14,7 +14,7 @@
 
 use api::ank_base::{
     CompleteStateInternal, LogEntriesResponse, LogsCancelAccepted, LogsRequestAccepted,
-    ResponseContent, State, UpdateStateRequest,
+    LogsRequestInternal, ResponseContent, State, UpdateStateRequest,
 };
 
 use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
@@ -487,15 +487,13 @@ impl Connection {
 
         let request = common::commands::Request {
             request_id: request_id.clone(),
-            request_content: common::commands::RequestContent::LogsRequest(
-                common::commands::LogsRequest {
-                    workload_names: workload_instance_names,
-                    follow: true,
-                    tail: -1,
-                    since: None,
-                    until: None,
-                },
-            ),
+            request_content: common::commands::RequestContent::LogsRequest(LogsRequestInternal {
+                workload_names: workload_instance_names,
+                follow: true,
+                tail: -1,
+                since: None,
+                until: None,
+            }),
         };
 
         let proto = api::control_api::ToAnkaios {

@@ -12,8 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::{self, LogsRequest};
-use api::ank_base::{self, DeletedWorkload, WorkloadNamed, WorkloadStateInternal};
+use crate::commands::{self};
+use api::{
+    ank_base::{self, DeletedWorkload, LogsRequestInternal, WorkloadNamed, WorkloadStateInternal},
+    std_extensions::UnreachableResult,
+};
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -39,7 +42,7 @@ pub enum FromServer {
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Response(ank_base::Response),
     Stop(commands::Stop),
-    LogsRequest(String, LogsRequest),
+    LogsRequest(String, LogsRequestInternal),
     LogsCancelRequest(String),
     ServerGone,
 }
@@ -195,7 +198,19 @@ impl FromServerInterface for FromServerSender {
         request_id: String,
         logs_request: ank_base::LogsRequest,
     ) -> Result<(), FromServerInterfaceError> {
-        self.send(FromServer::LogsRequest(request_id, logs_request.into()))
+        let logs_request_internal = LogsRequestInternal {
+            // MARK #313 LogsRequest -> LogsRequestInternal
+            workload_names: logs_request
+                .workload_names
+                .iter()
+                .map(|w| w.clone().try_into().unwrap_or_unreachable())
+                .collect(),
+            follow: logs_request.follow.unwrap_or(false),
+            tail: logs_request.tail.unwrap_or(-1),
+            since: logs_request.since,
+            until: logs_request.until,
+        };
+        self.send(FromServer::LogsRequest(request_id, logs_request_internal))
             .await?;
         Ok(())
     }
@@ -308,7 +323,9 @@ mod tests {
         commands,
         from_server_interface::{FromServer, FromServerInterface},
     };
-    use api::ank_base::{self, ExecutionStateInternal, WorkloadInstanceNameInternal};
+    use api::ank_base::{
+        self, ExecutionStateInternal, LogsRequestInternal, WorkloadInstanceNameInternal,
+    };
     use api::test_utils::{
         generate_test_complete_state, generate_test_deleted_workload, generate_test_workload,
         generate_test_workload_state,
@@ -486,7 +503,7 @@ mod tests {
             rx.recv().await.unwrap(),
             FromServer::LogsRequest(
                 REQUEST_ID.into(),
-                commands::LogsRequest {
+                LogsRequestInternal {
                     workload_names: vec![
                         WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_NAME_1, "1"),
                         WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_NAME_2, "2")

@@ -462,3 +462,16 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
         "#[internal_type_attr(#[serde(tag = \"state\", content = \"subState\")])]",
     )
 }
+
+/// This function is used to create and configure the following structs:
+/// - LogsRequestInternal
+pub fn setup_internal_requests(builder: Builder) -> Builder {
+    builder
+        .message_attribute("LogsRequest", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute(
+            "LogsRequest",
+            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
+        )
+        .field_attribute("LogsRequest.follow", "#[internal_mandatory]")
+        .field_attribute("LogsRequest.tail", "#[internal_mandatory]")
+}

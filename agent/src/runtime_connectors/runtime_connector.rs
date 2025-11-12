@@ -17,9 +17,10 @@ use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 use async_trait::async_trait;
 
 use api::ank_base::{
-    ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
+    ExecutionStateInternal, LogsRequestInternal, WorkloadInstanceNameInternal, WorkloadNamed,
+    WorkloadStateInternal,
 };
-use common::{commands::LogsRequest, objects::AgentName};
+use common::objects::AgentName;
 
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
@@ -66,8 +67,8 @@ impl Display for RuntimeError {
     }
 }
 
-impl From<LogsRequest> for LogRequestOptions {
-    fn from(value: LogsRequest) -> Self {
+impl From<LogsRequestInternal> for LogRequestOptions {
+    fn from(value: LogsRequestInternal) -> Self {
         Self {
             follow: value.follow,
             tail: if value.tail < 0 {

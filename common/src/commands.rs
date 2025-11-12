@@ -14,7 +14,7 @@
 
 use api::ank_base::{
     self, CompleteStateInternal, CpuUsageInternal, DeletedWorkload, FreeMemoryInternal,
-    WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
+    LogsRequestInternal, WorkloadNamed, WorkloadStateInternal,
 };
 use serde::{Deserialize, Serialize};
 
@@ -74,7 +74,7 @@ impl TryFrom<ank_base::Request> for Request {
 pub enum RequestContent {
     CompleteStateRequest(CompleteStateRequest),
     UpdateStateRequest(Box<UpdateStateRequest>),
-    LogsRequest(LogsRequest),
+    LogsRequest(LogsRequestInternal),
     LogsCancelRequest,
 }
 
@@ -110,7 +110,18 @@ impl TryFrom<ank_base::request::RequestContent> for RequestContent {
             }
             // TODO: tests are missing for the next two cases
             ank_base::request::RequestContent::LogsRequest(logs_request) => {
-                RequestContent::LogsRequest(logs_request.into())
+                // MARK #313 LogsRequest -> LogsRequestInternal
+                RequestContent::LogsRequest(LogsRequestInternal {
+                    workload_names: logs_request
+                        .workload_names
+                        .into_iter()
+                        .map(|name| name.try_into())
+                        .collect::<Result<_, _>>()?,
+                    follow: logs_request.follow.unwrap_or(false),
+                    tail: logs_request.tail.unwrap_or(-1),
+                    since: logs_request.since,
+                    until: logs_request.until,
+                })
             }
             ank_base::request::RequestContent::LogsCancelRequest(_logs_stop_request) => {
                 RequestContent::LogsCancelRequest
@@ -120,54 +131,7 @@ impl TryFrom<ank_base::request::RequestContent> for RequestContent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LogsRequest {
-    pub workload_names: Vec<WorkloadInstanceNameInternal>,
-    pub follow: bool,
-    pub tail: i32,
-    pub since: Option<String>,
-    pub until: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogsCancelRequest {}
-
-// TODO: add tests
-impl From<LogsRequest> for ank_base::LogsRequest {
-    fn from(item: LogsRequest) -> Self {
-        ank_base::LogsRequest {
-            workload_names: item
-                .workload_names
-                .into_iter()
-                .map(|name| name.into())
-                .collect(),
-            follow: if !item.follow { None } else { Some(true) },
-            tail: if -1 == item.tail {
-                None
-            } else {
-                Some(item.tail)
-            },
-            since: item.since,
-            until: item.until,
-        }
-    }
-}
-
-// TODO: add tests
-impl From<ank_base::LogsRequest> for LogsRequest {
-    fn from(value: ank_base::LogsRequest) -> Self {
-        LogsRequest {
-            workload_names: value
-                .workload_names
-                .into_iter()
-                .map(|name: ank_base::WorkloadInstanceName| name.try_into().unwrap())
-                .collect(),
-            follow: value.follow.unwrap_or(false),
-            tail: value.tail.unwrap_or(-1),
-            since: value.since,
-            until: value.until,
-        }
-    }
-}
 
 impl From<LogsCancelRequest> for ank_base::LogsCancelRequest {
     fn from(_logs_cancel_request: LogsCancelRequest) -> Self {
@@ -278,13 +242,13 @@ mod tests {
 
     mod ankaios {
         pub use crate::commands::{
-            CompleteStateRequest, LogsCancelRequest, LogsRequest, Request, RequestContent,
-            UpdateStateRequest,
+            CompleteStateRequest, LogsCancelRequest, Request, RequestContent, UpdateStateRequest,
         };
         pub use api::ank_base::{
             CompleteStateInternal, ConfigMappingsInternal, ExecutionStateInternal,
-            FileContentInternal, FileInternal, FilesInternal, RestartPolicy, StateInternal,
-            TagsInternal, WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal,
+            FileContentInternal, FileInternal, FilesInternal, LogsRequestInternal, RestartPolicy,
+            StateInternal, TagsInternal, WorkloadInstanceNameInternal, WorkloadInternal,
+            WorkloadMapInternal,
         };
         pub use api::test_utils::{
             generate_test_agent_map, generate_test_workload_states_map_with_data,
@@ -342,17 +306,33 @@ mod tests {
     }
 
     macro_rules! logs_request {
-        ($expression:ident) => {{
-            $expression::Request {
+        (ank_base) => {{
+            ank_base::Request {
                 request_id: REQUEST_ID.into(),
-                request_content: $expression::RequestContent::LogsRequest(
-                    $expression::LogsRequest {
+                request_content: ank_base::RequestContent::LogsRequest(ank_base::LogsRequest {
+                    workload_names: vec![
+                        workload_instance_name!(ank_base, 1),
+                        workload_instance_name!(ank_base, 2),
+                    ],
+                    follow: Some(true),
+                    tail: Some(10),
+                    since: None,
+                    until: None,
+                })
+                .into(),
+            }
+        }};
+        (ankaios) => {{
+            ankaios::Request {
+                request_id: REQUEST_ID.into(),
+                request_content: ankaios::RequestContent::LogsRequest(
+                    ankaios::LogsRequestInternal {
                         workload_names: vec![
-                            workload_instance_name!($expression, 1),
-                            workload_instance_name!($expression, 2),
+                            workload_instance_name!(ankaios, 1),
+                            workload_instance_name!(ankaios, 2),
                         ],
-                        follow: true.into(),
-                        tail: 10.into(),
+                        follow: true,
+                        tail: 10,
                         since: None,
                         until: None,
                     },
@@ -689,70 +669,6 @@ mod tests {
         assert_eq!(
             ankaios::Request::try_from(proto_logs_request).unwrap(),
             ankaios_logs_request
-        );
-    }
-
-    trait AsLogsRequest {
-        type LogsRequest;
-        fn as_logs_request(&mut self) -> &mut Self::LogsRequest;
-    }
-
-    impl AsLogsRequest for Option<ank_base::RequestContent> {
-        type LogsRequest = ank_base::LogsRequest;
-
-        fn as_logs_request(&mut self) -> &mut Self::LogsRequest {
-            if let Some(ank_base::RequestContent::LogsRequest(x)) = self {
-                x
-            } else {
-                panic!("Not an LogsRequest")
-            }
-        }
-    }
-
-    impl AsLogsRequest for ankaios::RequestContent {
-        type LogsRequest = ankaios::LogsRequest;
-
-        fn as_logs_request(&mut self) -> &mut ankaios::LogsRequest {
-            if let ankaios::RequestContent::LogsRequest(x) = self {
-                x
-            } else {
-                panic!("Not an LogsRequest")
-            }
-        }
-    }
-
-    #[test]
-    fn utest_converts_from_proto_logs_request_with_no_tail_option() {
-        let mut proto_logs_request = logs_request!(ank_base);
-        proto_logs_request.request_content.as_logs_request().tail = None;
-        let mut ankaios_logs_request = logs_request!(ankaios);
-        ankaios_logs_request.request_content.as_logs_request().tail = -1;
-
-        assert_eq!(
-            ankaios::Request::try_from(proto_logs_request).unwrap(),
-            ankaios_logs_request
-        );
-    }
-
-    #[test]
-    fn utest_converts_to_proto_logs_request() {
-        let proto_logs_request = logs_request!(ank_base);
-        let ankaios_logs_request = logs_request!(ankaios);
-        assert_eq!(
-            ank_base::Request::from(ankaios_logs_request),
-            proto_logs_request
-        );
-    }
-
-    #[test]
-    fn utest_converts_to_proto_logs_request_with_no_tail_option() {
-        let mut proto_logs_request = logs_request!(ank_base);
-        proto_logs_request.request_content.as_logs_request().tail = None;
-        let mut ankaios_logs_request = logs_request!(ankaios);
-        ankaios_logs_request.request_content.as_logs_request().tail = -1;
-        assert_eq!(
-            ank_base::Request::from(ankaios_logs_request),
-            proto_logs_request
         );
     }
 

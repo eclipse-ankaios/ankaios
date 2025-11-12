@@ -12,8 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::{self, AgentLoadStatus, LogsRequest, RequestContent};
-use api::ank_base::{self, CompleteStateInternal, WorkloadStateInternal};
+use crate::commands::{self, AgentLoadStatus, RequestContent};
+use api::{
+    ank_base::{
+        self, CompleteStateInternal, LogsRequest, LogsRequestInternal, WorkloadStateInternal,
+    },
+    std_extensions::UnreachableResult,
+};
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -166,10 +171,22 @@ impl ToServerInterface for ToServerSender {
         request_id: String,
         logs_request: LogsRequest,
     ) -> Result<(), ToServerError> {
+        // MARK #313 LogsRequest -> LogsRequestInternal
+        let logs_request_internal = LogsRequestInternal {
+            workload_names: logs_request
+                .workload_names
+                .iter()
+                .map(|w| w.clone().try_into().unwrap_or_unreachable())
+                .collect(),
+            follow: logs_request.follow.unwrap_or(false),
+            tail: logs_request.tail.unwrap_or(-1),
+            since: logs_request.since,
+            until: logs_request.until,
+        };
         Ok(self
             .send(ToServer::Request(commands::Request {
                 request_id,
-                request_content: RequestContent::LogsRequest(logs_request),
+                request_content: RequestContent::LogsRequest(logs_request_internal),
             }))
             .await?)
     }
@@ -231,7 +248,7 @@ mod tests {
     };
     use api::ank_base::{
         self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogEntriesResponse,
-        LogEntry, WorkloadInstanceNameInternal,
+        LogEntry, LogsRequestInternal, WorkloadInstanceNameInternal,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload, generate_test_workload_state,
@@ -387,7 +404,7 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
-        let logs_request = commands::LogsRequest {
+        let logs_request = LogsRequestInternal {
             workload_names: vec![WorkloadInstanceNameInternal::new(
                 AGENT_NAME,
                 WORKLOAD_NAME,
@@ -400,7 +417,7 @@ mod tests {
         };
         let request_content = RequestContent::LogsRequest(logs_request.clone());
         assert!(
-            tx.logs_request(REQUEST_ID.into(), logs_request)
+            tx.logs_request(REQUEST_ID.into(), logs_request.into())
                 .await
                 .is_ok()
         );

@@ -20,13 +20,13 @@ use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_api::{self, from_server::FromServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::ank_base;
-use api::ank_base::response::ResponseContent;
+use api::ank_base::ResponseContent;
 use api::ank_base::{
-    DeletedWorkload, WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
+    DeletedWorkload, LogsRequestInternal, WorkloadInstanceNameInternal, WorkloadNamed,
+    WorkloadStateInternal,
 };
 
 use async_trait::async_trait;
-use common::commands::LogsRequest;
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
 };
@@ -361,12 +361,12 @@ async fn distribute_workloads_to_agents(
 async fn distribute_log_requests_to_agent(
     agent_senders: &AgentSendersMap,
     request_id: String,
-    mut logs_request: LogsRequest,
+    mut logs_request: LogsRequestInternal,
 ) {
     for (agent, workloads) in
         group_workload_instance_names_by_agent(take(&mut logs_request.workload_names))
     {
-        let logs_requests_for_agent = LogsRequest {
+        let logs_requests_for_agent = LogsRequestInternal {
             workload_names: workloads,
             ..logs_request.clone()
         };
@@ -444,13 +444,13 @@ mod tests {
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
 
     use api::ank_base::{
-        self, ExecutionStateInternal, Workload, WorkloadMap, WorkloadNamed, response,
+        self, ExecutionStateInternal, LogsRequestInternal, ResponseContent, Workload, WorkloadMap,
+        WorkloadNamed,
     };
     use api::test_utils::{
         generate_test_deleted_workload, generate_test_workload,
         generate_test_workload_state_with_agent, generate_test_workload_with_param,
     };
-    use common::commands;
     use common::from_server_interface::FromServerInterface;
 
     use async_trait::async_trait;
@@ -936,7 +936,7 @@ mod tests {
             result.from_server_enum,
             Some(FromServerEnum::Response(ank_base::Response {
                 request_id,
-                response_content: Some(ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState{
+                response_content: Some(ResponseContent::CompleteState(ank_base::CompleteState{
                     desired_state: Some(desired_state), ..}))
 
             })) if request_id == my_request_id
@@ -1083,9 +1083,7 @@ mod tests {
 
         let proto_response = ank_base::Response {
             request_id: my_request_id.clone(),
-            response_content: Some(response::ResponseContent::CompleteState(
-                proto_complete_state,
-            )),
+            response_content: Some(ResponseContent::CompleteState(proto_complete_state)),
         };
 
         // simulate the reception of an update workload state grpc from server message
@@ -1113,7 +1111,7 @@ mod tests {
             result,
             common::from_server_interface::FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: Some(response::ResponseContent::CompleteState(
+                response_content: Some(ResponseContent::CompleteState(
                     complete_state
                 ))
             }) if request_id == my_request_id &&
@@ -1176,7 +1174,7 @@ mod tests {
             result,
             common::from_server_interface::FromServer::LogsRequest(
                 request_id,
-                commands::LogsRequest {
+                LogsRequestInternal {
                     workload_names,
                     follow,
                     tail,

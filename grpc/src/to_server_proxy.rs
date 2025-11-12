@@ -100,7 +100,7 @@ pub async fn forward_from_proto_to_ankaios(
                     }
                     RequestContent::LogsRequest(logs_request) => {
                         log::trace!("Received LogsRequest from '{agent_name}'");
-                        sink.logs_request(request_id, logs_request.into()).await?;
+                        sink.logs_request(request_id, logs_request).await?;
                     }
                     RequestContent::LogsCancelRequest(_logs_stop_request) => {
                         log::trace!("Received LogsCancelRequest from '{agent_name}'");
@@ -307,7 +307,7 @@ mod tests {
 
     use api::ank_base::{
         self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogEntriesResponse,
-        LogEntry, LogsStopResponse, WorkloadInstanceName, WorkloadNamed,
+        LogEntry, LogsRequestInternal, LogsStopResponse, WorkloadInstanceName, WorkloadNamed,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload,
@@ -850,7 +850,7 @@ mod tests {
                 request_id,
                 request_content:
                     common::commands::RequestContent::LogsRequest(
-                        common::commands::LogsRequest { workload_names, follow, tail, since, until },
+                        LogsRequestInternal { workload_names, follow, tail, since, until },
                     ),
             }) if request_id == expected_prefixed_my_request_id
                    && workload_names == expected_workload_names
