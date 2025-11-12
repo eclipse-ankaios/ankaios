@@ -131,21 +131,6 @@ impl TryFrom<ank_base::request::RequestContent> for RequestContent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LogsCancelRequest {}
-
-impl From<LogsCancelRequest> for ank_base::LogsCancelRequest {
-    fn from(_logs_cancel_request: LogsCancelRequest) -> Self {
-        ank_base::LogsCancelRequest {}
-    }
-}
-
-impl From<ank_base::LogsCancelRequest> for LogsCancelRequest {
-    fn from(_logs_cancel_request: ank_base::LogsCancelRequest) -> Self {
-        LogsCancelRequest {}
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompleteStateRequest {
     pub field_mask: Vec<String>,
 }
@@ -235,14 +220,14 @@ mod tests {
     mod ank_base {
         pub use api::ank_base::{
             CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, File, Files,
-            LogsCancelRequest, LogsRequest, Request, RequestContent, RestartPolicy, State,
-            UpdateStateRequest, Workload, WorkloadInstanceName, WorkloadMap, file::FileContent,
+            LogsRequest, Request, RequestContent, RestartPolicy, State, UpdateStateRequest,
+            Workload, WorkloadInstanceName, WorkloadMap, file::FileContent,
         };
     }
 
     mod ankaios {
         pub use crate::commands::{
-            CompleteStateRequest, LogsCancelRequest, Request, RequestContent, UpdateStateRequest,
+            CompleteStateRequest, Request, RequestContent, UpdateStateRequest,
         };
         pub use api::ank_base::{
             CompleteStateInternal, ConfigMappingsInternal, ExecutionStateInternal,
@@ -728,17 +713,5 @@ mod tests {
         ankaios_request_complete_state.prefix_request_id("prefix@");
 
         assert_eq!("prefix@42", ankaios_request_complete_state.request_id);
-    }
-
-    #[test]
-    fn utest_ank_base_log_cancel_request() {
-        let ank_base_log_cancel_request = ank_base::LogsCancelRequest {};
-
-        assert_eq!(
-            ank_base_log_cancel_request.clone(),
-            ank_base::LogsCancelRequest::from(ankaios::LogsCancelRequest::from(
-                ank_base_log_cancel_request
-            ))
-        );
     }
 }
