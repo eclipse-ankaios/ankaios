@@ -340,7 +340,6 @@ impl ServerState {
     }
 
     fn set_desired_state(&mut self, new_desired_state: StateInternal) {
-        println!("\nSetting new desired state: {new_desired_state:?}");
         self.state.desired_state = new_desired_state;
     }
 

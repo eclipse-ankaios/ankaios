@@ -71,6 +71,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .message_attribute("Tags", "#[derive(Eq)]")
         .message_attribute("AgentAttributes", "#[derive(Eq)]")
         .message_attribute("AgentMap", "#[derive(Eq)]")
+
+
+        // TODO: fix all the remaining fields that need skipping (see output of cli when filtering complete state)
+        // TODO: apparently we don't have system tests for the filtering of complete state yet. We should add some ...
+        .field_attribute("Workload.agent", "#[serde(skip_serializing_if = \"Option::is_none\")]")
+        .field_attribute("Workload.restartPolicy", "#[serde(default, skip_serializing_if = \"Option::is_none\")]")
+
+
         .field_attribute("Workload.tags", "#[serde(flatten)]")
         .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")

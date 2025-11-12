@@ -529,7 +529,7 @@ mod tests {
         assert_eq!(
             completions,
             vec![
-                CompletionCandidate::new("configs"),
+                CompletionCandidate::new("configs"), // TODO: this seems completely wrong here ...
                 CompletionCandidate::new("desiredState"),
                 CompletionCandidate::new("desiredState.workloads"),
                 CompletionCandidate::new("desiredState.workloads.databroker"),
