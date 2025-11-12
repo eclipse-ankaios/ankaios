@@ -325,25 +325,17 @@ mod tests {
         let mut mock_runtime_manager = MockRuntimeManager::default();
         mock_runtime_manager
             .expect_get_log_fetchers()
-            .with(predicate::eq(LogsRequestInternal::from(
-                logs_request.clone(),
-            )))
+            .with(predicate::eq(logs_request.clone()))
             .return_once(|_| {
                 vec![
-                    (
-                        workload_instance_name_1.try_into().unwrap(),
-                        Box::new(mock_log_fetcher_1),
-                    ),
-                    (
-                        workload_instance_name_2.try_into().unwrap(),
-                        Box::new(mock_log_fetcher_2),
-                    ),
+                    (workload_instance_name_1, Box::new(mock_log_fetcher_1)),
+                    (workload_instance_name_2, Box::new(mock_log_fetcher_2)),
                 ]
             });
 
         WorkloadLogFacade::spawn_log_collection(
             REQUEST_ID.into(),
-            LogsRequestInternal::from(logs_request),
+            logs_request,
             to_server,
             SynchronizedSubscriptionStore::default(),
             &mock_runtime_manager,
@@ -446,7 +438,7 @@ mod tests {
             .expect_get_log_fetchers()
             .return_once(|_| {
                 vec![(
-                    cloned_workload_instance_name_1.try_into().unwrap(),
+                    cloned_workload_instance_name_1,
                     Box::new(mock_log_fetcher_1),
                 )]
             });
@@ -461,7 +453,7 @@ mod tests {
         let synchronized_subscription_store = SynchronizedSubscriptionStore::default();
         WorkloadLogFacade::spawn_log_collection(
             REQUEST_ID.into(),
-            LogsRequestInternal::from(logs_request),
+            logs_request,
             to_server,
             synchronized_subscription_store.clone(),
             &mock_runtime_manager,
