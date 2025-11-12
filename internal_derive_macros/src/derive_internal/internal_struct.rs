@@ -16,7 +16,7 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{FieldsNamed, Ident, Type, Visibility, parse_quote};
 
-use crate::derive_internal::utils::{
+use crate::utils::{
     DerivedInternal, extract_inner, get_doc_attrs, get_internal_field_attrs, get_prost_enum_type,
     get_prost_map_enum_value_type, has_mandatory_attr, inner_hashmap_type_path,
     inner_vec_type_path, is_custom_type_path, is_option_type_path, to_internal_type,

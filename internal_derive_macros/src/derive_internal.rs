@@ -14,7 +14,6 @@
 
 mod internal_enum;
 mod internal_struct;
-mod utils;
 
 use internal_enum::derive_internal_enum;
 use internal_struct::derive_internal_struct;
@@ -23,13 +22,13 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Data, DataEnum, DataStruct, DeriveInput, Fields};
 
-use crate::derive_internal::utils::{get_internal_type_attrs};
+use crate::utils;
 
 pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
     let orig_name = input.ident;
     let vis = input.vis.clone();
     let current_doc_attrs = utils::get_doc_attrs(&input.attrs);
-    let new_type_attrs = get_internal_type_attrs(&input.attrs);
+    let new_type_attrs = utils::get_internal_type_attrs(&input.attrs);
 
     let combined_attrs = current_doc_attrs.clone().into_iter().chain(new_type_attrs).collect::<Vec<_>>();
 

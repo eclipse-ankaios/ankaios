@@ -13,9 +13,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
+
+mod utils;
 
 mod derive_internal;
+mod fix_enum_serialization;
 
 #[proc_macro_derive(
     Internal,
@@ -32,4 +35,21 @@ pub fn derive_internal(input: TokenStream) -> TokenStream {
     derive_internal::derive_internal(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
+}
+
+
+#[proc_macro_attribute]
+pub fn fix_enum_serialization(attr: TokenStream, item: TokenStream) -> TokenStream {
+
+     assert!(attr.is_empty(), "The fix_enum_serialization attribute does not take any arguments");
+
+
+    let input = parse_macro_input!(item as DeriveInput);
+    let result = fix_enum_serialization::fix_prost_enum_serialization(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into();
+
+    println!("Resulting fix_enum_serialization: {result}");
+
+    result
 }

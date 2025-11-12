@@ -221,6 +221,14 @@ pub fn check_for_forbidden_mandatory_attr(
     Ok(())
 }
 
+pub fn is_option_type(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty {
+        is_option_type_path(type_path)
+    } else {
+        false
+    }
+}
+
 pub fn is_option_type_path(tp: &TypePath) -> bool {
     !tp.path.segments.is_empty() && tp.path.segments.last().unwrap().ident == "Option"
 }
@@ -400,7 +408,6 @@ mod tests {
 
     #[test]
     fn test_pascal_to_snake_case() {
-        // TODO fix
         assert_eq!(super::pascal_to_snake_case("MyType"), "my_type");
         assert_eq!(super::pascal_to_snake_case("XMLParser"), "xml_parser");
         assert_eq!(super::pascal_to_snake_case("SimpleTest"), "simple_test");
@@ -495,6 +502,15 @@ mod tests {
         // Test without mandatory attribute
         let result = super::check_for_forbidden_mandatory_attr(&target, &attrs_without_mandatory);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_is_option_type() {
+        let ty_option: Type = parse_quote! { Option<u32> };
+        assert!(super::is_option_type(&ty_option));
+
+        let ty_non_option: Type = parse_quote! { u32 };
+        assert!(!super::is_option_type(&ty_non_option));
     }
 
     #[test]

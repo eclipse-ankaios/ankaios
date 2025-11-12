@@ -25,6 +25,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(true)
         .boxed("Request.RequestContent.updateStateRequest")
         .boxed("FromAnkaios.FromAnkaiosEnum.response")
+        // Fix the enum serialization for fields/variants of the specified types as proto is generating them as integers
+        .type_attribute(
+            "Workload",
+            "#[internal_derive_macros::fix_enum_serialization]",
+        )
+        .type_attribute(
+            "StateRule",
+            "#[internal_derive_macros::fix_enum_serialization]",
+        )
+        .type_attribute(
+            "Dependencies",
+            "#[internal_derive_macros::fix_enum_serialization]",
+        )
+        .type_attribute(
+            "ExecutionStateEnum",
+            "#[internal_derive_macros::fix_enum_serialization]",
+        )
         .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")
         // TODO #313 Setup camelCase and SCREAMING_SNAKE_CASE for each object individually (if needed)
         .message_attribute(".", "#[serde(rename_all = \"camelCase\")]")
@@ -43,22 +60,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "ReadWriteEnum.RW_READ_WRITE",
             "#[serde(rename = \"ReadWrite\")]",
         )
-        .message_attribute(
-            "ank_base.ConfigItem",
-            "#[serde(transparent)]",
-        )
-        .message_attribute(
-            "ank_base.ConfigArray",
-            "#[serde(transparent)]",
-        )
-        .message_attribute(
-            "ank_base.ConfigObject",
-            "#[serde(transparent)]",
-        )
-        .enum_attribute(
-            "ConfigItemEnum",
-            "#[serde(untagged)]",
-        )
+        .message_attribute("ank_base.ConfigItem", "#[serde(transparent)]")
+        .message_attribute("ank_base.ConfigArray", "#[serde(transparent)]")
+        .message_attribute("ank_base.ConfigObject", "#[serde(transparent)]")
+        .enum_attribute("ConfigItemEnum", "#[serde(untagged)]")
         .enum_attribute(
             "ExecutionStateEnum",
             "#[serde(tag = \"state\", content = \"subState\")]",
@@ -66,14 +71,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .message_attribute("Tags", "#[derive(Eq)]")
         .message_attribute("AgentAttributes", "#[derive(Eq)]")
         .message_attribute("AgentMap", "#[derive(Eq)]")
-
-        // Enum serialization as string
-        .field_attribute(
-            "Workload.restartPolicy",
-            "#[serde(serialize_with = \"restart_policy_serializer\")]"
-        )
-
-        .message_attribute("Workload", "#[internal_derive_macros::fix_enum_serialization]")
         .field_attribute("Workload.tags", "#[serde(flatten)]")
         .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")

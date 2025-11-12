@@ -16,7 +16,6 @@
 tonic::include_proto!("ank_base"); // The string specified here must match the proto package name
 
 use crate::helpers::tag_adapter_deserializer;
-use crate::helpers::restart_policy_serializer;
 
 pub use crate::helpers::serialize_option_to_ordered_map;
 pub use crate::helpers::serialize_to_ordered_map;

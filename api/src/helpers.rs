@@ -72,18 +72,6 @@ where
     }
 }
 
-pub fn restart_policy_serializer<S>(
-    value: &Option<i32>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    crate::ank_base::RestartPolicy::try_from(value.unwrap_or_default())
-        .map_err(serde::ser::Error::custom)?
-        .serialize(serializer)
-}
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
