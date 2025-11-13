@@ -248,14 +248,14 @@ impl AnkaiosServer {
                     common::commands::RequestContent::UpdateStateRequest(update_state_request) => {
                         log::debug!(
                             "Received UpdateState. State '{:?}', update mask '{:?}'",
-                            update_state_request.state,
+                            update_state_request.new_state,
                             update_state_request.update_mask
                         );
 
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
                         // [impl->swdd~update-desired-state-with-missing-version~1]
                         // [impl->swdd~server-desired-state-field-conventions~1]
-                        let updated_desired_state = &update_state_request.state.desired_state;
+                        let updated_desired_state = &update_state_request.new_state.desired_state;
                         if let Err(error_message) = StateInternal::verify_api_version(
                             updated_desired_state,
                         )
@@ -274,10 +274,10 @@ impl AnkaiosServer {
 
                         // [impl->swdd~update-desired-state-with-update-mask~1]
                         // [impl->swdd~update-desired-state-empty-update-mask~1]
-                        match self
-                            .server_state
-                            .update(update_state_request.state, update_state_request.update_mask)
-                        {
+                        match self.server_state.update(
+                            update_state_request.new_state,
+                            update_state_request.update_mask,
+                        ) {
                             Ok(Some((added_workloads, deleted_workloads))) => {
                                 log::info!(
                                     "The update has {} new or updated workloads, {} workloads to delete",

@@ -242,9 +242,10 @@ impl From<&ControlInterfaceAccessInternal> for Authorizer {
 mod test {
     use api::ank_base::{
         AccessRightsRuleInternal, CompleteStateRequest, ControlInterfaceAccessInternal,
-        LogsRequestInternal, ReadWriteEnum, WorkloadInstanceNameInternal,
+        LogsRequestInternal, ReadWriteEnum, UpdateStateRequestInternal,
+        WorkloadInstanceNameInternal,
     };
-    use common::commands::{Request, UpdateStateRequest};
+    use common::commands::Request;
     use std::sync::Arc;
 
     use super::{
@@ -350,8 +351,8 @@ mod test {
         let update_state_request = Request {
             request_id: "".into(),
             request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    state: Default::default(),
+                UpdateStateRequestInternal {
+                    new_state: Default::default(),
                     update_mask: vec![],
                 },
             )),
@@ -422,9 +423,9 @@ mod test {
         let request = Request {
             request_id: "".into(),
             request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
+                UpdateStateRequestInternal {
+                    new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into()],
-                    state: Default::default(),
                 },
             )),
         };
@@ -475,9 +476,9 @@ mod test {
         let request = Request {
             request_id: "".into(),
             request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
+                UpdateStateRequestInternal {
+                    new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
-                    state: Default::default(),
                 },
             )),
         };
@@ -503,9 +504,9 @@ mod test {
         let request = Request {
             request_id: "".into(),
             request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
+                UpdateStateRequestInternal {
+                    new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
-                    state: Default::default(),
                 },
             )),
         };

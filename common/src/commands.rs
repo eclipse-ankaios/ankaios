@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::{
-    self, CompleteStateInternal, CompleteStateRequest, CpuUsageInternal, DeletedWorkload,
-    FreeMemoryInternal, LogsRequestInternal, WorkloadNamed, WorkloadStateInternal,
+    self, CompleteStateRequest, CpuUsageInternal, DeletedWorkload, FreeMemoryInternal,
+    LogsRequestInternal, UpdateStateRequestInternal, WorkloadNamed, WorkloadStateInternal,
 };
 use serde::{Deserialize, Serialize};
 
@@ -73,7 +73,7 @@ impl TryFrom<ank_base::Request> for Request {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RequestContent {
     CompleteStateRequest(CompleteStateRequest),
-    UpdateStateRequest(Box<UpdateStateRequest>),
+    UpdateStateRequest(Box<UpdateStateRequestInternal>),
     LogsRequest(LogsRequestInternal),
     LogsCancelRequest,
 }
@@ -130,32 +130,6 @@ impl TryFrom<ank_base::request::RequestContent> for RequestContent {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct UpdateStateRequest {
-    pub state: CompleteStateInternal,
-    pub update_mask: Vec<String>,
-}
-
-impl From<UpdateStateRequest> for ank_base::UpdateStateRequest {
-    fn from(value: UpdateStateRequest) -> Self {
-        Self {
-            new_state: Some(value.state.into()),
-            update_mask: value.update_mask,
-        }
-    }
-}
-
-impl TryFrom<ank_base::UpdateStateRequest> for UpdateStateRequest {
-    type Error = String;
-
-    fn try_from(item: ank_base::UpdateStateRequest) -> Result<Self, Self::Error> {
-        Ok(UpdateStateRequest {
-            state: item.new_state.unwrap_or_default().try_into()?,
-            update_mask: item.update_mask,
-        })
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ServerHello {
     pub agent_name: Option<String>,
@@ -208,11 +182,12 @@ mod tests {
     }
 
     mod ankaios {
-        pub use crate::commands::{Request, RequestContent, UpdateStateRequest};
+        pub use crate::commands::{Request, RequestContent};
         pub use api::ank_base::{
             ExecutionStateInternal, FileContentInternal, FileInternal, FilesInternal,
             LogsRequestInternal, RestartPolicy, StateInternal, TagsInternal,
-            WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal,
+            UpdateStateRequestInternal, WorkloadInstanceNameInternal, WorkloadInternal,
+            WorkloadMapInternal,
         };
         pub use api::test_utils::{
             generate_test_agent_map, generate_test_workload_states_map_with_data,
@@ -262,10 +237,12 @@ mod tests {
             }))
         };
         (ankaios) => {
-            ankaios::RequestContent::UpdateStateRequest(Box::new(ankaios::UpdateStateRequest {
-                state: complete_state!(ankaios),
-                update_mask: vec![FIELD_1.into(), FIELD_2.into()],
-            }))
+            ankaios::RequestContent::UpdateStateRequest(Box::new(
+                ankaios::UpdateStateRequestInternal {
+                    new_state: complete_state!(ankaios),
+                    update_mask: vec![FIELD_1.into(), FIELD_2.into()],
+                },
+            ))
         };
     }
 
@@ -542,7 +519,7 @@ mod tests {
         else {
             unreachable!()
         };
-        ankaios_request_content.state = CompleteStateInternal {
+        ankaios_request_content.new_state = CompleteStateInternal {
             ..Default::default()
         };
 
@@ -582,7 +559,7 @@ mod tests {
         else {
             unreachable!()
         };
-        ankaios_request_content.state.desired_state = Default::default();
+        ankaios_request_content.new_state.desired_state = Default::default();
 
         assert_eq!(
             ankaios::Request::try_from(proto_request_complete_state).unwrap(),

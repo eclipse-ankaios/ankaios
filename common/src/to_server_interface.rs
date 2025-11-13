@@ -16,7 +16,7 @@ use crate::commands::{self, AgentLoadStatus, RequestContent};
 use api::{
     ank_base::{
         self, CompleteStateInternal, CompleteStateRequest, LogsRequest, LogsRequestInternal,
-        WorkloadStateInternal,
+        UpdateStateRequestInternal, WorkloadStateInternal,
     },
     std_extensions::UnreachableResult,
 };
@@ -63,7 +63,7 @@ pub trait ToServerInterface {
     async fn update_state(
         &self,
         request_id: String,
-        state: CompleteStateInternal,
+        new_state: CompleteStateInternal,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError>;
     async fn update_workload_state(
@@ -124,14 +124,17 @@ impl ToServerInterface for ToServerSender {
     async fn update_state(
         &self,
         request_id: String,
-        state: CompleteStateInternal,
+        new_state: CompleteStateInternal,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::Request(commands::Request {
                 request_id,
                 request_content: commands::RequestContent::UpdateStateRequest(Box::new(
-                    commands::UpdateStateRequest { state, update_mask },
+                    UpdateStateRequestInternal {
+                        new_state,
+                        update_mask,
+                    },
                 )),
             }))
             .await?)
@@ -247,7 +250,8 @@ mod tests {
     };
     use api::ank_base::{
         self, CompleteStateRequest, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal,
-        LogEntriesResponse, LogEntry, LogsRequestInternal, WorkloadInstanceNameInternal,
+        LogEntriesResponse, LogEntry, LogsRequestInternal, UpdateStateRequestInternal,
+        WorkloadInstanceNameInternal,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload, generate_test_workload_state,
@@ -342,8 +346,8 @@ mod tests {
             ToServer::Request(commands::Request {
                 request_id: REQUEST_ID.to_string(),
                 request_content: commands::RequestContent::UpdateStateRequest(Box::new(
-                    commands::UpdateStateRequest {
-                        state: complete_state,
+                    UpdateStateRequestInternal {
+                        new_state: complete_state,
                         update_mask: vec![FIELD_MASK.to_string()]
                     },
                 )),

@@ -653,7 +653,7 @@ mod tests {
                 request_id,
                 request_content: common::commands::RequestContent::UpdateStateRequest(update_request),
             })
-            if request_id == expected_prefixed_my_request_id && update_request.state == ankaios_state && update_request.update_mask == ankaios_update_mask));
+            if request_id == expected_prefixed_my_request_id && update_request.new_state == ankaios_state && update_request.update_mask == ankaios_update_mask));
     }
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]

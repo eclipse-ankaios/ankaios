@@ -564,12 +564,12 @@ mod tests {
 
     use api::ank_base::{
         self, CompleteStateInternal, CompleteStateRequest, ExecutionStateInternal,
-        LogsRequestInternal, StateInternal, UpdateStateSuccess, WorkloadInstanceNameInternal,
-        WorkloadInternal, WorkloadMapInternal, WorkloadStateInternal,
+        LogsRequestInternal, StateInternal, UpdateStateRequestInternal, UpdateStateSuccess,
+        WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal, WorkloadStateInternal,
     };
     use api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
-        commands::{RequestContent, UpdateStateRequest, UpdateWorkloadState},
+        commands::{RequestContent, UpdateWorkloadState},
         from_server_interface::FromServer,
         to_server_interface::ToServer,
     };
@@ -873,8 +873,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -913,8 +913,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -933,8 +933,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -958,8 +958,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -993,8 +993,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -1032,8 +1032,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
