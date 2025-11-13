@@ -23,9 +23,9 @@ mod grpc_tests {
         time::Duration,
     };
 
-    use api::ank_base::CompleteStateInternal;
+    use api::ank_base::{CompleteStateInternal, CompleteStateRequest};
     use common::{
-        commands::{self, CompleteStateRequest, Request, RequestContent},
+        commands::{self, Request, RequestContent},
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
         communications_server::CommunicationsServer,

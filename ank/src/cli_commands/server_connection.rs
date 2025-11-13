@@ -20,11 +20,11 @@ use crate::{output_and_error, output_debug};
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
 use api::ank_base::{
-    self, CompleteStateInternal, LogsRequestAccepted, LogsRequestInternal,
+    self, CompleteStateInternal, CompleteStateRequest, LogsRequestAccepted, LogsRequestInternal,
     WorkloadInstanceNameInternal,
 };
 use common::{
-    commands::{CompleteStateRequest, UpdateWorkloadState},
+    commands::UpdateWorkloadState,
     communications_client::CommunicationsClient,
     communications_error::CommunicationMiddlewareError,
     from_server_interface::{FromServer, FromServerReceiver},
@@ -563,13 +563,13 @@ mod tests {
     };
 
     use api::ank_base::{
-        self, CompleteStateInternal, ExecutionStateInternal, LogsRequestInternal, StateInternal,
-        UpdateStateSuccess, WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal,
-        WorkloadStateInternal,
+        self, CompleteStateInternal, CompleteStateRequest, ExecutionStateInternal,
+        LogsRequestInternal, StateInternal, UpdateStateSuccess, WorkloadInstanceNameInternal,
+        WorkloadInternal, WorkloadMapInternal, WorkloadStateInternal,
     };
     use api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
-        commands::{CompleteStateRequest, RequestContent, UpdateStateRequest, UpdateWorkloadState},
+        commands::{RequestContent, UpdateStateRequest, UpdateWorkloadState},
         from_server_interface::FromServer,
         to_server_interface::ToServer,
     };

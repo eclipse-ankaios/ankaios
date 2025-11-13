@@ -241,10 +241,10 @@ impl From<&ControlInterfaceAccessInternal> for Authorizer {
 #[cfg(test)]
 mod test {
     use api::ank_base::{
-        AccessRightsRuleInternal, ControlInterfaceAccessInternal, LogsRequestInternal,
-        ReadWriteEnum, WorkloadInstanceNameInternal,
+        AccessRightsRuleInternal, CompleteStateRequest, ControlInterfaceAccessInternal,
+        LogsRequestInternal, ReadWriteEnum, WorkloadInstanceNameInternal,
     };
-    use common::commands::{CompleteStateRequest, Request, UpdateStateRequest};
+    use common::commands::{Request, UpdateStateRequest};
     use std::sync::Arc;
 
     use super::{

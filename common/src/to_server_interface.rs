@@ -15,7 +15,8 @@
 use crate::commands::{self, AgentLoadStatus, RequestContent};
 use api::{
     ank_base::{
-        self, CompleteStateInternal, LogsRequest, LogsRequestInternal, WorkloadStateInternal,
+        self, CompleteStateInternal, CompleteStateRequest, LogsRequest, LogsRequestInternal,
+        WorkloadStateInternal,
     },
     std_extensions::UnreachableResult,
 };
@@ -72,7 +73,7 @@ pub trait ToServerInterface {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: commands::CompleteStateRequest,
+        request_complete_state: CompleteStateRequest,
     ) -> Result<(), ToServerError>;
     async fn logs_request(
         &self,
@@ -152,16 +153,14 @@ impl ToServerInterface for ToServerSender {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: commands::CompleteStateRequest,
+        request_complete_state: CompleteStateRequest,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::Request(commands::Request {
                 request_id,
-                request_content: RequestContent::CompleteStateRequest(
-                    commands::CompleteStateRequest {
-                        field_mask: request_complete_state.field_mask,
-                    },
-                ),
+                request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
+                    field_mask: request_complete_state.field_mask,
+                }),
             }))
             .await?)
     }
@@ -247,8 +246,8 @@ mod tests {
         to_server_interface::{ToServer, ToServerInterface},
     };
     use api::ank_base::{
-        self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogEntriesResponse,
-        LogEntry, LogsRequestInternal, WorkloadInstanceNameInternal,
+        self, CompleteStateRequest, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal,
+        LogEntriesResponse, LogEntry, LogsRequestInternal, WorkloadInstanceNameInternal,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload, generate_test_workload_state,
@@ -380,7 +379,7 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
-        let complete_state_request = commands::CompleteStateRequest {
+        let complete_state_request = CompleteStateRequest {
             field_mask: vec![FIELD_MASK.to_string()],
         };
         let request_content = RequestContent::CompleteStateRequest(complete_state_request.clone());

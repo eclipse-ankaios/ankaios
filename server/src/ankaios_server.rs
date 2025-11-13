@@ -573,19 +573,17 @@ mod tests {
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
     use api::ank_base::{
-        CompleteStateInternal, CpuUsageInternal, DeletedWorkload, ExecutionStateEnumInternal,
-        ExecutionStateInternal, FreeMemoryInternal, LogsRequestInternal, LogsStopResponse,
-        Pending as PendingSubstate, StateInternal, Workload, WorkloadInternal, WorkloadMap,
-        WorkloadMapInternal, WorkloadNamed, WorkloadStateInternal,
+        CompleteStateInternal, CompleteStateRequest, CpuUsageInternal, DeletedWorkload,
+        ExecutionStateEnumInternal, ExecutionStateInternal, FreeMemoryInternal,
+        LogsRequestInternal, LogsStopResponse, Pending as PendingSubstate, StateInternal, Workload,
+        WorkloadInternal, WorkloadMap, WorkloadMapInternal, WorkloadNamed, WorkloadStateInternal,
     };
     use api::test_utils::{
         generate_test_workload, generate_test_workload_state,
         generate_test_workload_state_with_agent, generate_test_workload_states_map_with_data,
         generate_test_workload_with_param,
     };
-    use common::commands::{
-        AgentLoadStatus, CompleteStateRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
-    };
+    use common::commands::{AgentLoadStatus, ServerHello, UpdateWorkload, UpdateWorkloadState};
     use common::from_server_interface::FromServer;
     use common::to_server_interface::ToServerInterface;
 

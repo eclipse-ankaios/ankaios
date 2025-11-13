@@ -19,7 +19,7 @@ use common::commands;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ToAnkaios {
     Request(commands::Request),
-    Hello(Hello)
+    Hello(Hello),
 }
 
 // [impl->swdd~agent-converts-control-interface-message-to-ankaios-object~1]
@@ -76,9 +76,9 @@ impl Default for Hello {
 
 #[cfg(test)]
 mod tests {
-    use super::{control_api, ToAnkaios};
-    use api::ank_base;
-    use common::commands::{CompleteStateRequest, Request, RequestContent};
+    use super::{ToAnkaios, control_api};
+    use api::ank_base::{self, CompleteStateRequest};
+    use common::commands::{Request, RequestContent};
 
     const FIELD_1: &str = "field_1";
     const FIELD_2: &str = "field_2";
@@ -92,7 +92,7 @@ mod tests {
                 ank_base::Request {
                     request_id: REQUEST_ID.into(),
                     request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
-                        ank_base::CompleteStateRequest {
+                        CompleteStateRequest {
                             field_mask: vec![FIELD_1.into(), FIELD_2.into()],
                         },
                     )),

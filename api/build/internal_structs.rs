@@ -465,7 +465,9 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
 
 /// This function is used to create and configure the following structs:
 /// - LogsRequestInternal
-/// - LogsCancelRequestInternal
+///
+/// Request structs that have not been implemented as Internal due to the similarity with ank_base structs.
+/// These are LogsCancelRequest, CompleteStateRequest.
 pub fn setup_internal_requests(builder: Builder) -> Builder {
     builder
         .message_attribute("LogsRequest", "#[derive(internal_derive_macros::Internal)]")
@@ -475,12 +477,4 @@ pub fn setup_internal_requests(builder: Builder) -> Builder {
         )
         .field_attribute("LogsRequest.follow", "#[internal_mandatory]")
         .field_attribute("LogsRequest.tail", "#[internal_mandatory]")
-
-        // This is not needed, due to the ank_base::LogsCancelRequest structure, we can use it directly.
-        // However, this will remain in case we decide to expand it to the internal version in the future.
-        // .message_attribute("LogsCancelRequest", "#[derive(internal_derive_macros::Internal)]")
-        // .message_attribute(
-        //     "LogsCancelRequest",
-        //     "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
-        // )
 }

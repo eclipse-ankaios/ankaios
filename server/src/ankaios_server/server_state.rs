@@ -15,8 +15,9 @@
 use super::config_renderer::RenderedWorkloads;
 use api::ank_base;
 use api::ank_base::{
-    AgentAttributesInternal, CompleteStateInternal, DeletedWorkload, StateInternal,
-    WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal, WorkloadStatesMapInternal,
+    AgentAttributesInternal, CompleteStateInternal, CompleteStateRequest, DeletedWorkload,
+    StateInternal, WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
+    WorkloadStatesMapInternal,
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -25,11 +26,8 @@ use super::config_renderer::ConfigRenderer;
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
+use common::state_manipulation::{Object, Path};
 use common::std_extensions::IllegalStateResult;
-use common::{
-    commands::CompleteStateRequest,
-    state_manipulation::{Object, Path},
-};
 use std::fmt::Display;
 
 #[cfg(test)]
@@ -369,10 +367,10 @@ mod tests {
     use std::collections::HashMap;
 
     use api::ank_base::{
-        self, AgentMapInternal, CompleteStateInternal, ConfigItemEnumInternal, ConfigItemInternal,
-        ConfigMapInternal, ConfigObjectInternal, CpuUsageInternal, DeletedWorkload,
-        FreeMemoryInternal, StateInternal, Workload, WorkloadInternal, WorkloadMapInternal,
-        WorkloadNamed, WorkloadStatesMapInternal,
+        self, AgentMapInternal, CompleteStateInternal, CompleteStateRequest,
+        ConfigItemEnumInternal, ConfigItemInternal, ConfigMapInternal, ConfigObjectInternal,
+        CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, StateInternal, Workload,
+        WorkloadInternal, WorkloadMapInternal, WorkloadNamed, WorkloadStatesMapInternal,
     };
     use api::test_utils::{
         generate_test_agent_map, generate_test_complete_state, generate_test_configs,
@@ -380,7 +378,6 @@ mod tests {
         generate_test_workload_with_param,
     };
     use common::commands::AgentLoadStatus;
-    use common::commands::CompleteStateRequest;
     use mockall::predicate;
 
     use crate::ankaios_server::{

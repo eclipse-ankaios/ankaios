@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::{
-    CompleteStateInternal, LogEntriesResponse, LogsCancelAccepted, LogsRequestAccepted,
-    LogsRequestInternal, ResponseContent, State, UpdateStateRequest,
+    CompleteStateInternal, CompleteStateRequest, LogEntriesResponse, LogsCancelAccepted,
+    LogsRequestAccepted, LogsRequestInternal, ResponseContent, State, UpdateStateRequest,
 };
 
 use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
@@ -347,7 +347,7 @@ impl Connection {
         let request = common::commands::Request {
             request_id: request_id.clone(),
             request_content: common::commands::RequestContent::CompleteStateRequest(
-                common::commands::CompleteStateRequest { field_mask },
+                CompleteStateRequest { field_mask },
             ),
         };
 

@@ -16,10 +16,7 @@ use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
 use crate::grpc_api::{self, to_server::ToServerEnum};
-use api::ank_base::{
-    self, CompleteStateRequest, LogsStopResponse, Request, UpdateStateRequest,
-    request::RequestContent,
-};
+use api::ank_base::{LogsStopResponse, Request, UpdateStateRequest, request::RequestContent};
 
 use common::commands::AgentLoadStatus;
 use common::request_id_prepending::prepend_request_id;
@@ -90,13 +87,10 @@ pub async fn forward_from_proto_to_ankaios(
                             }
                         };
                     }
-                    RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask }) => {
+                    RequestContent::CompleteStateRequest(complete_state_request) => {
                         log::trace!("Received RequestCompleteState from '{agent_name}'");
-                        sink.request_complete_state(
-                            request_id,
-                            ank_base::CompleteStateRequest { field_mask }.into(),
-                        )
-                        .await?;
+                        sink.request_complete_state(request_id, complete_state_request)
+                            .await?;
                     }
                     RequestContent::LogsRequest(logs_request) => {
                         log::trace!("Received LogsRequest from '{agent_name}'");
@@ -306,8 +300,9 @@ mod tests {
     use crate::grpc_api::{self, to_server::ToServerEnum};
 
     use api::ank_base::{
-        self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogEntriesResponse,
-        LogEntry, LogsRequestInternal, LogsStopResponse, WorkloadInstanceName, WorkloadNamed,
+        self, CompleteStateRequest, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal,
+        LogEntriesResponse, LogEntry, LogsRequestInternal, LogsStopResponse, WorkloadInstanceName,
+        WorkloadNamed,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload,
@@ -746,7 +741,7 @@ mod tests {
                 request_id,
                 request_content:
                     common::commands::RequestContent::CompleteStateRequest(
-                        common::commands::CompleteStateRequest { field_mask },
+                        CompleteStateRequest { field_mask },
                     ),
             }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask)
         );
@@ -757,7 +752,7 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let request_complete_state = common::commands::CompleteStateRequest { field_mask: vec![] };
+        let request_complete_state = CompleteStateRequest { field_mask: vec![] };
 
         let request_complete_state_result = server_tx
             .request_complete_state(REQUEST_ID.to_owned(), request_complete_state.clone())
