@@ -12,11 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::{self, AgentLoadStatus, RequestContent};
+use crate::commands::{self, AgentLoadStatus};
 use api::{
     ank_base::{
-        self, CompleteStateInternal, CompleteStateRequest, LogsRequest, LogsRequestInternal,
-        UpdateStateRequestInternal, WorkloadStateInternal,
+        self, CompleteStateInternal, CompleteStateRequestInternal, LogsRequest,
+        LogsRequestInternal, RequestContentInternal, UpdateStateRequestInternal,
+        WorkloadStateInternal,
     },
     std_extensions::UnreachableResult,
 };
@@ -73,7 +74,7 @@ pub trait ToServerInterface {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: CompleteStateRequest,
+        request_complete_state: CompleteStateRequestInternal,
     ) -> Result<(), ToServerError>;
     async fn logs_request(
         &self,
@@ -130,7 +131,7 @@ impl ToServerInterface for ToServerSender {
         Ok(self
             .send(ToServer::Request(commands::Request {
                 request_id,
-                request_content: commands::RequestContent::UpdateStateRequest(Box::new(
+                request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                     UpdateStateRequestInternal {
                         new_state,
                         update_mask,
@@ -156,14 +157,16 @@ impl ToServerInterface for ToServerSender {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: CompleteStateRequest,
+        request_complete_state: CompleteStateRequestInternal,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::Request(commands::Request {
                 request_id,
-                request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
-                    field_mask: request_complete_state.field_mask,
-                }),
+                request_content: RequestContentInternal::CompleteStateRequest(
+                    CompleteStateRequestInternal {
+                        field_mask: request_complete_state.field_mask,
+                    },
+                ),
             }))
             .await?)
     }
@@ -188,7 +191,7 @@ impl ToServerInterface for ToServerSender {
         Ok(self
             .send(ToServer::Request(commands::Request {
                 request_id,
-                request_content: RequestContent::LogsRequest(logs_request_internal),
+                request_content: RequestContentInternal::LogsRequest(logs_request_internal),
             }))
             .await?)
     }
@@ -197,7 +200,9 @@ impl ToServerInterface for ToServerSender {
         Ok(self
             .send(ToServer::Request(commands::Request {
                 request_id,
-                request_content: RequestContent::LogsCancelRequest,
+                request_content: RequestContentInternal::LogsCancelRequest(
+                    ank_base::LogsCancelRequestInternal {},
+                ),
             }))
             .await?)
     }
@@ -245,13 +250,13 @@ impl ToServerInterface for ToServerSender {
 mod tests {
     use super::{ToServerReceiver, ToServerSender};
     use crate::{
-        commands::{self, AgentLoadStatus, RequestContent},
+        commands::{self, AgentLoadStatus},
         to_server_interface::{ToServer, ToServerInterface},
     };
     use api::ank_base::{
-        self, CompleteStateRequest, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal,
-        LogEntriesResponse, LogEntry, LogsRequestInternal, UpdateStateRequestInternal,
-        WorkloadInstanceNameInternal,
+        self, CompleteStateRequestInternal, CpuUsageInternal, ExecutionStateInternal,
+        FreeMemoryInternal, LogEntriesResponse, LogEntry, LogsRequestInternal,
+        RequestContentInternal, UpdateStateRequestInternal, WorkloadInstanceNameInternal,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload, generate_test_workload_state,
@@ -345,7 +350,7 @@ mod tests {
             rx.recv().await.unwrap(),
             ToServer::Request(commands::Request {
                 request_id: REQUEST_ID.to_string(),
-                request_content: commands::RequestContent::UpdateStateRequest(Box::new(
+                request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                     UpdateStateRequestInternal {
                         new_state: complete_state,
                         update_mask: vec![FIELD_MASK.to_string()]
@@ -383,10 +388,11 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
-        let complete_state_request = CompleteStateRequest {
+        let complete_state_request = CompleteStateRequestInternal {
             field_mask: vec![FIELD_MASK.to_string()],
         };
-        let request_content = RequestContent::CompleteStateRequest(complete_state_request.clone());
+        let request_content =
+            RequestContentInternal::CompleteStateRequest(complete_state_request.clone());
         assert!(
             tx.request_complete_state(REQUEST_ID.to_string(), complete_state_request)
                 .await
@@ -418,7 +424,7 @@ mod tests {
             since: None,
             until: None,
         };
-        let request_content = RequestContent::LogsRequest(logs_request.clone());
+        let request_content = RequestContentInternal::LogsRequest(logs_request.clone());
         assert!(
             tx.logs_request(REQUEST_ID.into(), logs_request.into())
                 .await
@@ -439,7 +445,8 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
-        let request_content = RequestContent::LogsCancelRequest;
+        let request_content =
+            RequestContentInternal::LogsCancelRequest(ank_base::LogsCancelRequestInternal {});
         assert!(tx.logs_cancel_request(REQUEST_ID.into()).await.is_ok());
 
         assert_eq!(

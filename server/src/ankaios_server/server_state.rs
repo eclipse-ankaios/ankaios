@@ -15,7 +15,7 @@
 use super::config_renderer::RenderedWorkloads;
 use api::ank_base;
 use api::ank_base::{
-    AgentAttributesInternal, CompleteStateInternal, CompleteStateRequest, DeletedWorkload,
+    AgentAttributesInternal, CompleteStateInternal, CompleteStateRequestInternal, DeletedWorkload,
     StateInternal, WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
     WorkloadStatesMapInternal,
 };
@@ -121,7 +121,7 @@ impl ServerState {
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
-        request_complete_state: CompleteStateRequest,
+        request_complete_state: CompleteStateRequestInternal,
         workload_states_map: &WorkloadStatesMapInternal,
     ) -> Result<ank_base::CompleteState, String> {
         let current_complete_state: ank_base::CompleteState = CompleteStateInternal {
@@ -367,7 +367,7 @@ mod tests {
     use std::collections::HashMap;
 
     use api::ank_base::{
-        self, AgentMapInternal, CompleteStateInternal, CompleteStateRequest,
+        self, AgentMapInternal, CompleteStateInternal, CompleteStateRequestInternal,
         ConfigItemEnumInternal, ConfigItemInternal, ConfigMapInternal, ConfigObjectInternal,
         CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, StateInternal, Workload,
         WorkloadInternal, WorkloadMapInternal, WorkloadNamed, WorkloadStatesMapInternal,
@@ -422,7 +422,7 @@ mod tests {
             ..Default::default()
         };
 
-        let request_complete_state = CompleteStateRequest { field_mask: vec![] };
+        let request_complete_state = CompleteStateRequestInternal { field_mask: vec![] };
 
         let mut workload_state_db = WorkloadStatesMapInternal::default();
         workload_state_db.process_new_states(server_state.state.workload_states.clone().into());
@@ -446,7 +446,7 @@ mod tests {
             ..Default::default()
         };
 
-        let request_complete_state = CompleteStateRequest {
+        let request_complete_state = CompleteStateRequestInternal {
             field_mask: vec![
                 "workloads.invalidMask".to_string(), // invalid not existing workload
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
@@ -486,7 +486,7 @@ mod tests {
             ..Default::default()
         };
 
-        let request_complete_state = CompleteStateRequest {
+        let request_complete_state = CompleteStateRequestInternal {
             field_mask: vec![
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
                 format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),

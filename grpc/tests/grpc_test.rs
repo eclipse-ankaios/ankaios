@@ -23,9 +23,11 @@ mod grpc_tests {
         time::Duration,
     };
 
-    use api::ank_base::{CompleteStateInternal, CompleteStateRequest};
+    use api::ank_base::{
+        CompleteStateInternal, CompleteStateRequestInternal, RequestContentInternal,
+    };
     use common::{
-        commands::{self, Request, RequestContent},
+        commands::{self, Request},
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
         communications_server::CommunicationsServer,
@@ -323,7 +325,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequest { field_mask: vec![] },
+                CompleteStateRequestInternal { field_mask: vec![] },
             )
             .await;
 
@@ -337,7 +339,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             Ok(Some(ToServer::Request(
                 Request{
                     request_id,
-                    request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
+                    request_content: RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
                         field_mask
                     })
                 }
@@ -365,7 +367,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequest { field_mask: vec![] },
+                CompleteStateRequestInternal { field_mask: vec![] },
             )
             .await;
 
@@ -379,7 +381,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
             Ok(Some(ToServer::Request(
                 Request{
                     request_id,
-                    request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
+                    request_content: RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
                         field_mask
                     })
                 }

@@ -18,7 +18,7 @@ mod rules;
 
 use api::ank_base::{
     AccessRightsRuleEnumInternal, AccessRightsRuleInternal, ControlInterfaceAccessInternal,
-    ReadWriteEnum,
+    ReadWriteEnum, RequestContentInternal,
 };
 use common::commands::Request;
 use path_pattern::{AllowPathPattern, DenyPathPattern, PathPatternMatcher};
@@ -66,20 +66,20 @@ impl Authorizer {
     // [impl->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     pub fn authorize(&self, request: &Request) -> bool {
         match &request.request_content {
-            common::commands::RequestContent::CompleteStateRequest(r) => Self::check_state_rules(
+            RequestContentInternal::CompleteStateRequest(r) => Self::check_state_rules(
                 &request.request_id,
                 &r.field_mask,
                 &self.state_allow_read,
                 &self.state_deny_read,
             ),
-            common::commands::RequestContent::UpdateStateRequest(r) => Self::check_state_rules(
+            RequestContentInternal::UpdateStateRequest(r) => Self::check_state_rules(
                 &request.request_id,
                 &r.update_mask,
                 &self.state_allow_write,
                 &self.state_deny_write,
             ),
             // [impl->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
-            common::commands::RequestContent::LogsRequest(logs_request) => {
+            RequestContentInternal::LogsRequest(logs_request) => {
                 let not_allowed_workload =
                     logs_request.workload_names.iter().find(|instance_name| {
                         !self
@@ -119,7 +119,7 @@ impl Authorizer {
                 true
             }
             // [impl->swdd~agent-authorizing-logs-cancel-always-allowed~1]
-            common::commands::RequestContent::LogsCancelRequest => true,
+            RequestContentInternal::LogsCancelRequest(_) => true,
         }
     }
 
@@ -241,9 +241,9 @@ impl From<&ControlInterfaceAccessInternal> for Authorizer {
 #[cfg(test)]
 mod test {
     use api::ank_base::{
-        AccessRightsRuleInternal, CompleteStateRequest, ControlInterfaceAccessInternal,
-        LogsRequestInternal, ReadWriteEnum, UpdateStateRequestInternal,
-        WorkloadInstanceNameInternal,
+        AccessRightsRuleInternal, CompleteStateRequestInternal, ControlInterfaceAccessInternal,
+        LogsCancelRequestInternal, LogsRequestInternal, ReadWriteEnum, RequestContentInternal,
+        UpdateStateRequestInternal, WorkloadInstanceNameInternal,
     };
     use common::commands::Request;
     use std::sync::Arc;
@@ -344,13 +344,13 @@ mod test {
         let mut authorizer = Authorizer::default();
         let complete_state_request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest { field_mask: vec![] },
+            request_content: RequestContentInternal::CompleteStateRequest(
+                CompleteStateRequestInternal { field_mask: vec![] },
             ),
         };
         let update_state_request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+            request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                 UpdateStateRequestInternal {
                     new_state: Default::default(),
                     update_mask: vec![],
@@ -382,8 +382,8 @@ mod test {
     fn utest_read_requests_operations() {
         let request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest {
+            request_content: RequestContentInternal::CompleteStateRequest(
+                CompleteStateRequestInternal {
                     field_mask: vec![MATCHING_PATH.into()],
                 },
             ),
@@ -422,7 +422,7 @@ mod test {
     fn utest_write_requests_operations() {
         let request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+            request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                 UpdateStateRequestInternal {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into()],
@@ -465,8 +465,8 @@ mod test {
 
         let request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest {
+            request_content: RequestContentInternal::CompleteStateRequest(
+                CompleteStateRequestInternal {
                     field_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
                 },
             ),
@@ -475,7 +475,7 @@ mod test {
 
         let request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+            request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                 UpdateStateRequestInternal {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
@@ -493,8 +493,8 @@ mod test {
 
         let request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest {
+            request_content: RequestContentInternal::CompleteStateRequest(
+                CompleteStateRequestInternal {
                     field_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
                 },
             ),
@@ -503,7 +503,7 @@ mod test {
 
         let request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+            request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                 UpdateStateRequestInternal {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
@@ -518,7 +518,7 @@ mod test {
     fn utest_log_request_empty_is_allowed() {
         let request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::LogsRequest(LogsRequestInternal {
+            request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: vec![],
                 follow: false,
                 tail: -1,
@@ -536,7 +536,7 @@ mod test {
     fn utest_log_requests_general_cases() {
         let request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::LogsRequest(LogsRequestInternal {
+            request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: vec![WorkloadInstanceNameInternal::new("", WORKLOAD_NAME, "")],
                 follow: false,
                 tail: -1,
@@ -573,18 +573,16 @@ mod test {
         fn request(workloads: &[&str]) -> Request {
             Request {
                 request_id: "".into(),
-                request_content: common::commands::RequestContent::LogsRequest(
-                    LogsRequestInternal {
-                        workload_names: workloads
-                            .iter()
-                            .map(|name| WorkloadInstanceNameInternal::new("", *name, ""))
-                            .collect(),
-                        follow: false,
-                        tail: -1,
-                        since: None,
-                        until: None,
-                    },
-                ),
+                request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
+                    workload_names: workloads
+                        .iter()
+                        .map(|name| WorkloadInstanceNameInternal::new("", *name, ""))
+                        .collect(),
+                    follow: false,
+                    tail: -1,
+                    since: None,
+                    until: None,
+                }),
             }
         }
 
@@ -608,7 +606,9 @@ mod test {
     fn utest_log_cancel_request() {
         let request = Request {
             request_id: "".into(),
-            request_content: common::commands::RequestContent::LogsCancelRequest,
+            request_content: RequestContentInternal::LogsCancelRequest(
+                LogsCancelRequestInternal {},
+            ),
         };
 
         let authorizer = Authorizer::default();

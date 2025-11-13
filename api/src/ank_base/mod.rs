@@ -49,7 +49,7 @@ pub use config_item::{ConfigItemEnum, ConfigItemEnumInternal};
 
 pub(crate) mod complete_state;
 
-pub use request::RequestContent;
+pub use request::{RequestContent, RequestContentInternal};
 pub use response::ResponseContent;
 
 pub(crate) mod requests;

@@ -20,8 +20,8 @@ use crate::{output_and_error, output_debug};
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
 use api::ank_base::{
-    self, CompleteStateInternal, CompleteStateRequest, LogsRequestAccepted, LogsRequestInternal,
-    WorkloadInstanceNameInternal,
+    self, CompleteStateInternal, CompleteStateRequestInternal, LogsRequestAccepted,
+    LogsRequestInternal, WorkloadInstanceNameInternal,
 };
 use common::{
     commands::UpdateWorkloadState,
@@ -107,7 +107,7 @@ impl ServerConnection {
         self.to_server
             .request_complete_state(
                 request_id.to_owned(),
-                CompleteStateRequest {
+                CompleteStateRequestInternal {
                     field_mask: object_field_mask.to_vec(),
                 },
             )
@@ -563,14 +563,14 @@ mod tests {
     };
 
     use api::ank_base::{
-        self, CompleteStateInternal, CompleteStateRequest, ExecutionStateInternal,
-        LogsRequestInternal, StateInternal, UpdateStateRequestInternal, UpdateStateSuccess,
-        WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal, WorkloadStateInternal,
+        self, CompleteStateInternal, CompleteStateRequestInternal, ExecutionStateInternal,
+        LogsCancelRequestInternal, LogsRequestInternal, RequestContentInternal, StateInternal,
+        UpdateStateRequestInternal, UpdateStateSuccess, WorkloadInstanceNameInternal,
+        WorkloadInternal, WorkloadMapInternal, WorkloadStateInternal,
     };
     use api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
-        commands::{RequestContent, UpdateWorkloadState},
-        from_server_interface::FromServer,
+        commands::UpdateWorkloadState, from_server_interface::FromServer,
         to_server_interface::ToServer,
     };
 
@@ -600,7 +600,7 @@ mod tests {
     enum CommunicationSimulatorAction {
         WillSendMessage(FromServer),
         WillSendResponse(String, ank_base::response::ResponseContent),
-        ExpectReceiveRequest(String, RequestContent),
+        ExpectReceiveRequest(String, RequestContentInternal),
     }
 
     impl CommunicationSimulator {
@@ -676,7 +676,11 @@ mod tests {
                 ));
         }
 
-        pub fn expect_receive_request(&mut self, request_name: &str, request: RequestContent) {
+        pub fn expect_receive_request(
+            &mut self,
+            request_name: &str,
+            request: RequestContentInternal,
+        ) {
             self.actions
                 .push(CommunicationSimulatorAction::ExpectReceiveRequest(
                     request_name.to_string(),
@@ -734,7 +738,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::CompleteStateRequest(CompleteStateRequest {
+            RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
@@ -777,7 +781,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::CompleteStateRequest(CompleteStateRequest {
+            RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
@@ -805,7 +809,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::CompleteStateRequest(CompleteStateRequest {
+            RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
@@ -840,7 +844,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::CompleteStateRequest(CompleteStateRequest {
+            RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
@@ -873,7 +877,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -913,7 +917,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -933,7 +937,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -958,7 +962,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -993,7 +997,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -1032,7 +1036,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -1150,7 +1154,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(LogsRequestInternal {
+            RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1358,7 +1362,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(LogsRequestInternal {
+            RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1429,7 +1433,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(LogsRequestInternal {
+            RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1505,7 +1509,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(LogsRequestInternal {
+            RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1523,7 +1527,10 @@ mod tests {
             ),
         );
 
-        sim.expect_receive_request(REQUEST, RequestContent::LogsCancelRequest);
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContentInternal::LogsCancelRequest(LogsCancelRequestInternal {}),
+        );
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
         signal_handler_context
@@ -1564,7 +1571,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(LogsRequestInternal {
+            RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1646,7 +1653,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(LogsRequestInternal {
+            RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,

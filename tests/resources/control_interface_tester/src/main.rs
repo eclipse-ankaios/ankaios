@@ -13,8 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::{
-    CompleteStateInternal, CompleteStateRequest, LogEntriesResponse, LogsCancelAccepted,
-    LogsRequestAccepted, LogsRequestInternal, ResponseContent, State, UpdateStateRequest,
+    CompleteStateInternal, CompleteStateRequestInternal, LogEntriesResponse, LogsCancelAccepted,
+    LogsCancelRequestInternal, LogsRequestAccepted, LogsRequestInternal, RequestContentInternal,
+    ResponseContent, State, UpdateStateRequestInternal,
 };
 
 use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
@@ -303,13 +304,11 @@ impl Connection {
 
         let request = common::commands::Request {
             request_id: request_id.clone(),
-            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
-                UpdateStateRequest {
-                    new_state: Some(state.into()),
+            request_content: RequestContentInternal::UpdateStateRequest(Box::new(
+                UpdateStateRequestInternal {
+                    new_state: state,
                     update_mask: update_state_command.update_mask,
-                }
-                .try_into()
-                .map_err(CommandError::GenericError)?,
+                },
             )),
         };
 
@@ -346,8 +345,8 @@ impl Connection {
 
         let request = common::commands::Request {
             request_id: request_id.clone(),
-            request_content: common::commands::RequestContent::CompleteStateRequest(
-                CompleteStateRequest { field_mask },
+            request_content: RequestContentInternal::CompleteStateRequest(
+                CompleteStateRequestInternal { field_mask },
             ),
         };
 
@@ -487,7 +486,7 @@ impl Connection {
 
         let request = common::commands::Request {
             request_id: request_id.clone(),
-            request_content: common::commands::RequestContent::LogsRequest(LogsRequestInternal {
+            request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: workload_instance_names,
                 follow: true,
                 tail: -1,
@@ -542,7 +541,9 @@ impl Connection {
     ) -> Result<TestResultEnum, CommandError> {
         let request = common::commands::Request {
             request_id: request_id.clone(),
-            request_content: common::commands::RequestContent::LogsCancelRequest,
+            request_content: RequestContentInternal::LogsCancelRequest(
+                LogsCancelRequestInternal {},
+            ),
         };
 
         let proto = api::control_api::ToAnkaios {

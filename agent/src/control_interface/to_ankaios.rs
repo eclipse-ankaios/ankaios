@@ -77,8 +77,11 @@ impl Default for Hello {
 #[cfg(test)]
 mod tests {
     use super::{ToAnkaios, control_api};
-    use api::ank_base::{self, CompleteStateRequest};
-    use common::commands::{Request, RequestContent};
+    use api::ank_base::{
+        self, CompleteStateRequest, CompleteStateRequestInternal, RequestContent,
+        RequestContentInternal,
+    };
+    use common::commands::Request;
 
     const FIELD_1: &str = "field_1";
     const FIELD_2: &str = "field_2";
@@ -91,7 +94,7 @@ mod tests {
             to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(
                 ank_base::Request {
                     request_id: REQUEST_ID.into(),
-                    request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
+                    request_content: Some(RequestContent::CompleteStateRequest(
                         CompleteStateRequest {
                             field_mask: vec![FIELD_1.into(), FIELD_2.into()],
                         },
@@ -102,9 +105,11 @@ mod tests {
 
         let expected = ToAnkaios::Request(Request {
             request_id: REQUEST_ID.into(),
-            request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
-                field_mask: vec![FIELD_1.into(), FIELD_2.into()],
-            }),
+            request_content: RequestContentInternal::CompleteStateRequest(
+                CompleteStateRequestInternal {
+                    field_mask: vec![FIELD_1.into(), FIELD_2.into()],
+                },
+            ),
         });
 
         assert_eq!(ToAnkaios::try_from(proto_request).unwrap(), expected);

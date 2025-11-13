@@ -532,7 +532,9 @@ mod tests {
 
         let mut expected_log_cancel_request = commands::Request {
             request_id: response.request_id,
-            request_content: commands::RequestContent::LogsCancelRequest,
+            request_content: ank_base::RequestContentInternal::LogsCancelRequest(
+                ank_base::LogsCancelRequestInternal {},
+            ),
         };
         expected_log_cancel_request.prefix_request_id(request_id_prefix);
         assert_eq!(

@@ -89,8 +89,17 @@ pub async fn forward_from_proto_to_ankaios(
                     }
                     RequestContent::CompleteStateRequest(complete_state_request) => {
                         log::trace!("Received RequestCompleteState from '{agent_name}'");
-                        sink.request_complete_state(request_id, complete_state_request)
-                            .await?;
+                        match complete_state_request.try_into() {
+                            Ok(complete_state_request) => {
+                                sink.request_complete_state(request_id, complete_state_request)
+                                    .await?;
+                            }
+                            Err(error) => {
+                                return Err(GrpcMiddlewareError::ConversionError(format!(
+                                    "Could not convert CompleteStateRequest for forwarding: '{error}'"
+                                )));
+                            }
+                        };
                     }
                     RequestContent::LogsRequest(logs_request) => {
                         log::trace!("Received LogsRequest from '{agent_name}'");
@@ -300,8 +309,9 @@ mod tests {
     use crate::grpc_api::{self, to_server::ToServerEnum};
 
     use api::ank_base::{
-        self, CompleteStateRequest, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal,
-        LogEntriesResponse, LogEntry, LogsRequestInternal, LogsStopResponse, WorkloadInstanceName,
+        self, CompleteStateRequestInternal, CpuUsageInternal, ExecutionStateInternal,
+        FreeMemoryInternal, LogEntriesResponse, LogEntry, LogsCancelRequestInternal,
+        LogsRequestInternal, LogsStopResponse, RequestContentInternal, WorkloadInstanceName,
         WorkloadNamed,
     };
     use api::test_utils::{
@@ -651,7 +661,7 @@ mod tests {
             result,
             ToServer::Request(common::commands::Request {
                 request_id,
-                request_content: common::commands::RequestContent::UpdateStateRequest(update_request),
+                request_content: RequestContentInternal::UpdateStateRequest(update_request),
             })
             if request_id == expected_prefixed_my_request_id && update_request.new_state == ankaios_state && update_request.update_mask == ankaios_update_mask));
     }
@@ -740,8 +750,8 @@ mod tests {
             matches!(result, common::to_server_interface::ToServer::Request(common::commands::Request {
                 request_id,
                 request_content:
-                    common::commands::RequestContent::CompleteStateRequest(
-                        CompleteStateRequest { field_mask },
+                    RequestContentInternal::CompleteStateRequest(
+                        CompleteStateRequestInternal { field_mask },
                     ),
             }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask)
         );
@@ -752,7 +762,7 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let request_complete_state = CompleteStateRequest { field_mask: vec![] };
+        let request_complete_state = CompleteStateRequestInternal { field_mask: vec![] };
 
         let request_complete_state_result = server_tx
             .request_complete_state(REQUEST_ID.to_owned(), request_complete_state.clone())
@@ -844,7 +854,7 @@ mod tests {
             matches!(result, common::to_server_interface::ToServer::Request(common::commands::Request {
                 request_id,
                 request_content:
-                    common::commands::RequestContent::LogsRequest(
+                    RequestContentInternal::LogsRequest(
                         LogsRequestInternal { workload_names, follow, tail, since, until },
                     ),
             }) if request_id == expected_prefixed_my_request_id
@@ -891,7 +901,9 @@ mod tests {
             result,
             common::to_server_interface::ToServer::Request(common::commands::Request {
                 request_id,
-                request_content: common::commands::RequestContent::LogsCancelRequest,
+                request_content: RequestContentInternal::LogsCancelRequest(
+                    LogsCancelRequestInternal{}
+                ),
             }) if request_id == expected_prefixed_my_request_id
         ));
     }

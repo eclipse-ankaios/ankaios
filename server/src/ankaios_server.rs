@@ -20,8 +20,8 @@ mod server_state;
 
 use api::ank_base;
 use api::ank_base::{
-    CompleteStateInternal, DeletedWorkload, ExecutionStateInternal, StateInternal,
-    WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadStatesMapInternal,
+    CompleteStateInternal, DeletedWorkload, ExecutionStateInternal, RequestContentInternal,
+    StateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadStatesMapInternal,
 };
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
@@ -212,9 +212,7 @@ impl AnkaiosServer {
                 }) => match request_content {
                     // [impl->swdd~server-provides-interface-get-complete-state~2]
                     // [impl->swdd~server-includes-id-in-control-interface-response~1]
-                    common::commands::RequestContent::CompleteStateRequest(
-                        complete_state_request,
-                    ) => {
+                    RequestContentInternal::CompleteStateRequest(complete_state_request) => {
                         log::debug!(
                             "Received CompleteStateRequest with id '{}' and field mask: '{:?}'",
                             request_id,
@@ -245,7 +243,7 @@ impl AnkaiosServer {
                     }
 
                     // [impl->swdd~server-provides-update-desired-state-interface~1]
-                    common::commands::RequestContent::UpdateStateRequest(update_state_request) => {
+                    RequestContentInternal::UpdateStateRequest(update_state_request) => {
                         log::debug!(
                             "Received UpdateState. State '{:?}', update mask '{:?}'",
                             update_state_request.new_state,
@@ -346,7 +344,7 @@ impl AnkaiosServer {
                         }
                     }
                     // [impl->swdd~server-handles-logs-request-message~1]
-                    common::commands::RequestContent::LogsRequest(mut logs_request) => {
+                    RequestContentInternal::LogsRequest(mut logs_request) => {
                         log::debug!(
                             "Got log request. Id: '{}', Workload Instance Names: '{:?}'",
                             request_id,
@@ -377,7 +375,7 @@ impl AnkaiosServer {
                             .unwrap_or_illegal_state();
                     }
                     // [impl->swdd~server-handles-logs-cancel-request-message~1]
-                    common::commands::RequestContent::LogsCancelRequest => {
+                    RequestContentInternal::LogsCancelRequest(_) => {
                         log::debug!("Got log cancel request with ID: {request_id}");
 
                         self.log_campaign_store.remove_logs_request_id(&request_id);
@@ -573,7 +571,7 @@ mod tests {
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
     use api::ank_base::{
-        CompleteStateInternal, CompleteStateRequest, CpuUsageInternal, DeletedWorkload,
+        CompleteStateInternal, CompleteStateRequestInternal, CpuUsageInternal, DeletedWorkload,
         ExecutionStateEnumInternal, ExecutionStateInternal, FreeMemoryInternal,
         LogsRequestInternal, LogsStopResponse, Pending as PendingSubstate, StateInternal, Workload,
         WorkloadInternal, WorkloadMap, WorkloadMapInternal, WorkloadNamed, WorkloadStateInternal,
@@ -1450,7 +1448,7 @@ mod tests {
             .expect_get_complete_state_by_field_mask()
             .with(
                 mockall::predicate::function(|request_complete_state| {
-                    request_complete_state == &CompleteStateRequest { field_mask: vec![] }
+                    request_complete_state == &CompleteStateRequestInternal { field_mask: vec![] }
                 }),
                 mockall::predicate::always(),
             )
@@ -1464,7 +1462,7 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id.clone(),
-                CompleteStateRequest { field_mask: vec![] },
+                CompleteStateRequestInternal { field_mask: vec![] },
             )
             .await;
         assert!(request_complete_state_result.is_ok());
@@ -1502,7 +1500,7 @@ mod tests {
             .expect_get_complete_state_by_field_mask()
             .with(
                 mockall::predicate::function(|request_complete_state| {
-                    request_complete_state == &CompleteStateRequest { field_mask: vec![] }
+                    request_complete_state == &CompleteStateRequestInternal { field_mask: vec![] }
                 }),
                 mockall::predicate::always(),
             )
@@ -1517,7 +1515,7 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id.clone(),
-                CompleteStateRequest { field_mask: vec![] },
+                CompleteStateRequestInternal { field_mask: vec![] },
             )
             .await;
         assert!(request_complete_state_result.is_ok());
