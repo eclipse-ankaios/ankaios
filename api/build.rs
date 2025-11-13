@@ -75,14 +75,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // TODO: fix all the remaining fields that need skipping (see output of cli when filtering complete state)
         // TODO: apparently we don't have system tests for the filtering of complete state yet. We should add some ...
+        .field_attribute("CompleteState.desiredState", "#[serde(skip_serializing_if = \"Option::is_none\")]")
+        .field_attribute("CompleteState.workloadStates", "#[serde(skip_serializing_if = \"Option::is_none\")]")
+        .field_attribute("CompleteState.agents", "#[serde(skip_serializing_if = \"Option::is_none\")]")
+
+        .field_attribute("State.workloads", "#[serde(skip_serializing_if = \"Option::is_none\")]")
+        .field_attribute("State.configs", "#[serde(skip_serializing_if = \"Option::is_none\")]")
+
         .field_attribute("Workload.agent", "#[serde(skip_serializing_if = \"Option::is_none\")]")
         .field_attribute("Workload.restartPolicy", "#[serde(default, skip_serializing_if = \"Option::is_none\")]")
-
+        .field_attribute("Workload.runtime", "#[serde(skip_serializing_if = \"Option::is_none\")]")
+        .field_attribute("Workload.runtimeConfig", "#[serde(skip_serializing_if = \"Option::is_none\")]")
+        .field_attribute("Workload.files", "#[serde(skip_serializing_if = \"Option::is_none\")]")
+        .field_attribute("Workload.controlInterfaceAccess", "#[serde(skip_serializing_if = \"Option::is_none\")]")
 
         .field_attribute("Workload.tags", "#[serde(flatten)]")
         .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")
-        .field_attribute("Workload.files", "#[serde(flatten)]")
+        .message_attribute("Files", "#[serde(transparent)]")
         .field_attribute("WorkloadStatesMap.agentStateMap", "#[serde(flatten)]")
         .field_attribute(
             "ExecutionsStatesOfWorkload.wlNameStateMap",
@@ -103,7 +113,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
         )
         .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]")
-        .field_attribute("Files.files", "#[serde(default)]")
+        .field_attribute(
+            "Files.files",
+            "#[serde(skip_serializing_if = \"Vec::is_empty\")]",
+        )
+
+        // Yes, this is not a map, but this is the only way to get the desired serialization behavior without ! in the YAML and a custom serializer
         .field_attribute(
             "Files.files",
             "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
