@@ -20,6 +20,7 @@ use api::{
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
+
 #[derive(Debug)]
 pub struct FromServerInterfaceError(String);
 
@@ -333,7 +334,7 @@ mod tests {
 
     use super::{FromServerReceiver, FromServerSender};
 
-    const TEST_CHANNEL_CAPA: usize = 5;
+    const TEST_CHANNEL_CAP: usize = 5;
     const WORKLOAD_NAME_1: &str = "X";
     const WORKLOAD_NAME_2: &str = "Y";
     const AGENT_NAME: &str = "agent_A";
@@ -343,7 +344,7 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_update_workload() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
         let added_workloads = vec![generate_test_workload()];
         let deleted_workloads = vec![generate_test_deleted_workload(
@@ -369,7 +370,7 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_update_workload_state() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
         let workload_state =
             generate_test_workload_state(WORKLOAD_NAME_1, ExecutionStateInternal::running());
@@ -391,7 +392,7 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_complete_state() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
         let complete_state: ank_base::CompleteState =
             generate_test_complete_state(vec![generate_test_workload()]).into();
@@ -416,7 +417,7 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_update_state_success() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
         let added_workloads = vec!["some_name".to_string(), "some_other_name".to_string()];
         let deleted_workloads = vec!["some_name_1".to_string(), "some_other_name_1".to_string()];
@@ -448,7 +449,7 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_error() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
         let error = ank_base::Error {
             message: "error".to_string(),
@@ -471,7 +472,7 @@ mod tests {
     #[tokio::test]
     async fn utest_logs_request_success() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
         assert!(
             tx.logs_request(
@@ -520,7 +521,7 @@ mod tests {
     #[tokio::test]
     async fn utest_logs_request_fail() {
         let (tx, _): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
         assert!(
             tx.logs_request(
@@ -545,7 +546,7 @@ mod tests {
     #[tokio::test]
     async fn utest_logs_response_success() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
         assert!(
             tx.log_entries_response(
@@ -608,7 +609,7 @@ mod tests {
     #[tokio::test]
     async fn utest_logs_response_fail() {
         let (tx, _): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
         assert!(
             tx.log_entries_response(
@@ -633,7 +634,7 @@ mod tests {
     #[tokio::test]
     async fn utest_logs_stop_response_success() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
         let workload_instance_name = ank_base::WorkloadInstanceName {
             workload_name: WORKLOAD_NAME_1.into(),
@@ -669,7 +670,7 @@ mod tests {
     #[tokio::test]
     async fn utest_logs_stop_response_fail() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAP);
 
         rx.close();
 
