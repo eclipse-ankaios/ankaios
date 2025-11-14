@@ -43,7 +43,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[internal_derive_macros::fix_enum_serialization]",
         )
         .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")
-        // TODO #313 Setup camelCase and SCREAMING_SNAKE_CASE for each object individually (if needed)
         .message_attribute(".", "#[serde(rename_all = \"camelCase\")]")
         .enum_attribute(
             "AddCondition",
@@ -105,19 +104,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .field_attribute("ConfigMap.configs", "#[serde(flatten)]")
         .field_attribute(
             "ControlInterfaceAccess.allowRules",
-            "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
+            "#[serde(default, with = \"serde_yaml::with::singleton_map_recursive\", skip_serializing_if = \"Vec::is_empty\")]",
         )
-        .field_attribute("ControlInterfaceAccess.allowRules", "#[serde(default)]")
         .field_attribute(
             "ControlInterfaceAccess.denyRules",
-            "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
+            "#[serde(default, with = \"serde_yaml::with::singleton_map_recursive\", skip_serializing_if = \"Vec::is_empty\")]",
         )
-        .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]")
         .field_attribute(
             "Files.files",
             "#[serde(skip_serializing_if = \"Vec::is_empty\")]",
         )
-
         // Yes, this is not a map, but this is the only way to get the desired serialization behavior without ! in the YAML and a custom serializer
         .field_attribute(
             "Files.files",
