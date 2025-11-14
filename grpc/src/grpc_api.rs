@@ -318,11 +318,11 @@ mod tests {
                 }
                 .into(),
                 execution_state: ank_base::ExecutionState {
+                    additional_info: Some("".to_string()),
                     execution_state_enum: ank_base::execution_state::ExecutionStateEnum::Running(
                         ank_base::Running::Ok.into(),
                     )
                     .into(),
-                    ..Default::default()
                 }
                 .into(),
             }

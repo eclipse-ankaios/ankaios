@@ -173,7 +173,7 @@ message ExecutionsStatesForId {
  * A message containing information about the detailed state of a workload in the Ankaios system.
  */
 message ExecutionState {
-    string additionalInfo = 1; // The additional info contains more detailed information from the runtime regarding the execution state.
+    optional string additionalInfo = 1; // The additional info contains more detailed information from the runtime regarding the execution state.
     oneof ExecutionStateEnum {
         AgentDisconnected agentDisconnected = 2; // The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.
         Pending pending = 3; // The workload is going to be started eventually.

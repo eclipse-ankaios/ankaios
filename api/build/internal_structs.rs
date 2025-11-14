@@ -444,6 +444,7 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
         "ExecutionState",
         "#[internal_type_attr(#[serde(default, rename_all = \"camelCase\")])]",
     )
+    .field_attribute("ExecutionState.additionalInfo", "#[internal_mandatory]")
     .field_attribute("ExecutionState.ExecutionStateEnum", "#[internal_mandatory]")
     .field_attribute(
         "ExecutionState.ExecutionStateEnum",

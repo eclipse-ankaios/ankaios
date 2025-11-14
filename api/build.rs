@@ -98,6 +98,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[serde(flatten)]",
         )
         .field_attribute("ExecutionsStatesForId.idStateMap", "#[serde(flatten)]")
+        .field_attribute("ExecutionState.additionalInfo", "#[serde(skip_serializing_if = \"Option::is_none\")]")
         .field_attribute("ExecutionState.ExecutionStateEnum", "#[serde(flatten)]")
         .field_attribute("WorkloadMap.workloads", "#[serde(flatten)]")
         .field_attribute("AgentMap.agents", "#[serde(flatten)]")

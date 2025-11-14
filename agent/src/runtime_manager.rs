@@ -2299,7 +2299,7 @@ mod tests {
                                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed"
                                     .to_string(),
                                 ank_base::ExecutionState {
-                                    additional_info: "".to_string(),
+                                    additional_info: Some("".to_string()),
                                     execution_state_enum: Some(
                                         ank_base::execution_state::ExecutionStateEnum::Running(0),
                                     ),
