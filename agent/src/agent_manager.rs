@@ -584,7 +584,7 @@ mod tests {
             .expect_sample_resource_usage()
             .returning(|| {
                 (
-                    CpuUsageInternal::new(50.0),
+                    CpuUsageInternal { cpu_usage: 50 },
                     FreeMemoryInternal { free_memory: 1024 },
                 )
             });
@@ -661,7 +661,7 @@ mod tests {
                     .expect_sample_resource_usage()
                     .returning(|| {
                         (
-                            CpuUsageInternal::new(50.0),
+                            CpuUsageInternal { cpu_usage: 50 },
                             FreeMemoryInternal { free_memory: 1024 },
                         )
                     });

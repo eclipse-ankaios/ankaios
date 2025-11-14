@@ -16,14 +16,6 @@ use crate::ank_base::{
     AgentAttributes, AgentAttributesInternal, AgentMapInternal, AgentStatus, CpuUsageInternal,
 };
 
-impl CpuUsageInternal {
-    pub fn new(cpu_usage: f32) -> Self {
-        Self {
-            cpu_usage: cpu_usage.round() as u32,
-        }
-    }
-}
-
 impl AgentAttributes {
     pub fn get_cpu_usage_as_string(&mut self) -> String {
         if let Some(AgentStatus {
