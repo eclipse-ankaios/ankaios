@@ -27,8 +27,6 @@ pub use workload_instance_name::{
 
 pub use file::{FileContent, FileContentInternal};
 
-pub(crate) mod agent_map;
-
 pub(crate) mod control_interface_access;
 pub use access_rights_rule::AccessRightsRuleEnumInternal;
 pub use control_interface_access::WILDCARD_SYMBOL;

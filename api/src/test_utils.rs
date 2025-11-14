@@ -13,12 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    CompleteState, CompleteStateInternal, ConfigMap, ConfigMapInternal, ConfigMappingsInternal,
-    DeleteCondition, DeletedWorkload, State, StateInternal, Workload, WorkloadInstanceNameInternal,
-    WorkloadMap, WorkloadMapInternal, WorkloadNamed,
+    AgentAttributesInternal, AgentMapInternal, AgentStatusInternal, CompleteState, CompleteStateInternal, ConfigMap, ConfigMapInternal, ConfigMappingsInternal, CpuUsageInternal, DeleteCondition, DeletedWorkload, FreeMemoryInternal, State, StateInternal, Workload, WorkloadInstanceNameInternal, WorkloadMap, WorkloadMapInternal, WorkloadNamed
 };
 pub use crate::ank_base::{
-    agent_map::{generate_test_agent_map, generate_test_agent_map_from_workloads},
     config::generate_test_config_item,
     control_interface_access::generate_test_control_interface_access,
     workload::{
@@ -216,4 +213,42 @@ pub fn generate_test_configs() -> ConfigMapInternal {
         ",
     )
     .unwrap()
+}
+
+pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMapInternal {
+    let mut agent_map = AgentMapInternal::default();
+    agent_map
+        .agents
+        .entry(agent_name.into())
+        .or_insert(AgentAttributesInternal {
+            status: Some(AgentStatusInternal {
+                cpu_usage: Some(CpuUsageInternal { cpu_usage: 42 }),
+                free_memory: Some(FreeMemoryInternal { free_memory: 42 }),
+            }),
+            ..Default::default()
+        });
+    agent_map
+}
+
+pub fn generate_test_agent_map_from_workloads(
+    workloads: &[crate::ank_base::WorkloadInternal],
+) -> AgentMapInternal {
+    workloads
+        .iter()
+        .fold(AgentMapInternal::default(), |mut agent_map, wl| {
+            use crate::ank_base::AgentStatusInternal;
+
+            let agent_name = &wl.agent;
+            agent_map
+                .agents
+                .entry(agent_name.to_owned())
+                .or_insert(AgentAttributesInternal {
+                    status: Some(AgentStatusInternal {
+                        cpu_usage: Some(CpuUsageInternal { cpu_usage: 42 }),
+                        free_memory: Some(FreeMemoryInternal { free_memory: 42 }),
+                    }),
+                    ..Default::default()
+                });
+            agent_map
+        })
 }

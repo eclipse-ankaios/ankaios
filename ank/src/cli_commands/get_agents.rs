@@ -19,7 +19,7 @@ use crate::{
     output_debug,
 };
 
-use api::ank_base::{AgentAttributes, WorkloadStatesMapInternal};
+use api::ank_base::{AgentAttributes, AgentStatus, WorkloadStatesMapInternal};
 
 const EMPTY_FILTER_MASK: [String; 0] = [];
 
@@ -47,12 +47,12 @@ impl CliCommands {
             .into_iter();
 
         // TODO: think about the conversion here and if we can omit converting to Internal
-        let agent_table_rows = transform_into_table_rows(connected_agents, &workload_states_map.try_into().map_err(|err| {
-            CliError::ExecutionError(format!(
-                "Failed to convert workload states map: {err}"
-
-            ))
-        })?);
+        let agent_table_rows = transform_into_table_rows(
+            connected_agents,
+            &workload_states_map.try_into().map_err(|err| {
+                CliError::ExecutionError(format!("Failed to convert workload states map: {err}"))
+            })?,
+        );
 
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
@@ -61,12 +61,36 @@ impl CliCommands {
     }
 }
 
+pub fn get_cpu_usage_as_string(agent_attributes: &AgentAttributes) -> String {
+    if let Some(AgentStatus {
+        cpu_usage: Some(cpu_usage),
+        ..
+    }) = &agent_attributes.status
+    {
+        format!("{}%", cpu_usage.cpu_usage)
+    } else {
+        "".to_string()
+    }
+}
+
+pub fn get_free_memory_as_string(agent_attributes: &AgentAttributes) -> String {
+    if let Some(AgentStatus {
+        free_memory: Some(free_memory),
+        ..
+    }) = &agent_attributes.status
+    {
+        format!("{}B", free_memory.free_memory)
+    } else {
+        "".to_string()
+    }
+}
+
 fn transform_into_table_rows(
     agents_map: impl Iterator<Item = (String, AgentAttributes)>,
     workload_states_map: &WorkloadStatesMapInternal,
 ) -> Vec<AgentTableRow> {
     let mut agent_table_rows: Vec<AgentTableRow> = agents_map
-        .map(|(agent_name, mut agent_attributes)| {
+        .map(|(agent_name, agent_attributes)| {
             let workload_states_count = workload_states_map
                 .get_workload_state_for_agent(&agent_name)
                 .len() as u32;
@@ -74,8 +98,8 @@ fn transform_into_table_rows(
             AgentTableRow {
                 agent_name,
                 workloads: workload_states_count,
-                cpu_usage: agent_attributes.get_cpu_usage_as_string(),
-                free_memory: agent_attributes.get_free_memory_as_string(),
+                cpu_usage: get_cpu_usage_as_string(&agent_attributes),
+                free_memory: get_free_memory_as_string(&agent_attributes),
             }
         })
         .collect();
@@ -125,8 +149,8 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok(
-                    ank_base::CompleteState::from(generate_test_complete_state(vec![
+                Ok(ank_base::CompleteState::from(generate_test_complete_state(
+                    vec![
                         generate_test_workload_with_param::<WorkloadNamed>(
                             AGENT_A_NAME,
                             RUNTIME_NAME,
@@ -137,8 +161,8 @@ mod tests {
                             RUNTIME_NAME,
                         )
                         .name(WORKLOAD_NAME_2),
-                    ])),
-                )
+                    ],
+                )))
             });
 
         let mut cmd = CliCommands {
