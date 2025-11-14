@@ -404,7 +404,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         let instance_name = workload_named.instance_name.clone();
 
         // [impl->swdd~podman-kube-rejects-workload-files~1]
-        if workload_named.workload.has_files() {
+        if !workload_named.workload.files.files.is_empty() {
             return Err(RuntimeError::Unsupported(
                 "Workload files are not supported for podman-kube runtime. Use ConfigMaps instead."
                     .to_string(),

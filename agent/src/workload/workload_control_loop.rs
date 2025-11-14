@@ -362,7 +362,7 @@ impl WorkloadControlLoop {
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        if control_loop_state.workload_named.workload.has_files() {
+        if !control_loop_state.workload_named.workload.files.files.is_empty() {
             let workload_files_base_path = WorkloadFilesBasePath::from((
                 &control_loop_state.run_folder,
                 control_loop_state.instance_name(),

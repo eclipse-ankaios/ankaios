@@ -111,11 +111,6 @@ impl WorkloadInternal {
         !self.control_interface_access.allow_rules.is_empty()
     }
 
-    // [impl->swdd~common-workload-has-files~1]
-    pub fn has_files(&self) -> bool {
-        !self.files.files.is_empty()
-    }
-
     // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
     pub fn verify_config_reference_format(
         config_references: &HashMap<String, String>,
@@ -230,6 +225,8 @@ impl std::fmt::Display for RestartPolicy {
     }
 }
 
+
+// This method is used for backwards compatibility to older versions and can be deleted later
 pub fn validate_tags(
     api_version: &str,
     tags_value: &Value,
@@ -685,20 +682,5 @@ mod tests {
                 super::MAX_CHARACTERS_WORKLOAD_NAME,
             ))
         );
-    }
-
-    // [utest->swdd~common-workload-has-files~1]
-    #[test]
-    fn utest_workload_has_files() {
-        let workload: WorkloadInternal = generate_test_workload();
-        assert!(workload.has_files());
-    }
-
-    // [utest->swdd~common-workload-has-files~1]
-    #[test]
-    fn utest_workload_has_files_empty() {
-        let mut workload: WorkloadInternal = generate_test_workload();
-        workload.files = Default::default(); // empty
-        assert!(!workload.has_files());
     }
 }

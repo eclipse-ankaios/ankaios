@@ -315,20 +315,6 @@ Needs:
 - impl
 - utest
 
-#### Provide a method that checks if the workload has files assigned
-`swdd~common-workload-has-files~1`
-
-Status: approved
-
-When the field `files` of the workload specification contains at least one entry, the Common library shall approve the mount of the workload files specified in the field.
-
-Tags:
-- Objects
-
-Needs:
-- impl
-- utest
-
 #### Naming of Workload execution instances
 `swdd~common-workload-execution-instance-naming~1`
 
