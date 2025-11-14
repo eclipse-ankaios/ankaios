@@ -20,10 +20,10 @@ fn terminal_width() -> usize {
     80
 }
 
-use common::std_extensions::UnreachableOption;
+use api::std_extensions::UnreachableOption;
 use tabled::{
-    settings::{object::Columns, Modify, Padding, Style, Width},
     Table, Tabled,
+    settings::{Modify, Padding, Style, Width, object::Columns},
 };
 
 use std::fmt;
@@ -371,10 +371,12 @@ mod tests {
 
         assert!(table_output_result.is_err());
 
-        assert!(table_output_result
-            .unwrap_err()
-            .0
-            .contains("no reasonable terminal width"));
+        assert!(
+            table_output_result
+                .unwrap_err()
+                .0
+                .contains("no reasonable terminal width")
+        );
     }
 
     #[test]

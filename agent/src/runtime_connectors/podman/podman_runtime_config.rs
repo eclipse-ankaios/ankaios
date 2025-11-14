@@ -12,11 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::WorkloadInternal;
-
+use super::podman_runtime::PODMAN_RUNTIME_NAME;
 use crate::runtime_connectors::podman_cli::PodmanRunConfig;
 
-use super::podman_runtime::PODMAN_RUNTIME_NAME;
+use api::ank_base::WorkloadInternal;
 
 #[derive(Debug, serde::Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -71,6 +70,7 @@ mod tests {
     use crate::runtime_connectors::{
         podman::podman_runtime::PODMAN_RUNTIME_NAME, podman_cli::PodmanRunConfig,
     };
+
     use api::ank_base::WorkloadInternal;
     use api::test_utils::generate_test_workload_with_param;
 

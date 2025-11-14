@@ -43,8 +43,8 @@ mod workload_state;
 
 mod io_utils;
 
+use api::std_extensions::GracefulExitResult;
 use common::from_server_interface::FromServer;
-use common::std_extensions::GracefulExitResult;
 use grpc::client::GRPCCommunicationsClient;
 
 use agent_config::{AgentConfig, DEFAULT_AGENT_CONFIG_FILE_PATH};

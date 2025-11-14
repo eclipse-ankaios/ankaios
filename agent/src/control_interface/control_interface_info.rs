@@ -90,12 +90,12 @@ impl ControlInterfaceInfo {
 #[cfg(test)]
 mod tests {
     use super::{ControlInterfaceInfo, ControlInterfacePath};
-    use api::ank_base::WorkloadInstanceNameInternal;
-    use std::path::{Path, PathBuf};
-
     use crate::control_interface::{MockControlInterface, authorizer::MockAuthorizer};
 
+    use api::ank_base::WorkloadInstanceNameInternal;
     use common::to_server_interface::ToServer;
+
+    use std::path::{Path, PathBuf};
 
     const WORKLOAD_1_NAME: &str = "workload1";
     const PIPES_LOCATION: &str = "/some/path";

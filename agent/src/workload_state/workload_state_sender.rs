@@ -13,8 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal};
+use api::std_extensions::IllegalStateResult;
+
 use async_trait::async_trait;
-use common::std_extensions::IllegalStateResult;
 
 pub type WorkloadStateReceiver = tokio::sync::mpsc::Receiver<WorkloadStateInternal>;
 pub type WorkloadStateSender = tokio::sync::mpsc::Sender<WorkloadStateInternal>;
@@ -76,11 +77,11 @@ pub async fn assert_execution_state_sequence(
 
 #[cfg(test)]
 mod tests {
+    use crate::workload_state::WorkloadStateSenderInterface;
+
     use api::ank_base::{
         ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
     };
-
-    use crate::workload_state::WorkloadStateSenderInterface;
 
     const BUFFER_SIZE: usize = 20;
 

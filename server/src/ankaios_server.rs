@@ -24,10 +24,10 @@ use api::ank_base::{
     RequestInternal, StateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
     WorkloadStatesMapInternal,
 };
+use api::std_extensions::IllegalStateResult;
+
 use common::commands::UpdateWorkload;
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
-
-use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
 #[cfg_attr(test, mockall_double::double)]

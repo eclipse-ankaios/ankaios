@@ -90,6 +90,7 @@ pub fn channel() -> (Sender, Receiver) {
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
+    use tokio::time::timeout;
 
     use super::channel;
 
@@ -129,7 +130,7 @@ mod tests {
         sender.send_log_lines(into_vec(LINE2)).await.unwrap();
         sender.send_log_lines(into_vec(LINE3)).await.unwrap();
 
-        tokio::time::timeout(
+        timeout(
             Duration::from_millis(10),
             sender.wait_for_receiver_dropped(),
         )
@@ -145,7 +146,7 @@ mod tests {
         let (mut sender, receiver) = channel();
         drop(receiver);
 
-        tokio::time::timeout(
+        timeout(
             Duration::from_millis(10),
             sender.wait_for_receiver_dropped(),
         )

@@ -12,18 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
-use common::objects::AgentName;
-use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
-
-use async_trait::async_trait;
-use futures_util::TryFutureExt;
-use serde::Deserialize;
-use serde_yaml::{self, Deserializer, Mapping, Value};
-
-#[cfg(test)]
-use mockall_double::double;
-
+use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
 // [impl->swdd~podman-kube-uses-podman-cli~1]
 #[cfg_attr(test, double)]
 use crate::runtime_connectors::podman_cli::PodmanCli;
@@ -39,7 +28,16 @@ use crate::{
     workload_state::WorkloadStateSender,
 };
 
-use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+use common::objects::AgentName;
+
+use async_trait::async_trait;
+use futures_util::TryFutureExt;
+#[cfg(test)]
+use mockall_double::double;
+use serde::Deserialize;
+use serde_yaml::{self, Deserializer, Mapping, Value};
+use std::{cmp::min, collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 pub const PODMAN_KUBE_RUNTIME_NAME: &str = "podman-kube";
 const CONFIG_VOLUME_SUFFIX: &str = ".config";
@@ -693,10 +691,9 @@ impl From<OrderedExecutionState> for ExecutionStateInternal {
 // [utest->swdd~agent-functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-    use super::PodmanCli;
     use super::{
-        CONFIG_VOLUME_SUFFIX, PODMAN_KUBE_RUNTIME_NAME, PODS_VOLUME_SUFFIX, PodmanKubeRuntime,
-        PodmanKubeWorkloadId,
+        CONFIG_VOLUME_SUFFIX, PODMAN_KUBE_RUNTIME_NAME, PODS_VOLUME_SUFFIX, PodmanCli,
+        PodmanKubeRuntime, PodmanKubeWorkloadId,
     };
     use crate::runtime_connectors::RuntimeStateGetter;
     use crate::runtime_connectors::podman_cli::{

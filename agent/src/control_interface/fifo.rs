@@ -69,15 +69,15 @@ mockall::mock! {
 
 #[cfg(test)]
 mod tests {
-    use mockall::predicate;
-
     use super::{Fifo, FileSystemError};
-    use crate::io_utils::mock_filesystem;
+    use crate::{io_utils::mock_filesystem, test_helper::MOCKALL_CONTEXT_SYNC};
+
+    use mockall::predicate;
     use std::{io::ErrorKind, path::Path};
 
     #[test]
     fn utest_fifo_reuse_existing_and_remove_ok() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let test_path_buffer = Path::new("test_fifo").to_path_buf();
 
@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn utest_fifo_new_create_and_remove_ok() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let test_path_buffer = Path::new("test_fifo").to_path_buf();
 
@@ -133,7 +133,7 @@ mod tests {
 
     #[test]
     fn utest_fifo_new_create_failed() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let test_path_buffer = Path::new("test_fifo").to_path_buf();
 
@@ -166,7 +166,7 @@ mod tests {
     }
     #[test]
     fn utest_fifo_drop_remove_failed() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let test_path_buffer = Path::new("test_fifo").to_path_buf();
 
@@ -201,7 +201,7 @@ mod tests {
 
     #[test]
     fn utest_fifo_get_path() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let test_path_buffer = Path::new("test_fifo").to_path_buf();
 

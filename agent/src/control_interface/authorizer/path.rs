@@ -13,7 +13,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::fmt::Display;
-
 use common::PATH_SEPARATOR;
 
 #[derive(Clone, Debug)]

@@ -12,18 +12,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::workload_operation::WorkloadOperation;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::dependency_state_validator::DependencyStateValidator;
 use crate::{
     workload_operation::ReusableWorkload,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
+
 use api::ank_base::{
     DeletedWorkload, ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed,
 };
 use std::{collections::HashMap, fmt::Display};
 
-use crate::workload_operation::WorkloadOperation;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 
@@ -337,13 +338,6 @@ impl WorkloadScheduler {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{ExecutionStateInternal, WorkloadNamed, WorkloadStateInternal};
-    use api::test_utils::{
-        generate_test_deleted_workload, generate_test_workload,
-        generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
-    };
-    use tokio::sync::mpsc::channel;
-
     use super::WorkloadScheduler;
     use crate::{
         workload_operation::{ReusableWorkload, WorkloadOperation},
@@ -354,6 +348,14 @@ mod tests {
             assert_execution_state_sequence, workload_state_store::MockWorkloadStateStore,
         },
     };
+
+    use api::ank_base::{ExecutionStateInternal, WorkloadNamed, WorkloadStateInternal};
+    use api::test_utils::{
+        generate_test_deleted_workload, generate_test_workload,
+        generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
+    };
+
+    use tokio::sync::mpsc::channel;
 
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";

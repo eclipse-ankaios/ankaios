@@ -12,14 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
-
-use async_trait::async_trait;
-
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
-
-use common::{objects::AgentName, std_extensions::UnreachableOption};
-
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
@@ -30,14 +22,19 @@ use crate::{
     workload_state::WorkloadStateSender,
 };
 
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+use api::std_extensions::UnreachableOption;
+use common::objects::AgentName;
+
+use async_trait::async_trait;
 #[cfg(test)]
 use mockall_double::double;
+use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 // [impl->swdd~containerd-uses-nerdctl-cli~1]
+use super::containerd_runtime_config::ContainerdRuntimeConfig;
 #[cfg_attr(test, double)]
 use crate::runtime_connectors::containerd::nerdctl_cli::NerdctlCli;
-
-use super::containerd_runtime_config::ContainerdRuntimeConfig;
 
 pub const CONTAINERD_RUNTIME_NAME: &str = "containerd";
 
@@ -304,12 +301,11 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
 // [utest->swdd~agent-functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-    use super::ContainerdRuntime;
-    use super::NerdctlCli;
-    use super::{ContainerdStateGetter, ContainerdWorkloadId};
-    use crate::runtime_connectors::LogRequestOptions;
+    use super::{ContainerdRuntime, ContainerdStateGetter, ContainerdWorkloadId, NerdctlCli};
     use crate::runtime_connectors::containerd::containerd_runtime::CONTAINERD_RUNTIME_NAME;
-    use crate::runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter};
+    use crate::runtime_connectors::{
+        LogRequestOptions, RuntimeConnector, RuntimeError, RuntimeStateGetter,
+    };
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};

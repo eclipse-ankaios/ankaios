@@ -12,16 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::str::FromStr;
-
-use async_trait::async_trait;
-
+use crate::workload_state::WorkloadStateSender;
 use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
 
+use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
-
-use crate::workload_state::WorkloadStateSender;
+use std::str::FromStr;
 
 // [impl->swdd~agent-general-runtime-state-getter-interface~1]
 #[async_trait]

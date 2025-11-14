@@ -11,7 +11,8 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::std_extensions::UnreachableOption;
+
+use api::std_extensions::UnreachableOption;
 
 const SEPARATOR: &str = "@";
 
@@ -40,7 +41,7 @@ pub fn detach_prefix_from_request_id(request_id: &str) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{detach_prefix_from_request_id, prepend_request_id};
 
     #[test]
     fn utest_prepend_request_id_returns_empty_when_provided_request_id_is_empty() {
@@ -54,8 +55,8 @@ mod tests {
         );
     }
     #[test]
-    fn utest_prepend_request_id_returns_with_agent_name_prefixed_request_id_when_provided_request_id_and_agent_name(
-    ) {
+    fn utest_prepend_request_id_returns_with_agent_name_prefixed_request_id_when_provided_request_id_and_agent_name()
+     {
         assert_eq!(
             String::from("agent_name@my_request_id"),
             prepend_request_id("my_request_id", "agent_name")
@@ -69,24 +70,24 @@ mod tests {
         );
     }
     #[test]
-    fn utest_detach_prefix_from_request_id_returns_a_tuple_with_empty_prefix_and_request_id_when_provided_raw_request_id(
-    ) {
+    fn utest_detach_prefix_from_request_id_returns_a_tuple_with_empty_prefix_and_request_id_when_provided_raw_request_id()
+     {
         assert_eq!(
             (String::from(""), String::from("my_request_id")),
             detach_prefix_from_request_id("my_request_id")
         );
     }
     #[test]
-    fn utest_detach_prefix_from_request_id_returns_a_tuple_prefix_and_request_id_when_provided_prefixed_request_id(
-    ) {
+    fn utest_detach_prefix_from_request_id_returns_a_tuple_prefix_and_request_id_when_provided_prefixed_request_id()
+     {
         assert_eq!(
             (String::from("prefix"), String::from("my_request_id")),
             detach_prefix_from_request_id("prefix@my_request_id")
         );
     }
     #[test]
-    fn utest_detach_prefix_from_request_id_returns_a_tuple_prefix_and_request_id_when_provided_prefixed_request_id_with_multiple_separators(
-    ) {
+    fn utest_detach_prefix_from_request_id_returns_a_tuple_prefix_and_request_id_when_provided_prefixed_request_id_with_multiple_separators()
+     {
         assert_eq!(
             (
                 String::from("prefix"),

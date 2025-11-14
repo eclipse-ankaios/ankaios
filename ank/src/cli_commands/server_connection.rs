@@ -33,7 +33,7 @@ use common::{
 use grpc::{client::GRPCCommunicationsClient, security::TLSConfig};
 
 #[cfg(not(test))]
-use {common::std_extensions::IllegalStateResult, std::io::Write};
+use {api::std_extensions::IllegalStateResult, std::io::Write};
 
 #[cfg(test)]
 use mockall::automock;

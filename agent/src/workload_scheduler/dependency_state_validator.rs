@@ -12,10 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{DeletedWorkload, FulfilledBy, WorkloadNamed};
-
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
+
+use api::ank_base::{DeletedWorkload, FulfilledBy, WorkloadNamed};
 
 #[cfg(test)]
 use mockall::automock;
@@ -75,11 +75,13 @@ impl DependencyStateValidator {
 mod tests {
     use super::DependencyStateValidator;
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
+
     use api::ank_base::{DeleteCondition, ExecutionStateInternal, WorkloadNamed};
     use api::test_utils::{
         generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
         generate_test_workload_with_param,
     };
+
     use std::collections::HashMap;
 
     const AGENT_A: &str = "agent_A";

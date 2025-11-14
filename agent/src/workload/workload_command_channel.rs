@@ -11,12 +11,14 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+
 use crate::{
     control_interface::ControlInterfacePath,
     runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
     workload::WorkloadCommand,
 };
 use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed};
+
 #[cfg(test)]
 use mockall_double::double;
 use tokio::sync::{mpsc, oneshot};
@@ -115,18 +117,18 @@ impl WorkloadCommandSender {
 
 #[cfg(test)]
 mod tests {
+    use super::{ControlInterfacePath, WorkloadCommand, WorkloadCommandSender};
     use crate::{
         runtime_connectors::{LogRequestOptions, log_fetcher::MockLogFetcher},
         workload::retry_manager::MockRetryToken,
     };
+
     use api::ank_base::WorkloadNamed;
     use api::test_utils::generate_test_workload;
 
-    use super::{ControlInterfacePath, WorkloadCommand, WorkloadCommandSender};
+    use mockall::lazy_static;
     use std::path::PathBuf;
     use tokio::sync::mpsc::Receiver;
-
-    use mockall::lazy_static;
 
     const PIPES_LOCATION: &str = "/some/path";
     const LOG_REQUEST_OPTIONS: LogRequestOptions = LogRequestOptions {

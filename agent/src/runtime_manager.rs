@@ -12,7 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, path::PathBuf};
+use crate::{
+    control_interface::ControlInterfacePath,
+    runtime_connectors::{
+        LogRequestOptions, log_fetcher::LogFetcher, unsupported_runtime::UnsupportedRuntime,
+    },
+};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::authorizer::Authorizer;
@@ -21,23 +26,18 @@ use api::ank_base::{
     DeletedWorkload, ExecutionStateInternal, LogsRequestInternal, Response,
     WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
 };
-
 use common::{
     objects::AgentName, request_id_prepending::detach_prefix_from_request_id,
     to_server_interface::ToServerSender,
 };
+
+use std::{collections::HashMap, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_connectors::GenericRuntimeFacade;
-use crate::{
-    control_interface::ControlInterfacePath,
-    runtime_connectors::{
-        LogRequestOptions, log_fetcher::LogFetcher, unsupported_runtime::UnsupportedRuntime,
-    },
-};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
@@ -2107,7 +2107,7 @@ mod tests {
             .expect_update()
             .once()
             .with(
-                predicate::eq(None), // in case of update delete only there is no new workload spec
+                predicate::eq(None), // in case of update delete only there is no new workload
                 predicate::function(|control_interface: &Option<ControlInterfaceInfo>| {
                     control_interface.is_none()
                 }),

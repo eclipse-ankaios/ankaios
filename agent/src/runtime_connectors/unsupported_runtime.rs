@@ -12,17 +12,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, path::PathBuf};
-
-use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed};
-use async_trait::async_trait;
-use common::objects::AgentName;
-
-use crate::workload_state::WorkloadStateSender;
-
 use super::{
     ReusableWorkloadState, RuntimeConnector, RuntimeError, dummy_state_checker::DummyStateChecker,
 };
+use crate::workload_state::WorkloadStateSender;
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed};
+
+use async_trait::async_trait;
+use common::objects::AgentName;
+use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Clone)]
 // [impl->swdd~agent-skips-unknown-runtime~2]
@@ -54,7 +52,7 @@ impl RuntimeConnector<String, DummyStateChecker<String>> for UnsupportedRuntime 
             Err(RuntimeError::Unsupported("Unsupported Runtime".into()))
         } else {
             Err(RuntimeError::Unsupported(format!(
-                "Received a spec for the wrong runtime: '{}'",
+                "Received a manifest for the wrong runtime: '{}'",
                 runtime_workload_config.workload.runtime
             )))
         }
@@ -111,6 +109,7 @@ mod tests {
     use common::objects::AgentName;
 
     use std::collections::HashMap;
+    use tokio::sync::mpsc;
 
     const TEST_RUNTIME_NAME: &str = "test_runtime";
 
@@ -144,13 +143,7 @@ mod tests {
             generate_test_workload_with_param("test-agent", TEST_RUNTIME_NAME);
 
         let result = unsupported_runtime
-            .create_workload(
-                workload,
-                None,
-                None,
-                tokio::sync::mpsc::channel(1).0,
-                HashMap::new(),
-            )
+            .create_workload(workload, None, None, mpsc::channel(1).0, HashMap::new())
             .await;
 
         assert!(matches!(
@@ -167,18 +160,12 @@ mod tests {
             generate_test_workload_with_param("test-agent", "different_runtime");
 
         let result = unsupported_runtime
-            .create_workload(
-                workload,
-                None,
-                None,
-                tokio::sync::mpsc::channel(1).0,
-                HashMap::new(),
-            )
+            .create_workload(workload, None, None, mpsc::channel(1).0, HashMap::new())
             .await;
 
         assert!(matches!(
             result,
-            Err(RuntimeError::Unsupported(msg)) if msg.contains("Received a spec for the wrong runtime")
+            Err(RuntimeError::Unsupported(msg)) if msg.contains("Received a manifest for the wrong runtime")
         ));
     }
 
@@ -205,7 +192,7 @@ mod tests {
         let workload = generate_test_workload();
 
         let result = unsupported_runtime
-            .start_checker(&workload_id, workload, tokio::sync::mpsc::channel(1).0)
+            .start_checker(&workload_id, workload, mpsc::channel(1).0)
             .await;
 
         assert!(result.is_ok());

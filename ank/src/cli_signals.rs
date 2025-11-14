@@ -12,8 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::std_extensions::UnreachableResult;
-use tokio::signal::unix::{signal, SignalKind};
+use api::std_extensions::UnreachableResult;
+use tokio::signal::unix::{SignalKind, signal};
 
 use crate::output_debug;
 

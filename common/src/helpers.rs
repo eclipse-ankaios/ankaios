@@ -12,8 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{ANKAIOS_VERSION, std_extensions::IllegalStateResult};
-
+use crate::ANKAIOS_VERSION;
+use api::std_extensions::IllegalStateResult;
 use semver::Version;
 
 // [impl->swdd~common-helper-methods~1]
@@ -61,9 +61,8 @@ pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), Strin
 
 #[cfg(test)]
 mod tests {
-    use semver::Version;
-
     use crate::{ANKAIOS_VERSION, check_version_compatibility};
+    use semver::Version;
 
     // [utest->swdd~common-version-checking~1]
     #[test]

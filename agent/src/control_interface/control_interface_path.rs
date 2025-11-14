@@ -60,9 +60,8 @@ impl PartialEq<PathBuf> for ControlInterfacePath {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use crate::control_interface;
+    use std::path::PathBuf;
 
     #[test]
     fn utest_equality() {

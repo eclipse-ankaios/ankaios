@@ -18,10 +18,11 @@ mod rules;
 
 use api::ank_base::{
     AccessRightsRuleEnumInternal, AccessRightsRuleInternal, ControlInterfaceAccessInternal,
-    ReadWriteEnum, RequestContentInternal, RequestInternal
+    ReadWriteEnum, RequestContentInternal, RequestInternal,
 };
 use path_pattern::{AllowPathPattern, DenyPathPattern, PathPatternMatcher};
 use rules::{LogRule, StateRule};
+
 use std::{sync::Arc, vec};
 
 #[cfg(test)]
@@ -239,17 +240,17 @@ impl From<&ControlInterfaceAccessInternal> for Authorizer {
 
 #[cfg(test)]
 mod test {
-    use api::ank_base::{
-        AccessRightsRuleInternal, CompleteStateRequestInternal, ControlInterfaceAccessInternal,
-        LogsCancelRequestInternal, LogsRequestInternal, ReadWriteEnum, RequestContentInternal,
-        UpdateStateRequestInternal, WorkloadInstanceNameInternal, RequestInternal
-    };
-    use std::sync::Arc;
-
     use super::{
         Authorizer, LogRule, StateRule,
         path_pattern::{AllowPathPattern, DenyPathPattern},
     };
+
+    use api::ank_base::{
+        AccessRightsRuleInternal, CompleteStateRequestInternal, ControlInterfaceAccessInternal,
+        LogsCancelRequestInternal, LogsRequestInternal, ReadWriteEnum, RequestContentInternal,
+        RequestInternal, UpdateStateRequestInternal, WorkloadInstanceNameInternal,
+    };
+    use std::sync::Arc;
 
     const MATCHING_PATH: &str = "matching.path";
     const MATCHING_PATH_2: &str = "matching.path.2";

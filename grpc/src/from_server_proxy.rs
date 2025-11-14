@@ -12,26 +12,24 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
-use std::mem::take;
-
 use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_api::{self, from_server::FromServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
-use api::ank_base;
-use api::ank_base::ResponseContent;
+
+use api::ank_base::{self, ResponseContent};
 use api::ank_base::{
     DeletedWorkload, LogsRequestInternal, WorkloadInstanceNameInternal, WorkloadNamed,
     WorkloadStateInternal,
 };
-
-use async_trait::async_trait;
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
 };
 use common::request_id_prepending::detach_prefix_from_request_id;
 
+use async_trait::async_trait;
+use std::collections::HashMap;
+use std::mem::take;
 use tonic::Streaming;
 
 pub struct GRPCFromServerStreaming {

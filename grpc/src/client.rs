@@ -14,28 +14,25 @@
 
 use crate::from_server_proxy::GRPCFromServerStreaming;
 use crate::grpc_api::{
-    self, AgentHello, agent_connection_client::AgentConnectionClient,
+    AgentHello, FromServer, ToServer, agent_connection_client::AgentConnectionClient,
     cli_connection_client::CliConnectionClient, to_server::ToServerEnum,
 };
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use crate::security::TLSConfig;
-use crate::to_server_proxy;
+use crate::to_server_proxy::forward_from_ankaios_to_proto;
 use crate::{CommanderHello, from_server_proxy};
 
+use api::std_extensions::IllegalStateResult;
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
 use common::from_server_interface::FromServerSender;
-
-use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::ToServerReceiver;
 
+use async_trait::async_trait;
 use regex::Regex;
 use tokio::select;
 use tokio::sync::mpsc::Receiver;
 use tokio_stream::wrappers::ReceiverStream;
-
-use async_trait::async_trait;
-
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 
 const RECONNECT_TIMEOUT_SECONDS: u64 = 1;
@@ -174,21 +171,20 @@ impl GRPCCommunicationsClient {
         agent_tx: &FromServerSender,
     ) -> Result<(), GrpcMiddlewareError> {
         // [impl->swdd~grpc-client-creates-to-server-channel~1]
-        let (grpc_tx, grpc_rx) =
-            tokio::sync::mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
+        let (grpc_tx, grpc_rx) = tokio::sync::mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
         // [impl->swdd~grpc-client-sends-supported-version~1]
         match self.connection_type {
             ConnectionType::Agent => {
                 grpc_tx
-                    .send(grpc_api::ToServer {
+                    .send(ToServer {
                         to_server_enum: Some(ToServerEnum::AgentHello(AgentHello::new(&self.name))),
                     })
                     .await?;
             }
             ConnectionType::Cli => {
                 grpc_tx
-                    .send(grpc_api::ToServer {
+                    .send(ToServer {
                         to_server_enum: Some(ToServerEnum::CommanderHello(CommanderHello::new())),
                     })
                     .await?;
@@ -206,8 +202,7 @@ impl GRPCCommunicationsClient {
         );
 
         // [impl->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
-        let forward_to_server_from_ank_task =
-            to_server_proxy::forward_from_ankaios_to_proto(grpc_tx, server_rx);
+        let forward_to_server_from_ank_task = forward_from_ankaios_to_proto(grpc_tx, server_rx);
 
         select! {
             result = forward_exec_from_proto_task => {
@@ -226,8 +221,8 @@ impl GRPCCommunicationsClient {
 
     async fn connect_to_server(
         &self,
-        grpc_rx: Receiver<grpc_api::ToServer>,
-    ) -> Result<tonic::Streaming<grpc_api::FromServer>, GrpcMiddlewareError> {
+        grpc_rx: Receiver<ToServer>,
+    ) -> Result<tonic::Streaming<FromServer>, GrpcMiddlewareError> {
         match self.connection_type {
             ConnectionType::Agent => match &self.tls_config {
                 // [impl->swdd~grpc-agent-activate-mtls-when-certificates-and-key-provided-upon-start~1]

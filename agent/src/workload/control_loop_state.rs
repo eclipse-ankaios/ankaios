@@ -11,18 +11,20 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::BUFFER_SIZE;
-use crate::runtime_connectors::{RuntimeConnector, StateChecker};
-use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
-use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
-use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal};
-use std::path::PathBuf;
-use std::str::FromStr;
-
-use crate::control_interface::ControlInterfacePath;
 
 #[cfg_attr(test, mockall_double::double)]
 use super::retry_manager::RetryManager;
+use crate::BUFFER_SIZE;
+use crate::control_interface::ControlInterfacePath;
+use crate::runtime_connectors::{RuntimeConnector, StateChecker};
+use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
+use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
+
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal};
+
+use std::path::PathBuf;
+use std::str::FromStr;
+use tokio::sync::mpsc;
 
 pub struct ControlLoopState<WorkloadId, StChecker>
 where
@@ -136,7 +138,7 @@ where
     pub fn build(self) -> Result<ControlLoopState<WorkloadId, StChecker>, String> {
         // new channel for receiving the workload states from the state checker
         let (state_checker_wl_state_sender, state_checker_wl_state_receiver) =
-            tokio::sync::mpsc::channel::<WorkloadStateInternal>(BUFFER_SIZE);
+            mpsc::channel::<WorkloadStateInternal>(BUFFER_SIZE);
 
         Ok(ControlLoopState {
             workload_named: self
@@ -184,11 +186,13 @@ mod tests {
         workload::workload_command_channel::WorkloadCommandSender,
         workload_state::WorkloadStateSenderInterface,
     };
+
     use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
     use api::test_utils::{
         generate_test_workload, generate_test_workload_state_with_workload_named,
     };
-    use tokio::time;
+
+    use tokio::{sync::mpsc, time};
 
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 20;
 
@@ -198,7 +202,7 @@ mod tests {
         let workload_named: WorkloadNamed = generate_test_workload();
 
         let (workload_state_sender, mut workload_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let runtime = Box::new(MockRuntimeConnector::new());
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
@@ -285,9 +289,9 @@ mod tests {
     fn utest_control_loop_state_instance_name() {
         let workload_named: api::ank_base::WorkloadNamed = generate_test_workload();
         let (workload_state_sender, _workload_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let runtime = Box::new(MockRuntimeConnector::new());
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 

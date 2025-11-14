@@ -12,13 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
-
-use async_trait::async_trait;
-
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
-use common::{objects::AgentName, std_extensions::UnreachableOption};
-
+use super::podman_runtime_config::PodmanRuntimeConfig;
+// [impl->swdd~podman-uses-podman-cli~1]
+#[cfg_attr(test, double)]
+use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{
@@ -29,14 +26,14 @@ use crate::{
     workload_state::WorkloadStateSender,
 };
 
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+use api::std_extensions::UnreachableOption;
+use common::objects::AgentName;
+
+use async_trait::async_trait;
 #[cfg(test)]
 use mockall_double::double;
-
-// [impl->swdd~podman-uses-podman-cli~1]
-#[cfg_attr(test, double)]
-use crate::runtime_connectors::podman_cli::PodmanCli;
-
-use super::podman_runtime_config::PodmanRuntimeConfig;
+use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 pub const PODMAN_RUNTIME_NAME: &str = "podman";
 
@@ -163,8 +160,8 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         update_state_tx: WorkloadStateSender,
         workload_file_path_mappings: HashMap<PathBuf, PathBuf>,
     ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
-        let workload_cfg =
-            PodmanRuntimeConfig::try_from(&workload_named.workload).map_err(RuntimeError::Unsupported)?;
+        let workload_cfg = PodmanRuntimeConfig::try_from(&workload_named.workload)
+            .map_err(RuntimeError::Unsupported)?;
 
         let cli_result = match reusable_workload_id {
             Some(workload_id) => {
@@ -299,19 +296,19 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 // [utest->swdd~agent-functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-    use std::str::FromStr;
-
-    use api::ank_base::{WorkloadNamed, ExecutionStateInternal, WorkloadInstanceNameInternal};
-    use api::test_utils::generate_test_workload_with_param;
-    use common::objects::AgentName;
-    use mockall::Sequence;
-
-    use super::PodmanCli;
-    use super::PodmanRuntime;
-    use super::{PODMAN_RUNTIME_NAME, PodmanStateGetter, PodmanWorkloadId};
+    use super::{
+        PODMAN_RUNTIME_NAME, PodmanCli, PodmanRuntime, PodmanStateGetter, PodmanWorkloadId,
+    };
     use crate::runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
+
+    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+    use api::test_utils::generate_test_workload_with_param;
+    use common::objects::AgentName;
+
+    use mockall::Sequence;
+    use std::path::PathBuf;
+    use std::str::FromStr;
 
     const BUFFER_SIZE: usize = 20;
     const AGENT_NAME: &str = "agent_x";

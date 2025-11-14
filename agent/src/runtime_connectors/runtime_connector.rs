@@ -12,9 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
-
-use async_trait::async_trait;
+use super::log_fetcher::LogFetcher;
+use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
 use api::ank_base::{
     ExecutionStateInternal, LogsRequestInternal, WorkloadInstanceNameInternal, WorkloadNamed,
@@ -22,9 +21,8 @@ use api::ank_base::{
 };
 use common::objects::AgentName;
 
-use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
-
-use super::log_fetcher::LogFetcher;
+use async_trait::async_trait;
+use std::{collections::HashMap, fmt::Display, path::PathBuf, str::FromStr};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -177,16 +175,7 @@ where
 
 #[cfg(test)]
 pub mod test {
-    use std::{
-        collections::{HashMap, VecDeque},
-        path::PathBuf,
-        sync::{Arc, Mutex},
-    };
-
-    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
-    use async_trait::async_trait;
-    use common::objects::AgentName;
-
+    use super::{LogRequestOptions, RuntimeConnector, RuntimeError};
     use crate::{
         runtime_connectors::{
             ReusableWorkloadState, RuntimeStateGetter, StateChecker, log_fetcher::LogFetcher,
@@ -194,7 +183,15 @@ pub mod test {
         workload_state::WorkloadStateSender,
     };
 
-    use super::{LogRequestOptions, RuntimeConnector, RuntimeError};
+    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+    use common::objects::AgentName;
+
+    use async_trait::async_trait;
+    use std::{
+        collections::{HashMap, VecDeque},
+        path::PathBuf,
+        sync::{Arc, Mutex},
+    };
 
     #[async_trait]
     impl RuntimeStateGetter<String> for StubStateChecker {

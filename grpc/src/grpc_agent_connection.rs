@@ -12,36 +12,33 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::pin::Pin;
+use crate::agent_senders_map::AgentSendersMap;
+use crate::grpc_api::{self, agent_connection_server::AgentConnection, to_server::ToServerEnum};
+use crate::to_server_proxy::{GRPCToServerStreaming, forward_from_proto_to_ankaios};
 
+use api::std_extensions::GracefulExitResult;
 use common::check_version_compatibility;
-use common::std_extensions::GracefulExitResult;
-use tokio::sync::mpsc::Sender;
-use tokio_stream::wrappers::ReceiverStream;
+use common::to_server_interface::{ToServer, ToServerInterface};
 
 use futures_core::Stream;
+use std::pin::Pin;
+use tokio::sync::mpsc::Sender;
+use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::CertificateDer;
 use tonic::{Request, Response, Status};
+
 use x509_parser::certificate::X509Certificate;
 use x509_parser::der_parser::asn1_rs::FromDer;
 use x509_parser::extensions::GeneralName;
 
-use crate::agent_senders_map::AgentSendersMap;
-use crate::grpc_api::{self, agent_connection_server::AgentConnection, to_server::ToServerEnum};
-use crate::to_server_proxy::{GRPCToServerStreaming, forward_from_proto_to_ankaios};
-use common::to_server_interface::{self, ToServerInterface};
-
 #[derive(Debug)]
 pub struct GRPCAgentConnection {
     agent_senders: AgentSendersMap,
-    to_ankaios_server: Sender<to_server_interface::ToServer>,
+    to_ankaios_server: Sender<ToServer>,
 }
 
 impl GRPCAgentConnection {
-    pub fn new(
-        agent_senders: AgentSendersMap,
-        to_ankaios_server: Sender<to_server_interface::ToServer>,
-    ) -> Self {
+    pub fn new(agent_senders: AgentSendersMap, to_ankaios_server: Sender<ToServer>) -> Self {
         Self {
             agent_senders,
             to_ankaios_server,

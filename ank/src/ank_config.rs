@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::AnkCli;
+use api::std_extensions::{GracefulExitResult, UnreachableOption};
 use common::DEFAULT_SERVER_ADDRESS;
-use common::std_extensions::UnreachableOption;
 use grpc::security::read_pem_file;
 use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
@@ -24,7 +24,6 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 use toml::{Value, from_str};
 
-use common::std_extensions::GracefulExitResult;
 use once_cell::sync::Lazy;
 use std::env;
 

@@ -19,10 +19,12 @@ use crate::runtime_connectors::{LogRequestOptions, RuntimeError, StateChecker};
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
+
 use api::ank_base::{
     ExecutionStateInternal, RestartPolicy, WorkloadInstanceNameInternal, WorkloadNamed,
 };
-use common::std_extensions::IllegalStateResult;
+use api::std_extensions::IllegalStateResult;
+
 use futures_util::Future;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

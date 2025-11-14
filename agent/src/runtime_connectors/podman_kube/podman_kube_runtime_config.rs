@@ -35,7 +35,7 @@ impl TryFrom<&WorkloadInternal> for PodmanKubeRuntimeConfig {
     fn try_from(workload: &WorkloadInternal) -> Result<Self, Self::Error> {
         if PODMAN_KUBE_RUNTIME_NAME != workload.runtime {
             return Err(format!(
-                "Received a spec for the wrong runtime: '{}'",
+                "Received a manifest for the wrong runtime: '{}'",
                 workload.runtime
             ));
         }

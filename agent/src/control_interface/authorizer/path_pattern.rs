@@ -12,11 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt::Display, sync::Arc};
-
 use super::path::Path;
+
 use api::ank_base::WILDCARD_SYMBOL;
 use common::PATH_SEPARATOR;
+
+use std::{fmt::Display, sync::Arc};
 
 pub type PathPatternMatchReason = String;
 

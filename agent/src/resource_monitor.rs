@@ -66,7 +66,6 @@ impl ResourceMonitor {
 #[cfg(test)]
 // [utest->swdd~agent-provides-resource-metrics~1]
 mod tests {
-
     pub struct MockSystem {
         refresh_kind: RefreshKind,
         cpu_usage: f32,

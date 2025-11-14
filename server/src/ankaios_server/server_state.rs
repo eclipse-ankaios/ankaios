@@ -26,8 +26,8 @@ use super::config_renderer::ConfigRenderer;
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
+use api::std_extensions::IllegalStateResult;
 use common::state_manipulation::{Object, Path};
-use common::std_extensions::IllegalStateResult;
 use std::fmt::Display;
 
 #[cfg(test)]
