@@ -12,16 +12,24 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use schemars::generate::{SchemaGenerator, SchemaSettings};
 use std::path::PathBuf;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let schema = schemars::schema_for!(api::ank_base::StateInternal);
+const SCHEMA_NAME: &str = "ank_schema.json";
 
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Configure the schema generator to use the latest json schema specification
+    let settings = SchemaSettings::draft2020_12();
+    let generator = SchemaGenerator::new(settings);
+
+    // Generate schema
+    let schema = generator.into_root_schema_for::<api::ank_base::StateInternal>();
+
+    // Write schema to file
     let schemars_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("schemas");
     std::fs::create_dir_all(&schemars_dir).unwrap();
-
     std::fs::write(
-        schemars_dir.join("ank_schema.json"),
+        schemars_dir.join(SCHEMA_NAME),
         serde_json::to_string_pretty(&schema)?,
     )?;
 
