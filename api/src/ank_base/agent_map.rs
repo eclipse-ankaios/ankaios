@@ -15,34 +15,12 @@
 use crate::ank_base::{
     AgentAttributes, AgentAttributesInternal, AgentMapInternal, AgentStatus, CpuUsageInternal,
 };
-use std::collections::{HashMap, hash_map::Entry};
 
 impl CpuUsageInternal {
     pub fn new(cpu_usage: f32) -> Self {
         Self {
             cpu_usage: cpu_usage.round() as u32,
         }
-    }
-}
-
-// [impl->swdd~agent-map-manages-agent-names-with-agent-attributes~2]
-impl AgentMapInternal {
-    pub fn new() -> AgentMapInternal {
-        AgentMapInternal {
-            agents: HashMap::new(),
-        }
-    }
-
-    pub fn entry(&mut self, key: String) -> Entry<'_, String, AgentAttributesInternal> {
-        self.agents.entry(key)
-    }
-
-    pub fn contains_key(&self, key: &str) -> bool {
-        self.agents.contains_key(key)
-    }
-
-    pub fn remove(&mut self, key: &str) {
-        self.agents.remove(key);
     }
 }
 
@@ -85,8 +63,9 @@ use crate::ank_base::{AgentStatusInternal, FreeMemoryInternal};
 
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMapInternal {
-    let mut agent_map = AgentMapInternal::new();
+    let mut agent_map = AgentMapInternal::default();
     agent_map
+        .agents
         .entry(agent_name.into())
         .or_insert(AgentAttributesInternal {
             status: Some(AgentStatusInternal {
@@ -104,11 +83,12 @@ pub fn generate_test_agent_map_from_workloads(
 ) -> AgentMapInternal {
     workloads
         .iter()
-        .fold(AgentMapInternal::new(), |mut agent_map, wl| {
+        .fold(AgentMapInternal::default(), |mut agent_map, wl| {
             use crate::ank_base::AgentStatusInternal;
 
             let agent_name = &wl.agent;
             agent_map
+                .agents
                 .entry(agent_name.to_owned())
                 .or_insert(AgentAttributesInternal {
                     status: Some(AgentStatusInternal {

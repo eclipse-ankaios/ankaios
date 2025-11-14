@@ -223,27 +223,6 @@ Needs:
 - impl
 - utest
 
-#### AgentMap manages agent names along with agent attributes
-`swdd~agent-map-manages-agent-names-with-agent-attributes~2`
-
-Status: approved
-
-The AgentMap provides the following functionalities:
-* inserting an agent name with default attributes
-* checking whether an entry for an agent exists
-* removing an agent name with its associated attributes
-* storing the agent attributes
-* updating an agent's node resource availability
-
-Comment:
-The AgentMap is actually the object exposed to the external interfaces, but provides some additional functionality.
-
-Tags:
-- AgentMap
-
-Needs:
-- impl
-
 #### Workload add conditions for dependencies
 `swdd~workload-add-conditions-for-dependencies~1`
 

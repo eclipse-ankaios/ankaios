@@ -260,6 +260,7 @@ impl ServerState {
     pub fn add_agent(&mut self, agent_name: String) {
         self.state
             .agents
+            .agents
             .entry(agent_name)
             .or_insert(AgentAttributesInternal {
                 ..Default::default()
@@ -268,12 +269,12 @@ impl ServerState {
 
     // [impl->swdd~server-state-removes-agent-from-complete-state~1]
     pub fn remove_agent(&mut self, agent_name: &str) {
-        self.state.agents.remove(agent_name);
+        self.state.agents.agents.remove(agent_name);
     }
 
     // [impl->swdd~server-state-provides-connected-agent-exists-check~1]
     pub fn contains_connected_agent(&self, agent_name: &str) -> bool {
-        self.state.agents.contains_key(agent_name)
+        self.state.agents.agents.contains_key(agent_name)
     }
 
     // [impl->swdd~server-updates-resource-availability~1]
@@ -282,6 +283,7 @@ impl ServerState {
         agent_load_status: common::commands::AgentLoadStatus,
     ) {
         self.state
+            .agents
             .agents
             .entry(agent_load_status.agent_name)
             .and_modify(|e| {
@@ -1533,6 +1535,7 @@ mod tests {
 
         let agent_status = server_state
             .state
+            .agents
             .agents
             .entry(AGENT_A.to_string())
             .or_default()
