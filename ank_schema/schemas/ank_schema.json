@@ -4,24 +4,23 @@
   "description": "A message containing the state information.",
   "type": "object",
   "properties": {
-    "api_version": {
+    "apiVersion": {
       "description": "The current version of the API.",
       "type": "string"
     },
+    "configs": {
+      "description": "Configuration values which can be referenced in workload configurations.",
+      "$ref": "#/$defs/configMap",
+      "default": {}
+    },
     "workloads": {
-      "description": "A mapping from workload name to workload configurations.\n\nWorkload names shall not be shorter than 1 symbol longer then 63 symbols\nand can contain only regular characters, digits, the \"-\" and \"\\_\" symbols.",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/workload"
-      },
+      "description": "A mapping from workload names to workload configurations.",
+      "$ref": "#/$defs/workloadMap",
       "default": {}
     }
   },
-  "additionalProperties": {
-    "$ref": "#/$defs/configItem"
-  },
   "required": [
-    "api_version"
+    "apiVersion"
   ],
   "$defs": {
     "accessRightsRule": {
@@ -101,6 +100,13 @@
           "$ref": "#/$defs/configObject"
         }
       ]
+    },
+    "configMap": {
+      "description": "This is a workaround for proto not supporting optional maps",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/configItem"
+      }
     },
     "configObject": {
       "description": "A container for the mapping of config items.",
@@ -317,6 +323,13 @@
         "runtime",
         "runtimeConfig"
       ]
+    },
+    "workloadMap": {
+      "description": "This is a workaround for proto not supporting optional maps",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/workload"
+      }
     }
   }
 }

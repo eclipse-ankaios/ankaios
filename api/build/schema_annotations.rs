@@ -30,12 +30,20 @@ pub fn setup_schema_annotations(mut builder: Builder) -> Builder {
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
+            "WorkloadMap",
+            "#[internal_type_attr(#[serde(rename = \"workloadMap\")])]",
+        )
+        .message_attribute(
             "Workload",
             "#[internal_type_attr(#[serde(rename = \"workload\")])]",
         )
         .message_attribute(
             "ConfigMap",
             "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+        )
+        .message_attribute(
+            "ConfigMap",
+            "#[internal_type_attr(#[serde(rename = \"configMap\")])]",
         )
         .message_attribute(
             "ConfigItem",
