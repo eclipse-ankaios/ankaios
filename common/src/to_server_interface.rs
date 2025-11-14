@@ -16,7 +16,7 @@ use crate::commands::{self, AgentLoadStatus};
 use api::{
     ank_base::{
         self, CompleteStateInternal, CompleteStateRequestInternal, LogsRequest,
-        LogsRequestInternal, RequestContentInternal, UpdateStateRequestInternal,
+        LogsRequestInternal, RequestContentInternal, RequestInternal, UpdateStateRequestInternal,
         WorkloadStateInternal,
     },
     std_extensions::UnreachableResult,
@@ -31,7 +31,7 @@ pub enum ToServer {
     AgentHello(commands::AgentHello),
     AgentLoadStatus(AgentLoadStatus),
     AgentGone(commands::AgentGone),
-    Request(commands::Request),
+    Request(RequestInternal),
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Stop(commands::Stop),
     Goodbye(commands::Goodbye),
@@ -129,7 +129,7 @@ impl ToServerInterface for ToServerSender {
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(commands::Request {
+            .send(ToServer::Request(RequestInternal {
                 request_id,
                 request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                     UpdateStateRequestInternal {
@@ -160,7 +160,7 @@ impl ToServerInterface for ToServerSender {
         request_complete_state: CompleteStateRequestInternal,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(commands::Request {
+            .send(ToServer::Request(RequestInternal {
                 request_id,
                 request_content: RequestContentInternal::CompleteStateRequest(
                     CompleteStateRequestInternal {
@@ -189,7 +189,7 @@ impl ToServerInterface for ToServerSender {
             until: logs_request.until,
         };
         Ok(self
-            .send(ToServer::Request(commands::Request {
+            .send(ToServer::Request(RequestInternal {
                 request_id,
                 request_content: RequestContentInternal::LogsRequest(logs_request_internal),
             }))
@@ -198,7 +198,7 @@ impl ToServerInterface for ToServerSender {
 
     async fn logs_cancel_request(&self, request_id: String) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(commands::Request {
+            .send(ToServer::Request(RequestInternal {
                 request_id,
                 request_content: RequestContentInternal::LogsCancelRequest(
                     ank_base::LogsCancelRequestInternal {},
@@ -256,7 +256,8 @@ mod tests {
     use api::ank_base::{
         self, CompleteStateRequestInternal, CpuUsageInternal, ExecutionStateInternal,
         FreeMemoryInternal, LogEntriesResponse, LogEntry, LogsRequestInternal,
-        RequestContentInternal, UpdateStateRequestInternal, WorkloadInstanceNameInternal,
+        RequestContentInternal, RequestInternal, UpdateStateRequestInternal,
+        WorkloadInstanceNameInternal,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload, generate_test_workload_state,
@@ -348,7 +349,7 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(commands::Request {
+            ToServer::Request(RequestInternal {
                 request_id: REQUEST_ID.to_string(),
                 request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                     UpdateStateRequestInternal {
@@ -401,7 +402,7 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(commands::Request {
+            ToServer::Request(RequestInternal {
                 request_id: REQUEST_ID.to_string(),
                 request_content
             })
@@ -433,7 +434,7 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(commands::Request {
+            ToServer::Request(RequestInternal {
                 request_id: REQUEST_ID.to_string(),
                 request_content
             })
@@ -451,7 +452,7 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(commands::Request {
+            ToServer::Request(RequestInternal {
                 request_id: REQUEST_ID.to_string(),
                 request_content
             })

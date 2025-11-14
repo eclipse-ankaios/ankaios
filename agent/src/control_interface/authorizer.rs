@@ -18,9 +18,8 @@ mod rules;
 
 use api::ank_base::{
     AccessRightsRuleEnumInternal, AccessRightsRuleInternal, ControlInterfaceAccessInternal,
-    ReadWriteEnum, RequestContentInternal,
+    ReadWriteEnum, RequestContentInternal, RequestInternal
 };
-use common::commands::Request;
 use path_pattern::{AllowPathPattern, DenyPathPattern, PathPatternMatcher};
 use rules::{LogRule, StateRule};
 use std::{sync::Arc, vec};
@@ -49,7 +48,7 @@ pub struct Authorizer {
 mock! {
     #[derive(Debug)]
     pub Authorizer {
-        pub fn authorize(&self, request: &Request) -> bool;
+        pub fn authorize(&self, request: &RequestInternal) -> bool;
     }
 
     impl PartialEq for Authorizer {
@@ -64,7 +63,7 @@ mock! {
 impl Authorizer {
     // [impl->swdd~agent-authorizing-request-operations~2]
     // [impl->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
-    pub fn authorize(&self, request: &Request) -> bool {
+    pub fn authorize(&self, request: &RequestInternal) -> bool {
         match &request.request_content {
             RequestContentInternal::CompleteStateRequest(r) => Self::check_state_rules(
                 &request.request_id,
@@ -243,9 +242,8 @@ mod test {
     use api::ank_base::{
         AccessRightsRuleInternal, CompleteStateRequestInternal, ControlInterfaceAccessInternal,
         LogsCancelRequestInternal, LogsRequestInternal, ReadWriteEnum, RequestContentInternal,
-        UpdateStateRequestInternal, WorkloadInstanceNameInternal,
+        UpdateStateRequestInternal, WorkloadInstanceNameInternal, RequestInternal
     };
-    use common::commands::Request;
     use std::sync::Arc;
 
     use super::{
@@ -342,13 +340,13 @@ mod test {
     #[test]
     fn utest_request_without_filter_mask() {
         let mut authorizer = Authorizer::default();
-        let complete_state_request = Request {
+        let complete_state_request = RequestInternal {
             request_id: "".into(),
             request_content: RequestContentInternal::CompleteStateRequest(
                 CompleteStateRequestInternal { field_mask: vec![] },
             ),
         };
-        let update_state_request = Request {
+        let update_state_request = RequestInternal {
             request_id: "".into(),
             request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                 UpdateStateRequestInternal {
@@ -380,7 +378,7 @@ mod test {
     // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
     fn utest_read_requests_operations() {
-        let request = Request {
+        let request = RequestInternal {
             request_id: "".into(),
             request_content: RequestContentInternal::CompleteStateRequest(
                 CompleteStateRequestInternal {
@@ -420,7 +418,7 @@ mod test {
     // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
     fn utest_write_requests_operations() {
-        let request = Request {
+        let request = RequestInternal {
             request_id: "".into(),
             request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                 UpdateStateRequestInternal {
@@ -463,7 +461,7 @@ mod test {
         let authorizer =
             create_authorizer(&[RuleType::StateAllowReadWrite(vec![MATCHING_PATH.into()])]);
 
-        let request = Request {
+        let request = RequestInternal {
             request_id: "".into(),
             request_content: RequestContentInternal::CompleteStateRequest(
                 CompleteStateRequestInternal {
@@ -473,7 +471,7 @@ mod test {
         };
         assert!(authorizer.authorize(&request));
 
-        let request = Request {
+        let request = RequestInternal {
             request_id: "".into(),
             request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                 UpdateStateRequestInternal {
@@ -491,7 +489,7 @@ mod test {
         let authorizer =
             create_authorizer(&[RuleType::StateAllowReadWrite(vec![MATCHING_PATH.into()])]);
 
-        let request = Request {
+        let request = RequestInternal {
             request_id: "".into(),
             request_content: RequestContentInternal::CompleteStateRequest(
                 CompleteStateRequestInternal {
@@ -501,7 +499,7 @@ mod test {
         };
         assert!(!authorizer.authorize(&request));
 
-        let request = Request {
+        let request = RequestInternal {
             request_id: "".into(),
             request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                 UpdateStateRequestInternal {
@@ -516,7 +514,7 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_request_empty_is_allowed() {
-        let request = Request {
+        let request = RequestInternal {
             request_id: "".into(),
             request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: vec![],
@@ -534,7 +532,7 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_requests_general_cases() {
-        let request = Request {
+        let request = RequestInternal {
             request_id: "".into(),
             request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: vec![WorkloadInstanceNameInternal::new("", WORKLOAD_NAME, "")],
@@ -570,8 +568,8 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_requests_complex_cases() {
-        fn request(workloads: &[&str]) -> Request {
-            Request {
+        fn request(workloads: &[&str]) -> RequestInternal {
+            RequestInternal {
                 request_id: "".into(),
                 request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
                     workload_names: workloads
@@ -604,7 +602,7 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-cancel-always-allowed~1]
     #[test]
     fn utest_log_cancel_request() {
-        let request = Request {
+        let request = RequestInternal {
             request_id: "".into(),
             request_content: RequestContentInternal::LogsCancelRequest(
                 LogsCancelRequestInternal {},

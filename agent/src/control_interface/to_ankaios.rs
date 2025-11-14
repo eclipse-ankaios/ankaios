@@ -12,13 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base::RequestInternal;
 use api::control_api;
-use common::commands;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ToAnkaios {
-    Request(commands::Request),
+    Request(RequestInternal),
     Hello(Hello),
 }
 
@@ -79,9 +79,8 @@ mod tests {
     use super::{ToAnkaios, control_api};
     use api::ank_base::{
         self, CompleteStateRequest, CompleteStateRequestInternal, RequestContent,
-        RequestContentInternal,
+        RequestContentInternal, RequestInternal,
     };
-    use common::commands::Request;
 
     const FIELD_1: &str = "field_1";
     const FIELD_2: &str = "field_2";
@@ -103,7 +102,7 @@ mod tests {
             )),
         };
 
-        let expected = ToAnkaios::Request(Request {
+        let expected = ToAnkaios::Request(RequestInternal {
             request_id: REQUEST_ID.into(),
             request_content: RequestContentInternal::CompleteStateRequest(
                 CompleteStateRequestInternal {

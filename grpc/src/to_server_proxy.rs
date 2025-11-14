@@ -311,8 +311,8 @@ mod tests {
     use api::ank_base::{
         self, CompleteStateRequestInternal, CpuUsageInternal, ExecutionStateInternal,
         FreeMemoryInternal, LogEntriesResponse, LogEntry, LogsCancelRequestInternal,
-        LogsRequestInternal, LogsStopResponse, RequestContentInternal, WorkloadInstanceName,
-        WorkloadNamed,
+        LogsRequestInternal, LogsStopResponse, RequestContentInternal, RequestInternal,
+        WorkloadInstanceName, WorkloadNamed,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload,
@@ -659,7 +659,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            ToServer::Request(common::commands::Request {
+            ToServer::Request(RequestInternal {
                 request_id,
                 request_content: RequestContentInternal::UpdateStateRequest(update_request),
             })
@@ -747,7 +747,7 @@ mod tests {
         let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
         let expected_empty_field_mask: Vec<String> = vec![];
         assert!(
-            matches!(result, common::to_server_interface::ToServer::Request(common::commands::Request {
+            matches!(result, common::to_server_interface::ToServer::Request(RequestInternal {
                 request_id,
                 request_content:
                     RequestContentInternal::CompleteStateRequest(
@@ -851,7 +851,7 @@ mod tests {
         ];
 
         assert!(
-            matches!(result, common::to_server_interface::ToServer::Request(common::commands::Request {
+            matches!(result, common::to_server_interface::ToServer::Request(RequestInternal {
                 request_id,
                 request_content:
                     RequestContentInternal::LogsRequest(
@@ -899,7 +899,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::to_server_interface::ToServer::Request(common::commands::Request {
+            common::to_server_interface::ToServer::Request(RequestInternal {
                 request_id,
                 request_content: RequestContentInternal::LogsCancelRequest(
                     LogsCancelRequestInternal{}

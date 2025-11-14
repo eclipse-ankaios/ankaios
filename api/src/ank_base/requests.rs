@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::LogsRequestInternal;
+use crate::ank_base::{LogsRequestInternal, RequestInternal};
 
 impl Default for LogsRequestInternal {
     fn default() -> Self {
@@ -23,5 +23,14 @@ impl Default for LogsRequestInternal {
             since: None,
             until: None,
         }
+    }
+}
+
+impl RequestInternal {
+    pub fn prefix_id(prefix: &str, request_id: &String) -> String {
+        format!("{prefix}{request_id}")
+    }
+    pub fn prefix_request_id(&mut self, prefix: &str) {
+        self.request_id = Self::prefix_id(prefix, &self.request_id);
     }
 }

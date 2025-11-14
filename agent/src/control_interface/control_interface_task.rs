@@ -22,9 +22,12 @@ use super::authorizer::Authorizer;
 use super::input_pipe::InputPipe;
 #[cfg_attr(test, mockall_double::double)]
 use super::output_pipe::OutputPipe;
-use api::{ank_base, control_api};
+use api::{
+    ank_base::{self, RequestInternal},
+    control_api,
+};
 use common::{
-    check_version_compatibility, commands,
+    check_version_compatibility,
     from_server_interface::{FromServer, FromServerReceiver},
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
@@ -124,7 +127,7 @@ impl ControlInterfaceTask {
                             log::info!("Could not forward the response with Id: '{}'. Stopping log collection.", response.request_id);
                             match response.response_content {
                                 Some(ank_base::response::ResponseContent::LogEntriesResponse(_))=> {
-                                    let _ =self.to_server_sender.logs_cancel_request(commands::Request::prefix_id(&self.request_id_prefix, &response.request_id)).await;
+                                    let _ =self.to_server_sender.logs_cancel_request(RequestInternal::prefix_id(&self.request_id_prefix, &response.request_id)).await;
                                 }
                                 unexpected => {
                                     log::warn!("Unexpected response content: '{unexpected:?}'");
@@ -277,14 +280,15 @@ pub fn generate_test_control_interface_task_mock() -> __mock_MockControlInterfac
 mod tests {
     use std::{io::Error, sync::Arc};
 
-    use common::{
-        commands, from_server_interface::FromServerInterface, to_server_interface::ToServer,
-    };
+    use common::{from_server_interface::FromServerInterface, to_server_interface::ToServer};
     use mockall::{Sequence, predicate};
     use semver::Version;
     use tokio::sync::mpsc;
 
-    use api::{ank_base, control_api};
+    use api::{
+        ank_base::{self, RequestInternal},
+        control_api,
+    };
     use prost::Message;
 
     use super::ControlInterfaceTask;
@@ -530,7 +534,7 @@ mod tests {
 
         tokio::spawn(async { control_interface_task.run().await });
 
-        let mut expected_log_cancel_request = commands::Request {
+        let mut expected_log_cancel_request = RequestInternal {
             request_id: response.request_id,
             request_content: ank_base::RequestContentInternal::LogsCancelRequest(
                 ank_base::LogsCancelRequestInternal {},
@@ -715,7 +719,7 @@ mod tests {
 
         control_interface_task.run().await;
 
-        let mut expected_request: commands::Request = ank_request.try_into().unwrap();
+        let mut expected_request: RequestInternal = ank_request.try_into().unwrap();
         expected_request.prefix_request_id(request_id_prefix);
         assert_eq!(
             output_pipe_receiver.recv().await,

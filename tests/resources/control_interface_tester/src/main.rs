@@ -15,7 +15,7 @@
 use api::ank_base::{
     CompleteStateInternal, CompleteStateRequestInternal, LogEntriesResponse, LogsCancelAccepted,
     LogsCancelRequestInternal, LogsRequestAccepted, LogsRequestInternal, RequestContentInternal,
-    ResponseContent, State, UpdateStateRequestInternal,
+    RequestInternal, ResponseContent, State, UpdateStateRequestInternal,
 };
 
 use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
@@ -302,7 +302,7 @@ impl Connection {
             read_yaml_file(Path::new(&update_state_command.manifest_file))
                 .map_err(CommandError::GenericError)?;
 
-        let request = common::commands::Request {
+        let request = RequestInternal {
             request_id: request_id.clone(),
             request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                 UpdateStateRequestInternal {
@@ -343,7 +343,7 @@ impl Connection {
     ) -> Result<ResponseContent, CommandError> {
         let request_id = self.get_next_id();
 
-        let request = common::commands::Request {
+        let request = RequestInternal {
             request_id: request_id.clone(),
             request_content: RequestContentInternal::CompleteStateRequest(
                 CompleteStateRequestInternal { field_mask },
@@ -484,7 +484,7 @@ impl Connection {
             ));
         }
 
-        let request = common::commands::Request {
+        let request = RequestInternal {
             request_id: request_id.clone(),
             request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: workload_instance_names,
@@ -539,7 +539,7 @@ impl Connection {
         &mut self,
         request_id: String,
     ) -> Result<TestResultEnum, CommandError> {
-        let request = common::commands::Request {
+        let request = RequestInternal {
             request_id: request_id.clone(),
             request_content: RequestContentInternal::LogsCancelRequest(
                 LogsCancelRequestInternal {},

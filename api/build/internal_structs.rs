@@ -469,6 +469,7 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
 /// - UpdateStateRequestInternal
 /// - CompleteStateRequestInternal
 /// - RequestContentInternal
+/// - RequestInternal
 pub fn setup_internal_requests(builder: Builder) -> Builder {
     builder
         .message_attribute("LogsRequest", "#[derive(internal_derive_macros::Internal)]")
@@ -511,4 +512,10 @@ pub fn setup_internal_requests(builder: Builder) -> Builder {
             "RequestContent",
             "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
+        .message_attribute("Request", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute(
+            "Request",
+            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
+        )
+        .field_attribute("Request.RequestContent", "#[internal_mandatory]")
 }

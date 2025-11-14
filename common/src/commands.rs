@@ -13,8 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::{
-    self, CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, RequestContentInternal,
-    WorkloadNamed, WorkloadStateInternal,
+    CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, WorkloadNamed, WorkloadStateInternal,
 };
 use serde::{Deserialize, Serialize};
 
@@ -33,42 +32,42 @@ pub struct UpdateWorkloadState {
     pub workload_states: Vec<WorkloadStateInternal>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Request {
-    pub request_id: String,
-    pub request_content: RequestContentInternal,
-}
+// #[derive(Debug, Clone, PartialEq, Eq)]
+// pub struct Request {
+//     pub request_id: String,
+//     pub request_content: RequestContentInternal,
+// }
 
-impl From<Request> for ank_base::Request {
-    fn from(value: Request) -> Self {
-        Self {
-            request_id: value.request_id,
-            request_content: Some(value.request_content.into()),
-        }
-    }
-}
+// impl From<Request> for ank_base::Request {
+//     fn from(value: Request) -> Self {
+//         Self {
+//             request_id: value.request_id,
+//             request_content: Some(value.request_content.into()),
+//         }
+//     }
+// }
 
-impl Request {
-    pub fn prefix_id(prefix: &str, request_id: &String) -> String {
-        format!("{prefix}{request_id}")
-    }
-    pub fn prefix_request_id(&mut self, prefix: &str) {
-        self.request_id = Self::prefix_id(prefix, &self.request_id);
-    }
-}
+// impl Request {
+//     pub fn prefix_id(prefix: &str, request_id: &String) -> String {
+//         format!("{prefix}{request_id}")
+//     }
+//     pub fn prefix_request_id(&mut self, prefix: &str) {
+//         self.request_id = Self::prefix_id(prefix, &self.request_id);
+//     }
+// }
 
-impl TryFrom<ank_base::Request> for Request {
-    type Error = String;
-    fn try_from(value: ank_base::Request) -> Result<Request, Self::Error> {
-        Ok(Request {
-            request_id: value.request_id,
-            request_content: value
-                .request_content
-                .ok_or_else(|| "Request has no content".to_string())?
-                .try_into()?,
-        })
-    }
-}
+// impl TryFrom<ank_base::Request> for Request {
+//     type Error = String;
+//     fn try_from(value: ank_base::Request) -> Result<Request, Self::Error> {
+//         Ok(Request {
+//             request_id: value.request_id,
+//             request_content: value
+//                 .request_content
+//                 .ok_or_else(|| "Request has no content".to_string())?
+//                 .try_into()?,
+//         })
+//     }
+// }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ServerHello {
@@ -107,17 +106,16 @@ pub struct AgentLoadStatus {
 
 #[cfg(test)]
 mod tests {
-    use crate::commands;
     use api::CURRENT_API_VERSION;
     use api::ank_base::{
-        self, CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, File, FileContent,
-        Files, LogsRequest, RequestContent, RestartPolicy, State, UpdateStateRequest, Workload,
-        WorkloadInstanceName, WorkloadMap,
+        CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, File, FileContent,
+        Files, LogsRequest, Request, RequestContent, RestartPolicy, State, UpdateStateRequest,
+        Workload, WorkloadInstanceName, WorkloadMap,
     };
     use api::ank_base::{
         CompleteStateInternal, CompleteStateRequestInternal, ConfigMappingsInternal,
         ExecutionStateInternal, FileContentInternal, FileInternal, FilesInternal,
-        LogsRequestInternal, RequestContentInternal, StateInternal, TagsInternal,
+        LogsRequestInternal, RequestContentInternal, RequestInternal, StateInternal, TagsInternal,
         UpdateStateRequestInternal, WorkloadInstanceNameInternal, WorkloadInternal,
         WorkloadMapInternal,
     };
@@ -140,7 +138,7 @@ mod tests {
 
     macro_rules! update_state_request {
         (ank_base) => {{
-            ank_base::Request {
+            Request {
                 request_id: REQUEST_ID.into(),
                 request_content: RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                     new_state: complete_state!(ank_base).into(),
@@ -150,7 +148,7 @@ mod tests {
             }
         }};
         (ankaios) => {{
-            commands::Request {
+            RequestInternal {
                 request_id: REQUEST_ID.into(),
                 request_content: RequestContentInternal::UpdateStateRequest(Box::new(
                     UpdateStateRequestInternal {
@@ -194,7 +192,7 @@ mod tests {
 
     macro_rules! logs_cancel_request {
         (ank_base) => {
-            ank_base::Request {
+            Request {
                 request_id: REQUEST_ID.into(),
                 request_content: RequestContent::LogsCancelRequest(
                     api::ank_base::LogsCancelRequest {},
@@ -203,7 +201,7 @@ mod tests {
             }
         };
         (ankaios) => {
-            commands::Request {
+            RequestInternal {
                 request_id: REQUEST_ID.into(),
                 request_content: RequestContentInternal::LogsCancelRequest(
                     api::ank_base::LogsCancelRequestInternal {},
@@ -342,14 +340,14 @@ mod tests {
 
     #[test]
     fn utest_converts_from_proto_complete_state_request() {
-        let proto_request_complete_state = ank_base::Request {
+        let proto_request_complete_state = Request {
             request_id: REQUEST_ID.into(),
             request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![FIELD_1.into(), FIELD_2.into()],
             })
             .into(),
         };
-        let ankaios_request_complete_state = commands::Request {
+        let ankaios_request_complete_state = RequestInternal {
             request_id: REQUEST_ID.into(),
             request_content: RequestContentInternal::CompleteStateRequest(
                 CompleteStateRequestInternal {
@@ -359,7 +357,7 @@ mod tests {
         };
 
         assert_eq!(
-            commands::Request::try_from(proto_request_complete_state).unwrap(),
+            RequestInternal::try_from(proto_request_complete_state).unwrap(),
             ankaios_request_complete_state
         );
     }
@@ -370,7 +368,7 @@ mod tests {
         let ankaios_request_complete_state = update_state_request!(ankaios);
 
         assert_eq!(
-            commands::Request::try_from(proto_request_complete_state).unwrap(),
+            RequestInternal::try_from(proto_request_complete_state).unwrap(),
             ankaios_request_complete_state
         );
     }
@@ -410,7 +408,7 @@ mod tests {
         };
 
         assert_eq!(
-            commands::Request::try_from(proto_request_complete_state).unwrap(),
+            RequestInternal::try_from(proto_request_complete_state).unwrap(),
             ankaios_request_complete_state
         );
     }
@@ -448,7 +446,7 @@ mod tests {
         ankaios_request_content.new_state.desired_state = Default::default();
 
         assert_eq!(
-            commands::Request::try_from(proto_request_complete_state).unwrap(),
+            RequestInternal::try_from(proto_request_complete_state).unwrap(),
             ankaios_request_complete_state
         );
     }
@@ -486,12 +484,12 @@ mod tests {
                 },
             );
 
-        assert!(commands::Request::try_from(proto_request_complete_state).is_err());
+        assert!(RequestInternal::try_from(proto_request_complete_state).is_err());
     }
 
     #[test]
     fn utest_converts_from_proto_logs_request() {
-        let proto_logs_request = ank_base::Request {
+        let proto_logs_request = Request {
             request_id: REQUEST_ID.into(),
             request_content: RequestContent::LogsRequest(LogsRequest {
                 workload_names: vec![
@@ -505,7 +503,7 @@ mod tests {
             })
             .into(),
         };
-        let ankaios_logs_request = commands::Request {
+        let ankaios_logs_request = RequestInternal {
             request_id: REQUEST_ID.into(),
             request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
                 workload_names: vec![
@@ -519,7 +517,7 @@ mod tests {
             }),
         };
         assert_eq!(
-            commands::Request::try_from(proto_logs_request).unwrap(),
+            RequestInternal::try_from(proto_logs_request).unwrap(),
             ankaios_logs_request
         );
     }
@@ -529,7 +527,7 @@ mod tests {
         let proto_logs_cancel_request = logs_cancel_request!(ank_base);
         let ankaios_logs_cancel_request = logs_cancel_request!(ankaios);
         assert_eq!(
-            commands::Request::try_from(proto_logs_cancel_request).unwrap(),
+            RequestInternal::try_from(proto_logs_cancel_request).unwrap(),
             ankaios_logs_cancel_request
         );
     }
@@ -539,21 +537,21 @@ mod tests {
         let proto_logs_cancel_request = logs_cancel_request!(ank_base);
         let ankaios_logs_cancel_request = logs_cancel_request!(ankaios);
         assert_eq!(
-            ank_base::Request::from(ankaios_logs_cancel_request),
+            Request::from(ankaios_logs_cancel_request),
             proto_logs_cancel_request
         );
     }
 
     #[test]
     fn utest_converts_from_proto_request_fails_empty_request_content() {
-        let proto_request = ank_base::Request {
+        let proto_request = Request {
             request_id: REQUEST_ID.into(),
             request_content: None,
         };
 
         assert_eq!(
-            commands::Request::try_from(proto_request).unwrap_err(),
-            "Request has no content"
+            RequestInternal::try_from(proto_request).unwrap_err(),
+            "Missing field 'request_content'"
         );
     }
 
@@ -561,14 +559,14 @@ mod tests {
     fn utest_prefix_id() {
         let request_id = "42".to_string();
         let prefix = "prefix@";
-        let prefixed_request_id = commands::Request::prefix_id(prefix, &request_id);
+        let prefixed_request_id = RequestInternal::prefix_id(prefix, &request_id);
 
         assert_eq!("prefix@42", prefixed_request_id);
     }
 
     #[test]
     fn utest_request_complete_state_prefix_request_id() {
-        let mut ankaios_request_complete_state = commands::Request {
+        let mut ankaios_request_complete_state = RequestInternal {
             request_id: "42".to_string(),
             request_content: RequestContentInternal::CompleteStateRequest(
                 CompleteStateRequestInternal {

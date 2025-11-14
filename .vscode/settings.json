@@ -6,6 +6,7 @@
         "Comms",
         "containerd",
         "Elektrobit",
+        "itest",
         "mockall",
         "nerdctl",
         "nerdctlcli",

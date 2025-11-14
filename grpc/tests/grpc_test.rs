@@ -25,9 +25,10 @@ mod grpc_tests {
 
     use api::ank_base::{
         CompleteStateInternal, CompleteStateRequestInternal, RequestContentInternal,
+        RequestInternal,
     };
     use common::{
-        commands::{self, Request},
+        commands::{self},
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
         communications_server::CommunicationsServer,
@@ -70,7 +71,7 @@ MC4CAQAwBQYDK2VwBCIEIKuTRWL66qD94qMHXiMyFAephAYmzW/VfqJLbz1b6H9r
 
     /* 10 years validity issued at 08/16/2024 check validity if tests are failing
     make sure to create the cert with DNS.1 = * as alt_name otherwise failing tests
-    because of various choosen agent names inside tests */
+    because of various chosen agent names inside tests */
     static TEST_AGENT_CRT_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
 MIIBbDCCAR6gAwIBAgIUFkWTHz6ubW5z5nfte9/Wa1222EkwBQYDK2VwMBUxEzAR
 BgNVBAMMCmFua2Fpb3MtY2EwHhcNMjQwODE2MDcyNzU3WhcNMzQwODE0MDcyNzU3
@@ -337,7 +338,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         assert!(matches!(
             result,
             Ok(Some(ToServer::Request(
-                Request{
+                RequestInternal{
                     request_id,
                     request_content: RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
                         field_mask
@@ -379,7 +380,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         assert!(matches!(
             result,
             Ok(Some(ToServer::Request(
-                Request{
+                RequestInternal{
                     request_id,
                     request_content: RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
                         field_mask
@@ -419,7 +420,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
 
         assert!(matches!(
             result,
-            Ok(Some(ToServer::Request(Request{request_id, request_content: _}))
+            Ok(Some(ToServer::Request(RequestInternal{request_id, request_content: _}))
             ) if request_id.contains(test_request_id)
         ));
     }

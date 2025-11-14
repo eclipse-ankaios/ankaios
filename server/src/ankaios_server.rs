@@ -21,9 +21,10 @@ mod server_state;
 use api::ank_base;
 use api::ank_base::{
     CompleteStateInternal, DeletedWorkload, ExecutionStateInternal, RequestContentInternal,
-    StateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadStatesMapInternal,
+    RequestInternal, StateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
+    WorkloadStatesMapInternal,
 };
-use common::commands::{Request, UpdateWorkload};
+use common::commands::UpdateWorkload;
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 
 use common::std_extensions::IllegalStateResult;
@@ -206,7 +207,7 @@ impl AnkaiosServer {
                     .await;
                 }
                 // [impl->swdd~server-provides-update-desired-state-interface~1]
-                ToServer::Request(Request {
+                ToServer::Request(RequestInternal {
                     request_id,
                     request_content,
                 }) => match request_content {
