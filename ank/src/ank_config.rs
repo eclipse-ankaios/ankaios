@@ -16,16 +16,18 @@ use crate::cli::AnkCli;
 use api::std_extensions::{GracefulExitResult, UnreachableOption};
 use common::DEFAULT_SERVER_ADDRESS;
 use grpc::security::read_pem_file;
+
+use once_cell::sync::Lazy;
+use serde::de::value::MapDeserializer;
 use serde::de::{Error, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
+use toml::{Value, from_str};
+
 use std::collections::BTreeMap;
+use std::env;
 use std::fmt;
 use std::fs::read_to_string;
 use std::path::PathBuf;
-use toml::{Value, from_str};
-
-use once_cell::sync::Lazy;
-use std::env;
 
 pub const CONFIG_VERSION: &str = "v1";
 pub const DEFAULT_CONFIG: &str = "default";
@@ -166,7 +168,7 @@ impl<'de> Visitor<'de> for AnkConfigVisitor {
             }
         }
 
-        let deserializer = serde::de::value::MapDeserializer::new(merged.into_iter());
+        let deserializer = MapDeserializer::new(merged.into_iter());
         let helper = AnkConfigHelper::deserialize(deserializer).map_err(V::Error::custom)?;
         Ok(helper.into())
     }
@@ -293,18 +295,16 @@ impl AnkConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
-    use std::path::PathBuf;
-    use tempfile::NamedTempFile;
-
-    use common::DEFAULT_SERVER_ADDRESS;
-
+    use super::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
     use crate::{
         ank_config::{ConversionErrors, get_default_response_timeout, get_default_url},
         cli::{AnkCli, Commands, GetArgs, GetCommands},
     };
+    use common::DEFAULT_SERVER_ADDRESS;
 
-    use super::{AnkConfig, DEFAULT_ANK_CONFIG_FILE_PATH};
+    use std::io::Write;
+    use std::path::PathBuf;
+    use tempfile::NamedTempFile;
 
     const CA_PEM_PATH: &str = "some_path_to_ca_pem/ca.pem";
     const CRT_PEM_PATH: &str = "some_path_to_crt_pem/crt.pem";

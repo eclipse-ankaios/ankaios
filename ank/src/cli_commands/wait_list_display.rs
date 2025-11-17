@@ -12,17 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use super::cli_table::CliTable;
+use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};
+use crate::cli_commands::workload_table_row::WorkloadTableRowWithSpinner;
+
+use api::ank_base::{WorkloadInstanceNameInternal, WorkloadStateInternal};
+
 use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Display},
 };
-
-use api::ank_base::{WorkloadStateInternal, WorkloadInstanceNameInternal};
-
-use crate::cli_commands::workload_table_row::WorkloadTableRowWithSpinner;
-
-use super::cli_table::CliTable;
-use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};
 
 pub(crate) const COMPLETED_SYMBOL: &str = " ";
 const SPINNER_SYMBOLS: [&str; 4] = ["|", "/", "-", "\\"];
@@ -105,18 +104,18 @@ impl Display for Spinner {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-
-    use std::collections::{HashMap, HashSet};
-
-    use api::ank_base::{ExecutionStateInternal, WorkloadStateInternal, WorkloadInstanceNameInternal};
-
+    use super::WaitListDisplay;
     use crate::cli_commands::{
         wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow,
     };
 
-    use super::WaitListDisplay;
+    use api::ank_base::{
+        ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
+    };
+    use std::collections::{HashMap, HashSet};
 
     #[test]
     fn update_table() {

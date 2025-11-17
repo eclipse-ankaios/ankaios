@@ -14,7 +14,10 @@
 
 use crate::agent_manager::SynchronizedSubscriptionStore;
 
-use api::ank_base::{self, LogsRequestInternal, WorkloadInstanceNameInternal};
+use api::ank_base::{
+    LogEntriesResponse, LogEntry, LogsRequestInternal, LogsStopResponse,
+    WorkloadInstanceNameInternal,
+};
 use api::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerInterface, ToServerSender};
 
@@ -131,10 +134,10 @@ impl WorkloadLogFacade {
                 to_server
                     .log_entries_response(
                         request_id.clone(),
-                        ank_base::LogEntriesResponse {
+                        LogEntriesResponse {
                             log_entries: log_lines
                                 .into_iter()
-                                .map(|log_message| ank_base::LogEntry {
+                                .map(|log_message| LogEntry {
                                     workload_name: Some(workload_instance_name.clone().into()),
                                     message: log_message,
                                 })
@@ -157,7 +160,7 @@ impl WorkloadLogFacade {
                 to_server
                     .logs_stop_response(
                         request_id.clone(),
-                        ank_base::LogsStopResponse {
+                        LogsStopResponse {
                             workload_name: Some(workload_instance_name.into()),
                         },
                     )
@@ -184,7 +187,7 @@ mod tests {
     use crate::subscription_store::{MockJoinHandle, MockSubscriptionEntry, SubscriptionEntry};
     use crate::workload_log_facade::WorkloadLogFacade;
 
-    use api::ank_base::{self, LogsRequestInternal, WorkloadInstanceNameInternal};
+    use api::ank_base::{LogsRequestInternal, LogsStopResponse, WorkloadInstanceNameInternal};
     use common::to_server_interface::ToServer;
 
     use mockall::{mock, predicate};
@@ -469,7 +472,7 @@ mod tests {
             logs_stop_response,
             Ok(Some(ToServer::LogsStopResponse(
                 REQUEST_ID.into(),
-                ank_base::LogsStopResponse {
+                LogsStopResponse {
                     workload_name: Some(workload_instance_name_1.into()),
                 },
             )))

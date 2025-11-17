@@ -12,18 +12,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::CliCommands;
-use crate::cli_commands::DESIRED_STATE_CONFIGS;
-use crate::cli_commands::config_table_row::ConfigTableRow;
-use crate::filtered_complete_state::FilteredCompleteState;
-use crate::{cli_commands::cli_table::CliTable, cli_error::CliError, output_debug};
-use api::ank_base::ConfigItem;
+use crate::cli_commands::{
+    DESIRED_STATE_CONFIGS, cli_table::CliTable, config_table_row::ConfigTableRow,
+};
+use crate::{CliCommands, cli_error::CliError, output_debug};
+use api::ank_base::{CompleteState, ConfigItem};
 
 impl CliCommands {
     // [impl->swdd~cli-provides-list-of-configs~1]
     // [impl->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     pub async fn get_configs(&mut self) -> Result<String, CliError> {
-        let filtered_complete_state: FilteredCompleteState = self
+        let filtered_complete_state: CompleteState = self
             .server_connection
             .get_complete_state(&[DESIRED_STATE_CONFIGS.to_string()])
             .await?;

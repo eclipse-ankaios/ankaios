@@ -50,13 +50,10 @@ impl CliCommands {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        cli_commands::{CliCommands, server_connection::MockServerConnection},
-        filtered_complete_state::FilteredCompleteState,
-    };
+    use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
 
     use api::ank_base::{
-        self, CompleteStateInternal, ExecutionStateInternal, UpdateStateSuccess,
+        CompleteState, CompleteStateInternal, ExecutionStateInternal, UpdateStateSuccess,
         WorkloadStateInternal,
     };
     use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
@@ -100,9 +97,7 @@ mod tests {
             .expect_get_complete_state()
             .times(2)
             .with(eq(vec![]))
-            .returning(move |_| {
-                Ok(ank_base::CompleteState::from(complete_state_update.clone()))
-            });
+            .returning(move |_| Ok(CompleteState::from(complete_state_update.clone())));
 
         mock_server_connection
             .expect_take_missed_from_server_messages()
@@ -147,7 +142,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .once()
-            .returning(|_| Ok(FilteredCompleteState::default()));
+            .returning(|_| Ok(CompleteState::default()));
         mock_server_connection
             .expect_update_state()
             .with(

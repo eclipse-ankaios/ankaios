@@ -69,20 +69,19 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
+    use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
+
     use api::ank_base::{
-        self, CompleteStateInternal, ExecutionStateInternal, TagsInternal, UpdateStateSuccess,
-        WorkloadInternal, WorkloadStateInternal,
+        CompleteState, CompleteStateInternal, ExecutionStateInternal, TagsInternal,
+        UpdateStateSuccess, WorkloadInternal, WorkloadStateInternal,
     };
     use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
+
     use mockall::predicate::eq;
     use std::collections::HashMap;
-
-    use crate::{
-        cli_commands::{CliCommands, server_connection::MockServerConnection},
-        filtered_complete_state::FilteredCompleteState,
-    };
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
@@ -125,7 +124,7 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .once()
-            .return_once(|_| Ok(FilteredCompleteState::default()));
+            .return_once(|_| Ok(CompleteState::default()));
         mock_server_connection
             .expect_update_state()
             .with(
@@ -149,7 +148,7 @@ mod tests {
             .expect_get_complete_state()
             .once()
             .with(eq(vec![]))
-            .return_once(|_| Ok(ank_base::CompleteState::from(complete_state_update)));
+            .return_once(|_| Ok(CompleteState::from(complete_state_update)));
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(|| {

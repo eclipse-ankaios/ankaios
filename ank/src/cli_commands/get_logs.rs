@@ -12,16 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::{BTreeSet, HashMap};
+use super::CliCommands;
+use crate::cli::LogsArgs;
+use crate::cli_error::CliError;
 
 use api::ank_base::{
     WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadStatesMapInternal,
 };
-
-use crate::cli::LogsArgs;
-use crate::cli_error::CliError;
-
-use super::CliCommands;
+use std::collections::{BTreeSet, HashMap};
 
 impl CliCommands {
     // [impl->swdd~cli-provides-workload-logs~1]
@@ -106,7 +104,7 @@ mod tests {
     };
     use crate::cli_error::CliError;
 
-    use api::ank_base::{self, WorkloadInstanceNameInternal, WorkloadNamed};
+    use api::ank_base::{CompleteState, WorkloadInstanceNameInternal, WorkloadNamed};
     use api::test_utils::{generate_test_complete_state, generate_test_workload_with_param};
 
     use mockall::predicate;
@@ -132,16 +130,11 @@ mod tests {
             .expect_get_complete_state()
             .with(predicate::eq(vec!["workloadStates".to_string()]))
             .return_once(|_| {
-                Ok(
-                    ank_base::CompleteState::from(generate_test_complete_state(vec![
-                        cloned_log_workload,
-                        generate_test_workload_with_param::<WorkloadNamed>(
-                            AGENT_B_NAME,
-                            RUNTIME_NAME,
-                        )
+                Ok(CompleteState::from(generate_test_complete_state(vec![
+                    cloned_log_workload,
+                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_B_NAME, RUNTIME_NAME)
                         .name(WORKLOAD_NAME_2),
-                    ])),
-                )
+                ])))
             });
 
         let instance_names: BTreeSet<WorkloadInstanceNameInternal> =
@@ -228,15 +221,10 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .return_once(|_| {
-                Ok(
-                    ank_base::CompleteState::from(generate_test_complete_state(vec![
-                        generate_test_workload_with_param::<WorkloadNamed>(
-                            AGENT_A_NAME,
-                            RUNTIME_NAME,
-                        )
+                Ok(CompleteState::from(generate_test_complete_state(vec![
+                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
                         .name(WORKLOAD_NAME_1),
-                    ])),
-                )
+                ])))
             });
 
         let args = LogsArgs {
@@ -280,15 +268,10 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .return_once(|_| {
-                Ok(
-                    ank_base::CompleteState::from(generate_test_complete_state(vec![
-                        generate_test_workload_with_param::<WorkloadNamed>(
-                            AGENT_A_NAME,
-                            RUNTIME_NAME,
-                        )
+                Ok(CompleteState::from(generate_test_complete_state(vec![
+                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
                         .name(WORKLOAD_NAME_1),
-                    ])),
-                )
+                ])))
             });
 
         let mut cmd = CliCommands {
@@ -315,7 +298,7 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .return_once(|_| Ok(ank_base::CompleteState::default()));
+            .return_once(|_| Ok(CompleteState::default()));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
@@ -353,12 +336,10 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .return_once(|_| {
-                Ok(
-                    ank_base::CompleteState::from(generate_test_complete_state(vec![
-                        workload_1_agent_a,
-                        workload_1_agent_b,
-                    ])),
-                )
+                Ok(CompleteState::from(generate_test_complete_state(vec![
+                    workload_1_agent_a,
+                    workload_1_agent_b,
+                ])))
             });
 
         let mut cmd = CliCommands {

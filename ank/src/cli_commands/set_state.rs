@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use super::CliCommands;
+
 use api::ank_base::{CompleteStateInternal, WorkloadInternal};
 use common::state_manipulation::{Object, Path};
 use std::io::{self, Read};
@@ -23,8 +25,6 @@ fn read_file_to_string(file: String) -> std::io::Result<String> {
 use crate::{cli_error::CliError, output_debug};
 #[cfg(test)]
 use tests::read_to_string_mock as read_file_to_string;
-
-use super::CliCommands;
 
 fn create_state_with_default_workloads(update_mask: &[String]) -> CompleteStateInternal {
     let mut complete_state = CompleteStateInternal::default();
@@ -141,18 +141,16 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
     use super::{
         CliCommands, WorkloadInternal, create_state_with_default_workloads, io,
         overwrite_using_field_mask, process_inputs,
     };
-    use crate::{
-        cli_commands::server_connection::MockServerConnection,
-        filtered_complete_state::FilteredCompleteState,
-    };
+    use crate::cli_commands::server_connection::MockServerConnection;
     use api::ank_base::{
-        CompleteStateInternal, RestartPolicy, StateInternal, UpdateStateSuccess,
+        CompleteState, CompleteStateInternal, RestartPolicy, StateInternal, UpdateStateSuccess,
         WorkloadMapInternal,
     };
     use common::state_manipulation::Object;
@@ -341,7 +339,7 @@ mod tests {
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .returning(|_| Ok(FilteredCompleteState::default()));
+            .returning(|_| Ok(CompleteState::default()));
         mock_server_connection
             .expect_update_state()
             .with(eq(updated_state), eq(update_mask.clone()))

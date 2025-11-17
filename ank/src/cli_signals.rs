@@ -12,10 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::output_debug;
+
 use api::std_extensions::UnreachableResult;
 use tokio::signal::unix::{SignalKind, signal};
-
-use crate::output_debug;
 
 pub struct SignalHandler;
 
@@ -45,14 +45,8 @@ impl SignalHandler {
 }
 
 #[cfg(test)]
-use mockall::mock;
-
-#[cfg(test)]
-use std::pin::Pin;
-
-#[cfg(test)]
-mock! {
+mockall::mock! {
     pub SignalHandler {
-        pub fn wait_for_signals() -> Pin<Box<dyn std::future::Future<Output=()>>>;
+        pub fn wait_for_signals() -> std::pin::Pin<Box<dyn std::future::Future<Output=()>>>;
     }
 }

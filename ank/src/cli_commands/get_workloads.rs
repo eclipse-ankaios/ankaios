@@ -11,15 +11,16 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::{cli_error::CliError, output_debug};
-
-#[cfg(not(test))]
-use crate::output_update;
 
 use super::cli_table::CliTable;
 use super::workload_table_row::WorkloadTableRow;
 use super::{CliCommands, WorkloadInfos};
+use crate::{cli_error::CliError, output_debug};
+
 use common::commands::UpdateWorkloadState;
+
+#[cfg(not(test))]
+use crate::output_update;
 
 use std::collections::BTreeMap;
 #[cfg(test)]
@@ -213,6 +214,7 @@ fn check_workload_filters(
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
     use crate::cli_commands::{

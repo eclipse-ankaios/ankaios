@@ -41,8 +41,8 @@ mod run_workload;
 mod set_state;
 
 use api::ank_base::{
-    CompleteStateInternal, Workload, WorkloadInstanceNameInternal, WorkloadStateInternal,
-    WorkloadStatesMapInternal,
+    CompleteState, CompleteStateInternal, Workload, WorkloadInstanceNameInternal,
+    WorkloadStateInternal, WorkloadStatesMapInternal,
 };
 use common::{
     communications_error::CommunicationMiddlewareError, from_server_interface::FromServer,
@@ -53,8 +53,7 @@ use wait_list_display::WaitListDisplay;
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
 use crate::{
-    cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError,
-    filtered_complete_state::FilteredCompleteState, output, output_debug,
+    cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError, output, output_debug,
 };
 
 #[cfg(test)]
@@ -189,10 +188,7 @@ impl CliCommands {
     }
 
     // [impl->swdd~processes-complete-state-to-list-workloads~1]
-    fn transform_into_workload_infos(
-        &self,
-        complete_state: FilteredCompleteState,
-    ) -> WorkloadInfos {
+    fn transform_into_workload_infos(&self, complete_state: CompleteState) -> WorkloadInfos {
         // TODO: fix the conversion and think about adding a proper from here
         let workload_states_map: WorkloadStatesMapInternal = complete_state
             .workload_states
@@ -375,18 +371,20 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
+    use super::{InputSourcePair, get_input_sources};
+    use crate::test_helper::MOCKALL_CONTEXT_SYNC;
     use common::{from_server_interface::FromServerSender, to_server_interface::ToServerReceiver};
     use grpc::security::TLSConfig;
 
-    use std::io;
-
-    use super::{InputSourcePair, get_input_sources};
+    use std::collections::VecDeque;
+    use std::{io, sync::Mutex};
 
     mockall::lazy_static! {
-        pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
-        std::sync::Mutex::new(std::collections::VecDeque::new());
+        pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: Mutex<VecDeque<io::Result<InputSourcePair>>>  =
+        Mutex::new(VecDeque::new());
     }
 
     mockall::mock! {
@@ -412,9 +410,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_apply_args_get_input_sources_manifest_files_error() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let _dummy_content = io::Cursor::new(b"manifest content");
         FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
@@ -446,9 +442,7 @@ mod tests {
     // [utest->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
     #[tokio::test]
     async fn utest_apply_args_get_input_sources_manifest_files_ok() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let _dummy_content = io::Cursor::new(b"manifest content");
         for i in 1..3 {

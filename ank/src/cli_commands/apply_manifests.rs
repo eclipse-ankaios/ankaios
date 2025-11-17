@@ -14,8 +14,8 @@
 
 use super::{CliCommands, InputSourcePair};
 use crate::cli_error::CliError;
-use crate::output;
-use crate::{cli::ApplyArgs, output_debug};
+use crate::{cli::ApplyArgs, output, output_debug};
+
 use api::ank_base::{ALLOWED_SYMBOLS, CompleteStateInternal, StateInternal, validate_tags};
 use api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use common::state_manipulation::{Object, Path};
@@ -91,7 +91,7 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
 
 // [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
 pub fn handle_agent_overwrite(
-    filter_masks: &Vec<common::state_manipulation::Path>,
+    filter_masks: &Vec<Path>,
     cli_specified_agent_name: &Option<String>,
     mut state_obj: Object,
 ) -> Result<StateInternal, String> {
@@ -155,10 +155,7 @@ pub fn update_request_obj(
     Ok(())
 }
 
-pub fn create_filter_masks_from_paths(
-    paths: &[common::state_manipulation::Path],
-    prefix: &str,
-) -> Vec<String> {
+pub fn create_filter_masks_from_paths(paths: &[Path], prefix: &str) -> Vec<String> {
     let mut filter_masks = paths
         .iter()
         .map(|path| format!("{}.{}", prefix, String::from(path)))
@@ -175,7 +172,7 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     apply_args: &ApplyArgs,
 ) -> Result<Option<(CompleteStateInternal, Vec<String>)>, String> {
     let mut req_obj: Object = StateInternal::default().try_into().unwrap();
-    let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
+    let mut req_paths: Vec<Path> = Vec::new();
     for manifest in manifests.iter_mut() {
         let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
 
@@ -238,6 +235,7 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -250,12 +248,11 @@ mod tests {
             },
             server_connection::MockServerConnection,
         },
-        filtered_complete_state::FilteredCompleteState,
     };
 
     use api::ank_base::{
-        self, CompleteStateInternal, ExecutionStateInternal, StateInternal, UpdateStateSuccess,
-        WorkloadNamed, WorkloadStateInternal,
+        CompleteState, CompleteStateInternal, ExecutionStateInternal, Response, ResponseContent,
+        StateInternal, UpdateStateSuccess, WorkloadNamed, WorkloadStateInternal,
     };
     use api::test_utils::{generate_test_state_from_workloads, generate_test_workload_with_param};
     use common::{
@@ -266,8 +263,7 @@ mod tests {
 
     use mockall::predicate::eq;
     use serde_yaml::Value;
-    use std::io;
-    use std::io::Read;
+    use std::io::{Cursor, Read};
 
     mockall::lazy_static! {
         pub static ref FAKE_GET_INPUT_SOURCE_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<Result<Vec<InputSourcePair>, String>>>  =
@@ -293,7 +289,7 @@ mod tests {
     // [utest->swdd~cli-apply-supports-ankaios-manifest~1]
     #[test]
     fn utest_parse_manifest_ok() {
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
     simple:
       runtime: podman
@@ -314,7 +310,7 @@ mod tests {
 
     #[test]
     fn utest_parse_manifest_invalid_manifest_content() {
-        let manifest_content = io::Cursor::new(b"invalid manifest content");
+        let manifest_content = Cursor::new(b"invalid manifest content");
 
         let (obj, paths) = parse_manifest(&mut (
             "invalid_manifest_content".to_string(),
@@ -329,7 +325,7 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
     #[test]
     fn utest_parse_manifest_invalid_api_version() {
-        let manifest_content = io::Cursor::new(b"apiVersion: v3");
+        let manifest_content = Cursor::new(b"apiVersion: v3");
 
         assert!(
             parse_manifest(&mut (
@@ -343,7 +339,7 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_mapping_ok() {
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
     simple:
       runtime: podman
@@ -367,7 +363,7 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_sequence_fails() {
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
     simple:
       runtime: podman
@@ -397,7 +393,7 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_previous_api_version_tags_as_sequence_ok() {
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v0.1\"\nworkloads:
     simple:
       runtime: podman
@@ -423,7 +419,7 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_previous_api_version_tags_as_mapping_fails() {
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v0.1\"\nworkloads:
     simple:
       runtime: podman
@@ -680,7 +676,7 @@ mod tests {
     #[test]
     fn utest_generate_state_obj_and_filter_masks_from_manifests_ok() {
         let manifest_file_name = "manifest.yaml";
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
         simple:
           runtime: podman
@@ -731,7 +727,7 @@ mod tests {
     #[test]
     fn utest_generate_state_obj_and_filter_masks_from_manifests_delete_mode_ok() {
         let manifest_file_name = "manifest.yaml";
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
         simple:
           runtime: podman
@@ -771,7 +767,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
     simple_manifest1:
       runtime: podman
@@ -806,7 +802,7 @@ mod tests {
             .expect_get_complete_state()
             .times(2)
             .with(eq(vec![]))
-            .returning(move |_| Ok(ank_base::CompleteState::from(updated_state_clone.clone())));
+            .returning(move |_| Ok(CompleteState::from(updated_state_clone.clone())));
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(std::vec::Vec::new);
@@ -853,7 +849,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
         simple_manifest1:
           runtime: podman
@@ -886,13 +882,13 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .once()
-            .returning(|_| Ok(FilteredCompleteState::default()));
+            .returning(|_| Ok(CompleteState::default()));
 
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok(ank_base::CompleteState::from(CompleteStateInternal {
+                Ok(CompleteState::from(CompleteStateInternal {
                     desired_state: updated_state.desired_state,
                     ..Default::default()
                 }))
@@ -901,11 +897,9 @@ mod tests {
             .expect_take_missed_from_server_messages()
             .return_once(|| {
                 vec![
-                    FromServer::Response(ank_base::Response {
+                    FromServer::Response(Response {
                         request_id: OTHER_REQUEST_ID.into(),
-                        response_content: Some(ank_base::response::ResponseContent::Error(
-                            Default::default(),
-                        )),
+                        response_content: Some(ResponseContent::Error(Default::default())),
                     }),
                     FromServer::UpdateWorkloadState(UpdateWorkloadState {
                         workload_states: vec![WorkloadStateInternal {
@@ -959,7 +953,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1",
             // b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: \n    config_item_enum: \"config_value_1\"",
         );
@@ -983,7 +977,7 @@ mod tests {
 
         mock_server_connection
             .expect_get_complete_state()
-            .return_once(|_| Ok(FilteredCompleteState::default()));
+            .return_once(|_| Ok(CompleteState::default()));
 
         mock_server_connection
             .expect_take_missed_from_server_messages()
@@ -1025,7 +1019,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(b"apiVersion: \"v1\"");
+        let manifest_content = Cursor::new(b"apiVersion: \"v1\"");
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection.expect_update_state().never();
@@ -1070,7 +1064,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
             simple.manifest1:
               runtime: podman
@@ -1104,7 +1098,7 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok(ank_base::CompleteState::from(CompleteStateInternal {
+                Ok(CompleteState::from(CompleteStateInternal {
                     desired_state: updated_state.desired_state,
                     ..Default::default()
                 }))
@@ -1113,11 +1107,9 @@ mod tests {
             .expect_take_missed_from_server_messages()
             .return_once(|| {
                 vec![
-                    FromServer::Response(ank_base::Response {
+                    FromServer::Response(Response {
                         request_id: OTHER_REQUEST_ID.into(),
-                        response_content: Some(ank_base::response::ResponseContent::Error(
-                            Default::default(),
-                        )),
+                        response_content: Some(ResponseContent::Error(Default::default())),
                     }),
                     FromServer::UpdateWorkloadState(UpdateWorkloadState {
                         workload_states: vec![WorkloadStateInternal {

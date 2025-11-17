@@ -52,11 +52,12 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
     use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
-    use crate::filtered_complete_state::FilteredCompleteState;
-    use api::ank_base::{CompleteStateInternal, UpdateStateSuccess};
+
+    use api::ank_base::{CompleteState, CompleteStateInternal, UpdateStateSuccess};
     use mockall::predicate::eq;
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
@@ -90,7 +91,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .once()
-            .returning(|_| Ok(FilteredCompleteState::default()));
+            .returning(|_| Ok(CompleteState::default()));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,

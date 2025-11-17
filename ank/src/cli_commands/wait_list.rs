@@ -12,17 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashSet, fmt::Display};
-
-use api::ank_base;
+use crate::output_update;
 use api::ank_base::{
-    ExecutionStateEnumInternal, Pending, WorkloadInstanceNameInternal, WorkloadStateInternal,
+    ExecutionStateEnumInternal, Pending, UpdateStateSuccess, WorkloadInstanceNameInternal,
+    WorkloadStateInternal,
 };
+
+use std::{collections::HashSet, fmt::Display};
 
 #[cfg(test)]
 use mockall::mock;
-
-use crate::output_update;
 
 #[derive(Debug)]
 pub struct ParsedUpdateStateSuccess {
@@ -30,10 +29,10 @@ pub struct ParsedUpdateStateSuccess {
     pub deleted_workloads: Vec<WorkloadInstanceNameInternal>,
 }
 
-impl TryFrom<ank_base::UpdateStateSuccess> for ParsedUpdateStateSuccess {
+impl TryFrom<UpdateStateSuccess> for ParsedUpdateStateSuccess {
     type Error = String;
 
-    fn try_from(value: ank_base::UpdateStateSuccess) -> Result<Self, Self::Error> {
+    fn try_from(value: UpdateStateSuccess) -> Result<Self, Self::Error> {
         Ok(Self {
             added_workloads: value
                 .added_workloads
@@ -196,17 +195,16 @@ fn generate_test_wait_list(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use super::MockMyWaitListDisplay;
+    use crate::cli_commands::wait_list::generate_test_wait_list;
 
     use api::ank_base::{
         ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
     };
     use api::test_utils::generate_test_workload_instance_name;
+
     use mockall::predicate::eq;
-
-    use crate::cli_commands::wait_list::generate_test_wait_list;
-
-    use super::MockMyWaitListDisplay;
+    use std::collections::HashSet;
 
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";

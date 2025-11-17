@@ -53,16 +53,17 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-    use api::ank_base;
+    use crate::{
+        cli::OutputFormat,
+        cli_commands::{CliCommands, server_connection::MockServerConnection},
+    };
+
+    use api::ank_base::Workload;
     use api::test_utils::{generate_test_proto_complete_state, generate_test_workload_with_param};
     use mockall::predicate::eq;
-
-    use crate::{
-        cli_commands::{CliCommands, server_connection::MockServerConnection},
-        filtered_complete_state,
-    };
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
@@ -72,22 +73,20 @@ mod tests {
     // [utest->swdd~cli-provides-get-desired-state~1]
     #[tokio::test]
     async fn utest_get_state_complete_desired_state_yaml() {
-        let test_data = filtered_complete_state::FilteredCompleteState::from(
-            generate_test_proto_complete_state(&[
-                (
-                    "name1",
-                    generate_test_workload_with_param("agent_A", "runtime"),
-                ),
-                (
-                    "name2",
-                    generate_test_workload_with_param("agent_B", "runtime"),
-                ),
-                (
-                    "name3",
-                    generate_test_workload_with_param("agent_B", "runtime"),
-                ),
-            ]),
-        );
+        let test_data = generate_test_proto_complete_state(&[
+            (
+                "name1",
+                generate_test_workload_with_param("agent_A", "runtime"),
+            ),
+            (
+                "name2",
+                generate_test_workload_with_param("agent_B", "runtime"),
+            ),
+            (
+                "name3",
+                generate_test_workload_with_param("agent_B", "runtime"),
+            ),
+        ]);
 
         let mut mock_server_connection = MockServerConnection::default();
         let test_data_clone = test_data.clone();
@@ -101,10 +100,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let cmd_text = cmd
-            .get_state(vec![], crate::cli::OutputFormat::Yaml)
-            .await
-            .unwrap();
+        let cmd_text = cmd.get_state(vec![], OutputFormat::Yaml).await.unwrap();
         let expected_text = serde_yaml::to_string(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
@@ -112,22 +108,20 @@ mod tests {
     // [utest -> swdd~cli-shall-support-desired-state-json~1]
     #[tokio::test]
     async fn utest_get_state_complete_desired_state_json() {
-        let test_data = filtered_complete_state::FilteredCompleteState::from(
-            generate_test_proto_complete_state(&[
-                (
-                    "name1",
-                    generate_test_workload_with_param("agent_A", "runtime"),
-                ),
-                (
-                    "name2",
-                    generate_test_workload_with_param("agent_B", "runtime"),
-                ),
-                (
-                    "name3",
-                    generate_test_workload_with_param("agent_B", "runtime"),
-                ),
-            ]),
-        );
+        let test_data = generate_test_proto_complete_state(&[
+            (
+                "name1",
+                generate_test_workload_with_param("agent_A", "runtime"),
+            ),
+            (
+                "name2",
+                generate_test_workload_with_param("agent_B", "runtime"),
+            ),
+            (
+                "name3",
+                generate_test_workload_with_param("agent_B", "runtime"),
+            ),
+        ]);
 
         let mut mock_server_connection = MockServerConnection::default();
         let cloned_test_data = test_data.clone();
@@ -141,10 +135,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let cmd_text = cmd
-            .get_state(vec![], crate::cli::OutputFormat::Json)
-            .await
-            .unwrap();
+        let cmd_text = cmd.get_state(vec![], OutputFormat::Json).await.unwrap();
 
         let expected_text = serde_json::to_string_pretty(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
@@ -154,22 +145,20 @@ mod tests {
     // [utest->swdd~cli-returns-api-version-with-desired-state~1]
     #[tokio::test]
     async fn utest_get_state_single_field_of_desired_state() {
-        let test_data = filtered_complete_state::FilteredCompleteState::from(
-            generate_test_proto_complete_state(&[
-                (
-                    "name1",
-                    generate_test_workload_with_param("agent_A", "runtime"),
-                ),
-                (
-                    "name2",
-                    generate_test_workload_with_param("agent_B", "runtime"),
-                ),
-                (
-                    "name3",
-                    generate_test_workload_with_param("agent_B", "runtime"),
-                ),
-            ]),
-        );
+        let test_data = generate_test_proto_complete_state(&[
+            (
+                "name1",
+                generate_test_workload_with_param("agent_A", "runtime"),
+            ),
+            (
+                "name2",
+                generate_test_workload_with_param("agent_B", "runtime"),
+            ),
+            (
+                "name3",
+                generate_test_workload_with_param("agent_B", "runtime"),
+            ),
+        ]);
 
         let test_data_clone = test_data.clone();
         let mut mock_server_connection = MockServerConnection::default();
@@ -187,7 +176,7 @@ mod tests {
         let cmd_text = cmd
             .get_state(
                 vec!["desiredState.workloads.name3.runtime".to_owned()],
-                crate::cli::OutputFormat::Yaml,
+                OutputFormat::Yaml,
             )
             .await
             .unwrap();
@@ -202,22 +191,20 @@ mod tests {
     // [utest->swdd~cli-returns-api-version-with-desired-state~1]
     #[tokio::test]
     async fn utest_get_state_multiple_fields_of_desired_state() {
-        let test_data = filtered_complete_state::FilteredCompleteState::from(
-            generate_test_proto_complete_state(&[
-                (
-                    "name1",
-                    generate_test_workload_with_param("agent_A", "runtime"),
-                ),
-                (
-                    "name2",
-                    generate_test_workload_with_param("agent_B", "runtime"),
-                ),
-                (
-                    "name3",
-                    generate_test_workload_with_param("agent_B", "runtime"),
-                ),
-            ]),
-        );
+        let test_data = generate_test_proto_complete_state(&[
+            (
+                "name1",
+                generate_test_workload_with_param("agent_A", "runtime"),
+            ),
+            (
+                "name2",
+                generate_test_workload_with_param("agent_B", "runtime"),
+            ),
+            (
+                "name3",
+                generate_test_workload_with_param("agent_B", "runtime"),
+            ),
+        ]);
 
         let test_data_clone = test_data.clone();
         let mut mock_server_connection = MockServerConnection::default();
@@ -241,7 +228,7 @@ mod tests {
                     "desiredState.workloads.name1.runtime".to_owned(),
                     "desiredState.workloads.name2.runtime".to_owned(),
                 ],
-                crate::cli::OutputFormat::Yaml,
+                OutputFormat::Yaml,
             )
             .await
             .unwrap();
@@ -251,9 +238,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_get_state_single_field_without_api_version() {
-        let test_data = filtered_complete_state::FilteredCompleteState::from(
-            generate_test_proto_complete_state(&[("", ank_base::Workload::default())]),
-        );
+        let test_data = generate_test_proto_complete_state(&[("", Workload::default())]);
 
         let mut mock_server_connection = MockServerConnection::default();
         let test_data_clone = test_data.clone();
@@ -268,10 +253,7 @@ mod tests {
         };
 
         let cmd_text = cmd
-            .get_state(
-                vec!["workloadStates".to_owned()],
-                crate::cli::OutputFormat::Yaml,
-            )
+            .get_state(vec!["workloadStates".to_owned()], OutputFormat::Yaml)
             .await
             .unwrap();
 
