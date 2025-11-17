@@ -34,7 +34,7 @@
     "rust-analyzer.check.command": "clippy",
     "yaml.schemas": {
         "https://squidfunk.github.io/mkdocs-material/schema.json": "mkdocs.yml",
-        "file:///workspaces/ankaios/ank_schema/schemas/ank_schema.json": "*.ank.y*ml"
+        "file:///workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank_schema.json": "*.ank.y*ml"
     },
     "yaml.customTags": [
         "!ENV scalar",

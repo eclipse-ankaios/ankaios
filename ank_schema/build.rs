@@ -21,12 +21,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let schema = generator.into_root_schema_for::<api::ank_base::StateInternal>();
 
-    let schemars_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("schemas");
-    std::fs::create_dir_all(&schemars_dir).unwrap();
-    std::fs::write(
-        schemars_dir.join(SCHEMA_NAME),
-        serde_json::to_string_pretty(&schema)?,
-    )?;
+    let out_dir = PathBuf::from(env::var("OUT_DIR")?);
+    let target_dir = out_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+        .ok_or("Failed to get target dir")?;
+
+    let schema_path = target_dir.join(SCHEMA_NAME);
+    std::fs::write(schema_path, serde_json::to_string_pretty(&schema)?)?;
 
     Ok(())
 }
