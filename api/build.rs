@@ -12,9 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#[path = "build/internal_structs.rs"]
-mod internal_structs;
-use internal_structs::*;
+#[path = "build/spec_structs.rs"]
+mod spec_structs;
+use spec_structs::*;
 
 #[path = "build/schema_annotations.rs"]
 mod schema_annotations;
@@ -28,19 +28,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Fix the enum serialization for fields/variants of the specified types as proto is generating them as integers
         .type_attribute(
             "Workload",
-            "#[internal_derive_macros::fix_enum_serialization]",
+            "#[spec_macros::fix_enum_serialization]",
         )
         .type_attribute(
             "StateRule",
-            "#[internal_derive_macros::fix_enum_serialization]",
+            "#[spec_macros::fix_enum_serialization]",
         )
         .type_attribute(
             "Dependencies",
-            "#[internal_derive_macros::fix_enum_serialization]",
+            "#[spec_macros::fix_enum_serialization]",
         )
         .type_attribute(
             "ExecutionStateEnum",
-            "#[internal_derive_macros::fix_enum_serialization]",
+            "#[spec_macros::fix_enum_serialization]",
         )
         .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")
         .message_attribute(".", "#[serde(rename_all = \"camelCase\")]")
