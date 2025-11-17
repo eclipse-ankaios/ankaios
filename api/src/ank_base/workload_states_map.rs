@@ -18,44 +18,11 @@ use crate::ank_base::{
 };
 use std::collections::{HashMap, hash_map::Entry};
 
-// type AgentName = String;
-// type WorkloadName = String;
-// type WorkloadId = String;
-
-// #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-// pub struct WorkloadStatesMap(
-//     HashMap<AgentName, HashMap<WorkloadName, HashMap<WorkloadId, ExecutionStateInternal>>>,
-// );
-
 // [impl->swdd~state-map-for-workload-execution-states~2]
 impl WorkloadStatesMapInternal {
     pub fn new() -> WorkloadStatesMapInternal {
         Default::default()
     }
-
-    // fn to_hashmap(self) -> HashMap<String, HashMap<String, HashMap<String, ExecutionStateInternal>>> {
-    //     self.agent_state_map
-    //         .into_iter()
-    //         .map(|(agent_name, wl_map)| {
-    //             (
-    //                 agent_name,
-    //                 wl_map
-    //                     .wl_name_state_map
-    //                     .into_iter()
-    //                     .map(|(wl_name, id_map)| {
-    //                         (
-    //                             wl_name,
-    //                             id_map
-    //                                 .id_state_map
-    //                                 .into_iter()
-    //                                 .collect(),
-    //                         )
-    //                     })
-    //                     .collect(),
-    //             )
-    //         })
-    //         .collect()
-    // }
 
     fn entry(&mut self, key: String) -> Entry<'_, String, ExecutionsStatesOfWorkloadInternal> {
         self.agent_state_map.entry(key)

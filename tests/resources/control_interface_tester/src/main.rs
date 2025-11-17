@@ -16,6 +16,7 @@ use api::ank_base::{
     CompleteStateInternal, CompleteStateRequestInternal, LogEntriesResponse, LogsCancelAccepted,
     LogsCancelRequestInternal, LogsRequestAccepted, LogsRequestInternal, RequestContentInternal,
     RequestInternal, ResponseContent, State, UpdateStateRequestInternal,
+    WorkloadInstanceNameInternal,
 };
 
 use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
@@ -477,7 +478,7 @@ impl Connection {
                     ))
                 })?;
 
-            workload_instance_names.push(api::ank_base::WorkloadInstanceNameInternal::new(
+            workload_instance_names.push(WorkloadInstanceNameInternal::new(
                 agent_name.clone(),
                 workload_name.clone(),
                 workload_id.clone(),

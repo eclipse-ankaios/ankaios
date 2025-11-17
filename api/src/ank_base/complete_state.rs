@@ -76,7 +76,8 @@ impl StateInternal {
 #[cfg(test)]
 mod tests {
     use crate::ank_base::{
-        self, ConfigMapInternal, StateInternal, WorkloadInternal, WorkloadMapInternal,
+        ConfigMap, ConfigMapInternal, State, StateInternal, WorkloadInternal, WorkloadMap,
+        WorkloadMapInternal,
     };
     use crate::test_utils::{
         generate_test_config_item, generate_test_configs, generate_test_state,
@@ -131,12 +132,12 @@ mod tests {
 
     #[test]
     fn utest_state_rejects_state_without_api_version() {
-        let state_proto_no_version = ank_base::State {
+        let state_proto_no_version = State {
             api_version: "".into(),
-            workloads: Some(ank_base::WorkloadMap {
+            workloads: Some(WorkloadMap {
                 workloads: HashMap::new(),
             }),
-            configs: Some(ank_base::ConfigMap {
+            configs: Some(ConfigMap {
                 configs: HashMap::new(),
             }),
         };

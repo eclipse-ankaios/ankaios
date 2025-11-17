@@ -13,7 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    AgentAttributesInternal, AgentMapInternal, AgentStatusInternal, CompleteState, CompleteStateInternal, ConfigMap, ConfigMapInternal, ConfigMappingsInternal, CpuUsageInternal, DeleteCondition, DeletedWorkload, FreeMemoryInternal, State, StateInternal, Workload, WorkloadInstanceNameInternal, WorkloadMap, WorkloadMapInternal, WorkloadNamed
+    AgentAttributesInternal, AgentMapInternal, AgentStatusInternal, CompleteState,
+    CompleteStateInternal, ConfigMap, ConfigMapInternal, ConfigMappingsInternal, CpuUsageInternal,
+    DeleteCondition, DeletedWorkload, FreeMemoryInternal, State, StateInternal, Workload,
+    WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMap, WorkloadMapInternal,
+    WorkloadNamed,
 };
 pub use crate::ank_base::{
     config::generate_test_config_item,
@@ -230,14 +234,10 @@ pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMapInterna
     agent_map
 }
 
-pub fn generate_test_agent_map_from_workloads(
-    workloads: &[crate::ank_base::WorkloadInternal],
-) -> AgentMapInternal {
+pub fn generate_test_agent_map_from_workloads(workloads: &[WorkloadInternal]) -> AgentMapInternal {
     workloads
         .iter()
         .fold(AgentMapInternal::default(), |mut agent_map, wl| {
-            use crate::ank_base::AgentStatusInternal;
-
             let agent_name = &wl.agent;
             agent_map
                 .agents

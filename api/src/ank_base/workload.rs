@@ -18,6 +18,7 @@ use crate::ank_base::{
 };
 use crate::helpers::serialize_to_ordered_map;
 use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
@@ -225,7 +226,6 @@ impl std::fmt::Display for RestartPolicy {
     }
 }
 
-
 // This method is used for backwards compatibility to older versions and can be deleted later
 pub fn validate_tags(
     api_version: &str,
@@ -262,7 +262,10 @@ pub fn validate_tags(
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-use crate::ank_base::{ConfigMappingsInternal, TagsInternal, Workload};
+use crate::ank_base::{
+    ConfigMappingsInternal, FileContentInternal, FileInternal, FilesInternal, TagsInternal,
+    Workload,
+};
 #[cfg(any(feature = "test_utils", test))]
 use crate::test_utils::generate_test_control_interface_access;
 
@@ -310,8 +313,6 @@ impl TestWorkloadFixture for WorkloadInternal {
         runtime_name: impl Into<String>,
         runtime_config: impl Into<String>,
     ) -> Self {
-        use crate::ank_base::FilesInternal;
-
         WorkloadInternal {
             agent: agent_name.into(),
             dependencies: DependenciesInternal {
@@ -338,15 +339,15 @@ impl TestWorkloadFixture for WorkloadInternal {
             control_interface_access: generate_test_control_interface_access(),
             files: FilesInternal {
                 files: vec![
-                    crate::ank_base::FileInternal {
+                    FileInternal {
                         mount_point: "/file.json".to_string(),
-                        file_content: crate::ank_base::FileContentInternal::Data {
+                        file_content: FileContentInternal::Data {
                             data: "text data".into(),
                         },
                     },
-                    crate::ank_base::FileInternal {
+                    FileInternal {
                         mount_point: "/binary_file".to_string(),
-                        file_content: crate::ank_base::FileContentInternal::BinaryData {
+                        file_content: FileContentInternal::BinaryData {
                             binary_data: "base64_data".into(),
                         },
                     },

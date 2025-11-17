@@ -115,14 +115,6 @@ pub fn setup_internal_files(builder: Builder) -> Builder {
 pub fn setup_internal_workload(builder: Builder) -> Builder {
     builder
         .message_attribute("Workload", "#[derive(internal_derive_macros::Internal)]")
-        // .message_attribute(
-        //     "Workload",
-        //     "#[internal_skip_try_from]",
-        // )
-        // .message_attribute(
-        //     "Workload",
-        //     "#[internal_type_attr(#[internal_derive_macros::add_field(name = \"instance_name\", ty = \"WorkloadInstanceNameInternal\")])]",
-        // )
         .message_attribute(
             "Workload",
             "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",

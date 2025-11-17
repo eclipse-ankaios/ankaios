@@ -287,7 +287,7 @@ mod tests {
 
     #[test]
     fn utest_control_loop_state_instance_name() {
-        let workload_named: api::ank_base::WorkloadNamed = generate_test_workload();
+        let workload_named: WorkloadNamed = generate_test_workload();
         let (workload_state_sender, _workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
