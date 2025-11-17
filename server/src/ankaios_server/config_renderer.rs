@@ -12,13 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, fmt};
-
 use super::WorkloadInstanceNameInternal;
 use api::ank_base::{
-    ConfigItemInternal, FileContentInternal, FileInternal, FilesInternal, WorkloadInternal, WorkloadNamed
+    ConfigItemInternal, FileContentInternal, FileInternal, FilesInternal, WorkloadInternal,
+    WorkloadNamed,
 };
+
 use handlebars::{Handlebars, RenderError};
+use std::{collections::HashMap, fmt};
 
 pub type RenderedWorkloads = HashMap<String, WorkloadNamed>;
 
@@ -221,16 +222,16 @@ mock! {
 #[cfg(test)]
 mod tests {
     use super::{ConfigRenderError, ConfigRenderer, RenderedWorkloads};
-    use std::collections::HashMap;
-
     use api::ank_base::{
-        ConfigItemEnumInternal, ConfigItemInternal, FileContentInternal, FileInternal,
-        WorkloadInternal, WorkloadNamed,
+        ConfigItemEnumInternal, ConfigItemInternal, ConfigMappingsInternal, FileContentInternal,
+        FileInternal, WorkloadInternal, WorkloadNamed,
     };
     use api::test_utils::{
         generate_test_configs, generate_test_workload_with_param,
         generate_test_workload_with_runtime_config,
     };
+
+    use std::collections::HashMap;
 
     const WORKLOAD_NAME_1: &str = "workload_A";
     const AGENT_A: &str = "agent_A";
@@ -422,7 +423,7 @@ mod tests {
         let mut stored_workload: WorkloadInternal =
             generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, templated_runtime_config);
 
-        stored_workload.configs = api::ank_base::ConfigMappingsInternal {
+        stored_workload.configs = ConfigMappingsInternal {
             configs: HashMap::from([("ref1".to_owned(), "not_existing_config_key".to_owned())]),
         };
 
@@ -442,7 +443,7 @@ mod tests {
         let mut stored_workload: WorkloadInternal =
             generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, "some runtime config");
 
-        stored_workload.configs = api::ank_base::ConfigMappingsInternal {
+        stored_workload.configs = ConfigMappingsInternal {
             configs: HashMap::from([(
                 "ref1".to_owned(),
                 "not_existing_unused_config_key".to_owned(),
@@ -530,7 +531,7 @@ mod tests {
             runtime_config_with_partial_template,
         );
 
-        stored_workload.configs = api::ank_base::ConfigMappingsInternal {
+        stored_workload.configs = ConfigMappingsInternal {
             configs: HashMap::from([("ref1".to_owned(), "config_1".to_owned())]),
         };
 
@@ -576,7 +577,7 @@ mod tests {
             "config_of_special_char_sequences: {{special_conf}}",
         );
 
-        stored_workload.configs = api::ank_base::ConfigMappingsInternal {
+        stored_workload.configs = ConfigMappingsInternal {
             configs: HashMap::from([("special_conf".into(), "config_special_chars".into())]),
         };
 

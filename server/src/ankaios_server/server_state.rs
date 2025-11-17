@@ -13,22 +13,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::config_renderer::RenderedWorkloads;
-use api::ank_base;
+use super::cycle_check;
+
 use api::ank_base::{
-    AgentAttributesInternal, CompleteStateInternal, CompleteStateRequestInternal, DeletedWorkload,
+    AgentAttributesInternal, AgentStatusInternal, CompleteState, CompleteStateInternal,
+    CompleteStateRequestInternal, CpuUsageInternal, DeletedWorkload, FreeMemoryInternal,
     StateInternal, WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
     WorkloadStatesMapInternal,
 };
+use api::std_extensions::IllegalStateResult;
+use common::state_manipulation::{Object, Path};
+
+use std::fmt::Display;
 
 #[cfg_attr(test, mockall_double::double)]
 use super::config_renderer::ConfigRenderer;
-
-use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-use api::std_extensions::IllegalStateResult;
-use common::state_manipulation::{Object, Path};
-use std::fmt::Display;
 
 #[cfg(test)]
 use mockall::automock;
@@ -123,8 +124,8 @@ impl ServerState {
         &self,
         request_complete_state: CompleteStateRequestInternal,
         workload_states_map: &WorkloadStatesMapInternal,
-    ) -> Result<ank_base::CompleteState, String> {
-        let current_complete_state: ank_base::CompleteState = CompleteStateInternal {
+    ) -> Result<CompleteState, String> {
+        let current_complete_state: CompleteState = CompleteStateInternal {
             desired_state: self.state.desired_state.clone(),
             workload_states: workload_states_map.clone(),
             agents: self.state.agents.clone(),
@@ -287,11 +288,11 @@ impl ServerState {
             .agents
             .entry(agent_load_status.agent_name)
             .and_modify(|e| {
-                e.status = Some(api::ank_base::AgentStatusInternal {
-                    cpu_usage: Some(api::ank_base::CpuUsageInternal {
+                e.status = Some(AgentStatusInternal {
+                    cpu_usage: Some(CpuUsageInternal {
                         cpu_usage: agent_load_status.cpu_usage.cpu_usage,
                     }),
-                    free_memory: Some(api::ank_base::FreeMemoryInternal {
+                    free_memory: Some(FreeMemoryInternal {
                         free_memory: agent_load_status.free_memory.free_memory,
                     }),
                 });
@@ -364,12 +365,13 @@ impl ServerState {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
     use api::ank_base::{
-        self, AgentMapInternal, CompleteStateInternal, CompleteStateRequestInternal,
+        AgentMapInternal, CompleteState, CompleteStateInternal, CompleteStateRequestInternal,
         ConfigItemEnumInternal, ConfigItemInternal, ConfigMapInternal, ConfigObjectInternal,
         CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, StateInternal, Workload,
         WorkloadInternal, WorkloadMapInternal, WorkloadNamed, WorkloadStatesMapInternal,
@@ -433,7 +435,7 @@ mod tests {
             .get_complete_state_by_field_mask(request_complete_state, &workload_state_db)
             .unwrap();
 
-        let expected_complete_state = ank_base::CompleteState::from(server_state.state);
+        let expected_complete_state = CompleteState::from(server_state.state);
         assert_eq!(received_complete_state, expected_complete_state);
     }
 
@@ -462,7 +464,7 @@ mod tests {
             .get_complete_state_by_field_mask(request_complete_state, &workload_state_map)
             .unwrap();
 
-        let mut expected_complete_state = ank_base::CompleteState {
+        let mut expected_complete_state = CompleteState {
             desired_state: Some(server_state.state.desired_state.clone().into()),
             workload_states: None,
             agents: None,

@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base::WorkloadInstanceNameInternal;
+
 use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Display},
 };
-
-use super::WorkloadInstanceNameInternal;
 
 type AgentName = String;
 pub type LogCollectorRequestId = String;
@@ -327,7 +327,8 @@ impl LogCampaignStore {
 // [utest->swdd~server-log-campaign-store-holds-log-campaign-metadata~1]
 #[cfg(test)]
 mod tests {
-    use super::{super::WorkloadInstanceNameInternal, HashMap, HashSet, LogCampaignStore};
+    use super::{AgentRequestId, CliRequestId, HashMap, HashSet, LogCampaignStore, RequestId};
+    use api::ank_base::WorkloadInstanceNameInternal;
 
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_1_NAME: &str = "workload_1";
@@ -402,42 +403,42 @@ mod tests {
         }
     }
 
-    fn to_agent_request_id(request_id: &str) -> super::AgentRequestId {
+    fn to_agent_request_id(request_id: &str) -> AgentRequestId {
         let request_id = request_id.into();
 
         match request_id {
-            super::RequestId::AgentRequestId(agent_request_id) => agent_request_id,
+            RequestId::AgentRequestId(agent_request_id) => agent_request_id,
             _ => panic!("Expected an AgentRequestId"),
         }
     }
 
-    fn to_cli_request_id(request_id: &str) -> super::CliRequestId {
+    fn to_cli_request_id(request_id: &str) -> CliRequestId {
         let request_id = request_id.into();
 
         match request_id {
-            super::RequestId::CliRequestId(cli_request_id) => cli_request_id,
+            RequestId::CliRequestId(cli_request_id) => cli_request_id,
             _ => panic!("Expected a CliRequestId"),
         }
     }
 
     #[test]
     fn utest_request_id_from_string() {
-        let cli_request_id = super::RequestId::from(CLI_REQUEST_ID_1);
+        let cli_request_id = RequestId::from(CLI_REQUEST_ID_1);
         assert!(
-            matches!(cli_request_id, super::RequestId::CliRequestId(super::CliRequestId { cli_name, request_uuid })
+            matches!(cli_request_id, RequestId::CliRequestId(CliRequestId { cli_name, request_uuid })
             if cli_name == CLI_CON_1 && request_uuid == "cli_request_id_1")
         );
 
-        let agent_request_id = super::RequestId::from(REQUEST_ID_AGENT_A);
+        let agent_request_id = RequestId::from(REQUEST_ID_AGENT_A);
         assert!(
-            matches!(agent_request_id, super::RequestId::AgentRequestId(super::AgentRequestId { agent_name, workload_name, request_uuid })
+            matches!(agent_request_id, RequestId::AgentRequestId(AgentRequestId { agent_name, workload_name, request_uuid })
             if agent_name == AGENT_A && workload_name == WORKLOAD_1_NAME && request_uuid == "request_id")
         );
 
         let extra_part = "@extra@parts.with_strange#format";
-        let agent_request_id = super::RequestId::from(format!("{REQUEST_ID_AGENT_A}{extra_part}"));
+        let agent_request_id = RequestId::from(format!("{REQUEST_ID_AGENT_A}{extra_part}"));
         assert!(
-            matches!(agent_request_id, super::RequestId::AgentRequestId(super::AgentRequestId { agent_name, workload_name, request_uuid })
+            matches!(agent_request_id, RequestId::AgentRequestId(AgentRequestId { agent_name, workload_name, request_uuid })
             if agent_name == AGENT_A && workload_name == WORKLOAD_1_NAME && request_uuid == format!("request_id{extra_part}"))
         );
     }
