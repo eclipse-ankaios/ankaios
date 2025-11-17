@@ -126,6 +126,7 @@ nav:
   - Contributing:
     - development/build.md
     - development/rust-coding-guidelines.md
+    - development/changing-the-api.md
     - development/unit-verification.md
     - development/run-unit-tests.md
     - development/test-coverage.md
