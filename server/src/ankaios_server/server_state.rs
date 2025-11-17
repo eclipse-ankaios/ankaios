@@ -968,7 +968,6 @@ mod tests {
     // [utest->swdd~server-state-compares-rendered-workloads~1]
     #[test]
     fn utest_server_state_update_state_update_workload_on_changed_configs() {
-        // TODO #313 Fix this utest
         let mut old_state = generate_test_old_state();
         old_state.desired_state.configs = generate_test_configs();
 
@@ -1009,10 +1008,10 @@ mod tests {
         mock_config_renderer
             .expect_render_workloads()
             .once()
-            // .with(
-            //     predicate::eq(updated_state.desired_state.workloads.workloads.clone()),
-            //     predicate::eq(updated_state.desired_state.configs.configs.clone()),
-            // )
+            .with(
+                predicate::eq(updated_state.desired_state.workloads.workloads.clone()),
+                predicate::eq(updated_state.desired_state.configs.configs.clone()),
+            )
             .returning(move |_, _| Ok(generate_rendered_workloads_from_state(&state_to_render)));
 
         let mut server_state = ServerState {
@@ -1022,7 +1021,7 @@ mod tests {
             config_renderer: mock_config_renderer,
         };
 
-        let _expected = updated_state.clone();
+        let expected = updated_state.clone();
 
         let result = server_state.update(updated_state, update_mask);
         assert!(result.is_ok());
@@ -1045,7 +1044,7 @@ mod tests {
             AGENT_A
         ); // deleted with old agent name
 
-        // assert_eq!(expected, server_state.state);
+        assert_eq!(expected, server_state.state);
     }
 
     // [utest->swdd~update-desired-state-with-update-mask~1]

@@ -630,7 +630,6 @@ mod tests {
         let workload_with_wrong_name =
             generate_test_workload::<WorkloadNamed>().name("incompatible.workload_name");
 
-        // TODO #313 check the test if it's still needed
         assert_eq!(
             workload_with_wrong_name.verify_fields_format(),
             Err(format!(
