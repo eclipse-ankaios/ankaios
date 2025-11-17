@@ -47,7 +47,7 @@ impl CliCommands {
             .await?;
 
         if let Some(wl_states) = complete_state.workload_states {
-            // TODO: think about this here
+            // TODO #313 we are doing an extra conversion here. Do we need this?
             let wl_states: WorkloadStatesMapInternal = wl_states.try_into().map_err(|err| {
                 CliError::ExecutionError(format!("Failed to convert workload states map: {err}"))
             })?;

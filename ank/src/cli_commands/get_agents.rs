@@ -46,7 +46,7 @@ impl CliCommands {
             .unwrap_or_default()
             .into_iter();
 
-        // TODO: think about the conversion here and if we can omit converting to Internal
+        // TODO #313 think about the conversion here and if we can omit converting to Internal
         let agent_table_rows = transform_into_table_rows(
             connected_agents,
             &workload_states_map.try_into().map_err(|err| {

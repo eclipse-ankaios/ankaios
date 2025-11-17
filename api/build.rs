@@ -72,8 +72,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .message_attribute("AgentMap", "#[derive(Eq)]")
 
 
-        // TODO: fix all the remaining fields that need skipping (see output of cli when filtering complete state)
-        // TODO: apparently we don't have system tests for the filtering of complete state yet. We should add some ...
         .field_attribute("CompleteState.desiredState", "#[serde(skip_serializing_if = \"Option::is_none\")]")
         .field_attribute("CompleteState.workloadStates", "#[serde(skip_serializing_if = \"Option::is_none\")]")
         .field_attribute("CompleteState.agents", "#[serde(skip_serializing_if = \"Option::is_none\")]")

@@ -136,7 +136,6 @@ pub fn derive_internal_enum(
                                 from_fields.push(quote! {
                                     #field_id.into()
                                 });
-                            // TODO: think about the order
                             } else if let Some(prost_enum_tp) = get_prost_enum_type(&variant.attrs)
                             {
                                 let new_ty = Type::Path(prost_enum_tp);
@@ -172,7 +171,12 @@ pub fn derive_internal_enum(
                                     #field_id
                                 });
                             }
-                        } // TODO: else panic?
+                        } else {
+                            return Err(syn::Error::new_spanned(
+                                variant_ident,
+                                "Only simple type paths are supported in enum fields.",
+                            ));
+                        }
                     }
 
                     internal_variants.push(quote! {
