@@ -16,13 +16,13 @@ use super::workload::{
     verify_workload_name_length, verify_workload_name_not_empty, verify_workload_name_pattern,
 };
 use crate::ank_base::{
-    AccessRightsRuleEnumInternal, AccessRightsRuleInternal,
-    ControlInterfaceAccessInternal, LogRuleInternal, ReadWriteEnum, StateRuleInternal,
+    AccessRightsRuleEnumSpec, AccessRightsRuleSpec, ControlInterfaceAccessSpec, LogRuleSpec,
+    ReadWriteEnum, StateRuleSpec,
 };
 
 pub const WILDCARD_SYMBOL: &str = "*";
 
-impl ControlInterfaceAccessInternal {
+impl ControlInterfaceAccessSpec {
     // [impl->swdd~common-access-rules-filter-mask-convention~1]
     pub fn verify_format(&self) -> Result<(), String> {
         self.allow_rules
@@ -32,10 +32,10 @@ impl ControlInterfaceAccessInternal {
     }
 }
 
-impl AccessRightsRuleInternal {
+impl AccessRightsRuleSpec {
     pub fn state_rule(operation: ReadWriteEnum, filter_masks: Vec<String>) -> Self {
-        AccessRightsRuleInternal {
-            access_rights_rule_enum: AccessRightsRuleEnumInternal::StateRule(StateRuleInternal {
+        AccessRightsRuleSpec {
+            access_rights_rule_enum: AccessRightsRuleEnumSpec::StateRule(StateRuleSpec {
                 operation,
                 filter_masks,
             }),
@@ -43,8 +43,8 @@ impl AccessRightsRuleInternal {
     }
 
     pub fn log_rule(workload_names: Vec<String>) -> Self {
-        AccessRightsRuleInternal {
-            access_rights_rule_enum: AccessRightsRuleEnumInternal::LogRule(LogRuleInternal {
+        AccessRightsRuleSpec {
+            access_rights_rule_enum: AccessRightsRuleEnumSpec::LogRule(LogRuleSpec {
                 workload_names,
             }),
         }
@@ -55,15 +55,15 @@ impl AccessRightsRuleInternal {
     }
 
     pub fn verify_log_rule_workload_name_pattern_format(workload_name: &str) -> Result<(), String> {
-        AccessRightsRuleEnumInternal::verify_log_rule_workload_name_pattern_format(workload_name)
+        AccessRightsRuleEnumSpec::verify_log_rule_workload_name_pattern_format(workload_name)
     }
 }
 
-impl AccessRightsRuleEnumInternal {
+impl AccessRightsRuleEnumSpec {
     fn verify_format(&self) -> Result<(), String> {
         match self {
             // [impl->swdd~common-access-rules-filter-mask-convention~1]
-            AccessRightsRuleEnumInternal::StateRule(state_rule) => {
+            AccessRightsRuleEnumSpec::StateRule(state_rule) => {
                 state_rule.filter_masks.iter().try_for_each(|filter| {
                     if filter.is_empty() {
                         return Err(
@@ -75,7 +75,7 @@ impl AccessRightsRuleEnumInternal {
                 })?;
             }
             // [impl->swdd~common-access-rules-logs-workload-names-convention~1]
-            AccessRightsRuleEnumInternal::LogRule(log_rule) => {
+            AccessRightsRuleEnumSpec::LogRule(log_rule) => {
                 log_rule.workload_names.iter().try_for_each(|name| {
                     Self::verify_log_rule_workload_name_pattern_format(name)
                 })?;
@@ -115,13 +115,13 @@ impl AccessRightsRuleEnumInternal {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_control_interface_access() -> ControlInterfaceAccessInternal {
-    ControlInterfaceAccessInternal {
-        allow_rules: vec![AccessRightsRuleInternal::state_rule(
+pub fn generate_test_control_interface_access() -> ControlInterfaceAccessSpec {
+    ControlInterfaceAccessSpec {
+        allow_rules: vec![AccessRightsRuleSpec::state_rule(
             ReadWriteEnum::RwReadWrite,
             vec!["desiredState".to_string()],
         )],
-        deny_rules: vec![AccessRightsRuleInternal::state_rule(
+        deny_rules: vec![AccessRightsRuleSpec::state_rule(
             ReadWriteEnum::RwWrite,
             vec!["desiredState.workload.workload_B".to_string()],
         )],
@@ -130,14 +130,14 @@ pub fn generate_test_control_interface_access() -> ControlInterfaceAccessInterna
 
 #[cfg(test)]
 mod tests {
-    use crate::ank_base::{AccessRightsRuleInternal, ReadWriteEnum};
+    use crate::ank_base::{AccessRightsRuleSpec, ReadWriteEnum};
     use crate::test_utils::generate_test_control_interface_access;
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_access_rights_state_rule_verify_fails() {
         let empty_state_rule =
-            AccessRightsRuleInternal::state_rule(ReadWriteEnum::RwWrite, vec!["".to_string()]);
+            AccessRightsRuleSpec::state_rule(ReadWriteEnum::RwWrite, vec!["".to_string()]);
 
         assert!(empty_state_rule.verify_format().is_err_and(
             |x| x == "Empty filter masks are not allowed in Control Interface access rules"
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn utest_access_rights_state_rule_verify_success() {
         let state_rule =
-            AccessRightsRuleInternal::state_rule(ReadWriteEnum::RwWrite, vec!["some".to_string()]);
+            AccessRightsRuleSpec::state_rule(ReadWriteEnum::RwWrite, vec!["some".to_string()]);
 
         assert!(state_rule.verify_format().is_ok());
     }
@@ -256,8 +256,8 @@ mod tests {
         );
     }
 
-    fn log_rule_with_workload(workload_name: &str) -> AccessRightsRuleInternal {
-        AccessRightsRuleInternal::log_rule(vec![workload_name.to_string()])
+    fn log_rule_with_workload(workload_name: &str) -> AccessRightsRuleSpec {
+        AccessRightsRuleSpec::log_rule(vec![workload_name.to_string()])
     }
 
     // [utest->swdd~common-access-rules-filter-mask-convention~1]
@@ -266,7 +266,7 @@ mod tests {
         let mut control_interface_access = generate_test_control_interface_access();
 
         let empty_state_rule =
-            AccessRightsRuleInternal::state_rule(ReadWriteEnum::RwWrite, vec!["".to_string()]);
+            AccessRightsRuleSpec::state_rule(ReadWriteEnum::RwWrite, vec!["".to_string()]);
 
         control_interface_access
             .allow_rules
@@ -282,7 +282,7 @@ mod tests {
         let mut control_interface_access = generate_test_control_interface_access();
 
         let empty_state_rule =
-            AccessRightsRuleInternal::state_rule(ReadWriteEnum::RwWrite, vec!["".to_string()]);
+            AccessRightsRuleSpec::state_rule(ReadWriteEnum::RwWrite, vec!["".to_string()]);
 
         control_interface_access
             .deny_rules

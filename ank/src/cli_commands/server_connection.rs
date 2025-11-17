@@ -18,9 +18,9 @@ use crate::cli_signals::SignalHandler;
 use crate::{output_and_error, output_debug};
 
 use api::ank_base::{
-    CompleteState, CompleteStateInternal, CompleteStateRequestInternal, LogEntry,
-    LogsRequestAccepted, LogsRequestInternal, Response, ResponseContent, UpdateStateSuccess,
-    WorkloadInstanceName, WorkloadInstanceNameInternal,
+    CompleteState, CompleteStateRequestSpec, CompleteStateSpec, LogEntry, LogsRequestAccepted,
+    LogsRequestSpec, Response, ResponseContent, UpdateStateSuccess, WorkloadInstanceName,
+    WorkloadInstanceNameSpec,
 };
 use common::{
     commands::UpdateWorkloadState,
@@ -109,7 +109,7 @@ impl ServerConnection {
         self.to_server
             .request_complete_state(
                 request_id.to_owned(),
-                CompleteStateRequestInternal {
+                CompleteStateRequestSpec {
                     field_mask: object_field_mask.to_vec(),
                 },
             )
@@ -147,7 +147,7 @@ impl ServerConnection {
 
     pub async fn update_state(
         &mut self,
-        new_state: CompleteStateInternal,
+        new_state: CompleteStateSpec,
         update_mask: Vec<String>,
     ) -> Result<UpdateStateSuccess, ServerConnectionError> {
         let request_id = Uuid::new_v4().to_string();
@@ -229,7 +229,7 @@ impl ServerConnection {
     // [impl->swdd~cli-streams-logs-from-the-server~1]
     pub async fn stream_logs(
         &mut self,
-        instance_names: BTreeSet<WorkloadInstanceNameInternal>,
+        instance_names: BTreeSet<WorkloadInstanceNameSpec>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
         let request_id = Uuid::new_v4().to_string();
@@ -260,10 +260,10 @@ impl ServerConnection {
     async fn send_logs_request_for_workloads(
         &mut self,
         request_id: &str,
-        workload_instance_names: Vec<WorkloadInstanceNameInternal>,
+        workload_instance_names: Vec<WorkloadInstanceNameSpec>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
-        let logs_request = LogsRequestInternal {
+        let logs_request = LogsRequestSpec {
             workload_names: workload_instance_names,
             follow: args.follow,
             tail: args.tail,
@@ -339,7 +339,7 @@ impl ServerConnection {
 
     fn compare_requested_with_accepted_workloads(
         &self,
-        requested_workloads: &BTreeSet<WorkloadInstanceNameInternal>,
+        requested_workloads: &BTreeSet<WorkloadInstanceNameSpec>,
         accepted_workloads: Vec<WorkloadInstanceName>,
     ) -> Result<(), ServerConnectionError> {
         for instance_name in requested_workloads {
@@ -358,7 +358,7 @@ impl ServerConnection {
     async fn listen_for_workload_logs(
         &mut self,
         request_id: String,
-        mut instance_names: BTreeSet<WorkloadInstanceNameInternal>,
+        mut instance_names: BTreeSet<WorkloadInstanceNameSpec>,
         output_log_format_function: fn(Vec<LogEntry>),
     ) -> Result<(), ServerConnectionError> {
         loop {
@@ -450,7 +450,7 @@ fn handle_server_log_response(
 
 // [impl->swdd~cli-outputs-logs-in-specific-format~1]
 fn select_log_format_function(
-    instance_names: &BTreeSet<WorkloadInstanceNameInternal>,
+    instance_names: &BTreeSet<WorkloadInstanceNameSpec>,
     force_output_names: bool,
 ) -> fn(Vec<LogEntry>) {
     if is_output_with_workload_names(instance_names, force_output_names) {
@@ -461,14 +461,14 @@ fn select_log_format_function(
 }
 
 fn is_output_with_workload_names(
-    instance_names: &BTreeSet<WorkloadInstanceNameInternal>,
+    instance_names: &BTreeSet<WorkloadInstanceNameSpec>,
     force_output_names: bool,
 ) -> bool {
     instance_names.len() > 1 || force_output_names
 }
 
 enum LogStreamingState {
-    StopForWorkload(WorkloadInstanceNameInternal),
+    StopForWorkload(WorkloadInstanceNameSpec),
     Continue,
     Output(api::ank_base::LogEntriesResponse),
 }
@@ -561,11 +561,11 @@ mod tests {
     };
 
     use api::ank_base::{
-        CompleteStateInternal, CompleteStateRequestInternal, Error, ExecutionStateInternal,
-        LogEntriesResponse, LogEntry, LogsCancelRequestInternal, LogsRequestAccepted,
-        LogsRequestInternal, LogsStopResponse, RequestContentInternal, Response, ResponseContent,
-        StateInternal, UpdateStateRequestInternal, UpdateStateSuccess,
-        WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMapInternal, WorkloadStateInternal,
+        CompleteStateRequestSpec, CompleteStateSpec, Error, ExecutionStateSpec, LogEntriesResponse,
+        LogEntry, LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec, LogsStopResponse,
+        RequestContentSpec, Response, ResponseContent, StateSpec, UpdateStateRequestSpec,
+        UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadSpec,
+        WorkloadStateSpec,
     };
     use api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
@@ -602,7 +602,7 @@ mod tests {
     enum CommunicationSimulatorAction {
         WillSendMessage(FromServer),
         WillSendResponse(String, ResponseContent),
-        ExpectReceiveRequest(String, RequestContentInternal),
+        ExpectReceiveRequest(String, RequestContentSpec),
     }
 
     impl CommunicationSimulator {
@@ -672,11 +672,7 @@ mod tests {
                 ));
         }
 
-        pub fn expect_receive_request(
-            &mut self,
-            request_name: &str,
-            request: RequestContentInternal,
-        ) {
+        pub fn expect_receive_request(&mut self, request_name: &str, request: RequestContentSpec) {
             self.actions
                 .push(CommunicationSimulatorAction::ExpectReceiveRequest(
                     request_name.to_string(),
@@ -703,13 +699,13 @@ mod tests {
         }
     }
 
-    fn complete_state(workload_name: &str) -> CompleteStateInternal {
-        CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+    fn complete_state(workload_name: &str) -> CompleteStateSpec {
+        CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: [(
                         workload_name.into(),
-                        WorkloadInternal {
+                        WorkloadSpec {
                             agent: AGENT_A.into(),
                             runtime: RUNTIME.into(),
                             ..Default::default()
@@ -723,7 +719,7 @@ mod tests {
         }
     }
 
-    fn instance_name(workload_name: &str) -> WorkloadInstanceNameInternal {
+    fn instance_name(workload_name: &str) -> WorkloadInstanceNameSpec {
         format!("{workload_name}.{ID}.{AGENT_A}")
             .try_into()
             .unwrap()
@@ -734,7 +730,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
+            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
@@ -777,7 +773,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
+            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
@@ -805,7 +801,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
+            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
@@ -840,7 +836,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
+            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
@@ -873,7 +869,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -913,7 +909,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -933,7 +929,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -958,7 +954,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -993,7 +989,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -1032,7 +1028,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::UpdateStateRequest(Box::new(UpdateStateRequestInternal {
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
                 new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
@@ -1060,9 +1056,9 @@ mod tests {
     #[tokio::test]
     async fn utest_read_next_update_workload_state() {
         let update_workload_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadStateInternal {
+            workload_states: vec![WorkloadStateSpec {
                 instance_name: instance_name(WORKLOAD_NAME_1),
-                execution_state: ExecutionStateInternal::running(),
+                execution_state: ExecutionStateSpec::running(),
             }],
         };
 
@@ -1087,9 +1083,9 @@ mod tests {
             response_content: Some(ResponseContent::Error(Error { message: "".into() })),
         });
         let update_workload_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadStateInternal {
+            workload_states: vec![WorkloadStateSpec {
                 instance_name: instance_name(WORKLOAD_NAME_1),
-                execution_state: ExecutionStateInternal::running(),
+                execution_state: ExecutionStateSpec::running(),
             }],
         };
 
@@ -1143,12 +1139,12 @@ mod tests {
 
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone(), instance_name_2.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::LogsRequest(LogsRequestInternal {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1349,12 +1345,12 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::LogsRequest(LogsRequestInternal {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1418,12 +1414,12 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::LogsRequest(LogsRequestInternal {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1492,12 +1488,12 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::LogsRequest(LogsRequestInternal {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1515,7 +1511,7 @@ mod tests {
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::LogsCancelRequest(LogsCancelRequestInternal {}),
+            RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
         );
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
@@ -1552,12 +1548,12 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::LogsRequest(LogsRequestInternal {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1633,12 +1629,12 @@ mod tests {
         let instance_name_2 = instance_name(WORKLOAD_NAME_2);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceNameInternal> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContentInternal::LogsRequest(LogsRequestInternal {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,

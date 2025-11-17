@@ -12,13 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::RequestInternal;
+use api::ank_base::RequestSpec;
 use api::control_api;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ToAnkaios {
-    Request(RequestInternal),
+    Request(RequestSpec),
     Hello(Hello),
 }
 
@@ -78,8 +78,8 @@ impl Default for Hello {
 mod tests {
     use super::{ToAnkaios, control_api};
     use api::ank_base::{
-        CompleteStateRequest, CompleteStateRequestInternal, Request, RequestContent,
-        RequestContentInternal, RequestInternal,
+        CompleteStateRequest, CompleteStateRequestSpec, Request, RequestContent,
+        RequestContentSpec, RequestSpec,
     };
 
     const FIELD_1: &str = "field_1";
@@ -98,13 +98,11 @@ mod tests {
             })),
         };
 
-        let expected = ToAnkaios::Request(RequestInternal {
+        let expected = ToAnkaios::Request(RequestSpec {
             request_id: REQUEST_ID.into(),
-            request_content: RequestContentInternal::CompleteStateRequest(
-                CompleteStateRequestInternal {
-                    field_mask: vec![FIELD_1.into(), FIELD_2.into()],
-                },
-            ),
+            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+                field_mask: vec![FIELD_1.into(), FIELD_2.into()],
+            }),
         });
 
         assert_eq!(ToAnkaios::try_from(proto_request).unwrap(), expected);

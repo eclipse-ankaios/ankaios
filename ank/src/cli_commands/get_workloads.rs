@@ -225,8 +225,7 @@ mod tests {
     };
 
     use api::ank_base::{
-        CompleteState, CompleteStateInternal, ExecutionStateInternal, WorkloadNamed,
-        WorkloadStateInternal,
+        CompleteState, CompleteStateSpec, ExecutionStateSpec, WorkloadNamed, WorkloadStateSpec,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload_states_map_with_data,
@@ -403,12 +402,12 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[tokio::test]
     async fn utest_get_workloads_deleted_workload() {
-        let test_data = CompleteStateInternal {
+        let test_data = CompleteStateSpec {
             workload_states: generate_test_workload_states_map_with_data(
                 "agent_A",
                 "Workload_1",
                 "ID_X",
-                ExecutionStateInternal::removed(),
+                ExecutionStateSpec::removed(),
             ),
             ..Default::default()
         };
@@ -472,9 +471,9 @@ mod tests {
         let initial_state = generate_test_complete_state(vec![initial_wl.clone()]);
         let updated_state = generate_test_complete_state(vec![initial_wl.clone(), new_wl.clone()]);
 
-        let new_workload = WorkloadStateInternal {
+        let new_workload = WorkloadStateSpec {
             instance_name: new_wl.clone().instance_name,
-            execution_state: ExecutionStateInternal::running(),
+            execution_state: ExecutionStateSpec::running(),
         };
         let update_event = UpdateWorkloadState {
             workload_states: vec![new_workload],
@@ -534,7 +533,7 @@ mod tests {
                 initial_wl.instance_name.workload_name(),
                 initial_wl.instance_name.agent_name(),
                 initial_wl.workload.runtime.clone(),
-                ExecutionStateInternal::running().to_string(),
+                ExecutionStateSpec::running().to_string(),
                 String::new(),
             ),
         );
@@ -544,7 +543,7 @@ mod tests {
                 new_wl.instance_name.workload_name(),
                 new_wl.instance_name.agent_name(),
                 new_wl.workload.runtime.clone(),
-                ExecutionStateInternal::running().to_string(),
+                ExecutionStateSpec::running().to_string(),
                 String::new(),
             ),
         );
@@ -567,14 +566,14 @@ mod tests {
                 wl1.instance_name.workload_name().to_string(),
                 wl1.instance_name.agent_name().to_string(),
                 wl1.workload.runtime.clone(),
-                ExecutionStateInternal::running().to_string(),
+                ExecutionStateSpec::running().to_string(),
                 String::new(),
             ),
         );
 
-        let removed_workload_state = WorkloadStateInternal {
+        let removed_workload_state = WorkloadStateSpec {
             instance_name: wl1.instance_name.clone(),
-            execution_state: ExecutionStateInternal::removed(),
+            execution_state: ExecutionStateSpec::removed(),
         };
         let update_event = UpdateWorkloadState {
             workload_states: vec![removed_workload_state],
@@ -627,7 +626,7 @@ mod tests {
             workload_1.instance_name.workload_name().to_string(),
             workload_1.instance_name.agent_name().to_string(),
             workload_1.workload.runtime.clone(),
-            ExecutionStateInternal::running().to_string(),
+            ExecutionStateSpec::running().to_string(),
             "Initial state".to_string(),
         );
         initial_table_data.insert(key_wl1.clone(), wl1_initial_row.clone());
@@ -636,17 +635,17 @@ mod tests {
             workload_2.instance_name.workload_name().to_string(),
             workload_2.instance_name.agent_name().to_string(),
             workload_2.workload.runtime.clone(),
-            ExecutionStateInternal::running().to_string(),
+            ExecutionStateSpec::running().to_string(),
             "Stable".to_string(),
         );
         initial_table_data.insert(key_wl2.clone(), wl2_initial_row);
 
         let new_additional_info_for_wl1 = "Critical error occurred".to_string();
         let wl1_updated_execution_state_obj =
-            ExecutionStateInternal::failed(new_additional_info_for_wl1.clone()); // The actual ExecutionStateInternal object
+            ExecutionStateSpec::failed(new_additional_info_for_wl1.clone()); // The actual ExecutionStateSpec object
 
         let update_event = UpdateWorkloadState {
-            workload_states: vec![WorkloadStateInternal {
+            workload_states: vec![WorkloadStateSpec {
                 instance_name: workload_1.instance_name.clone(),
                 execution_state: wl1_updated_execution_state_obj.clone(),
             }],

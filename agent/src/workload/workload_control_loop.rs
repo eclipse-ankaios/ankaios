@@ -20,9 +20,7 @@ use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 
-use api::ank_base::{
-    ExecutionStateInternal, RestartPolicy, WorkloadInstanceNameInternal, WorkloadNamed,
-};
+use api::ank_base::{ExecutionStateSpec, RestartPolicy, WorkloadInstanceNameSpec, WorkloadNamed};
 use api::std_extensions::IllegalStateResult;
 
 use futures_util::Future;
@@ -128,7 +126,7 @@ impl WorkloadControlLoop {
                             Self::send_workload_state_to_agent(
                                 &control_loop_state.to_agent_workload_state_sender,
                                 control_loop_state.instance_name(),
-                                ExecutionStateInternal::starting_triggered(),
+                                ExecutionStateSpec::starting_triggered(),
                             )
                             .await;
 
@@ -172,8 +170,8 @@ impl WorkloadControlLoop {
 
     async fn send_workload_state_to_agent(
         workload_state_sender: &WorkloadStateSender,
-        instance_name: &WorkloadInstanceNameInternal,
-        execution_state: ExecutionStateInternal,
+        instance_name: &WorkloadInstanceNameSpec,
+        execution_state: ExecutionStateSpec,
     ) {
         workload_state_sender
             .report_workload_execution_state(instance_name, execution_state)
@@ -210,15 +208,15 @@ impl WorkloadControlLoop {
     }
 
     fn is_same_workload(
-        lhs_instance_name: &WorkloadInstanceNameInternal,
-        rhs_instance_name: &WorkloadInstanceNameInternal,
+        lhs_instance_name: &WorkloadInstanceNameSpec,
+        rhs_instance_name: &WorkloadInstanceNameSpec,
     ) -> bool {
         lhs_instance_name.eq(rhs_instance_name)
     }
 
     fn restart_policy_matches_execution_state(
         restart_policy: &RestartPolicy,
-        execution_state: &ExecutionStateInternal,
+        execution_state: &ExecutionStateSpec,
     ) -> bool {
         match restart_policy {
             RestartPolicy::Never => false,
@@ -229,7 +227,7 @@ impl WorkloadControlLoop {
 
     async fn send_retry_for_workload<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        instance_name: WorkloadInstanceNameInternal,
+        instance_name: WorkloadInstanceNameSpec,
         retry_token: RetryToken,
         error_msg: String,
     ) -> ControlLoopState<WorkloadId, StChecker>
@@ -248,7 +246,7 @@ impl WorkloadControlLoop {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
             &instance_name,
-            ExecutionStateInternal::retry_starting(retry_token.counter() + 1, error_msg),
+            ExecutionStateSpec::retry_starting(retry_token.counter() + 1, error_msg),
         )
         .await;
 
@@ -273,7 +271,7 @@ impl WorkloadControlLoop {
         Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>> + 'static,
         ErrorFunc: FnOnce(
                 ControlLoopState<WorkloadId, StChecker>,
-                WorkloadInstanceNameInternal,
+                WorkloadInstanceNameSpec,
                 RetryToken,
                 String,
             ) -> Fut
@@ -335,7 +333,7 @@ impl WorkloadControlLoop {
                         Self::send_workload_state_to_agent(
                             &control_loop_state.to_agent_workload_state_sender,
                             &new_instance_name,
-                            ExecutionStateInternal::starting_failed(msg.to_string()),
+                            ExecutionStateSpec::starting_failed(msg.to_string()),
                         )
                         .await;
 
@@ -364,7 +362,13 @@ impl WorkloadControlLoop {
         WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        if !control_loop_state.workload_named.workload.files.files.is_empty() {
+        if !control_loop_state
+            .workload_named
+            .workload
+            .files
+            .files
+            .is_empty()
+        {
             let workload_files_base_path = WorkloadFilesBasePath::from((
                 &control_loop_state.run_folder,
                 control_loop_state.instance_name(),
@@ -392,7 +396,7 @@ impl WorkloadControlLoop {
                     Self::send_workload_state_to_agent(
                         &control_loop_state.to_agent_workload_state_sender,
                         control_loop_state.instance_name(),
-                        ExecutionStateInternal::starting_failed(&err),
+                        ExecutionStateSpec::starting_failed(&err),
                     )
                     .await;
 
@@ -415,7 +419,7 @@ impl WorkloadControlLoop {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
             control_loop_state.instance_name(),
-            ExecutionStateInternal::stopping_requested(),
+            ExecutionStateSpec::stopping_requested(),
         )
         .await;
 
@@ -424,7 +428,7 @@ impl WorkloadControlLoop {
                 Self::send_workload_state_to_agent(
                     &control_loop_state.to_agent_workload_state_sender,
                     control_loop_state.instance_name(),
-                    ExecutionStateInternal::delete_failed(err.to_string()),
+                    ExecutionStateSpec::delete_failed(err.to_string()),
                 )
                 .await;
                 // [impl->swdd~agent-workload-control-loop-delete-failed-allows-retry~1]
@@ -459,7 +463,7 @@ impl WorkloadControlLoop {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
             control_loop_state.instance_name(),
-            ExecutionStateInternal::removed(),
+            ExecutionStateSpec::removed(),
         )
         .await;
 
@@ -479,7 +483,7 @@ impl WorkloadControlLoop {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
             control_loop_state.instance_name(),
-            ExecutionStateInternal::stopping_requested(),
+            ExecutionStateSpec::stopping_requested(),
         )
         .await;
 
@@ -488,7 +492,7 @@ impl WorkloadControlLoop {
                 Self::send_workload_state_to_agent(
                     &control_loop_state.to_agent_workload_state_sender,
                     control_loop_state.instance_name(),
-                    ExecutionStateInternal::delete_failed(err.to_string()),
+                    ExecutionStateSpec::delete_failed(err.to_string()),
                 )
                 .await;
 
@@ -539,7 +543,7 @@ impl WorkloadControlLoop {
         Self::send_workload_state_to_agent(
             &control_loop_state.to_agent_workload_state_sender,
             control_loop_state.instance_name(),
-            ExecutionStateInternal::removed(),
+            ExecutionStateSpec::removed(),
         )
         .await;
 
@@ -552,7 +556,7 @@ impl WorkloadControlLoop {
             Self::send_workload_state_to_agent(
                 &control_loop_state.to_agent_workload_state_sender,
                 control_loop_state.instance_name(),
-                ExecutionStateInternal::starting_triggered(),
+                ExecutionStateSpec::starting_triggered(),
             )
             .await;
 
@@ -701,8 +705,8 @@ mod tests {
     use crate::workload_state::{WorkloadStateSenderInterface, assert_execution_state_sequence};
 
     use api::ank_base::{
-        ExecutionStateEnumInternal, ExecutionStateInternal, Pending, RestartPolicy,
-        WorkloadInstanceNameInternal, WorkloadNamed,
+        ExecutionStateEnumSpec, ExecutionStateSpec, Pending, RestartPolicy,
+        WorkloadInstanceNameSpec, WorkloadNamed,
     };
     use api::test_utils::{
         generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
@@ -761,7 +765,7 @@ mod tests {
 
         let mut new_workload = old_workload.clone();
         new_workload.workload.runtime_config = "changed config".to_string();
-        new_workload.instance_name = WorkloadInstanceNameInternal::builder()
+        new_workload.instance_name = WorkloadInstanceNameSpec::builder()
             .agent_name(old_workload.instance_name.agent_name())
             .workload_name(old_workload.instance_name.workload_name())
             .config(&new_workload.workload.runtime_config)
@@ -836,20 +840,11 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (
-                    &old_instance_name,
-                    ExecutionStateInternal::stopping_requested(),
-                ),
-                (&old_instance_name, ExecutionStateInternal::removed()),
-                (
-                    &new_instance_name,
-                    ExecutionStateInternal::starting_triggered(),
-                ),
-                (
-                    &new_instance_name,
-                    ExecutionStateInternal::stopping_requested(),
-                ),
-                (&new_instance_name, ExecutionStateInternal::removed()),
+                (&old_instance_name, ExecutionStateSpec::stopping_requested()),
+                (&old_instance_name, ExecutionStateSpec::removed()),
+                (&new_instance_name, ExecutionStateSpec::starting_triggered()),
+                (&new_instance_name, ExecutionStateSpec::stopping_requested()),
+                (&new_instance_name, ExecutionStateSpec::removed()),
             ],
         )
         .await;
@@ -937,11 +932,8 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (
-                    &old_instance_name,
-                    ExecutionStateInternal::stopping_requested(),
-                ),
-                (&old_instance_name, ExecutionStateInternal::removed()),
+                (&old_instance_name, ExecutionStateSpec::stopping_requested()),
+                (&old_instance_name, ExecutionStateSpec::removed()),
             ],
         )
         .await;
@@ -976,7 +968,7 @@ mod tests {
 
         let mut new_workload = old_workload.clone();
         new_workload.workload.runtime_config = "changed config".to_string();
-        new_workload.instance_name = WorkloadInstanceNameInternal::builder()
+        new_workload.instance_name = WorkloadInstanceNameSpec::builder()
             .agent_name(old_workload.instance_name.agent_name())
             .workload_name(old_workload.instance_name.workload_name())
             .config(&new_workload.workload.runtime_config)
@@ -1056,16 +1048,10 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (
-                    &old_instance_name,
-                    ExecutionStateInternal::stopping_requested(),
-                ),
-                (&old_instance_name, ExecutionStateInternal::removed()),
-                (
-                    &old_instance_name,
-                    ExecutionStateInternal::stopping_requested(),
-                ),
-                (&old_instance_name, ExecutionStateInternal::removed()),
+                (&old_instance_name, ExecutionStateSpec::stopping_requested()),
+                (&old_instance_name, ExecutionStateSpec::removed()),
+                (&old_instance_name, ExecutionStateSpec::stopping_requested()),
+                (&old_instance_name, ExecutionStateSpec::removed()),
             ],
         )
         .await;
@@ -1097,7 +1083,7 @@ mod tests {
 
         let mut new_workload = old_workload.clone();
         new_workload.workload.runtime_config = "changed config".to_string();
-        new_workload.instance_name = WorkloadInstanceNameInternal::builder()
+        new_workload.instance_name = WorkloadInstanceNameSpec::builder()
             .agent_name(old_workload.instance_name.agent_name())
             .workload_name(old_workload.instance_name.workload_name())
             .config(&new_workload.workload.runtime_config)
@@ -1167,20 +1153,11 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (
-                    &old_instance_name,
-                    ExecutionStateInternal::stopping_requested(),
-                ),
-                (&old_instance_name, ExecutionStateInternal::removed()),
-                (
-                    &new_instance_name,
-                    ExecutionStateInternal::starting_triggered(),
-                ),
-                (
-                    &new_instance_name,
-                    ExecutionStateInternal::stopping_requested(),
-                ),
-                (&new_instance_name, ExecutionStateInternal::removed()),
+                (&old_instance_name, ExecutionStateSpec::stopping_requested()),
+                (&old_instance_name, ExecutionStateSpec::removed()),
+                (&new_instance_name, ExecutionStateSpec::starting_triggered()),
+                (&new_instance_name, ExecutionStateSpec::stopping_requested()),
+                (&new_instance_name, ExecutionStateSpec::removed()),
             ],
         )
         .await;
@@ -1207,7 +1184,7 @@ mod tests {
 
         let mut new_workload = old_workload.clone();
         new_workload.workload.runtime_config = "changed config".to_string();
-        new_workload.instance_name = WorkloadInstanceNameInternal::builder()
+        new_workload.instance_name = WorkloadInstanceNameSpec::builder()
             .agent_name(old_workload.instance_name.agent_name())
             .workload_name(old_workload.instance_name.workload_name())
             .config(&new_workload.workload.runtime_config)
@@ -1267,19 +1244,13 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
+                (&old_instance_name, ExecutionStateSpec::stopping_requested()),
                 (
                     &old_instance_name,
-                    ExecutionStateInternal::stopping_requested(),
+                    ExecutionStateSpec::delete_failed("some delete error"),
                 ),
-                (
-                    &old_instance_name,
-                    ExecutionStateInternal::delete_failed("some delete error"),
-                ),
-                (
-                    &old_instance_name,
-                    ExecutionStateInternal::stopping_requested(),
-                ),
-                (&old_instance_name, ExecutionStateInternal::removed()),
+                (&old_instance_name, ExecutionStateSpec::stopping_requested()),
+                (&old_instance_name, ExecutionStateSpec::removed()),
             ],
         )
         .await;
@@ -1351,8 +1322,8 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&instance_name, ExecutionStateInternal::stopping_requested()),
-                (&instance_name, ExecutionStateInternal::removed()),
+                (&instance_name, ExecutionStateSpec::stopping_requested()),
+                (&instance_name, ExecutionStateSpec::removed()),
             ],
         )
         .await;
@@ -1776,7 +1747,7 @@ mod tests {
 
         let workload_state = generate_test_workload_state_with_workload_named(
             &workload,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
         );
 
         state_checker_wl_state_sender
@@ -1934,7 +1905,7 @@ mod tests {
 
         let workload_state = generate_test_workload_state_with_workload_named(
             &workload,
-            ExecutionStateInternal::succeeded(),
+            ExecutionStateSpec::succeeded(),
         );
 
         state_checker_wl_state_sender
@@ -1966,19 +1937,19 @@ mod tests {
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionStateInternal::running()
+                &ExecutionStateSpec::running()
             )
         );
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionStateInternal::succeeded()
+                &ExecutionStateSpec::succeeded()
             )
         );
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionStateInternal::failed("some error".to_owned())
+                &ExecutionStateSpec::failed("some error".to_owned())
             )
         );
     }
@@ -1991,17 +1962,17 @@ mod tests {
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionStateInternal::running()
+                &ExecutionStateSpec::running()
             )
         );
         assert!(WorkloadControlLoop::restart_policy_matches_execution_state(
             &restart_policy,
-            &ExecutionStateInternal::failed("some error".to_owned())
+            &ExecutionStateSpec::failed("some error".to_owned())
         ));
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionStateInternal::succeeded()
+                &ExecutionStateSpec::succeeded()
             )
         );
     }
@@ -2014,16 +1985,16 @@ mod tests {
         assert!(
             !WorkloadControlLoop::restart_policy_matches_execution_state(
                 &restart_policy,
-                &ExecutionStateInternal::running()
+                &ExecutionStateSpec::running()
             )
         );
         assert!(WorkloadControlLoop::restart_policy_matches_execution_state(
             &restart_policy,
-            &ExecutionStateInternal::failed("some error".to_owned())
+            &ExecutionStateSpec::failed("some error".to_owned())
         ));
         assert!(WorkloadControlLoop::restart_policy_matches_execution_state(
             &restart_policy,
-            &ExecutionStateInternal::succeeded()
+            &ExecutionStateSpec::succeeded()
         ));
     }
 
@@ -2032,7 +2003,7 @@ mod tests {
     // [utest->swdd~workload-control-loop-checks-workload-state-validity~1]
     #[test]
     fn utest_is_same_workload() {
-        let current_instance_name = WorkloadInstanceNameInternal::builder()
+        let current_instance_name = WorkloadInstanceNameSpec::builder()
             .workload_name(WORKLOAD_1_NAME)
             .agent_name(AGENT_NAME)
             .config(&String::from("existing config"))
@@ -2043,7 +2014,7 @@ mod tests {
             &current_instance_name
         ));
 
-        let new_instance_name = WorkloadInstanceNameInternal::builder()
+        let new_instance_name = WorkloadInstanceNameSpec::builder()
             .workload_name(WORKLOAD_1_NAME)
             .agent_name(AGENT_NAME)
             .config(&String::from("different config"))
@@ -2195,7 +2166,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        let expected_execution_state = ExecutionStateEnumInternal::Pending(Pending::StartingFailed);
+        let expected_execution_state = ExecutionStateEnumSpec::Pending(Pending::StartingFailed);
         assert_eq!(
             *workload_state.execution_state.state(),
             expected_execution_state,
@@ -2265,7 +2236,7 @@ mod tests {
 
         assert!(workload_command_receiver2.is_closed());
         assert!(workload_command_receiver2.is_empty());
-        let expected_execution_state = ExecutionStateEnumInternal::Pending(Pending::StartingFailed);
+        let expected_execution_state = ExecutionStateEnumSpec::Pending(Pending::StartingFailed);
         assert_eq!(
             *workload_state.execution_state.state(),
             expected_execution_state
@@ -2385,7 +2356,7 @@ mod tests {
 
         let mut new_workload = old_workload.clone();
         new_workload.workload.runtime_config = "changed config".to_string();
-        new_workload.instance_name = WorkloadInstanceNameInternal::builder()
+        new_workload.instance_name = WorkloadInstanceNameSpec::builder()
             .agent_name(old_workload.instance_name.agent_name())
             .workload_name(old_workload.instance_name.workload_name())
             .config(&new_workload.workload.runtime_config)

@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::WorkloadInternal;
+use api::ank_base::WorkloadSpec;
 
 use super::podman_kube_runtime::PODMAN_KUBE_RUNTIME_NAME;
 
@@ -30,9 +30,9 @@ pub struct PodmanKubeRuntimeConfig {
     pub manifest: String,
 }
 
-impl TryFrom<&WorkloadInternal> for PodmanKubeRuntimeConfig {
+impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
     type Error = String;
-    fn try_from(workload: &WorkloadInternal) -> Result<Self, Self::Error> {
+    fn try_from(workload: &WorkloadSpec) -> Result<Self, Self::Error> {
         if PODMAN_KUBE_RUNTIME_NAME != workload.runtime {
             return Err(format!(
                 "Received a manifest for the wrong runtime: '{}'",
@@ -64,7 +64,7 @@ impl TryFrom<&WorkloadInternal> for PodmanKubeRuntimeConfig {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::WorkloadInternal;
+    use api::ank_base::WorkloadSpec;
     use api::test_utils::generate_test_workload_with_param;
 
     use super::{PODMAN_KUBE_RUNTIME_NAME, PodmanKubeRuntimeConfig};
@@ -75,7 +75,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_podman_kube_config_failure_missing_manifest() {
-        let workload: WorkloadInternal =
+        let workload: WorkloadSpec =
             generate_test_workload_with_param(AGENT_NAME, PODMAN_KUBE_RUNTIME_NAME);
 
         assert!(PodmanKubeRuntimeConfig::try_from(&workload).is_err());
@@ -83,7 +83,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_podman_kube_config_failure_wrong_runtime() {
-        let workload: WorkloadInternal =
+        let workload: WorkloadSpec =
             generate_test_workload_with_param(AGENT_NAME, DIFFERENT_RUNTIME_NAME);
 
         assert!(PodmanKubeRuntimeConfig::try_from(&workload).is_err());
@@ -102,7 +102,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_podman_kube_config_success() {
-        let mut workload: WorkloadInternal = generate_test_workload_with_param(
+        let mut workload: WorkloadSpec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
         );

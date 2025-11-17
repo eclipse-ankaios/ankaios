@@ -15,7 +15,7 @@
 use super::podman_runtime::PODMAN_RUNTIME_NAME;
 use crate::runtime_connectors::podman_cli::PodmanRunConfig;
 
-use api::ank_base::WorkloadInternal;
+use api::ank_base::WorkloadSpec;
 
 #[derive(Debug, serde::Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -40,9 +40,9 @@ impl From<PodmanRuntimeConfig> for PodmanRunConfig {
     }
 }
 
-impl TryFrom<&WorkloadInternal> for PodmanRuntimeConfig {
+impl TryFrom<&WorkloadSpec> for PodmanRuntimeConfig {
     type Error = String;
-    fn try_from(workload_internal: &WorkloadInternal) -> Result<Self, Self::Error> {
+    fn try_from(workload_internal: &WorkloadSpec) -> Result<Self, Self::Error> {
         if PODMAN_RUNTIME_NAME != workload_internal.runtime {
             return Err(format!(
                 "Received a workload for the wrong runtime: '{}'",
@@ -71,7 +71,7 @@ mod tests {
         podman::podman_runtime::PODMAN_RUNTIME_NAME, podman_cli::PodmanRunConfig,
     };
 
-    use api::ank_base::WorkloadInternal;
+    use api::ank_base::WorkloadSpec;
     use api::test_utils::generate_test_workload_with_param;
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn utest_podman_config_failure_missing_image() {
-        let mut workload: WorkloadInternal = generate_test_workload_with_param(
+        let mut workload: WorkloadSpec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn utest_podman_config_failure_wrong_runtime() {
-        let workload: WorkloadInternal = generate_test_workload_with_param(
+        let workload: WorkloadSpec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             DIFFERENT_RUNTIME_NAME.to_string(),
         );
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn utest_podman_config_success() {
-        let mut workload: WorkloadInternal = generate_test_workload_with_param(
+        let mut workload: WorkloadSpec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );

@@ -76,7 +76,7 @@ mod tests {
     use super::DependencyStateValidator;
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
 
-    use api::ank_base::{DeleteCondition, ExecutionStateInternal, WorkloadNamed};
+    use api::ank_base::{DeleteCondition, ExecutionStateSpec, WorkloadNamed};
     use api::test_utils::{
         generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
         generate_test_workload_with_param,
@@ -99,7 +99,7 @@ mod tests {
             api::ank_base::AddCondition::AddCondRunning,
         )]);
 
-        let execution_state = ExecutionStateInternal::running();
+        let execution_state = ExecutionStateSpec::running();
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
@@ -146,7 +146,7 @@ mod tests {
     fn utest_create_fulfilled_unfulfilled_execution_state() {
         let workload = generate_test_workload_with_param(AGENT_A, RUNTIME);
 
-        let execution_state = ExecutionStateInternal::succeeded();
+        let execution_state = ExecutionStateSpec::succeeded();
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
@@ -171,7 +171,7 @@ mod tests {
             )]),
         );
 
-        let execution_state = ExecutionStateInternal::succeeded();
+        let execution_state = ExecutionStateSpec::succeeded();
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
@@ -196,7 +196,7 @@ mod tests {
             )]),
         );
 
-        let execution_state = ExecutionStateInternal::running();
+        let execution_state = ExecutionStateSpec::running();
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage

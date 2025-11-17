@@ -16,7 +16,7 @@ use crate::{
     runtime_connectors::{RuntimeStateGetter, StateChecker},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
-use api::ank_base::{ExecutionStateEnumInternal, ExecutionStateInternal, WorkloadNamed};
+use api::ank_base::{ExecutionStateEnumSpec, ExecutionStateSpec, WorkloadNamed};
 
 use async_trait::async_trait;
 use std::{str::FromStr, time::Duration};
@@ -46,8 +46,7 @@ where
         let workload_named = workload_named.clone();
         let workload_name = workload_named.instance_name.workload_name().to_owned();
         let task_handle = tokio::spawn(async move {
-            let mut last_state =
-                ExecutionStateInternal::unknown("Never received an execution state.");
+            let mut last_state = ExecutionStateSpec::unknown("Never received an execution state.");
             let mut interval = time::interval(Duration::from_millis(STATUS_CHECK_INTERVAL_MS));
             loop {
                 interval.tick().await;
@@ -69,7 +68,7 @@ where
                         )
                         .await;
 
-                    if matches!(last_state.state(), ExecutionStateEnumInternal::Removed(_)) {
+                    if matches!(last_state.state(), ExecutionStateEnumSpec::Removed(_)) {
                         break;
                     }
                 }
@@ -109,7 +108,7 @@ mod tests {
         runtime_connectors::{MockRuntimeStateGetter, StateChecker},
     };
 
-    use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
+    use api::ank_base::{ExecutionStateSpec, WorkloadNamed};
     use api::test_utils::{
         generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
     };
@@ -132,7 +131,7 @@ mod tests {
         mock_runtime_getter
             .expect_get_state()
             .times(2)
-            .returning(|_: &String| Box::pin(async { ExecutionStateInternal::running() }));
+            .returning(|_: &String| Box::pin(async { ExecutionStateSpec::running() }));
 
         let (state_sender, mut state_receiver) = tokio::sync::mpsc::channel(20);
 
@@ -155,7 +154,7 @@ mod tests {
 
         let expected_state = generate_test_workload_state_with_workload_named(
             &workload,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
         );
 
         // [utest->swdd~generic-state-checker-sends-workload-state~2]

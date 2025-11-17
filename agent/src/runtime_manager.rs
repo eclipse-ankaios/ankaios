@@ -23,8 +23,8 @@ use crate::{
 use crate::control_interface::authorizer::Authorizer;
 
 use api::ank_base::{
-    DeletedWorkload, ExecutionStateInternal, LogsRequestInternal, Response,
-    WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
+    DeletedWorkload, ExecutionStateSpec, LogsRequestSpec, Response, WorkloadInstanceNameSpec,
+    WorkloadNamed, WorkloadStateSpec,
 };
 use common::{
     objects::AgentName, request_id_prepending::detach_prefix_from_request_id,
@@ -259,7 +259,7 @@ impl RuntimeManager {
                                     .map(|index| workload_vec.remove(index))
                             })
                         {
-                            let new_instance_name: WorkloadInstanceNameInternal =
+                            let new_instance_name: WorkloadInstanceNameSpec =
                                 new_workload_named.instance_name.clone();
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
@@ -394,8 +394,8 @@ impl RuntimeManager {
     }
 
     fn is_resumable_workload(
-        workload_state_existing_workload: &WorkloadStateInternal,
-        new_instance_name: &WorkloadInstanceNameInternal,
+        workload_state_existing_workload: &WorkloadStateSpec,
+        new_instance_name: &WorkloadInstanceNameSpec,
     ) -> bool {
         workload_state_existing_workload
             .execution_state
@@ -406,9 +406,9 @@ impl RuntimeManager {
     }
 
     fn is_reusable_workload(
-        workload_state_existing_workload: &WorkloadStateInternal,
+        workload_state_existing_workload: &WorkloadStateSpec,
         workload_id_existing_workload: &Option<String>,
-        new_instance_name: &WorkloadInstanceNameInternal,
+        new_instance_name: &WorkloadInstanceNameSpec,
     ) -> bool {
         workload_state_existing_workload
             .execution_state
@@ -579,7 +579,7 @@ impl RuntimeManager {
             self.update_state_tx
                 .report_workload_execution_state(
                     &deleted_workload.instance_name,
-                    ExecutionStateInternal::removed(),
+                    ExecutionStateSpec::removed(),
                 )
                 .await;
         }
@@ -632,8 +632,8 @@ impl RuntimeManager {
     // [impl->swdd~agent-runtime-manager-creates-log-fetchers~1]
     pub async fn get_log_fetchers(
         &self,
-        log_request: LogsRequestInternal,
-    ) -> Vec<(WorkloadInstanceNameInternal, Box<dyn LogFetcher>)> {
+        log_request: LogsRequestSpec,
+    ) -> Vec<(WorkloadInstanceNameSpec, Box<dyn LogFetcher>)> {
         let mut res = Vec::new();
         let log_request_options: LogRequestOptions = log_request.clone().into();
         for workload in log_request.workload_names {
@@ -689,9 +689,8 @@ mod tests {
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
 
     use api::ank_base::{
-        self, CompleteState, ExecutionStateInternal, LogsRequestInternal, Response,
-        ResponseContent, WorkloadInstanceNameBuilder, WorkloadInstanceNameInternal, WorkloadNamed,
-        WorkloadStateInternal,
+        self, CompleteState, ExecutionStateSpec, LogsRequestSpec, Response, ResponseContent,
+        WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_control_interface_access,
@@ -1072,7 +1071,7 @@ mod tests {
         let existing_workload_instance_name = existing_workload.instance_name.clone();
         let resuable_workload_state_running = ReusableWorkloadState::new(
             existing_workload_instance_name,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
             None,
         );
 
@@ -1131,7 +1130,7 @@ mod tests {
 
         let reusable_workload_state_running = ReusableWorkloadState::new(
             existing_workload_with_other_config.clone(),
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
             None,
         );
 
@@ -1189,7 +1188,7 @@ mod tests {
 
         let reusable_workload_state_succeeded = ReusableWorkloadState::new(
             existing_workload.instance_name.clone(),
-            ExecutionStateInternal::failed("some error"),
+            ExecutionStateSpec::failed("some error"),
             None,
         );
 
@@ -1247,7 +1246,7 @@ mod tests {
 
         let resuable_workload_state_succeeded = ReusableWorkloadState::new(
             existing_workload.instance_name.clone(),
-            ExecutionStateInternal::failed("some error"),
+            ExecutionStateSpec::failed("some error"),
             None,
         );
 
@@ -1308,7 +1307,7 @@ mod tests {
         const WORKLOAD_ID: &str = "workload_id_1";
         let resuable_workload_state_succeeded = ReusableWorkloadState::new(
             existing_workload.instance_name.clone(),
-            ExecutionStateInternal::succeeded(),
+            ExecutionStateSpec::succeeded(),
             Some(WORKLOAD_ID.to_string()),
         );
 
@@ -1375,7 +1374,7 @@ mod tests {
                 Box::pin(async move {
                     Ok(vec![ReusableWorkloadState::new(
                         existing_unneeded_workload,
-                        ExecutionStateInternal::default(),
+                        ExecutionStateSpec::default(),
                         None,
                     )])
                 })
@@ -1434,7 +1433,7 @@ mod tests {
                 Box::pin(async move {
                     Ok(vec![ReusableWorkloadState::new(
                         existing_unneeded_workload,
-                        ExecutionStateInternal::default(),
+                        ExecutionStateSpec::default(),
                         None,
                     )])
                 })
@@ -1581,7 +1580,7 @@ mod tests {
         control_interface_mock.expect().never();
 
         // create workload with different config string to simulate a replace of a existing workload
-        let existing_workload_with_other_config = WorkloadInstanceNameInternal::builder()
+        let existing_workload_with_other_config = WorkloadInstanceNameSpec::builder()
             .workload_name(WORKLOAD_1_NAME)
             .config(&String::from("different config"))
             .agent_name(AGENT_NAME)
@@ -1614,7 +1613,7 @@ mod tests {
                 Box::pin(async {
                     Ok(vec![ReusableWorkloadState::new(
                         existing_workload_with_other_config,
-                        ExecutionStateInternal::default(),
+                        ExecutionStateSpec::default(),
                         None,
                     )])
                 })
@@ -2257,35 +2256,7 @@ mod tests {
         let request_id: String = REQUEST_ID.to_string();
         let workloads = [(
             WORKLOAD_1_NAME,
-            generate_test_workload_with_param::<ank_base::Workload>(AGENT_NAME, RUNTIME_NAME), // ank_base::Workload {
-                                                                                               //     agent: Some(AGENT_NAME.to_string()),
-                                                                                               //     restart_policy: Some(ank_base::RestartPolicy::Always as i32),
-                                                                                               //     dependencies: Some(ank_base::Dependencies {
-                                                                                               //         dependencies: HashMap::from([
-                                                                                               //             (
-                                                                                               //                 "workload_B".to_string(),
-                                                                                               //                 AddCondition::AddCondRunning as i32,
-                                                                                               //             ),
-                                                                                               //             (
-                                                                                               //                 "workload_C".to_string(),
-                                                                                               //                 AddCondition::AddCondSucceeded as i32,
-                                                                                               //             ),
-                                                                                               //             ]),
-                                                                                               //         }),
-                                                                                               //         tags: Some(ank_base::Tags {
-                                                                                               //             tags: HashMap::from([("tag1".to_string(), "val_1".to_string()), ("tag2".to_string(), "val_2".to_string())]),
-                                                                                               //         }),
-                                                                                               //         runtime: Some("runtime_A".to_string()),
-                                                                                               //         runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()),
-                                                                                               //         control_interface_access: Some(Default::default()),
-                                                                                               //         configs: Some(ank_base::ConfigMappings {
-                                                                                               //             configs: HashMap::from([
-                                                                                               //                 ("ref1".to_string(),"config_1".to_string(),),
-                                                                                               //                 ("ref2".to_string(),"config_2".to_string(),)
-                                                                                               //                 ])
-                                                                                               //         }),
-                                                                                               //         files: Some(Files::default()),
-                                                                                               //     }
+            generate_test_workload_with_param::<ank_base::Workload>(AGENT_NAME, RUNTIME_NAME),
         )];
         let mut complete_state = generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
@@ -2612,13 +2583,13 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
         assert_ne!(wl_state_msg, None);
 
-        let WorkloadStateInternal {
+        let WorkloadStateSpec {
             instance_name: actual_instance_name,
             execution_state: actual_execution_state,
         } = wl_state_msg.unwrap();
 
         assert_eq!(actual_instance_name.workload_name(), WORKLOAD_1_NAME);
-        assert_eq!(actual_execution_state, ExecutionStateInternal::removed());
+        assert_eq!(actual_execution_state, ExecutionStateSpec::removed());
     }
 
     // [utest->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
@@ -2920,11 +2891,11 @@ mod tests {
             .insert(WORKLOAD_2_NAME.to_string(), workload_2_mock);
 
         let res = runtime_manager
-            .get_log_fetchers(LogsRequestInternal {
+            .get_log_fetchers(LogsRequestSpec {
                 workload_names: vec![
-                    WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID),
-                    WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_2_NAME, WORKLOAD_ID),
-                    WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_3_NAME, WORKLOAD_ID),
+                    WorkloadInstanceNameSpec::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID),
+                    WorkloadInstanceNameSpec::new(AGENT_NAME, WORKLOAD_2_NAME, WORKLOAD_ID),
+                    WorkloadInstanceNameSpec::new(AGENT_NAME, WORKLOAD_3_NAME, WORKLOAD_ID),
                 ],
                 follow: true,
                 tail: -1,
@@ -2936,7 +2907,7 @@ mod tests {
         assert_eq!(res.len(), 1);
         assert_eq!(
             &res[0].0,
-            &WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID)
+            &WorkloadInstanceNameSpec::new(AGENT_NAME, WORKLOAD_1_NAME, WORKLOAD_ID)
         );
     }
 

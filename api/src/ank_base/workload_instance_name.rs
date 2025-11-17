@@ -17,7 +17,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::ank_base::{WorkloadInstanceNameInternal, WorkloadInternal};
+use crate::ank_base::{WorkloadInstanceNameSpec, WorkloadSpec};
 
 // This could be std::mem::variant_count::<WorkloadExecutionInstanceParts>(),
 // but the function is still in only nightly ...
@@ -47,19 +47,19 @@ impl ConfigHash for String {
     }
 }
 
-impl ConfigHash for WorkloadInternal {
+impl ConfigHash for WorkloadSpec {
     fn hash_config(&self) -> String {
         self.runtime_config.hash_config()
     }
 }
 
-impl WorkloadInstanceNameInternal {
+impl WorkloadInstanceNameSpec {
     pub fn new(
         agent_name: impl Into<String>,
         workload_name: impl Into<String>,
         id: impl Into<String>,
-    ) -> WorkloadInstanceNameInternal {
-        WorkloadInstanceNameInternal {
+    ) -> WorkloadInstanceNameSpec {
+        WorkloadInstanceNameSpec {
             workload_name: workload_name.into(),
             agent_name: agent_name.into(),
             id: id.into(),
@@ -90,7 +90,7 @@ impl WorkloadInstanceNameInternal {
     }
 }
 
-impl TryFrom<String> for WorkloadInstanceNameInternal {
+impl TryFrom<String> for WorkloadInstanceNameSpec {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
@@ -98,20 +98,20 @@ impl TryFrom<String> for WorkloadInstanceNameInternal {
     }
 }
 
-impl TryFrom<&str> for WorkloadInstanceNameInternal {
+impl TryFrom<&str> for WorkloadInstanceNameSpec {
     type Error = String;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value_parts: Vec<&str> = value.split(INSTANCE_NAME_SEPARATOR).collect();
         if value_parts.len() != INSTANCE_NAME_PARTS_COUNT {
             return Err(format!(
-                "Could not convert '{}' to a WorkloadInstanceNameInternal, as it consist of {} instead of 3.",
+                "Could not convert '{}' to a WorkloadInstanceNameSpec, as it consist of {} instead of 3.",
                 value,
                 value_parts.len()
             ));
         }
 
-        Ok(WorkloadInstanceNameInternal {
+        Ok(WorkloadInstanceNameSpec {
             workload_name: value_parts[InstanceNameParts::WorkloadName as usize].to_string(),
             id: value_parts[InstanceNameParts::ConfigHash as usize].to_string(),
             agent_name: value_parts[InstanceNameParts::AgentName as usize].to_string(),
@@ -119,7 +119,7 @@ impl TryFrom<&str> for WorkloadInstanceNameInternal {
     }
 }
 
-impl Display for WorkloadInstanceNameInternal {
+impl Display for WorkloadInstanceNameSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -154,8 +154,8 @@ impl WorkloadInstanceNameBuilder {
         self
     }
 
-    pub fn build(self) -> WorkloadInstanceNameInternal {
-        WorkloadInstanceNameInternal {
+    pub fn build(self) -> WorkloadInstanceNameSpec {
+        WorkloadInstanceNameSpec {
             agent_name: self.agent_name,
             workload_name: self.workload_name,
             id: self.hash,
@@ -175,10 +175,8 @@ impl WorkloadInstanceNameBuilder {
 use crate::test_utils::generate_test_runtime_config;
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_instance_name(
-    name: impl Into<String>,
-) -> WorkloadInstanceNameInternal {
-    WorkloadInstanceNameInternal::builder()
+pub fn generate_test_workload_instance_name(name: impl Into<String>) -> WorkloadInstanceNameSpec {
+    WorkloadInstanceNameSpec::builder()
         .agent_name("agent_name")
         .workload_name(name)
         .config(&generate_test_runtime_config())
@@ -187,7 +185,7 @@ pub fn generate_test_workload_instance_name(
 
 #[cfg(test)]
 mod tests {
-    use super::WorkloadInstanceNameInternal;
+    use super::WorkloadInstanceNameSpec;
 
     const AGENT_NAME: &str = "agent";
     const WORKLOAD_NAME: &str = "workload";
@@ -197,7 +195,7 @@ mod tests {
     // [utest->swdd~common-workload-execution-instance-naming~1]
     #[test]
     fn utest_workload_execution_instance_name_builder() {
-        let name = WorkloadInstanceNameInternal::builder()
+        let name = WorkloadInstanceNameSpec::builder()
             .agent_name(AGENT_NAME)
             .workload_name(WORKLOAD_NAME)
             .config(&String::from(CONFIG))

@@ -41,8 +41,8 @@ mod run_workload;
 mod set_state;
 
 use api::ank_base::{
-    CompleteState, CompleteStateInternal, Workload, WorkloadInstanceNameInternal,
-    WorkloadStateInternal, WorkloadStatesMapInternal,
+    CompleteState, CompleteStateSpec, Workload, WorkloadInstanceNameSpec, WorkloadStateSpec,
+    WorkloadStatesMapSpec,
 };
 use common::{
     communications_error::CommunicationMiddlewareError, from_server_interface::FromServer,
@@ -105,29 +105,28 @@ pub fn get_input_sources(manifest_files: &[String]) -> Result<Vec<InputSourcePai
 pub type InputSourcePair = (String, Box<dyn std::io::Read + Send + Sync + 'static>);
 
 #[derive(Debug)]
-pub struct WorkloadInfos(Vec<(WorkloadInstanceNameInternal, WorkloadTableRow)>);
+pub struct WorkloadInfos(Vec<(WorkloadInstanceNameSpec, WorkloadTableRow)>);
 
 impl WorkloadInfos {
-    pub fn get_mut(&mut self) -> &mut Vec<(WorkloadInstanceNameInternal, WorkloadTableRow)> {
+    pub fn get_mut(&mut self) -> &mut Vec<(WorkloadInstanceNameSpec, WorkloadTableRow)> {
         &mut self.0
     }
 }
 
 impl IntoIterator for WorkloadInfos {
-    type Item = (WorkloadInstanceNameInternal, WorkloadTableRow);
-    type IntoIter =
-        <Vec<(WorkloadInstanceNameInternal, WorkloadTableRow)> as IntoIterator>::IntoIter;
+    type Item = (WorkloadInstanceNameSpec, WorkloadTableRow);
+    type IntoIter = <Vec<(WorkloadInstanceNameSpec, WorkloadTableRow)> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
-impl From<WorkloadStatesMapInternal> for WorkloadInfos {
-    fn from(workload_states_map: WorkloadStatesMapInternal) -> Self {
+impl From<WorkloadStatesMapSpec> for WorkloadInfos {
+    fn from(workload_states_map: WorkloadStatesMapSpec) -> Self {
         WorkloadInfos(
             // invoking this from is cheaper then repeating the code to flatten the wl state map
-            Vec::<WorkloadStateInternal>::from(workload_states_map)
+            Vec::<WorkloadStateSpec>::from(workload_states_map)
                 .into_iter()
                 .map(|wl_state| {
                     (
@@ -190,7 +189,7 @@ impl CliCommands {
     // [impl->swdd~processes-complete-state-to-list-workloads~1]
     fn transform_into_workload_infos(&self, complete_state: CompleteState) -> WorkloadInfos {
         // TODO #313 fix the conversion and think about adding a proper from here
-        let workload_states_map: WorkloadStatesMapInternal = complete_state
+        let workload_states_map: WorkloadStatesMapSpec = complete_state
             .workload_states
             .unwrap_or_default()
             .try_into()
@@ -232,13 +231,13 @@ impl CliCommands {
     // [impl->swdd~cli-requests-update-state-with-watch~2]
     async fn update_state_and_wait_for_complete(
         &mut self,
-        new_state: CompleteStateInternal,
+        new_state: CompleteStateSpec,
         update_mask: Vec<String>,
     ) -> Result<(), CliError> {
         /* to keep track of deleted not initially started workloads in the wait mode
         the current workloads before the update must be stored in an ordered map. Affects only user output.
         The updated state is created directly, independent of fetching the current workloads. */
-        let current_workload_infos: BTreeMap<WorkloadInstanceNameInternal, WorkloadTableRow> =
+        let current_workload_infos: BTreeMap<WorkloadInstanceNameSpec, WorkloadTableRow> =
             self.get_workloads().await?.into_iter().collect();
 
         let update_state_success = self
@@ -269,7 +268,7 @@ impl CliCommands {
     async fn wait_for_complete(
         &mut self,
         update_state_success: ParsedUpdateStateSuccess,
-        mut previous_workload_infos: BTreeMap<WorkloadInstanceNameInternal, WorkloadTableRow>,
+        mut previous_workload_infos: BTreeMap<WorkloadInstanceNameSpec, WorkloadTableRow>,
     ) -> Result<(), CliError> {
         output_debug!("updated state success: {:?}", update_state_success);
 

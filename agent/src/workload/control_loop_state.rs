@@ -20,7 +20,7 @@ use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
 use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
 
-use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal};
+use api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec};
 
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -54,7 +54,7 @@ where
         ControlLoopStateBuilder::new()
     }
 
-    pub fn instance_name(&self) -> &WorkloadInstanceNameInternal {
+    pub fn instance_name(&self) -> &WorkloadInstanceNameSpec {
         &self.workload_named.instance_name
     }
 }
@@ -138,7 +138,7 @@ where
     pub fn build(self) -> Result<ControlLoopState<WorkloadId, StChecker>, String> {
         // new channel for receiving the workload states from the state checker
         let (state_checker_wl_state_sender, state_checker_wl_state_receiver) =
-            mpsc::channel::<WorkloadStateInternal>(BUFFER_SIZE);
+            mpsc::channel::<WorkloadStateSpec>(BUFFER_SIZE);
 
         Ok(ControlLoopState {
             workload_named: self
@@ -187,7 +187,7 @@ mod tests {
         workload_state::WorkloadStateSenderInterface,
     };
 
-    use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
+    use api::ank_base::{ExecutionStateSpec, WorkloadNamed};
     use api::test_utils::{
         generate_test_workload, generate_test_workload_state_with_workload_named,
     };
@@ -233,7 +233,7 @@ mod tests {
         // workload state for testing the channel between state checker and workload control loop
         let state_checker_wl_state = generate_test_workload_state_with_workload_named(
             &workload_named,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
         );
 
         control_loop_state
@@ -258,7 +258,7 @@ mod tests {
         // workload state for testing the channel between workload control loop and agent manager
         let forwarded_wl_state_to_agent = generate_test_workload_state_with_workload_named(
             &workload_named,
-            ExecutionStateInternal::succeeded(),
+            ExecutionStateSpec::succeeded(),
         );
 
         control_loop_state

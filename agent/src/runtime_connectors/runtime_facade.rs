@@ -21,7 +21,7 @@ use crate::{
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
 use api::std_extensions::IllegalStateResult;
 use common::objects::AgentName;
 
@@ -68,7 +68,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 
     fn delete_workload(
         &self,
-        instance_name: WorkloadInstanceNameInternal,
+        instance_name: WorkloadInstanceNameSpec,
         update_state_tx: &WorkloadStateSender,
     );
 }
@@ -151,7 +151,7 @@ impl<
     // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload(
         &self,
-        instance_name: WorkloadInstanceNameInternal,
+        instance_name: WorkloadInstanceNameSpec,
         update_state_tx: &WorkloadStateSender,
     ) {
         let _task_handle = Self::delete_workload_non_blocking(self, instance_name, update_state_tx);
@@ -331,7 +331,7 @@ impl<
     // [impl->swdd~agent-delete-old-workload~3]
     fn delete_workload_non_blocking(
         &self,
-        instance_name: WorkloadInstanceNameInternal,
+        instance_name: WorkloadInstanceNameSpec,
         update_state_tx: &WorkloadStateSender,
     ) -> JoinHandle<()> {
         let runtime = self.runtime.to_owned();
@@ -349,7 +349,7 @@ impl<
             update_state_tx
                 .report_workload_execution_state(
                     &instance_name,
-                    ExecutionStateInternal::stopping_requested(),
+                    ExecutionStateSpec::stopping_requested(),
                 )
                 .await;
 
@@ -358,7 +358,7 @@ impl<
                     update_state_tx
                         .report_workload_execution_state(
                             &instance_name,
-                            ExecutionStateInternal::delete_failed(err),
+                            ExecutionStateSpec::delete_failed(err),
                         )
                         .await;
 
@@ -390,7 +390,7 @@ impl<
             }
 
             update_state_tx
-                .report_workload_execution_state(&instance_name, ExecutionStateInternal::removed())
+                .report_workload_execution_state(&instance_name, ExecutionStateSpec::removed())
                 .await;
         })
     }
@@ -426,7 +426,7 @@ mockall::mock! {
 
         fn delete_workload(
             &self,
-            instance_name: WorkloadInstanceNameInternal,
+            instance_name: WorkloadInstanceNameSpec,
             update_state_tx: &WorkloadStateSender,
         );
     }
@@ -457,7 +457,7 @@ mod tests {
         workload_state::assert_execution_state_sequence,
     };
 
-    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+    use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
     use api::test_utils::generate_test_workload_with_param;
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -473,13 +473,13 @@ mod tests {
     async fn utest_runtime_facade_reusable_running_workloads() {
         let mut runtime_mock = MockRuntimeConnector::new();
 
-        let workload_instance_name = WorkloadInstanceNameInternal::builder()
+        let workload_instance_name = WorkloadInstanceNameSpec::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
         let workload_state = ReusableWorkloadState::new(
             workload_instance_name.clone(),
-            ExecutionStateInternal::initial(),
+            ExecutionStateSpec::initial(),
             None,
         );
 
@@ -502,7 +502,7 @@ mod tests {
                 .unwrap()
                 .iter()
                 .map(|x| x.workload_state.instance_name.clone())
-                .collect::<Vec<WorkloadInstanceNameInternal>>(),
+                .collect::<Vec<WorkloadInstanceNameSpec>>(),
             vec![workload_instance_name]
         );
 
@@ -612,7 +612,7 @@ mod tests {
             .expect_get_instance_name()
             .once()
             .return_const(
-                WorkloadInstanceNameInternal::builder()
+                WorkloadInstanceNameSpec::builder()
                     .workload_name(WORKLOAD_1_NAME)
                     .build(),
             );
@@ -723,7 +723,7 @@ mod tests {
         let (wl_state_sender, wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
-        let workload_instance_name = WorkloadInstanceNameInternal::builder()
+        let workload_instance_name = WorkloadInstanceNameSpec::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
@@ -751,9 +751,9 @@ mod tests {
             vec![
                 (
                     &workload_instance_name,
-                    ExecutionStateInternal::stopping_requested(),
+                    ExecutionStateSpec::stopping_requested(),
                 ),
-                (&workload_instance_name, ExecutionStateInternal::removed()),
+                (&workload_instance_name, ExecutionStateSpec::removed()),
             ],
         )
         .await;
@@ -769,7 +769,7 @@ mod tests {
         let (wl_state_sender, wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
-        let workload_instance_name = WorkloadInstanceNameInternal::builder()
+        let workload_instance_name = WorkloadInstanceNameSpec::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
@@ -799,11 +799,11 @@ mod tests {
             vec![
                 (
                     &workload_instance_name,
-                    ExecutionStateInternal::stopping_requested(),
+                    ExecutionStateSpec::stopping_requested(),
                 ),
                 (
                     &workload_instance_name,
-                    ExecutionStateInternal::delete_failed("delete failed".to_owned()),
+                    ExecutionStateSpec::delete_failed("delete failed".to_owned()),
                 ),
             ],
         )

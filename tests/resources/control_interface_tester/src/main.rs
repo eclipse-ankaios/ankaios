@@ -13,10 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::{
-    CompleteStateInternal, CompleteStateRequestInternal, LogEntriesResponse, LogsCancelAccepted,
-    LogsCancelRequestInternal, LogsRequestAccepted, LogsRequestInternal, RequestContentInternal,
-    RequestInternal, ResponseContent, State, UpdateStateRequestInternal,
-    WorkloadInstanceNameInternal,
+    CompleteStateRequestSpec, CompleteStateSpec, LogEntriesResponse, LogsCancelAccepted,
+    LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec, RequestContentSpec, RequestSpec,
+    ResponseContent, State, UpdateStateRequestSpec, WorkloadInstanceNameSpec,
 };
 
 use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
@@ -299,14 +298,14 @@ impl Connection {
     ) -> Result<TestResultEnum, CommandError> {
         let request_id = self.get_next_id();
 
-        let state: CompleteStateInternal =
+        let state: CompleteStateSpec =
             read_yaml_file(Path::new(&update_state_command.manifest_file))
                 .map_err(CommandError::GenericError)?;
 
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: request_id.clone(),
-            request_content: RequestContentInternal::UpdateStateRequest(Box::new(
-                UpdateStateRequestInternal {
+            request_content: RequestContentSpec::UpdateStateRequest(Box::new(
+                UpdateStateRequestSpec {
                     new_state: state,
                     update_mask: update_state_command.update_mask,
                 },
@@ -344,11 +343,11 @@ impl Connection {
     ) -> Result<ResponseContent, CommandError> {
         let request_id = self.get_next_id();
 
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: request_id.clone(),
-            request_content: RequestContentInternal::CompleteStateRequest(
-                CompleteStateRequestInternal { field_mask },
-            ),
+            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+                field_mask,
+            }),
         };
 
         let proto = api::control_api::ToAnkaios {
@@ -478,16 +477,16 @@ impl Connection {
                     ))
                 })?;
 
-            workload_instance_names.push(WorkloadInstanceNameInternal::new(
+            workload_instance_names.push(WorkloadInstanceNameSpec::new(
                 agent_name.clone(),
                 workload_name.clone(),
                 workload_id.clone(),
             ));
         }
 
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: request_id.clone(),
-            request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
+            request_content: RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: workload_instance_names,
                 follow: true,
                 tail: -1,
@@ -540,11 +539,9 @@ impl Connection {
         &mut self,
         request_id: String,
     ) -> Result<TestResultEnum, CommandError> {
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: request_id.clone(),
-            request_content: RequestContentInternal::LogsCancelRequest(
-                LogsCancelRequestInternal {},
-            ),
+            request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
         };
 
         let proto = api::control_api::ToAnkaios {

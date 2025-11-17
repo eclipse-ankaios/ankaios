@@ -15,12 +15,12 @@
 use super::CliCommands;
 use crate::{cli_commands::DESIRED_STATE_CONFIGS, cli_error::CliError, output_debug};
 
-use api::ank_base::CompleteStateInternal;
+use api::ank_base::CompleteStateSpec;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-delete-configs~1]
     pub async fn delete_configs(&mut self, config_names: Vec<String>) -> Result<(), CliError> {
-        let complete_state_update = CompleteStateInternal::default();
+        let complete_state_update = CompleteStateSpec::default();
 
         let update_mask = config_names
             .into_iter()
@@ -57,7 +57,7 @@ impl CliCommands {
 mod tests {
     use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
 
-    use api::ank_base::{CompleteState, CompleteStateInternal, UpdateStateSuccess};
+    use api::ank_base::{CompleteState, CompleteStateSpec, UpdateStateSuccess};
     use mockall::predicate::eq;
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
@@ -76,7 +76,7 @@ mod tests {
         mock_server_connection
             .expect_update_state()
             .with(
-                eq(CompleteStateInternal::default()),
+                eq(CompleteStateSpec::default()),
                 eq(vec![
                     ["desiredState.configs.", CONFIG_1].join(""),
                     ["desiredState.configs.", CONFIG_2].join(""),
@@ -118,7 +118,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state_update = CompleteStateInternal::default();
+        let complete_state_update = CompleteStateSpec::default();
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection

@@ -28,7 +28,7 @@ use crate::{
     workload_state::WorkloadStateSender,
 };
 
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
 use common::objects::AgentName;
 
 use async_trait::async_trait;
@@ -54,7 +54,7 @@ pub struct PodmanKubeRuntime {}
 pub struct PodmanKubeWorkloadId {
     // Podman currently does not provide an Id for a created manifest
     // and one needs the complete manifest to tear down the deployed resources.
-    pub name: WorkloadInstanceNameInternal,
+    pub name: WorkloadInstanceNameSpec,
     pub pods: Option<Vec<String>>,
     pub manifest: String,
     pub down_options: Vec<String>,
@@ -110,7 +110,7 @@ impl ControlInterfaceTarget {
 impl PodmanKubeRuntime {
     async fn sample_workload_states(
         &self,
-        workload_instance_names: &Vec<WorkloadInstanceNameInternal>,
+        workload_instance_names: &Vec<WorkloadInstanceNameSpec>,
     ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
         let mut workload_states = Vec::<ReusableWorkloadState>::default();
         for instance_name in workload_instance_names {
@@ -364,7 +364,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             agent_name.get_filter_suffix(),
             CONFIG_VOLUME_SUFFIX
         );
-        let workload_instance_names: Vec<WorkloadInstanceNameInternal> =
+        let workload_instance_names: Vec<WorkloadInstanceNameSpec> =
             PodmanCli::list_volumes_by_name(&name_filter)
                 .await
                 .map_err(|err| {
@@ -376,8 +376,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
                 .map(|volume_name| {
                     volume_name[..volume_name.len().saturating_sub(CONFIG_VOLUME_SUFFIX.len())]
                         .to_string()
-                        .try_into()
-                        as Result<WorkloadInstanceNameInternal, String>
+                        .try_into() as Result<WorkloadInstanceNameSpec, String>
                 })
                 .filter_map(|x| match x {
                     Ok(value) => Some(value),
@@ -500,7 +499,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
     // [impl->swdd~podman-kube-get-workload-id-uses-volumes~1]
     async fn get_workload_id(
         &self,
-        instance_name: &WorkloadInstanceNameInternal,
+        instance_name: &WorkloadInstanceNameSpec,
     ) -> Result<PodmanKubeWorkloadId, RuntimeError> {
         let runtime_config =
             PodmanCli::read_data_from_volume(&(instance_name.to_string() + CONFIG_VOLUME_SUFFIX))
@@ -597,7 +596,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
 #[async_trait]
 // [impl->swdd~podman-kube-implements-runtime-state-getter~1]
 impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
-    async fn get_state(&self, id: &PodmanKubeWorkloadId) -> ExecutionStateInternal {
+    async fn get_state(&self, id: &PodmanKubeWorkloadId) -> ExecutionStateSpec {
         log::trace!("Getting the state for the workload '{}'", id.name);
         if let Some(pods) = &id.pods {
             // [impl->swdd~podman-kube-state-getter-uses-container-states~1]
@@ -619,12 +618,12 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
 
                 Err(err) => {
                     log::warn!("Could not get state of workload '{}': {}", id.name, err);
-                    ExecutionStateInternal::unknown("Error getting state from pods.")
+                    ExecutionStateSpec::unknown("Error getting state from pods.")
                 }
             }
         } else {
             log::warn!("No pods in the workload '{}'", id.name.workload_name());
-            ExecutionStateInternal::succeeded()
+            ExecutionStateSpec::succeeded()
         }
     }
 }
@@ -660,22 +659,18 @@ impl From<podman_cli::ContainerState> for OrderedExecutionState {
 }
 
 // [impl->swdd~podman-kube-state-getter-maps-state~2]
-impl From<OrderedExecutionState> for ExecutionStateInternal {
+impl From<OrderedExecutionState> for ExecutionStateSpec {
     fn from(value: OrderedExecutionState) -> Self {
         match value {
-            OrderedExecutionState::Failed(value) => ExecutionStateInternal::failed(value),
-            OrderedExecutionState::Starting => {
-                ExecutionStateInternal::starting("starting container")
-            }
+            OrderedExecutionState::Failed(value) => ExecutionStateSpec::failed(value),
+            OrderedExecutionState::Starting => ExecutionStateSpec::starting("starting container"),
             OrderedExecutionState::Unknown => {
-                ExecutionStateInternal::unknown("unknown container state")
+                ExecutionStateSpec::unknown("unknown container state")
             }
-            OrderedExecutionState::Running => ExecutionStateInternal::running(),
-            OrderedExecutionState::Stopping => {
-                ExecutionStateInternal::stopping("stopping container")
-            }
-            OrderedExecutionState::Succeeded => ExecutionStateInternal::succeeded(),
-            OrderedExecutionState::Lost => ExecutionStateInternal::lost(),
+            OrderedExecutionState::Running => ExecutionStateSpec::running(),
+            OrderedExecutionState::Stopping => ExecutionStateSpec::stopping("stopping container"),
+            OrderedExecutionState::Succeeded => ExecutionStateSpec::succeeded(),
+            OrderedExecutionState::Lost => ExecutionStateSpec::lost(),
         }
     }
 }
@@ -705,8 +700,8 @@ mod tests {
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     use api::ank_base::{
-        AccessRightsRuleInternal, ExecutionStateInternal, ReadWriteEnum,
-        WorkloadInstanceNameInternal, WorkloadInternal, WorkloadNamed,
+        AccessRightsRuleSpec, ExecutionStateSpec, ReadWriteEnum, WorkloadInstanceNameSpec,
+        WorkloadNamed, WorkloadSpec,
     };
     use api::test_utils::{
         generate_test_workload_with_param, generate_test_workload_with_runtime_config,
@@ -723,8 +718,8 @@ mod tests {
     const SAMPLE_WORKLOAD: &str = "workload_A";
 
     lazy_static! {
-        pub static ref WORKLOAD_INSTANCE_NAME: WorkloadInstanceNameInternal =
-            WorkloadInstanceNameInternal::builder()
+        pub static ref WORKLOAD_INSTANCE_NAME: WorkloadInstanceNameSpec =
+            WorkloadInstanceNameSpec::builder()
                 .agent_name(SAMPLE_AGENT)
                 .workload_name(SAMPLE_WORKLOAD)
                 .config(&SAMPLE_RUNTIME_CONFIG.to_string())
@@ -763,7 +758,7 @@ mod tests {
             workload_instance_2.as_config_volume(),
         ]));
 
-        let mut workload: WorkloadInternal = generate_test_workload_with_param(
+        let mut workload: WorkloadSpec = generate_test_workload_with_param(
             "agent_A".to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
         );
@@ -792,7 +787,7 @@ mod tests {
             workloads
                 .iter()
                 .map(|x| x.workload_state.instance_name.clone())
-                .collect::<Vec<WorkloadInstanceNameInternal>>(),
+                .collect::<Vec<WorkloadInstanceNameSpec>>(),
             [
                 workload_instance_1.try_into().unwrap(),
                 workload_instance_2.try_into().unwrap()
@@ -817,7 +812,7 @@ mod tests {
         let invalid_workload_instance = "hash_1.agent_A";
         let workload_instance = "workload_2.hash_2.agent_A";
 
-        let mut workload: WorkloadInternal = generate_test_workload_with_param(
+        let mut workload: WorkloadSpec = generate_test_workload_with_param(
             "agent_A".to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
         );
@@ -845,7 +840,7 @@ mod tests {
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
         assert!(
-            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceNameInternal>>() == [workload_instance.try_into().unwrap()])
+            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceNameSpec>>() == [workload_instance.try_into().unwrap()])
         );
     }
 
@@ -853,7 +848,7 @@ mod tests {
     async fn utest_get_reusable_workloads_handles_to_short_volume_name() {
         let workload_instance = "workload_2.hash_2.agent_A";
 
-        let mut workload: WorkloadInternal = generate_test_workload_with_param(
+        let mut workload: WorkloadSpec = generate_test_workload_with_param(
             "agent_A".to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
         );
@@ -883,7 +878,7 @@ mod tests {
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
         assert!(
-            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceNameInternal>>() == [workload_instance.try_into().unwrap()])
+            matches!(workloads, Ok(res) if res.iter().map(|x| x.workload_state.instance_name.clone()).collect::<Vec<WorkloadInstanceNameSpec>>() == [workload_instance.try_into().unwrap()])
         );
     }
 
@@ -1333,7 +1328,7 @@ mod tests {
 
         assert_eq!(
             execution_state,
-            ExecutionStateInternal::failed("Exit code: '1'")
+            ExecutionStateSpec::failed("Exit code: '1'")
         );
     }
 
@@ -1360,7 +1355,7 @@ mod tests {
 
         assert_eq!(
             execution_state,
-            ExecutionStateInternal::starting("starting container")
+            ExecutionStateSpec::starting("starting container")
         );
     }
 
@@ -1385,7 +1380,7 @@ mod tests {
 
         assert_eq!(
             execution_state,
-            ExecutionStateInternal::unknown("unknown container state")
+            ExecutionStateSpec::unknown("unknown container state")
         );
     }
 
@@ -1409,7 +1404,7 @@ mod tests {
 
         assert_eq!(
             execution_state,
-            ExecutionStateInternal::unknown("unknown container state")
+            ExecutionStateSpec::unknown("unknown container state")
         );
     }
 
@@ -1427,7 +1422,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionStateInternal::running());
+        assert_eq!(execution_state, ExecutionStateSpec::running());
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -1444,7 +1439,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionStateInternal::succeeded());
+        assert_eq!(execution_state, ExecutionStateSpec::succeeded());
     }
 
     // [utest->swdd~podman-kube-state-getter-removed-if-no-container~1]
@@ -1461,7 +1456,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionStateInternal::lost())
+        assert_eq!(execution_state, ExecutionStateSpec::lost())
     }
 
     #[tokio::test]
@@ -1477,7 +1472,7 @@ mod tests {
 
         assert_eq!(
             execution_state,
-            ExecutionStateInternal::unknown("Error getting state from pods.")
+            ExecutionStateSpec::unknown("Error getting state from pods.")
         );
     }
 
@@ -1491,7 +1486,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&workload_id).await;
 
-        assert_eq!(execution_state, ExecutionStateInternal::succeeded());
+        assert_eq!(execution_state, ExecutionStateSpec::succeeded());
     }
 
     #[test]
@@ -1509,7 +1504,7 @@ spec:
         let runtime_config = format!(
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
         );
-        let mut workload: WorkloadInternal = generate_test_workload_with_runtime_config(
+        let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
@@ -1539,7 +1534,7 @@ spec:
         let runtime_config = format!(
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod-test-container", "manifest": {manifest_str:?}}}"#
         );
-        let mut workload: WorkloadInternal = generate_test_workload_with_runtime_config(
+        let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
@@ -1567,7 +1562,7 @@ spec:
         let runtime_config = format!(
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], "manifest": {manifest_str:?}}}"#
         );
-        let mut workload: WorkloadInternal = generate_test_workload_with_runtime_config(
+        let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
@@ -1598,7 +1593,7 @@ spec:
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
         );
 
-        let mut workload: WorkloadInternal = generate_test_workload_with_runtime_config(
+        let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
             SAMPLE_AGENT.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
@@ -1787,7 +1782,7 @@ spec:
         );
         workload.workload.files = Default::default();
         workload.workload.control_interface_access.allow_rules =
-            vec![AccessRightsRuleInternal::state_rule(
+            vec![AccessRightsRuleSpec::state_rule(
                 ReadWriteEnum::RwReadWrite,
                 vec!["desiredState".to_string()],
             )];
@@ -2075,7 +2070,7 @@ spec:
         );
 
         workload.workload.control_interface_access.allow_rules =
-            vec![AccessRightsRuleInternal::state_rule(
+            vec![AccessRightsRuleSpec::state_rule(
                 ReadWriteEnum::RwReadWrite,
                 vec!["desiredState".to_string()],
             )];
@@ -2135,7 +2130,7 @@ spec:
 
         workload.workload.files = Default::default();
         workload.workload.control_interface_access.allow_rules =
-            vec![AccessRightsRuleInternal::state_rule(
+            vec![AccessRightsRuleSpec::state_rule(
                 ReadWriteEnum::RwReadWrite,
                 vec!["desiredState".to_string()],
             )];

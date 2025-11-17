@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::ExecutionStateInternal;
+use api::ank_base::ExecutionStateSpec;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -47,26 +47,24 @@ pub struct NerdctlStartConfig {
 }
 
 // [impl->swdd~containerd-state-getter-maps-state~1]
-impl From<NerdctlContainerInfo> for ExecutionStateInternal {
+impl From<NerdctlContainerInfo> for ExecutionStateSpec {
     fn from(value: NerdctlContainerInfo) -> Self {
         match value.state.status.to_lowercase().as_str() {
-            "created" => ExecutionStateInternal::starting(value.state.status),
-            "exited" if value.state.exit_code == 0 => ExecutionStateInternal::succeeded(),
+            "created" => ExecutionStateSpec::starting(value.state.status),
+            "exited" if value.state.exit_code == 0 => ExecutionStateSpec::succeeded(),
             "exited" if value.state.exit_code != 0 => {
-                ExecutionStateInternal::failed(format!("Exit code: '{}'", value.state.exit_code))
+                ExecutionStateSpec::failed(format!("Exit code: '{}'", value.state.exit_code))
             }
-            "running" => ExecutionStateInternal::running(),
-            "removing" => ExecutionStateInternal::stopping(value.state.status),
-            "paused" => ExecutionStateInternal::unknown(value.state.status),
-            "restarting" => ExecutionStateInternal::starting(value.state.status),
-            "dead" => {
-                ExecutionStateInternal::failed(format!("Exit code: '{}'", value.state.exit_code))
-            }
+            "running" => ExecutionStateSpec::running(),
+            "removing" => ExecutionStateSpec::stopping(value.state.status),
+            "paused" => ExecutionStateSpec::unknown(value.state.status),
+            "restarting" => ExecutionStateSpec::starting(value.state.status),
+            "dead" => ExecutionStateSpec::failed(format!("Exit code: '{}'", value.state.exit_code)),
             state => {
                 log::trace!(
                     "Mapping the container state '{state}' to the execution state 'ExecUnknown'"
                 );
-                ExecutionStateInternal::unknown(state)
+                ExecutionStateSpec::unknown(state)
             }
         }
     }
@@ -127,7 +125,7 @@ impl Deref for TimedNerdctlPsResult {
 // [impl->swdd~containerd-nerdctlcli-container-state-cache-all-containers~1]
 #[derive(Debug)]
 struct NerdctlPsResult {
-    container_states: Result<HashMap<String, ExecutionStateInternal>, String>,
+    container_states: Result<HashMap<String, ExecutionStateSpec>, String>,
 }
 
 impl From<Result<Vec<NerdctlContainerInfo>, String>> for NerdctlPsResult {
@@ -302,7 +300,7 @@ impl NerdctlCli {
     // [impl->swdd~containerd-nerdctlcli-uses-container-state-cache~1]
     pub async fn list_states_by_id(
         workload_id: &str,
-    ) -> Result<Option<ExecutionStateInternal>, String> {
+    ) -> Result<Option<ExecutionStateSpec>, String> {
         let ps_result = LAST_PS_RESULT.get().await;
         let all_containers_states = ps_result
             .as_ref()
@@ -454,7 +452,7 @@ where
 mod tests {
     use super::{NERDCTL_CMD, NerdctlCli, NerdctlPsCache};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
-    use api::ank_base::ExecutionStateInternal;
+    use api::ank_base::ExecutionStateSpec;
 
     use serde::Serialize;
     use std::collections::HashMap;
@@ -849,7 +847,7 @@ mod tests {
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionStateInternal::starting("created"))));
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::starting("created"))));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -887,7 +885,7 @@ mod tests {
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionStateInternal::succeeded())));
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::succeeded())));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -924,10 +922,7 @@ mod tests {
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(
-            res,
-            Ok(Some(ExecutionStateInternal::failed("Exit code: '1'")))
-        );
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::failed("Exit code: '1'"))));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -965,7 +960,7 @@ mod tests {
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionStateInternal::running())));
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -1002,7 +997,7 @@ mod tests {
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionStateInternal::stopping("removing"))));
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::stopping("removing"))));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -1044,9 +1039,7 @@ mod tests {
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
         assert_eq!(
             res,
-            Ok(Some(ExecutionStateInternal::unknown(
-                expected_container_status
-            )))
+            Ok(Some(ExecutionStateSpec::unknown(expected_container_status)))
         );
     }
 
@@ -1084,10 +1077,7 @@ mod tests {
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(
-            res,
-            Ok(Some(ExecutionStateInternal::starting("restarting")))
-        );
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::starting("restarting"))));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -1124,10 +1114,7 @@ mod tests {
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(
-            res,
-            Ok(Some(ExecutionStateInternal::failed("Exit code: '1'")))
-        );
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::failed("Exit code: '1'"))));
     }
 
     // [utest->swdd~containerd-state-getter-maps-state~1]
@@ -1165,7 +1152,7 @@ mod tests {
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionStateInternal::unknown("unknown"))));
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::unknown("unknown"))));
     }
 
     // [utest->swdd~containerd-container-state-cache-refresh~1]
@@ -1227,7 +1214,7 @@ mod tests {
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionStateInternal::running())));
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
     }
 
     // [utest->swdd~containerd-container-state-cache-refresh~1]
@@ -1245,7 +1232,7 @@ mod tests {
             cache: Arc::new(super::NerdctlPsResult {
                 container_states: Ok([(
                     WORKLOAD_ID.into(),
-                    ExecutionStateInternal::failed("Some error"),
+                    ExecutionStateSpec::failed("Some error"),
                 )]
                 .into_iter()
                 .collect()),
@@ -1278,7 +1265,7 @@ mod tests {
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionStateInternal::running())));
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
     }
 
     // [utest->swdd~containerd-container-state-cache-refresh~1]
@@ -1340,7 +1327,7 @@ mod tests {
         );
 
         let res = NerdctlCli::list_states_by_id(WORKLOAD_ID).await;
-        assert_eq!(res, Ok(Some(ExecutionStateInternal::running())));
+        assert_eq!(res, Ok(Some(ExecutionStateSpec::running())));
     }
 
     // [utest->swdd~containerd-nerdctlcli-removes-workloads-by-id~1]

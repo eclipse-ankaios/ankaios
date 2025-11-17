@@ -16,7 +16,7 @@ use super::{CliCommands, InputSourcePair};
 use crate::cli_error::CliError;
 use crate::{cli::ApplyArgs, output, output_debug};
 
-use api::ank_base::{ALLOWED_SYMBOLS, CompleteStateInternal, StateInternal, validate_tags};
+use api::ank_base::{ALLOWED_SYMBOLS, CompleteStateSpec, StateSpec, validate_tags};
 use api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
@@ -94,7 +94,7 @@ pub fn handle_agent_overwrite(
     filter_masks: &Vec<Path>,
     cli_specified_agent_name: &Option<String>,
     mut state_obj: Object,
-) -> Result<StateInternal, String> {
+) -> Result<StateSpec, String> {
     for mask_path in filter_masks {
         if mask_path.parts().starts_with(&["workloads".into()]) {
             let workload_agent_mask: Path = format!("{}.agent", String::from(mask_path)).into();
@@ -170,8 +170,8 @@ pub fn create_filter_masks_from_paths(paths: &[Path], prefix: &str) -> Vec<Strin
 pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
-) -> Result<Option<(CompleteStateInternal, Vec<String>)>, String> {
-    let mut req_obj: Object = StateInternal::default().try_into().unwrap();
+) -> Result<Option<(CompleteStateSpec, Vec<String>)>, String> {
+    let mut req_obj: Object = StateSpec::default().try_into().unwrap();
     let mut req_paths: Vec<Path> = Vec::new();
     for manifest in manifests.iter_mut() {
         let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
@@ -190,13 +190,13 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
 
     let complete_state_req_obj = if apply_args.delete_mode {
-        CompleteStateInternal {
+        CompleteStateSpec {
             ..Default::default()
         }
     } else {
         let state_from_req_obj =
             handle_agent_overwrite(&req_paths, &apply_args.agent_name, req_obj)?;
-        CompleteStateInternal {
+        CompleteStateSpec {
             desired_state: state_from_req_obj,
             ..Default::default()
         }
@@ -251,8 +251,8 @@ mod tests {
     };
 
     use api::ank_base::{
-        CompleteState, CompleteStateInternal, ExecutionStateInternal, Response, ResponseContent,
-        StateInternal, UpdateStateSuccess, WorkloadNamed, WorkloadStateInternal,
+        CompleteState, CompleteStateSpec, ExecutionStateSpec, Response, ResponseContent, StateSpec,
+        UpdateStateSuccess, WorkloadNamed, WorkloadStateSpec,
     };
     use api::test_utils::{generate_test_state_from_workloads, generate_test_workload_with_param};
     use common::{
@@ -318,7 +318,7 @@ mod tests {
         ))
         .unwrap();
 
-        assert!(TryInto::<StateInternal>::try_into(obj).is_err());
+        assert!(TryInto::<StateSpec>::try_into(obj).is_err());
         assert!(paths.is_empty());
     }
 
@@ -697,11 +697,11 @@ mod tests {
         let _ = manifest_content.clone().read_to_string(&mut data);
 
         // Error("workloads: invalid type: string \"ALWAYS\", expected i32", line: 3, column: 9)
-        let expected_complete_state_obj = CompleteStateInternal {
+        let expected_complete_state_obj = CompleteStateSpec {
             desired_state: serde_yaml::from_str(&data).unwrap(),
             ..Default::default()
         };
-        // let expected_complete_state_obj: CompleteStateInternal =
+        // let expected_complete_state_obj: CompleteStateSpec =
         //     expected_complete_state_obj.try_into().unwrap();
 
         let expected_filter_masks = vec!["desiredState.workloads.simple".to_string()];
@@ -737,7 +737,7 @@ mod tests {
             commandOptions: [\"-p\", \"8081:80\"]",
         );
 
-        let expected_complete_state_obj = CompleteStateInternal {
+        let expected_complete_state_obj = CompleteStateSpec {
             ..Default::default()
         };
 
@@ -780,7 +780,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteStateInternal {
+        let updated_state = CompleteStateSpec {
             ..Default::default()
         };
 
@@ -810,9 +810,9 @@ mod tests {
             .expect_read_next_update_workload_state()
             .return_once(|| {
                 Ok(UpdateWorkloadState {
-                    workload_states: vec![WorkloadStateInternal {
+                    workload_states: vec![WorkloadStateSpec {
                         instance_name: "name4.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionStateInternal::removed(),
+                        execution_state: ExecutionStateSpec::removed(),
                     }],
                 })
             });
@@ -861,7 +861,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteStateInternal {
+        let updated_state = CompleteStateSpec {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
@@ -888,7 +888,7 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok(CompleteState::from(CompleteStateInternal {
+                Ok(CompleteState::from(CompleteStateSpec {
                     desired_state: updated_state.desired_state,
                     ..Default::default()
                 }))
@@ -902,9 +902,9 @@ mod tests {
                         response_content: Some(ResponseContent::Error(Default::default())),
                     }),
                     FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                        workload_states: vec![WorkloadStateInternal {
+                        workload_states: vec![WorkloadStateSpec {
                             instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
-                            execution_state: ExecutionStateInternal::running(),
+                            execution_state: ExecutionStateSpec::running(),
                         }],
                     }),
                 ]
@@ -913,9 +913,9 @@ mod tests {
             .expect_read_next_update_workload_state()
             .return_once(|| {
                 Ok(UpdateWorkloadState {
-                    workload_states: vec![WorkloadStateInternal {
+                    workload_states: vec![WorkloadStateSpec {
                         instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionStateInternal::running(),
+                        execution_state: ExecutionStateSpec::running(),
                     }],
                 })
             });
@@ -961,7 +961,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteStateInternal {
+        let updated_state = CompleteStateSpec {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
@@ -1076,7 +1076,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteStateInternal {
+        let updated_state = CompleteStateSpec {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
@@ -1098,7 +1098,7 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok(CompleteState::from(CompleteStateInternal {
+                Ok(CompleteState::from(CompleteStateSpec {
                     desired_state: updated_state.desired_state,
                     ..Default::default()
                 }))
@@ -1112,9 +1112,9 @@ mod tests {
                         response_content: Some(ResponseContent::Error(Default::default())),
                     }),
                     FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                        workload_states: vec![WorkloadStateInternal {
+                        workload_states: vec![WorkloadStateSpec {
                             instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
-                            execution_state: ExecutionStateInternal::running(),
+                            execution_state: ExecutionStateSpec::running(),
                         }],
                     }),
                 ]
@@ -1123,9 +1123,9 @@ mod tests {
             .expect_read_next_update_workload_state()
             .return_once(|| {
                 Ok(UpdateWorkloadState {
-                    workload_states: vec![WorkloadStateInternal {
+                    workload_states: vec![WorkloadStateSpec {
                         instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionStateInternal::running(),
+                        execution_state: ExecutionStateSpec::running(),
                     }],
                 })
             });

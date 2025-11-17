@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::workload_state::WorkloadStateSender;
-use api::ank_base::{ExecutionStateInternal, WorkloadNamed};
+use api::ank_base::{ExecutionStateSpec, WorkloadNamed};
 
 use async_trait::async_trait;
 #[cfg(test)]
@@ -28,7 +28,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     // [impl->swdd~allowed-workload-states~2]
-    async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionStateInternal;
+    async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionStateSpec;
 }
 
 // [impl->swdd~agent-general-state-checker-interface~1]

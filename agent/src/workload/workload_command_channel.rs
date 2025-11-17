@@ -17,7 +17,7 @@ use crate::{
     runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
     workload::WorkloadCommand,
 };
-use api::ank_base::{WorkloadInstanceNameInternal, WorkloadNamed};
+use api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed};
 
 #[cfg(test)]
 use mockall_double::double;
@@ -51,7 +51,7 @@ impl WorkloadCommandSender {
 
     pub async fn retry(
         &self,
-        instance_name: WorkloadInstanceNameInternal,
+        instance_name: WorkloadInstanceNameSpec,
         retry_token: RetryToken,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         let sender = self.sender.clone();

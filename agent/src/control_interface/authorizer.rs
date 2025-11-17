@@ -17,8 +17,8 @@ mod path_pattern;
 mod rules;
 
 use api::ank_base::{
-    AccessRightsRuleEnumInternal, AccessRightsRuleInternal, ControlInterfaceAccessInternal,
-    ReadWriteEnum, RequestContentInternal, RequestInternal,
+    AccessRightsRuleEnumSpec, AccessRightsRuleSpec, ControlInterfaceAccessSpec, ReadWriteEnum,
+    RequestContentSpec, RequestSpec,
 };
 use path_pattern::{AllowPathPattern, DenyPathPattern, PathPatternMatcher};
 use rules::{LogRule, StateRule};
@@ -49,37 +49,37 @@ pub struct Authorizer {
 mock! {
     #[derive(Debug)]
     pub Authorizer {
-        pub fn authorize(&self, request: &RequestInternal) -> bool;
+        pub fn authorize(&self, request: &RequestSpec) -> bool;
     }
 
     impl PartialEq for Authorizer {
         fn eq(&self, other: &Self) -> bool;
     }
 
-    impl From<&ControlInterfaceAccessInternal> for Authorizer {
-        fn from(value: &ControlInterfaceAccessInternal) -> Self;
+    impl From<&ControlInterfaceAccessSpec> for Authorizer {
+        fn from(value: &ControlInterfaceAccessSpec) -> Self;
     }
 }
 
 impl Authorizer {
     // [impl->swdd~agent-authorizing-request-operations~2]
     // [impl->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
-    pub fn authorize(&self, request: &RequestInternal) -> bool {
+    pub fn authorize(&self, request: &RequestSpec) -> bool {
         match &request.request_content {
-            RequestContentInternal::CompleteStateRequest(r) => Self::check_state_rules(
+            RequestContentSpec::CompleteStateRequest(r) => Self::check_state_rules(
                 &request.request_id,
                 &r.field_mask,
                 &self.state_allow_read,
                 &self.state_deny_read,
             ),
-            RequestContentInternal::UpdateStateRequest(r) => Self::check_state_rules(
+            RequestContentSpec::UpdateStateRequest(r) => Self::check_state_rules(
                 &request.request_id,
                 &r.update_mask,
                 &self.state_allow_write,
                 &self.state_deny_write,
             ),
             // [impl->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
-            RequestContentInternal::LogsRequest(logs_request) => {
+            RequestContentSpec::LogsRequest(logs_request) => {
                 let not_allowed_workload =
                     logs_request.workload_names.iter().find(|instance_name| {
                         !self
@@ -119,7 +119,7 @@ impl Authorizer {
                 true
             }
             // [impl->swdd~agent-authorizing-logs-cancel-always-allowed~1]
-            RequestContentInternal::LogsCancelRequest(_) => true,
+            RequestContentSpec::LogsCancelRequest(_) => true,
         }
     }
 
@@ -168,15 +168,15 @@ impl Authorizer {
 }
 
 // [impl->swdd~agent-authorizing-request-operations~2]
-impl From<&ControlInterfaceAccessInternal> for Authorizer {
-    fn from(value: &ControlInterfaceAccessInternal) -> Self {
+impl From<&ControlInterfaceAccessSpec> for Authorizer {
+    fn from(value: &ControlInterfaceAccessSpec) -> Self {
         struct ReadWriteFiltered<T: PathPattern> {
             state_read: Vec<Arc<StateRule<T>>>,
             state_write: Vec<Arc<StateRule<T>>>,
             log: Vec<LogRule>,
         }
 
-        fn split_rules<T>(rule_list: &[AccessRightsRuleInternal]) -> ReadWriteFiltered<T>
+        fn split_rules<T>(rule_list: &[AccessRightsRuleSpec]) -> ReadWriteFiltered<T>
         where
             T: PathPattern,
             T: for<'a> From<&'a str>,
@@ -189,7 +189,7 @@ impl From<&ControlInterfaceAccessInternal> for Authorizer {
 
             for access_rule in rule_list {
                 match &access_rule.access_rights_rule_enum {
-                    AccessRightsRuleEnumInternal::StateRule(state_rule) => {
+                    AccessRightsRuleEnumSpec::StateRule(state_rule) => {
                         let rule = Arc::new(StateRule::<T>::create(
                             state_rule
                                 .filter_masks
@@ -207,7 +207,7 @@ impl From<&ControlInterfaceAccessInternal> for Authorizer {
                             ReadWriteEnum::RwNothing => {}
                         }
                     }
-                    AccessRightsRuleEnumInternal::LogRule(log_rule) => {
+                    AccessRightsRuleEnumSpec::LogRule(log_rule) => {
                         res.log.push(log_rule.workload_names.clone().into());
                     }
                 }
@@ -246,9 +246,9 @@ mod test {
     };
 
     use api::ank_base::{
-        AccessRightsRuleInternal, CompleteStateRequestInternal, ControlInterfaceAccessInternal,
-        LogsCancelRequestInternal, LogsRequestInternal, ReadWriteEnum, RequestContentInternal,
-        RequestInternal, UpdateStateRequestInternal, WorkloadInstanceNameInternal,
+        AccessRightsRuleSpec, CompleteStateRequestSpec, ControlInterfaceAccessSpec,
+        LogsCancelRequestSpec, LogsRequestSpec, ReadWriteEnum, RequestContentSpec, RequestSpec,
+        UpdateStateRequestSpec, WorkloadInstanceNameSpec,
     };
     use std::sync::Arc;
 
@@ -341,16 +341,16 @@ mod test {
     #[test]
     fn utest_request_without_filter_mask() {
         let mut authorizer = Authorizer::default();
-        let complete_state_request = RequestInternal {
+        let complete_state_request = RequestSpec {
             request_id: "".into(),
-            request_content: RequestContentInternal::CompleteStateRequest(
-                CompleteStateRequestInternal { field_mask: vec![] },
-            ),
+            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+                field_mask: vec![],
+            }),
         };
-        let update_state_request = RequestInternal {
+        let update_state_request = RequestSpec {
             request_id: "".into(),
-            request_content: RequestContentInternal::UpdateStateRequest(Box::new(
-                UpdateStateRequestInternal {
+            request_content: RequestContentSpec::UpdateStateRequest(Box::new(
+                UpdateStateRequestSpec {
                     new_state: Default::default(),
                     update_mask: vec![],
                 },
@@ -379,13 +379,11 @@ mod test {
     // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
     fn utest_read_requests_operations() {
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: "".into(),
-            request_content: RequestContentInternal::CompleteStateRequest(
-                CompleteStateRequestInternal {
-                    field_mask: vec![MATCHING_PATH.into()],
-                },
-            ),
+            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+                field_mask: vec![MATCHING_PATH.into()],
+            }),
         };
 
         let authorizer = Authorizer::default();
@@ -419,10 +417,10 @@ mod test {
     // [utest->swdd~agent-authorizing-condition-element-filter-mask-allowed~1]
     #[test]
     fn utest_write_requests_operations() {
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: "".into(),
-            request_content: RequestContentInternal::UpdateStateRequest(Box::new(
-                UpdateStateRequestInternal {
+            request_content: RequestContentSpec::UpdateStateRequest(Box::new(
+                UpdateStateRequestSpec {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into()],
                 },
@@ -462,20 +460,18 @@ mod test {
         let authorizer =
             create_authorizer(&[RuleType::StateAllowReadWrite(vec![MATCHING_PATH.into()])]);
 
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: "".into(),
-            request_content: RequestContentInternal::CompleteStateRequest(
-                CompleteStateRequestInternal {
-                    field_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
-                },
-            ),
+            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+                field_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
+            }),
         };
         assert!(authorizer.authorize(&request));
 
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: "".into(),
-            request_content: RequestContentInternal::UpdateStateRequest(Box::new(
-                UpdateStateRequestInternal {
+            request_content: RequestContentSpec::UpdateStateRequest(Box::new(
+                UpdateStateRequestSpec {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
                 },
@@ -490,20 +486,18 @@ mod test {
         let authorizer =
             create_authorizer(&[RuleType::StateAllowReadWrite(vec![MATCHING_PATH.into()])]);
 
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: "".into(),
-            request_content: RequestContentInternal::CompleteStateRequest(
-                CompleteStateRequestInternal {
-                    field_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
-                },
-            ),
+            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+                field_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
+            }),
         };
         assert!(!authorizer.authorize(&request));
 
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: "".into(),
-            request_content: RequestContentInternal::UpdateStateRequest(Box::new(
-                UpdateStateRequestInternal {
+            request_content: RequestContentSpec::UpdateStateRequest(Box::new(
+                UpdateStateRequestSpec {
                     new_state: Default::default(),
                     update_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
                 },
@@ -515,9 +509,9 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_request_empty_is_allowed() {
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: "".into(),
-            request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
+            request_content: RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: vec![],
                 follow: false,
                 tail: -1,
@@ -533,10 +527,10 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_requests_general_cases() {
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: "".into(),
-            request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
-                workload_names: vec![WorkloadInstanceNameInternal::new("", WORKLOAD_NAME, "")],
+            request_content: RequestContentSpec::LogsRequest(LogsRequestSpec {
+                workload_names: vec![WorkloadInstanceNameSpec::new("", WORKLOAD_NAME, "")],
                 follow: false,
                 tail: -1,
                 since: None,
@@ -569,13 +563,13 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-if-all-requested-workloads-allowed~1]
     #[test]
     fn utest_log_requests_complex_cases() {
-        fn request(workloads: &[&str]) -> RequestInternal {
-            RequestInternal {
+        fn request(workloads: &[&str]) -> RequestSpec {
+            RequestSpec {
                 request_id: "".into(),
-                request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
+                request_content: RequestContentSpec::LogsRequest(LogsRequestSpec {
                     workload_names: workloads
                         .iter()
-                        .map(|name| WorkloadInstanceNameInternal::new("", *name, ""))
+                        .map(|name| WorkloadInstanceNameSpec::new("", *name, ""))
                         .collect(),
                     follow: false,
                     tail: -1,
@@ -603,11 +597,9 @@ mod test {
     // [utest->swdd~agent-authorizing-logs-cancel-always-allowed~1]
     #[test]
     fn utest_log_cancel_request() {
-        let request = RequestInternal {
+        let request = RequestSpec {
             request_id: "".into(),
-            request_content: RequestContentInternal::LogsCancelRequest(
-                LogsCancelRequestInternal {},
-            ),
+            request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
         };
 
         let authorizer = Authorizer::default();
@@ -626,36 +618,36 @@ mod test {
     // [utest->swdd~agent-authorizing-request-operations~2]
     #[test]
     fn utest_authorizer_from_control_interface_access() {
-        let control_interface_access = ControlInterfaceAccessInternal {
+        let control_interface_access = ControlInterfaceAccessSpec {
             allow_rules: vec![
-                AccessRightsRuleInternal::state_rule(
+                AccessRightsRuleSpec::state_rule(
                     ReadWriteEnum::RwRead,
                     vec!["state.allow.read.mask".into()],
                 ),
-                AccessRightsRuleInternal::state_rule(
+                AccessRightsRuleSpec::state_rule(
                     ReadWriteEnum::RwWrite,
                     vec!["state.allow.write.mask".into()],
                 ),
-                AccessRightsRuleInternal::state_rule(
+                AccessRightsRuleSpec::state_rule(
                     ReadWriteEnum::RwReadWrite,
                     vec!["state.allow.read.write.mask".into()],
                 ),
-                AccessRightsRuleInternal::log_rule(vec!["allowed_workload".into()]),
+                AccessRightsRuleSpec::log_rule(vec!["allowed_workload".into()]),
             ],
             deny_rules: vec![
-                AccessRightsRuleInternal::state_rule(
+                AccessRightsRuleSpec::state_rule(
                     ReadWriteEnum::RwRead,
                     vec!["state.deny.read.mask".into()],
                 ),
-                AccessRightsRuleInternal::state_rule(
+                AccessRightsRuleSpec::state_rule(
                     ReadWriteEnum::RwWrite,
                     vec!["state.deny.write.mask".into()],
                 ),
-                AccessRightsRuleInternal::state_rule(
+                AccessRightsRuleSpec::state_rule(
                     ReadWriteEnum::RwReadWrite,
                     vec!["state.deny.read.write.mask".into()],
                 ),
-                AccessRightsRuleInternal::log_rule(vec!["denied_workload".into()]),
+                AccessRightsRuleSpec::log_rule(vec!["denied_workload".into()]),
             ],
         };
         let authorizer = Authorizer::from(&control_interface_access);

@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    AddCondition, DependenciesInternal, ExecutionStateInternal, RestartPolicy,
-    WorkloadInstanceNameInternal, WorkloadInternal,
+    AddCondition, DependenciesSpec, ExecutionStateSpec, RestartPolicy, WorkloadInstanceNameSpec,
+    WorkloadSpec,
 };
 use crate::helpers::serialize_to_ordered_map;
 use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
@@ -33,14 +33,14 @@ pub const STR_RE_CONFIG_REFERENCES: &str = r"^[a-zA-Z0-9_-]*$";
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct WorkloadNamed {
     #[serde(skip)]
-    pub instance_name: WorkloadInstanceNameInternal,
+    pub instance_name: WorkloadInstanceNameSpec,
     #[serde(flatten)]
-    pub workload: WorkloadInternal,
+    pub workload: WorkloadSpec,
 }
 
-impl From<(String, WorkloadInternal)> for WorkloadNamed {
-    fn from((workload_name, workload): (String, WorkloadInternal)) -> Self {
-        let instance_name = WorkloadInstanceNameInternal::builder()
+impl From<(String, WorkloadSpec)> for WorkloadNamed {
+    fn from((workload_name, workload): (String, WorkloadSpec)) -> Self {
+        let instance_name = WorkloadInstanceNameSpec::builder()
             .agent_name(workload.agent.clone())
             .workload_name(workload_name)
             .config(&workload.runtime_config)
@@ -53,7 +53,7 @@ impl From<(String, WorkloadInternal)> for WorkloadNamed {
     }
 }
 
-impl From<WorkloadNamed> for WorkloadInternal {
+impl From<WorkloadNamed> for WorkloadSpec {
     fn from(item: WorkloadNamed) -> Self {
         item.workload
     }
@@ -107,7 +107,7 @@ fn verify_agent_name_format(agent_name: &str) -> Result<(), String> {
     }
 }
 
-impl WorkloadInternal {
+impl WorkloadSpec {
     pub fn needs_control_interface(&self) -> bool {
         !self.control_interface_access.allow_rules.is_empty()
     }
@@ -134,9 +134,9 @@ impl WorkloadInternal {
     }
 }
 
-impl From<HashMap<String, AddCondition>> for DependenciesInternal {
+impl From<HashMap<String, AddCondition>> for DependenciesSpec {
     fn from(value: HashMap<String, AddCondition>) -> Self {
-        DependenciesInternal {
+        DependenciesSpec {
             dependencies: value,
         }
     }
@@ -162,7 +162,7 @@ pub trait FulfilledBy<T> {
 // [impl->swdd~common-object-serialization~1]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
 pub struct DeletedWorkload {
-    pub instance_name: WorkloadInstanceNameInternal,
+    pub instance_name: WorkloadInstanceNameSpec,
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, DeleteCondition>,
 }
@@ -175,9 +175,9 @@ pub enum DeleteCondition {
     DelCondNotPendingNorRunning = 1,
 }
 
-impl FulfilledBy<ExecutionStateInternal> for AddCondition {
+impl FulfilledBy<ExecutionStateSpec> for AddCondition {
     // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
-    fn fulfilled_by(&self, other: &ExecutionStateInternal) -> bool {
+    fn fulfilled_by(&self, other: &ExecutionStateSpec) -> bool {
         match self {
             AddCondition::AddCondRunning => (*other).is_running(),
             AddCondition::AddCondSucceeded => (*other).is_succeeded(),
@@ -186,9 +186,9 @@ impl FulfilledBy<ExecutionStateInternal> for AddCondition {
     }
 }
 
-impl FulfilledBy<ExecutionStateInternal> for DeleteCondition {
+impl FulfilledBy<ExecutionStateSpec> for DeleteCondition {
     // [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
-    fn fulfilled_by(&self, other: &ExecutionStateInternal) -> bool {
+    fn fulfilled_by(&self, other: &ExecutionStateSpec) -> bool {
         if other.is_waiting_to_start() {
             return true;
         }
@@ -263,8 +263,7 @@ pub fn validate_tags(
 
 #[cfg(any(feature = "test_utils", test))]
 use crate::ank_base::{
-    ConfigMappingsInternal, FileContentInternal, FileInternal, FilesInternal, TagsInternal,
-    Workload,
+    ConfigMappingsSpec, FileContentSpec, FileSpec, FilesSpec, TagsSpec, Workload,
 };
 #[cfg(any(feature = "test_utils", test))]
 use crate::test_utils::generate_test_control_interface_access;
@@ -292,7 +291,7 @@ pub trait TestWorkloadFixture: Default {
 }
 
 #[cfg(any(feature = "test_utils", test))]
-impl TestWorkloadFixture for WorkloadInternal {
+impl TestWorkloadFixture for WorkloadSpec {
     fn generate_workload() -> Self {
         generate_test_workload_with_param("agent_A", "runtime_A")
     }
@@ -313,9 +312,9 @@ impl TestWorkloadFixture for WorkloadInternal {
         runtime_name: impl Into<String>,
         runtime_config: impl Into<String>,
     ) -> Self {
-        WorkloadInternal {
+        WorkloadSpec {
             agent: agent_name.into(),
-            dependencies: DependenciesInternal {
+            dependencies: DependenciesSpec {
                 dependencies: HashMap::from([
                     (String::from("workload_B"), AddCondition::AddCondRunning),
                     (String::from("workload_C"), AddCondition::AddCondSucceeded),
@@ -323,31 +322,31 @@ impl TestWorkloadFixture for WorkloadInternal {
             },
             restart_policy: RestartPolicy::Always,
             runtime: runtime_name.into(),
-            tags: TagsInternal {
+            tags: TagsSpec {
                 tags: HashMap::from([
                     ("tag1".into(), "val_1".into()),
                     ("tag2".into(), "val_2".into()),
                 ]),
             },
             runtime_config: runtime_config.into(),
-            configs: ConfigMappingsInternal {
+            configs: ConfigMappingsSpec {
                 configs: HashMap::from([
                     ("ref1".into(), "config_1".into()),
                     ("ref2".into(), "config_2".into()),
                 ]),
             },
             control_interface_access: generate_test_control_interface_access(),
-            files: FilesInternal {
+            files: FilesSpec {
                 files: vec![
-                    FileInternal {
+                    FileSpec {
                         mount_point: "/file.json".to_string(),
-                        file_content: FileContentInternal::Data {
+                        file_content: FileContentSpec::Data {
                             data: "text data".into(),
                         },
                     },
-                    FileInternal {
+                    FileSpec {
                         mount_point: "/binary_file".to_string(),
-                        file_content: FileContentInternal::BinaryData {
+                        file_content: FileContentSpec::BinaryData {
                             binary_data: "base64_data".into(),
                         },
                     },
@@ -360,14 +359,14 @@ impl TestWorkloadFixture for WorkloadInternal {
 #[cfg(any(feature = "test_utils", test))]
 impl TestWorkloadFixture for Workload {
     fn generate_workload() -> Self {
-        WorkloadInternal::generate_workload().into()
+        WorkloadSpec::generate_workload().into()
     }
 
     fn generate_workload_with_params(
         agent_name: impl Into<String>,
         runtime_name: impl Into<String>,
     ) -> Self {
-        WorkloadInternal::generate_workload_with_params(agent_name, runtime_name).into()
+        WorkloadSpec::generate_workload_with_params(agent_name, runtime_name).into()
     }
 
     fn generate_workload_with_runtime_config(
@@ -375,7 +374,7 @@ impl TestWorkloadFixture for Workload {
         runtime_name: impl Into<String>,
         runtime_config: impl Into<String>,
     ) -> Self {
-        WorkloadInternal::generate_workload_with_runtime_config(
+        WorkloadSpec::generate_workload_with_runtime_config(
             agent_name,
             runtime_name,
             runtime_config,
@@ -389,7 +388,7 @@ impl TestWorkloadFixture for WorkloadNamed {
     fn generate_workload() -> Self {
         (
             String::from("workload_A"),
-            WorkloadInternal::generate_workload(),
+            WorkloadSpec::generate_workload(),
         )
             .into()
     }
@@ -400,7 +399,7 @@ impl TestWorkloadFixture for WorkloadNamed {
     ) -> Self {
         (
             String::from("workload_A"),
-            WorkloadInternal::generate_workload_with_params(agent_name, runtime_name),
+            WorkloadSpec::generate_workload_with_params(agent_name, runtime_name),
         )
             .into()
     }
@@ -412,7 +411,7 @@ impl TestWorkloadFixture for WorkloadNamed {
     ) -> Self {
         (
             String::from("workload_A"),
-            WorkloadInternal::generate_workload_with_runtime_config(
+            WorkloadSpec::generate_workload_with_runtime_config(
                 agent_name,
                 runtime_name,
                 runtime_config,
@@ -455,8 +454,8 @@ pub fn generate_test_runtime_config() -> String {
 #[cfg(test)]
 mod tests {
     use crate::ank_base::{
-        AddCondition, DeleteCondition, ExecutionStateInternal, FulfilledBy, RestartPolicy,
-        WorkloadInternal, WorkloadNamed, verify_workload_name_format,
+        AddCondition, DeleteCondition, ExecutionStateSpec, FulfilledBy, RestartPolicy,
+        WorkloadNamed, WorkloadSpec, verify_workload_name_format,
     };
     use crate::test_utils::{
         generate_test_deleted_workload, generate_test_workload, generate_test_workload_with_param,
@@ -474,7 +473,7 @@ mod tests {
             invalid_config_reference_key.to_owned(),
         );
         assert_eq!(
-            WorkloadInternal::verify_config_reference_format(&configs),
+            WorkloadSpec::verify_config_reference_format(&configs),
             Err(format!(
                 "Unsupported config reference key. Received '{}', expected to have characters in {}",
                 invalid_config_reference_key,
@@ -548,14 +547,14 @@ mod tests {
     #[test]
     fn utest_add_condition_fulfilled_by_fulfilled() {
         let add_condition = AddCondition::AddCondRunning;
-        assert!(add_condition.fulfilled_by(&ExecutionStateInternal::running()));
+        assert!(add_condition.fulfilled_by(&ExecutionStateSpec::running()));
 
         let add_condition = AddCondition::AddCondSucceeded;
-        assert!(add_condition.fulfilled_by(&ExecutionStateInternal::succeeded()));
+        assert!(add_condition.fulfilled_by(&ExecutionStateSpec::succeeded()));
 
         let add_condition = AddCondition::AddCondFailed;
         assert!(
-            add_condition.fulfilled_by(&ExecutionStateInternal::failed("some failure".to_string()))
+            add_condition.fulfilled_by(&ExecutionStateSpec::failed("some failure".to_string()))
         );
     }
 
@@ -563,13 +562,13 @@ mod tests {
     #[test]
     fn utest_delete_condition_fulfilled_by() {
         let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionStateInternal::succeeded()));
+        assert!(delete_condition.fulfilled_by(&ExecutionStateSpec::succeeded()));
 
         let delete_condition = DeleteCondition::DelCondRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionStateInternal::running()));
+        assert!(delete_condition.fulfilled_by(&ExecutionStateSpec::running()));
 
         let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionStateInternal::waiting_to_start()));
+        assert!(delete_condition.fulfilled_by(&ExecutionStateSpec::waiting_to_start()));
     }
 
     // [utest->swdd~agent-supports-restart-policies~1]
@@ -598,7 +597,7 @@ mod tests {
     // [utest->swdd~common-workload-needs-control-interface~1]
     #[test]
     fn utest_needs_control_interface() {
-        let mut workload: WorkloadInternal = generate_test_workload(); // Generates with control interface access
+        let mut workload: WorkloadSpec = generate_test_workload(); // Generates with control interface access
         assert!(workload.needs_control_interface());
 
         workload.control_interface_access = Default::default(); // No rules

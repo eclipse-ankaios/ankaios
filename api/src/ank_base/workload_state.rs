@@ -13,52 +13,52 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    AgentDisconnected, ExecutionStateEnumInternal, ExecutionStateInternal, Failed, NotScheduled,
-    Pending, Removed, Running, Stopping, Succeeded, ExecutionState, ExecutionStateEnum,
+    AgentDisconnected, ExecutionState, ExecutionStateEnum, ExecutionStateEnumSpec,
+    ExecutionStateSpec, Failed, NotScheduled, Pending, Removed, Running, Stopping, Succeeded,
 };
 use std::fmt::Display;
 
 const TRIGGERED_MSG: &str = "Triggered at runtime.";
 pub const NO_MORE_RETRIES_MSG: &str = "No more retries";
 
-impl Default for ExecutionStateEnumInternal {
+impl Default for ExecutionStateEnumSpec {
     fn default() -> Self {
-        ExecutionStateEnumInternal::NotScheduled(NotScheduled::NotScheduled)
+        ExecutionStateEnumSpec::NotScheduled(NotScheduled::NotScheduled)
     }
 }
 
-impl Display for ExecutionStateEnumInternal {
+impl Display for ExecutionStateEnumSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
-            ExecutionStateEnumInternal::AgentDisconnected(_) => write!(f, "AgentDisconnected"),
-            ExecutionStateEnumInternal::Pending(substate) => write!(f, "Pending({substate:?})"),
-            ExecutionStateEnumInternal::Running(substate) => write!(f, "Running({substate:?})"),
-            ExecutionStateEnumInternal::Stopping(substate) => write!(f, "Stopping({substate:?})"),
-            ExecutionStateEnumInternal::Succeeded(substate) => {
+            ExecutionStateEnumSpec::AgentDisconnected(_) => write!(f, "AgentDisconnected"),
+            ExecutionStateEnumSpec::Pending(substate) => write!(f, "Pending({substate:?})"),
+            ExecutionStateEnumSpec::Running(substate) => write!(f, "Running({substate:?})"),
+            ExecutionStateEnumSpec::Stopping(substate) => write!(f, "Stopping({substate:?})"),
+            ExecutionStateEnumSpec::Succeeded(substate) => {
                 write!(f, "Succeeded({substate:?})")
             }
-            ExecutionStateEnumInternal::Failed(substate) => write!(f, "Failed({substate:?})"),
-            ExecutionStateEnumInternal::NotScheduled(_) => write!(f, "NotScheduled"),
-            ExecutionStateEnumInternal::Removed(_) => write!(f, "Removed"),
+            ExecutionStateEnumSpec::Failed(substate) => write!(f, "Failed({substate:?})"),
+            ExecutionStateEnumSpec::NotScheduled(_) => write!(f, "NotScheduled"),
+            ExecutionStateEnumSpec::Removed(_) => write!(f, "Removed"),
         }
     }
 }
 
-impl ExecutionStateInternal {
-    pub fn state(&self) -> &ExecutionStateEnumInternal {
+impl ExecutionStateSpec {
+    pub fn state(&self) -> &ExecutionStateEnumSpec {
         &self.execution_state_enum
     }
 
-    pub fn transition(&self, incoming: ExecutionStateInternal) -> ExecutionStateInternal {
+    pub fn transition(&self, incoming: ExecutionStateSpec) -> ExecutionStateSpec {
         match (&self.state(), &incoming.state()) {
             (
-                ExecutionStateEnumInternal::Stopping(Stopping::RequestedAtRuntime)
-                | ExecutionStateEnumInternal::Stopping(Stopping::WaitingToStop),
-                ExecutionStateEnumInternal::Running(Running::Ok)
-                | ExecutionStateEnumInternal::Succeeded(Succeeded::Ok)
-                | ExecutionStateEnumInternal::Failed(Failed::ExecFailed)
-                | ExecutionStateEnumInternal::Failed(Failed::Lost)
-                | ExecutionStateEnumInternal::Failed(Failed::Unknown),
+                ExecutionStateEnumSpec::Stopping(Stopping::RequestedAtRuntime)
+                | ExecutionStateEnumSpec::Stopping(Stopping::WaitingToStop),
+                ExecutionStateEnumSpec::Running(Running::Ok)
+                | ExecutionStateEnumSpec::Succeeded(Succeeded::Ok)
+                | ExecutionStateEnumSpec::Failed(Failed::ExecFailed)
+                | ExecutionStateEnumSpec::Failed(Failed::Lost)
+                | ExecutionStateEnumSpec::Failed(Failed::Unknown),
             ) => {
                 // log::trace!("Skipping transition from '{self}' to '{incoming}' state.");
                 self.clone()
@@ -68,40 +68,37 @@ impl ExecutionStateInternal {
     }
 }
 
-impl ExecutionStateInternal {
+impl ExecutionStateSpec {
     pub fn is_removed(&self) -> bool {
-        matches!(self.state(), ExecutionStateEnumInternal::Removed(_))
+        matches!(self.state(), ExecutionStateEnumSpec::Removed(_))
     }
 
     pub fn is_pending(&self) -> bool {
-        matches!(self.state(), ExecutionStateEnumInternal::Pending(_))
+        matches!(self.state(), ExecutionStateEnumSpec::Pending(_))
     }
 
     pub fn is_pending_initial(&self) -> bool {
         matches!(
             self.state(),
-            ExecutionStateEnumInternal::Pending(Pending::Initial)
+            ExecutionStateEnumSpec::Pending(Pending::Initial)
         )
     }
 
     pub fn is_running(&self) -> bool {
-        matches!(
-            self.state(),
-            ExecutionStateEnumInternal::Running(Running::Ok)
-        )
+        matches!(self.state(), ExecutionStateEnumSpec::Running(Running::Ok))
     }
 
     pub fn is_succeeded(&self) -> bool {
         matches!(
             self.state(),
-            ExecutionStateEnumInternal::Succeeded(Succeeded::Ok)
+            ExecutionStateEnumSpec::Succeeded(Succeeded::Ok)
         )
     }
 
     pub fn is_failed(&self) -> bool {
         matches!(
             self.state(),
-            ExecutionStateEnumInternal::Failed(Failed::ExecFailed)
+            ExecutionStateEnumSpec::Failed(Failed::ExecFailed)
         )
     }
 
@@ -112,20 +109,20 @@ impl ExecutionStateInternal {
     pub fn is_waiting_to_start(&self) -> bool {
         matches!(
             self.state(),
-            ExecutionStateEnumInternal::Pending(Pending::WaitingToStart)
+            ExecutionStateEnumSpec::Pending(Pending::WaitingToStart)
         )
     }
 
     pub fn is_waiting_to_stop(&self) -> bool {
         matches!(
             self.state(),
-            ExecutionStateEnumInternal::Stopping(Stopping::WaitingToStop)
+            ExecutionStateEnumSpec::Stopping(Stopping::WaitingToStop)
         )
     }
 
     pub fn agent_disconnected() -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::AgentDisconnected(
+            execution_state_enum: ExecutionStateEnumSpec::AgentDisconnected(
                 AgentDisconnected::AgentDisconnected,
             ),
             ..Default::default()
@@ -134,147 +131,143 @@ impl ExecutionStateInternal {
 
     pub fn starting_failed(additional_info: impl ToString) -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Pending(Pending::StartingFailed),
+            execution_state_enum: ExecutionStateEnumSpec::Pending(Pending::StartingFailed),
             additional_info: additional_info.to_string(),
         }
     }
 
     pub fn retry_starting(retry_count: u32, additional_info: impl ToString) -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Pending(Pending::Starting),
+            execution_state_enum: ExecutionStateEnumSpec::Pending(Pending::Starting),
             additional_info: format!("Retry {}: {}", retry_count, additional_info.to_string()),
         }
     }
 
     pub fn retry_failed_no_retry(additional_info: impl ToString) -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Pending(Pending::StartingFailed),
+            execution_state_enum: ExecutionStateEnumSpec::Pending(Pending::StartingFailed),
             additional_info: format!("{}: {}", NO_MORE_RETRIES_MSG, additional_info.to_string()),
         }
     }
 
     pub fn removed() -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Removed(Removed::Removed),
+            execution_state_enum: ExecutionStateEnumSpec::Removed(Removed::Removed),
             ..Default::default()
         }
     }
 
     pub fn unknown(additional_info: impl ToString) -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Failed(Failed::Unknown),
+            execution_state_enum: ExecutionStateEnumSpec::Failed(Failed::Unknown),
             additional_info: additional_info.to_string(),
         }
     }
 
     pub fn starting(additional_info: impl ToString) -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Pending(Pending::Starting),
+            execution_state_enum: ExecutionStateEnumSpec::Pending(Pending::Starting),
             additional_info: additional_info.to_string(),
         }
     }
 
     pub fn starting_triggered() -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Pending(Pending::Starting),
+            execution_state_enum: ExecutionStateEnumSpec::Pending(Pending::Starting),
             additional_info: TRIGGERED_MSG.to_string(),
         }
     }
 
     pub fn failed(additional_info: impl ToString) -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Failed(Failed::ExecFailed),
+            execution_state_enum: ExecutionStateEnumSpec::Failed(Failed::ExecFailed),
             additional_info: additional_info.to_string(),
         }
     }
 
     pub fn succeeded() -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Succeeded(Succeeded::Ok),
+            execution_state_enum: ExecutionStateEnumSpec::Succeeded(Succeeded::Ok),
             ..Default::default()
         }
     }
 
     pub fn running() -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Running(Running::Ok),
+            execution_state_enum: ExecutionStateEnumSpec::Running(Running::Ok),
             ..Default::default()
         }
     }
 
     pub fn stopping(additional_info: impl ToString) -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Stopping(Stopping::Stopping),
+            execution_state_enum: ExecutionStateEnumSpec::Stopping(Stopping::Stopping),
             additional_info: additional_info.to_string(),
         }
     }
 
     pub fn stopping_requested() -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Stopping(
-                Stopping::RequestedAtRuntime,
-            ),
+            execution_state_enum: ExecutionStateEnumSpec::Stopping(Stopping::RequestedAtRuntime),
             ..Default::default()
         }
     }
 
     pub fn delete_failed(additional_info: impl ToString) -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Stopping(Stopping::DeleteFailed),
+            execution_state_enum: ExecutionStateEnumSpec::Stopping(Stopping::DeleteFailed),
             additional_info: additional_info.to_string(),
         }
     }
 
     pub fn lost() -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Failed(Failed::Lost),
+            execution_state_enum: ExecutionStateEnumSpec::Failed(Failed::Lost),
             ..Default::default()
         }
     }
 
     pub fn waiting_to_start() -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Pending(Pending::WaitingToStart),
+            execution_state_enum: ExecutionStateEnumSpec::Pending(Pending::WaitingToStart),
             ..Default::default()
         }
     }
 
     pub fn waiting_to_stop() -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Stopping(Stopping::WaitingToStop),
+            execution_state_enum: ExecutionStateEnumSpec::Stopping(Stopping::WaitingToStop),
             ..Default::default()
         }
     }
 
     pub fn initial() -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::Pending(Pending::Initial),
+            execution_state_enum: ExecutionStateEnumSpec::Pending(Pending::Initial),
             ..Default::default()
         }
     }
 
     pub fn not_scheduled() -> Self {
         Self {
-            execution_state_enum: ExecutionStateEnumInternal::NotScheduled(
-                NotScheduled::NotScheduled,
-            ),
+            execution_state_enum: ExecutionStateEnumSpec::NotScheduled(NotScheduled::NotScheduled),
             ..Default::default()
         }
     }
 }
 
-impl ExecutionState{
+impl ExecutionState {
     pub fn agent_disconnected() -> Self {
         Self {
             execution_state_enum: Some(ExecutionStateEnum::AgentDisconnected(
-                AgentDisconnected::AgentDisconnected as i32),
-            ),
+                AgentDisconnected::AgentDisconnected as i32,
+            )),
             ..Default::default()
         }
     }
 }
 
-impl Display for ExecutionStateInternal {
+impl Display for ExecutionStateSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if !self.additional_info.is_empty() {
             write!(f, "{}: '{}'", self.state(), self.additional_info)
@@ -293,7 +286,7 @@ impl Display for ExecutionStateInternal {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-use crate::ank_base::{WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadNamed};
+use crate::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec};
 #[cfg(any(feature = "test_utils", test))]
 use crate::test_utils::generate_test_runtime_config;
 
@@ -301,10 +294,10 @@ use crate::test_utils::generate_test_runtime_config;
 pub fn generate_test_workload_state_with_agent(
     workload_name: &str,
     agent_name: &str,
-    execution_state: ExecutionStateInternal,
-) -> WorkloadStateInternal {
-    WorkloadStateInternal {
-        instance_name: WorkloadInstanceNameInternal::builder()
+    execution_state: ExecutionStateSpec,
+) -> WorkloadStateSpec {
+    WorkloadStateSpec {
+        instance_name: WorkloadInstanceNameSpec::builder()
             .workload_name(workload_name)
             .agent_name(agent_name)
             .config(&generate_test_runtime_config())
@@ -315,9 +308,9 @@ pub fn generate_test_workload_state_with_agent(
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_state_with_workload_named(
     workload_named: &WorkloadNamed,
-    execution_state: ExecutionStateInternal,
-) -> WorkloadStateInternal {
-    WorkloadStateInternal {
+    execution_state: ExecutionStateSpec,
+) -> WorkloadStateSpec {
+    WorkloadStateSpec {
         instance_name: workload_named.instance_name.clone(),
         execution_state,
     }
@@ -326,8 +319,8 @@ pub fn generate_test_workload_state_with_workload_named(
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_state(
     workload_name: &str,
-    execution_state: ExecutionStateInternal,
-) -> WorkloadStateInternal {
+    execution_state: ExecutionStateSpec,
+) -> WorkloadStateSpec {
     generate_test_workload_state_with_agent(workload_name, "agent_name", execution_state)
 }
 
@@ -336,53 +329,51 @@ pub fn generate_test_workload_state(
 #[cfg(test)]
 mod tests {
     use super::NO_MORE_RETRIES_MSG;
-    use crate::ank_base::ExecutionStateInternal;
+    use crate::ank_base::ExecutionStateSpec;
 
     // [utest->swdd~common-workload-state-transitions~1]
     #[test]
     fn utest_execution_state_transition_hysteresis() {
         assert_eq!(
-            ExecutionStateInternal::waiting_to_stop().transition(ExecutionStateInternal::running()),
-            ExecutionStateInternal::waiting_to_stop()
+            ExecutionStateSpec::waiting_to_stop().transition(ExecutionStateSpec::running()),
+            ExecutionStateSpec::waiting_to_stop()
         );
         assert_eq!(
-            ExecutionStateInternal::stopping_requested()
-                .transition(ExecutionStateInternal::running()),
-            ExecutionStateInternal::stopping_requested()
+            ExecutionStateSpec::stopping_requested().transition(ExecutionStateSpec::running()),
+            ExecutionStateSpec::stopping_requested()
         );
         assert_eq!(
-            ExecutionStateInternal::stopping_requested()
-                .transition(ExecutionStateInternal::succeeded()),
-            ExecutionStateInternal::stopping_requested()
+            ExecutionStateSpec::stopping_requested().transition(ExecutionStateSpec::succeeded()),
+            ExecutionStateSpec::stopping_requested()
         );
         assert_eq!(
-            ExecutionStateInternal::stopping_requested()
-                .transition(ExecutionStateInternal::failed("failed for some reason")),
-            ExecutionStateInternal::stopping_requested()
+            ExecutionStateSpec::stopping_requested()
+                .transition(ExecutionStateSpec::failed("failed for some reason")),
+            ExecutionStateSpec::stopping_requested()
         );
         assert_eq!(
-            ExecutionStateInternal::stopping_requested().transition(ExecutionStateInternal::lost()),
-            ExecutionStateInternal::stopping_requested()
+            ExecutionStateSpec::stopping_requested().transition(ExecutionStateSpec::lost()),
+            ExecutionStateSpec::stopping_requested()
         );
         assert_eq!(
-            ExecutionStateInternal::stopping_requested()
-                .transition(ExecutionStateInternal::unknown("I lost the thing")),
-            ExecutionStateInternal::stopping_requested()
+            ExecutionStateSpec::stopping_requested()
+                .transition(ExecutionStateSpec::unknown("I lost the thing")),
+            ExecutionStateSpec::stopping_requested()
         );
         assert_eq!(
-            ExecutionStateInternal::stopping_requested().transition(
-                ExecutionStateInternal::delete_failed("mi mi mi, I could not delete it...")
-            ),
-            ExecutionStateInternal::delete_failed("mi mi mi, I could not delete it...")
+            ExecutionStateSpec::stopping_requested().transition(ExecutionStateSpec::delete_failed(
+                "mi mi mi, I could not delete it..."
+            )),
+            ExecutionStateSpec::delete_failed("mi mi mi, I could not delete it...")
         );
         assert_eq!(
-            ExecutionStateInternal::delete_failed("mi mi mi, I could not delete it...")
-                .transition(ExecutionStateInternal::running()),
-            ExecutionStateInternal::running()
+            ExecutionStateSpec::delete_failed("mi mi mi, I could not delete it...")
+                .transition(ExecutionStateSpec::running()),
+            ExecutionStateSpec::running()
         );
         assert_eq!(
-            ExecutionStateInternal::running().transition(ExecutionStateInternal::failed("crashed")),
-            ExecutionStateInternal::failed("crashed")
+            ExecutionStateSpec::running().transition(ExecutionStateSpec::failed("crashed")),
+            ExecutionStateSpec::failed("crashed")
         );
     }
 
@@ -393,43 +384,43 @@ mod tests {
         let additional_info = "some additional info";
 
         assert_eq!(
-            ExecutionStateInternal::agent_disconnected().to_string(),
+            ExecutionStateSpec::agent_disconnected().to_string(),
             String::from("AgentDisconnected")
         );
         assert_eq!(
-            ExecutionStateInternal::retry_failed_no_retry(additional_info).to_string(),
+            ExecutionStateSpec::retry_failed_no_retry(additional_info).to_string(),
             format!("Pending(StartingFailed): '{NO_MORE_RETRIES_MSG}: {additional_info}'")
         );
         assert_eq!(
-            ExecutionStateInternal::removed().to_string(),
+            ExecutionStateSpec::removed().to_string(),
             String::from("Removed")
         );
         assert_eq!(
-            ExecutionStateInternal::unknown(additional_info).to_string(),
+            ExecutionStateSpec::unknown(additional_info).to_string(),
             format!("Failed(Unknown): '{additional_info}'")
         );
         assert_eq!(
-            ExecutionStateInternal::starting(additional_info).to_string(),
+            ExecutionStateSpec::starting(additional_info).to_string(),
             format!("Pending(Starting): '{additional_info}'")
         );
         assert_eq!(
-            ExecutionStateInternal::failed(additional_info).to_string(),
+            ExecutionStateSpec::failed(additional_info).to_string(),
             format!("Failed(ExecFailed): '{additional_info}'")
         );
         assert_eq!(
-            ExecutionStateInternal::succeeded().to_string(),
+            ExecutionStateSpec::succeeded().to_string(),
             String::from("Succeeded(Ok)")
         );
         assert_eq!(
-            ExecutionStateInternal::running().to_string(),
+            ExecutionStateSpec::running().to_string(),
             String::from("Running(Ok)")
         );
         assert_eq!(
-            ExecutionStateInternal::stopping(additional_info).to_string(),
+            ExecutionStateSpec::stopping(additional_info).to_string(),
             format!("Stopping(Stopping): '{additional_info}'")
         );
         assert_eq!(
-            ExecutionStateInternal::lost().to_string(),
+            ExecutionStateSpec::lost().to_string(),
             String::from("Failed(Lost)")
         );
     }

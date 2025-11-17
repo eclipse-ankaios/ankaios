@@ -15,9 +15,9 @@
 use tonic_prost_build::Builder;
 
 /// This function is used to create and configure the following structs:
-/// - CompleteStateInternal
-/// - StateInternal
-/// - WorkloadMapInternal
+/// - CompleteStateSpec
+/// - StateSpec
+/// - WorkloadMapSpec
 pub fn setup_spec_state(builder: Builder) -> Builder {
     builder
         .message_attribute(
@@ -65,9 +65,9 @@ pub fn setup_spec_state(builder: Builder) -> Builder {
 }
 
 /// This function is used to create and configure the following structs:
-/// - FilesInternal
-/// - FileInternal
-/// - FileContentInternal
+/// - FilesSpec
+/// - FileSpec
+/// - FileContentSpec
 pub fn setup_spec_files(builder: Builder) -> Builder {
     builder
         .message_attribute("Files", "#[derive(spec_macros::Spec)]")
@@ -109,9 +109,9 @@ pub fn setup_spec_files(builder: Builder) -> Builder {
 }
 
 /// This function is used to create and configure the following structs:
-/// - WorkloadInternal
-/// - DependenciesInternal
-/// - TagsInternal
+/// - WorkloadSpec
+/// - DependenciesSpec
+/// - TagsSpec
 pub fn setup_spec_workload(builder: Builder) -> Builder {
     builder
         .message_attribute("Workload", "#[derive(spec_macros::Spec)]")
@@ -162,7 +162,7 @@ pub fn setup_spec_workload(builder: Builder) -> Builder {
 }
 
 /// This function is used to create and configure the following structs:
-/// - WorkloadInstanceNameInternal
+/// - WorkloadInstanceNameSpec
 pub fn setup_spec_workload_instance_name(builder: Builder) -> Builder {
     builder.message_attribute(
         "WorkloadInstanceName",
@@ -179,11 +179,11 @@ pub fn setup_spec_workload_instance_name(builder: Builder) -> Builder {
 }
 
 /// This function is used to create and configure the following structs:
-/// - ControlInterfaceAccessInternal
-/// - AccessRightsRuleInternal
-/// - AccessRightsRuleEnumInternal
-/// - StateRuleInternal
-/// - LogRuleInternal
+/// - ControlInterfaceAccessSpec
+/// - AccessRightsRuleSpec
+/// - AccessRightsRuleEnumSpec
+/// - StateRuleSpec
+/// - LogRuleSpec
 pub fn setup_spec_control_interface_access(builder: Builder) -> Builder {
     builder
         .message_attribute(
@@ -258,12 +258,12 @@ pub fn setup_spec_control_interface_access(builder: Builder) -> Builder {
 }
 
 /// This function is used to create and configure the following structs:
-/// - ConfigMappingsInternal
-/// - ConfigMapInternal
-/// - ConfigItemInternal
-/// - ConfigItemEnumInternal
-/// - ConfigObjectInternal
-/// - ConfigArrayInternal
+/// - ConfigMappingsSpec
+/// - ConfigMapSpec
+/// - ConfigItemSpec
+/// - ConfigItemEnumSpec
+/// - ConfigObjectSpec
+/// - ConfigArraySpec
 pub fn setup_spec_configs(builder: Builder) -> Builder {
     builder
         .message_attribute(
@@ -320,11 +320,11 @@ pub fn setup_spec_configs(builder: Builder) -> Builder {
 }
 
 /// This function is used to create and configure the following structs:
-/// - AgentMapInternal
-/// - AgentAttributesInternal
-/// - AgentStatusInternal
-/// - CpuUsageInternal
-/// - FreeMemoryInternal
+/// - AgentMapSpec
+/// - AgentAttributesSpec
+/// - AgentStatusSpec
+/// - CpuUsageSpec
+/// - FreeMemorySpec
 pub fn setup_spec_agent_map(builder: Builder) -> Builder {
     builder
         .message_attribute("AgentMap", "#[derive(spec_macros::Spec)]")
@@ -361,12 +361,12 @@ pub fn setup_spec_agent_map(builder: Builder) -> Builder {
 }
 
 /// This function is used to create and configure the following structs:
-/// - WorkloadStateInternal
-/// - WorkloadStatesMapInternal
-/// - ExecutionsStatesOfWorkloadInternal
-/// - ExecutionsStatesForIdInternal
-/// - ExecutionStateInternal
-/// - ExecutionStateEnumInternal
+/// - WorkloadStateSpec
+/// - WorkloadStatesMapSpec
+/// - ExecutionsStatesOfWorkloadSpec
+/// - ExecutionsStatesForIdSpec
+/// - ExecutionStateSpec
+/// - ExecutionStateEnumSpec
 pub fn setup_spec_workload_states(builder: Builder) -> Builder {
     builder
     .message_attribute(
@@ -457,12 +457,12 @@ pub fn setup_spec_workload_states(builder: Builder) -> Builder {
 }
 
 /// This function is used to create and configure the following structs:
-/// - LogsRequestInternal
-/// - LogsCancelRequestInternal
-/// - UpdateStateRequestInternal
-/// - CompleteStateRequestInternal
-/// - RequestContentInternal
-/// - RequestInternal
+/// - LogsRequestSpec
+/// - LogsCancelRequestSpec
+/// - UpdateStateRequestSpec
+/// - CompleteStateRequestSpec
+/// - RequestContentSpec
+/// - RequestSpec
 pub fn setup_spec_requests(builder: Builder) -> Builder {
     builder
         .message_attribute("LogsRequest", "#[derive(spec_macros::Spec)]")

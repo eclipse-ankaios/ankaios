@@ -12,10 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::WorkloadInstanceNameInternal;
+use super::WorkloadInstanceNameSpec;
 use api::ank_base::{
-    ConfigItemInternal, FileContentInternal, FileInternal, FilesInternal, WorkloadInternal,
-    WorkloadNamed,
+    ConfigItemSpec, FileContentSpec, FileSpec, FilesSpec, WorkloadNamed, WorkloadSpec,
 };
 
 use handlebars::{Handlebars, RenderError};
@@ -85,8 +84,8 @@ impl ConfigRenderer {
     // [impl->swdd~config-renderer-renders-workload-configuration~2]
     pub fn render_workloads(
         &self,
-        workloads: &HashMap<String, WorkloadInternal>,
-        configs: &HashMap<String, ConfigItemInternal>,
+        workloads: &HashMap<String, WorkloadSpec>,
+        configs: &HashMap<String, ConfigItemSpec>,
     ) -> Result<RenderedWorkloads, ConfigRenderError> {
         let mut rendered_workloads = HashMap::new();
         for (workload_name, workload) in workloads {
@@ -110,9 +109,9 @@ impl ConfigRenderer {
     // [impl->swdd~config-renderer-renders-workload-configuration~2]
     fn create_config_map_for_workload<'a>(
         &self,
-        workload: &'a WorkloadInternal,
-        configs: &'a HashMap<String, ConfigItemInternal>,
-    ) -> Result<HashMap<&'a String, &'a ConfigItemInternal>, ConfigRenderError> {
+        workload: &'a WorkloadSpec,
+        configs: &'a HashMap<String, ConfigItemSpec>,
+    ) -> Result<HashMap<&'a String, &'a ConfigItemSpec>, ConfigRenderError> {
         let mut wl_config_map = HashMap::new();
         for (config_alias, config_key) in &workload.configs.configs {
             if let Some(config_value) = configs.get(config_key) {
@@ -128,8 +127,8 @@ impl ConfigRenderer {
     fn render_workload_fields(
         &self,
         workload_name: &str,
-        workload: &WorkloadInternal,
-        wl_config_map: &HashMap<&String, &ConfigItemInternal>,
+        workload: &WorkloadSpec,
+        wl_config_map: &HashMap<&String, &ConfigItemSpec>,
     ) -> Result<WorkloadNamed, ConfigRenderError> {
         let rendered_runtime_config = self
             .template_engine
@@ -144,12 +143,12 @@ impl ConfigRenderer {
         let rendered_files = self.render_files_field(&workload.files.files, wl_config_map)?;
 
         Ok(WorkloadNamed {
-            instance_name: WorkloadInstanceNameInternal::builder()
+            instance_name: WorkloadInstanceNameSpec::builder()
                 .workload_name(workload_name)
                 .agent_name(rendered_agent_name.clone())
                 .config(&rendered_runtime_config)
                 .build(),
-            workload: WorkloadInternal {
+            workload: WorkloadSpec {
                 agent: rendered_agent_name.clone(),
                 runtime: workload.runtime.clone(),
                 runtime_config: rendered_runtime_config,
@@ -166,38 +165,36 @@ impl ConfigRenderer {
     // [impl->swdd~config-renderer-renders-workload-configuration~2]
     fn render_files_field(
         &self,
-        files: &[FileInternal],
-        wl_config_map: &HashMap<&String, &ConfigItemInternal>,
-    ) -> Result<FilesInternal, ConfigRenderError> {
+        files: &[FileSpec],
+        wl_config_map: &HashMap<&String, &ConfigItemSpec>,
+    ) -> Result<FilesSpec, ConfigRenderError> {
         let mut rendered_files = Vec::new();
         for current_file in files {
             let mut rendered_file = current_file.clone();
 
             rendered_file.file_content = match rendered_file.file_content {
-                FileContentInternal::Data { data } => FileContentInternal::Data {
+                FileContentSpec::Data { data } => FileContentSpec::Data {
                     data: self
                         .template_engine
                         .render_template(&data, &wl_config_map)
                         .map_err(ConfigRenderError::for_files(&rendered_file.mount_point))?,
                 },
-                FileContentInternal::BinaryData { binary_data } => {
-                    FileContentInternal::BinaryData {
-                        binary_data: self
-                            .template_engine
-                            .render_template(&binary_data, &wl_config_map)
-                            .map_err(ConfigRenderError::for_files(&rendered_file.mount_point))?,
-                    }
-                }
+                FileContentSpec::BinaryData { binary_data } => FileContentSpec::BinaryData {
+                    binary_data: self
+                        .template_engine
+                        .render_template(&binary_data, &wl_config_map)
+                        .map_err(ConfigRenderError::for_files(&rendered_file.mount_point))?,
+                },
             };
 
             rendered_files.push(rendered_file);
         }
-        Ok(FilesInternal {
+        Ok(FilesSpec {
             files: rendered_files,
         })
     }
 
-    // fn render_file_content(self, file_content: &FileContentInternal, wl_config_map: &HashMap<&String, &ConfigItem>) -> Result<FileContentInternal, ConfigRenderError> {
+    // fn render_file_content(self, file_content: &FileContentSpec, wl_config_map: &HashMap<&String, &ConfigItem>) -> Result<FileContentSpec, ConfigRenderError> {
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -213,8 +210,8 @@ mock! {
     pub ConfigRenderer {
         pub fn render_workloads(
             &self,
-            workloads: &HashMap<String, WorkloadInternal>,
-            configs: &HashMap<String, ConfigItemInternal>,
+            workloads: &HashMap<String, WorkloadSpec>,
+            configs: &HashMap<String, ConfigItemSpec>,
         ) -> Result<RenderedWorkloads, ConfigRenderError>;
     }
 }
@@ -223,8 +220,8 @@ mock! {
 mod tests {
     use super::{ConfigRenderError, ConfigRenderer, RenderedWorkloads};
     use api::ank_base::{
-        ConfigItemEnumInternal, ConfigItemInternal, ConfigMappingsInternal, FileContentInternal,
-        FileInternal, WorkloadInternal, WorkloadNamed,
+        ConfigItemEnumSpec, ConfigItemSpec, ConfigMappingsSpec, FileContentSpec, FileSpec,
+        WorkloadNamed, WorkloadSpec,
     };
     use api::test_utils::{
         generate_test_configs, generate_test_workload_with_param,
@@ -237,17 +234,17 @@ mod tests {
     const AGENT_A: &str = "agent_A";
     const RUNTIME: &str = "runtime";
 
-    fn generate_test_templated_workload_files() -> Vec<FileInternal> {
+    fn generate_test_templated_workload_files() -> Vec<FileSpec> {
         vec![
-            FileInternal {
+            FileSpec {
                 mount_point: "/file.json".to_string(),
-                file_content: FileContentInternal::Data {
+                file_content: FileContentSpec::Data {
                     data: "{{ref1.config_file}}".into(),
                 },
             },
-            FileInternal {
+            FileSpec {
                 mount_point: "/binary_file".to_string(),
-                file_content: FileContentInternal::BinaryData {
+                file_content: FileContentSpec::BinaryData {
                     binary_data: "{{ref1.binary_file}}".into(),
                 },
             },
@@ -260,7 +257,7 @@ mod tests {
         let templated_runtime_config =
             "some_value_1: {{ref1.values.value_1}}\nsome_value_2: {{ref1.values.value_2.0}}";
         let templated_agent_name = "{{ref1.agent_name}}";
-        let stored_workload: WorkloadInternal = generate_test_workload_with_runtime_config(
+        let stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
             templated_agent_name,
             RUNTIME,
             templated_runtime_config,
@@ -291,8 +288,7 @@ mod tests {
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_render_files_fields_successfully() {
-        let mut stored_workload: WorkloadInternal =
-            generate_test_workload_with_param(AGENT_A, RUNTIME);
+        let mut stored_workload: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME);
         stored_workload.files.files = generate_test_templated_workload_files();
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
@@ -317,11 +313,10 @@ mod tests {
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_render_files_fields_text_file_render_error() {
-        let mut stored_workload: WorkloadInternal =
-            generate_test_workload_with_param(AGENT_A, RUNTIME);
-        stored_workload.files.files = vec![FileInternal {
+        let mut stored_workload: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME);
+        stored_workload.files.files = vec![FileSpec {
             mount_point: "/file.json".to_string(),
-            file_content: FileContentInternal::Data {
+            file_content: FileContentSpec::Data {
                 data: "{{invalid_ref.file_content}}".into(),
             },
         }];
@@ -340,11 +335,10 @@ mod tests {
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_render_files_fields_binary_file_render_error() {
-        let mut stored_workload: WorkloadInternal =
-            generate_test_workload_with_param(AGENT_A, RUNTIME);
-        stored_workload.files.files = vec![FileInternal {
+        let mut stored_workload: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME);
+        stored_workload.files.files = vec![FileSpec {
             mount_point: "/binary_file".to_string(),
-            file_content: FileContentInternal::BinaryData {
+            file_content: FileContentSpec::BinaryData {
                 binary_data: "{{invalid_ref.binary_data}}".into(),
             },
         }];
@@ -383,7 +377,7 @@ mod tests {
     fn utest_render_workloads_not_rendering_workloads_with_no_referenced_configs() {
         let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
         let templated_agent_name = "{{config_1.agent_name}}";
-        let mut stored_workload: WorkloadInternal = generate_test_workload_with_runtime_config(
+        let mut stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
             templated_agent_name,
             RUNTIME,
             templated_runtime_config,
@@ -420,10 +414,10 @@ mod tests {
     #[test]
     fn utest_render_workloads_fails_workload_references_not_existing_config_key() {
         let templated_runtime_config = "config_1: {{ref1.values.value_1}}";
-        let mut stored_workload: WorkloadInternal =
+        let mut stored_workload: WorkloadSpec =
             generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, templated_runtime_config);
 
-        stored_workload.configs = ConfigMappingsInternal {
+        stored_workload.configs = ConfigMappingsSpec {
             configs: HashMap::from([("ref1".to_owned(), "not_existing_config_key".to_owned())]),
         };
 
@@ -440,10 +434,10 @@ mod tests {
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_fails_workload_references_unused_not_existing_config_key() {
-        let mut stored_workload: WorkloadInternal =
+        let mut stored_workload: WorkloadSpec =
             generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, "some runtime config");
 
-        stored_workload.configs = ConfigMappingsInternal {
+        stored_workload.configs = ConfigMappingsSpec {
             configs: HashMap::from([(
                 "ref1".to_owned(),
                 "not_existing_unused_config_key".to_owned(),
@@ -464,7 +458,7 @@ mod tests {
     #[test]
     fn utest_render_workloads_fails_runtime_config_contains_non_existing_config() {
         let templated_runtime_config = "config_1: {{config_1.values.not_existing_key}}";
-        let stored_workload: WorkloadInternal =
+        let stored_workload: WorkloadSpec =
             generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, templated_runtime_config);
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
@@ -482,7 +476,7 @@ mod tests {
     // [utest->swdd~config-renderer-renders-workload-configuration~2]
     #[test]
     fn utest_render_workloads_fails_agent_contains_non_existing_config() {
-        let stored_workload: WorkloadInternal = generate_test_workload_with_runtime_config(
+        let stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
             "{{config_1.not_existing_key}}",
             RUNTIME,
             "some runtime config",
@@ -504,7 +498,7 @@ mod tests {
     #[test]
     fn utest_render_workloads_fails_workload_references_empty_configs() {
         let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
-        let stored_workload: WorkloadInternal =
+        let stored_workload: WorkloadSpec =
             generate_test_workload_with_runtime_config(AGENT_A, RUNTIME, templated_runtime_config);
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
@@ -525,13 +519,13 @@ mod tests {
               config_with_indent: |
                 {{> indent content=ref1}}"#;
 
-        let mut stored_workload: WorkloadInternal = generate_test_workload_with_runtime_config(
+        let mut stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
             AGENT_A,
             RUNTIME,
             runtime_config_with_partial_template,
         );
 
-        stored_workload.configs = ConfigMappingsInternal {
+        stored_workload.configs = ConfigMappingsSpec {
             configs: HashMap::from([("ref1".to_owned(), "config_1".to_owned())]),
         };
 
@@ -539,8 +533,8 @@ mod tests {
         let multi_line_config_value = "value_1\nvalue_2\nvalue_3".to_string();
         let configs = HashMap::from([(
             "config_1".to_string(),
-            ConfigItemInternal {
-                config_item_enum: ConfigItemEnumInternal::String(multi_line_config_value),
+            ConfigItemSpec {
+                config_item_enum: ConfigItemEnumSpec::String(multi_line_config_value),
             },
         )]);
         let renderer = ConfigRenderer::default();
@@ -571,21 +565,21 @@ mod tests {
     fn utest_render_workloads_prevent_escaping_special_characters() {
         const CONFIG_VALUE: &str = "value\"with\"escape\'characters\'";
 
-        let mut stored_workload: WorkloadInternal = generate_test_workload_with_runtime_config(
+        let mut stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
             AGENT_A,
             RUNTIME,
             "config_of_special_char_sequences: {{special_conf}}",
         );
 
-        stored_workload.configs = ConfigMappingsInternal {
+        stored_workload.configs = ConfigMappingsSpec {
             configs: HashMap::from([("special_conf".into(), "config_special_chars".into())]),
         };
 
         let workloads = HashMap::from([(WORKLOAD_NAME_1.to_owned(), stored_workload)]);
         let configs = HashMap::from([(
             "config_special_chars".to_string(),
-            ConfigItemInternal {
-                config_item_enum: ConfigItemEnumInternal::String(CONFIG_VALUE.to_owned()),
+            ConfigItemSpec {
+                config_item_enum: ConfigItemEnumSpec::String(CONFIG_VALUE.to_owned()),
             },
         )]);
 

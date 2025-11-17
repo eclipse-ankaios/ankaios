@@ -14,7 +14,7 @@
 
 use crate::{subscription_store::SubscriptionStore, workload_state::WorkloadStateReceiver};
 
-use api::ank_base::WorkloadStateInternal;
+use api::ank_base::WorkloadStateSpec;
 use api::std_extensions::{GracefulExitResult, IllegalStateResult};
 use common::{
     commands::AgentLoadStatus,
@@ -223,7 +223,7 @@ impl AgentManager {
 
     async fn store_and_forward_own_workload_states(
         &mut self,
-        mut new_workload_state: WorkloadStateInternal,
+        mut new_workload_state: WorkloadStateSpec,
     ) {
         // execute hysteresis on the local workload states as we could be stopping
         // [impl->swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1]
@@ -297,8 +297,7 @@ mod tests {
     };
 
     use api::ank_base::{
-        self, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal, LogsRequestInternal,
-        WorkloadNamed,
+        self, CpuUsageSpec, ExecutionStateSpec, FreeMemorySpec, LogsRequestSpec, WorkloadNamed,
     };
     use api::test_utils::{
         generate_test_workload_state_with_agent, generate_test_workload_with_param,
@@ -394,7 +393,7 @@ mod tests {
         let workload_state = generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
         );
 
         let mut mock_runtime_manager = RuntimeManager::default();
@@ -552,20 +551,20 @@ mod tests {
         let workload_state_incoming = generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
         );
 
         let wl_state_after_hysteresis = generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
-            ExecutionStateInternal::stopping_requested(),
+            ExecutionStateSpec::stopping_requested(),
         );
 
         let mut mock_wl_state_store = MockWorkloadStateStore::default();
 
         mock_wl_state_store.states_storage.insert(
             WORKLOAD_1_NAME.to_string(),
-            ExecutionStateInternal::stopping_requested(),
+            ExecutionStateSpec::stopping_requested(),
         );
 
         mock_wl_state_store
@@ -585,8 +584,8 @@ mod tests {
             .expect_sample_resource_usage()
             .returning(|| {
                 (
-                    CpuUsageInternal { cpu_usage: 50 },
-                    FreeMemoryInternal { free_memory: 1024 },
+                    CpuUsageSpec { cpu_usage: 50 },
+                    FreeMemorySpec { free_memory: 1024 },
                 )
             });
 
@@ -662,8 +661,8 @@ mod tests {
                     .expect_sample_resource_usage()
                     .returning(|| {
                         (
-                            CpuUsageInternal { cpu_usage: 50 },
-                            FreeMemoryInternal { free_memory: 1024 },
+                            CpuUsageSpec { cpu_usage: 50 },
+                            FreeMemorySpec { free_memory: 1024 },
                         )
                     });
                 mock_resource_monitor
@@ -716,7 +715,7 @@ mod tests {
             .once()
             .return_once(MockResourceMonitor::default);
 
-        let logs_request = LogsRequestInternal {
+        let logs_request = LogsRequestSpec {
             workload_names: vec![workload.instance_name],
             follow: false,
             tail: -1,

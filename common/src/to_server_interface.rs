@@ -15,9 +15,9 @@
 use crate::commands::{self, AgentLoadStatus};
 use api::{
     ank_base::{
-        CompleteStateInternal, CompleteStateRequestInternal, LogEntriesResponse,
-        LogsCancelRequestInternal, LogsRequest, LogsRequestInternal, LogsStopResponse,
-        RequestContentInternal, RequestInternal, UpdateStateRequestInternal, WorkloadStateInternal,
+        CompleteStateRequestSpec, CompleteStateSpec, LogEntriesResponse, LogsCancelRequestSpec,
+        LogsRequest, LogsRequestSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
+        UpdateStateRequestSpec, WorkloadStateSpec,
     },
     std_extensions::UnreachableResult,
 };
@@ -32,7 +32,7 @@ pub enum ToServer {
     AgentHello(commands::AgentHello),
     AgentLoadStatus(AgentLoadStatus),
     AgentGone(commands::AgentGone),
-    Request(RequestInternal),
+    Request(RequestSpec),
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Stop(commands::Stop),
     Goodbye(commands::Goodbye),
@@ -65,17 +65,17 @@ pub trait ToServerInterface {
     async fn update_state(
         &self,
         request_id: String,
-        new_state: CompleteStateInternal,
+        new_state: CompleteStateSpec,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError>;
     async fn update_workload_state(
         &self,
-        workload_running: Vec<WorkloadStateInternal>,
+        workload_running: Vec<WorkloadStateSpec>,
     ) -> Result<(), ToServerError>;
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: CompleteStateRequestInternal,
+        request_complete_state: CompleteStateRequestSpec,
     ) -> Result<(), ToServerError>;
     async fn logs_request(
         &self,
@@ -126,14 +126,14 @@ impl ToServerInterface for ToServerSender {
     async fn update_state(
         &self,
         request_id: String,
-        new_state: CompleteStateInternal,
+        new_state: CompleteStateSpec,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestInternal {
+            .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContentInternal::UpdateStateRequest(Box::new(
-                    UpdateStateRequestInternal {
+                request_content: RequestContentSpec::UpdateStateRequest(Box::new(
+                    UpdateStateRequestSpec {
                         new_state,
                         update_mask,
                     },
@@ -144,7 +144,7 @@ impl ToServerInterface for ToServerSender {
 
     async fn update_workload_state(
         &self,
-        workload_running: Vec<WorkloadStateInternal>,
+        workload_running: Vec<WorkloadStateSpec>,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::UpdateWorkloadState(
@@ -158,13 +158,13 @@ impl ToServerInterface for ToServerSender {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: CompleteStateRequestInternal,
+        request_complete_state: CompleteStateRequestSpec,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestInternal {
+            .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContentInternal::CompleteStateRequest(
-                    CompleteStateRequestInternal {
+                request_content: RequestContentSpec::CompleteStateRequest(
+                    CompleteStateRequestSpec {
                         field_mask: request_complete_state.field_mask,
                     },
                 ),
@@ -177,8 +177,8 @@ impl ToServerInterface for ToServerSender {
         request_id: String,
         logs_request: LogsRequest,
     ) -> Result<(), ToServerError> {
-        // MARK #313 LogsRequest -> LogsRequestInternal
-        let logs_request_internal = LogsRequestInternal {
+        // MARK #313 LogsRequest -> LogsRequestSpec
+        let logs_request_internal = LogsRequestSpec {
             workload_names: logs_request
                 .workload_names
                 .iter()
@@ -190,20 +190,18 @@ impl ToServerInterface for ToServerSender {
             until: logs_request.until,
         };
         Ok(self
-            .send(ToServer::Request(RequestInternal {
+            .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContentInternal::LogsRequest(logs_request_internal),
+                request_content: RequestContentSpec::LogsRequest(logs_request_internal),
             }))
             .await?)
     }
 
     async fn logs_cancel_request(&self, request_id: String) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(RequestInternal {
+            .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContentInternal::LogsCancelRequest(
-                    LogsCancelRequestInternal {},
-                ),
+                request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
             }))
             .await?)
     }
@@ -255,10 +253,10 @@ mod tests {
         to_server_interface::{ToServer, ToServerInterface},
     };
     use api::ank_base::{
-        CompleteStateRequestInternal, CpuUsageInternal, ExecutionStateInternal, FreeMemoryInternal,
-        LogEntriesResponse, LogEntry, LogsCancelRequestInternal, LogsRequestInternal,
-        LogsStopResponse, RequestContentInternal, RequestInternal, UpdateStateRequestInternal,
-        WorkloadInstanceName, WorkloadInstanceNameInternal,
+        CompleteStateRequestSpec, CpuUsageSpec, ExecutionStateSpec, FreeMemorySpec,
+        LogEntriesResponse, LogEntry, LogsCancelRequestSpec, LogsRequestSpec, LogsStopResponse,
+        RequestContentSpec, RequestSpec, UpdateStateRequestSpec, WorkloadInstanceName,
+        WorkloadInstanceNameSpec,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload, generate_test_workload_state,
@@ -270,8 +268,8 @@ mod tests {
     const AGENT_NAME: &str = "agent_A";
     const REQUEST_ID: &str = "emkw489ejf89ml";
     const FIELD_MASK: &str = "desiredState.bla_bla";
-    const CPU_USAGE: CpuUsageInternal = CpuUsageInternal { cpu_usage: 42 };
-    const FREE_MEMORY: FreeMemoryInternal = FreeMemoryInternal { free_memory: 42 };
+    const CPU_USAGE: CpuUsageSpec = CpuUsageSpec { cpu_usage: 42 };
+    const FREE_MEMORY: FreeMemorySpec = FreeMemorySpec { free_memory: 42 };
 
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
@@ -347,10 +345,10 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestInternal {
+            ToServer::Request(RequestSpec {
                 request_id: REQUEST_ID.to_string(),
-                request_content: RequestContentInternal::UpdateStateRequest(Box::new(
-                    UpdateStateRequestInternal {
+                request_content: RequestContentSpec::UpdateStateRequest(Box::new(
+                    UpdateStateRequestSpec {
                         new_state: complete_state,
                         update_mask: vec![FIELD_MASK.to_string()]
                     },
@@ -365,7 +363,7 @@ mod tests {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
         let workload_state =
-            generate_test_workload_state(WORKLOAD_NAME, ExecutionStateInternal::running());
+            generate_test_workload_state(WORKLOAD_NAME, ExecutionStateSpec::running());
         assert!(
             tx.update_workload_state(vec![workload_state.clone()])
                 .await
@@ -385,11 +383,11 @@ mod tests {
     async fn utest_to_server_send_request_complete_state() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
-        let complete_state_request = CompleteStateRequestInternal {
+        let complete_state_request = CompleteStateRequestSpec {
             field_mask: vec![FIELD_MASK.to_string()],
         };
         let request_content =
-            RequestContentInternal::CompleteStateRequest(complete_state_request.clone());
+            RequestContentSpec::CompleteStateRequest(complete_state_request.clone());
         assert!(
             tx.request_complete_state(REQUEST_ID.to_string(), complete_state_request)
                 .await
@@ -398,7 +396,7 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestInternal {
+            ToServer::Request(RequestSpec {
                 request_id: REQUEST_ID.to_string(),
                 request_content
             })
@@ -409,8 +407,8 @@ mod tests {
     async fn utest_to_server_send_logs_request() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
-        let logs_request = LogsRequestInternal {
-            workload_names: vec![WorkloadInstanceNameInternal::new(
+        let logs_request = LogsRequestSpec {
+            workload_names: vec![WorkloadInstanceNameSpec::new(
                 AGENT_NAME,
                 WORKLOAD_NAME,
                 "id",
@@ -420,7 +418,7 @@ mod tests {
             since: None,
             until: None,
         };
-        let request_content = RequestContentInternal::LogsRequest(logs_request.clone());
+        let request_content = RequestContentSpec::LogsRequest(logs_request.clone());
         assert!(
             tx.logs_request(REQUEST_ID.into(), logs_request.into())
                 .await
@@ -429,7 +427,7 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestInternal {
+            ToServer::Request(RequestSpec {
                 request_id: REQUEST_ID.to_string(),
                 request_content
             })
@@ -440,13 +438,12 @@ mod tests {
     async fn utest_to_server_send_logs_cancel_request() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
-        let request_content =
-            RequestContentInternal::LogsCancelRequest(LogsCancelRequestInternal {});
+        let request_content = RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {});
         assert!(tx.logs_cancel_request(REQUEST_ID.into()).await.is_ok());
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(RequestInternal {
+            ToServer::Request(RequestSpec {
                 request_id: REQUEST_ID.to_string(),
                 request_content
             })

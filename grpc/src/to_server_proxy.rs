@@ -307,12 +307,11 @@ mod tests {
     use crate::grpc_api::{self, to_server::ToServerEnum};
 
     use api::ank_base::{
-        CompleteState, CompleteStateRequest, CompleteStateRequestInternal, CpuUsage,
-        CpuUsageInternal, ExecutionStateInternal, FreeMemory, FreeMemoryInternal,
-        LogEntriesResponse, LogEntry, LogsCancelRequest, LogsCancelRequestInternal, LogsRequest,
-        LogsRequestInternal, LogsStopResponse, Request, RequestContent, RequestContentInternal,
-        RequestInternal, UpdateStateRequest, WorkloadInstanceName, WorkloadInstanceNameInternal,
-        WorkloadNamed, WorkloadState,
+        CompleteState, CompleteStateRequest, CompleteStateRequestSpec, CpuUsage, CpuUsageSpec,
+        ExecutionStateSpec, FreeMemory, FreeMemorySpec, LogEntriesResponse, LogEntry,
+        LogsCancelRequest, LogsCancelRequestSpec, LogsRequest, LogsRequestSpec, LogsStopResponse,
+        Request, RequestContent, RequestContentSpec, RequestSpec, UpdateStateRequest,
+        WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadState,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload,
@@ -364,8 +363,8 @@ mod tests {
 
         let agent_load_status = commands::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
-            free_memory: FreeMemoryInternal { free_memory: 42 },
+            cpu_usage: CpuUsageSpec { cpu_usage: 42 },
+            free_memory: FreeMemorySpec { free_memory: 42 },
         };
 
         let agent_resource_result = server_tx.agent_load_status(agent_load_status.clone()).await;
@@ -394,8 +393,8 @@ mod tests {
     async fn utest_to_server_command_forward_from_proto_to_ankaios_agent_resources() {
         let agent_load_status = common::commands::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
-            free_memory: FreeMemoryInternal { free_memory: 42 },
+            cpu_usage: CpuUsageSpec { cpu_usage: 42 },
+            free_memory: FreeMemorySpec { free_memory: 42 },
         };
 
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
@@ -473,7 +472,7 @@ mod tests {
         let wl_state = generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_A_NAME,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
         );
 
         let update_workload_state_result = server_tx
@@ -657,9 +656,9 @@ mod tests {
 
         assert!(matches!(
             result,
-            ToServer::Request(RequestInternal {
+            ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContentInternal::UpdateStateRequest(update_request),
+                request_content: RequestContentSpec::UpdateStateRequest(update_request),
             })
             if request_id == expected_prefixed_my_request_id && update_request.new_state == ankaios_state && update_request.update_mask == ankaios_update_mask));
     }
@@ -672,7 +671,7 @@ mod tests {
         let proto_wl_state: WorkloadState = generate_test_workload_state_with_agent(
             "fake_workload",
             AGENT_A_NAME,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
         )
         .into();
 
@@ -742,11 +741,11 @@ mod tests {
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
         let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
         let expected_empty_field_mask: Vec<String> = vec![];
-        assert!(matches!(result, ToServer::Request(RequestInternal {
+        assert!(matches!(result, ToServer::Request(RequestSpec {
                 request_id,
                 request_content:
-                    RequestContentInternal::CompleteStateRequest(
-                        CompleteStateRequestInternal { field_mask },
+                    RequestContentSpec::CompleteStateRequest(
+                        CompleteStateRequestSpec { field_mask },
                     ),
             }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask));
     }
@@ -756,7 +755,7 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let request_complete_state = CompleteStateRequestInternal { field_mask: vec![] };
+        let request_complete_state = CompleteStateRequestSpec { field_mask: vec![] };
 
         let request_complete_state_result = server_tx
             .request_complete_state(REQUEST_ID.to_owned(), request_complete_state.clone())
@@ -829,16 +828,16 @@ mod tests {
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
         let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
-        let expected_workload_names: Vec<WorkloadInstanceNameInternal> = vec![
-            WorkloadInstanceNameInternal::new(AGENT_A_NAME, WORKLOAD_1_NAME, WORKLOAD_ID_1),
-            WorkloadInstanceNameInternal::new(AGENT_A_NAME, WORKLOAD_2_NAME, WORKLOAD_ID_2),
+        let expected_workload_names: Vec<WorkloadInstanceNameSpec> = vec![
+            WorkloadInstanceNameSpec::new(AGENT_A_NAME, WORKLOAD_1_NAME, WORKLOAD_ID_1),
+            WorkloadInstanceNameSpec::new(AGENT_A_NAME, WORKLOAD_2_NAME, WORKLOAD_ID_2),
         ];
 
-        assert!(matches!(result, ToServer::Request(RequestInternal {
+        assert!(matches!(result, ToServer::Request(RequestSpec {
                 request_id,
                 request_content:
-                    RequestContentInternal::LogsRequest(
-                        LogsRequestInternal { workload_names, follow, tail, since, until },
+                    RequestContentSpec::LogsRequest(
+                        LogsRequestSpec { workload_names, follow, tail, since, until },
                     ),
             }) if request_id == expected_prefixed_my_request_id
                    && workload_names == expected_workload_names
@@ -879,10 +878,10 @@ mod tests {
 
         assert!(matches!(
             result,
-            ToServer::Request(RequestInternal {
+            ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContentInternal::LogsCancelRequest(
-                    LogsCancelRequestInternal{}
+                request_content: RequestContentSpec::LogsCancelRequest(
+                    LogsCancelRequestSpec{}
                 ),
             }) if request_id == expected_prefixed_my_request_id
         ));

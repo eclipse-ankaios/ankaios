@@ -14,7 +14,7 @@
 
 use super::CliCommands;
 
-use api::ank_base::{CompleteStateInternal, WorkloadInternal};
+use api::ank_base::{CompleteStateSpec, WorkloadSpec};
 use common::state_manipulation::{Object, Path};
 use std::io::{self, Read};
 
@@ -26,8 +26,8 @@ use crate::{cli_error::CliError, output_debug};
 #[cfg(test)]
 use tests::read_to_string_mock as read_file_to_string;
 
-fn create_state_with_default_workloads(update_mask: &[String]) -> CompleteStateInternal {
-    let mut complete_state = CompleteStateInternal::default();
+fn create_state_with_default_workloads(update_mask: &[String]) -> CompleteStateSpec {
+    let mut complete_state = CompleteStateSpec::default();
     const WORKLOAD_ATTRIBUTE_LEVEL: usize = 4;
     let workload_level_mask_parts = ["desiredState".to_string(), "workloads".to_string()];
     const WORKLOAD_NAME_POSITION: usize = 2;
@@ -42,7 +42,7 @@ fn create_state_with_default_workloads(update_mask: &[String]) -> CompleteStateI
         {
             complete_state.desired_state.workloads.workloads.insert(
                 mask_parts[WORKLOAD_NAME_POSITION].to_string(),
-                WorkloadInternal::default(),
+                WorkloadSpec::default(),
             );
         }
     }
@@ -145,13 +145,13 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use super::{
-        CliCommands, WorkloadInternal, create_state_with_default_workloads, io,
+        CliCommands, WorkloadSpec, create_state_with_default_workloads, io,
         overwrite_using_field_mask, process_inputs,
     };
     use crate::cli_commands::server_connection::MockServerConnection;
     use api::ank_base::{
-        CompleteState, CompleteStateInternal, RestartPolicy, StateInternal, UpdateStateSuccess,
-        WorkloadMapInternal,
+        CompleteState, CompleteStateSpec, RestartPolicy, StateSpec, UpdateStateSuccess,
+        WorkloadMapSpec,
     };
     use common::state_manipulation::Object;
     use mockall::predicate::eq;
@@ -204,7 +204,7 @@ mod tests {
                 .workloads
                 .workloads
                 .get("nginx"),
-            Some(&WorkloadInternal::default())
+            Some(&WorkloadSpec::default())
         );
 
         assert_eq!(
@@ -213,7 +213,7 @@ mod tests {
                 .workloads
                 .workloads
                 .get("nginx2"),
-            Some(&WorkloadInternal::default())
+            Some(&WorkloadSpec::default())
         );
         assert!(
             !complete_state
@@ -237,10 +237,10 @@ mod tests {
     // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
     fn utest_overwrite_using_field_mask() {
-        let workload = WorkloadInternal::default();
-        let mut complete_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let workload = WorkloadSpec::default();
+        let mut complete_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([("nginx".to_string(), workload)]),
                 },
                 ..Default::default()
@@ -323,13 +323,13 @@ mod tests {
         let update_mask = vec!["desiredState.workloads.nginx.restartPolicy".to_string()];
         let state_object_file = SAMPLE_CONFIG.to_owned();
 
-        let workload = WorkloadInternal {
+        let workload = WorkloadSpec {
             restart_policy: RestartPolicy::Always,
             ..Default::default()
         };
-        let updated_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let updated_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([("nginx".to_string(), workload)]),
                 },
                 ..Default::default()

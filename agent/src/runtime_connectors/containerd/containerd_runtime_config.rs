@@ -15,7 +15,7 @@
 use super::containerd_runtime::CONTAINERD_RUNTIME_NAME;
 use super::nerdctl_cli::NerdctlRunConfig;
 
-use api::ank_base::WorkloadInternal;
+use api::ank_base::WorkloadSpec;
 
 #[derive(Debug, serde::Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -40,9 +40,9 @@ impl From<ContainerdRuntimeConfig> for NerdctlRunConfig {
     }
 }
 
-impl TryFrom<&WorkloadInternal> for ContainerdRuntimeConfig {
+impl TryFrom<&WorkloadSpec> for ContainerdRuntimeConfig {
     type Error = String;
-    fn try_from(workload_internal: &WorkloadInternal) -> Result<Self, Self::Error> {
+    fn try_from(workload_internal: &WorkloadSpec) -> Result<Self, Self::Error> {
         if CONTAINERD_RUNTIME_NAME != workload_internal.runtime {
             return Err(format!(
                 "Received a workload for the wrong runtime: '{}'",
@@ -69,7 +69,7 @@ mod tests {
     use super::{ContainerdRuntimeConfig, NerdctlRunConfig};
     use crate::runtime_connectors::containerd::containerd_runtime::CONTAINERD_RUNTIME_NAME;
 
-    use api::ank_base::WorkloadInternal;
+    use api::ank_base::WorkloadSpec;
     use api::test_utils::generate_test_workload_with_param;
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
@@ -77,7 +77,7 @@ mod tests {
 
     #[test]
     fn utest_containerd_config_failure_missing_image() {
-        let mut workload: WorkloadInternal =
+        let mut workload: WorkloadSpec =
             generate_test_workload_with_param(AGENT_NAME, CONTAINERD_RUNTIME_NAME);
 
         workload.runtime_config = "something without an image".to_string();
@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn utest_containerd_config_failure_wrong_runtime() {
-        let workload: WorkloadInternal =
+        let workload: WorkloadSpec =
             generate_test_workload_with_param(AGENT_NAME, DIFFERENT_RUNTIME_NAME);
 
         assert!(ContainerdRuntimeConfig::try_from(&workload).is_err());
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn utest_containerd_config_success() {
-        let mut workload: WorkloadInternal =
+        let mut workload: WorkloadSpec =
             generate_test_workload_with_param(AGENT_NAME, CONTAINERD_RUNTIME_NAME);
 
         let expected_containerd_config = ContainerdRuntimeConfig {

@@ -13,11 +13,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    AgentAttributesInternal, AgentMapInternal, AgentStatusInternal, CompleteState,
-    CompleteStateInternal, ConfigMap, ConfigMapInternal, ConfigMappingsInternal, CpuUsageInternal,
-    DeleteCondition, DeletedWorkload, FreeMemoryInternal, State, StateInternal, Workload,
-    WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMap, WorkloadMapInternal,
-    WorkloadNamed,
+    AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateSpec,
+    ConfigMap, ConfigMapSpec, ConfigMappingsSpec, CpuUsageSpec, DeleteCondition, DeletedWorkload,
+    FreeMemorySpec, State, StateSpec, Workload, WorkloadInstanceNameSpec, WorkloadMap,
+    WorkloadMapSpec, WorkloadNamed, WorkloadSpec,
 };
 pub use crate::ank_base::{
     config::generate_test_config_item,
@@ -43,15 +42,15 @@ const API_VERSION: &str = "v1";
 const WORKLOAD_1_NAME: &str = "workload_name_1";
 const WORKLOAD_2_NAME: &str = "workload_name_2";
 
-pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadNamed>) -> StateInternal {
-    StateInternal {
+pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadNamed>) -> StateSpec {
+    StateSpec {
         api_version: API_VERSION.into(),
-        workloads: WorkloadMapInternal {
+        workloads: WorkloadMapSpec {
             workloads: workloads
                 .into_iter()
                 .map(|mut w| {
                     let name = w.instance_name.workload_name().to_owned();
-                    w.workload.configs = ConfigMappingsInternal {
+                    w.workload.configs = ConfigMappingsSpec {
                         configs: HashMap::from([
                             ("ref1".into(), "config_1".into()),
                             ("ref2".into(), "config_2".into()),
@@ -61,7 +60,7 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadNamed>) -> Stat
                 })
                 .collect(),
         },
-        configs: ConfigMapInternal {
+        configs: ConfigMapSpec {
             configs: HashMap::from([
                 (
                     "config_1".to_owned(),
@@ -112,7 +111,7 @@ pub fn generate_test_proto_complete_state(workloads: &[(&str, Workload)]) -> Com
     }
 }
 
-pub fn generate_test_complete_state(workloads: Vec<WorkloadNamed>) -> CompleteStateInternal {
+pub fn generate_test_complete_state(workloads: Vec<WorkloadNamed>) -> CompleteStateSpec {
     let agents = generate_test_agent_map_from_workloads(
         workloads
             .iter()
@@ -120,18 +119,18 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadNamed>) -> CompleteSt
             .collect::<Vec<_>>()
             .as_slice(),
     );
-    CompleteStateInternal {
+    CompleteStateSpec {
         desired_state: generate_test_state_from_workloads(workloads.clone()),
         workload_states: generate_test_workload_states_map_from_workloads(workloads),
         agents,
     }
 }
 
-pub fn generate_test_complete_state_with_configs(configs: Vec<String>) -> CompleteStateInternal {
-    CompleteStateInternal {
-        desired_state: StateInternal {
+pub fn generate_test_complete_state_with_configs(configs: Vec<String>) -> CompleteStateSpec {
+    CompleteStateSpec {
+        desired_state: StateSpec {
             api_version: API_VERSION.into(),
-            configs: ConfigMapInternal {
+            configs: ConfigMapSpec {
                 configs: configs
                     .into_iter()
                     .map(|value| (value.clone(), generate_test_config_item(value)))
@@ -143,10 +142,10 @@ pub fn generate_test_complete_state_with_configs(configs: Vec<String>) -> Comple
     }
 }
 
-pub fn generate_test_state() -> StateInternal {
-    StateInternal {
+pub fn generate_test_state() -> StateSpec {
+    StateSpec {
         api_version: API_VERSION.into(),
-        workloads: WorkloadMapInternal {
+        workloads: WorkloadMapSpec {
             workloads: HashMap::from([
                 (WORKLOAD_1_NAME.to_owned(), generate_test_workload()),
                 (WORKLOAD_2_NAME.to_owned(), generate_test_workload()),
@@ -180,7 +179,7 @@ fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
 }
 
 pub fn generate_test_deleted_workload(agent: String, name: String) -> DeletedWorkload {
-    let instance_name = WorkloadInstanceNameInternal::builder()
+    let instance_name = WorkloadInstanceNameSpec::builder()
         .agent_name(agent)
         .workload_name(name)
         .config(&String::from("config"))
@@ -201,7 +200,7 @@ pub fn generate_test_deleted_workload_with_dependencies(
     deleted_workload
 }
 
-pub fn generate_test_configs() -> ConfigMapInternal {
+pub fn generate_test_configs() -> ConfigMapSpec {
     serde_yaml::from_str(
         "
         config_1:
@@ -219,33 +218,33 @@ pub fn generate_test_configs() -> ConfigMapInternal {
     .unwrap()
 }
 
-pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMapInternal {
-    let mut agent_map = AgentMapInternal::default();
+pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMapSpec {
+    let mut agent_map = AgentMapSpec::default();
     agent_map
         .agents
         .entry(agent_name.into())
-        .or_insert(AgentAttributesInternal {
-            status: Some(AgentStatusInternal {
-                cpu_usage: Some(CpuUsageInternal { cpu_usage: 42 }),
-                free_memory: Some(FreeMemoryInternal { free_memory: 42 }),
+        .or_insert(AgentAttributesSpec {
+            status: Some(AgentStatusSpec {
+                cpu_usage: Some(CpuUsageSpec { cpu_usage: 42 }),
+                free_memory: Some(FreeMemorySpec { free_memory: 42 }),
             }),
             ..Default::default()
         });
     agent_map
 }
 
-pub fn generate_test_agent_map_from_workloads(workloads: &[WorkloadInternal]) -> AgentMapInternal {
+pub fn generate_test_agent_map_from_workloads(workloads: &[WorkloadSpec]) -> AgentMapSpec {
     workloads
         .iter()
-        .fold(AgentMapInternal::default(), |mut agent_map, wl| {
+        .fold(AgentMapSpec::default(), |mut agent_map, wl| {
             let agent_name = &wl.agent;
             agent_map
                 .agents
                 .entry(agent_name.to_owned())
-                .or_insert(AgentAttributesInternal {
-                    status: Some(AgentStatusInternal {
-                        cpu_usage: Some(CpuUsageInternal { cpu_usage: 42 }),
-                        free_memory: Some(FreeMemoryInternal { free_memory: 42 }),
+                .or_insert(AgentAttributesSpec {
+                    status: Some(AgentStatusSpec {
+                        cpu_usage: Some(CpuUsageSpec { cpu_usage: 42 }),
+                        free_memory: Some(FreeMemorySpec { free_memory: 42 }),
                     }),
                     ..Default::default()
                 });

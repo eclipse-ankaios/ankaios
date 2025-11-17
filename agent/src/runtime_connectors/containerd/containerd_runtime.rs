@@ -22,7 +22,7 @@ use crate::{
     workload_state::WorkloadStateSender,
 };
 
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
 use api::std_extensions::UnreachableOption;
 use common::objects::AgentName;
 
@@ -65,7 +65,7 @@ impl FromStr for ContainerdWorkloadId {
 #[async_trait]
 // [impl->swdd~containerd-implements-runtime-state-getter~1]
 impl RuntimeStateGetter<ContainerdWorkloadId> for ContainerdStateGetter {
-    async fn get_state(&self, workload_id: &ContainerdWorkloadId) -> ExecutionStateInternal {
+    async fn get_state(&self, workload_id: &ContainerdWorkloadId) -> ExecutionStateSpec {
         log::trace!("Getting the state for the workload '{}'", workload_id.id);
 
         // [impl->swdd~containerd-state-getter-returns-unknown-state~1]
@@ -76,7 +76,7 @@ impl RuntimeStateGetter<ContainerdWorkloadId> for ContainerdStateGetter {
                 if let Some(state) = state {
                     state
                 } else {
-                    ExecutionStateInternal::lost()
+                    ExecutionStateSpec::lost()
                 }
             }
             Err(err) => {
@@ -85,7 +85,7 @@ impl RuntimeStateGetter<ContainerdWorkloadId> for ContainerdStateGetter {
                     workload_id.id,
                     err
                 );
-                ExecutionStateInternal::unknown("Error getting state from Nerdctl.")
+                ExecutionStateSpec::unknown("Error getting state from Nerdctl.")
             }
         };
 
@@ -101,7 +101,7 @@ impl RuntimeStateGetter<ContainerdWorkloadId> for ContainerdStateGetter {
 impl ContainerdRuntime {
     async fn sample_workload_states(
         &self,
-        workload_instance_names: &Vec<WorkloadInstanceNameInternal>,
+        workload_instance_names: &Vec<WorkloadInstanceNameSpec>,
     ) -> Result<Vec<ReusableWorkloadState>, RuntimeError> {
         let mut workload_states = Vec::<ReusableWorkloadState>::default();
         for instance_name in workload_instance_names {
@@ -143,7 +143,7 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
 
         log::debug!("Found {} reusable workload(s): '{:?}'", res.len(), &res);
 
-        let workload_instance_names: Vec<WorkloadInstanceNameInternal> = res
+        let workload_instance_names: Vec<WorkloadInstanceNameSpec> = res
             .iter()
             .filter_map(|x| x.as_str().try_into().ok())
             .collect();
@@ -221,7 +221,7 @@ impl RuntimeConnector<ContainerdWorkloadId, GenericPollingStateChecker> for Cont
 
     async fn get_workload_id(
         &self,
-        instance_name: &WorkloadInstanceNameInternal,
+        instance_name: &WorkloadInstanceNameSpec,
     ) -> Result<ContainerdWorkloadId, RuntimeError> {
         // [impl->swdd~containerd-get-workload-id-uses-label~1]
         let res =
@@ -308,7 +308,7 @@ mod tests {
     };
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
-    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+    use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
     use api::test_utils::generate_test_workload_with_param;
     use common::objects::AgentName;
 
@@ -351,12 +351,12 @@ mod tests {
         let list_states_by_id_context = NerdctlCli::list_states_by_id_context();
         list_states_by_id_context
             .expect()
-            .return_const(Ok(Some(ExecutionStateInternal::initial())));
+            .return_const(Ok(Some(ExecutionStateSpec::initial())));
 
         let list_states_by_id_context = NerdctlCli::list_states_by_id_context();
         list_states_by_id_context
             .expect()
-            .return_const(Ok(Some(ExecutionStateInternal::initial())));
+            .return_const(Ok(Some(ExecutionStateSpec::initial())));
 
         let containerd_runtime = ContainerdRuntime {};
         let agent_name = AgentName::from("dummy_agent");
@@ -368,7 +368,7 @@ mod tests {
         assert_eq!(
             res.iter()
                 .map(|x| x.workload_state.instance_name.clone())
-                .collect::<Vec<WorkloadInstanceNameInternal>>(),
+                .collect::<Vec<WorkloadInstanceNameSpec>>(),
             vec![
                 "container1.hash.dummy_agent".try_into().unwrap(),
                 "container2.hash.dummy_agent".try_into().unwrap()
@@ -501,7 +501,7 @@ mod tests {
         list_states_context
             .expect()
             .once()
-            .return_const(Ok(Some(ExecutionStateInternal::running())))
+            .return_const(Ok(Some(ExecutionStateSpec::running())))
             .in_sequence(&mut seq);
 
         let workload_named = generate_test_workload_with_param(AGENT_NAME, CONTAINERD_RUNTIME_NAME);
@@ -531,7 +531,7 @@ mod tests {
         let list_states_context = NerdctlCli::list_states_by_id_context();
         list_states_context
             .expect()
-            .return_const(Ok(Some(ExecutionStateInternal::running())));
+            .return_const(Ok(Some(ExecutionStateSpec::running())));
 
         let state_getter = ContainerdStateGetter {};
         let execution_state = state_getter
@@ -540,7 +540,7 @@ mod tests {
             })
             .await;
 
-        assert_eq!(execution_state, ExecutionStateInternal::running());
+        assert_eq!(execution_state, ExecutionStateSpec::running());
     }
 
     // [utest->swdd~containerd-create-workload-deletes-failed-container~1]
@@ -697,14 +697,14 @@ mod tests {
         let context = NerdctlCli::list_states_by_id_context();
         context
             .expect()
-            .return_const(Ok(Some(ExecutionStateInternal::running())));
+            .return_const(Ok(Some(ExecutionStateSpec::running())));
 
         let workload_id = ContainerdWorkloadId {
             id: "test_id".into(),
         };
         let checker = ContainerdStateGetter {};
         let res = checker.get_state(&workload_id).await;
-        assert_eq!(res, ExecutionStateInternal::running());
+        assert_eq!(res, ExecutionStateSpec::running());
     }
 
     // [utest->swdd~containerd-state-getter-returns-lost-state~1]
@@ -720,7 +720,7 @@ mod tests {
         };
         let checker = ContainerdStateGetter {};
         let res = checker.get_state(&workload_id).await;
-        assert_eq!(res, ExecutionStateInternal::lost())
+        assert_eq!(res, ExecutionStateSpec::lost())
     }
 
     // [utest->swdd~containerd-state-getter-returns-unknown-state~1]
@@ -738,7 +738,7 @@ mod tests {
         let res = checker.get_state(&workload_id).await;
         assert_eq!(
             res,
-            ExecutionStateInternal::unknown("Error getting state from Nerdctl.")
+            ExecutionStateSpec::unknown("Error getting state from Nerdctl.")
         );
     }
 

@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::ControlInterfacePath;
-use api::ank_base::WorkloadInstanceNameInternal;
+use api::ank_base::WorkloadInstanceNameSpec;
 use common::to_server_interface::ToServerSender;
 
 #[cfg(test)]
@@ -26,7 +26,7 @@ use crate::control_interface::authorizer::Authorizer;
 
 pub struct ControlInterfaceInfo {
     control_interface_path: ControlInterfacePath,
-    workload_instance_name: WorkloadInstanceNameInternal,
+    workload_instance_name: WorkloadInstanceNameSpec,
     #[cfg_attr(test, allow(dead_code))]
     control_interface_to_server_sender: ToServerSender,
     authorizer: Authorizer,
@@ -37,7 +37,7 @@ impl ControlInterfaceInfo {
     pub fn new(
         control_interface_path: ControlInterfacePath,
         control_interface_to_server_sender: ToServerSender,
-        workload_instance_name: &WorkloadInstanceNameInternal,
+        workload_instance_name: &WorkloadInstanceNameSpec,
         authorizer: Authorizer,
     ) -> Self {
         Self {
@@ -57,7 +57,7 @@ impl ControlInterfaceInfo {
     }
 
     #[cfg_attr(test, allow(dead_code))]
-    pub fn get_instance_name(&self) -> &WorkloadInstanceNameInternal {
+    pub fn get_instance_name(&self) -> &WorkloadInstanceNameSpec {
         &self.workload_instance_name
     }
 
@@ -92,7 +92,7 @@ mod tests {
     use super::{ControlInterfaceInfo, ControlInterfacePath};
     use crate::control_interface::{MockControlInterface, authorizer::MockAuthorizer};
 
-    use api::ank_base::WorkloadInstanceNameInternal;
+    use api::ank_base::WorkloadInstanceNameSpec;
     use common::to_server_interface::ToServer;
 
     use std::path::{Path, PathBuf};
@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn utest_new() {
-        let workload_instance_name = WorkloadInstanceNameInternal::builder()
+        let workload_instance_name = WorkloadInstanceNameSpec::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
@@ -129,7 +129,7 @@ mod tests {
         let new_context_info = ControlInterfaceInfo::new(
             ControlInterfacePath::new(path.to_path_buf()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
-            &WorkloadInstanceNameInternal::builder()
+            &WorkloadInstanceNameSpec::builder()
                 .workload_name(WORKLOAD_1_NAME)
                 .build(),
             MockAuthorizer::default(),
@@ -147,7 +147,7 @@ mod tests {
         let new_context_info = ControlInterfaceInfo::new(
             ControlInterfacePath::new(PIPES_LOCATION.into()),
             to_server_sender.clone(),
-            &WorkloadInstanceNameInternal::builder()
+            &WorkloadInstanceNameSpec::builder()
                 .workload_name(WORKLOAD_1_NAME)
                 .build(),
             MockAuthorizer::default(),
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn utest_has_same_configuration_true() {
         let run_folder = Path::new(PIPES_LOCATION);
-        let workload_instance_name = WorkloadInstanceNameInternal::builder()
+        let workload_instance_name = WorkloadInstanceNameSpec::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
         let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);
@@ -191,7 +191,7 @@ mod tests {
     // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_has_same_configuration_with_different_location_returns_false() {
-        let workload_instance_name = WorkloadInstanceNameInternal::builder()
+        let workload_instance_name = WorkloadInstanceNameSpec::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
@@ -215,7 +215,7 @@ mod tests {
     #[test]
     fn utest_has_same_configuration_with_different_authorizer_returns_false() {
         let run_folder = Path::new(PIPES_LOCATION);
-        let workload_instance_name = WorkloadInstanceNameInternal::builder()
+        let workload_instance_name = WorkloadInstanceNameSpec::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
         let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);

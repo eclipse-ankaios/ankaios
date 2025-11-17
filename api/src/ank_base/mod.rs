@@ -25,10 +25,10 @@ pub use workload_instance_name::{
     ConfigHash, INSTANCE_NAME_SEPARATOR, WorkloadInstanceNameBuilder,
 };
 
-pub use file::{FileContent, FileContentInternal};
+pub use file::{FileContent, FileContentSpec};
 
 pub(crate) mod control_interface_access;
-pub use access_rights_rule::AccessRightsRuleEnumInternal;
+pub use access_rights_rule::AccessRightsRuleEnumSpec;
 pub use control_interface_access::WILDCARD_SYMBOL;
 
 pub(crate) mod workload;
@@ -38,16 +38,16 @@ pub use workload::{
 };
 
 pub(crate) mod workload_state;
-pub use execution_state::{ExecutionStateEnum, ExecutionStateEnumInternal};
+pub use execution_state::{ExecutionStateEnum, ExecutionStateEnumSpec};
 
 pub(crate) mod workload_states_map;
 
 pub(crate) mod config;
-pub use config_item::{ConfigItemEnum, ConfigItemEnumInternal};
+pub use config_item::{ConfigItemEnum, ConfigItemEnumSpec};
 
 pub(crate) mod complete_state;
 
-pub use request::{RequestContent, RequestContentInternal};
+pub use request::{RequestContent, RequestContentSpec};
 pub use response::ResponseContent;
 
 pub(crate) mod requests;

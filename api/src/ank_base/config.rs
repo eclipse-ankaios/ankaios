@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::ConfigMappingsInternal;
+use crate::ank_base::ConfigMappingsSpec;
 use std::collections::HashMap;
 
-impl<const N: usize> From<[(String, String); N]> for ConfigMappingsInternal {
+impl<const N: usize> From<[(String, String); N]> for ConfigMappingsSpec {
     fn from(value: [(String, String); N]) -> Self {
-        ConfigMappingsInternal {
+        ConfigMappingsSpec {
             configs: value
                 .into_iter()
                 .collect::<std::collections::HashMap<_, _>>(),
@@ -25,9 +25,9 @@ impl<const N: usize> From<[(String, String); N]> for ConfigMappingsInternal {
     }
 }
 
-impl From<HashMap<String, String>> for ConfigMappingsInternal {
+impl From<HashMap<String, String>> for ConfigMappingsSpec {
     fn from(value: HashMap<String, String>) -> Self {
-        ConfigMappingsInternal { configs: value }
+        ConfigMappingsSpec { configs: value }
     }
 }
 
@@ -40,41 +40,39 @@ impl From<HashMap<String, String>> for ConfigMappingsInternal {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-use crate::ank_base::{
-    ConfigArrayInternal, ConfigItemEnumInternal, ConfigItemInternal, ConfigObjectInternal,
-};
+use crate::ank_base::{ConfigArraySpec, ConfigItemEnumSpec, ConfigItemSpec, ConfigObjectSpec};
 
 #[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_config_item<T>(item: T) -> ConfigItemInternal
+pub fn generate_test_config_item<T>(item: T) -> ConfigItemSpec
 where
-    T: Into<ConfigItemInternal>,
+    T: Into<ConfigItemSpec>,
 {
     item.into()
 }
 
 #[cfg(any(feature = "test_utils", test))]
-impl From<String> for ConfigItemInternal {
+impl From<String> for ConfigItemSpec {
     fn from(s: String) -> Self {
-        ConfigItemInternal {
-            config_item_enum: ConfigItemEnumInternal::String(s),
+        ConfigItemSpec {
+            config_item_enum: ConfigItemEnumSpec::String(s),
         }
     }
 }
 
 #[cfg(any(feature = "test_utils", test))]
-impl From<Vec<ConfigItemInternal>> for ConfigItemInternal {
-    fn from(values: Vec<ConfigItemInternal>) -> Self {
-        ConfigItemInternal {
-            config_item_enum: ConfigItemEnumInternal::Array(ConfigArrayInternal { values }),
+impl From<Vec<ConfigItemSpec>> for ConfigItemSpec {
+    fn from(values: Vec<ConfigItemSpec>) -> Self {
+        ConfigItemSpec {
+            config_item_enum: ConfigItemEnumSpec::Array(ConfigArraySpec { values }),
         }
     }
 }
 
 #[cfg(any(feature = "test_utils", test))]
-impl From<HashMap<String, ConfigItemInternal>> for ConfigItemInternal {
-    fn from(fields: HashMap<String, ConfigItemInternal>) -> Self {
-        ConfigItemInternal {
-            config_item_enum: ConfigItemEnumInternal::Object(ConfigObjectInternal { fields }),
+impl From<HashMap<String, ConfigItemSpec>> for ConfigItemSpec {
+    fn from(fields: HashMap<String, ConfigItemSpec>) -> Self {
+        ConfigItemSpec {
+            config_item_enum: ConfigItemEnumSpec::Object(ConfigObjectSpec { fields }),
         }
     }
 }

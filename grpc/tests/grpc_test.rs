@@ -15,8 +15,7 @@
 #[cfg(test)]
 mod grpc_tests {
     use api::ank_base::{
-        CompleteStateInternal, CompleteStateRequestInternal, RequestContentInternal,
-        RequestInternal,
+        CompleteStateRequestSpec, CompleteStateSpec, RequestContentSpec, RequestSpec,
     };
     use common::{
         commands::{self},
@@ -326,7 +325,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequestInternal { field_mask: vec![] },
+                CompleteStateRequestSpec { field_mask: vec![] },
             )
             .await;
 
@@ -338,9 +337,9 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         assert!(matches!(
             result,
             Ok(Some(ToServer::Request(
-                RequestInternal{
+                RequestSpec{
                     request_id,
-                    request_content: RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
+                    request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                         field_mask
                     })
                 }
@@ -368,7 +367,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequestInternal { field_mask: vec![] },
+                CompleteStateRequestSpec { field_mask: vec![] },
             )
             .await;
 
@@ -380,9 +379,9 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         assert!(matches!(
             result,
             Ok(Some(ToServer::Request(
-                RequestInternal{
+                RequestSpec{
                     request_id,
-                    request_content: RequestContentInternal::CompleteStateRequest(CompleteStateRequestInternal {
+                    request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                         field_mask
                     })
                 }
@@ -407,7 +406,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let update_state_result = to_grpc_client
             .update_state(
                 test_request_id.to_owned(),
-                CompleteStateInternal {
+                CompleteStateSpec {
                     ..Default::default()
                 },
                 vec![],
@@ -420,7 +419,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
 
         assert!(matches!(
             result,
-            Ok(Some(ToServer::Request(RequestInternal{request_id, request_content: _}))
+            Ok(Some(ToServer::Request(RequestSpec{request_id, request_content: _}))
             ) if request_id.contains(test_request_id)
         ));
     }

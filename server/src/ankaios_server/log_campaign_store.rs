@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::WorkloadInstanceNameInternal;
+use api::ank_base::WorkloadInstanceNameSpec;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -123,7 +123,7 @@ where
 #[derive(Default, Debug, Clone)]
 pub struct RemovedLogRequests {
     pub collector_requests: HashSet<LogCollectorRequestId>,
-    pub disconnected_log_providers: Vec<(LogCollectorRequestId, Vec<WorkloadInstanceNameInternal>)>,
+    pub disconnected_log_providers: Vec<(LogCollectorRequestId, Vec<WorkloadInstanceNameSpec>)>,
 }
 
 #[derive(Default)]
@@ -131,7 +131,7 @@ pub struct LogCampaignStore {
     agent_log_request_ids_store: AgentLogRequestIdMap,
     workload_name_request_id_store: WorkloadNameRequestIdMap,
     log_providers_store:
-        HashMap<AgentName, HashMap<LogCollectorRequestId, Vec<WorkloadInstanceNameInternal>>>,
+        HashMap<AgentName, HashMap<LogCollectorRequestId, Vec<WorkloadInstanceNameSpec>>>,
     cli_log_request_id_store: CliConnectionLogRequestIdMap,
 }
 
@@ -141,7 +141,7 @@ impl LogCampaignStore {
     pub fn insert_log_campaign(
         &mut self,
         input_request_id: &LogCollectorRequestId,
-        log_providers: &Vec<WorkloadInstanceNameInternal>,
+        log_providers: &Vec<WorkloadInstanceNameSpec>,
     ) {
         let request_id: RequestId = input_request_id.into();
         log::debug!("Insert log campaign '{request_id}'");
@@ -328,7 +328,7 @@ impl LogCampaignStore {
 #[cfg(test)]
 mod tests {
     use super::{AgentRequestId, CliRequestId, HashMap, HashSet, LogCampaignStore, RequestId};
-    use api::ank_base::WorkloadInstanceNameInternal;
+    use api::ank_base::WorkloadInstanceNameSpec;
 
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_1_NAME: &str = "workload_1";
@@ -343,7 +343,7 @@ mod tests {
     const CLI_1_REQUEST_ID_3: &str = "cli-conn-1@cli_request_id_3";
 
     mockall::lazy_static! {
-        static ref WORKLOAD_3_INSTANCE_NAME: WorkloadInstanceNameInternal = WorkloadInstanceNameInternal::try_from("log_provider.some_uuid.agent_B").unwrap();
+        static ref WORKLOAD_3_INSTANCE_NAME: WorkloadInstanceNameSpec = WorkloadInstanceNameSpec::try_from("log_provider.some_uuid.agent_B").unwrap();
 
     }
 

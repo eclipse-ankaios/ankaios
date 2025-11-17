@@ -16,10 +16,9 @@ use super::config_renderer::RenderedWorkloads;
 use super::cycle_check;
 
 use api::ank_base::{
-    AgentAttributesInternal, AgentStatusInternal, CompleteState, CompleteStateInternal,
-    CompleteStateRequestInternal, CpuUsageInternal, DeletedWorkload, FreeMemoryInternal,
-    StateInternal, WorkloadInstanceNameInternal, WorkloadNamed, WorkloadStateInternal,
-    WorkloadStatesMapInternal,
+    AgentAttributesSpec, AgentStatusSpec, CompleteState, CompleteStateRequestSpec,
+    CompleteStateSpec, CpuUsageSpec, DeletedWorkload, FreeMemorySpec, StateSpec,
+    WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use api::std_extensions::IllegalStateResult;
 use common::state_manipulation::{Object, Path};
@@ -105,7 +104,7 @@ impl Display for UpdateStateError {
 
 #[derive(Default)]
 pub struct ServerState {
-    state: CompleteStateInternal,
+    state: CompleteStateSpec,
     rendered_workloads: RenderedWorkloads,
     delete_graph: DeleteGraph,
     config_renderer: ConfigRenderer,
@@ -122,10 +121,10 @@ impl ServerState {
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
-        request_complete_state: CompleteStateRequestInternal,
-        workload_states_map: &WorkloadStatesMapInternal,
+        request_complete_state: CompleteStateRequestSpec,
+        workload_states_map: &WorkloadStatesMapSpec,
     ) -> Result<CompleteState, String> {
-        let current_complete_state: CompleteState = CompleteStateInternal {
+        let current_complete_state: CompleteState = CompleteStateSpec {
             desired_state: self.state.desired_state.clone(),
             workload_states: workload_states_map.clone(),
             agents: self.state.agents.clone(),
@@ -181,7 +180,7 @@ impl ServerState {
     // [impl->swdd~server-handles-logs-request-message~1]
     pub fn desired_state_contains_instance_name(
         &self,
-        instance_name: &WorkloadInstanceNameInternal,
+        instance_name: &WorkloadInstanceNameSpec,
     ) -> bool {
         self.rendered_workloads
             .get(instance_name.workload_name())
@@ -190,7 +189,7 @@ impl ServerState {
 
     pub fn update(
         &mut self,
-        new_state: CompleteStateInternal,
+        new_state: CompleteStateSpec,
         update_mask: Vec<String>,
     ) -> Result<AddedDeletedWorkloads, UpdateStateError> {
         // [impl->swdd~update-desired-state-with-update-mask~1]
@@ -263,7 +262,7 @@ impl ServerState {
             .agents
             .agents
             .entry(agent_name)
-            .or_insert(AgentAttributesInternal {
+            .or_insert(AgentAttributesSpec {
                 ..Default::default()
             });
     }
@@ -288,11 +287,11 @@ impl ServerState {
             .agents
             .entry(agent_load_status.agent_name)
             .and_modify(|e| {
-                e.status = Some(AgentStatusInternal {
-                    cpu_usage: Some(CpuUsageInternal {
+                e.status = Some(AgentStatusSpec {
+                    cpu_usage: Some(CpuUsageSpec {
                         cpu_usage: agent_load_status.cpu_usage.cpu_usage,
                     }),
-                    free_memory: Some(FreeMemoryInternal {
+                    free_memory: Some(FreeMemorySpec {
                         free_memory: agent_load_status.free_memory.free_memory,
                     }),
                 });
@@ -300,7 +299,7 @@ impl ServerState {
     }
 
     // [impl->swdd~server-cleans-up-state~1]
-    pub fn cleanup_state(&mut self, new_workload_states: &[WorkloadStateInternal]) {
+    pub fn cleanup_state(&mut self, new_workload_states: &[WorkloadStateSpec]) {
         // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
         self.delete_graph
             .remove_deleted_workloads_from_delete_graph(new_workload_states);
@@ -308,9 +307,9 @@ impl ServerState {
 
     fn generate_new_state(
         &mut self,
-        updated_state: CompleteStateInternal,
+        updated_state: CompleteStateSpec,
         update_mask: Vec<String>,
-    ) -> Result<CompleteStateInternal, UpdateStateError> {
+    ) -> Result<CompleteStateSpec, UpdateStateError> {
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         if update_mask.is_empty() {
             return Ok(updated_state);
@@ -340,7 +339,7 @@ impl ServerState {
         })
     }
 
-    fn set_desired_state(&mut self, new_desired_state: StateInternal) {
+    fn set_desired_state(&mut self, new_desired_state: StateSpec) {
         self.state.desired_state = new_desired_state;
     }
 
@@ -371,10 +370,10 @@ mod tests {
     use std::collections::HashMap;
 
     use api::ank_base::{
-        AgentMapInternal, CompleteState, CompleteStateInternal, CompleteStateRequestInternal,
-        ConfigItemEnumInternal, ConfigItemInternal, ConfigMapInternal, ConfigObjectInternal,
-        CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, StateInternal, Workload,
-        WorkloadInternal, WorkloadMapInternal, WorkloadNamed, WorkloadStatesMapInternal,
+        AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec,
+        ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigObjectSpec, CpuUsageSpec,
+        DeletedWorkload, FreeMemorySpec, StateSpec, Workload, WorkloadMapSpec, WorkloadNamed,
+        WorkloadSpec, WorkloadStatesMapSpec,
     };
     use api::test_utils::{
         generate_test_agent_map, generate_test_complete_state, generate_test_configs,
@@ -399,7 +398,7 @@ mod tests {
     const WORKLOAD_NAME_4: &str = "workload_4";
     const RUNTIME: &str = "runtime";
 
-    fn generate_rendered_workloads_from_state(state: &StateInternal) -> RenderedWorkloads {
+    fn generate_rendered_workloads_from_state(state: &StateSpec) -> RenderedWorkloads {
         state
             .workloads
             .workloads
@@ -426,9 +425,9 @@ mod tests {
             ..Default::default()
         };
 
-        let request_complete_state = CompleteStateRequestInternal { field_mask: vec![] };
+        let request_complete_state = CompleteStateRequestSpec { field_mask: vec![] };
 
-        let mut workload_state_db = WorkloadStatesMapInternal::default();
+        let mut workload_state_db = WorkloadStatesMapSpec::default();
         workload_state_db.process_new_states(server_state.state.workload_states.clone().into());
 
         let received_complete_state = server_state
@@ -450,14 +449,14 @@ mod tests {
             ..Default::default()
         };
 
-        let request_complete_state = CompleteStateRequestInternal {
+        let request_complete_state = CompleteStateRequestSpec {
             field_mask: vec![
                 "workloads.invalidMask".to_string(), // invalid not existing workload
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
             ],
         };
 
-        let mut workload_state_map = WorkloadStatesMapInternal::default();
+        let mut workload_state_map = WorkloadStatesMapSpec::default();
         workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
 
         let received_complete_state = server_state
@@ -490,14 +489,14 @@ mod tests {
             ..Default::default()
         };
 
-        let request_complete_state = CompleteStateRequestInternal {
+        let request_complete_state = CompleteStateRequestSpec {
             field_mask: vec![
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
                 format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
             ],
         };
 
-        let mut workload_state_map = WorkloadStatesMapInternal::default();
+        let mut workload_state_map = WorkloadStatesMapSpec::default();
         workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
 
         let complete_state = server_state
@@ -598,18 +597,17 @@ mod tests {
     fn utest_server_state_update_state_reject_state_with_cyclic_dependencies() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let workload: WorkloadInternal = generate_test_workload_with_param(AGENT_A, RUNTIME);
+        let workload: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME);
 
         // workload has a self cycle to workload_B
-        let new_workload_1: WorkloadInternal = generate_test_workload_with_param(AGENT_A, RUNTIME);
+        let new_workload_1: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME);
 
-        let mut new_workload_2: WorkloadInternal =
-            generate_test_workload_with_param(AGENT_A, RUNTIME);
+        let mut new_workload_2: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME);
         new_workload_2.dependencies.dependencies.clear();
 
-        let old_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let old_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
                 },
                 ..Default::default()
@@ -617,9 +615,9 @@ mod tests {
             ..Default::default()
         };
 
-        let rejected_new_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let rejected_new_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([
                         ("workload_B".to_string(), new_workload_1),
                         (WORKLOAD_NAME_1.to_string(), new_workload_2),
@@ -889,17 +887,15 @@ mod tests {
         old_state.desired_state.configs = generate_test_configs();
 
         let mut updated_state = old_state.clone();
-        updated_state.desired_state.configs = ConfigMapInternal {
+        updated_state.desired_state.configs = ConfigMapSpec {
             configs: HashMap::from([(
                 "config_1".to_string(),
-                ConfigItemInternal {
-                    config_item_enum: ConfigItemEnumInternal::Object(ConfigObjectInternal {
+                ConfigItemSpec {
+                    config_item_enum: ConfigItemEnumSpec::Object(ConfigObjectSpec {
                         fields: HashMap::from([(
                             "agent_name".to_string(),
-                            ConfigItemInternal {
-                                config_item_enum: ConfigItemEnumInternal::String(
-                                    AGENT_B.to_owned(),
-                                ), // changed agent name in configs
+                            ConfigItemSpec {
+                                config_item_enum: ConfigItemEnumSpec::String(AGENT_B.to_owned()), // changed agent name in configs
                             },
                         )]),
                     }),
@@ -977,11 +973,11 @@ mod tests {
             .configs
             .configs
             .get_mut("config_1")
-            && let ConfigItemEnumInternal::Object(obj) = &mut config_1.config_item_enum
+            && let ConfigItemEnumSpec::Object(obj) = &mut config_1.config_item_enum
             && let Some(agent_name) = obj.fields.get_mut("agent_name")
         {
             // changed agent name in configs
-            agent_name.config_item_enum = ConfigItemEnumInternal::String(AGENT_B.to_owned());
+            agent_name.config_item_enum = ConfigItemEnumSpec::String(AGENT_B.to_owned());
         } else {
             panic!("The configs should have the expected structure.");
         }
@@ -1226,10 +1222,10 @@ mod tests {
         };
 
         let added_deleted_workloads = server_state
-            .update(CompleteStateInternal::default(), vec![])
+            .update(CompleteStateSpec::default(), vec![])
             .unwrap();
         assert!(added_deleted_workloads.is_none());
-        assert_eq!(server_state.state, CompleteStateInternal::default());
+        assert_eq!(server_state.state, CompleteStateSpec::default());
     }
 
     // [utest->swdd~update-desired-state-empty-update-mask~1]
@@ -1302,7 +1298,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let current_complete_state = generate_test_old_state();
-        let update_state = CompleteStateInternal::default();
+        let update_state = CompleteStateSpec::default();
         let update_mask = vec![];
 
         let mut delete_graph_mock = MockDeleteGraph::new();
@@ -1360,7 +1356,7 @@ mod tests {
         });
         assert_eq!(deleted_workloads, expected_deleted_workloads);
 
-        assert_eq!(server_state.state.desired_state, StateInternal::default());
+        assert_eq!(server_state.state.desired_state, StateSpec::default());
     }
 
     // [utest->swdd~update-desired-state-empty-update-mask~1]
@@ -1444,9 +1440,9 @@ mod tests {
         let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_A.to_string(), RUNTIME.to_string());
 
-        let current_complete_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let current_complete_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         workload.instance_name.workload_name().to_owned(),
                         workload.workload.clone(),
@@ -1460,9 +1456,9 @@ mod tests {
         let new_workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_B.to_string(), RUNTIME.to_string());
 
-        let new_complete_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let new_complete_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         new_workload.instance_name.workload_name().to_owned(),
                         new_workload.workload.clone(),
@@ -1526,8 +1522,8 @@ mod tests {
             state: generate_test_complete_state(vec![w1.clone()]),
             ..Default::default()
         };
-        let cpu_usage = CpuUsageInternal { cpu_usage: 42 };
-        let free_memory = FreeMemoryInternal { free_memory: 42 };
+        let cpu_usage = CpuUsageSpec { cpu_usage: 42 };
+        let free_memory = FreeMemorySpec { free_memory: 42 };
         server_state.update_agent_resource_availability(AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
             cpu_usage: cpu_usage.clone(),
@@ -1574,8 +1570,8 @@ mod tests {
         server_state.add_agent(AGENT_A.to_string());
         server_state.update_agent_resource_availability(AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
-            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
-            free_memory: FreeMemoryInternal { free_memory: 42 },
+            cpu_usage: CpuUsageSpec { cpu_usage: 42 },
+            free_memory: FreeMemorySpec { free_memory: 42 },
         });
 
         let expected_agent_map = generate_test_agent_map(AGENT_A);
@@ -1587,7 +1583,7 @@ mod tests {
     #[test]
     fn utest_remove_agent() {
         let mut server_state = ServerState {
-            state: CompleteStateInternal {
+            state: CompleteStateSpec {
                 agents: generate_test_agent_map(AGENT_A),
                 ..Default::default()
             },
@@ -1596,7 +1592,7 @@ mod tests {
 
         server_state.remove_agent(AGENT_A);
 
-        let expected_agent_map = AgentMapInternal::default();
+        let expected_agent_map = AgentMapSpec::default();
         assert_eq!(server_state.state.agents, expected_agent_map);
     }
 
@@ -1604,7 +1600,7 @@ mod tests {
     #[test]
     fn utest_contains_connected_agent() {
         let server_state = ServerState {
-            state: CompleteStateInternal {
+            state: CompleteStateSpec {
                 agents: generate_test_agent_map(AGENT_A),
                 ..Default::default()
             },
@@ -1615,7 +1611,7 @@ mod tests {
         assert!(!server_state.contains_connected_agent(AGENT_B));
     }
 
-    fn generate_test_old_state() -> CompleteStateInternal {
+    fn generate_test_old_state() -> CompleteStateSpec {
         generate_test_complete_state(vec![
             generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime_1")
                 .name("workload_1"),
@@ -1626,7 +1622,7 @@ mod tests {
         ])
     }
 
-    fn generate_test_update_state() -> CompleteStateInternal {
+    fn generate_test_update_state() -> CompleteStateSpec {
         generate_test_complete_state(vec![
             generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_2")
                 .name("workload_1"),

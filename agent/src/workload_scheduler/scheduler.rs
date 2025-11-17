@@ -20,9 +20,7 @@ use crate::{
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
-use api::ank_base::{
-    DeletedWorkload, ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed,
-};
+use api::ank_base::{DeletedWorkload, ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
 use std::{collections::HashMap, fmt::Display};
 
 #[cfg_attr(test, mockall_double::double)]
@@ -309,21 +307,15 @@ impl WorkloadScheduler {
         ready_workload_operations
     }
 
-    async fn report_pending_create_state(&self, instance_name: &WorkloadInstanceNameInternal) {
+    async fn report_pending_create_state(&self, instance_name: &WorkloadInstanceNameSpec) {
         self.workload_state_sender
-            .report_workload_execution_state(
-                instance_name,
-                ExecutionStateInternal::waiting_to_start(),
-            )
+            .report_workload_execution_state(instance_name, ExecutionStateSpec::waiting_to_start())
             .await;
     }
 
-    async fn report_pending_delete_state(&self, instance_name: &WorkloadInstanceNameInternal) {
+    async fn report_pending_delete_state(&self, instance_name: &WorkloadInstanceNameSpec) {
         self.workload_state_sender
-            .report_workload_execution_state(
-                instance_name,
-                ExecutionStateInternal::waiting_to_stop(),
-            )
+            .report_workload_execution_state(instance_name, ExecutionStateSpec::waiting_to_stop())
             .await;
     }
 }
@@ -349,7 +341,7 @@ mod tests {
         },
     };
 
-    use api::ank_base::{ExecutionStateInternal, WorkloadNamed, WorkloadStateInternal};
+    use api::ank_base::{ExecutionStateSpec, WorkloadNamed, WorkloadStateSpec};
     use api::test_utils::{
         generate_test_deleted_workload, generate_test_workload,
         generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
@@ -394,7 +386,7 @@ mod tests {
 
         let expected_workload_state = generate_test_workload_state_with_workload_named(
             &pending_reusable_workload.workload_named.clone(),
-            ExecutionStateInternal::waiting_to_start(),
+            ExecutionStateSpec::waiting_to_start(),
         );
 
         assert_eq!(
@@ -510,9 +502,9 @@ mod tests {
                 .get(pending_deleted_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadStateInternal {
+        let expected_workload_state = WorkloadStateSpec {
             instance_name: pending_deleted_workload.instance_name,
-            execution_state: ExecutionStateInternal::waiting_to_stop(),
+            execution_state: ExecutionStateSpec::waiting_to_stop(),
         };
 
         assert_eq!(
@@ -634,9 +626,9 @@ mod tests {
                 .get(pending_deleted_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadStateInternal {
+        let expected_workload_state = WorkloadStateSpec {
             instance_name: pending_deleted_workload.instance_name,
-            execution_state: ExecutionStateInternal::waiting_to_stop(),
+            execution_state: ExecutionStateSpec::waiting_to_stop(),
         };
 
         assert_eq!(
@@ -702,9 +694,9 @@ mod tests {
                 .get(pending_deleted_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadStateInternal {
+        let expected_workload_state = WorkloadStateSpec {
             instance_name: pending_deleted_workload.instance_name,
-            execution_state: ExecutionStateInternal::waiting_to_stop(),
+            execution_state: ExecutionStateSpec::waiting_to_stop(),
         };
 
         assert_eq!(
@@ -772,9 +764,9 @@ mod tests {
                 .get(pending_new_workload.instance_name.workload_name())
         );
 
-        let expected_workload_state = WorkloadStateInternal {
+        let expected_workload_state = WorkloadStateSpec {
             instance_name: pending_new_workload.instance_name,
-            execution_state: ExecutionStateInternal::waiting_to_start(),
+            execution_state: ExecutionStateSpec::waiting_to_start(),
         };
 
         assert_eq!(
@@ -1073,7 +1065,7 @@ mod tests {
             workload_state_receiver,
             vec![(
                 &instance_name_new_workload,
-                ExecutionStateInternal::waiting_to_start(),
+                ExecutionStateSpec::waiting_to_start(),
             )],
         )
         .await;

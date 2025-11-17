@@ -19,7 +19,7 @@ mod server_config;
 use std::fs;
 use std::path::PathBuf;
 
-use api::ank_base::{CompleteStateInternal, StateInternal, validate_tags};
+use api::ank_base::{CompleteStateSpec, StateSpec, validate_tags};
 use api::std_extensions::GracefulExitResult;
 
 use common::communications_server::CommunicationsServer;
@@ -114,13 +114,13 @@ async fn main() {
 
             // [impl->swdd~server-state-in-memory~1]
             // [impl->swdd~server-loads-startup-state-file~3]
-            let state: StateInternal = serde_yaml::from_str(&data)
+            let state: StateSpec = serde_yaml::from_str(&data)
                 .unwrap_or_exit("Parsing start config failed with error");
             log::trace!(
                 "The state is initialized with the following workloads: {:?}",
                 state.workloads
             );
-            Some(CompleteStateInternal {
+            Some(CompleteStateSpec {
                 desired_state: state,
                 ..Default::default()
             })

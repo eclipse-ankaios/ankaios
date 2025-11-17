@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{FileContentInternal, FileInternal};
+use api::ank_base::{FileContentSpec, FileSpec};
 use base64::{Engine, engine::general_purpose};
 use std::{
     collections::HashMap,
@@ -129,7 +129,7 @@ impl WorkloadFilesCreator {
     // [impl->swdd~workload-files-creator-writes-files-at-mount-point-dependent-path~1]
     pub async fn create_files(
         workload_files_base_path: &WorkloadFilesBasePath,
-        workload_files: &[FileInternal],
+        workload_files: &[FileSpec],
     ) -> Result<HashMap<HostFilePath, MountPointPath>, WorkloadFileCreationError> {
         let mut host_file_paths = HashMap::new();
         for file in workload_files {
@@ -164,13 +164,13 @@ impl WorkloadFilesCreator {
 
     async fn write_file(
         file_path: &Path,
-        file: &FileInternal,
+        file: &FileSpec,
     ) -> Result<(), WorkloadFileCreationError> {
         let file_io_result = match &file.file_content {
-            FileContentInternal::Data { data } => {
+            FileContentSpec::Data { data } => {
                 filesystem_async::write_file(file_path, data.clone()).await
             }
-            FileContentInternal::BinaryData { binary_data } => {
+            FileContentSpec::BinaryData { binary_data } => {
                 // [impl->swdd~workload-files-creator-decodes-base64-to-binary~2]
                 let binary_data = binary_data
                     .lines()
@@ -213,7 +213,7 @@ mod tests {
 
     use crate::workload_files::generate_test_workload_files_path;
 
-    use super::{FileContentInternal, FileInternal, WorkloadFileHostPath, WorkloadFilesCreator};
+    use super::{FileContentSpec, FileSpec, WorkloadFileHostPath, WorkloadFilesCreator};
 
     use crate::io_utils::{FileSystemError, mock_filesystem, mock_filesystem_async};
 
@@ -237,16 +237,16 @@ mod tests {
 
         let workload_files = vec![
             // Text based file
-            FileInternal {
+            FileSpec {
                 mount_point: "/some/path/test.conf".to_string(),
-                file_content: FileContentInternal::Data {
+                file_content: FileContentSpec::Data {
                     data: TEST_WORKLOAD_FILE_DATA.to_owned(),
                 },
             },
             // Binary file
-            FileInternal {
+            FileSpec {
                 mount_point: "/hello".to_string(),
-                file_content: FileContentInternal::BinaryData {
+                file_content: FileContentSpec::BinaryData {
                     binary_data: TEST_BASE64_DATA.to_owned(), // "data" as base64
                 },
             },
@@ -332,9 +332,9 @@ mod tests {
         let expected_host_file_paths =
             HashMap::from([(binary_file_path, PathBuf::from("/binary"))]);
 
-        let workload_files = [FileInternal {
+        let workload_files = [FileSpec {
             mount_point: "/binary".to_string(),
-            file_content: FileContentInternal::BinaryData {
+            file_content: FileContentSpec::BinaryData {
                 binary_data: wrapped_base64_input.to_string(),
             },
         }];
@@ -353,9 +353,9 @@ mod tests {
             .await;
 
         let workload_files_path = generate_test_workload_files_path();
-        let workload_files = vec![FileInternal {
+        let workload_files = vec![FileSpec {
             mount_point: "/some/path/test.conf".to_string(),
-            file_content: FileContentInternal::Data {
+            file_content: FileContentSpec::Data {
                 data: TEST_WORKLOAD_FILE_DATA.to_owned(),
             },
         }];
@@ -391,9 +391,9 @@ mod tests {
             .await;
 
         let workload_files_path = generate_test_workload_files_path();
-        let workload_files = vec![FileInternal {
+        let workload_files = vec![FileSpec {
             mount_point: "/some/path/test.conf".to_string(),
-            file_content: FileContentInternal::Data {
+            file_content: FileContentSpec::Data {
                 data: TEST_WORKLOAD_FILE_DATA.to_owned(),
             },
         }];
@@ -436,9 +436,9 @@ mod tests {
             .await;
 
         let workload_files_path = generate_test_workload_files_path();
-        let workload_files = vec![FileInternal {
+        let workload_files = vec![FileSpec {
             mount_point: "/..".to_string(),
-            file_content: FileContentInternal::Data {
+            file_content: FileContentSpec::Data {
                 data: TEST_WORKLOAD_FILE_DATA.to_owned(),
             },
         }];
@@ -521,9 +521,9 @@ mod tests {
     async fn utest_workload_files_creator_write_file_base64_decode_error() {
         let result = WorkloadFilesCreator::write_file(
             &PathBuf::from("/some/host/file/path/to/binary"),
-            &FileInternal {
+            &FileSpec {
                 mount_point: "/binary".to_string(),
-                file_content: FileContentInternal::BinaryData {
+                file_content: FileContentSpec::BinaryData {
                     binary_data: "/invalid/base64".to_string(),
                 },
             },

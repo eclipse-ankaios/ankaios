@@ -14,7 +14,7 @@
 
 use super::Path;
 
-use api::ank_base::{CompleteState, CompleteStateInternal, State, StateInternal};
+use api::ank_base::{CompleteState, CompleteStateSpec, State, StateSpec};
 
 use serde_yaml::{
     Mapping, Value, from_value,
@@ -52,28 +52,28 @@ impl TryFrom<&toml::Value> for Object {
     }
 }
 
-impl TryFrom<&StateInternal> for Object {
+impl TryFrom<&StateSpec> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: &StateInternal) -> Result<Self, Self::Error> {
+    fn try_from(value: &StateSpec) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryFrom<StateInternal> for Object {
+impl TryFrom<StateSpec> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: StateInternal) -> Result<Self, Self::Error> {
+    fn try_from(value: StateSpec) -> Result<Self, Self::Error> {
         (&value).try_into()
     }
 }
 
-impl TryFrom<CompleteStateInternal> for Object {
+impl TryFrom<CompleteStateSpec> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: CompleteStateInternal) -> Result<Self, Self::Error> {
+    fn try_from(value: CompleteStateSpec) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
@@ -90,28 +90,28 @@ impl TryFrom<CompleteState> for Object {
     }
 }
 
-impl TryFrom<&CompleteStateInternal> for Object {
+impl TryFrom<&CompleteStateSpec> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: &CompleteStateInternal) -> Result<Self, Self::Error> {
+    fn try_from(value: &CompleteStateSpec) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryInto<StateInternal> for Object {
+impl TryInto<StateSpec> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_into(self) -> Result<StateInternal, Self::Error> {
+    fn try_into(self) -> Result<StateSpec, Self::Error> {
         from_value(self.data)
     }
 }
 
-impl TryInto<CompleteStateInternal> for Object {
+impl TryInto<CompleteStateSpec> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_into(self) -> Result<CompleteStateInternal, Self::Error> {
+    fn try_into(self) -> Result<CompleteStateSpec, Self::Error> {
         from_value(self.data)
     }
 }
@@ -294,9 +294,7 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use super::Object;
-    use api::ank_base::{
-        CompleteStateInternal, ExecutionStateInternal, StateInternal, WorkloadNamed,
-    };
+    use api::ank_base::{CompleteStateSpec, ExecutionStateSpec, StateSpec, WorkloadNamed};
     use api::test_utils::{
         generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
         generate_test_workload, generate_test_workload_states_map_with_data,
@@ -306,8 +304,7 @@ mod tests {
 
     #[test]
     fn utest_object_from_state() {
-        let state: StateInternal =
-            generate_test_state_from_workloads(vec![generate_test_workload()]);
+        let state: StateSpec = generate_test_state_from_workloads(vec![generate_test_workload()]);
 
         let expected = Object {
             data: object::generate_test_state().into(),
@@ -322,7 +319,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let actual: StateInternal = object.try_into().unwrap();
+        let actual: StateSpec = object.try_into().unwrap();
         let expected = generate_test_state_from_workloads(vec![generate_test_workload()]);
 
         assert_eq!(actual, expected)
@@ -335,13 +332,13 @@ mod tests {
         let workloads = vec![wl_named];
         let state = generate_test_state_from_workloads(workloads);
 
-        let complete_state = CompleteStateInternal {
+        let complete_state = CompleteStateSpec {
             desired_state: state,
             workload_states: generate_test_workload_states_map_with_data(
                 "agent_A",
                 "workload_A",
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
-                ExecutionStateInternal::running(),
+                ExecutionStateSpec::running(),
             ),
             agents: agent_map,
         };
@@ -364,18 +361,18 @@ mod tests {
         let workloads = vec![wl_named];
 
         let expected_state = generate_test_state_from_workloads(workloads);
-        let expected = CompleteStateInternal {
+        let expected = CompleteStateSpec {
             desired_state: expected_state,
             workload_states: generate_test_workload_states_map_with_data(
                 "agent_A",
                 "workload_A",
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
-                ExecutionStateInternal::running(),
+                ExecutionStateSpec::running(),
             ),
             agents: agent_map,
         };
 
-        let actual: CompleteStateInternal = object.clone().try_into().unwrap();
+        let actual: CompleteStateSpec = object.clone().try_into().unwrap();
 
         assert_eq!(actual, expected);
     }

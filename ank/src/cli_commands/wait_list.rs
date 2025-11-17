@@ -14,8 +14,8 @@
 
 use crate::output_update;
 use api::ank_base::{
-    ExecutionStateEnumInternal, Pending, UpdateStateSuccess, WorkloadInstanceNameInternal,
-    WorkloadStateInternal,
+    ExecutionStateEnumSpec, Pending, UpdateStateSuccess, WorkloadInstanceNameSpec,
+    WorkloadStateSpec,
 };
 
 use std::{collections::HashSet, fmt::Display};
@@ -25,8 +25,8 @@ use mockall::mock;
 
 #[derive(Debug)]
 pub struct ParsedUpdateStateSuccess {
-    pub added_workloads: Vec<WorkloadInstanceNameInternal>,
-    pub deleted_workloads: Vec<WorkloadInstanceNameInternal>,
+    pub added_workloads: Vec<WorkloadInstanceNameSpec>,
+    pub deleted_workloads: Vec<WorkloadInstanceNameSpec>,
 }
 
 impl TryFrom<UpdateStateSuccess> for ParsedUpdateStateSuccess {
@@ -37,21 +37,21 @@ impl TryFrom<UpdateStateSuccess> for ParsedUpdateStateSuccess {
             added_workloads: value
                 .added_workloads
                 .iter()
-                .map(|x| WorkloadInstanceNameInternal::try_from(x.as_ref()))
+                .map(|x| WorkloadInstanceNameSpec::try_from(x.as_ref()))
                 .collect::<Result<_, String>>()?,
 
             deleted_workloads: value
                 .deleted_workloads
                 .iter()
-                .map(|x| WorkloadInstanceNameInternal::try_from(x.as_ref()))
+                .map(|x| WorkloadInstanceNameSpec::try_from(x.as_ref()))
                 .collect::<Result<_, String>>()?,
         })
     }
 }
 
 pub trait WaitListDisplayTrait: Display {
-    fn update(&mut self, workload_state: &WorkloadStateInternal);
-    fn set_complete(&mut self, workload: &WorkloadInstanceNameInternal);
+    fn update(&mut self, workload_state: &WorkloadStateSpec);
+    fn set_complete(&mut self, workload: &WorkloadInstanceNameSpec);
     fn step_spinner(&mut self);
 }
 
@@ -65,15 +65,15 @@ mock! {
     }
 
     impl WaitListDisplayTrait for MyWaitListDisplay {
-        fn update(&mut self, workload_state: &WorkloadStateInternal);
-        fn set_complete(&mut self, workload: &WorkloadInstanceNameInternal);
+        fn update(&mut self, workload_state: &WorkloadStateSpec);
+        fn set_complete(&mut self, workload: &WorkloadInstanceNameSpec);
         fn step_spinner(&mut self);
     }
 }
 
 pub struct WaitList<T> {
-    pub added_workloads: HashSet<WorkloadInstanceNameInternal>,
-    pub deleted_workloads: HashSet<WorkloadInstanceNameInternal>,
+    pub added_workloads: HashSet<WorkloadInstanceNameSpec>,
+    pub deleted_workloads: HashSet<WorkloadInstanceNameSpec>,
     connected_agents: HashSet<String>,
     display: T,
 }
@@ -93,29 +93,29 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
     }
 
     // [impl->swdd~cli-checks-for-final-workload-state~3]
-    pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadStateInternal>) {
+    pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadStateSpec>) {
         for workload_state in values.into_iter() {
             self.display.update(&workload_state);
             match workload_state.execution_state.state() {
-                ExecutionStateEnumInternal::Running(_)
-                | ExecutionStateEnumInternal::Succeeded(_)
-                | ExecutionStateEnumInternal::Failed(_)
-                | ExecutionStateEnumInternal::NotScheduled(_) => {
+                ExecutionStateEnumSpec::Running(_)
+                | ExecutionStateEnumSpec::Succeeded(_)
+                | ExecutionStateEnumSpec::Failed(_)
+                | ExecutionStateEnumSpec::NotScheduled(_) => {
                     if self.added_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
                     }
                 }
-                ExecutionStateEnumInternal::Pending(Pending::StartingFailed) => {
+                ExecutionStateEnumSpec::Pending(Pending::StartingFailed) => {
                     if self.added_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
                     }
                 }
-                ExecutionStateEnumInternal::Removed(_) => {
+                ExecutionStateEnumSpec::Removed(_) => {
                     if self.deleted_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
                     }
                 }
-                ExecutionStateEnumInternal::AgentDisconnected(_) => {
+                ExecutionStateEnumSpec::AgentDisconnected(_) => {
                     if self.added_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
                     }
@@ -155,7 +155,7 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
     }
 
     fn retain_workloads_of_connected_agents(
-        workload_instance_names: &mut HashSet<WorkloadInstanceNameInternal>,
+        workload_instance_names: &mut HashSet<WorkloadInstanceNameSpec>,
         display: &mut T,
         connected_agents: &HashSet<String>,
     ) {
@@ -181,8 +181,8 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
 #[cfg(test)]
 fn generate_test_wait_list(
     my_mock: MockMyWaitListDisplay,
-    added_workloads: Vec<WorkloadInstanceNameInternal>,
-    deleted_workloads: Vec<WorkloadInstanceNameInternal>,
+    added_workloads: Vec<WorkloadInstanceNameSpec>,
+    deleted_workloads: Vec<WorkloadInstanceNameSpec>,
     connected_agents: HashSet<String>,
 ) -> WaitList<MockMyWaitListDisplay> {
     let update_state_list = ParsedUpdateStateSuccess {
@@ -198,9 +198,7 @@ mod tests {
     use super::MockMyWaitListDisplay;
     use crate::cli_commands::wait_list::generate_test_wait_list;
 
-    use api::ank_base::{
-        ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadStateInternal,
-    };
+    use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
     use api::test_utils::generate_test_workload_instance_name;
 
     use mockall::predicate::eq;
@@ -211,9 +209,9 @@ mod tests {
     const WORKLOAD_NAME_3: &str = "workload_3";
 
     fn prepare_test_instance_names() -> (
-        WorkloadInstanceNameInternal,
-        WorkloadInstanceNameInternal,
-        WorkloadInstanceNameInternal,
+        WorkloadInstanceNameSpec,
+        WorkloadInstanceNameSpec,
+        WorkloadInstanceNameSpec,
     ) {
         let i_name_1 = generate_test_workload_instance_name(WORKLOAD_NAME_1);
         let i_name_2 = generate_test_workload_instance_name(WORKLOAD_NAME_2);
@@ -222,8 +220,8 @@ mod tests {
     }
 
     fn prepare_wait_list_display_mock(
-        update_expectation: &WorkloadStateInternal,
-        set_complete_expectation: &WorkloadInstanceNameInternal,
+        update_expectation: &WorkloadStateSpec,
+        set_complete_expectation: &WorkloadInstanceNameSpec,
     ) -> MockMyWaitListDisplay {
         let mut my_mock = MockMyWaitListDisplay::new();
 
@@ -246,9 +244,9 @@ mod tests {
     fn utest_update_wait_list_added_running() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadStateInternal {
+        let workload_state = WorkloadStateSpec {
             instance_name: i_name_1.clone(),
-            execution_state: ExecutionStateInternal::running(),
+            execution_state: ExecutionStateSpec::running(),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_1);
@@ -272,9 +270,9 @@ mod tests {
     fn utest_update_wait_list_added_succeeded() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadStateInternal {
+        let workload_state = WorkloadStateSpec {
             instance_name: i_name_1.clone(),
-            execution_state: ExecutionStateInternal::succeeded(),
+            execution_state: ExecutionStateSpec::succeeded(),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_1);
@@ -298,9 +296,9 @@ mod tests {
     fn utest_update_wait_list_added_not_scheduled() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadStateInternal {
+        let workload_state = WorkloadStateSpec {
             instance_name: i_name_2.clone(),
-            execution_state: ExecutionStateInternal::not_scheduled(),
+            execution_state: ExecutionStateSpec::not_scheduled(),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);
@@ -324,9 +322,9 @@ mod tests {
     fn utest_update_wait_list_added_failed() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadStateInternal {
+        let workload_state = WorkloadStateSpec {
             instance_name: i_name_2.clone(),
-            execution_state: ExecutionStateInternal::failed("some info"),
+            execution_state: ExecutionStateSpec::failed("some info"),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);
@@ -350,9 +348,9 @@ mod tests {
     fn utest_update_wait_list_added_starting_failed_no_more_retries() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadStateInternal {
+        let workload_state = WorkloadStateSpec {
             instance_name: i_name_2.clone(),
-            execution_state: ExecutionStateInternal::retry_failed_no_retry("some error"),
+            execution_state: ExecutionStateSpec::retry_failed_no_retry("some error"),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);
@@ -376,9 +374,9 @@ mod tests {
     fn utest_update_wait_list_deleted_removed() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
-        let workload_state = WorkloadStateInternal {
+        let workload_state = WorkloadStateSpec {
             instance_name: i_name_3.clone(),
-            execution_state: ExecutionStateInternal::removed(),
+            execution_state: ExecutionStateSpec::removed(),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_3);

@@ -19,9 +19,9 @@ mod log_campaign_store;
 mod server_state;
 
 use api::ank_base::{
-    CompleteState, CompleteStateInternal, DeletedWorkload, ExecutionStateInternal,
-    LogsStopResponse, RequestContentInternal, RequestInternal, StateInternal,
-    WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadStatesMapInternal,
+    CompleteState, CompleteStateSpec, DeletedWorkload, ExecutionStateSpec, LogsStopResponse,
+    RequestContentSpec, RequestSpec, StateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec,
+    WorkloadStatesMapSpec,
 };
 use api::std_extensions::IllegalStateResult;
 
@@ -62,7 +62,7 @@ pub struct AnkaiosServer {
     // [impl->swdd~communication-to-from-server-middleware~1]
     to_agents: FromServerSender,
     server_state: ServerState,
-    workload_states_map: WorkloadStatesMapInternal,
+    workload_states_map: WorkloadStatesMapSpec,
     log_campaign_store: LogCampaignStore,
 }
 
@@ -72,17 +72,14 @@ impl AnkaiosServer {
             receiver,
             to_agents,
             server_state: ServerState::default(),
-            workload_states_map: WorkloadStatesMapInternal::default(),
+            workload_states_map: WorkloadStatesMapSpec::default(),
             log_campaign_store: LogCampaignStore::default(),
         }
     }
 
-    pub async fn start(
-        &mut self,
-        startup_state: Option<CompleteStateInternal>,
-    ) -> Result<(), String> {
+    pub async fn start(&mut self, startup_state: Option<CompleteStateSpec>) -> Result<(), String> {
         if let Some(state) = startup_state {
-            StateInternal::verify_api_version(&state.desired_state)?;
+            StateSpec::verify_api_version(&state.desired_state)?;
 
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
@@ -206,13 +203,13 @@ impl AnkaiosServer {
                     .await;
                 }
                 // [impl->swdd~server-provides-update-desired-state-interface~1]
-                ToServer::Request(RequestInternal {
+                ToServer::Request(RequestSpec {
                     request_id,
                     request_content,
                 }) => match request_content {
                     // [impl->swdd~server-provides-interface-get-complete-state~2]
                     // [impl->swdd~server-includes-id-in-control-interface-response~1]
-                    RequestContentInternal::CompleteStateRequest(complete_state_request) => {
+                    RequestContentSpec::CompleteStateRequest(complete_state_request) => {
                         log::debug!(
                             "Received CompleteStateRequest with id '{}' and field mask: '{:?}'",
                             request_id,
@@ -243,7 +240,7 @@ impl AnkaiosServer {
                     }
 
                     // [impl->swdd~server-provides-update-desired-state-interface~1]
-                    RequestContentInternal::UpdateStateRequest(update_state_request) => {
+                    RequestContentSpec::UpdateStateRequest(update_state_request) => {
                         log::debug!(
                             "Received UpdateState. State '{:?}', update mask '{:?}'",
                             update_state_request.new_state,
@@ -254,10 +251,10 @@ impl AnkaiosServer {
                         // [impl->swdd~update-desired-state-with-missing-version~1]
                         // [impl->swdd~server-desired-state-field-conventions~1]
                         let updated_desired_state = &update_state_request.new_state.desired_state;
-                        if let Err(error_message) = StateInternal::verify_api_version(
-                            updated_desired_state,
-                        )
-                        .and_then(|_| StateInternal::verify_configs_format(updated_desired_state))
+                        if let Err(error_message) =
+                            StateSpec::verify_api_version(updated_desired_state).and_then(|_| {
+                                StateSpec::verify_configs_format(updated_desired_state)
+                            })
                         {
                             log::warn!(
                                 "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
@@ -344,7 +341,7 @@ impl AnkaiosServer {
                         }
                     }
                     // [impl->swdd~server-handles-logs-request-message~1]
-                    RequestContentInternal::LogsRequest(mut logs_request) => {
+                    RequestContentSpec::LogsRequest(mut logs_request) => {
                         log::debug!(
                             "Got log request. Id: '{}', Workload Instance Names: '{:?}'",
                             request_id,
@@ -375,7 +372,7 @@ impl AnkaiosServer {
                             .unwrap_or_illegal_state();
                     }
                     // [impl->swdd~server-handles-logs-cancel-request-message~1]
-                    RequestContentInternal::LogsCancelRequest(_) => {
+                    RequestContentSpec::LogsCancelRequest(_) => {
                         log::debug!("Got log cancel request with ID: {request_id}");
 
                         self.log_campaign_store.remove_logs_request_id(&request_id);
@@ -459,9 +456,9 @@ impl AnkaiosServer {
                 || self.deleted_workload_never_started_on_agent(deleted_wl)
             {
                 self.workload_states_map.remove(&deleted_wl.instance_name);
-                deleted_states.push(WorkloadStateInternal {
+                deleted_states.push(WorkloadStateSpec {
                     instance_name: deleted_wl.instance_name.clone(),
-                    execution_state: ExecutionStateInternal::removed(),
+                    execution_state: ExecutionStateSpec::removed(),
                 });
 
                 return false;
@@ -535,7 +532,7 @@ impl AnkaiosServer {
     // [impl->swdd~server-handles-log-campaign-for-disconnected-agent~1]
     async fn send_log_stop_response_for_disconnected_agent(
         &mut self,
-        stopped_log_gatherings: Vec<(String, Vec<WorkloadInstanceNameInternal>)>,
+        stopped_log_gatherings: Vec<(String, Vec<WorkloadInstanceNameSpec>)>,
     ) {
         for (request_id, stopped_log_providers) in stopped_log_gatherings {
             for workload_instance_name in stopped_log_providers {
@@ -568,13 +565,12 @@ mod tests {
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
 
     use api::ank_base::{
-        CompleteState, CompleteStateInternal, CompleteStateRequestInternal, CpuUsageInternal,
-        DeletedWorkload, Error, ExecutionStateEnumInternal, ExecutionStateInternal,
-        FreeMemoryInternal, LogEntriesResponse, LogEntry, LogsCancelAccepted, LogsRequestAccepted,
-        LogsRequestInternal, LogsStopResponse, Pending as PendingSubstate, Response,
-        ResponseContent, State, StateInternal, UpdateStateSuccess, Workload, WorkloadInstanceName,
-        WorkloadInstanceNameInternal, WorkloadInternal, WorkloadMap, WorkloadMapInternal,
-        WorkloadNamed, WorkloadStateInternal,
+        CompleteState, CompleteStateRequestSpec, CompleteStateSpec, CpuUsageSpec, DeletedWorkload,
+        Error, ExecutionStateEnumSpec, ExecutionStateSpec, FreeMemorySpec, LogEntriesResponse,
+        LogEntry, LogsCancelAccepted, LogsRequestAccepted, LogsRequestSpec, LogsStopResponse,
+        Pending as PendingSubstate, Response, ResponseContent, State, StateSpec,
+        UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap,
+        WorkloadMapSpec, WorkloadNamed, WorkloadSpec, WorkloadStateSpec,
     };
     use api::test_utils::{
         generate_test_workload, generate_test_workload_state,
@@ -612,11 +608,11 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         // contains a self cycle to workload_A
-        let workload: WorkloadInternal = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
+        let workload: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
 
-        let startup_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let startup_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
                 },
                 ..Default::default()
@@ -656,8 +652,8 @@ mod tests {
         let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let startup_state = CompleteStateInternal {
-            desired_state: StateInternal {
+        let startup_state = CompleteStateSpec {
+            desired_state: StateSpec {
                 api_version: "invalidVersion".into(),
                 ..Default::default()
             },
@@ -686,9 +682,9 @@ mod tests {
             generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
                 .name(WORKLOAD_NAME_1);
 
-        let new_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let new_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         updated_workload.instance_name.workload_name().to_owned(),
                         updated_workload.workload.clone(),
@@ -809,9 +805,9 @@ mod tests {
         let workload: WorkloadNamed =
             generate_test_workload_with_param(AGENT_A.to_string(), RUNTIME_NAME.to_string());
 
-        let startup_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let startup_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         workload.instance_name.workload_name().to_owned(),
                         workload.workload.clone(),
@@ -859,12 +855,10 @@ mod tests {
             server
                 .workload_states_map
                 .get_workload_state_for_agent(AGENT_A),
-            vec![WorkloadStateInternal {
+            vec![WorkloadStateSpec {
                 instance_name: workload.instance_name,
-                execution_state: ExecutionStateInternal {
-                    execution_state_enum: ExecutionStateEnumInternal::Pending(
-                        PendingSubstate::Initial
-                    ),
+                execution_state: ExecutionStateSpec {
+                    execution_state_enum: ExecutionStateEnumSpec::Pending(PendingSubstate::Initial),
                     additional_info: Default::default()
                 }
             }]
@@ -948,7 +942,7 @@ mod tests {
         // [utest->swdd~server-starts-without-startup-config~1]
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
         let test_wl_1_state_running =
-            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionStateInternal::running());
+            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionStateSpec::running());
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_running.clone()])
             .await;
@@ -988,7 +982,7 @@ mod tests {
         // [utest->swdd~server-forwards-workload-state~1]
         // send update_workload_state for second agent which is then stored in the workload_state_db in ankaios server
         let test_wl_2_state_succeeded =
-            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionStateInternal::succeeded());
+            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionStateSpec::succeeded());
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_2_state_succeeded.clone()])
             .await;
@@ -1005,7 +999,7 @@ mod tests {
 
         // send update_workload_state for first agent again which is then updated in the workload_state_db in ankaios server
         let test_wl_1_state_succeeded =
-            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionStateInternal::succeeded());
+            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionStateSpec::succeeded());
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_succeeded.clone()])
             .await;
@@ -1040,9 +1034,9 @@ mod tests {
             .name(WORKLOAD_NAME_1);
         w1.workload.runtime_config = "changed".to_string();
 
-        let update_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let update_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]),
                 },
                 ..Default::default()
@@ -1122,9 +1116,9 @@ mod tests {
             .name(WORKLOAD_NAME_1);
         w1.workload.runtime_config = "changed".to_string();
 
-        let update_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let update_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]),
                 },
                 ..Default::default()
@@ -1185,11 +1179,11 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1: WorkloadInternal = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
+        let w1: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
 
-        let update_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let update_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(WORKLOAD_NAME_1.to_owned(), w1.clone())]),
                 },
                 ..Default::default()
@@ -1253,9 +1247,9 @@ mod tests {
         mock_server_state
             .expect_desired_state_contains_instance_name()
             .with(mockall::predicate::function(
-                |instance_name: &WorkloadInstanceNameInternal| {
+                |instance_name: &WorkloadInstanceNameSpec| {
                     instance_name
-                        == &WorkloadInstanceNameInternal::new(AGENT_A, WORKLOAD_NAME_1, INSTANCE_ID)
+                        == &WorkloadInstanceNameSpec::new(AGENT_A, WORKLOAD_NAME_1, INSTANCE_ID)
                 },
             ))
             .once()
@@ -1263,7 +1257,7 @@ mod tests {
 
         server.server_state = mock_server_state;
 
-        let log_providing_workloads = vec![WorkloadInstanceNameInternal::new(
+        let log_providing_workloads = vec![WorkloadInstanceNameSpec::new(
             AGENT_A,
             WORKLOAD_NAME_1,
             INSTANCE_ID,
@@ -1281,7 +1275,7 @@ mod tests {
 
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        let logs_request = LogsRequestInternal {
+        let logs_request = LogsRequestSpec {
             workload_names: log_providing_workloads,
             follow: true,
             tail: 10,
@@ -1300,8 +1294,8 @@ mod tests {
         assert_eq!(
             FromServer::LogsRequest(
                 REQUEST_ID_A.into(),
-                LogsRequestInternal {
-                    workload_names: vec![WorkloadInstanceNameInternal::new(
+                LogsRequestSpec {
+                    workload_names: vec![WorkloadInstanceNameSpec::new(
                         AGENT_A,
                         WORKLOAD_NAME_1,
                         INSTANCE_ID,
@@ -1349,7 +1343,7 @@ mod tests {
 
         mock_server_state
             .expect_desired_state_contains_instance_name()
-            .with(mockall::predicate::eq(WorkloadInstanceNameInternal::new(
+            .with(mockall::predicate::eq(WorkloadInstanceNameSpec::new(
                 AGENT_A,
                 WORKLOAD_NAME_1,
                 INSTANCE_ID,
@@ -1364,8 +1358,8 @@ mod tests {
             .expect_insert_log_campaign()
             .never();
 
-        let logs_request = LogsRequestInternal {
-            workload_names: vec![WorkloadInstanceNameInternal::new(
+        let logs_request = LogsRequestSpec {
+            workload_names: vec![WorkloadInstanceNameSpec::new(
                 AGENT_A,
                 WORKLOAD_NAME_1,
                 INSTANCE_ID,
@@ -1440,7 +1434,7 @@ mod tests {
             .expect_get_complete_state_by_field_mask()
             .with(
                 mockall::predicate::function(|request_complete_state| {
-                    request_complete_state == &CompleteStateRequestInternal { field_mask: vec![] }
+                    request_complete_state == &CompleteStateRequestSpec { field_mask: vec![] }
                 }),
                 mockall::predicate::always(),
             )
@@ -1454,7 +1448,7 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id.clone(),
-                CompleteStateRequestInternal { field_mask: vec![] },
+                CompleteStateRequestSpec { field_mask: vec![] },
             )
             .await;
         assert!(request_complete_state_result.is_ok());
@@ -1490,7 +1484,7 @@ mod tests {
             .expect_get_complete_state_by_field_mask()
             .with(
                 mockall::predicate::function(|request_complete_state| {
-                    request_complete_state == &CompleteStateRequestInternal { field_mask: vec![] }
+                    request_complete_state == &CompleteStateRequestSpec { field_mask: vec![] }
                 }),
                 mockall::predicate::always(),
             )
@@ -1505,7 +1499,7 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 request_id.clone(),
-                CompleteStateRequestInternal { field_mask: vec![] },
+                CompleteStateRequestSpec { field_mask: vec![] },
             )
             .await;
         assert!(request_complete_state_result.is_ok());
@@ -1566,7 +1560,7 @@ mod tests {
         let test_wl_1_state_running = generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
         );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_running.clone()])
@@ -1598,7 +1592,7 @@ mod tests {
         let expected_workload_state = generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
-            ExecutionStateInternal::agent_disconnected(),
+            ExecutionStateSpec::agent_disconnected(),
         );
         assert_eq!(vec![expected_workload_state.clone()], workload_states);
 
@@ -1680,9 +1674,9 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let instance_name_1: WorkloadInstanceNameInternal =
+        let instance_name_1: WorkloadInstanceNameSpec =
             WORKLOAD_INSTANCE_NAME_1.try_into().unwrap();
-        let instance_name_2: WorkloadInstanceNameInternal =
+        let instance_name_2: WorkloadInstanceNameSpec =
             WORKLOAD_INSTANCE_NAME_2.try_into().unwrap();
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
@@ -1763,14 +1757,14 @@ mod tests {
             .name(WORKLOAD_NAME_2);
 
         let mut updated_w1 = w1.clone();
-        updated_w1.instance_name = WorkloadInstanceNameInternal::builder()
+        updated_w1.instance_name = WorkloadInstanceNameSpec::builder()
             .workload_name(w1.instance_name.workload_name())
             .agent_name(w1.instance_name.agent_name())
             .config(&String::from("changed"))
             .build();
-        let update_state = CompleteStateInternal {
-            desired_state: StateInternal {
-                workloads: WorkloadMapInternal {
+        let update_state = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
                     workloads: HashMap::from([(
                         WORKLOAD_NAME_1.to_owned(),
                         updated_w1.workload.clone(),
@@ -1891,12 +1885,10 @@ mod tests {
             server
                 .workload_states_map
                 .get_workload_state_for_agent(AGENT_A),
-            vec![WorkloadStateInternal {
+            vec![WorkloadStateSpec {
                 instance_name: updated_w1.instance_name,
-                execution_state: ExecutionStateInternal {
-                    execution_state_enum: ExecutionStateEnumInternal::Pending(
-                        PendingSubstate::Initial
-                    ),
+                execution_state: ExecutionStateSpec {
+                    execution_state_enum: ExecutionStateEnumSpec::Pending(PendingSubstate::Initial),
                     additional_info: Default::default()
                 }
             }]
@@ -1989,8 +1981,8 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let update_state = CompleteStateInternal {
-            desired_state: StateInternal {
+        let update_state = CompleteStateSpec {
+            desired_state: StateSpec {
                 api_version: "incompatible_version".to_string(),
                 ..Default::default()
             },
@@ -2009,7 +2001,7 @@ mod tests {
 
         let error_message = format!(
             "Unsupported API version. Received 'incompatible_version', expected '{}'",
-            StateInternal::default().api_version
+            StateSpec::default().api_version
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
@@ -2034,7 +2026,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut update_state_ankaios_no_version: CompleteStateInternal = CompleteStateInternal {
+        let mut update_state_ankaios_no_version: CompleteStateSpec = CompleteStateSpec {
             ..Default::default()
         };
         update_state_ankaios_no_version.desired_state.api_version = "".to_string();
@@ -2055,7 +2047,7 @@ mod tests {
 
         let error_message = format!(
             "Unsupported API version. Received '', expected '{}'",
-            StateInternal::default().api_version
+            StateSpec::default().api_version
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
@@ -2086,7 +2078,7 @@ mod tests {
 
         let workload_states = vec![generate_test_workload_state(
             WORKLOAD_NAME_1,
-            ExecutionStateInternal::removed(),
+            ExecutionStateSpec::removed(),
         )];
 
         mock_server_state
@@ -2119,7 +2111,7 @@ mod tests {
             generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
                 .name(WORKLOAD_NAME_2);
 
-        let update_state = CompleteStateInternal::default();
+        let update_state = CompleteStateSpec::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
 
         let deleted_workload_without_agent = DeletedWorkload {
@@ -2164,13 +2156,13 @@ mod tests {
         drop(to_server);
         tokio::join!(server_handle).0.unwrap();
 
-        // the server sends the ExecutionStateInternal removed for the workload with an empty agent name
+        // the server sends the ExecutionStateSpec removed for the workload with an empty agent name
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![WorkloadStateInternal {
+                workload_states: vec![WorkloadStateSpec {
                     instance_name: workload_without_agent.instance_name,
-                    execution_state: ExecutionStateInternal::removed()
+                    execution_state: ExecutionStateSpec::removed()
                 }]
             }),
             from_server_command
@@ -2207,7 +2199,7 @@ mod tests {
             generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
                 .name(WORKLOAD_NAME_2);
 
-        let update_state = CompleteStateInternal::default();
+        let update_state = CompleteStateSpec::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
 
         let deleted_workload_with_agent = DeletedWorkload {
@@ -2288,8 +2280,8 @@ mod tests {
     async fn utest_server_receives_agent_status_load() {
         let payload = AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
-            cpu_usage: CpuUsageInternal { cpu_usage: 42 },
-            free_memory: FreeMemoryInternal { free_memory: 42 },
+            cpu_usage: CpuUsageSpec { cpu_usage: 42 },
+            free_memory: FreeMemorySpec { free_memory: 42 },
         };
 
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2336,7 +2328,7 @@ mod tests {
             workload.instance_name.agent_name(),
             workload.instance_name.workload_name(),
             workload.instance_name.id(),
-            ExecutionStateInternal::initial(),
+            ExecutionStateSpec::initial(),
         );
 
         let deleted_workload_with_not_connected_agent = DeletedWorkload {
@@ -2359,9 +2351,9 @@ mod tests {
             )
             .await,
             Ok(Some(FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![WorkloadStateInternal {
+                workload_states: vec![WorkloadStateSpec {
                     instance_name: workload.instance_name,
-                    execution_state: ExecutionStateInternal::removed()
+                    execution_state: ExecutionStateSpec::removed()
                 }]
             })))
         );

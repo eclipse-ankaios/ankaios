@@ -16,8 +16,8 @@ use crate::commands;
 use api::{
     ank_base::{
         CompleteState, DeletedWorkload, Error, LogEntriesResponse, LogsCancelAccepted, LogsRequest,
-        LogsRequestAccepted, LogsRequestInternal, LogsStopResponse, Response, ResponseContent,
-        UpdateStateSuccess, WorkloadNamed, WorkloadStateInternal,
+        LogsRequestAccepted, LogsRequestSpec, LogsStopResponse, Response, ResponseContent,
+        UpdateStateSuccess, WorkloadNamed, WorkloadStateSpec,
     },
     std_extensions::UnreachableResult,
 };
@@ -48,7 +48,7 @@ pub enum FromServer {
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Response(Response),
     Stop(commands::Stop),
-    LogsRequest(String, LogsRequestInternal),
+    LogsRequest(String, LogsRequestSpec),
     LogsCancelRequest(String),
     ServerGone,
 }
@@ -68,7 +68,7 @@ pub trait FromServerInterface {
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_workload_state(
         &self,
-        workload_running: Vec<WorkloadStateInternal>,
+        workload_running: Vec<WorkloadStateSpec>,
     ) -> Result<(), FromServerInterfaceError>;
     async fn response(&self, response: Response) -> Result<(), FromServerInterfaceError>;
     async fn complete_state(
@@ -150,7 +150,7 @@ impl FromServerInterface for FromServerSender {
 
     async fn update_workload_state(
         &self,
-        workload_states: Vec<WorkloadStateInternal>,
+        workload_states: Vec<WorkloadStateSpec>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::UpdateWorkloadState(
@@ -199,8 +199,8 @@ impl FromServerInterface for FromServerSender {
         request_id: String,
         logs_request: LogsRequest,
     ) -> Result<(), FromServerInterfaceError> {
-        let logs_request_internal = LogsRequestInternal {
-            // MARK #313 LogsRequest -> LogsRequestInternal
+        let logs_request_internal = LogsRequestSpec {
+            // MARK #313 LogsRequest -> LogsRequestSpec
             workload_names: logs_request
                 .workload_names
                 .iter()
@@ -313,9 +313,9 @@ mod tests {
     };
 
     use api::ank_base::{
-        CompleteState, Error, ExecutionStateInternal, LogEntriesResponse, LogEntry, LogsRequest,
-        LogsRequestInternal, LogsStopResponse, Response, ResponseContent, UpdateStateSuccess,
-        WorkloadInstanceName, WorkloadInstanceNameInternal,
+        CompleteState, Error, ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsRequest,
+        LogsRequestSpec, LogsStopResponse, Response, ResponseContent, UpdateStateSuccess,
+        WorkloadInstanceName, WorkloadInstanceNameSpec,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_deleted_workload, generate_test_workload,
@@ -361,7 +361,7 @@ mod tests {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
         let workload_state =
-            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionStateInternal::running());
+            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionStateSpec::running());
         assert!(
             tx.update_workload_state(vec![workload_state.clone()])
                 .await
@@ -484,10 +484,10 @@ mod tests {
             rx.recv().await.unwrap(),
             FromServer::LogsRequest(
                 REQUEST_ID.into(),
-                LogsRequestInternal {
+                LogsRequestSpec {
                     workload_names: vec![
-                        WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_NAME_1, "1"),
-                        WorkloadInstanceNameInternal::new(AGENT_NAME, WORKLOAD_NAME_2, "2")
+                        WorkloadInstanceNameSpec::new(AGENT_NAME, WORKLOAD_NAME_1, "1"),
+                        WorkloadInstanceNameSpec::new(AGENT_NAME, WORKLOAD_NAME_2, "2")
                     ],
                     follow: true,
                     tail: 10,

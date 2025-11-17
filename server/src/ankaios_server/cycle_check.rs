@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::StateInternal;
+use api::ank_base::StateSpec;
 use std::collections::{HashSet, VecDeque};
 
 /// Returns an Option containing the workload dependency that is part of a cycle
@@ -27,7 +27,7 @@ use std::collections::{HashSet, VecDeque};
 /// * `start_nodes` - Start visiting the graph only for the passed workloads
 ///   if [`None`] the search is started from all workloads of the state
 ///
-pub fn dfs(state: &StateInternal, start_nodes: Option<Vec<&str>>) -> Option<String> {
+pub fn dfs(state: &StateSpec, start_nodes: Option<Vec<&str>>) -> Option<String> {
     log::trace!("Execute cyclic dependency check with start_nodes = {start_nodes:?}");
 
     /* The stack is used to push the neighbors of a workload inside the dependency graph
@@ -115,7 +115,7 @@ pub fn dfs(state: &StateInternal, start_nodes: Option<Vec<&str>>) -> Option<Stri
 #[cfg(test)]
 mod tests {
     use super::dfs;
-    use api::ank_base::{AddCondition, StateInternal, WorkloadInternal};
+    use api::ank_base::{AddCondition, StateSpec, WorkloadSpec};
     use api::test_utils::{generate_test_complete_state, generate_test_workload_with_param};
 
     use std::{collections::HashSet, ops::Deref};
@@ -584,7 +584,7 @@ mod tests {
     }
 
     #[derive(Clone)]
-    struct StateBuilder(StateInternal);
+    struct StateBuilder(StateSpec);
     impl StateBuilder {
         fn default() -> Self {
             let state = generate_test_complete_state(Vec::new()).desired_state;
@@ -593,7 +593,7 @@ mod tests {
 
         fn with_workloads(mut self, workloads: &[&str]) -> Self {
             for w in workloads {
-                let mut test_workload: WorkloadInternal =
+                let mut test_workload: WorkloadSpec =
                     generate_test_workload_with_param(AGENT_NAME, RUNTIME);
                 test_workload.dependencies.dependencies.clear();
                 self.0
@@ -634,7 +634,7 @@ mod tests {
             self
         }
 
-        fn build(self) -> StateInternal {
+        fn build(self) -> StateSpec {
             self.0
         }
     }

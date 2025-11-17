@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::{
-    AddCondition, DeleteCondition, DeletedWorkload, WorkloadNamed, WorkloadStateInternal,
+    AddCondition, DeleteCondition, DeletedWorkload, WorkloadNamed, WorkloadStateSpec,
 };
 use std::collections::HashMap;
 
@@ -61,7 +61,7 @@ impl DeleteGraph {
     // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
     pub fn remove_deleted_workloads_from_delete_graph(
         &mut self,
-        workload_states: &[WorkloadStateInternal],
+        workload_states: &[WorkloadStateSpec],
     ) {
         for wl_state in workload_states {
             if wl_state.execution_state.is_removed()
@@ -86,10 +86,10 @@ impl DeleteGraph {
 
 #[cfg(test)]
 mod tests {
-    use super::{super::WorkloadInstanceNameInternal, AddCondition, DeleteCondition, DeleteGraph};
-    use api::ank_base::{DeletedWorkload, ExecutionStateInternal, WorkloadNamed};
+    use super::{super::WorkloadInstanceNameSpec, AddCondition, DeleteCondition, DeleteGraph};
+    use api::ank_base::{DeletedWorkload, ExecutionStateSpec, WorkloadNamed};
     use api::test_utils::{generate_test_workload, generate_test_workload_state_with_agent};
-    
+
     use std::collections::HashMap;
 
     const AGENT_A: &str = "agent_A";
@@ -214,19 +214,19 @@ mod tests {
             ]),
         };
 
-        let instance_name_wl2 = WorkloadInstanceNameInternal::builder()
+        let instance_name_wl2 = WorkloadInstanceNameSpec::builder()
             .agent_name(AGENT_A)
             .workload_name(WORKLOAD_NAME_2)
             .config(&String::from("some config"))
             .build();
 
-        let instance_name_wl4 = WorkloadInstanceNameInternal::builder()
+        let instance_name_wl4 = WorkloadInstanceNameSpec::builder()
             .agent_name(AGENT_A)
             .workload_name(WORKLOAD_NAME_4)
             .config(&String::from("some config"))
             .build();
 
-        let instance_name_wl5 = WorkloadInstanceNameInternal::builder()
+        let instance_name_wl5 = WorkloadInstanceNameSpec::builder()
             .agent_name(AGENT_A)
             .workload_name(WORKLOAD_NAME_5)
             .config(&String::from("some config"))
@@ -296,7 +296,7 @@ mod tests {
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
-            ExecutionStateInternal::removed(),
+            ExecutionStateSpec::removed(),
         )];
 
         delete_graph.remove_deleted_workloads_from_delete_graph(&workload_states);
@@ -320,7 +320,7 @@ mod tests {
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_2,
             AGENT_A,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
         )];
 
         delete_graph.remove_deleted_workloads_from_delete_graph(&workload_states);
@@ -344,7 +344,7 @@ mod tests {
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_3,
             AGENT_A,
-            ExecutionStateInternal::removed(),
+            ExecutionStateSpec::removed(),
         )];
 
         delete_graph.remove_deleted_workloads_from_delete_graph(&workload_states);

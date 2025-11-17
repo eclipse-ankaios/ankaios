@@ -38,7 +38,7 @@ use crate::{
     runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
 };
 
-use api::ank_base::{self, WorkloadInstanceNameInternal, WorkloadNamed};
+use api::ank_base::{self, WorkloadInstanceNameSpec, WorkloadNamed};
 
 use common::from_server_interface::FromServer;
 
@@ -68,7 +68,7 @@ impl Display for WorkloadError {
 pub enum WorkloadCommand {
     Delete,
     Update(Option<Box<WorkloadNamed>>, Option<ControlInterfacePath>),
-    Retry(Box<WorkloadInstanceNameInternal>, RetryToken),
+    Retry(Box<WorkloadInstanceNameSpec>, RetryToken),
     Create,
     Resume,
     StartLogFetcher(LogRequestOptions, oneshot::Sender<Box<dyn LogFetcher>>),
@@ -248,8 +248,7 @@ mod tests {
     };
 
     use api::ank_base::{
-        self, CompleteStateInternal, Response, WorkloadInternal, WorkloadNamed,
-        response::ResponseContent,
+        self, CompleteStateSpec, Response, WorkloadNamed, WorkloadSpec, response::ResponseContent,
     };
     use api::test_utils::{generate_test_complete_state, generate_test_workload_with_param};
     use common::from_server_interface::FromServer;
@@ -405,7 +404,7 @@ mod tests {
         let mut test_workload =
             Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
 
-        let workload: WorkloadInternal =
+        let workload: WorkloadSpec =
             generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
 
         test_workload.exchange_control_interface(None, workload.needs_control_interface());
@@ -669,7 +668,7 @@ mod tests {
             workload_command_sender,
             Some(control_interface_mock),
         );
-        let complete_state = CompleteStateInternal::default();
+        let complete_state = CompleteStateSpec::default();
 
         assert!(matches!(
             test_workload
@@ -695,7 +694,7 @@ mod tests {
 
         let mut test_workload =
             Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
-        let complete_state = CompleteStateInternal::default();
+        let complete_state = CompleteStateSpec::default();
 
         assert!(matches!(
             test_workload

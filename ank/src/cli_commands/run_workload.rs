@@ -15,7 +15,7 @@
 use super::CliCommands;
 use crate::{cli_error::CliError, output_debug};
 
-use api::ank_base::{CompleteStateInternal, TagsInternal, WorkloadInternal};
+use api::ank_base::{CompleteStateSpec, TagsSpec, WorkloadSpec};
 
 use std::collections::HashMap;
 
@@ -30,10 +30,10 @@ impl CliCommands {
         agent_name: String,
         tags: HashMap<String, String>,
     ) -> Result<(), CliError> {
-        let new_workload = WorkloadInternal {
+        let new_workload = WorkloadSpec {
             agent: agent_name.clone(),
             runtime: runtime_name,
-            tags: TagsInternal { tags },
+            tags: TagsSpec { tags },
             runtime_config: runtime_config.clone(),
             restart_policy: Default::default(),
             dependencies: Default::default(),
@@ -45,7 +45,7 @@ impl CliCommands {
 
         let update_mask = vec![format!("desiredState.workloads.{}", workload_name)];
 
-        let mut complete_state_update = CompleteStateInternal::default();
+        let mut complete_state_update = CompleteStateSpec::default();
         complete_state_update
             .desired_state
             .workloads
@@ -75,8 +75,8 @@ mod tests {
     use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
 
     use api::ank_base::{
-        CompleteState, CompleteStateInternal, ExecutionStateInternal, TagsInternal,
-        UpdateStateSuccess, WorkloadInternal, WorkloadStateInternal,
+        CompleteState, CompleteStateSpec, ExecutionStateSpec, TagsSpec, UpdateStateSuccess,
+        WorkloadSpec, WorkloadStateSpec,
     };
     use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
 
@@ -99,10 +99,10 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let new_workload = WorkloadInternal {
+        let new_workload = WorkloadSpec {
             agent: test_workload_agent.to_owned(),
             runtime: test_workload_runtime_name.clone(),
-            tags: TagsInternal {
+            tags: TagsSpec {
                 tags: HashMap::from([("key".to_string(), "value".to_string())]),
             },
             runtime_config: test_workload_runtime_cfg.clone(),
@@ -112,7 +112,7 @@ mod tests {
             configs: Default::default(),
             files: Default::default(),
         };
-        let mut complete_state_update = CompleteStateInternal::default();
+        let mut complete_state_update = CompleteStateSpec::default();
         complete_state_update
             .desired_state
             .workloads
@@ -153,9 +153,9 @@ mod tests {
             .expect_take_missed_from_server_messages()
             .return_once(|| {
                 vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                    workload_states: vec![WorkloadStateInternal {
+                    workload_states: vec![WorkloadStateSpec {
                         instance_name: "name4.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionStateInternal::running(),
+                        execution_state: ExecutionStateSpec::running(),
                     }],
                 })]
             });

@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::{
-    CpuUsageInternal, DeletedWorkload, FreeMemoryInternal, WorkloadNamed, WorkloadStateInternal,
+    CpuUsageSpec, DeletedWorkload, FreeMemorySpec, WorkloadNamed, WorkloadStateSpec,
 };
 use serde::{Deserialize, Serialize};
 
@@ -29,7 +29,7 @@ pub struct AgentGone {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UpdateWorkloadState {
-    pub workload_states: Vec<WorkloadStateInternal>,
+    pub workload_states: Vec<WorkloadStateSpec>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
@@ -55,8 +55,8 @@ pub struct Stop {}
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentLoadStatus {
     pub agent_name: String,
-    pub cpu_usage: CpuUsageInternal,
-    pub free_memory: FreeMemoryInternal,
+    pub cpu_usage: CpuUsageSpec,
+    pub free_memory: FreeMemorySpec,
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -69,7 +69,7 @@ pub struct AgentLoadStatus {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{CompleteStateRequestInternal, RequestContentInternal, RequestInternal};
+    use api::ank_base::{CompleteStateRequestSpec, RequestContentSpec, RequestSpec};
 
     // The following commented imports and constants are kept for reference
     // for when the macros bellow will be used instead of fixtures.
@@ -81,11 +81,11 @@ mod tests {
     //     UpdateStateRequest, Workload, WorkloadInstanceName, WorkloadMap,
     // };
     // use api::ank_base::{
-    //     CompleteStateInternal, CompleteStateRequestInternal, ConfigMappingsInternal,
-    //     ExecutionStateInternal, FileContentInternal, FileInternal, FilesInternal,
-    //     LogsCancelRequestInternal, LogsRequestInternal, RequestContentInternal, RequestInternal,
-    //     StateInternal, TagsInternal, UpdateStateRequestInternal, WorkloadInstanceNameInternal,
-    //     WorkloadInternal, WorkloadMapInternal,
+    //     CompleteStateSpec, CompleteStateRequestSpec, ConfigMappingsSpec,
+    //     ExecutionStateSpec, FileContentSpec, FileSpec, FilesSpec,
+    //     LogsCancelRequestSpec, LogsRequestSpec, RequestContentSpec, RequestSpec,
+    //     StateSpec, TagsSpec, UpdateStateRequestSpec, WorkloadInstanceNameSpec,
+    //     WorkloadSpec, WorkloadMapSpec,
     // };
     // pub use api::test_utils::{
     //     generate_test_agent_map, generate_test_workload_states_map_with_data,
@@ -117,10 +117,10 @@ mod tests {
             }
         }};
         (ankaios) => {{
-            RequestInternal {
+            RequestSpec {
                 request_id: REQUEST_ID.into(),
-                request_content: RequestContentInternal::UpdateStateRequest(Box::new(
-                    UpdateStateRequestInternal {
+                request_content: RequestContentSpec::UpdateStateRequest(Box::new(
+                    UpdateStateRequestSpec {
                         new_state: complete_state!(ankaios),
                         update_mask: vec![FIELD_1.into(), FIELD_2.into()],
                     },
@@ -140,7 +140,7 @@ mod tests {
             }
         };
         (ankaios, $number:expr) => {
-            WorkloadInstanceNameInternal {
+            WorkloadInstanceNameSpec {
                 workload_name: workload_name!($number).to_owned(),
                 agent_name: AGENT_NAME.to_owned(),
                 id: instance_id!($number).to_owned(),
@@ -171,11 +171,9 @@ mod tests {
             }
         };
         (ankaios) => {
-            RequestInternal {
+            RequestSpec {
                 request_id: REQUEST_ID.into(),
-                request_content: RequestContentInternal::LogsCancelRequest(
-                    LogsCancelRequestInternal {},
-                ),
+                request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
             }
         };
     }
@@ -199,10 +197,10 @@ mod tests {
             }
         };
         (ankaios) => {
-            CompleteStateInternal {
-                desired_state: StateInternal {
+            CompleteStateSpec {
+                desired_state: StateSpec {
                     api_version: CURRENT_API_VERSION.into(),
-                    workloads: WorkloadMapInternal {
+                    workloads: WorkloadMapSpec {
                         workloads: HashMap::from([(
                             "workload_name".to_string(),
                             workload!(ankaios),
@@ -252,9 +250,9 @@ mod tests {
             }
         };
         (ankaios) => {
-            WorkloadInternal {
+            WorkloadSpec {
                 agent: AGENT_NAME.to_string(),
-                tags: TagsInternal {
+                tags: TagsSpec {
                     tags: HashMap::from([("key".into(), "value".into())]),
                 },
                 dependencies: Default::default(),
@@ -262,23 +260,23 @@ mod tests {
                 runtime: RUNTIME.to_string(),
                 runtime_config: RUNTIME_CONFIG.to_string(),
                 control_interface_access: Default::default(),
-                configs: ConfigMappingsInternal {
+                configs: ConfigMappingsSpec {
                     configs: HashMap::from([
                         ("ref1".into(), "config_1".into()),
                         ("ref2".into(), "config_2".into()),
                     ]),
                 },
-                files: FilesInternal {
+                files: FilesSpec {
                     files: vec![
-                        FileInternal {
+                        FileSpec {
                             mount_point: "/file.json".to_string(),
-                            file_content: FileContentInternal::Data {
+                            file_content: FileContentSpec::Data {
                                 data: "text data".into(),
                             },
                         },
-                        FileInternal {
+                        FileSpec {
                             mount_point: "/binary_file".to_string(),
-                            file_content: FileContentInternal::BinaryData {
+                            file_content: FileContentSpec::BinaryData {
                                 binary_data: "base64_data".into(),
                             },
                         },
@@ -296,7 +294,7 @@ mod tests {
                     AGENT_NAME,
                     WORKLOAD_NAME_1,
                     HASH,
-                    ExecutionStateInternal::running(),
+                    ExecutionStateSpec::running(),
                 )
                 .into(),
             )
@@ -306,7 +304,7 @@ mod tests {
                 AGENT_NAME,
                 WORKLOAD_NAME_1,
                 HASH,
-                ExecutionStateInternal::running(),
+                ExecutionStateSpec::running(),
             )
         }};
     }
@@ -315,20 +313,18 @@ mod tests {
     fn utest_prefix_id() {
         let request_id = "42".to_string();
         let prefix = "prefix@";
-        let prefixed_request_id = RequestInternal::prefix_id(prefix, &request_id);
+        let prefixed_request_id = RequestSpec::prefix_id(prefix, &request_id);
 
         assert_eq!("prefix@42", prefixed_request_id);
     }
 
     #[test]
     fn utest_request_complete_state_prefix_request_id() {
-        let mut ankaios_request_complete_state = RequestInternal {
+        let mut ankaios_request_complete_state = RequestSpec {
             request_id: "42".to_string(),
-            request_content: RequestContentInternal::CompleteStateRequest(
-                CompleteStateRequestInternal {
-                    field_mask: vec!["1".to_string(), "2".to_string()],
-                },
-            ),
+            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
+                field_mask: vec!["1".to_string(), "2".to_string()],
+            }),
         };
 
         ankaios_request_complete_state.prefix_request_id("prefix@");

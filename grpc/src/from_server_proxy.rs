@@ -18,8 +18,8 @@ use crate::grpc_api::{self, from_server::FromServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
 use api::ank_base::{
-    DeletedWorkload, LogsRequestInternal, Response, ResponseContent, WorkloadInstanceNameInternal,
-    WorkloadNamed, WorkloadState, WorkloadStateInternal,
+    DeletedWorkload, LogsRequestSpec, Response, ResponseContent, WorkloadInstanceNameSpec,
+    WorkloadNamed, WorkloadState, WorkloadStateSpec,
 };
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
@@ -231,7 +231,7 @@ pub async fn forward_from_ankaios_to_proto(
 // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workload_states_to_agents(
     agent_senders: &AgentSendersMap,
-    workload_state_collection: Vec<WorkloadStateInternal>,
+    workload_state_collection: Vec<WorkloadStateSpec>,
 ) {
     // Workload states are agent related. Sending a flattened set here is not very good for the performance ...
 
@@ -356,12 +356,12 @@ async fn distribute_workloads_to_agents(
 async fn distribute_log_requests_to_agent(
     agent_senders: &AgentSendersMap,
     request_id: String,
-    mut logs_request: LogsRequestInternal,
+    mut logs_request: LogsRequestSpec,
 ) {
     for (agent, workloads) in
         group_workload_instance_names_by_agent(take(&mut logs_request.workload_names))
     {
-        let logs_requests_for_agent = LogsRequestInternal {
+        let logs_requests_for_agent = LogsRequestSpec {
             workload_names: workloads,
             ..logs_request.clone()
         };
@@ -413,9 +413,9 @@ async fn distribute_log_cancel_requests_to_agent(
 }
 
 fn group_workload_instance_names_by_agent(
-    workloads: Vec<WorkloadInstanceNameInternal>,
-) -> HashMap<String, Vec<WorkloadInstanceNameInternal>> {
-    let mut res: HashMap<String, Vec<WorkloadInstanceNameInternal>> = HashMap::new();
+    workloads: Vec<WorkloadInstanceNameSpec>,
+) -> HashMap<String, Vec<WorkloadInstanceNameSpec>> {
+    let mut res: HashMap<String, Vec<WorkloadInstanceNameSpec>> = HashMap::new();
     for w in workloads {
         res.entry(w.agent_name().to_owned()).or_default().push(w);
     }
@@ -439,8 +439,8 @@ mod tests {
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
 
     use api::ank_base::{
-        self, CompleteState, Dependencies, ExecutionStateInternal, LogsRequestInternal, Response,
-        ResponseContent, State, Workload, WorkloadInstanceName, WorkloadInstanceNameInternal,
+        self, CompleteState, Dependencies, ExecutionStateSpec, LogsRequestSpec, Response,
+        ResponseContent, State, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec,
         WorkloadMap, WorkloadNamed,
     };
     use api::test_utils::{
@@ -614,7 +614,7 @@ mod tests {
             .update_workload_state(vec![generate_test_workload_state_with_agent(
                 WORKLOAD_NAME,
                 "other_agent",
-                ExecutionStateInternal::running(),
+                ExecutionStateSpec::running(),
             )])
             .await;
         assert!(update_workload_state_result.is_ok());
@@ -864,7 +864,7 @@ mod tests {
             vec![generate_test_workload_state_with_agent(
                 "workload1",
                 "other_agent",
-                ExecutionStateInternal::running()
+                ExecutionStateSpec::running()
             )],
         ))
         .0;
@@ -1159,14 +1159,14 @@ mod tests {
             result,
             from_server_interface::FromServer::LogsRequest(
                 request_id,
-                LogsRequestInternal {
+                LogsRequestSpec {
                     workload_names,
                     follow,
                     tail,
                     since,
                     until
                 }
-            ) if request_id == my_request_id && workload_names == vec![WorkloadInstanceNameInternal::new(agent_name, WORKLOAD_NAME, "id")] && follow && tail == 10 &&since.is_none() && until.is_none()
+            ) if request_id == my_request_id && workload_names == vec![WorkloadInstanceNameSpec::new(agent_name, WORKLOAD_NAME, "id")] && follow && tail == 10 &&since.is_none() && until.is_none()
         ));
     }
 

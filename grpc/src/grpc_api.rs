@@ -140,7 +140,7 @@ impl From<WorkloadNamed> for AddedWorkload {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
-use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
+use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec};
 #[cfg(test)]
 use api::test_utils::generate_test_workload_state_with_agent;
 #[cfg(test)]
@@ -156,7 +156,7 @@ fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
 
 #[cfg(test)]
 pub fn generate_test_proto_deleted_workload() -> DeletedWorkload {
-    let instance_name = WorkloadInstanceNameInternal::builder()
+    let instance_name = WorkloadInstanceNameSpec::builder()
         .agent_name("agent")
         .workload_name("workload X")
         .config(&String::from("config"))
@@ -177,7 +177,7 @@ pub fn generate_test_failed_update_workload_state(
         workload_states: vec![generate_test_workload_state_with_agent(
             workload_name,
             agent_name,
-            ExecutionStateInternal::failed("additional_info"),
+            ExecutionStateSpec::failed("additional_info"),
         )],
     })
 }
@@ -188,8 +188,8 @@ mod tests {
 
     use api::ank_base::{
         self, AddCondition, ConfigHash, Dependencies, ExecutionState, ExecutionStateEnum,
-        ExecutionStateInternal, Running as RunningSubstate, WorkloadInstanceName,
-        WorkloadInstanceNameInternal, WorkloadNamed, WorkloadState, WorkloadStateInternal,
+        ExecutionStateSpec, Running as RunningSubstate, WorkloadInstanceName,
+        WorkloadInstanceNameSpec, WorkloadNamed, WorkloadState, WorkloadStateSpec,
     };
     use api::test_utils::{generate_test_deleted_workload, generate_test_workload};
     use common::commands;
@@ -292,13 +292,13 @@ mod tests {
                             self.0.clone()
                         }
                     }
-                    WorkloadStateInternal {
-                        instance_name: WorkloadInstanceNameInternal::builder()
+                    WorkloadStateSpec {
+                        instance_name: WorkloadInstanceNameSpec::builder()
                             .workload_name(WORKLOAD_NAME_1)
                             .config(&HashableString(HASH.into()))
                             .agent_name(AGENT_NAME)
                             .build(),
-                        execution_state: ExecutionStateInternal::running(),
+                        execution_state: ExecutionStateSpec::running(),
                     }
                 }],
             }

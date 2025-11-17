@@ -16,9 +16,7 @@ use super::CliCommands;
 use crate::cli::LogsArgs;
 use crate::cli_error::CliError;
 
-use api::ank_base::{
-    WorkloadInstanceNameInternal, WorkloadStateInternal, WorkloadStatesMapInternal,
-};
+use api::ank_base::{WorkloadInstanceNameSpec, WorkloadStateSpec, WorkloadStatesMapSpec};
 use std::collections::{BTreeSet, HashMap};
 
 impl CliCommands {
@@ -39,7 +37,7 @@ impl CliCommands {
     async fn workload_names_to_instance_names(
         &mut self,
         workload_names: Vec<String>,
-    ) -> Result<BTreeSet<WorkloadInstanceNameInternal>, CliError> {
+    ) -> Result<BTreeSet<WorkloadInstanceNameSpec>, CliError> {
         let filter_mask_workload_states = ["workloadStates".to_string()];
         let complete_state = self
             .server_connection
@@ -48,21 +46,22 @@ impl CliCommands {
 
         if let Some(wl_states) = complete_state.workload_states {
             // TODO #313 we are doing an extra conversion here. Do we need this?
-            let wl_states: WorkloadStatesMapInternal = wl_states.try_into().map_err(|err| {
+            let wl_states: WorkloadStatesMapSpec = wl_states.try_into().map_err(|err| {
                 CliError::ExecutionError(format!("Failed to convert workload states map: {err}"))
             })?;
 
-            let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceNameInternal>> =
-                Vec::<WorkloadStateInternal>::from(wl_states)
-                    .into_iter()
-                    .fold(HashMap::new(), |mut acc, wl_state| {
+            let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceNameSpec>> =
+                Vec::<WorkloadStateSpec>::from(wl_states).into_iter().fold(
+                    HashMap::new(),
+                    |mut acc, wl_state| {
                         let instance_name = wl_state.instance_name.clone();
                         let workload_name = instance_name.workload_name();
                         acc.entry(workload_name.to_owned())
                             .or_default()
                             .insert(instance_name);
                         acc
-                    });
+                    },
+                );
 
             let mut converted_instance_names = BTreeSet::new();
             for wl_name in workload_names {
@@ -104,7 +103,7 @@ mod tests {
     };
     use crate::cli_error::CliError;
 
-    use api::ank_base::{CompleteState, WorkloadInstanceNameInternal, WorkloadNamed};
+    use api::ank_base::{CompleteState, WorkloadInstanceNameSpec, WorkloadNamed};
     use api::test_utils::{generate_test_complete_state, generate_test_workload_with_param};
 
     use mockall::predicate;
@@ -137,7 +136,7 @@ mod tests {
                 ])))
             });
 
-        let instance_names: BTreeSet<WorkloadInstanceNameInternal> =
+        let instance_names: BTreeSet<WorkloadInstanceNameSpec> =
             BTreeSet::from([log_workload.instance_name.clone()]);
 
         let args = LogsArgs {
@@ -353,7 +352,7 @@ mod tests {
 
         assert!(result.is_ok(), "Got result {result:?}");
         let instance_names = result.unwrap();
-        let expected_instance_names: BTreeSet<WorkloadInstanceNameInternal> =
+        let expected_instance_names: BTreeSet<WorkloadInstanceNameSpec> =
             BTreeSet::from([instance_name_wl_1_agent_a, instance_name_wl_1_agent_b]);
 
         assert_eq!(instance_names, expected_instance_names);

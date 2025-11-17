@@ -16,8 +16,7 @@ use super::log_fetcher::LogFetcher;
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
 use api::ank_base::{
-    ExecutionStateInternal, LogsRequestInternal, WorkloadInstanceNameInternal, WorkloadNamed,
-    WorkloadStateInternal,
+    ExecutionStateSpec, LogsRequestSpec, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
 };
 use common::objects::AgentName;
 
@@ -65,8 +64,8 @@ impl Display for RuntimeError {
     }
 }
 
-impl From<LogsRequestInternal> for LogRequestOptions {
-    fn from(value: LogsRequestInternal) -> Self {
+impl From<LogsRequestSpec> for LogRequestOptions {
+    fn from(value: LogsRequestSpec) -> Self {
         Self {
             follow: value.follow,
             tail: if value.tail < 0 {
@@ -82,18 +81,18 @@ impl From<LogsRequestInternal> for LogRequestOptions {
 
 #[derive(Debug, PartialEq)]
 pub struct ReusableWorkloadState {
-    pub workload_state: WorkloadStateInternal,
+    pub workload_state: WorkloadStateSpec,
     pub workload_id: Option<String>,
 }
 
 impl ReusableWorkloadState {
     pub fn new(
-        instance_name: WorkloadInstanceNameInternal,
-        execution_state: ExecutionStateInternal,
+        instance_name: WorkloadInstanceNameSpec,
+        execution_state: ExecutionStateSpec,
         workload_id: Option<String>,
     ) -> ReusableWorkloadState {
         ReusableWorkloadState {
-            workload_state: WorkloadStateInternal {
+            workload_state: WorkloadStateSpec {
                 instance_name,
                 execution_state,
             },
@@ -127,7 +126,7 @@ where
 
     async fn get_workload_id(
         &self,
-        instance_name: &WorkloadInstanceNameInternal,
+        instance_name: &WorkloadInstanceNameSpec,
     ) -> Result<WorkloadId, RuntimeError>;
 
     async fn start_checker(
@@ -183,7 +182,7 @@ pub mod test {
         workload_state::WorkloadStateSender,
     };
 
-    use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal, WorkloadNamed};
+    use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
     use common::objects::AgentName;
 
     use async_trait::async_trait;
@@ -195,8 +194,8 @@ pub mod test {
 
     #[async_trait]
     impl RuntimeStateGetter<String> for StubStateChecker {
-        async fn get_state(&self, _workload_id: &String) -> ExecutionStateInternal {
-            ExecutionStateInternal::running()
+        async fn get_state(&self, _workload_id: &String) -> ExecutionStateSpec {
+            ExecutionStateSpec::running()
         }
     }
 
@@ -252,7 +251,7 @@ pub mod test {
             HashMap<PathBuf, PathBuf>,
             Result<(String, StubStateChecker), RuntimeError>,
         ),
-        GetWorkloadId(WorkloadInstanceNameInternal, Result<String, RuntimeError>),
+        GetWorkloadId(WorkloadInstanceNameSpec, Result<String, RuntimeError>),
         StartChecker(
             String,
             WorkloadNamed,
@@ -415,7 +414,7 @@ pub mod test {
 
         async fn get_workload_id(
             &self,
-            instance_name: &WorkloadInstanceNameInternal,
+            instance_name: &WorkloadInstanceNameSpec,
         ) -> Result<String, RuntimeError> {
             match self.get_expected_call() {
                 RuntimeCall::GetWorkloadId(expected_instance_name, result)

@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::WorkloadInstanceNameInternal;
+use api::ank_base::WorkloadInstanceNameSpec;
 use std::{ops::Deref, path::PathBuf};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -33,10 +33,8 @@ impl Deref for ControlInterfacePath {
     }
 }
 
-impl From<(&PathBuf, &WorkloadInstanceNameInternal)> for ControlInterfacePath {
-    fn from(
-        (run_folder, workload_instance_name): (&PathBuf, &WorkloadInstanceNameInternal),
-    ) -> Self {
+impl From<(&PathBuf, &WorkloadInstanceNameSpec)> for ControlInterfacePath {
+    fn from((run_folder, workload_instance_name): (&PathBuf, &WorkloadInstanceNameSpec)) -> Self {
         let control_interface_path = workload_instance_name
             .pipes_folder_name(run_folder.as_path())
             .join(SUBFOLDER_CONTROL_INTERFACE);

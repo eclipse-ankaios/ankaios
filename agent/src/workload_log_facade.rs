@@ -15,8 +15,7 @@
 use crate::agent_manager::SynchronizedSubscriptionStore;
 
 use api::ank_base::{
-    LogEntriesResponse, LogEntry, LogsRequestInternal, LogsStopResponse,
-    WorkloadInstanceNameInternal,
+    LogEntriesResponse, LogEntry, LogsRequestSpec, LogsStopResponse, WorkloadInstanceNameSpec,
 };
 use api::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerInterface, ToServerSender};
@@ -48,7 +47,7 @@ use crate::subscription_store::MockSubscriptionEntry as SubscriptionEntry;
 
 pub struct WorkloadLogFacade;
 
-type ContinuableResult = (WorkloadInstanceNameInternal, Receiver, Option<Vec<String>>);
+type ContinuableResult = (WorkloadInstanceNameSpec, Receiver, Option<Vec<String>>);
 type UnorderedLogReceiverFutures =
     FuturesUnordered<Pin<Box<dyn Future<Output = ContinuableResult> + Send>>>;
 
@@ -57,7 +56,7 @@ impl WorkloadLogFacade {
     // [impl->swdd~agent-workload-log-facade-starts-log-collection~1]
     pub async fn spawn_log_collection(
         request_id: String,
-        logs_request: LogsRequestInternal,
+        logs_request: LogsRequestSpec,
         to_server: ToServerSender,
         synchronized_subscription_store: SynchronizedSubscriptionStore,
         runtime_manager: &RuntimeManager,
@@ -106,7 +105,7 @@ impl WorkloadLogFacade {
     }
 
     fn convert_log_receivers_to_futures(
-        receivers: Vec<(WorkloadInstanceNameInternal, Receiver)>,
+        receivers: Vec<(WorkloadInstanceNameSpec, Receiver)>,
     ) -> UnorderedLogReceiverFutures {
         FuturesUnordered::from_iter(receivers.into_iter().map(
             |workload_log_info| -> Pin<Box<dyn Future<Output = ContinuableResult> + Send>> {
@@ -187,7 +186,7 @@ mod tests {
     use crate::subscription_store::{MockJoinHandle, MockSubscriptionEntry, SubscriptionEntry};
     use crate::workload_log_facade::WorkloadLogFacade;
 
-    use api::ank_base::{LogsRequestInternal, LogsStopResponse, WorkloadInstanceNameInternal};
+    use api::ank_base::{LogsRequestSpec, LogsStopResponse, WorkloadInstanceNameSpec};
     use common::to_server_interface::ToServer;
 
     use mockall::{mock, predicate};
@@ -305,19 +304,19 @@ mod tests {
             .expect()
             .return_once(move |_| SubscriptionEntry::new(mock_join_handle));
 
-        let workload_instance_name_1 = WorkloadInstanceNameInternal {
+        let workload_instance_name_1 = WorkloadInstanceNameSpec {
             workload_name: WORKLOAD_1_NAME.into(),
             agent_name: AGENT_NAME.into(),
             id: "1234".into(),
         };
 
-        let workload_instance_name_2 = WorkloadInstanceNameInternal {
+        let workload_instance_name_2 = WorkloadInstanceNameSpec {
             workload_name: WORKLOAD_2_NAME.into(),
             agent_name: AGENT_NAME.into(),
             id: "1234".into(),
         };
 
-        let logs_request = LogsRequestInternal {
+        let logs_request = LogsRequestSpec {
             workload_names: vec![
                 workload_instance_name_1.clone(),
                 workload_instance_name_2.clone(),
@@ -424,13 +423,13 @@ mod tests {
             )
         });
 
-        let workload_instance_name_1 = WorkloadInstanceNameInternal {
+        let workload_instance_name_1 = WorkloadInstanceNameSpec {
             workload_name: WORKLOAD_1_NAME.into(),
             agent_name: AGENT_NAME.into(),
             id: "1234".into(),
         };
 
-        let logs_request = LogsRequestInternal {
+        let logs_request = LogsRequestSpec {
             workload_names: vec![workload_instance_name_1.clone()],
             follow: false,
             tail: -1,

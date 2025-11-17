@@ -13,22 +13,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    ExecutionStateInternal, ExecutionsStatesOfWorkloadInternal, WorkloadInstanceNameInternal,
-    WorkloadNamed, WorkloadStateInternal, WorkloadStatesMapInternal,
+    ExecutionStateSpec, ExecutionsStatesOfWorkloadSpec, WorkloadInstanceNameSpec, WorkloadNamed,
+    WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use std::collections::{HashMap, hash_map::Entry};
 
 // [impl->swdd~state-map-for-workload-execution-states~2]
-impl WorkloadStatesMapInternal {
-    pub fn new() -> WorkloadStatesMapInternal {
+impl WorkloadStatesMapSpec {
+    pub fn new() -> WorkloadStatesMapSpec {
         Default::default()
     }
 
-    fn entry(&mut self, key: String) -> Entry<'_, String, ExecutionsStatesOfWorkloadInternal> {
+    fn entry(&mut self, key: String) -> Entry<'_, String, ExecutionsStatesOfWorkloadSpec> {
         self.agent_state_map.entry(key)
     }
 
-    pub fn get_workload_state_for_agent(&self, agent_name: &str) -> Vec<WorkloadStateInternal> {
+    pub fn get_workload_state_for_agent(&self, agent_name: &str) -> Vec<WorkloadStateSpec> {
         self.agent_state_map
             .get(agent_name)
             .map(|name_map| {
@@ -37,8 +37,8 @@ impl WorkloadStatesMapInternal {
                     .iter()
                     .flat_map(|(wl_name, id_map)| {
                         id_map.id_state_map.iter().map(move |(wl_id, exec_state)| {
-                            WorkloadStateInternal {
-                                instance_name: WorkloadInstanceNameInternal::new(
+                            WorkloadStateSpec {
+                                instance_name: WorkloadInstanceNameSpec::new(
                                     agent_name, wl_name, wl_id,
                                 ),
                                 execution_state: exec_state.clone(),
@@ -53,7 +53,7 @@ impl WorkloadStatesMapInternal {
     pub fn get_workload_state_excluding_agent(
         &self,
         excluding_agent_name: &str,
-    ) -> Vec<WorkloadStateInternal> {
+    ) -> Vec<WorkloadStateSpec> {
         self.agent_state_map
             .iter()
             .filter(|(agent_name, _)| *agent_name != excluding_agent_name)
@@ -63,8 +63,8 @@ impl WorkloadStatesMapInternal {
                     .iter()
                     .flat_map(move |(wl_name, id_map)| {
                         id_map.id_state_map.iter().map(move |(wl_id, exec_state)| {
-                            WorkloadStateInternal {
-                                instance_name: WorkloadInstanceNameInternal::new(
+                            WorkloadStateSpec {
+                                instance_name: WorkloadInstanceNameSpec::new(
                                     agent_name, wl_name, wl_id,
                                 ),
                                 execution_state: exec_state.clone(),
@@ -77,8 +77,8 @@ impl WorkloadStatesMapInternal {
 
     pub fn get_workload_state_for_workload(
         &self,
-        instance_name: &WorkloadInstanceNameInternal,
-    ) -> Option<&ExecutionStateInternal> {
+        instance_name: &WorkloadInstanceNameSpec,
+    ) -> Option<&ExecutionStateSpec> {
         self.agent_state_map
             .get(instance_name.agent_name())
             .and_then(|name_map| {
@@ -96,7 +96,7 @@ impl WorkloadStatesMapInternal {
                 .iter_mut()
                 .for_each(|(_, id_map)| {
                     id_map.id_state_map.iter_mut().for_each(|(_, exec_state)| {
-                        *exec_state = ExecutionStateInternal::agent_disconnected()
+                        *exec_state = ExecutionStateSpec::agent_disconnected()
                     })
                 })
         }
@@ -113,14 +113,14 @@ impl WorkloadStatesMapInternal {
                 .id_state_map
                 .entry(wl.instance_name.id().to_owned())
                 .or_insert(if wl.instance_name.agent_name().is_empty() {
-                    ExecutionStateInternal::not_scheduled()
+                    ExecutionStateSpec::not_scheduled()
                 } else {
-                    ExecutionStateInternal::initial()
+                    ExecutionStateSpec::initial()
                 });
         }
     }
 
-    pub fn remove(&mut self, instance_name: &WorkloadInstanceNameInternal) {
+    pub fn remove(&mut self, instance_name: &WorkloadInstanceNameSpec) {
         if let Some(agent_states) = self.agent_state_map.get_mut(instance_name.agent_name())
             && let Some(workload_states) = agent_states
                 .wl_name_state_map
@@ -139,7 +139,7 @@ impl WorkloadStatesMapInternal {
         }
     }
 
-    pub fn process_new_states(&mut self, workload_states: Vec<WorkloadStateInternal>) {
+    pub fn process_new_states(&mut self, workload_states: Vec<WorkloadStateSpec>) {
         for workload_state in workload_states {
             if workload_state.execution_state.is_removed() {
                 self.remove(&workload_state.instance_name);
@@ -159,8 +159,8 @@ impl WorkloadStatesMapInternal {
     }
 }
 
-impl From<WorkloadStatesMapInternal> for Vec<WorkloadStateInternal> {
-    fn from(value: WorkloadStatesMapInternal) -> Self {
+impl From<WorkloadStatesMapSpec> for Vec<WorkloadStateSpec> {
+    fn from(value: WorkloadStatesMapSpec) -> Self {
         value
             .agent_state_map
             .into_iter()
@@ -171,8 +171,8 @@ impl From<WorkloadStatesMapInternal> for Vec<WorkloadStateInternal> {
                         id_state_map
                             .id_state_map
                             .into_iter()
-                            .map(move |(wl_id, exec_state)| WorkloadStateInternal {
-                                instance_name: WorkloadInstanceNameInternal::new(
+                            .map(move |(wl_id, exec_state)| WorkloadStateSpec {
+                                instance_name: WorkloadInstanceNameSpec::new(
                                     agent_name.clone(),
                                     wl_name.clone(),
                                     wl_id,
@@ -186,11 +186,11 @@ impl From<WorkloadStatesMapInternal> for Vec<WorkloadStateInternal> {
     }
 }
 
-impl IntoIterator for WorkloadStatesMapInternal {
+impl IntoIterator for WorkloadStatesMapSpec {
     type Item =
-        <HashMap<String, HashMap<String, HashMap<String, ExecutionStateInternal>>> as IntoIterator>::Item;
+        <HashMap<String, HashMap<String, HashMap<String, ExecutionStateSpec>>> as IntoIterator>::Item;
 
-    type IntoIter = <HashMap<String, HashMap<String, HashMap<String, ExecutionStateInternal>>> as IntoIterator>::IntoIter;
+    type IntoIter = <HashMap<String, HashMap<String, HashMap<String, ExecutionStateSpec>>> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.agent_state_map
@@ -223,8 +223,8 @@ impl IntoIterator for WorkloadStatesMapInternal {
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_states_map_from_workloads(
     workloads: Vec<WorkloadNamed>,
-) -> WorkloadStatesMapInternal {
-    let mut wl_states_map = WorkloadStatesMapInternal::new();
+) -> WorkloadStatesMapSpec {
+    let mut wl_states_map = WorkloadStatesMapSpec::new();
 
     workloads.into_iter().for_each(|workload| {
         wl_states_map
@@ -236,7 +236,7 @@ pub fn generate_test_workload_states_map_from_workloads(
             .id_state_map
             .insert(
                 workload.instance_name.id().to_owned(),
-                ExecutionStateInternal::running(),
+                ExecutionStateSpec::running(),
             );
     });
 
@@ -248,10 +248,10 @@ pub fn generate_test_workload_states_map_with_data(
     agent_name: impl Into<String>,
     wl_name: impl Into<String>,
     id: impl Into<String>,
-    exec_state: ExecutionStateInternal,
-) -> WorkloadStatesMapInternal {
+    exec_state: ExecutionStateSpec,
+) -> WorkloadStatesMapSpec {
     println!("Generating test workload states map with data");
-    let mut wl_states_map = WorkloadStatesMapInternal::new();
+    let mut wl_states_map = WorkloadStatesMapSpec::new();
 
     wl_states_map
         .entry(agent_name.into())
@@ -267,9 +267,9 @@ pub fn generate_test_workload_states_map_with_data(
 
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_states_map_from_workload_states(
-    workload_states: Vec<WorkloadStateInternal>,
-) -> WorkloadStatesMapInternal {
-    let mut wl_states_map = WorkloadStatesMapInternal::new();
+    workload_states: Vec<WorkloadStateSpec>,
+) -> WorkloadStatesMapSpec {
+    let mut wl_states_map = WorkloadStatesMapSpec::new();
 
     workload_states.into_iter().for_each(|wl_state| {
         wl_states_map
@@ -292,7 +292,7 @@ pub fn generate_test_workload_states_map_from_workload_states(
 #[cfg(test)]
 mod tests {
     use crate::ank_base::{
-        ExecutionStateInternal, WorkloadNamed, WorkloadStateInternal, WorkloadStatesMapInternal,
+        ExecutionStateSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
     };
     use crate::test_utils::{
         generate_test_workload_state_with_agent,
@@ -307,22 +307,22 @@ mod tests {
     const WORKLOAD_NAME_3: &str = "workload_3";
     const WORKLOAD_NAME_4: &str = "workload_4";
 
-    fn create_test_setup() -> WorkloadStatesMapInternal {
+    fn create_test_setup() -> WorkloadStatesMapSpec {
         generate_test_workload_states_map_from_workload_states(vec![
             generate_test_workload_state_with_agent(
                 WORKLOAD_NAME_1,
                 AGENT_A,
-                ExecutionStateInternal::succeeded(),
+                ExecutionStateSpec::succeeded(),
             ),
             generate_test_workload_state_with_agent(
                 WORKLOAD_NAME_2,
                 AGENT_A,
-                ExecutionStateInternal::starting("additional_info"),
+                ExecutionStateSpec::starting("additional_info"),
             ),
             generate_test_workload_state_with_agent(
                 WORKLOAD_NAME_3,
                 AGENT_B,
-                ExecutionStateInternal::running(),
+                ExecutionStateSpec::running(),
             ),
         ])
     }
@@ -331,7 +331,7 @@ mod tests {
     fn utest_workload_states_map_into_vec_of_workload_states() {
         let wls_db = create_test_setup();
 
-        let mut wls_res: Vec<WorkloadStateInternal> = wls_db.into();
+        let mut wls_res: Vec<WorkloadStateSpec> = wls_db.into();
         wls_res.sort_by(|a, b| {
             a.instance_name
                 .workload_name()
@@ -344,17 +344,17 @@ mod tests {
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_1,
                     AGENT_A,
-                    ExecutionStateInternal::succeeded()
+                    ExecutionStateSpec::succeeded()
                 ),
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_2,
                     AGENT_A,
-                    ExecutionStateInternal::starting("additional_info"),
+                    ExecutionStateSpec::starting("additional_info"),
                 ),
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_3,
                     AGENT_B,
-                    ExecutionStateInternal::running()
+                    ExecutionStateSpec::running()
                 ),
             ]
         )
@@ -367,7 +367,7 @@ mod tests {
         let wl_state_4 = generate_test_workload_state_with_agent(
             WORKLOAD_NAME_4,
             AGENT_A,
-            ExecutionStateInternal::starting("test info"),
+            ExecutionStateSpec::starting("test info"),
         );
 
         wls_db.process_new_states(vec![wl_state_4.clone()]);
@@ -378,17 +378,17 @@ mod tests {
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_1,
                     AGENT_A,
-                    ExecutionStateInternal::succeeded()
+                    ExecutionStateSpec::succeeded()
                 ),
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_2,
                     AGENT_A,
-                    ExecutionStateInternal::starting("additional_info"),
+                    ExecutionStateSpec::starting("additional_info"),
                 ),
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_3,
                     AGENT_B,
-                    ExecutionStateInternal::running()
+                    ExecutionStateSpec::running()
                 ),
                 wl_state_4
             ])
@@ -402,7 +402,7 @@ mod tests {
         let wl_state_2_update = generate_test_workload_state_with_agent(
             WORKLOAD_NAME_2,
             AGENT_A,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
         );
 
         wls_db.process_new_states(vec![wl_state_2_update.clone()]);
@@ -413,13 +413,13 @@ mod tests {
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_1,
                     AGENT_A,
-                    ExecutionStateInternal::succeeded()
+                    ExecutionStateSpec::succeeded()
                 ),
                 wl_state_2_update,
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_3,
                     AGENT_B,
-                    ExecutionStateInternal::running()
+                    ExecutionStateSpec::running()
                 )
             ])
         )
@@ -442,12 +442,12 @@ mod tests {
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_1,
                     AGENT_A,
-                    ExecutionStateInternal::succeeded()
+                    ExecutionStateSpec::succeeded()
                 ),
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_2,
                     AGENT_A,
-                    ExecutionStateInternal::starting("additional_info"),
+                    ExecutionStateSpec::starting("additional_info"),
                 ),
             ]
         )
@@ -465,17 +465,17 @@ mod tests {
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_1,
                     AGENT_A,
-                    ExecutionStateInternal::agent_disconnected()
+                    ExecutionStateSpec::agent_disconnected()
                 ),
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_2,
                     AGENT_A,
-                    ExecutionStateInternal::agent_disconnected()
+                    ExecutionStateSpec::agent_disconnected()
                 ),
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_3,
                     AGENT_B,
-                    ExecutionStateInternal::running()
+                    ExecutionStateSpec::running()
                 ),
             ])
         )
@@ -498,12 +498,12 @@ mod tests {
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_1,
                     AGENT_A,
-                    ExecutionStateInternal::succeeded()
+                    ExecutionStateSpec::succeeded()
                 ),
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_2,
                     AGENT_A,
-                    ExecutionStateInternal::starting("additional_info"),
+                    ExecutionStateSpec::starting("additional_info"),
                 ),
             ]
         )
@@ -525,13 +525,13 @@ mod tests {
         let wl_state_1 = generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
-            ExecutionStateInternal::removed(),
+            ExecutionStateSpec::removed(),
         );
 
         let wl_state_3 = generate_test_workload_state_with_agent(
             WORKLOAD_NAME_3,
             AGENT_B,
-            ExecutionStateInternal::removed(),
+            ExecutionStateSpec::removed(),
         );
 
         wls_db.process_new_states(vec![wl_state_1, wl_state_3]);
@@ -542,7 +542,7 @@ mod tests {
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_2,
                     AGENT_A,
-                    ExecutionStateInternal::starting("additional_info"),
+                    ExecutionStateSpec::starting("additional_info"),
                 )
             ])
         )
@@ -550,7 +550,7 @@ mod tests {
 
     #[test]
     fn utest_workload_states_initial_state() {
-        let mut wls_db = WorkloadStatesMapInternal::new();
+        let mut wls_db = WorkloadStatesMapSpec::new();
 
         let wl_state_1 = generate_test_workload_with_param::<WorkloadNamed>("", "some runtime")
             .name(WORKLOAD_NAME_1);
@@ -566,12 +566,12 @@ mod tests {
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_1,
                     "",
-                    ExecutionStateInternal::not_scheduled(),
+                    ExecutionStateSpec::not_scheduled(),
                 ),
                 generate_test_workload_state_with_agent(
                     WORKLOAD_NAME_3,
                     AGENT_B,
-                    ExecutionStateInternal::initial(),
+                    ExecutionStateSpec::initial(),
                 )
             ])
         )
@@ -584,12 +584,12 @@ mod tests {
         let wl_state = generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
-            ExecutionStateInternal::succeeded(),
+            ExecutionStateSpec::succeeded(),
         );
 
         assert_eq!(
             wls_db.get_workload_state_for_workload(&wl_state.instance_name),
-            Some(&ExecutionStateInternal::succeeded())
+            Some(&ExecutionStateSpec::succeeded())
         )
     }
 
@@ -600,7 +600,7 @@ mod tests {
         let wl_state = generate_test_workload_state_with_agent(
             "not_existing_workload",
             AGENT_A,
-            ExecutionStateInternal::running(),
+            ExecutionStateSpec::running(),
         );
 
         assert!(

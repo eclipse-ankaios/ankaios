@@ -19,7 +19,7 @@ use crate::{
     output_debug,
 };
 
-use api::ank_base::{AgentAttributes, AgentStatus, WorkloadStatesMapInternal};
+use api::ank_base::{AgentAttributes, AgentStatus, WorkloadStatesMapSpec};
 
 const EMPTY_FILTER_MASK: [String; 0] = [];
 
@@ -46,7 +46,7 @@ impl CliCommands {
             .unwrap_or_default()
             .into_iter();
 
-        // TODO #313 think about the conversion here and if we can omit converting to Internal
+        // TODO #313 think about the conversion here and if we can omit converting to Spec
         let agent_table_rows = transform_into_table_rows(
             connected_agents,
             &workload_states_map.try_into().map_err(|err| {
@@ -87,7 +87,7 @@ pub fn get_free_memory_as_string(agent_attributes: &AgentAttributes) -> String {
 
 fn transform_into_table_rows(
     agents_map: impl Iterator<Item = (String, AgentAttributes)>,
-    workload_states_map: &WorkloadStatesMapInternal,
+    workload_states_map: &WorkloadStatesMapSpec,
 ) -> Vec<AgentTableRow> {
     let mut agent_table_rows: Vec<AgentTableRow> = agents_map
         .map(|(agent_name, agent_attributes)| {
@@ -123,7 +123,7 @@ mod tests {
         CliCommands,
         server_connection::{MockServerConnection, ServerConnectionError},
     };
-    use api::ank_base::{AgentMapInternal, CompleteState, ExecutionStateInternal, WorkloadNamed};
+    use api::ank_base::{AgentMapSpec, CompleteState, ExecutionStateSpec, WorkloadNamed};
     use api::test_utils::{
         generate_test_agent_map, generate_test_agent_map_from_workloads,
         generate_test_complete_state, generate_test_workload_states_map_with_data,
@@ -189,7 +189,7 @@ mod tests {
                         RUNTIME_NAME,
                     )]);
 
-                complete_state.agents = AgentMapInternal::default();
+                complete_state.agents = AgentMapSpec::default();
                 Ok(CompleteState::from(complete_state))
             });
 
@@ -317,7 +317,7 @@ mod tests {
                     AGENT_A_NAME,
                     WORKLOAD_NAME_1,
                     "some workload id",
-                    ExecutionStateInternal::waiting_to_stop(),
+                    ExecutionStateSpec::waiting_to_stop(),
                 );
                 Ok(CompleteState::from(complete_state))
             });
