@@ -145,18 +145,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "#[serde(default, serialize_with = \"serialize_to_ordered_map\")]",
         );
 
-    builder = setup_internal_files(builder);
-    builder = setup_internal_control_interface_access(builder);
-    builder = setup_internal_workload_instance_name(builder);
-    builder = setup_internal_agent_map(builder);
-    builder = setup_internal_configs(builder);
-    builder = setup_internal_workload_states(builder);
-    builder = setup_internal_workload(builder);
-    builder = setup_internal_state(builder);
+    builder = setup_spec_files(builder);
+    builder = setup_spec_control_interface_access(builder);
+    builder = setup_spec_workload_instance_name(builder);
+    builder = setup_spec_agent_map(builder);
+    builder = setup_spec_configs(builder);
+    builder = setup_spec_workload_states(builder);
+    builder = setup_spec_workload(builder);
+    builder = setup_spec_state(builder);
 
     builder = setup_schema_annotations(builder);
 
-    builder = setup_internal_requests(builder);
+    builder = setup_spec_requests(builder);
 
     builder
         .compile_protos(&["proto/control_api.proto"], &["proto"])

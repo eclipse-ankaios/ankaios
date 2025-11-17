@@ -18,11 +18,11 @@ use tonic_prost_build::Builder;
 /// - CompleteStateInternal
 /// - StateInternal
 /// - WorkloadMapInternal
-pub fn setup_internal_state(builder: Builder) -> Builder {
+pub fn setup_spec_state(builder: Builder) -> Builder {
     builder
         .message_attribute(
             "CompleteState",
-            "#[derive(internal_derive_macros::Internal)]",
+            "#[derive(spec_macros::Spec)]",
         )
         .message_attribute(
             "CompleteState",
@@ -41,7 +41,7 @@ pub fn setup_internal_state(builder: Builder) -> Builder {
 
         .message_attribute(
             "State",
-            "#[derive(internal_derive_macros::Internal)]",
+            "#[derive(spec_macros::Spec)]",
         )
         .message_attribute(
             "State",
@@ -55,7 +55,7 @@ pub fn setup_internal_state(builder: Builder) -> Builder {
         .field_attribute("State.configs","#[spec_mandatory]")
         .field_attribute("State.configs", "#[spec_field_attr(#[serde(default)])]")
 
-        .message_attribute("WorkloadMap", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("WorkloadMap", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "WorkloadMap",
             "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
@@ -68,15 +68,15 @@ pub fn setup_internal_state(builder: Builder) -> Builder {
 /// - FilesInternal
 /// - FileInternal
 /// - FileContentInternal
-pub fn setup_internal_files(builder: Builder) -> Builder {
+pub fn setup_spec_files(builder: Builder) -> Builder {
     builder
-        .message_attribute("Files", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("Files", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "Files",
             "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
         .field_attribute("Files.files", "#[spec_field_attr(#[serde(default)])]")
-        .message_attribute("File", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("File", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "File",
             "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
@@ -85,7 +85,7 @@ pub fn setup_internal_files(builder: Builder) -> Builder {
             "File",
             "#[spec_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
-        .enum_attribute("FileContent", "#[derive(internal_derive_macros::Internal)]")
+        .enum_attribute("FileContent", "#[derive(spec_macros::Spec)]")
         .enum_attribute(
             "FileContent",
             "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
@@ -112,9 +112,9 @@ pub fn setup_internal_files(builder: Builder) -> Builder {
 /// - WorkloadInternal
 /// - DependenciesInternal
 /// - TagsInternal
-pub fn setup_internal_workload(builder: Builder) -> Builder {
+pub fn setup_spec_workload(builder: Builder) -> Builder {
     builder
-        .message_attribute("Workload", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("Workload", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "Workload",
             "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
@@ -144,7 +144,7 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
 
         .message_attribute(
             "Dependencies",
-            "#[derive(internal_derive_macros::Internal)]",
+            "#[derive(spec_macros::Spec)]",
         )
         .message_attribute(
             "Dependencies",
@@ -152,7 +152,7 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
         )
         .field_attribute("Dependencies.dependencies", "#[spec_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\")])]")
 
-        .message_attribute("Tags", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("Tags", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "Tags",
             "#[spec_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, Default)]",
@@ -163,10 +163,10 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
 
 /// This function is used to create and configure the following structs:
 /// - WorkloadInstanceNameInternal
-pub fn setup_internal_workload_instance_name(builder: Builder) -> Builder {
+pub fn setup_spec_workload_instance_name(builder: Builder) -> Builder {
     builder.message_attribute(
         "WorkloadInstanceName",
-        "#[derive(internal_derive_macros::Internal)]",
+        "#[derive(spec_macros::Spec)]",
     )
     .message_attribute(
         "WorkloadInstanceName",
@@ -184,11 +184,11 @@ pub fn setup_internal_workload_instance_name(builder: Builder) -> Builder {
 /// - AccessRightsRuleEnumInternal
 /// - StateRuleInternal
 /// - LogRuleInternal
-pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
+pub fn setup_spec_control_interface_access(builder: Builder) -> Builder {
     builder
         .message_attribute(
             "ControlInterfaceAccess",
-            "#[derive(internal_derive_macros::Internal)]",
+            "#[derive(spec_macros::Spec)]",
         )
         .message_attribute(
             "ControlInterfaceAccess",
@@ -209,7 +209,7 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
 
         .message_attribute(
             "AccessRightsRule",
-            "#[derive(internal_derive_macros::Internal)]",
+            "#[derive(spec_macros::Spec)]",
         )
         .message_attribute(
             "AccessRightsRule",
@@ -223,7 +223,7 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
         )
         .enum_attribute(
             "AccessRightsRuleEnum",
-            "#[derive(internal_derive_macros::Internal)]",
+            "#[derive(spec_macros::Spec)]",
         )
         .enum_attribute(
             "AccessRightsRule.AccessRightsRuleEnum",
@@ -234,7 +234,7 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
             "#[serde(tag = \"type\")]",
         )
 
-        .message_attribute("StateRule", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("StateRule", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "StateRule",
             "#[spec_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
@@ -246,7 +246,7 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
         // The alias to filterMask is added to support the deprecated apiVersions: v0.1
         .field_attribute("StateRule.filterMasks", "#[spec_field_attr(#[serde(alias = \"filterMask\")])]")
 
-        .message_attribute("LogRule", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("LogRule", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "LogRule",
             "#[spec_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
@@ -264,11 +264,11 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
 /// - ConfigItemEnumInternal
 /// - ConfigObjectInternal
 /// - ConfigArrayInternal
-pub fn setup_internal_configs(builder: Builder) -> Builder {
+pub fn setup_spec_configs(builder: Builder) -> Builder {
     builder
         .message_attribute(
             "ConfigMappings",
-            "#[derive(internal_derive_macros::Internal)]",
+            "#[derive(spec_macros::Spec)]",
         )
         .message_attribute(
             "ConfigMappings",
@@ -276,14 +276,14 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
         )
         .field_attribute("ConfigMappings.configs", "#[spec_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\")])]")
 
-        .message_attribute("ConfigMap", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("ConfigMap", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "ConfigMap",
             "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
         .message_attribute("ConfigMap", "#[spec_type_attr(#[serde(transparent)])]")
         // .field_attribute("ConfigMap.configs", "#[spec_field_attr(#[serde(flatten)])]")
-        .message_attribute("ConfigItem", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("ConfigItem", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "ConfigItem",
             "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
@@ -293,7 +293,7 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
 
         .field_attribute("ConfigItem.ConfigItemEnum", "#[spec_mandatory]")
         .field_attribute("ConfigItem.ConfigItemEnum", "#[spec_field_attr(#[serde(flatten)])]")
-        .enum_attribute("ConfigItemEnum", "#[derive(internal_derive_macros::Internal)]")
+        .enum_attribute("ConfigItemEnum", "#[derive(spec_macros::Spec)]")
         .enum_attribute(
             "ConfigItemEnum",
             "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
@@ -302,7 +302,7 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
             "ConfigItemEnum",
             "#[spec_type_attr(#[serde(untagged)])]",
         )
-        .message_attribute("ConfigArray", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("ConfigArray", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "ConfigArray",
             "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
@@ -311,7 +311,7 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
             "ConfigArray",
             "#[spec_type_attr(#[serde(transparent)])]",
         )
-        .message_attribute("ConfigObject", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("ConfigObject", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "ConfigObject",
             "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
@@ -325,22 +325,22 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
 /// - AgentStatusInternal
 /// - CpuUsageInternal
 /// - FreeMemoryInternal
-pub fn setup_internal_agent_map(builder: Builder) -> Builder {
+pub fn setup_spec_agent_map(builder: Builder) -> Builder {
     builder
-        .message_attribute("AgentMap", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("AgentMap", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "AgentMap",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
         .message_attribute(
             "AgentAttributes",
-            "#[derive(internal_derive_macros::Internal)]",
+            "#[derive(spec_macros::Spec)]",
         )
         .message_attribute(
             "AgentAttributes",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
-        .message_attribute("AgentStatus", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("AgentStatus", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "AgentStatus",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
@@ -348,12 +348,12 @@ pub fn setup_internal_agent_map(builder: Builder) -> Builder {
         .field_attribute("AgentStatus.cpu_usage", "#[spec_field_attr(#[serde(flatten)])]")
         .field_attribute("AgentStatus.free_memory", "#[spec_field_attr(#[serde(flatten)])]")
 
-        .message_attribute("CpuUsage", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("CpuUsage", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "CpuUsage",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
-        .message_attribute("FreeMemory", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("FreeMemory", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "FreeMemory",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
@@ -367,11 +367,11 @@ pub fn setup_internal_agent_map(builder: Builder) -> Builder {
 /// - ExecutionsStatesForIdInternal
 /// - ExecutionStateInternal
 /// - ExecutionStateEnumInternal
-pub fn setup_internal_workload_states(builder: Builder) -> Builder {
+pub fn setup_spec_workload_states(builder: Builder) -> Builder {
     builder
     .message_attribute(
         "WorkloadState",
-        "#[derive(internal_derive_macros::Internal)]",
+        "#[derive(spec_macros::Spec)]",
     )
     .message_attribute(
         "WorkloadState",
@@ -389,7 +389,7 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
 
     .message_attribute(
         "WorkloadStatesMap",
-        "#[derive(internal_derive_macros::Internal)]",
+        "#[derive(spec_macros::Spec)]",
     )
     .message_attribute(
         "WorkloadStatesMap",
@@ -401,7 +401,7 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     )
     .message_attribute(
         "ExecutionsStatesOfWorkload",
-        "#[derive(internal_derive_macros::Internal)]",
+        "#[derive(spec_macros::Spec)]",
     )
     .message_attribute(
         "ExecutionsStatesOfWorkload",
@@ -413,7 +413,7 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     )
     .message_attribute(
         "ExecutionsStatesForId",
-        "#[derive(internal_derive_macros::Internal)]",
+        "#[derive(spec_macros::Spec)]",
     )
     .message_attribute(
         "ExecutionsStatesForId",
@@ -426,7 +426,7 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
 
     .message_attribute(
         "ExecutionState",
-        "#[derive(internal_derive_macros::Internal)]",
+        "#[derive(spec_macros::Spec)]",
     )
     .message_attribute(
         "ExecutionState",
@@ -444,7 +444,7 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     )
     .enum_attribute(
         "ExecutionStateEnum",
-        "#[derive(internal_derive_macros::Internal)]",
+        "#[derive(spec_macros::Spec)]",
     )
     .enum_attribute(
         "ExecutionStateEnum",
@@ -463,49 +463,37 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
 /// - CompleteStateRequestInternal
 /// - RequestContentInternal
 /// - RequestInternal
-pub fn setup_internal_requests(builder: Builder) -> Builder {
+pub fn setup_spec_requests(builder: Builder) -> Builder {
     builder
-        .message_attribute("LogsRequest", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("LogsRequest", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "LogsRequest",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
         .field_attribute("LogsRequest.follow", "#[spec_mandatory]")
         .field_attribute("LogsRequest.tail", "#[spec_mandatory]")
-        .message_attribute(
-            "LogsCancelRequest",
-            "#[derive(internal_derive_macros::Internal)]",
-        )
+        .message_attribute("LogsCancelRequest", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "LogsCancelRequest",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
-        .message_attribute(
-            "UpdateStateRequest",
-            "#[derive(internal_derive_macros::Internal)]",
-        )
+        .message_attribute("UpdateStateRequest", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "UpdateStateRequest",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
         .field_attribute("UpdateStateRequest.newState", "#[spec_mandatory]")
-        .message_attribute(
-            "CompleteStateRequest",
-            "#[derive(internal_derive_macros::Internal)]",
-        )
+        .message_attribute("CompleteStateRequest", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "CompleteStateRequest",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
-        .enum_attribute(
-            "RequestContent",
-            "#[derive(internal_derive_macros::Internal)]",
-        )
+        .enum_attribute("RequestContent", "#[derive(spec_macros::Spec)]")
         .enum_attribute(
             "RequestContent",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
-        .message_attribute("Request", "#[derive(internal_derive_macros::Internal)]")
+        .message_attribute("Request", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "Request",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
