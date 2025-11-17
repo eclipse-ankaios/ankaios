@@ -20,5 +20,7 @@ script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 base_dir="$script_dir/.."
 container_image_dir="$base_dir/tests/resources/control_interface_tester"
 
+#TODO #313 also check the API for changes
+
 cd $container_image_dir
 find . -type f | grep -v 'README.md' | sort | xargs sha256sum | sha256sum | sed 's/  -//'
