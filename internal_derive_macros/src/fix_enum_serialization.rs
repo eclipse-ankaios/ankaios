@@ -374,7 +374,13 @@ mod tests {
 
     #[test]
     fn test_get_name_from_path_no_segments() {
-        let type_path: syn::TypePath = syn::parse_quote! {};
+        let type_path = syn::TypePath {
+            qself: None,
+            path: syn::Path {
+                leading_colon: None,
+                segments: syn::punctuated::Punctuated::new(),
+            },
+        };
         let result = super::get_name_from_path(&type_path);
         assert!(result.is_err());
         assert!(
@@ -503,11 +509,11 @@ mod tests {
     #[test]
     fn test_generate_map_serializer() {
         let fn_name: proc_macro2::Ident = format_ident!("map_serializer");
-        let original_type: syn::Type = syn::parse_quote! { std::collections::BTreeMap<String, i32> };
+        let original_type: syn::Type =
+            syn::parse_quote! { std::collections::BTreeMap<String, i32> };
         let new_type: syn::Type = syn::parse_quote! { MyEnumType };
 
-        let serializer_fn =
-            super::generate_map_serializer(&fn_name, &original_type, &new_type);
+        let serializer_fn = super::generate_map_serializer(&fn_name, &original_type, &new_type);
         let expected_tokens = quote::quote! {
             fn map_serializer<S>(
                 value: &std::collections::BTreeMap<String, i32>,
@@ -535,8 +541,7 @@ mod tests {
         let fn_name: proc_macro2::Ident = format_ident!("map_deserializer");
         let original_type: syn::Type = syn::parse_quote! { std::collections::HashMap<String, i32> };
         let new_type: syn::Type = syn::parse_quote! { MyEnumType };
-        let deserializer_fn =
-            super::generate_map_deserializer(&fn_name, &original_type, &new_type);
+        let deserializer_fn = super::generate_map_deserializer(&fn_name, &original_type, &new_type);
         let expected_tokens = quote::quote! {
             fn map_deserializer<'de, D>(
                 deserializer: D,
