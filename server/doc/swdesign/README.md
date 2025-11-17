@@ -1507,7 +1507,13 @@ Needs:
 
 Status: approved
 
-When the EventHandler expands the subscriber's field mask, the EventHandler shall replace all parts containing the wild card symbol (`*`) with the corresponding part of the altered field mask.
+When the EventHandler expands the subscriber's field mask, the EventHandler shall:
+
+* replace all parts containing the wild card symbol (`*`) with the corresponding part of the altered field mask
+* expand the resulting field mask with the rest of the subscriber mask until the part is a wildcard symbol
+
+Comment:
+Stopping at the first wild card when expanding with the subscriber mask parts prevents wildcards in the event's altered field masks.
 
 Rationale:
 The expansion of wild cards is required in the case of the altered field mask is shorter than the subscriber's field mask to fill CompleteState differences only with the most specific data.
