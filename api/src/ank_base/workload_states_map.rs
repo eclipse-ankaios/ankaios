@@ -13,8 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    ExecutionStateSpec, ExecutionsStatesOfWorkloadSpec, WorkloadInstanceNameSpec, WorkloadNamed,
-    WorkloadStateSpec, WorkloadStatesMapSpec,
+    ExecutionStateSpec, ExecutionsStatesOfWorkloadSpec, WorkloadInstanceName,
+    WorkloadInstanceNameSpec, WorkloadNamed, WorkloadState, WorkloadStateSpec, WorkloadStatesMap,
+    WorkloadStatesMapSpec,
 };
 use std::collections::{HashMap, hash_map::Entry};
 
@@ -186,6 +187,33 @@ impl From<WorkloadStatesMapSpec> for Vec<WorkloadStateSpec> {
     }
 }
 
+impl From<WorkloadStatesMap> for Vec<WorkloadState> {
+    fn from(value: WorkloadStatesMap) -> Self {
+        value
+            .agent_state_map
+            .into_iter()
+            .flat_map(|(agent_name, name_state_map)| {
+                name_state_map.wl_name_state_map.into_iter().flat_map(
+                    move |(wl_name, id_state_map)| {
+                        let agent_name = agent_name.clone();
+                        id_state_map
+                            .id_state_map
+                            .into_iter()
+                            .map(move |(wl_id, exec_state)| WorkloadState {
+                                instance_name: Some(WorkloadInstanceName {
+                                    agent_name: agent_name.clone(),
+                                    workload_name: wl_name.clone(),
+                                    id: wl_id,
+                                }),
+                                execution_state: Some(exec_state),
+                            })
+                    },
+                )
+            })
+            .collect()
+    }
+}
+
 impl IntoIterator for WorkloadStatesMapSpec {
     type Item =
         <HashMap<String, HashMap<String, HashMap<String, ExecutionStateSpec>>> as IntoIterator>::Item;
@@ -292,7 +320,8 @@ pub fn generate_test_workload_states_map_from_workload_states(
 #[cfg(test)]
 mod tests {
     use crate::ank_base::{
-        ExecutionStateSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
+        ExecutionStateSpec, WorkloadNamed, WorkloadState, WorkloadStateSpec, WorkloadStatesMap,
+        WorkloadStatesMapSpec,
     };
     use crate::test_utils::{
         generate_test_workload_state_with_agent,
@@ -329,9 +358,12 @@ mod tests {
 
     #[test]
     fn utest_workload_states_map_into_vec_of_workload_states() {
-        let wls_db = create_test_setup();
+        let wls_db: WorkloadStatesMap = create_test_setup().into();
 
-        let mut wls_res: Vec<WorkloadStateSpec> = wls_db.into();
+        let mut wls_res: Vec<WorkloadStateSpec> = Into::<Vec<WorkloadState>>::into(wls_db)
+            .into_iter()
+            .map(|state| state.try_into().unwrap())
+            .collect();
         wls_res.sort_by(|a, b| {
             a.instance_name
                 .workload_name()

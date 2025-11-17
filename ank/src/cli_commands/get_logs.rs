@@ -16,7 +16,7 @@ use super::CliCommands;
 use crate::cli::LogsArgs;
 use crate::cli_error::CliError;
 
-use api::ank_base::{WorkloadInstanceNameSpec, WorkloadStateSpec, WorkloadStatesMapSpec};
+use api::ank_base::{WorkloadInstanceNameSpec, WorkloadState};
 use std::collections::{BTreeSet, HashMap};
 
 impl CliCommands {
@@ -45,20 +45,32 @@ impl CliCommands {
             .await?;
 
         if let Some(wl_states) = complete_state.workload_states {
-            // TODO #313 we are doing an extra conversion here. Do we need this?
-            let wl_states: WorkloadStatesMapSpec = wl_states.try_into().map_err(|err| {
-                CliError::ExecutionError(format!("Failed to convert workload states map: {err}"))
-            })?;
-
             let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceNameSpec>> =
-                Vec::<WorkloadStateSpec>::from(wl_states).into_iter().fold(
+                Vec::<WorkloadState>::from(wl_states).into_iter().map(|wl_state| {
+                    let instance_name: WorkloadInstanceNameSpec =
+                        match wl_state.instance_name {
+                            Some(instance_name) => instance_name.try_into().map_err(|err| {
+                                CliError::ExecutionError(format!(
+                                    "Failed to convert instance name: {err}"
+                                ))
+                            })?,
+                            None => {
+                                return Err(CliError::ExecutionError(
+                                    "Instance name is missing.".to_string(),
+                                ))
+                            }
+                        };
+                    let workload_name = instance_name.workload_name();
+                    Ok((workload_name.to_owned(), instance_name))
+                })
+                .fold(
                     HashMap::new(),
-                    |mut acc, wl_state| {
-                        let instance_name = wl_state.instance_name.clone();
-                        let workload_name = instance_name.workload_name();
-                        acc.entry(workload_name.to_owned())
-                            .or_default()
-                            .insert(instance_name);
+                    |mut acc, item| {
+                        if let Ok((workload_name, instance_name)) = item {
+                            acc.entry(workload_name)
+                                .or_default()
+                                .insert(instance_name);
+                        }
                         acc
                     },
                 );

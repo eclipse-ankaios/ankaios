@@ -41,8 +41,8 @@ mod run_workload;
 mod set_state;
 
 use api::ank_base::{
-    CompleteState, CompleteStateSpec, Workload, WorkloadInstanceNameSpec, WorkloadStateSpec,
-    WorkloadStatesMapSpec,
+    CompleteState, CompleteStateSpec, ExecutionStateEnumSpec, Workload, WorkloadInstanceNameSpec,
+    WorkloadState, WorkloadStatesMap,
 };
 use common::{
     communications_error::CommunicationMiddlewareError, from_server_interface::FromServer,
@@ -122,26 +122,36 @@ impl IntoIterator for WorkloadInfos {
     }
 }
 
-impl From<WorkloadStatesMapSpec> for WorkloadInfos {
-    fn from(workload_states_map: WorkloadStatesMapSpec) -> Self {
-        WorkloadInfos(
+impl TryFrom<WorkloadStatesMap> for WorkloadInfos {
+    type Error = String;
+
+    fn try_from(workload_states_map: WorkloadStatesMap) -> Result<Self, Self::Error> {
+        Ok(WorkloadInfos(
             // invoking this from is cheaper then repeating the code to flatten the wl state map
-            Vec::<WorkloadStateSpec>::from(workload_states_map)
+            Vec::<WorkloadState>::from(workload_states_map)
                 .into_iter()
                 .map(|wl_state| {
+                    // TODO #313 refactor and remove unwraps
+                    let instance_name = wl_state.instance_name.clone().unwrap();
+                    let exec_state = wl_state.execution_state.clone().unwrap();
                     (
-                        wl_state.instance_name.clone(),
+                        instance_name.clone().try_into().unwrap(),
                         WorkloadTableRow::new(
-                            wl_state.instance_name.workload_name(),
-                            wl_state.instance_name.agent_name(),
+                            instance_name.workload_name,
+                            instance_name.agent_name,
                             String::default(),
-                            wl_state.execution_state.state().to_string(),
-                            wl_state.execution_state.additional_info.to_string(),
+                            exec_state
+                                .execution_state_enum
+                                .and_then(|state| {
+                                    TryInto::<ExecutionStateEnumSpec>::try_into(state).ok()
+                                })
+                                .map_or_else(String::new, |state| state.to_string()),
+                            exec_state.additional_info.unwrap_or_default(),
                         ),
                     )
                 })
                 .collect(),
-        )
+        ))
     }
 }
 
@@ -188,13 +198,8 @@ impl CliCommands {
 
     // [impl->swdd~processes-complete-state-to-list-workloads~1]
     fn transform_into_workload_infos(&self, complete_state: CompleteState) -> WorkloadInfos {
-        // TODO #313 fix the conversion and think about adding a proper from here
-        let workload_states_map: WorkloadStatesMapSpec = complete_state
-            .workload_states
-            .unwrap_or_default()
-            .try_into()
-            .unwrap();
-        let workload_infos = WorkloadInfos::from(workload_states_map);
+        let workload_states_map = complete_state.workload_states.unwrap_or_default();
+        let workload_infos = WorkloadInfos::try_from(workload_states_map).unwrap();
 
         let desired_state_workloads = complete_state
             .desired_state
