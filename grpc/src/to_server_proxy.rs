@@ -13,19 +13,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ankaios_streaming::GRPCStreaming;
+use crate::grpc_api::{self, to_server::ToServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
-use crate::grpc_api::{self, to_server::ToServerEnum};
 use api::ank_base::{LogsStopResponse, Request, UpdateStateRequest, request::RequestContent};
-
-use common::commands::AgentLoadStatus;
+use common::commands;
 use common::request_id_prepending::prepend_request_id;
 use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender};
 
+use async_trait::async_trait;
 use tokio::sync::mpsc::Sender;
 use tonic::Streaming;
-
-use async_trait::async_trait;
 
 pub struct GRPCToServerStreaming {
     inner: Streaming<grpc_api::ToServer>,
@@ -207,7 +205,7 @@ pub async fn forward_from_ankaios_to_proto(
                     .send(grpc_api::ToServer {
                         to_server_enum: Some(
                             grpc_api::to_server::ToServerEnum::UpdateWorkloadState(
-                                common::commands::UpdateWorkloadState {
+                                commands::UpdateWorkloadState {
                                     workload_states: method_obj.workload_states,
                                 }
                                 .into(),
@@ -230,7 +228,7 @@ pub async fn forward_from_ankaios_to_proto(
                 grpc_tx
                     .send(grpc_api::ToServer {
                         to_server_enum: Some(grpc_api::to_server::ToServerEnum::AgentLoadStatus(
-                            AgentLoadStatus {
+                            commands::AgentLoadStatus {
                                 agent_name: status.agent_name,
                                 cpu_usage: status.cpu_usage,
                                 free_memory: status.free_memory,
@@ -309,18 +307,22 @@ mod tests {
     use crate::grpc_api::{self, to_server::ToServerEnum};
 
     use api::ank_base::{
-        self, CompleteStateRequestInternal, CpuUsageInternal, ExecutionStateInternal,
-        FreeMemoryInternal, LogEntriesResponse, LogEntry, LogsCancelRequestInternal,
-        LogsRequestInternal, LogsStopResponse, RequestContentInternal, RequestInternal,
-        WorkloadInstanceName, WorkloadNamed,
+        CompleteState, CompleteStateRequest, CompleteStateRequestInternal, CpuUsage,
+        CpuUsageInternal, ExecutionStateInternal, FreeMemory, FreeMemoryInternal,
+        LogEntriesResponse, LogEntry, LogsCancelRequest, LogsCancelRequestInternal, LogsRequest,
+        LogsRequestInternal, LogsStopResponse, Request, RequestContent, RequestContentInternal,
+        RequestInternal, UpdateStateRequest, WorkloadInstanceName, WorkloadInstanceNameInternal,
+        WorkloadNamed, WorkloadState,
     };
     use api::test_utils::{
         generate_test_complete_state, generate_test_workload,
         generate_test_workload_state_with_agent,
     };
 
-    use async_trait::async_trait;
+    use common::commands;
     use common::to_server_interface::{ToServer, ToServerInterface};
+
+    use async_trait::async_trait;
     use std::collections::LinkedList;
     use tokio::sync::mpsc;
 
@@ -360,7 +362,7 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let agent_load_status = common::commands::AgentLoadStatus {
+        let agent_load_status = commands::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
             cpu_usage: CpuUsageInternal { cpu_usage: 42 },
             free_memory: FreeMemoryInternal { free_memory: 42 },
@@ -380,8 +382,8 @@ mod tests {
 
         let expected = ToServerEnum::AgentLoadStatus(grpc_api::AgentLoadStatus {
             agent_name: AGENT_A_NAME.to_string(),
-            cpu_usage: Some(ank_base::CpuUsage { cpu_usage: 42 }),
-            free_memory: Some(ank_base::FreeMemory { free_memory: 42 }),
+            cpu_usage: Some(CpuUsage { cpu_usage: 42 }),
+            free_memory: Some(FreeMemory { free_memory: 42 }),
         });
 
         assert_eq!(result.to_server_enum, Some(expected));
@@ -458,7 +460,7 @@ mod tests {
 
         assert!(matches!(
             result.to_server_enum,
-            Some(ToServerEnum::Request(ank_base::Request{request_id, request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(update_state_request))}))
+            Some(ToServerEnum::Request(Request{request_id, request_content: Some(RequestContent::UpdateStateRequest(update_state_request))}))
             if request_id == REQUEST_ID && update_state_request.new_state == Some(proto_state) && update_state_request.update_mask == update_mask));
     }
 
@@ -564,7 +566,7 @@ mod tests {
         let workload_named = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_1_NAME);
         let agent_name = workload_named.workload.agent.clone();
 
-        let mut ankaios_state: ank_base::CompleteState =
+        let mut ankaios_state: CompleteState =
             generate_test_complete_state(vec![workload_named]).into();
         *ankaios_state
             .desired_state
@@ -589,16 +591,14 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
+                    to_server_enum: Some(ToServerEnum::Request(Request {
                         request_id: REQUEST_ID.to_owned(),
-                        request_content: Some(
-                            ank_base::request::RequestContent::UpdateStateRequest(Box::new(
-                                ank_base::UpdateStateRequest {
-                                    new_state: Some(ankaios_state),
-                                    update_mask: ankaios_update_mask.clone(),
-                                },
-                            )),
-                        ),
+                        request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                            UpdateStateRequest {
+                                new_state: Some(ankaios_state),
+                                update_mask: ankaios_update_mask.clone(),
+                            },
+                        ))),
                     })),
                 }),
                 None,
@@ -628,16 +628,14 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
+                    to_server_enum: Some(ToServerEnum::Request(Request {
                         request_id: REQUEST_ID.to_owned(),
-                        request_content: Some(
-                            ank_base::request::RequestContent::UpdateStateRequest(Box::new(
-                                ank_base::UpdateStateRequest {
-                                    new_state: Some(ankaios_state.clone().into()),
-                                    update_mask: ankaios_update_mask.clone(),
-                                },
-                            )),
-                        ),
+                        request_content: Some(RequestContent::UpdateStateRequest(Box::new(
+                            UpdateStateRequest {
+                                new_state: Some(ankaios_state.clone().into()),
+                                update_mask: ankaios_update_mask.clone(),
+                            },
+                        ))),
                     })),
                 }),
                 None,
@@ -671,7 +669,7 @@ mod tests {
     async fn utest_to_server_command_forward_from_proto_to_ankaios_update_workload_state() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        let proto_wl_state: ank_base::WorkloadState = generate_test_workload_state_with_agent(
+        let proto_wl_state: WorkloadState = generate_test_workload_state_with_agent(
             "fake_workload",
             AGENT_A_NAME,
             ExecutionStateInternal::running(),
@@ -720,13 +718,11 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
+                    to_server_enum: Some(ToServerEnum::Request(Request {
                         request_id: REQUEST_ID.to_string(),
-                        request_content: Some(
-                            ank_base::request::RequestContent::CompleteStateRequest(
-                                ank_base::CompleteStateRequest { field_mask: vec![] },
-                            ),
-                        ),
+                        request_content: Some(RequestContent::CompleteStateRequest(
+                            CompleteStateRequest { field_mask: vec![] },
+                        )),
                     })),
                 }),
                 None,
@@ -746,15 +742,13 @@ mod tests {
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
         let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
         let expected_empty_field_mask: Vec<String> = vec![];
-        assert!(
-            matches!(result, common::to_server_interface::ToServer::Request(RequestInternal {
+        assert!(matches!(result, ToServer::Request(RequestInternal {
                 request_id,
                 request_content:
                     RequestContentInternal::CompleteStateRequest(
                         CompleteStateRequestInternal { field_mask },
                     ),
-            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask)
-        );
+            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask));
     }
 
     #[tokio::test]
@@ -780,11 +774,11 @@ mod tests {
 
         assert!(matches!(
         result.to_server_enum,
-        Some(ToServerEnum::Request(ank_base::Request {
+        Some(ToServerEnum::Request(Request {
             request_id,
             request_content:
-                Some(ank_base::request::RequestContent::CompleteStateRequest(
-                    ank_base::CompleteStateRequest { field_mask },
+                Some(RequestContent::CompleteStateRequest(
+                    CompleteStateRequest { field_mask },
                 )),
         }))
         if request_id == REQUEST_ID && field_mask == vec![] as Vec<String>));
@@ -797,28 +791,26 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
+                    to_server_enum: Some(ToServerEnum::Request(Request {
                         request_id: REQUEST_ID.to_owned(),
-                        request_content: Some(ank_base::request::RequestContent::LogsRequest(
-                            ank_base::LogsRequest {
-                                workload_names: vec![
-                                    ank_base::WorkloadInstanceName {
-                                        workload_name: WORKLOAD_1_NAME.to_string(),
-                                        agent_name: AGENT_A_NAME.to_string(),
-                                        id: WORKLOAD_ID_1.to_string(),
-                                    },
-                                    ank_base::WorkloadInstanceName {
-                                        workload_name: WORKLOAD_2_NAME.to_string(),
-                                        agent_name: AGENT_A_NAME.to_string(),
-                                        id: WORKLOAD_ID_2.to_string(),
-                                    },
-                                ],
-                                follow: Some(true),
-                                tail: Some(10),
-                                since: Some("since".into()),
-                                until: None,
-                            },
-                        )),
+                        request_content: Some(RequestContent::LogsRequest(LogsRequest {
+                            workload_names: vec![
+                                WorkloadInstanceName {
+                                    workload_name: WORKLOAD_1_NAME.to_string(),
+                                    agent_name: AGENT_A_NAME.to_string(),
+                                    id: WORKLOAD_ID_1.to_string(),
+                                },
+                                WorkloadInstanceName {
+                                    workload_name: WORKLOAD_2_NAME.to_string(),
+                                    agent_name: AGENT_A_NAME.to_string(),
+                                    id: WORKLOAD_ID_2.to_string(),
+                                },
+                            ],
+                            follow: Some(true),
+                            tail: Some(10),
+                            since: Some("since".into()),
+                            until: None,
+                        })),
                     })),
                 }),
                 None,
@@ -837,21 +829,12 @@ mod tests {
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
         let expected_prefixed_my_request_id = format!("{AGENT_A_NAME}@{REQUEST_ID}");
-        let expected_workload_names: Vec<api::ank_base::WorkloadInstanceNameInternal> = vec![
-            api::ank_base::WorkloadInstanceNameInternal::new(
-                AGENT_A_NAME,
-                WORKLOAD_1_NAME,
-                WORKLOAD_ID_1,
-            ),
-            api::ank_base::WorkloadInstanceNameInternal::new(
-                AGENT_A_NAME,
-                WORKLOAD_2_NAME,
-                WORKLOAD_ID_2,
-            ),
+        let expected_workload_names: Vec<WorkloadInstanceNameInternal> = vec![
+            WorkloadInstanceNameInternal::new(AGENT_A_NAME, WORKLOAD_1_NAME, WORKLOAD_ID_1),
+            WorkloadInstanceNameInternal::new(AGENT_A_NAME, WORKLOAD_2_NAME, WORKLOAD_ID_2),
         ];
 
-        assert!(
-            matches!(result, common::to_server_interface::ToServer::Request(RequestInternal {
+        assert!(matches!(result, ToServer::Request(RequestInternal {
                 request_id,
                 request_content:
                     RequestContentInternal::LogsRequest(
@@ -860,8 +843,7 @@ mod tests {
             }) if request_id == expected_prefixed_my_request_id
                    && workload_names == expected_workload_names
                    && follow && tail == 10
-                   && since == Some("since".into())  && until.is_none())
-        );
+                   && since == Some("since".into())  && until.is_none()));
     }
 
     #[tokio::test]
@@ -871,13 +853,11 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
+                    to_server_enum: Some(ToServerEnum::Request(Request {
                         request_id: REQUEST_ID.to_string(),
-                        request_content: Some(
-                            ank_base::request::RequestContent::LogsCancelRequest(
-                                ank_base::LogsCancelRequest {},
-                            ),
-                        ),
+                        request_content: Some(RequestContent::LogsCancelRequest(
+                            LogsCancelRequest {},
+                        )),
                     })),
                 }),
                 None,
@@ -899,7 +879,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::to_server_interface::ToServer::Request(RequestInternal {
+            ToServer::Request(RequestInternal {
                 request_id,
                 request_content: RequestContentInternal::LogsCancelRequest(
                     LogsCancelRequestInternal{}
@@ -958,13 +938,13 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::to_server_interface::ToServer::LogEntriesResponse(
+            ToServer::LogEntriesResponse(
                 request_id,
-                ank_base::LogEntriesResponse { log_entries }
+                LogEntriesResponse { log_entries }
             ) if request_id == REQUEST_ID
                  && matches!(log_entries.as_slice(),
-                            [ank_base::LogEntry{ workload_name: Some(ank_base::WorkloadInstanceName{ workload_name: workload_name_1, agent_name: agent_name_1, id: id_1 }), message: message_1 },
-                             ank_base::LogEntry{ workload_name: Some(ank_base::WorkloadInstanceName{ workload_name: workload_name_2, agent_name: agent_name_2, id: id_2 }), message: message_2 }]
+                            [LogEntry{ workload_name: Some(WorkloadInstanceName{ workload_name: workload_name_1, agent_name: agent_name_1, id: id_1 }), message: message_1 },
+                             LogEntry{ workload_name: Some(WorkloadInstanceName{ workload_name: workload_name_2, agent_name: agent_name_2, id: id_2 }), message: message_2 }]
                             if workload_name_1 == WORKLOAD_1_NAME && agent_name_1 == AGENT_B_NAME && id_1 == WORKLOAD_ID_1 && message_1 == LOG_MESSAGE_1
                                && workload_name_2 == WORKLOAD_2_NAME && agent_name_2 == AGENT_B_NAME && id_2 == WORKLOAD_ID_2 && message_2 == LOG_MESSAGE_2)
         ));
@@ -1052,8 +1032,8 @@ mod tests {
                 log_entries_response: Some(LogEntriesResponse { log_entries })
             })) if request_id == REQUEST_ID
                     && matches!(log_entries.as_slice(),
-                                [ank_base::LogEntry{ workload_name: Some(ank_base:: WorkloadInstanceName{ workload_name: workload_name_1, agent_name: agent_name_1, id: id_1 }), message: message_1 },
-                                 ank_base::LogEntry{ workload_name: Some(ank_base:: WorkloadInstanceName{ workload_name: workload_name_2, agent_name: agent_name_2, id: id_2 }), message: message_2 }]
+                                [LogEntry{ workload_name: Some(WorkloadInstanceName{ workload_name: workload_name_1, agent_name: agent_name_1, id: id_1 }), message: message_1 },
+                                 LogEntry{ workload_name: Some(WorkloadInstanceName{ workload_name: workload_name_2, agent_name: agent_name_2, id: id_2 }), message: message_2 }]
                                 if workload_name_1 == WORKLOAD_1_NAME && agent_name_1 == AGENT_B_NAME && id_1 == WORKLOAD_ID_1 && message_1 == LOG_MESSAGE_1
                                    && workload_name_2 == WORKLOAD_2_NAME && agent_name_2 == AGENT_B_NAME && id_2 == WORKLOAD_ID_2 && message_2 == LOG_MESSAGE_2)
         ));
@@ -1097,9 +1077,9 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::to_server_interface::ToServer::LogsStopResponse(
+            ToServer::LogsStopResponse(
                 received_request_id,
-                ank_base::LogsStopResponse {
+                LogsStopResponse {
                     workload_name: received_workload_instance_name
                 }
             ) if received_request_id == request_id && received_workload_instance_name == Some(workload_instance_name)

@@ -14,15 +14,6 @@
 
 #[cfg(test)]
 mod grpc_tests {
-
-    use std::{
-        fs::File,
-        io::{self, Write},
-        os::unix::fs::PermissionsExt,
-        path::PathBuf,
-        time::Duration,
-    };
-
     use api::ank_base::{
         CompleteStateInternal, CompleteStateRequestInternal, RequestContentInternal,
         RequestInternal,
@@ -41,8 +32,17 @@ mod grpc_tests {
         server::GRPCCommunicationsServer,
     };
 
+    use std::{
+        fs::File,
+        io::{self, Write},
+        net::SocketAddr,
+        os::unix::fs::PermissionsExt,
+        path::PathBuf,
+        time::Duration,
+    };
+
     use tempfile::TempDir;
-    use tokio::time::timeout;
+    use tokio::{sync::mpsc, task::JoinHandle, time::timeout};
 
     /* 10 years validity issued at 08/16/2024 check validity if tests are failing */
     static TEST_CA_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
@@ -211,9 +211,9 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         tls_config: Option<security::TLSConfig>,
     ) -> (
         ToServerSender,
-        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>,
+        JoinHandle<Result<(), CommunicationMiddlewareError>>,
     ) {
-        let (to_grpc_client, grpc_client_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
+        let (to_grpc_client, grpc_client_receiver) = mpsc::channel::<ToServer>(20);
         let url = format!("https://{server_addr}");
         let grpc_communications_client = match comm_type {
             CommunicationType::Cli => GRPCCommunicationsClient::new_cli_communication(
@@ -243,10 +243,10 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         test_request_id: &str,
         tls_pem_files_package: Option<&TestPEMFilesPackage>,
     ) -> (
-        ToServerSender,                                                    // to_grpc_client
-        ToServerReceiver,                                                  // server_receiver
-        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_server_task
-        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_client_task
+        ToServerSender,                                       // to_grpc_client
+        ToServerReceiver,                                     // server_receiver
+        JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_server_task
+        JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_client_task
     ) {
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         //                                         _____________                                _________________
@@ -258,8 +258,8 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         let server_addr = format!("0.0.0.0:{port}");
-        let (to_grpc_server, grpc_server_receiver) = tokio::sync::mpsc::channel::<FromServer>(20);
-        let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
+        let (to_grpc_server, grpc_server_receiver) = mpsc::channel::<FromServer>(20);
+        let (to_server, server_receiver) = mpsc::channel::<ToServer>(20);
 
         let (server_tls_config, agent_tls_config, cli_tls_config) =
             if let Some(tls_pem_files_package) = tls_pem_files_package {
@@ -275,7 +275,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         // create communication server
         let mut communications_server = GRPCCommunicationsServer::new(to_server, server_tls_config);
 
-        let socket_addr: std::net::SocketAddr = server_addr.parse().unwrap();
+        let socket_addr: SocketAddr = server_addr.parse().unwrap();
 
         let grpc_server_task = tokio::spawn(async move {
             communications_server

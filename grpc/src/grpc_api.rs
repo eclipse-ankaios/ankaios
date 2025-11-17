@@ -140,7 +140,11 @@ impl From<WorkloadNamed> for AddedWorkload {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
+use api::ank_base::{ExecutionStateInternal, WorkloadInstanceNameInternal};
+#[cfg(test)]
 use api::test_utils::generate_test_workload_state_with_agent;
+#[cfg(test)]
+use common::to_server_interface;
 
 #[cfg(test)]
 fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
@@ -152,7 +156,7 @@ fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
 
 #[cfg(test)]
 pub fn generate_test_proto_deleted_workload() -> DeletedWorkload {
-    let instance_name = api::ank_base::WorkloadInstanceNameInternal::builder()
+    let instance_name = WorkloadInstanceNameInternal::builder()
         .agent_name("agent")
         .workload_name("workload X")
         .config(&String::from("config"))
@@ -168,12 +172,12 @@ pub fn generate_test_proto_deleted_workload() -> DeletedWorkload {
 pub fn generate_test_failed_update_workload_state(
     agent_name: &str,
     workload_name: &str,
-) -> common::to_server_interface::ToServer {
-    common::to_server_interface::ToServer::UpdateWorkloadState(commands::UpdateWorkloadState {
+) -> to_server_interface::ToServer {
+    to_server_interface::ToServer::UpdateWorkloadState(commands::UpdateWorkloadState {
         workload_states: vec![generate_test_workload_state_with_agent(
             workload_name,
             agent_name,
-            api::ank_base::ExecutionStateInternal::failed("additional_info"),
+            ExecutionStateInternal::failed("additional_info"),
         )],
     })
 }
@@ -183,14 +187,13 @@ mod tests {
     use crate::{AddedWorkload, DeletedWorkload, generate_test_proto_deleted_workload};
 
     use api::ank_base::{
-        self, ConfigHash, ExecutionStateInternal, WorkloadNamed, WorkloadStateInternal,
+        self, AddCondition, ConfigHash, Dependencies, ExecutionState, ExecutionStateEnum,
+        ExecutionStateInternal, Running as RunningSubstate, WorkloadInstanceName,
+        WorkloadInstanceNameInternal, WorkloadNamed, WorkloadState, WorkloadStateInternal,
     };
     use api::test_utils::{generate_test_deleted_workload, generate_test_workload};
+    use common::commands;
     use std::collections::HashMap;
-
-    mod ankaios {
-        pub use common::commands::*;
-    }
 
     ///////////////////////////////////////////////////////////////////////////
     // Workload tests
@@ -255,16 +258,16 @@ mod tests {
             workload: Some(generate_test_workload()),
         };
         if let Some(workload) = proto_workload.workload.as_mut() {
-            workload.dependencies = Some(ank_base::Dependencies {
+            workload.dependencies = Some(Dependencies {
                 dependencies: HashMap::from([
                     (
                         String::from("workload_A"),
-                        ank_base::AddCondition::AddCondRunning.into(),
+                        AddCondition::AddCondRunning.into(),
                     ),
                     (String::from("workload_B"), -1), // Invalid value for dependency
                     (
                         String::from("workload_C"),
-                        ank_base::AddCondition::AddCondSucceeded.into(),
+                        AddCondition::AddCondSucceeded.into(),
                     ),
                 ]),
             })
@@ -280,51 +283,44 @@ mod tests {
 
     macro_rules! update_workload_state {
         (ankaios) => {
-            ankaios::UpdateWorkloadState {
-                workload_states: vec![workload_state!(ankaios)],
+            commands::UpdateWorkloadState {
+                workload_states: vec![{
+                    struct HashableString(String);
+
+                    impl ConfigHash for HashableString {
+                        fn hash_config(&self) -> String {
+                            self.0.clone()
+                        }
+                    }
+                    WorkloadStateInternal {
+                        instance_name: WorkloadInstanceNameInternal::builder()
+                            .workload_name(WORKLOAD_NAME_1)
+                            .config(&HashableString(HASH.into()))
+                            .agent_name(AGENT_NAME)
+                            .build(),
+                        execution_state: ExecutionStateInternal::running(),
+                    }
+                }],
             }
         };
         (grpc_api) => {
             crate::UpdateWorkloadState {
-                workload_states: vec![workload_state!(ank_base)],
-            }
-        };
-    }
-
-    macro_rules! workload_state {
-        (ankaios) => {{
-            struct HashableString(String);
-
-            impl ConfigHash for HashableString {
-                fn hash_config(&self) -> String {
-                    self.0.clone()
-                }
-            }
-            WorkloadStateInternal {
-                instance_name: api::ank_base::WorkloadInstanceNameInternal::builder()
-                    .workload_name(WORKLOAD_NAME_1)
-                    .config(&HashableString(HASH.into()))
-                    .agent_name(AGENT_NAME)
-                    .build(),
-                execution_state: ExecutionStateInternal::running(),
-            }
-        }};
-        (ank_base) => {
-            ank_base::WorkloadState {
-                instance_name: ank_base::WorkloadInstanceName {
-                    workload_name: WORKLOAD_NAME_1.into(),
-                    agent_name: AGENT_NAME.into(),
-                    id: HASH.into(),
-                }
-                .into(),
-                execution_state: ank_base::ExecutionState {
-                    additional_info: Some("".to_string()),
-                    execution_state_enum: ank_base::execution_state::ExecutionStateEnum::Running(
-                        ank_base::Running::Ok.into(),
-                    )
+                workload_states: vec![WorkloadState {
+                    instance_name: WorkloadInstanceName {
+                        workload_name: WORKLOAD_NAME_1.into(),
+                        agent_name: AGENT_NAME.into(),
+                        id: HASH.into(),
+                    }
                     .into(),
-                }
-                .into(),
+                    execution_state: ExecutionState {
+                        additional_info: Some("".to_string()),
+                        execution_state_enum: ExecutionStateEnum::Running(
+                            RunningSubstate::Ok.into(),
+                        )
+                        .into(),
+                    }
+                    .into(),
+                }],
             }
         };
     }
@@ -346,7 +342,7 @@ mod tests {
         let ankaios_update_wl_state = update_workload_state!(ankaios);
 
         assert_eq!(
-            ankaios::UpdateWorkloadState::from(proto_update_wl_state),
+            commands::UpdateWorkloadState::from(proto_update_wl_state),
             ankaios_update_wl_state,
         );
     }

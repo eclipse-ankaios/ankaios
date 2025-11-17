@@ -17,10 +17,9 @@ use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_api::{self, from_server::FromServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
-use api::ank_base::{self, ResponseContent};
 use api::ank_base::{
-    DeletedWorkload, LogsRequestInternal, WorkloadInstanceNameInternal, WorkloadNamed,
-    WorkloadStateInternal,
+    DeletedWorkload, LogsRequestInternal, Response, ResponseContent, WorkloadInstanceNameInternal,
+    WorkloadNamed, WorkloadState, WorkloadStateInternal,
 };
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
@@ -193,12 +192,10 @@ pub async fn forward_from_ankaios_to_proto(
                     let result = sender
                         .send(Ok(grpc_api::FromServer {
                             from_server_enum: Some(
-                                grpc_api::from_server::FromServerEnum::Response(
-                                    ank_base::Response {
-                                        request_id,
-                                        response_content,
-                                    },
-                                ),
+                                grpc_api::from_server::FromServerEnum::Response(Response {
+                                    request_id,
+                                    response_content,
+                                }),
                             ),
                         }))
                         .await;
@@ -240,7 +237,7 @@ async fn distribute_workload_states_to_agents(
 
     for agent_name in agent_senders.get_all_agent_names() {
         // Filter the workload states as we don't want to send an agent its own updates
-        let filtered_workload_states: Vec<ank_base::WorkloadState> = workload_state_collection
+        let filtered_workload_states: Vec<WorkloadState> = workload_state_collection
             .clone()
             .into_iter()
             .filter(|workload_state| workload_state.instance_name.agent_name() != agent_name)
@@ -442,14 +439,15 @@ mod tests {
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
 
     use api::ank_base::{
-        self, ExecutionStateInternal, LogsRequestInternal, ResponseContent, Workload, WorkloadMap,
-        WorkloadNamed,
+        self, CompleteState, Dependencies, ExecutionStateInternal, LogsRequestInternal, Response,
+        ResponseContent, State, Workload, WorkloadInstanceName, WorkloadInstanceNameInternal,
+        WorkloadMap, WorkloadNamed,
     };
     use api::test_utils::{
         generate_test_deleted_workload, generate_test_workload,
         generate_test_workload_state_with_agent, generate_test_workload_with_param,
     };
-    use common::from_server_interface::FromServerInterface;
+    use common::from_server_interface::{self, FromServerInterface};
 
     use async_trait::async_trait;
     use std::collections::{HashMap, LinkedList};
@@ -460,8 +458,8 @@ mod tests {
     };
 
     type TestSetup = (
-        Sender<common::from_server_interface::FromServer>,
-        Receiver<common::from_server_interface::FromServer>,
+        Sender<from_server_interface::FromServer>,
+        Receiver<from_server_interface::FromServer>,
         Sender<Result<FromServer, tonic::Status>>,
         Receiver<Result<FromServer, tonic::Status>>,
         AgentSendersMap,
@@ -471,10 +469,9 @@ mod tests {
 
     fn create_test_setup(agent_name: &str) -> TestSetup {
         let (to_manager, manager_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
-        let (agent_tx, agent_rx) = tokio::sync::mpsc::channel::<Result<FromServer, tonic::Status>>(
-            common::CHANNEL_CAPACITY,
-        );
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+        let (agent_tx, agent_rx) =
+            mpsc::channel::<Result<FromServer, tonic::Status>>(common::CHANNEL_CAPACITY);
 
         let agent_senders_map = AgentSendersMap::new();
 
@@ -642,7 +639,7 @@ mod tests {
     #[tokio::test]
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_missing_agent_reply() {
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
@@ -671,10 +668,10 @@ mod tests {
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_added_workloads()
      {
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let mut workload: Workload = generate_test_workload();
-        workload.dependencies = Some(ank_base::Dependencies {
+        workload.dependencies = Some(Dependencies {
             dependencies: HashMap::from([("workload_B".to_string(), -1)]), // Set invalid AddCondition
         });
         let added_workload = grpc_api::AddedWorkload {
@@ -712,10 +709,10 @@ mod tests {
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_deleted_workloads()
      {
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let workload: grpc_api::DeletedWorkload = grpc_api::DeletedWorkload {
-            instance_name: Some(ank_base::WorkloadInstanceName {
+            instance_name: Some(WorkloadInstanceName {
                 workload_name: "name".to_string(),
                 ..Default::default()
             }),
@@ -751,7 +748,7 @@ mod tests {
     #[tokio::test]
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_update_workload() {
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
@@ -777,7 +774,7 @@ mod tests {
         assert!(matches!(
             result,
             // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
-            common::from_server_interface::FromServer::UpdateWorkload(_)
+            from_server_interface::FromServer::UpdateWorkload(_)
         ));
     }
 
@@ -785,7 +782,7 @@ mod tests {
     #[tokio::test]
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_update_workload_state() {
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
@@ -811,7 +808,7 @@ mod tests {
         assert!(matches!(
             result,
             // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
-            common::from_server_interface::FromServer::UpdateWorkloadState(_)
+            from_server_interface::FromServer::UpdateWorkloadState(_)
         ));
     }
 
@@ -822,11 +819,6 @@ mod tests {
 
         join!(super::distribute_workloads_to_agents(
             &agent_senders,
-            // vec![generate_test_workload_with_param(
-            //     agent_name.to_string(),
-            //     "name".to_string(),
-            //     "workload1".to_string()
-            // ),],
             vec![generate_test_workload_with_param(agent_name, "runtime")],
             vec![]
         ))
@@ -849,11 +841,6 @@ mod tests {
 
         join!(super::distribute_workloads_to_agents(
             &agent_senders,
-            // vec![generate_test_workload_with_param(
-            //     "not_existing_agent".to_string(),
-            //     "name".to_string(),
-            //     "workload1".to_string()
-            // ),],
             vec![generate_test_workload_with_param(
                 "non_existing_agent",
                 "runtime"
@@ -897,7 +884,7 @@ mod tests {
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
             create_test_setup(agent_name);
 
-        let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
+        let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
             generate_test_workload_with_param(agent_name, "my_runtime"),
@@ -906,8 +893,8 @@ mod tests {
         let my_request_id = "my_request_id".to_owned();
         let prefixed_my_request_id = format!("{agent_name}@{my_request_id}");
 
-        let test_complete_state = ank_base::CompleteState {
-            desired_state: Some(ank_base::State {
+        let test_complete_state = CompleteState {
+            desired_state: Some(State {
                 workloads: Some(WorkloadMap {
                     workloads: startup_workloads.clone(),
                 }),
@@ -932,9 +919,9 @@ mod tests {
 
         assert!(matches!(
             result.from_server_enum,
-            Some(FromServerEnum::Response(ank_base::Response {
+            Some(FromServerEnum::Response(Response {
                 request_id,
-                response_content: Some(ResponseContent::CompleteState(ank_base::CompleteState{
+                response_content: Some(ResponseContent::CompleteState(CompleteState{
                     desired_state: Some(desired_state), ..}))
 
             })) if request_id == my_request_id
@@ -948,9 +935,9 @@ mod tests {
         let agent_name_2: &str = "agent_Y";
 
         let (to_manager, mut manager_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
-        let (agent_1_tx, mut agent_1_rx) = tokio::sync::mpsc::channel(common::CHANNEL_CAPACITY);
-        let (agent_2_tx, mut agent_2_rx) = tokio::sync::mpsc::channel(common::CHANNEL_CAPACITY);
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+        let (agent_1_tx, mut agent_1_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
+        let (agent_2_tx, mut agent_2_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
 
         let agent_senders_map = AgentSendersMap::new();
         agent_senders_map.insert(agent_name_1, agent_1_tx);
@@ -963,12 +950,12 @@ mod tests {
                 my_request_id.into(),
                 ank_base::LogsRequest {
                     workload_names: vec![
-                        ank_base::WorkloadInstanceName {
+                        WorkloadInstanceName {
                             workload_name: "workload_1".into(),
                             agent_name: agent_name_1.into(),
                             id: "id_1".into(),
                         },
-                        ank_base::WorkloadInstanceName {
+                        WorkloadInstanceName {
                             workload_name: "workload_2".into(),
                             agent_name: agent_name_2.into(),
                             id: "id_2".into(),
@@ -994,7 +981,7 @@ mod tests {
                         request_id,
                         logs_request: Some(ank_base::LogsRequest{ workload_names, follow, tail, since, until }) }))
                 if request_id == my_request_id
-                   && workload_names == vec![ank_base::WorkloadInstanceName{ workload_name: "workload_1".into(), agent_name: agent_name_1.into(), id: "id_1".into() }]
+                   && workload_names == vec![WorkloadInstanceName{ workload_name: "workload_1".into(), agent_name: agent_name_1.into(), id: "id_1".into() }]
                    && follow == Some(true) && tail == Some(10) && since.is_none() && until.is_none()
         ));
         assert!(agent_1_rx.recv().await.is_none());
@@ -1005,7 +992,7 @@ mod tests {
                         request_id,
                         logs_request: Some(ank_base::LogsRequest{ workload_names, follow, tail, since, until }) }))
                 if request_id == my_request_id
-                   && workload_names == vec![ank_base::WorkloadInstanceName{ workload_name: "workload_2".into(), agent_name: agent_name_2.into(), id: "id_2".into() }]
+                   && workload_names == vec![WorkloadInstanceName{ workload_name: "workload_2".into(), agent_name: agent_name_2.into(), id: "id_2".into() }]
                    && follow == Some(true) && tail == Some(10) && since.is_none() && until.is_none()
         ));
         assert!(agent_2_rx.recv().await.is_none());
@@ -1017,9 +1004,9 @@ mod tests {
         let agent_name_2: &str = "agent_Y";
 
         let (to_manager, mut manager_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
-        let (agent_1_tx, mut agent_1_rx) = tokio::sync::mpsc::channel(common::CHANNEL_CAPACITY);
-        let (agent_2_tx, mut agent_2_rx) = tokio::sync::mpsc::channel(common::CHANNEL_CAPACITY);
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+        let (agent_1_tx, mut agent_1_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
+        let (agent_2_tx, mut agent_2_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
 
         let agent_senders_map = AgentSendersMap::new();
         agent_senders_map.insert(agent_name_1, agent_1_tx);
@@ -1054,9 +1041,9 @@ mod tests {
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_response() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
+        let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
             generate_test_workload_with_param(agent_name, "my_runtime"),
@@ -1064,8 +1051,8 @@ mod tests {
 
         let my_request_id = "my_request_id".to_owned();
 
-        let test_complete_state = ank_base::CompleteState {
-            desired_state: Some(ank_base::State {
+        let test_complete_state = CompleteState {
+            desired_state: Some(State {
                 workloads: Some(WorkloadMap {
                     workloads: startup_workloads.clone(),
                 }),
@@ -1074,12 +1061,12 @@ mod tests {
             ..Default::default()
         };
 
-        let proto_complete_state = ank_base::CompleteState {
+        let proto_complete_state = CompleteState {
             desired_state: test_complete_state.desired_state.clone(),
             ..Default::default()
         };
 
-        let proto_response = ank_base::Response {
+        let proto_response = Response {
             request_id: my_request_id.clone(),
             response_content: Some(ResponseContent::CompleteState(proto_complete_state)),
         };
@@ -1107,7 +1094,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::from_server_interface::FromServer::Response(ank_base::Response {
+            from_server_interface::FromServer::Response(Response {
                 request_id,
                 response_content: Some(ResponseContent::CompleteState(
                     complete_state
@@ -1122,9 +1109,9 @@ mod tests {
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_logs_request() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
+        let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
             generate_test_workload_with_param(agent_name, "my_runtime"),
@@ -1133,7 +1120,7 @@ mod tests {
         let my_request_id = "my_request_id".to_owned();
 
         let logs_request_content = ank_base::LogsRequest {
-            workload_names: vec![ank_base::WorkloadInstanceName {
+            workload_names: vec![WorkloadInstanceName {
                 workload_name: WORKLOAD_NAME.into(),
                 agent_name: agent_name.into(),
                 id: "id".into(),
@@ -1170,7 +1157,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::from_server_interface::FromServer::LogsRequest(
+            from_server_interface::FromServer::LogsRequest(
                 request_id,
                 LogsRequestInternal {
                     workload_names,
@@ -1179,7 +1166,7 @@ mod tests {
                     since,
                     until
                 }
-            ) if request_id == my_request_id && workload_names == vec![api::ank_base::WorkloadInstanceNameInternal::new(agent_name, WORKLOAD_NAME, "id")] && follow && tail == 10 &&since.is_none() && until.is_none()
+            ) if request_id == my_request_id && workload_names == vec![WorkloadInstanceNameInternal::new(agent_name, WORKLOAD_NAME, "id")] && follow && tail == 10 &&since.is_none() && until.is_none()
         ));
     }
 
@@ -1187,9 +1174,9 @@ mod tests {
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_empty_logs_request() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
+        let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
             generate_test_workload_with_param(agent_name, "my_runtime"),
@@ -1227,7 +1214,7 @@ mod tests {
     #[tokio::test]
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_logs_cancel_request() {
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let my_request_id = "my_request_id".to_owned();
 
@@ -1256,7 +1243,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::from_server_interface::FromServer::LogsCancelRequest(request_id)
+            from_server_interface::FromServer::LogsCancelRequest(request_id)
                 if request_id == my_request_id
         ));
     }

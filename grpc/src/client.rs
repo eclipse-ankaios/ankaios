@@ -12,7 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::from_server_proxy::GRPCFromServerStreaming;
+use crate::CommanderHello;
+use crate::from_server_proxy::{GRPCFromServerStreaming, forward_from_proto_to_ankaios};
 use crate::grpc_api::{
     AgentHello, FromServer, ToServer, agent_connection_client::AgentConnectionClient,
     cli_connection_client::CliConnectionClient, to_server::ToServerEnum,
@@ -20,7 +21,6 @@ use crate::grpc_api::{
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use crate::security::TLSConfig;
 use crate::to_server_proxy::forward_from_ankaios_to_proto;
-use crate::{CommanderHello, from_server_proxy};
 
 use api::std_extensions::IllegalStateResult;
 use common::communications_client::CommunicationsClient;
@@ -31,7 +31,7 @@ use common::to_server_interface::ToServerReceiver;
 use async_trait::async_trait;
 use regex::Regex;
 use tokio::select;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{self, Receiver};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 
@@ -171,7 +171,7 @@ impl GRPCCommunicationsClient {
         agent_tx: &FromServerSender,
     ) -> Result<(), GrpcMiddlewareError> {
         // [impl->swdd~grpc-client-creates-to-server-channel~1]
-        let (grpc_tx, grpc_rx) = tokio::sync::mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
+        let (grpc_tx, grpc_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
         // [impl->swdd~grpc-client-sends-supported-version~1]
         match self.connection_type {
@@ -196,10 +196,8 @@ impl GRPCCommunicationsClient {
             GRPCFromServerStreaming::new(self.connect_to_server(grpc_rx).await?);
 
         // [impl->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
-        let forward_exec_from_proto_task = from_server_proxy::forward_from_proto_to_ankaios(
-            &mut grpc_to_server_streaming,
-            agent_tx,
-        );
+        let forward_exec_from_proto_task =
+            forward_from_proto_to_ankaios(&mut grpc_to_server_streaming, agent_tx);
 
         // [impl->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
         let forward_to_server_from_ank_task = forward_from_ankaios_to_proto(grpc_tx, server_rx);
