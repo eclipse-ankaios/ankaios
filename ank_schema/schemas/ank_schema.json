@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "desiredState",
   "description": "A message containing the state information.",
   "type": "object",
@@ -10,19 +10,27 @@
     },
     "configs": {
       "description": "Configuration values which can be referenced in workload configurations.",
-      "$ref": "#/$defs/configMap",
+      "allOf": [
+        {
+          "$ref": "#/definitions/configMap"
+        }
+      ],
       "default": {}
     },
     "workloads": {
       "description": "A mapping from workload names to workload configurations.",
-      "$ref": "#/$defs/workloadMap",
+      "allOf": [
+        {
+          "$ref": "#/definitions/workloadMap"
+        }
+      ],
       "default": {}
     }
   },
   "required": [
     "apiVersion"
   ],
-  "$defs": {
+  "definitions": {
     "accessRightsRule": {
       "description": "A message containing an allow or deny rule.",
       "type": "object",
@@ -36,7 +44,11 @@
               "const": "StateRule"
             }
           },
-          "$ref": "#/$defs/stateRule",
+          "allOf": [
+            {
+              "$ref": "#/definitions/stateRule"
+            }
+          ],
           "required": [
             "type"
           ]
@@ -50,7 +62,11 @@
               "const": "LogRule"
             }
           },
-          "$ref": "#/$defs/logRule",
+          "allOf": [
+            {
+              "$ref": "#/definitions/logRule"
+            }
+          ],
           "required": [
             "type"
           ]
@@ -81,12 +97,16 @@
       "description": "A container for the array of config items.",
       "type": "array",
       "items": {
-        "$ref": "#/$defs/configItem"
+        "$ref": "#/definitions/configItem"
       }
     },
     "configItem": {
       "description": "A configuration can be a simple string or a mapping or an array\nof other configurations items.\n\nThis is a test comment.",
-      "$ref": "#/$defs/configItemEnum"
+      "allOf": [
+        {
+          "$ref": "#/definitions/configItemEnum"
+        }
+      ]
     },
     "configItemEnum": {
       "anyOf": [
@@ -94,10 +114,10 @@
           "type": "string"
         },
         {
-          "$ref": "#/$defs/configArray"
+          "$ref": "#/definitions/configArray"
         },
         {
-          "$ref": "#/$defs/configObject"
+          "$ref": "#/definitions/configObject"
         }
       ]
     },
@@ -105,14 +125,14 @@
       "description": "This is a workaround for proto not supporting optional maps",
       "type": "object",
       "additionalProperties": {
-        "$ref": "#/$defs/configItem"
+        "$ref": "#/definitions/configItem"
       }
     },
     "configObject": {
       "description": "A container for the mapping of config items.",
       "type": "object",
       "additionalProperties": {
-        "$ref": "#/$defs/configItem"
+        "$ref": "#/definitions/configItem"
       }
     },
     "controlInterfaceAccess": {
@@ -124,7 +144,7 @@
           "type": "array",
           "default": [],
           "items": {
-            "$ref": "#/$defs/accessRightsRule"
+            "$ref": "#/definitions/accessRightsRule"
           }
         },
         "denyRules": {
@@ -132,7 +152,7 @@
           "type": "array",
           "default": [],
           "items": {
-            "$ref": "#/$defs/accessRightsRule"
+            "$ref": "#/definitions/accessRightsRule"
           }
         }
       }
@@ -250,7 +270,11 @@
         },
         "operation": {
           "description": "Defines which actions are allowed",
-          "$ref": "#/$defs/readWriteEnum"
+          "allOf": [
+            {
+              "$ref": "#/definitions/readWriteEnum"
+            }
+          ]
         }
       },
       "required": [
@@ -274,7 +298,11 @@
           "default": {}
         },
         "controlInterfaceAccess": {
-          "$ref": "#/$defs/controlInterfaceAccess",
+          "allOf": [
+            {
+              "$ref": "#/definitions/controlInterfaceAccess"
+            }
+          ],
           "default": {
             "allowRules": [],
             "denyRules": []
@@ -284,7 +312,7 @@
           "description": "A mapping from a workload name to an expected state.",
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/addCondition"
+            "$ref": "#/definitions/addCondition"
           },
           "default": {}
         },
@@ -293,12 +321,16 @@
           "type": "array",
           "default": [],
           "items": {
-            "$ref": "#/$defs/file"
+            "$ref": "#/definitions/file"
           }
         },
         "restartPolicy": {
           "description": "An enum value that defines the condition under which a workload is restarted.",
-          "$ref": "#/$defs/restartPolicy",
+          "allOf": [
+            {
+              "$ref": "#/definitions/restartPolicy"
+            }
+          ],
           "default": "NEVER"
         },
         "runtime": {
@@ -328,7 +360,7 @@
       "description": "This is a workaround for proto not supporting optional maps",
       "type": "object",
       "additionalProperties": {
-        "$ref": "#/$defs/workload"
+        "$ref": "#/definitions/workload"
       }
     }
   }
