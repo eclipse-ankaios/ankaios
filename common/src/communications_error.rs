@@ -13,7 +13,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::fmt;
-
 use tokio::task::JoinError;
 
 #[derive(Debug, Clone)]

@@ -32,43 +32,6 @@ pub struct UpdateWorkloadState {
     pub workload_states: Vec<WorkloadStateInternal>,
 }
 
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// pub struct Request {
-//     pub request_id: String,
-//     pub request_content: RequestContentInternal,
-// }
-
-// impl From<Request> for ank_base::Request {
-//     fn from(value: Request) -> Self {
-//         Self {
-//             request_id: value.request_id,
-//             request_content: Some(value.request_content.into()),
-//         }
-//     }
-// }
-
-// impl Request {
-//     pub fn prefix_id(prefix: &str, request_id: &String) -> String {
-//         format!("{prefix}{request_id}")
-//     }
-//     pub fn prefix_request_id(&mut self, prefix: &str) {
-//         self.request_id = Self::prefix_id(prefix, &self.request_id);
-//     }
-// }
-
-// impl TryFrom<ank_base::Request> for Request {
-//     type Error = String;
-//     fn try_from(value: ank_base::Request) -> Result<Request, Self::Error> {
-//         Ok(Request {
-//             request_id: value.request_id,
-//             request_content: value
-//                 .request_content
-//                 .ok_or_else(|| "Request has no content".to_string())?
-//                 .try_into()?,
-//         })
-//     }
-// }
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ServerHello {
     pub agent_name: Option<String>,
@@ -106,36 +69,42 @@ pub struct AgentLoadStatus {
 
 #[cfg(test)]
 mod tests {
-    use api::CURRENT_API_VERSION;
-    use api::ank_base::{
-        CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, File, FileContent,
-        Files, LogsRequest, Request, RequestContent, RestartPolicy, State, UpdateStateRequest,
-        Workload, WorkloadInstanceName, WorkloadMap,
-    };
-    use api::ank_base::{
-        CompleteStateInternal, CompleteStateRequestInternal, ConfigMappingsInternal,
-        ExecutionStateInternal, FileContentInternal, FileInternal, FilesInternal,
-        LogsRequestInternal, RequestContentInternal, RequestInternal, StateInternal, TagsInternal,
-        UpdateStateRequestInternal, WorkloadInstanceNameInternal, WorkloadInternal,
-        WorkloadMapInternal,
-    };
-    pub use api::test_utils::{
-        generate_test_agent_map, generate_test_workload_states_map_with_data,
-    };
-    use std::collections::HashMap;
+    use api::ank_base::{CompleteStateRequestInternal, RequestContentInternal, RequestInternal};
 
-    const REQUEST_ID: &str = "request_id";
-    const FIELD_1: &str = "field_1";
-    const FIELD_2: &str = "field_2";
-    const AGENT_NAME: &str = "agent_1";
-    const WORKLOAD_NAME_1: &str = "workload_name_1";
-    const WORKLOAD_NAME_2: &str = "workload_name_2";
-    const INSTANCE_ID_1: &str = "instance_id_1";
-    const INSTANCE_ID_2: &str = "instance_id_2";
-    const RUNTIME: &str = "my_favorite_runtime";
-    const RUNTIME_CONFIG: &str = "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n";
-    const HASH: &str = "hash_1";
+    // The following commented imports and constants are kept for reference
+    // for when the macros bellow will be used instead of fixtures.
 
+    // use api::CURRENT_API_VERSION;
+    // use api::ank_base::{
+    //     CompleteState, CompleteStateRequest, ConfigMappings, Dependencies, File, FileContent,
+    //     Files, LogsCancelRequest, LogsRequest, Request, RequestContent, RestartPolicy, State, Tags,
+    //     UpdateStateRequest, Workload, WorkloadInstanceName, WorkloadMap,
+    // };
+    // use api::ank_base::{
+    //     CompleteStateInternal, CompleteStateRequestInternal, ConfigMappingsInternal,
+    //     ExecutionStateInternal, FileContentInternal, FileInternal, FilesInternal,
+    //     LogsCancelRequestInternal, LogsRequestInternal, RequestContentInternal, RequestInternal,
+    //     StateInternal, TagsInternal, UpdateStateRequestInternal, WorkloadInstanceNameInternal,
+    //     WorkloadInternal, WorkloadMapInternal,
+    // };
+    // pub use api::test_utils::{
+    //     generate_test_agent_map, generate_test_workload_states_map_with_data,
+    // };
+    // use std::collections::HashMap;
+
+    // const REQUEST_ID: &str = "request_id";
+    // const FIELD_1: &str = "field_1";
+    // const FIELD_2: &str = "field_2";
+    // const AGENT_NAME: &str = "agent_1";
+    // const WORKLOAD_NAME_1: &str = "workload_name_1";
+    // const WORKLOAD_NAME_2: &str = "workload_name_2";
+    // const INSTANCE_ID_1: &str = "instance_id_1";
+    // const INSTANCE_ID_2: &str = "instance_id_2";
+    // const RUNTIME: &str = "my_favorite_runtime";
+    // const RUNTIME_CONFIG: &str = "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n";
+    // const HASH: &str = "hash_1";
+
+    #[allow(unused_macros)]
     macro_rules! update_state_request {
         (ank_base) => {{
             Request {
@@ -161,6 +130,7 @@ mod tests {
         }};
     }
 
+    #[allow(unused_macros)]
     macro_rules! workload_instance_name {
         (ank_base, $number:expr) => {
             WorkloadInstanceName {
@@ -178,38 +148,39 @@ mod tests {
         };
     }
 
+    #[allow(unused_macros)]
     macro_rules! workload_name {
         ($number:literal) => {
             [WORKLOAD_NAME_1, WORKLOAD_NAME_2][$number - 1]
         };
     }
 
+    #[allow(unused_macros)]
     macro_rules! instance_id {
         ($number:literal) => {
             [INSTANCE_ID_1, INSTANCE_ID_2][$number - 1]
         };
     }
 
+    #[allow(unused_macros)]
     macro_rules! logs_cancel_request {
         (ank_base) => {
             Request {
                 request_id: REQUEST_ID.into(),
-                request_content: RequestContent::LogsCancelRequest(
-                    api::ank_base::LogsCancelRequest {},
-                )
-                .into(),
+                request_content: RequestContent::LogsCancelRequest(LogsCancelRequest {}).into(),
             }
         };
         (ankaios) => {
             RequestInternal {
                 request_id: REQUEST_ID.into(),
                 request_content: RequestContentInternal::LogsCancelRequest(
-                    api::ank_base::LogsCancelRequestInternal {},
+                    LogsCancelRequestInternal {},
                 ),
             }
         };
     }
 
+    #[allow(unused_macros)]
     macro_rules! complete_state {
         (ank_base) => {
             CompleteState {
@@ -246,6 +217,7 @@ mod tests {
         };
     }
 
+    #[allow(unused_macros)]
     macro_rules! workload {
         (ank_base) => {
             Workload {
@@ -254,7 +226,7 @@ mod tests {
                 restart_policy: Some(RestartPolicy::Always.into()),
                 runtime: Some(RUNTIME.to_string()),
                 runtime_config: Some(RUNTIME_CONFIG.to_string()),
-                tags: Some(api::ank_base::Tags {
+                tags: Some(Tags {
                     tags: HashMap::from([("key".into(), "value".into())]),
                 }),
                 control_interface_access: Some(Default::default()),
@@ -316,6 +288,7 @@ mod tests {
         };
     }
 
+    #[allow(unused_macros)]
     macro_rules! workload_states_map {
         (ank_base) => {
             Some(
@@ -336,223 +309,6 @@ mod tests {
                 ExecutionStateInternal::running(),
             )
         }};
-    }
-
-    #[test]
-    fn utest_converts_from_proto_complete_state_request() {
-        let proto_request_complete_state = Request {
-            request_id: REQUEST_ID.into(),
-            request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
-                field_mask: vec![FIELD_1.into(), FIELD_2.into()],
-            })
-            .into(),
-        };
-        let ankaios_request_complete_state = RequestInternal {
-            request_id: REQUEST_ID.into(),
-            request_content: RequestContentInternal::CompleteStateRequest(
-                CompleteStateRequestInternal {
-                    field_mask: vec![FIELD_1.into(), FIELD_2.into()],
-                },
-            ),
-        };
-
-        assert_eq!(
-            RequestInternal::try_from(proto_request_complete_state).unwrap(),
-            ankaios_request_complete_state
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_update_state_request() {
-        let proto_request_complete_state = update_state_request!(ank_base);
-        let ankaios_request_complete_state = update_state_request!(ankaios);
-
-        assert_eq!(
-            RequestInternal::try_from(proto_request_complete_state).unwrap(),
-            ankaios_request_complete_state
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_update_state_request_with_empty_states() {
-        let mut proto_request_complete_state = update_state_request!(ank_base);
-        let mut ankaios_request_complete_state = update_state_request!(ankaios);
-
-        let RequestContent::UpdateStateRequest(proto_request_content) =
-            proto_request_complete_state
-                .request_content
-                .as_mut()
-                .unwrap()
-        else {
-            unreachable!()
-        };
-        proto_request_content.new_state = Some(CompleteState {
-            desired_state: Some(State {
-                api_version: CURRENT_API_VERSION.into(),
-                workloads: Some(WorkloadMap {
-                    workloads: HashMap::new(),
-                }),
-                configs: Some(Default::default()),
-            }),
-            workload_states: Some(Default::default()),
-            agents: Some(Default::default()),
-        });
-
-        let RequestContentInternal::UpdateStateRequest(ankaios_request_content) =
-            &mut ankaios_request_complete_state.request_content
-        else {
-            unreachable!()
-        };
-        ankaios_request_content.new_state = CompleteStateInternal {
-            ..Default::default()
-        };
-
-        assert_eq!(
-            RequestInternal::try_from(proto_request_complete_state).unwrap(),
-            ankaios_request_complete_state
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_update_state_request_inner_state_with_empty_states() {
-        let mut proto_request_complete_state = update_state_request!(ank_base);
-        let mut ankaios_request_complete_state = update_state_request!(ankaios);
-
-        let RequestContent::UpdateStateRequest(proto_request_content) =
-            proto_request_complete_state
-                .request_content
-                .as_mut()
-                .unwrap()
-        else {
-            unreachable!()
-        };
-        proto_request_content
-            .new_state
-            .as_mut()
-            .unwrap()
-            .desired_state = Some(State {
-            api_version: CURRENT_API_VERSION.into(),
-            workloads: Some(WorkloadMap {
-                workloads: HashMap::new(),
-            }),
-            configs: Some(Default::default()),
-        });
-
-        let RequestContentInternal::UpdateStateRequest(ankaios_request_content) =
-            &mut ankaios_request_complete_state.request_content
-        else {
-            unreachable!()
-        };
-        ankaios_request_content.new_state.desired_state = Default::default();
-
-        assert_eq!(
-            RequestInternal::try_from(proto_request_complete_state).unwrap(),
-            ankaios_request_complete_state
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_update_state_request_fails_invalid_current_state() {
-        let mut proto_request_complete_state = update_state_request!(ank_base);
-
-        let RequestContent::UpdateStateRequest(proto_request_content) =
-            proto_request_complete_state
-                .request_content
-                .as_mut()
-                .unwrap()
-        else {
-            unreachable!()
-        };
-        proto_request_content
-            .new_state
-            .as_mut()
-            .unwrap()
-            .desired_state
-            .as_mut()
-            .unwrap()
-            .workloads
-            .as_mut()
-            .unwrap()
-            .workloads
-            .insert(
-                WORKLOAD_NAME_1.into(),
-                Workload {
-                    dependencies: Some(Dependencies {
-                        dependencies: HashMap::from([("dependency".into(), -1)]),
-                    }),
-                    ..Default::default()
-                },
-            );
-
-        assert!(RequestInternal::try_from(proto_request_complete_state).is_err());
-    }
-
-    #[test]
-    fn utest_converts_from_proto_logs_request() {
-        let proto_logs_request = Request {
-            request_id: REQUEST_ID.into(),
-            request_content: RequestContent::LogsRequest(LogsRequest {
-                workload_names: vec![
-                    workload_instance_name!(ank_base, 1),
-                    workload_instance_name!(ank_base, 2),
-                ],
-                follow: Some(true),
-                tail: Some(10),
-                since: None,
-                until: None,
-            })
-            .into(),
-        };
-        let ankaios_logs_request = RequestInternal {
-            request_id: REQUEST_ID.into(),
-            request_content: RequestContentInternal::LogsRequest(LogsRequestInternal {
-                workload_names: vec![
-                    workload_instance_name!(ankaios, 1),
-                    workload_instance_name!(ankaios, 2),
-                ],
-                follow: true,
-                tail: 10,
-                since: None,
-                until: None,
-            }),
-        };
-        assert_eq!(
-            RequestInternal::try_from(proto_logs_request).unwrap(),
-            ankaios_logs_request
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_logs_cancel_request() {
-        let proto_logs_cancel_request = logs_cancel_request!(ank_base);
-        let ankaios_logs_cancel_request = logs_cancel_request!(ankaios);
-        assert_eq!(
-            RequestInternal::try_from(proto_logs_cancel_request).unwrap(),
-            ankaios_logs_cancel_request
-        );
-    }
-
-    #[test]
-    fn utest_converts_to_proto_logs_cancel_request() {
-        let proto_logs_cancel_request = logs_cancel_request!(ank_base);
-        let ankaios_logs_cancel_request = logs_cancel_request!(ankaios);
-        assert_eq!(
-            Request::from(ankaios_logs_cancel_request),
-            proto_logs_cancel_request
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_request_fails_empty_request_content() {
-        let proto_request = Request {
-            request_id: REQUEST_ID.into(),
-            request_content: None,
-        };
-
-        assert_eq!(
-            RequestInternal::try_from(proto_request).unwrap_err(),
-            "Missing field 'request_content'"
-        );
     }
 
     #[test]

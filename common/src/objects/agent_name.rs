@@ -12,12 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::Display;
-
 use api::ank_base::INSTANCE_NAME_SEPARATOR;
 
-// [impl->swdd~common-object-representation~1]
+use std::fmt::{self, Display};
 
+// [impl->swdd~common-object-representation~1]
 #[derive(Debug, Eq, PartialEq)]
 pub struct AgentName(String);
 
@@ -48,7 +47,7 @@ impl From<&str> for AgentName {
 }
 
 impl Display for AgentName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }

@@ -19,6 +19,7 @@ pub struct MockAllContextSync {
     mutex_tokio: tokio::sync::Mutex<()>,
     mutex_std: std::sync::Mutex<()>,
 }
+
 impl MockAllContextSync {
     pub fn new() -> Self {
         Self {

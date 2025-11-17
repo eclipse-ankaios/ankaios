@@ -12,15 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashSet;
-
 use super::Path;
-use api::ank_base::{self, CompleteStateInternal, State, StateInternal};
+
+use api::ank_base::{CompleteState, CompleteStateInternal, State, StateInternal};
+
 use serde_yaml::{
     Mapping, Value, from_value,
     mapping::{Entry::Occupied, Entry::Vacant},
     to_value,
 };
+use std::collections::HashSet;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Object {
@@ -79,10 +80,10 @@ impl TryFrom<CompleteStateInternal> for Object {
     }
 }
 
-impl TryFrom<ank_base::CompleteState> for Object {
+impl TryFrom<CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: ank_base::CompleteState) -> Result<Self, Self::Error> {
+    fn try_from(value: CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
@@ -123,10 +124,10 @@ impl TryInto<State> for Object {
     }
 }
 
-impl TryInto<ank_base::CompleteState> for Object {
+impl TryInto<CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_into(self) -> Result<ank_base::CompleteState, Self::Error> {
+    fn try_into(self) -> Result<CompleteState, Self::Error> {
         from_value(self.data)
     }
 }
@@ -292,6 +293,7 @@ impl Object {
 
 #[cfg(test)]
 mod tests {
+    use super::Object;
     use api::ank_base::{
         CompleteStateInternal, ExecutionStateInternal, StateInternal, WorkloadNamed,
     };
@@ -299,9 +301,9 @@ mod tests {
         generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
         generate_test_workload, generate_test_workload_states_map_with_data,
     };
+
     use serde_yaml::Value;
 
-    use super::Object;
     #[test]
     fn utest_object_from_state() {
         let state: StateInternal =
@@ -711,11 +713,12 @@ mod tests {
         use serde_yaml::Value;
 
         use api::CURRENT_API_VERSION;
+        use api::ank_base::ConfigHash;
         use api::test_utils::generate_test_runtime_config;
 
         pub fn generate_test_complete_state_mapping() -> Mapping {
             let agent_name = "agent_A";
-            let config_hash: &dyn api::ank_base::ConfigHash = &generate_test_runtime_config();
+            let config_hash: &dyn ConfigHash = &generate_test_runtime_config();
             Mapping::default()
                 .entry("desiredState", generate_test_state())
                 .entry(
@@ -754,7 +757,6 @@ mod tests {
         }
 
         pub fn generate_test_state() -> Mapping {
-            // let config_hash: &dyn api::ank_base::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
                 .entry("apiVersion", CURRENT_API_VERSION)
                 .entry(
