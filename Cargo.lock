@@ -181,7 +181,6 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 name = "api"
 version = "0.8.0-pre"
 dependencies = [
- "internal_derive_macros",
  "log",
  "prost",
  "regex",
@@ -190,6 +189,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "sha256",
+ "spec_macros",
  "tonic",
  "tonic-prost-build",
 ]
@@ -1108,16 +1108,6 @@ checksum = "4b0f83760fb341a774ed326568e19f5a863af4a952def8c39f9ab92fd95b88e5"
 dependencies = [
  "equivalent",
  "hashbrown",
-]
-
-[[package]]
-name = "internal_derive_macros"
-version = "0.7.0-pre"
-dependencies = [
- "log",
- "proc-macro2",
- "quote",
- "syn 2.0.106",
 ]
 
 [[package]]
@@ -2161,6 +2151,16 @@ checksum = "17129e116933cf371d018bb80ae557e889637989d8638274fb25622827b03881"
 dependencies = [
  "libc",
  "windows-sys 0.60.2",
+]
+
+[[package]]
+name = "spec_macros"
+version = "0.7.0-pre"
+dependencies = [
+ "log",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
 ]
 
 [[package]]

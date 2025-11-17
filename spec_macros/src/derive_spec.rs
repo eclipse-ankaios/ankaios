@@ -12,11 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-mod internal_enum;
-mod internal_struct;
+mod spec_enum;
+mod spec_struct;
 
-use internal_enum::derive_internal_enum;
-use internal_struct::derive_internal_struct;
+use spec_enum::derive_spec_enum;
+use spec_struct::derive_spec_struct;
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -24,30 +24,34 @@ use syn::{Data, DataEnum, DataStruct, DeriveInput, Fields};
 
 use crate::utils;
 
-pub fn derive_internal(input: DeriveInput) -> syn::Result<TokenStream> {
+pub fn derive_spec(input: DeriveInput) -> syn::Result<TokenStream> {
     let orig_name = input.ident;
     let vis = input.vis.clone();
     let current_doc_attrs = utils::get_doc_attrs(&input.attrs);
-    let new_type_attrs = utils::get_internal_type_attrs(&input.attrs);
+    let new_type_attrs = utils::get_spec_type_attrs(&input.attrs);
 
-    let combined_attrs = current_doc_attrs.clone().into_iter().chain(new_type_attrs).collect::<Vec<_>>();
+    let combined_attrs = current_doc_attrs
+        .clone()
+        .into_iter()
+        .chain(new_type_attrs)
+        .collect::<Vec<_>>();
 
-    let internal = match input.data {
+    let spec = match input.data {
         Data::Struct(DataStruct {
             fields: Fields::Named(fields),
             ..
-        }) => derive_internal_struct(fields, orig_name, vis, combined_attrs)?,
+        }) => derive_spec_struct(fields, orig_name, vis, combined_attrs)?,
         Data::Enum(DataEnum { variants, .. }) => {
-            derive_internal_enum(variants, orig_name, vis, combined_attrs)?
+            derive_spec_enum(variants, orig_name, vis, combined_attrs)?
         }
         _ => Err(syn::Error::new_spanned(
             orig_name,
-            "Internal derive only supports named structs and enums",
+            "Spec derive only supports named structs and enums",
         ))?,
     };
 
     let expanded = quote! {
-        #internal
+        #spec
     };
 
     Ok(expanded)

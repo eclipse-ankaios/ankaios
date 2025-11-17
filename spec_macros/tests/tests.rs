@@ -14,27 +14,27 @@
 
 #[cfg(test)]
 mod tests {
-    use internal_derive_macros::Internal;
+    use spec_macros::Spec;
 
     #[test]
-    fn itest_internal_derive_basic_functionality() {
-        #[derive(Debug, Clone, Internal)]
-        #[internal_derive(Debug, Clone, Eq, PartialEq)]
+    fn itest_spec_derive_basic_functionality() {
+        #[derive(Debug, Clone, Spec)]
+        #[spec_derive(Debug, Clone, Eq, PartialEq)]
         struct Address {
-            #[internal_mandatory]
+            #[spec_mandatory]
             street: Option<String>,
             additional: Option<String>,
             city: String,
             zip: String,
         }
 
-        #[derive(Internal, Debug, Clone)]
-        #[internal_derive(Debug, Clone, Eq, PartialEq)]
+        #[derive(Spec, Debug, Clone)]
+        #[spec_derive(Debug, Clone, Eq, PartialEq)]
         struct Person {
-            #[internal_mandatory]
+            #[spec_mandatory]
             name: Option<Vec<String>>,
             middle_name: Option<String>,
-            #[internal_mandatory]
+            #[spec_mandatory]
             address: Option<Address>,
             second_address: Option<Address>,
         }
@@ -46,14 +46,14 @@ mod tests {
             zip: "12345".to_string(),
         };
 
-        let address_internal: AddressInternal = address.clone().try_into().unwrap();
-        let address_internal_expected = AddressInternal {
+        let address_spec: AddressSpec = address.clone().try_into().unwrap();
+        let address_spec_expected = AddressSpec {
             street: "123 Main St".to_string(),
             additional: None,
             city: "Metropolis".to_string(),
             zip: "12345".to_string(),
         };
-        assert_eq!(address_internal, address_internal_expected);
+        assert_eq!(address_spec, address_spec_expected);
 
         let person = Person {
             name: vec!["Alice".to_string()].into(),
@@ -61,59 +61,59 @@ mod tests {
             address: Some(address),
             second_address: None,
         };
-        let person_internal: PersonInternal = person.clone().try_into().unwrap();
-        let person_internal_expected = PersonInternal {
+        let person_spec: PersonSpec = person.clone().try_into().unwrap();
+        let person_spec_expected = PersonSpec {
             name: vec!["Alice".to_string()],
             middle_name: None,
-            address: address_internal,
+            address: address_spec,
             second_address: None,
         };
-        assert_eq!(person_internal, person_internal_expected);
+        assert_eq!(person_spec, person_spec_expected);
 
         #[allow(clippy::large_enum_variant)]
-        #[derive(Internal)]
-        #[internal_derive(Debug, Eq, PartialEq)]
+        #[derive(Spec)]
+        #[spec_derive(Debug, Eq, PartialEq)]
         enum MyEnum {
-            #[internal_enum_named]
+            #[spec_enum_named]
             A(String),
-            #[internal_enum_named]
+            #[spec_enum_named]
             B(Person),
             C(Box<Person>),
         }
 
         let my_enum_a = MyEnum::A("Test String".to_string());
-        let my_enum_internal_a: MyEnumInternal = my_enum_a.try_into().unwrap();
-        let my_enum_internal_expected_a = MyEnumInternal::A {
+        let my_enum_spec_a: MyEnumSpec = my_enum_a.try_into().unwrap();
+        let my_enum_spec_expected_a = MyEnumSpec::A {
             a: "Test String".to_string(),
         };
-        assert_eq!(my_enum_internal_a, my_enum_internal_expected_a);
+        assert_eq!(my_enum_spec_a, my_enum_spec_expected_a);
 
         let my_enum_b = MyEnum::B(person.clone());
-        let my_enum_internal_b: MyEnumInternal = my_enum_b.try_into().unwrap();
-        let my_enum_internal_expected_b = MyEnumInternal::B {
-            b: person_internal.clone(),
+        let my_enum_spec_b: MyEnumSpec = my_enum_b.try_into().unwrap();
+        let my_enum_spec_expected_b = MyEnumSpec::B {
+            b: person_spec.clone(),
         };
-        assert_eq!(my_enum_internal_b, my_enum_internal_expected_b);
+        assert_eq!(my_enum_spec_b, my_enum_spec_expected_b);
 
         let my_enum_c = MyEnum::C(Box::new(person.clone()));
-        let my_enum_internal_c: MyEnumInternal = my_enum_c.try_into().unwrap();
-        let my_enum_internal_expected_c = MyEnumInternal::C(Box::new(person_internal.clone()));
-        assert_eq!(my_enum_internal_c, my_enum_internal_expected_c);
+        let my_enum_spec_c: MyEnumSpec = my_enum_c.try_into().unwrap();
+        let my_enum_spec_expected_c = MyEnumSpec::C(Box::new(person_spec.clone()));
+        assert_eq!(my_enum_spec_c, my_enum_spec_expected_c);
     }
 
     #[test]
-    fn itest_options_no_mandatory_and_mandatory_in_internal() {
+    fn itest_options_no_mandatory_and_mandatory_in_spec() {
         const CPU_USAGE: u32 = 42;
 
-        #[derive(Internal)]
+        #[derive(Spec)]
         pub struct AgentAttributes {
             pub cpu_usage: Option<CpuUsage>,
         }
 
-        #[derive(Internal)]
-        #[internal_derive(Debug)]
+        #[derive(Spec)]
+        #[spec_derive(Debug)]
         pub struct CpuUsage {
-            #[internal_mandatory]
+            #[spec_mandatory]
             pub cpu_usage: Option<u32>,
         }
 
@@ -123,22 +123,22 @@ mod tests {
             }),
         };
 
-        let internal: AgentAttributesInternal = external.try_into().unwrap();
+        let spec: AgentAttributesSpec = external.try_into().unwrap();
 
-        assert_eq!(internal.cpu_usage.unwrap().cpu_usage, CPU_USAGE);
+        assert_eq!(spec.cpu_usage.unwrap().cpu_usage, CPU_USAGE);
     }
 
     #[test]
-    fn itest_internal_vector_with_custom_type() {
-        #[derive(Internal)]
-        #[internal_derive(Debug)]
+    fn itest_spec_vector_with_custom_type() {
+        #[derive(Spec)]
+        #[spec_derive(Debug)]
         struct CustomType {
-            #[internal_mandatory]
+            #[spec_mandatory]
             value: Option<String>,
         }
 
-        #[derive(Internal)]
-        #[internal_derive(Debug)]
+        #[derive(Spec)]
+        #[spec_derive(Debug)]
         struct Container {
             items: Vec<CustomType>,
         }
@@ -154,25 +154,25 @@ mod tests {
             ],
         };
 
-        let internal: ContainerInternal = external.try_into().unwrap();
+        let spec: ContainerSpec = external.try_into().unwrap();
 
-        assert_eq!(internal.items[0].value, "Item 1".to_string());
-        assert_eq!(internal.items[1].value, "Item 2".to_string());
+        assert_eq!(spec.items[0].value, "Item 1".to_string());
+        assert_eq!(spec.items[1].value, "Item 2".to_string());
     }
 
     #[test]
-    fn itest_internal_hashmap_with_custom_type() {
+    fn itest_spec_hashmap_with_custom_type() {
         use std::collections::HashMap;
 
-        #[derive(Internal)]
-        #[internal_derive(Debug)]
+        #[derive(Spec)]
+        #[spec_derive(Debug)]
         struct CustomType {
-            #[internal_mandatory]
+            #[spec_mandatory]
             value: Option<String>,
         }
 
-        #[derive(Internal)]
-        #[internal_derive(Debug)]
+        #[derive(Spec)]
+        #[spec_derive(Debug)]
         struct Container {
             items: HashMap<String, CustomType>,
         }
@@ -195,14 +195,14 @@ mod tests {
             items: external_items,
         };
 
-        let internal: ContainerInternal = external.try_into().unwrap();
+        let spec: ContainerSpec = external.try_into().unwrap();
 
         assert_eq!(
-            internal.items.get("key1").unwrap().value,
+            spec.items.get("key1").unwrap().value,
             "Value 1".to_string()
         );
         assert_eq!(
-            internal.items.get("key2").unwrap().value,
+            spec.items.get("key2").unwrap().value,
             "Value 2".to_string()
         );
     }

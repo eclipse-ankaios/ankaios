@@ -17,21 +17,20 @@ use quote::{format_ident, quote};
 use syn::{FieldsNamed, Ident, Type, Visibility, parse_quote};
 
 use crate::utils::{
-    DerivedInternal, extract_inner, get_doc_attrs, get_internal_field_attrs, get_prost_enum_type,
-    get_prost_map_enum_value_type, has_mandatory_attr, inner_hashmap_type_path,
-    inner_vec_type_path, is_custom_type_path, is_option_type_path, to_internal_type,
-    wrap_in_option,
+    DerivedSpec, extract_inner, get_doc_attrs, get_prost_enum_type, get_prost_map_enum_value_type,
+    get_spec_field_attrs, has_mandatory_attr, inner_hashmap_type_path, inner_vec_type_path,
+    is_custom_type_path, is_option_type_path, to_spec_type, wrap_in_option,
 };
 
-pub fn derive_internal_struct(
+pub fn derive_spec_struct(
     fields_named: FieldsNamed,
     orig_name: Ident,
     vis: Visibility,
     type_attrs: Vec<TokenStream>,
-) -> syn::Result<DerivedInternal> {
-    let internal_name = format_ident!("{}Internal", orig_name);
+) -> syn::Result<DerivedSpec> {
+    let spec_name = format_ident!("{}Spec", orig_name);
 
-    let mut internal_fields = Vec::new();
+    let mut spec_fields = Vec::new();
     let mut try_from_inits = Vec::new();
     let mut from_inits = Vec::new();
 
@@ -47,8 +46,7 @@ pub fn derive_internal_struct(
         };
 
         let missing_field_msg = format!("Missing field '{field_name}'");
-        let conversion_error_msg =
-            format!("Cannot convert field '{field_name}' to internal object.");
+        let conversion_error_msg = format!("Cannot convert field '{field_name}' to spec object.");
 
         let mandatory = has_mandatory_attr(&field.attrs);
 
@@ -68,7 +66,7 @@ pub fn derive_internal_struct(
                     new_field_type = if let Some(prost_enum_type) = prost_enum_tp {
                         Type::Path(prost_enum_type)
                     } else {
-                        to_internal_type(&inner)
+                        to_spec_type(&inner)
                     };
 
                     try_from_init_entry = quote! {
@@ -95,7 +93,7 @@ pub fn derive_internal_struct(
                 new_field_type = wrap_in_option(if let Some(prost_enum_type) = prost_enum_tp {
                     Type::Path(prost_enum_type)
                 } else {
-                    to_internal_type(&inner)
+                    to_spec_type(&inner)
                 });
 
                 try_from_init_entry = quote! {
@@ -120,7 +118,7 @@ pub fn derive_internal_struct(
                 new_field_type = if let Some(prost_enum_type) = prost_enum_tp {
                     Type::Path(prost_enum_type)
                 } else {
-                    to_internal_type(tp)
+                    to_spec_type(tp)
                 };
 
                 try_from_init_entry = quote! {
@@ -132,7 +130,7 @@ pub fn derive_internal_struct(
             } else if let Some(inner) = inner_vec_type_path(tp)
                 && is_custom_type_path(&inner)
             {
-                let new_inner = to_internal_type(&inner);
+                let new_inner = to_spec_type(&inner);
                 new_field_type = Type::Path(parse_quote! { Vec<#new_inner> });
 
                 try_from_init_entry = quote! {
@@ -147,7 +145,7 @@ pub fn derive_internal_struct(
                 let new_val_tp = if let Some(prost_map_enum_value_tp) = prost_map_enum_value_tp {
                     Type::Path(prost_map_enum_value_tp)
                 } else {
-                    to_internal_type(&val_tp)
+                    to_spec_type(&val_tp)
                 };
                 new_field_type =
                     Type::Path(parse_quote! { ::std::collections::HashMap<#key_tp, #new_val_tp> });
@@ -172,14 +170,14 @@ pub fn derive_internal_struct(
             }
         }
 
-        let internal_field_attrs = get_internal_field_attrs(&field.attrs);
+        let spec_field_attrs = get_spec_field_attrs(&field.attrs);
         let doc_attrs = get_doc_attrs(&field.attrs);
-        let combined_attrs = internal_field_attrs
+        let combined_attrs = spec_field_attrs
             .into_iter()
             .chain(doc_attrs)
             .collect::<Vec<_>>();
 
-        internal_fields.push(quote! {
+        spec_fields.push(quote! {
             #(#combined_attrs )*
             #field_vis #field_name: #new_field_type
         });
@@ -188,19 +186,19 @@ pub fn derive_internal_struct(
         from_inits.push(from_init_entry);
     }
 
-    let internal_struct = quote! {
+    let spec_struct = quote! {
         #(#type_attrs )*
-        #vis struct #internal_name {
-            #(#internal_fields, )*
+        #vis struct #spec_name {
+            #(#spec_fields, )*
         }
     };
 
     let try_from_impl = quote! {
-        impl std::convert::TryFrom<#orig_name> for #internal_name {
+        impl std::convert::TryFrom<#orig_name> for #spec_name {
             type Error = String;
 
             fn try_from(orig: #orig_name) -> Result<Self, Self::Error> {
-                Ok(#internal_name {
+                Ok(#spec_name {
                     #(#try_from_inits, )*
                 })
             }
@@ -208,8 +206,8 @@ pub fn derive_internal_struct(
     };
 
     let from_impl = quote! {
-        impl From<#internal_name> for #orig_name {
-            fn from(orig: #internal_name) -> Self {
+        impl From<#spec_name> for #orig_name {
+            fn from(orig: #spec_name) -> Self {
                 #orig_name {
                     #(#from_inits, )*
                 }
@@ -217,8 +215,8 @@ pub fn derive_internal_struct(
         }
     };
 
-    Ok(DerivedInternal {
-        obj: internal_struct,
+    Ok(DerivedSpec {
+        obj: spec_struct,
         try_from_impl,
         from_impl,
     })
@@ -239,15 +237,15 @@ mod tests {
     use quote::quote;
     use syn::{Ident, Visibility, parse_quote};
 
-    use crate::derive_internal::internal_struct::derive_internal_struct;
+    use crate::derive_spec::spec_struct::derive_spec_struct;
 
     #[test]
-    fn test_derive_internal_struct_with_mandatory_and_derive() {
+    fn test_derive_spec_struct_with_mandatory_and_derive() {
         use syn::{FieldsNamed, parse_quote};
 
         let fields_named: FieldsNamed = parse_quote! {
             {
-                #[internal_mandatory]
+                #[spec_mandatory]
                 pub field1: Option<CustomType>,
                 pub field2: Vec<CustomType>,
                 pub field3: std::collections::HashMap<String, CustomType>,
@@ -259,16 +257,14 @@ mod tests {
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
 
-        let derived =
-            derive_internal_struct(fields_named, orig_name, vis, type_attrs)
-                .unwrap();
+        let derived = derive_spec_struct(fields_named, orig_name, vis, type_attrs).unwrap();
 
         let expected_obj = quote! {
             #[derive(Debug)]
-            pub struct MyStructInternal {
-                pub field1: CustomTypeInternal,
-                pub field2: Vec<CustomTypeInternal>,
-                pub field3: ::std::collections::HashMap<String, CustomTypeInternal>,
+            pub struct MyStructSpec {
+                pub field1: CustomTypeSpec,
+                pub field2: Vec<CustomTypeSpec>,
+                pub field3: ::std::collections::HashMap<String, CustomTypeSpec>,
                 pub field4: i32,
             }
         };
@@ -277,15 +273,15 @@ mod tests {
         assert_eq!(
         derived.try_from_impl.to_string(),
         quote! {
-            impl std::convert::TryFrom<MyStruct> for MyStructInternal {
+            impl std::convert::TryFrom<MyStruct> for MyStructSpec {
                 type Error = String;
 
                 fn try_from(orig: MyStruct) -> Result<Self, Self::Error> {
-                    Ok(MyStructInternal {
-                        field1: orig.field1.ok_or("Missing field 'field1'")?.try_into().map_err(|_| "Cannot convert field 'field1' to internal object.")?,
+                    Ok(MyStructSpec {
+                        field1: orig.field1.ok_or("Missing field 'field1'")?.try_into().map_err(|_| "Cannot convert field 'field1' to spec object.")?,
                         field2: orig.field2.into_iter().map(|v| v.try_into()).collect::<Result<_, _>>()?,
                         field3: orig.field3.into_iter()
-                            .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| "Cannot convert field 'field3' to internal object.")?)))
+                            .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| "Cannot convert field 'field3' to spec object.")?)))
                             .collect::<Result<_, String>>()?,
                         field4: orig.field4,
                     })
@@ -297,8 +293,8 @@ mod tests {
         assert_eq!(
         derived.from_impl.to_string(),
         quote! {
-            impl From<MyStructInternal> for MyStruct {
-                fn from(orig: MyStructInternal) -> Self {
+            impl From<MyStructSpec> for MyStruct {
+                fn from(orig: MyStructSpec) -> Self {
                     MyStruct {
                         field1: Some(orig.field1.into()),
                         field2: orig.field2.into_iter().map(|v| v.into()).collect(),
@@ -313,7 +309,7 @@ mod tests {
     }
 
     #[test]
-    fn test_derive_internal_struct_without_mandatory() {
+    fn test_derive_spec_struct_without_mandatory() {
         use syn::{FieldsNamed, parse_quote};
         let fields_named: FieldsNamed = parse_quote! {
             {
@@ -327,16 +323,14 @@ mod tests {
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
 
-        let derived =
-            derive_internal_struct(fields_named, orig_name, vis, type_attrs)
-                .unwrap();
+        let derived = derive_spec_struct(fields_named, orig_name, vis, type_attrs).unwrap();
 
         let expected_obj = quote! {
             #[derive(Debug)]
-            pub struct MyStructInternal {
-                pub field1: Option<CustomTypeInternal>,
-                pub field2: Vec<CustomTypeInternal>,
-                pub field3: ::std::collections::HashMap<String, CustomTypeInternal>,
+            pub struct MyStructSpec {
+                pub field1: Option<CustomTypeSpec>,
+                pub field2: Vec<CustomTypeSpec>,
+                pub field3: ::std::collections::HashMap<String, CustomTypeSpec>,
                 pub field4: i32,
             }
         };
@@ -345,15 +339,15 @@ mod tests {
         assert_eq!(
             derived.try_from_impl.to_string(),
             quote! {
-                impl std::convert::TryFrom<MyStruct> for MyStructInternal {
+                impl std::convert::TryFrom<MyStruct> for MyStructSpec {
                     type Error = String;
 
                     fn try_from(orig: MyStruct) -> Result<Self, Self::Error> {
-                        Ok(MyStructInternal {
+                        Ok(MyStructSpec {
                             field1: orig.field1.map(|v| v.try_into()).transpose()?,
                             field2: orig.field2.into_iter().map(|v| v.try_into()).collect::<Result<_, _>>()?,
                             field3: orig.field3.into_iter()
-                                .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| "Cannot convert field 'field3' to internal object.")?)))
+                                .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| "Cannot convert field 'field3' to spec object.")?)))
                                 .collect::<Result<_, String>>()?,
                             field4: orig.field4,
                         })
@@ -365,8 +359,8 @@ mod tests {
         assert_eq!(
             derived.from_impl.to_string(),
             quote! {
-                impl From<MyStructInternal> for MyStruct {
-                    fn from(orig: MyStructInternal) -> Self {
+                impl From<MyStructSpec> for MyStruct {
+                    fn from(orig: MyStructSpec) -> Self {
                         MyStruct {
                             field1: orig.field1.map(|v| v.into()),
                             field2: orig.field2.into_iter().map(|v| v.into()).collect(),
@@ -381,11 +375,11 @@ mod tests {
     }
 
     #[test]
-    fn test_derive_internal_struct_internal_field_attributes() {
+    fn test_derive_spec_struct_spec_field_attributes() {
         use syn::{FieldsNamed, parse_quote};
         let fields_named: FieldsNamed = parse_quote! {
             {
-                #[internal_field_attr(#[serde(rename = "custom_field1")])]
+                #[spec_field_attr(#[serde(rename = "custom_field1")])]
                 pub field1: i32,
             }
         };
@@ -393,12 +387,10 @@ mod tests {
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![];
 
-        let derived =
-            derive_internal_struct(fields_named, orig_name, vis, type_attrs)
-                .unwrap();
+        let derived = derive_spec_struct(fields_named, orig_name, vis, type_attrs).unwrap();
 
         let expected_obj = quote! {
-            pub struct MyStructInternal {
+            pub struct MyStructSpec {
                 #[serde(rename = "custom_field1")]
                 pub field1: i32,
             }
@@ -408,7 +400,7 @@ mod tests {
     }
 
     #[test]
-    fn test_derive_internal_enum_prost_map_with_enum_type() {
+    fn test_derive_spec_enum_prost_map_with_enum_type() {
         use syn::{FieldsNamed, parse_quote};
         let fields_named: FieldsNamed = parse_quote! {
             {
@@ -420,24 +412,22 @@ mod tests {
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![];
 
-        let derived =
-            derive_internal_struct(fields_named, orig_name, vis, type_attrs)
-                .unwrap();
+        let derived = derive_spec_struct(fields_named, orig_name, vis, type_attrs).unwrap();
 
         let expected_obj = quote! {
-            pub struct MyStructInternal {
+            pub struct MyStructSpec {
                 pub field1: ::std::collections::HashMap<String, CustomEnum>,
             }
         };
 
         let expected_try_from_impl = quote! {
-            impl std::convert::TryFrom<MyStruct> for MyStructInternal {
+            impl std::convert::TryFrom<MyStruct> for MyStructSpec {
                 type Error = String;
 
                 fn try_from(orig: MyStruct) -> Result<Self, Self::Error> {
-                    Ok(MyStructInternal {
+                    Ok(MyStructSpec {
                         field1: orig.field1.into_iter()
-                            .map(|(k , v)| Ok ((k.clone (), v.try_into().map_err(|_| "Cannot convert field 'field1' to internal object.")?)))
+                            .map(|(k , v)| Ok ((k.clone (), v.try_into().map_err(|_| "Cannot convert field 'field1' to spec object.")?)))
                             .collect::<Result<_, String >>() ?,
                         })
                 }
@@ -447,8 +437,8 @@ mod tests {
         };
 
         let expected_from_impl = quote! {
-            impl From<MyStructInternal> for MyStruct {
-                fn from(orig: MyStructInternal) -> Self {
+            impl From<MyStructSpec> for MyStruct {
+                fn from(orig: MyStructSpec) -> Self {
                     MyStruct {
                         field1: orig.field1.into_iter().map(|(k, v)| (k.clone(), v.into())).collect(),
                     }
@@ -468,7 +458,7 @@ mod tests {
     }
 
     #[test]
-    fn test_derive_internal_struct_preserves_doc_comments() {
+    fn test_derive_spec_struct_preserves_doc_comments() {
         use syn::{FieldsNamed, parse_quote};
         let fields_named: FieldsNamed = parse_quote! {
             {
@@ -479,11 +469,9 @@ mod tests {
         let orig_name: Ident = parse_quote! { MyStruct };
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![];
-        let derived =
-            derive_internal_struct(fields_named, orig_name, vis, type_attrs)
-                .unwrap();
+        let derived = derive_spec_struct(fields_named, orig_name, vis, type_attrs).unwrap();
         let expected_obj = quote! {
-            pub struct MyStructInternal {
+            pub struct MyStructSpec {
                 /// This is a test field
                 pub field1: i32,
             }

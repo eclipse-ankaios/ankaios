@@ -22,13 +22,13 @@ use syn::{
     punctuated::Punctuated,
 };
 
-pub struct DerivedInternal {
+pub struct DerivedSpec {
     pub obj: TokenStream,
     pub try_from_impl: TokenStream,
     pub from_impl: TokenStream,
 }
 
-impl ToTokens for DerivedInternal {
+impl ToTokens for DerivedSpec {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let obj = &self.obj;
         let try_from_impl = &self.try_from_impl;
@@ -49,21 +49,21 @@ pub fn get_doc_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStream> {
         .collect()
 }
 
-pub fn get_internal_type_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStream> {
-    let mut internal_type_attrs = Vec::new();
+pub fn get_spec_type_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStream> {
+    let mut spec_type_attrs = Vec::new();
     for attr in attrs {
         if let Meta::List(meta_list) = &attr.meta {
-            if meta_list.path.is_ident("internal_derive") {
+            if meta_list.path.is_ident("spec_derive") {
                 let parsed = syn::parse2::<AttributeList>(meta_list.tokens.clone()).unwrap();
                 let derive_list: Vec<Path> = parsed.0.into_iter().collect();
-                internal_type_attrs.push(quote! { #[derive(#(#derive_list),*)] });
-            } else if meta_list.path.is_ident("internal_type_attr") {
-                internal_type_attrs.push(meta_list.tokens.clone());
+                spec_type_attrs.push(quote! { #[derive(#(#derive_list),*)] });
+            } else if meta_list.path.is_ident("spec_type_attr") {
+                spec_type_attrs.push(meta_list.tokens.clone());
             }
         }
     }
 
-    internal_type_attrs
+    spec_type_attrs
 }
 
 pub fn pascal_to_snake_case(input: &str) -> String {
@@ -171,13 +171,13 @@ pub fn get_prost_enum_type(attrs: &[Attribute]) -> Option<TypePath> {
     None
 }
 
-/// Extracts all attributes with the `internal_field_attr` meta and returns their tokens for quoting on the internal field.
-pub fn get_internal_field_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStream> {
+/// Extracts all attributes with the `spec_field_attr` meta and returns their tokens for quoting on the spec field.
+pub fn get_spec_field_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenStream> {
     attrs
         .iter()
         .filter_map(|attr| {
             if let Meta::List(meta_list) = &attr.meta
-                && meta_list.path.is_ident("internal_field_attr")
+                && meta_list.path.is_ident("spec_field_attr")
             {
                 Some(meta_list.tokens.clone())
             } else {
@@ -190,13 +190,13 @@ pub fn get_internal_field_attrs(attrs: &[Attribute]) -> Vec<proc_macro2::TokenSt
 pub fn has_mandatory_attr(attrs: &[Attribute]) -> bool {
     attrs
         .iter()
-        .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("internal_mandatory")))
+        .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("spec_mandatory")))
 }
 
 pub fn has_enum_named_attr(attrs: &[Attribute]) -> bool {
     attrs
         .iter()
-        .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("internal_enum_named")))
+        .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("spec_enum_named")))
 }
 
 pub struct AttributeList(Punctuated<Path, Token![,]>);
@@ -215,7 +215,7 @@ pub fn check_for_forbidden_mandatory_attr(
     if has_mandatory_attr(attrs) {
         return Err(syn::Error::new_spanned(
             target,
-            "'internal_mandatory' attributes are allowed only on struct fields.",
+            "'spec_mandatory' attributes are allowed only on struct fields.",
         ));
     }
     Ok(())
@@ -337,10 +337,10 @@ pub fn inner_hashmap_type_path(tp: &TypePath) -> Option<(TypePath, TypePath)> {
     None
 }
 
-pub fn to_internal_type(tp: &TypePath) -> Type {
+pub fn to_spec_type(tp: &TypePath) -> Type {
     let mut new_path = tp.clone();
     let last = new_path.path.segments.last_mut().unwrap();
-    last.ident = Ident::new(&format!("{}Internal", last.ident), last.ident.span());
+    last.ident = Ident::new(&format!("{}Spec", last.ident), last.ident.span());
     Type::Path(new_path)
 }
 
@@ -367,15 +367,15 @@ mod tests {
     };
 
     #[test]
-    fn test_to_tokens_derived_internal() {
-        let derived_internal = super::DerivedInternal {
+    fn test_to_tokens_derived_spec() {
+        let derived_spec = super::DerivedSpec {
             obj: quote! { struct MyStruct; },
             try_from_impl: quote! { impl TryFrom<()> for MyStruct { type Error = (); fn try_from(_: ()) -> Result<Self, Self::Error> { Ok(MyStruct) } } },
             from_impl: quote! { impl From<MyStruct> for () { fn from(_: MyStruct) -> Self { () } } },
         };
 
         let mut tokens = TokenStream::new();
-        derived_internal.to_tokens(&mut tokens);
+        derived_spec.to_tokens(&mut tokens);
 
         let expected = quote! {
             struct MyStruct;
@@ -387,21 +387,21 @@ mod tests {
     }
 
     #[test]
-    fn test_get_internal_type_attrs() {
+    fn test_get_spec_type_attrs() {
         let attrs: Vec<Attribute> = vec![
-            parse_quote!(#[internal_derive(Debug, Clone)]),
-            parse_quote!(#[internal_type_attr(serde(rename_all = "snake_case"))]),
+            parse_quote!(#[spec_derive(Debug, Clone)]),
+            parse_quote!(#[spec_type_attr(serde(rename_all = "snake_case"))]),
             parse_quote!(#[doc = "Some documentation"]),
         ];
 
-        let internal_attrs = super::get_internal_type_attrs(&attrs);
-        assert_eq!(internal_attrs.len(), 2);
+        let spec_attrs = super::get_spec_type_attrs(&attrs);
+        assert_eq!(spec_attrs.len(), 2);
         assert_eq!(
-            internal_attrs[0].to_string(),
+            spec_attrs[0].to_string(),
             quote::quote!( #[derive( Debug , Clone )] ).to_string()
         );
         assert_eq!(
-            internal_attrs[1].to_string(),
+            spec_attrs[1].to_string(),
             quote::quote!(serde(rename_all = "snake_case")).to_string()
         );
     }
@@ -460,28 +460,28 @@ mod tests {
     }
 
     #[test]
-    fn test_get_internal_field_attrs() {
+    fn test_get_spec_field_attrs() {
         let attrs: Vec<Attribute> = vec![
-            parse_quote!(#[internal_field_attr(serde(rename = "foo"))]),
+            parse_quote!(#[spec_field_attr(serde(rename = "foo"))]),
             parse_quote!(#[doc = "Some documentation"]),
-            parse_quote!(#[internal_field_attr(another_attr)]),
+            parse_quote!(#[spec_field_attr(another_attr)]),
         ];
 
-        let internal_attrs = super::get_internal_field_attrs(&attrs);
-        assert_eq!(internal_attrs.len(), 2);
+        let spec_attrs = super::get_spec_field_attrs(&attrs);
+        assert_eq!(spec_attrs.len(), 2);
         assert_eq!(
-            internal_attrs[0].to_string(),
+            spec_attrs[0].to_string(),
             quote::quote!(serde(rename = "foo")).to_string()
         );
         assert_eq!(
-            internal_attrs[1].to_string(),
+            spec_attrs[1].to_string(),
             quote::quote!(another_attr).to_string()
         );
     }
 
     #[test]
     fn test_has_enum_named_attr() {
-        let attrs_with_enum_named: Vec<Attribute> = vec![parse_quote!(#[internal_enum_named])];
+        let attrs_with_enum_named: Vec<Attribute> = vec![parse_quote!(#[spec_enum_named])];
         let attrs_without_enum_named: Vec<Attribute> = vec![parse_quote!(#[serde(rename = "foo")])];
 
         assert!(super::has_enum_named_attr(&attrs_with_enum_named));
@@ -490,7 +490,7 @@ mod tests {
 
     #[test]
     fn test_check_for_forbidden_mandatory_attr() {
-        let attrs_with_mandatory: Vec<Attribute> = vec![parse_quote!(#[internal_mandatory])];
+        let attrs_with_mandatory: Vec<Attribute> = vec![parse_quote!(#[spec_mandatory])];
         let attrs_without_mandatory: Vec<Attribute> = vec![parse_quote!(#[serde(rename = "foo")])];
 
         let target: TypePath = parse_quote! { MyCustomType };
@@ -665,12 +665,12 @@ mod tests {
     }
 
     #[test]
-    fn test_to_internal_type() {
+    fn test_to_spec_type() {
         let original: TypePath = parse_quote! { MyType };
-        let internal_type = super::to_internal_type(&original);
-        let expected: Type = parse_quote! { MyTypeInternal };
+        let spec_type = super::to_spec_type(&original);
+        let expected: Type = parse_quote! { MyTypeSpec };
         assert_eq!(
-            quote::quote!(#internal_type).to_string(),
+            quote::quote!(#spec_type).to_string(),
             quote::quote!(#expected).to_string()
         );
     }
@@ -710,7 +710,7 @@ mod tests {
 
     #[test]
     fn test_has_mandatory_attr_with_mandatory() {
-        let attrs: Vec<Attribute> = vec![parse_quote!(#[internal_mandatory])];
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[spec_mandatory])];
         assert!(super::has_mandatory_attr(&attrs));
     }
 
@@ -724,7 +724,7 @@ mod tests {
     fn test_has_mandatory_attr_with_multiple_attrs_including_mandatory() {
         let attrs: Vec<Attribute> = vec![
             parse_quote!(#[serde(rename = "foo")]),
-            parse_quote!(#[internal_mandatory]),
+            parse_quote!(#[spec_mandatory]),
             parse_quote!(#[doc = "Some doc"]),
         ];
         assert!(super::has_mandatory_attr(&attrs));

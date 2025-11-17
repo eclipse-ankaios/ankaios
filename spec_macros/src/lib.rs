@@ -17,22 +17,22 @@ use syn::{DeriveInput, parse_macro_input};
 
 mod utils;
 
-mod derive_internal;
+mod derive_spec;
 mod fix_enum_serialization;
 
 #[proc_macro_derive(
-    Internal,
+    Spec,
     attributes(
-        internal_mandatory,
-        internal_enum_named,
-        internal_derive,
-        internal_type_attr,
-        internal_field_attr,
+        spec_mandatory,
+        spec_enum_named,
+        spec_derive,
+        spec_type_attr,
+        spec_field_attr,
     )
 )]
-pub fn derive_internal(input: TokenStream) -> TokenStream {
+pub fn derive_spec(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    derive_internal::derive_internal(input)
+    derive_spec::derive_spec(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

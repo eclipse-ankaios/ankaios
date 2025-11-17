@@ -26,18 +26,18 @@ pub fn setup_internal_state(builder: Builder) -> Builder {
         )
         .message_attribute(
             "CompleteState",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
         .message_attribute(
             "CompleteState",
-            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
+            "#[spec_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
-        .field_attribute("CompleteState.desiredState", "#[internal_mandatory]")
-        .field_attribute("CompleteState.desiredState", "#[internal_field_attr(#[serde(default)])]")
-        .field_attribute("CompleteState.workloadStates", "#[internal_mandatory]")
-        .field_attribute("CompleteState.workloadStates", "#[internal_field_attr(#[serde(default)])]")
-        .field_attribute("CompleteState.agents", "#[internal_mandatory]")
-        .field_attribute("CompleteState.agents", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("CompleteState.desiredState", "#[spec_mandatory]")
+        .field_attribute("CompleteState.desiredState", "#[spec_field_attr(#[serde(default)])]")
+        .field_attribute("CompleteState.workloadStates", "#[spec_mandatory]")
+        .field_attribute("CompleteState.workloadStates", "#[spec_field_attr(#[serde(default)])]")
+        .field_attribute("CompleteState.agents", "#[spec_mandatory]")
+        .field_attribute("CompleteState.agents", "#[spec_field_attr(#[serde(default)])]")
 
         .message_attribute(
             "State",
@@ -45,23 +45,23 @@ pub fn setup_internal_state(builder: Builder) -> Builder {
         )
         .message_attribute(
             "State",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         ).field_attribute(
             "State.apiVersion",
-            "#[internal_field_attr(#[serde(rename = \"apiVersion\")])]",
+            "#[spec_field_attr(#[serde(rename = \"apiVersion\")])]",
         )
-        .field_attribute("State.workloads","#[internal_mandatory]")
-        .field_attribute("State.workloads", "#[internal_field_attr(#[serde(default)])]")
-        .field_attribute("State.configs","#[internal_mandatory]")
-        .field_attribute("State.configs", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("State.workloads","#[spec_mandatory]")
+        .field_attribute("State.workloads", "#[spec_field_attr(#[serde(default)])]")
+        .field_attribute("State.configs","#[spec_mandatory]")
+        .field_attribute("State.configs", "#[spec_field_attr(#[serde(default)])]")
 
         .message_attribute("WorkloadMap", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "WorkloadMap",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
-        .message_attribute("WorkloadMap", "#[internal_type_attr(#[serde(transparent)])]")
-        .field_attribute("WorkloadMap.workloads", "#[internal_field_attr(#[serde(serialize_with = \"serialize_to_ordered_map\")])]")
+        .message_attribute("WorkloadMap", "#[spec_type_attr(#[serde(transparent)])]")
+        .field_attribute("WorkloadMap.workloads", "#[spec_field_attr(#[serde(serialize_with = \"serialize_to_ordered_map\")])]")
 }
 
 /// This function is used to create and configure the following structs:
@@ -73,38 +73,38 @@ pub fn setup_internal_files(builder: Builder) -> Builder {
         .message_attribute("Files", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "Files",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
-        .field_attribute("Files.files", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("Files.files", "#[spec_field_attr(#[serde(default)])]")
         .message_attribute("File", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "File",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
         .message_attribute(
             "File",
-            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
+            "#[spec_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
         .enum_attribute("FileContent", "#[derive(internal_derive_macros::Internal)]")
         .enum_attribute(
             "FileContent",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
-        .enum_attribute("FileContent", "#[internal_type_attr(#[serde(untagged)])]")
-        .field_attribute("File.FileContent", "#[internal_mandatory]")
+        .enum_attribute("FileContent", "#[spec_type_attr(#[serde(untagged)])]")
+        .field_attribute("File.FileContent", "#[spec_mandatory]")
         .field_attribute(
             "File.FileContent",
-            "#[internal_field_attr(#[serde(flatten)])]",
+            "#[spec_field_attr(#[serde(flatten)])]",
         )
-        .field_attribute("File.FileContent.data", "#[internal_enum_named]")
+        .field_attribute("File.FileContent.data", "#[spec_enum_named]")
         .field_attribute(
             "File.FileContent.data",
-            "#[internal_field_attr(#[serde(rename_all = \"camelCase\")])]",
+            "#[spec_field_attr(#[serde(rename_all = \"camelCase\")])]",
         )
-        .field_attribute("File.FileContent.binaryData", "#[internal_enum_named]")
+        .field_attribute("File.FileContent.binaryData", "#[spec_enum_named]")
         .field_attribute(
             "File.FileContent.binaryData",
-            "#[internal_field_attr(#[serde(rename_all = \"camelCase\")])]",
+            "#[spec_field_attr(#[serde(rename_all = \"camelCase\")])]",
         )
 }
 
@@ -117,30 +117,30 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
         .message_attribute("Workload", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "Workload",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
         .message_attribute(
             "Workload",
-            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
+            "#[spec_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
 
-        .field_attribute("Workload.agent", "#[internal_mandatory]")
-        .field_attribute("Workload.restartPolicy", "#[internal_mandatory]")
-        .field_attribute("Workload.dependencies", "#[internal_mandatory]")
-        .field_attribute("Workload.tags", "#[internal_mandatory]")
-        .field_attribute("Workload.runtime", "#[internal_mandatory]")
-        .field_attribute("Workload.runtimeConfig", "#[internal_mandatory]")
-        .field_attribute("Workload.controlInterfaceAccess", "#[internal_mandatory]")
-        .field_attribute("Workload.configs", "#[internal_mandatory]")
-        .field_attribute("Workload.files", "#[internal_mandatory]")
+        .field_attribute("Workload.agent", "#[spec_mandatory]")
+        .field_attribute("Workload.restartPolicy", "#[spec_mandatory]")
+        .field_attribute("Workload.dependencies", "#[spec_mandatory]")
+        .field_attribute("Workload.tags", "#[spec_mandatory]")
+        .field_attribute("Workload.runtime", "#[spec_mandatory]")
+        .field_attribute("Workload.runtimeConfig", "#[spec_mandatory]")
+        .field_attribute("Workload.controlInterfaceAccess", "#[spec_mandatory]")
+        .field_attribute("Workload.configs", "#[spec_mandatory]")
+        .field_attribute("Workload.files", "#[spec_mandatory]")
 
-        .field_attribute("Workload.dependencies", "#[internal_field_attr(#[serde(flatten)])]")
-        .field_attribute("Workload.tags", "#[internal_field_attr(#[serde(flatten)])]")
-        .field_attribute("Workload.configs", "#[internal_field_attr(#[serde(flatten)])]")
-        .field_attribute("Workload.files", "#[internal_field_attr(#[serde(flatten)])]")
+        .field_attribute("Workload.dependencies", "#[spec_field_attr(#[serde(flatten)])]")
+        .field_attribute("Workload.tags", "#[spec_field_attr(#[serde(flatten)])]")
+        .field_attribute("Workload.configs", "#[spec_field_attr(#[serde(flatten)])]")
+        .field_attribute("Workload.files", "#[spec_field_attr(#[serde(flatten)])]")
 
-        .field_attribute("Workload.restartPolicy", "#[internal_field_attr(#[serde(default)])]")
-        .field_attribute("Workload.controlInterfaceAccess", "#[internal_field_attr(#[serde(default)])]")
+        .field_attribute("Workload.restartPolicy", "#[spec_field_attr(#[serde(default)])]")
+        .field_attribute("Workload.controlInterfaceAccess", "#[spec_field_attr(#[serde(default)])]")
 
         .message_attribute(
             "Dependencies",
@@ -148,17 +148,17 @@ pub fn setup_internal_workload(builder: Builder) -> Builder {
         )
         .message_attribute(
             "Dependencies",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
-        .field_attribute("Dependencies.dependencies", "#[internal_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\")])]")
+        .field_attribute("Dependencies.dependencies", "#[spec_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\")])]")
 
         .message_attribute("Tags", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "Tags",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, Default)]",
+            "#[spec_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, Default)]",
         )
         // The custom deserializer is added to support the deprecated apiVersions: v0.1
-        .field_attribute("Tags.tags", "#[internal_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\", deserialize_with = \"tag_adapter_deserializer\")])]")
+        .field_attribute("Tags.tags", "#[spec_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\", deserialize_with = \"tag_adapter_deserializer\")])]")
 }
 
 /// This function is used to create and configure the following structs:
@@ -170,11 +170,11 @@ pub fn setup_internal_workload_instance_name(builder: Builder) -> Builder {
     )
     .message_attribute(
         "WorkloadInstanceName",
-        "#[internal_derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]",
+        "#[spec_derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]",
     )
     .message_attribute(
         "WorkloadInstanceName",
-        "#[internal_type_attr(#[serde(default, rename_all = \"camelCase\")])]",
+        "#[spec_type_attr(#[serde(default, rename_all = \"camelCase\")])]",
     )
 }
 
@@ -192,19 +192,19 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
         )
         .message_attribute(
             "ControlInterfaceAccess",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, Default)]",
+            "#[spec_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, Default)]",
         )
         .message_attribute(
             "ControlInterfaceAccess",
-            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
+            "#[spec_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
         .field_attribute(
             "ControlInterfaceAccess.allowRules",
-            "#[internal_field_attr(#[serde(default)])]",
+            "#[spec_field_attr(#[serde(default)])]",
         )
         .field_attribute(
             "ControlInterfaceAccess.denyRules",
-            "#[internal_field_attr(#[serde(default)])]",
+            "#[spec_field_attr(#[serde(default)])]",
         )
 
         .message_attribute(
@@ -213,13 +213,13 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
         )
         .message_attribute(
             "AccessRightsRule",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
+            "#[spec_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
         )
         .field_attribute("AccessRightsRule.AccessRightsRuleEnum", "#[serde(flatten)]")
-        .field_attribute("AccessRightsRule.AccessRightsRuleEnum", "#[internal_field_attr(#[serde(flatten)])]")
+        .field_attribute("AccessRightsRule.AccessRightsRuleEnum", "#[spec_field_attr(#[serde(flatten)])]")
         .field_attribute(
             "AccessRightsRule.AccessRightsRuleEnum",
-            "#[internal_mandatory]",
+            "#[spec_mandatory]",
         )
         .enum_attribute(
             "AccessRightsRuleEnum",
@@ -227,8 +227,8 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
         )
         .enum_attribute(
             "AccessRightsRule.AccessRightsRuleEnum",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]")
-        .enum_attribute("AccessRightsRule.AccessRightsRuleEnum", "#[internal_type_attr(#[serde(tag = \"type\")])]")
+            "#[spec_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]")
+        .enum_attribute("AccessRightsRule.AccessRightsRuleEnum", "#[spec_type_attr(#[serde(tag = \"type\")])]")
         .enum_attribute(
             "AccessRightsRule.AccessRightsRuleEnum",
             "#[serde(tag = \"type\")]",
@@ -237,23 +237,23 @@ pub fn setup_internal_control_interface_access(builder: Builder) -> Builder {
         .message_attribute("StateRule", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "StateRule",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
+            "#[spec_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
         )
         .message_attribute(
             "StateRule",
-            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
+            "#[spec_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
         // The alias to filterMask is added to support the deprecated apiVersions: v0.1
-        .field_attribute("StateRule.filterMasks", "#[internal_field_attr(#[serde(alias = \"filterMask\")])]")
+        .field_attribute("StateRule.filterMasks", "#[spec_field_attr(#[serde(alias = \"filterMask\")])]")
 
         .message_attribute("LogRule", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "LogRule",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
+            "#[spec_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]",
         )
         .message_attribute(
             "LogRule",
-            "#[internal_type_attr(#[serde(rename_all = \"camelCase\")])]",
+            "#[spec_type_attr(#[serde(rename_all = \"camelCase\")])]",
         )
 }
 
@@ -272,51 +272,51 @@ pub fn setup_internal_configs(builder: Builder) -> Builder {
         )
         .message_attribute(
             "ConfigMappings",
-            "#[internal_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, Default)]",
+            "#[spec_derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, Default)]",
         )
-        .field_attribute("ConfigMappings.configs", "#[internal_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\")])]")
+        .field_attribute("ConfigMappings.configs", "#[spec_field_attr(#[serde(default, serialize_with = \"serialize_to_ordered_map\")])]")
 
         .message_attribute("ConfigMap", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "ConfigMap",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]",
         )
-        .message_attribute("ConfigMap", "#[internal_type_attr(#[serde(transparent)])]")
-        // .field_attribute("ConfigMap.configs", "#[internal_field_attr(#[serde(flatten)])]")
+        .message_attribute("ConfigMap", "#[spec_type_attr(#[serde(transparent)])]")
+        // .field_attribute("ConfigMap.configs", "#[spec_field_attr(#[serde(flatten)])]")
         .message_attribute("ConfigItem", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "ConfigItem",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
 
-        .message_attribute("ConfigItem", "#[internal_type_attr(#[serde(transparent)])]")
+        .message_attribute("ConfigItem", "#[spec_type_attr(#[serde(transparent)])]")
 
-        .field_attribute("ConfigItem.ConfigItemEnum", "#[internal_mandatory]")
-        .field_attribute("ConfigItem.ConfigItemEnum", "#[internal_field_attr(#[serde(flatten)])]")
+        .field_attribute("ConfigItem.ConfigItemEnum", "#[spec_mandatory]")
+        .field_attribute("ConfigItem.ConfigItemEnum", "#[spec_field_attr(#[serde(flatten)])]")
         .enum_attribute("ConfigItemEnum", "#[derive(internal_derive_macros::Internal)]")
         .enum_attribute(
             "ConfigItemEnum",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
         .enum_attribute(
             "ConfigItemEnum",
-            "#[internal_type_attr(#[serde(untagged)])]",
+            "#[spec_type_attr(#[serde(untagged)])]",
         )
         .message_attribute("ConfigArray", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "ConfigArray",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
         .message_attribute(
             "ConfigArray",
-            "#[internal_type_attr(#[serde(transparent)])]",
+            "#[spec_type_attr(#[serde(transparent)])]",
         )
         .message_attribute("ConfigObject", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "ConfigObject",
-            "#[internal_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
+            "#[spec_derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]",
         )
-        .field_attribute("ConfigObject.fields", "#[internal_field_attr(#[serde(flatten)])]")
+        .field_attribute("ConfigObject.fields", "#[spec_field_attr(#[serde(flatten)])]")
 }
 
 /// This function is used to create and configure the following structs:
@@ -330,7 +330,7 @@ pub fn setup_internal_agent_map(builder: Builder) -> Builder {
         .message_attribute("AgentMap", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "AgentMap",
-            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
         .message_attribute(
             "AgentAttributes",
@@ -338,25 +338,25 @@ pub fn setup_internal_agent_map(builder: Builder) -> Builder {
         )
         .message_attribute(
             "AgentAttributes",
-            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
         .message_attribute("AgentStatus", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "AgentStatus",
-            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
-        .field_attribute("AgentStatus.cpu_usage", "#[internal_field_attr(#[serde(flatten)])]")
-        .field_attribute("AgentStatus.free_memory", "#[internal_field_attr(#[serde(flatten)])]")
+        .field_attribute("AgentStatus.cpu_usage", "#[spec_field_attr(#[serde(flatten)])]")
+        .field_attribute("AgentStatus.free_memory", "#[spec_field_attr(#[serde(flatten)])]")
 
         .message_attribute("CpuUsage", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "CpuUsage",
-            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
         .message_attribute("FreeMemory", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "FreeMemory",
-            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
         )
 }
 
@@ -375,17 +375,17 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     )
     .message_attribute(
         "WorkloadState",
-        "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+        "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
     )
     .message_attribute(
         "WorkloadState",
-        "#[internal_type_attr(#[serde(default, rename_all = \"camelCase\")])]",
+        "#[spec_type_attr(#[serde(default, rename_all = \"camelCase\")])]",
     ).message_attribute(
         "WorkloadState",
-        "#[internal_type_attr(#[serde(rename = \"workloadState\")])]",
+        "#[spec_type_attr(#[serde(rename = \"workloadState\")])]",
     )
-    .field_attribute("WorkloadState.instanceName", "#[internal_mandatory]")
-    .field_attribute("WorkloadState.executionState", "#[internal_mandatory]")
+    .field_attribute("WorkloadState.instanceName", "#[spec_mandatory]")
+    .field_attribute("WorkloadState.executionState", "#[spec_mandatory]")
 
     .message_attribute(
         "WorkloadStatesMap",
@@ -393,11 +393,11 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     )
     .message_attribute(
         "WorkloadStatesMap",
-        "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+        "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
     )
     .field_attribute(
         "WorkloadStatesMap.agentStateMap",
-        "#[internal_field_attr(#[serde(flatten)])]",
+        "#[spec_field_attr(#[serde(flatten)])]",
     )
     .message_attribute(
         "ExecutionsStatesOfWorkload",
@@ -405,11 +405,11 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     )
     .message_attribute(
         "ExecutionsStatesOfWorkload",
-        "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+        "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
     )
     .field_attribute(
         "ExecutionsStatesOfWorkload.wlNameStateMap",
-        "#[internal_field_attr(#[serde(flatten)])]",
+        "#[spec_field_attr(#[serde(flatten)])]",
     )
     .message_attribute(
         "ExecutionsStatesForId",
@@ -417,11 +417,11 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     )
     .message_attribute(
         "ExecutionsStatesForId",
-        "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+        "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
     )
     .field_attribute(
         "ExecutionsStatesForId.idStateMap",
-        "#[internal_field_attr(#[serde(flatten)])]",
+        "#[spec_field_attr(#[serde(flatten)])]",
     )
 
     .message_attribute(
@@ -430,17 +430,17 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     )
     .message_attribute(
         "ExecutionState",
-        "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
+        "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, Default, PartialEq, Eq)]",
     )
     .message_attribute(
         "ExecutionState",
-        "#[internal_type_attr(#[serde(default, rename_all = \"camelCase\")])]",
+        "#[spec_type_attr(#[serde(default, rename_all = \"camelCase\")])]",
     )
-    .field_attribute("ExecutionState.additionalInfo", "#[internal_mandatory]")
-    .field_attribute("ExecutionState.ExecutionStateEnum", "#[internal_mandatory]")
+    .field_attribute("ExecutionState.additionalInfo", "#[spec_mandatory]")
+    .field_attribute("ExecutionState.ExecutionStateEnum", "#[spec_mandatory]")
     .field_attribute(
         "ExecutionState.ExecutionStateEnum",
-        "#[internal_field_attr(#[serde(flatten)])]",
+        "#[spec_field_attr(#[serde(flatten)])]",
     )
     .enum_attribute(
         "ExecutionStateEnum",
@@ -448,11 +448,11 @@ pub fn setup_internal_workload_states(builder: Builder) -> Builder {
     )
     .enum_attribute(
         "ExecutionStateEnum",
-        "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
+        "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
     )
     .enum_attribute(
         "ExecutionStateEnum",
-        "#[internal_type_attr(#[serde(tag = \"state\", content = \"subState\")])]",
+        "#[spec_type_attr(#[serde(tag = \"state\", content = \"subState\")])]",
     )
 }
 
@@ -468,17 +468,17 @@ pub fn setup_internal_requests(builder: Builder) -> Builder {
         .message_attribute("LogsRequest", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "LogsRequest",
-            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
-        .field_attribute("LogsRequest.follow", "#[internal_mandatory]")
-        .field_attribute("LogsRequest.tail", "#[internal_mandatory]")
+        .field_attribute("LogsRequest.follow", "#[spec_mandatory]")
+        .field_attribute("LogsRequest.tail", "#[spec_mandatory]")
         .message_attribute(
             "LogsCancelRequest",
             "#[derive(internal_derive_macros::Internal)]",
         )
         .message_attribute(
             "LogsCancelRequest",
-            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
         .message_attribute(
             "UpdateStateRequest",
@@ -486,16 +486,16 @@ pub fn setup_internal_requests(builder: Builder) -> Builder {
         )
         .message_attribute(
             "UpdateStateRequest",
-            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
-        .field_attribute("UpdateStateRequest.newState", "#[internal_mandatory]")
+        .field_attribute("UpdateStateRequest.newState", "#[spec_mandatory]")
         .message_attribute(
             "CompleteStateRequest",
             "#[derive(internal_derive_macros::Internal)]",
         )
         .message_attribute(
             "CompleteStateRequest",
-            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
         .enum_attribute(
             "RequestContent",
@@ -503,12 +503,12 @@ pub fn setup_internal_requests(builder: Builder) -> Builder {
         )
         .enum_attribute(
             "RequestContent",
-            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
         .message_attribute("Request", "#[derive(internal_derive_macros::Internal)]")
         .message_attribute(
             "Request",
-            "#[internal_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
-        .field_attribute("Request.RequestContent", "#[internal_mandatory]")
+        .field_attribute("Request.RequestContent", "#[spec_mandatory]")
 }

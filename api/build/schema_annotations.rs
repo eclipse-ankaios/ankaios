@@ -19,147 +19,130 @@ pub fn setup_schema_annotations(mut builder: Builder) -> Builder {
     builder = builder
         .message_attribute(
             "State",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
             "State",
-            "#[internal_type_attr(#[serde(rename = \"desiredState\")])]",
+            "#[spec_type_attr(#[serde(rename = \"desiredState\")])]",
         )
         .message_attribute(
             "WorkloadMap",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
             "WorkloadMap",
-            "#[internal_type_attr(#[serde(rename = \"workloadMap\")])]",
+            "#[spec_type_attr(#[serde(rename = \"workloadMap\")])]",
         )
         .message_attribute(
             "Workload",
-            "#[internal_type_attr(#[serde(rename = \"workload\")])]",
+            "#[spec_type_attr(#[serde(rename = \"workload\")])]",
         )
         .message_attribute(
             "ConfigMap",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
             "ConfigMap",
-            "#[internal_type_attr(#[serde(rename = \"configMap\")])]",
+            "#[spec_type_attr(#[serde(rename = \"configMap\")])]",
         )
         .message_attribute(
             "ConfigItem",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
             "ConfigItem",
-            "#[internal_type_attr(#[serde(rename = \"configItem\")])]",
+            "#[spec_type_attr(#[serde(rename = \"configItem\")])]",
         )
         .enum_attribute(
             "ConfigItemEnum",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .enum_attribute(
             "ConfigItemEnum",
-            "#[internal_type_attr(#[serde(rename = \"configItemEnum\")])]",
+            "#[spec_type_attr(#[serde(rename = \"configItemEnum\")])]",
         )
         .message_attribute(
             "ConfigObject",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
             "ConfigObject",
-            "#[internal_type_attr(#[serde(rename = \"configObject\")])]",
+            "#[spec_type_attr(#[serde(rename = \"configObject\")])]",
         )
         .message_attribute(
             "ConfigArray",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
-        ).message_attribute(
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
+        )
+        .message_attribute(
             "ConfigArray",
-            "#[internal_type_attr(#[serde(rename = \"configArray\")])]",
+            "#[spec_type_attr(#[serde(rename = \"configArray\")])]",
         );
 
     // Setup the Workload related schema annotations
     builder
         .enum_attribute("RestartPolicy", "#[derive(schemars::JsonSchema)]")
-        .enum_attribute(
-            "RestartPolicy",
-            "#[serde(rename = \"restartPolicy\")]",
+        .enum_attribute("RestartPolicy", "#[serde(rename = \"restartPolicy\")]")
+        .message_attribute(
+            "ControlInterfaceAccess",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
             "ControlInterfaceAccess",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
-        )
-        .message_attribute(
-            "ControlInterfaceAccess",
-            "#[internal_type_attr(#[serde(rename = \"controlInterfaceAccess\")])]",
+            "#[spec_type_attr(#[serde(rename = \"controlInterfaceAccess\")])]",
         )
         .message_attribute(
             "AccessRightsRule",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
             "AccessRightsRule",
-            "#[internal_type_attr(#[serde(rename = \"accessRightsRule\")])]",
+            "#[spec_type_attr(#[serde(rename = \"accessRightsRule\")])]",
         )
         .enum_attribute(
             "AccessRightsRuleEnum",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
             "StateRule",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
             "StateRule",
-            "#[internal_type_attr(#[serde(rename = \"stateRule\")])]",
+            "#[spec_type_attr(#[serde(rename = \"stateRule\")])]",
         )
         .enum_attribute("ReadWriteEnum", "#[derive(schemars::JsonSchema)]")
-        .enum_attribute(
-            "ReadWriteEnum",
-            "#[serde(rename = \"readWriteEnum\")]",
+        .enum_attribute("ReadWriteEnum", "#[serde(rename = \"readWriteEnum\")]")
+        .message_attribute(
+            "LogRule",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .message_attribute(
             "LogRule",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
-        )
-        .message_attribute(
-            "LogRule",
-            "#[internal_type_attr(#[serde(rename = \"logRule\")])]",
+            "#[spec_type_attr(#[serde(rename = \"logRule\")])]",
         )
         .message_attribute(
             "ConfigMappings",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
-        .message_attribute(
-            "File",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
-        )
-        .message_attribute(
-            "File",
-            "#[internal_type_attr(#[serde(rename = \"file\")])]",
-        )
+        .message_attribute("File", "#[spec_type_attr(#[derive(schemars::JsonSchema)])]")
+        .message_attribute("File", "#[spec_type_attr(#[serde(rename = \"file\")])]")
         .message_attribute(
             "Files",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .enum_attribute(
             "FileContent",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
-        .message_attribute(
-            "Tags",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
-        )
+        .message_attribute("Tags", "#[spec_type_attr(#[derive(schemars::JsonSchema)])]")
         .message_attribute(
             "Dependencies",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
         .enum_attribute("AddCondition", "#[derive(schemars::JsonSchema)]")
-        .enum_attribute(
-            "AddCondition",
-            "#[serde(rename = \"addCondition\")]",
-        )
+        .enum_attribute("AddCondition", "#[serde(rename = \"addCondition\")]")
         .message_attribute(
             "Workload",
-            "#[internal_type_attr(#[derive(schemars::JsonSchema)])]",
+            "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
         )
 }

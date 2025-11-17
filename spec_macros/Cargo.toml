@@ -1,9 +1,9 @@
 [package]
-name = "internal_derive_macros"
+name = "spec_macros"
 version = "0.7.0-pre"
 edition = "2024"
 license = "Apache-2.0"
-description = "Eclipse Ankaios agent component"
+description = "Eclipse Ankaios Spec macros that help with deriving the Ankaios APIs"
 documentation = "https://eclipse-ankaios.github.io/ankaios"
 authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
 repository = "https://github.com/eclipse-ankaios/ankaios"

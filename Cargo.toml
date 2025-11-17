@@ -7,7 +7,7 @@ members = [
     "common",
     "agent",
     "server",
-    "internal_derive_macros",
+    "spec_macros",
     "grpc",
     "ank",
     "tests/resources/control_interface_tester",

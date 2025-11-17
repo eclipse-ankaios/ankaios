@@ -17,19 +17,19 @@ use quote::{format_ident, quote};
 use syn::{Fields, FieldsUnnamed, Ident, Token, Type, Visibility, punctuated::Punctuated};
 
 use crate::utils::{
-    DerivedInternal, check_for_forbidden_mandatory_attr, get_doc_attrs, get_internal_field_attrs,
-    get_prost_enum_type, has_enum_named_attr, inner_boxed_type_path, is_custom_type_path,
-    is_option_type_path, pascal_to_snake_case, to_internal_type,
+    DerivedSpec, check_for_forbidden_mandatory_attr, get_doc_attrs, get_prost_enum_type,
+    get_spec_field_attrs, has_enum_named_attr, inner_boxed_type_path, is_custom_type_path,
+    is_option_type_path, pascal_to_snake_case, to_spec_type,
 };
 
-pub fn derive_internal_enum(
+pub fn derive_spec_enum(
     variants: Punctuated<syn::Variant, Token![,]>,
     orig_name: Ident,
     vis: Visibility,
     type_attrs: Vec<TokenStream>,
-) -> syn::Result<DerivedInternal> {
-    let internal_name = format_ident!("{}Internal", orig_name);
-    let mut internal_variants = Vec::new();
+) -> syn::Result<DerivedSpec> {
+    let spec_name = format_ident!("{}Spec", orig_name);
+    let mut spec_variants = Vec::new();
     let mut try_from_variants = Vec::new();
     let mut from_variants = Vec::new();
 
@@ -37,9 +37,9 @@ pub fn derive_internal_enum(
         check_for_forbidden_mandatory_attr(&variant, &variant.attrs)?;
 
         let variant_ident = &variant.ident;
-        let internal_field_attrs = get_internal_field_attrs(&variant.attrs);
+        let spec_field_attrs = get_spec_field_attrs(&variant.attrs);
         let doc_attrs = get_doc_attrs(&variant.attrs);
-        let combined_attrs = internal_field_attrs
+        let combined_attrs = spec_field_attrs
             .into_iter()
             .chain(doc_attrs)
             .collect::<Vec<_>>();
@@ -53,13 +53,13 @@ pub fn derive_internal_enum(
             }
             Fields::Unnamed(FieldsUnnamed { unnamed, .. }) => {
                 let conversion_enum_error_msg =
-                    format!("Cannot convert '{orig_name}::{variant_ident}' to internal object.");
+                    format!("Cannot convert '{orig_name}::{variant_ident}' to spec object.");
 
                 if has_enum_named_attr(&variant.attrs) {
                     if unnamed.len() != 1 {
                         return Err(syn::Error::new_spanned(
                             variant_ident,
-                            "Variants with 'internal_enum_named' attribute must have exactly one unnamed field",
+                            "Variants with 'spec_enum_named' attribute must have exactly one unnamed field",
                         ));
                     }
                     let field = &unnamed[0];
@@ -74,12 +74,12 @@ pub fn derive_internal_enum(
                     if is_option_type_path(tp) {
                         return Err(syn::Error::new_spanned(
                             variant_ident,
-                            "Variants with 'internal_enum_named' attribute cannot have Option types.",
+                            "Variants with 'spec_enum_named' attribute cannot have Option types.",
                         ));
                     }
 
                     let new_ty = if is_custom_type_path(tp) {
-                        to_internal_type(tp)
+                        to_spec_type(tp)
                     } else if let Some(prost_enum_tp) = get_prost_enum_type(&field.attrs) {
                         Type::Path(prost_enum_tp)
                     } else {
@@ -90,22 +90,22 @@ pub fn derive_internal_enum(
                     let variant_name = variant_ident.to_string();
                     let new_field_name = format_ident!("{}", pascal_to_snake_case(&variant_name));
 
-                    internal_variants.push(quote! {
+                    spec_variants.push(quote! {
                         #(#combined_attrs )*
                         #variant_ident { #new_field_name: #new_ty }
                     });
 
-                    // Enum::A(String) -> EnumInternal::A { a: String }
+                    // Enum::A(String) -> EnumSpec::A { a: String }
                     try_from_variants.push(quote! {
                         #orig_name::#variant_ident( field_0 ) =>
-                            #internal_name::#variant_ident{
+                            #spec_name::#variant_ident{
                                 #new_field_name: field_0.try_into().map_err(|_| #conversion_enum_error_msg)?
                             }
                     });
 
-                    // EnumInternal::A { a: String } -> Enum::A(String)
+                    // EnumSpec::A { a: String } -> Enum::A(String)
                     from_variants.push(quote! {
-                        #internal_name::#variant_ident{ #new_field_name } => #orig_name::#variant_ident( #new_field_name.into() )
+                        #spec_name::#variant_ident{ #new_field_name } => #orig_name::#variant_ident( #new_field_name.into() )
                     });
                 } else {
                     let mut new_variant = Vec::new();
@@ -126,7 +126,7 @@ pub fn derive_internal_enum(
                                     "Variants with optional attribute are not supported.",
                                 ));
                             } else if is_custom_type_path(tp) {
-                                let new_ty = to_internal_type(tp);
+                                let new_ty = to_spec_type(tp);
                                 new_variant.push(quote! { #new_ty });
 
                                 try_fields.push(quote! {
@@ -152,7 +152,7 @@ pub fn derive_internal_enum(
                             } else if let Some(inner) = inner_boxed_type_path(tp)
                                 && is_custom_type_path(&inner)
                             {
-                                let new_ty = to_internal_type(&inner);
+                                let new_ty = to_spec_type(&inner);
                                 new_variant.push(quote! { Box<#new_ty> });
                                 try_fields.push(quote! {
                                     Box::new((*#field_id).try_into()?)
@@ -179,7 +179,7 @@ pub fn derive_internal_enum(
                         }
                     }
 
-                    internal_variants.push(quote! {
+                    spec_variants.push(quote! {
                         #(#combined_attrs )*
                         #variant_ident ( #(#new_variant),* )
                     });
@@ -190,41 +190,41 @@ pub fn derive_internal_enum(
                         .collect::<Vec<_>>();
 
                     try_from_variants.push(quote! {
-                                #orig_name::#variant_ident( #(#bindings),* ) => #internal_name::#variant_ident( #(#try_fields),* )
+                                #orig_name::#variant_ident( #(#bindings),* ) => #spec_name::#variant_ident( #(#try_fields),* )
                             });
 
                     from_variants.push(quote! {
-                                #internal_name::#variant_ident( #(#bindings),* ) => #orig_name::#variant_ident( #(#from_fields),* )
+                                #spec_name::#variant_ident( #(#bindings),* ) => #orig_name::#variant_ident( #(#from_fields),* )
                             });
                 };
             }
 
             Fields::Unit => {
-                internal_variants.push(quote! {
+                spec_variants.push(quote! {
                     #(#combined_attrs )*
                     #variant_ident
                 });
 
                 try_from_variants.push(quote! {
-                    #orig_name::#variant_ident => #internal_name::#variant_ident
+                    #orig_name::#variant_ident => #spec_name::#variant_ident
                 });
 
                 from_variants.push(quote! {
-                    #internal_name::#variant_ident => #orig_name::#variant_ident
+                    #spec_name::#variant_ident => #orig_name::#variant_ident
                 });
             }
         };
     }
 
-    let internal_enum = quote! {
+    let spec_enum = quote! {
         #(#type_attrs )*
-        #vis enum #internal_name {
-            #(#internal_variants,)*
+        #vis enum #spec_name {
+            #(#spec_variants,)*
         }
     };
 
     let try_from_impl = quote! {
-        impl std::convert::TryFrom<#orig_name> for #internal_name {
+        impl std::convert::TryFrom<#orig_name> for #spec_name {
             type Error = String;
 
             fn try_from(orig: #orig_name) -> Result<Self, Self::Error> {
@@ -236,8 +236,8 @@ pub fn derive_internal_enum(
     };
 
     let from_impl = quote! {
-        impl From<#internal_name> for #orig_name {
-            fn from(original: #internal_name) -> Self {
+        impl From<#spec_name> for #orig_name {
+            fn from(original: #spec_name) -> Self {
                 match original {
                     #(#from_variants),*
                 }
@@ -245,8 +245,8 @@ pub fn derive_internal_enum(
         }
     };
 
-    Ok(DerivedInternal {
-        obj: internal_enum,
+    Ok(DerivedSpec {
+        obj: spec_enum,
         try_from_impl,
         from_impl,
     })
@@ -267,10 +267,10 @@ mod tests {
     use quote::{format_ident, quote};
     use syn::{Visibility, parse_quote};
 
-    use super::derive_internal_enum;
+    use super::derive_spec_enum;
 
     #[test]
-    fn test_derive_internal_enum_simple() {
+    fn test_derive_spec_enum_simple() {
         let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             VariantA,
             VariantB(u32),
@@ -281,17 +281,12 @@ mod tests {
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
 
-        let derived = derive_internal_enum(
-            variants,
-            orig_name.clone(),
-            vis.clone(),
-            type_attrs.clone(),
-        )
-        .unwrap();
+        let derived =
+            derive_spec_enum(variants, orig_name.clone(), vis.clone(), type_attrs.clone()).unwrap();
 
-        let expected_internal_enum = quote! {
+        let expected_spec_enum = quote! {
             #(#type_attrs )*
-            #vis enum TestEnumInternal {
+            #vis enum TestEnumSpec {
                 VariantA,
                 VariantB(u32),
                 VariantC(String, bool),
@@ -299,32 +294,32 @@ mod tests {
         };
 
         let expected_try_from_impl = quote! {
-            impl std::convert::TryFrom<TestEnum> for TestEnumInternal {
+            impl std::convert::TryFrom<TestEnum> for TestEnumSpec {
                 type Error = String;
 
                 fn try_from(orig: TestEnum) -> Result<Self, Self::Error> {
                     Ok(match orig {
-                        TestEnum::VariantA => TestEnumInternal::VariantA,
-                        TestEnum::VariantB( field_0 ) => TestEnumInternal::VariantB( field_0 ),
-                        TestEnum::VariantC( field_0, field_1 ) => TestEnumInternal::VariantC( field_0, field_1 )
+                        TestEnum::VariantA => TestEnumSpec::VariantA,
+                        TestEnum::VariantB( field_0 ) => TestEnumSpec::VariantB( field_0 ),
+                        TestEnum::VariantC( field_0, field_1 ) => TestEnumSpec::VariantC( field_0, field_1 )
                     })
                 }
             }
         };
 
         let expected_from_impl = quote! {
-            impl From<TestEnumInternal> for TestEnum {
-                fn from(original: TestEnumInternal) -> Self {
+            impl From<TestEnumSpec> for TestEnum {
+                fn from(original: TestEnumSpec) -> Self {
                     match original {
-                        TestEnumInternal::VariantA => TestEnum::VariantA,
-                        TestEnumInternal::VariantB( field_0 ) => TestEnum::VariantB( field_0 ),
-                        TestEnumInternal::VariantC( field_0, field_1 ) => TestEnum::VariantC( field_0, field_1 )
+                        TestEnumSpec::VariantA => TestEnum::VariantA,
+                        TestEnumSpec::VariantB( field_0 ) => TestEnum::VariantB( field_0 ),
+                        TestEnumSpec::VariantC( field_0, field_1 ) => TestEnum::VariantC( field_0, field_1 )
                     }
                 }
             }
         };
 
-        assert_eq!(derived.obj.to_string(), expected_internal_enum.to_string());
+        assert_eq!(derived.obj.to_string(), expected_spec_enum.to_string());
         assert_eq!(
             derived.try_from_impl.to_string(),
             expected_try_from_impl.to_string()
@@ -336,49 +331,44 @@ mod tests {
     }
 
     #[test]
-    fn test_derive_internal_enum_with_named_variant() {
+    fn test_derive_spec_enum_with_named_variant() {
         let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
-            #[internal_enum_named]
+            #[spec_enum_named]
             VariantA(String),
             VariantB(u32),
-            #[internal_enum_named]
+            #[spec_enum_named]
             VariantC(MyType)
         };
         let orig_name = format_ident!("TestEnum");
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
 
-        let derived = derive_internal_enum(
-            variants,
-            orig_name.clone(),
-            vis.clone(),
-            type_attrs.clone(),
-        )
-        .unwrap();
+        let derived =
+            derive_spec_enum(variants, orig_name.clone(), vis.clone(), type_attrs.clone()).unwrap();
 
-        let expected_internal_enum = quote! {
+        let expected_spec_enum = quote! {
             #(#type_attrs )*
-            #vis enum TestEnumInternal {
+            #vis enum TestEnumSpec {
                 VariantA { variant_a: String },
                 VariantB(u32),
-                VariantC { variant_c: MyTypeInternal },
+                VariantC { variant_c: MyTypeSpec },
             }
         };
 
         let expected_try_from_impl = quote! {
-            impl std::convert::TryFrom<TestEnum> for TestEnumInternal {
+            impl std::convert::TryFrom<TestEnum> for TestEnumSpec {
                 type Error = String;
 
                 fn try_from(orig: TestEnum) -> Result<Self, Self::Error> {
                     Ok(match orig {
                         TestEnum::VariantA( field_0 ) =>
-                            TestEnumInternal::VariantA{
-                                variant_a: field_0.try_into().map_err(|_| "Cannot convert 'TestEnum::VariantA' to internal object.")?
+                            TestEnumSpec::VariantA{
+                                variant_a: field_0.try_into().map_err(|_| "Cannot convert 'TestEnum::VariantA' to spec object.")?
                             },
-                        TestEnum::VariantB( field_0 ) => TestEnumInternal::VariantB( field_0 ),
+                        TestEnum::VariantB( field_0 ) => TestEnumSpec::VariantB( field_0 ),
                         TestEnum::VariantC( field_0 ) =>
-                            TestEnumInternal::VariantC{
-                                variant_c: field_0.try_into().map_err(|_| "Cannot convert 'TestEnum::VariantC' to internal object.")?
+                            TestEnumSpec::VariantC{
+                                variant_c: field_0.try_into().map_err(|_| "Cannot convert 'TestEnum::VariantC' to spec object.")?
                             }
                     })
                 }
@@ -386,18 +376,18 @@ mod tests {
         };
 
         let expected_from_impl = quote! {
-            impl From<TestEnumInternal> for TestEnum {
-                fn from(original: TestEnumInternal) -> Self {
+            impl From<TestEnumSpec> for TestEnum {
+                fn from(original: TestEnumSpec) -> Self {
                     match original {
-                        TestEnumInternal::VariantA{ variant_a } => TestEnum::VariantA( variant_a.into() ),
-                        TestEnumInternal::VariantB( field_0 ) => TestEnum::VariantB( field_0 ),
-                        TestEnumInternal::VariantC{ variant_c } => TestEnum::VariantC( variant_c.into() )
+                        TestEnumSpec::VariantA{ variant_a } => TestEnum::VariantA( variant_a.into() ),
+                        TestEnumSpec::VariantB( field_0 ) => TestEnum::VariantB( field_0 ),
+                        TestEnumSpec::VariantC{ variant_c } => TestEnum::VariantC( variant_c.into() )
                     }
                 }
             }
         };
 
-        assert_eq!(derived.obj.to_string(), expected_internal_enum.to_string());
+        assert_eq!(derived.obj.to_string(), expected_spec_enum.to_string());
         assert_eq!(
             derived.try_from_impl.to_string(),
             expected_try_from_impl.to_string()
@@ -409,7 +399,7 @@ mod tests {
     }
 
     #[test]
-    fn test_derive_internal_enum_error_on_named_fields() {
+    fn test_derive_spec_enum_error_on_named_fields() {
         let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             VariantA { field_a: u32 },
             VariantB(u32),
@@ -417,27 +407,27 @@ mod tests {
         let orig_name = format_ident!("TestEnum");
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
-        let result = derive_internal_enum(variants, orig_name, vis, type_attrs);
+        let result = derive_spec_enum(variants, orig_name, vis, type_attrs);
 
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_derive_internal_enum_error_on_option_in_named_variant() {
+    fn test_derive_spec_enum_error_on_option_in_named_variant() {
         let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
-            #[internal_enum_named]
+            #[spec_enum_named]
             VariantA(Option<String>),
             VariantB(u32),
         };
         let orig_name = format_ident!("TestEnum");
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
-        let result = derive_internal_enum(variants, orig_name, vis, type_attrs);
+        let result = derive_spec_enum(variants, orig_name, vis, type_attrs);
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_derive_internal_enum_error_on_option_in_variant() {
+    fn test_derive_spec_enum_error_on_option_in_variant() {
         let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             VariantA(Option<String>),
             VariantB(u32),
@@ -445,12 +435,12 @@ mod tests {
         let orig_name = format_ident!("TestEnum");
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
-        let result = derive_internal_enum(variants, orig_name, vis, type_attrs);
+        let result = derive_spec_enum(variants, orig_name, vis, type_attrs);
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_derive_internal_enum_prost_enum_type() {
+    fn test_derive_spec_enum_prost_enum_type() {
         let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             #[prost(enumeration = "MyEnum", tag = "2")]
             VariantA(u32),
@@ -460,47 +450,42 @@ mod tests {
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
 
-        let derived = derive_internal_enum(
-            variants,
-            orig_name.clone(),
-            vis.clone(),
-            type_attrs.clone(),
-        )
-        .unwrap();
+        let derived =
+            derive_spec_enum(variants, orig_name.clone(), vis.clone(), type_attrs.clone()).unwrap();
 
-        let expected_internal_enum = quote! {
+        let expected_spec_enum = quote! {
             #(#type_attrs )*
-            #vis enum TestEnumInternal {
+            #vis enum TestEnumSpec {
                 VariantA(MyEnum),
                 VariantB(u32),
             }
         };
 
         let expected_try_from_impl = quote! {
-            impl std::convert::TryFrom<TestEnum> for TestEnumInternal {
+            impl std::convert::TryFrom<TestEnum> for TestEnumSpec {
                 type Error = String;
 
                 fn try_from(orig: TestEnum) -> Result<Self, Self::Error> {
                     Ok(match orig {
-                        TestEnum::VariantA( field_0 ) => TestEnumInternal::VariantA( field_0.try_into().map_err(|_| "Cannot convert 'TestEnum::VariantA' to internal object.")? ),
-                        TestEnum::VariantB( field_0 ) => TestEnumInternal::VariantB( field_0 )
+                        TestEnum::VariantA( field_0 ) => TestEnumSpec::VariantA( field_0.try_into().map_err(|_| "Cannot convert 'TestEnum::VariantA' to spec object.")? ),
+                        TestEnum::VariantB( field_0 ) => TestEnumSpec::VariantB( field_0 )
                     })
                 }
             }
         };
 
         let expected_from_impl = quote! {
-            impl From<TestEnumInternal> for TestEnum {
-                fn from(original: TestEnumInternal) -> Self {
+            impl From<TestEnumSpec> for TestEnum {
+                fn from(original: TestEnumSpec) -> Self {
                     match original {
-                        TestEnumInternal::VariantA( field_0 ) => TestEnum::VariantA( field_0.into() ),
-                        TestEnumInternal::VariantB( field_0 ) => TestEnum::VariantB( field_0 )
+                        TestEnumSpec::VariantA( field_0 ) => TestEnum::VariantA( field_0.into() ),
+                        TestEnumSpec::VariantB( field_0 ) => TestEnum::VariantB( field_0 )
                     }
                 }
             }
         };
 
-        assert_eq!(derived.obj.to_string(), expected_internal_enum.to_string());
+        assert_eq!(derived.obj.to_string(), expected_spec_enum.to_string());
         assert_eq!(
             derived.try_from_impl.to_string(),
             expected_try_from_impl.to_string()
@@ -512,7 +497,7 @@ mod tests {
     }
 
     #[test]
-    fn test_derive_internal_enum_with_docs() {
+    fn test_derive_spec_enum_with_docs() {
         let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             /// This is variant A
             VariantA,
@@ -522,23 +507,18 @@ mod tests {
         let orig_name = format_ident!("TestEnum");
         let vis: Visibility = parse_quote! { pub };
         let type_attrs: Vec<TokenStream> = vec![quote! { #[derive(Debug)] }];
-        let derived = derive_internal_enum(
-            variants,
-            orig_name.clone(),
-            vis.clone(),
-            type_attrs.clone(),
-        )
-        .unwrap();
+        let derived =
+            derive_spec_enum(variants, orig_name.clone(), vis.clone(), type_attrs.clone()).unwrap();
 
-        let expected_internal_enum = quote! {
+        let expected_spec_enum = quote! {
             #(#type_attrs )*
-            #vis enum TestEnumInternal {
+            #vis enum TestEnumSpec {
                 /// This is variant A
                 VariantA,
                 /// This is variant B
                 VariantB(u32),
             }
         };
-        assert_eq!(derived.obj.to_string(), expected_internal_enum.to_string());
+        assert_eq!(derived.obj.to_string(), expected_spec_enum.to_string());
     }
 }
