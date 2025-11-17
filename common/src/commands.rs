@@ -213,6 +213,8 @@ impl From<ank_base::CompleteStateRequest> for CompleteStateRequest {
 pub struct UpdateStateRequest {
     pub state: CompleteState,
     pub update_mask: Vec<String>,
+    pub dry_run: bool,
+
 }
 
 impl From<UpdateStateRequest> for ank_base::UpdateStateRequest {
@@ -220,6 +222,7 @@ impl From<UpdateStateRequest> for ank_base::UpdateStateRequest {
         Self {
             new_state: Some(value.state.into()),
             update_mask: value.update_mask,
+            dry_run: value.dry_run,
         }
     }
 }
@@ -231,6 +234,7 @@ impl TryFrom<ank_base::UpdateStateRequest> for UpdateStateRequest {
         Ok(UpdateStateRequest {
             state: item.new_state.unwrap_or_default().try_into()?,
             update_mask: item.update_mask,
+            dry_run: item.dry_run,
         })
     }
 }
@@ -331,12 +335,14 @@ mod tests {
             ank_base::RequestContent::UpdateStateRequest(Box::new(ank_base::UpdateStateRequest {
                 new_state: complete_state!(ank_base).into(),
                 update_mask: vec![FIELD_1.into(), FIELD_2.into()],
+                dry_run: false,
             }))
         };
         (ankaios) => {
             ankaios::RequestContent::UpdateStateRequest(Box::new(ankaios::UpdateStateRequest {
                 state: complete_state!(ankaios),
                 update_mask: vec![FIELD_1.into(), FIELD_2.into()],
+                dry_run: false,
             }))
         };
     }

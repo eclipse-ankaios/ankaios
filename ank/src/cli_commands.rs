@@ -32,6 +32,7 @@ mod wait_list_display;
 mod apply_manifests;
 mod delete_configs;
 mod delete_workloads;
+mod dry_run_plan;
 mod get_agents;
 mod get_configs;
 mod get_logs;
@@ -51,7 +52,7 @@ use wait_list_display::WaitListDisplay;
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
 use crate::{
-    cli_commands::wait_list::ParsedUpdateStateSuccess,
+    cli_commands::{dry_run_plan::{build_dry_run_rows, render_dry_run_table}, wait_list::ParsedUpdateStateSuccess},
     cli_error::CliError,
     filtered_complete_state::{FilteredCompleteState, FilteredWorkloadSpec},
     output, output_debug,
@@ -244,7 +245,7 @@ impl CliCommands {
 
         let update_state_success = self
             .server_connection
-            .update_state(new_state, update_mask)
+            .update_state(new_state, update_mask, false)
             .await?;
 
         output_debug!("Got update success: {:?}", update_state_success);
@@ -354,6 +355,29 @@ impl CliCommands {
                     wait_list.step_spinner();
                 }
             }
+        }
+        Ok(())
+    }
+
+    async fn execute_dry_run(
+        &mut self,
+        complete_state: CompleteState,
+        filter_masks: Vec<String>,
+    ) -> Result<(), CliError> {
+        let dry_run_result = self
+            .server_connection
+            .update_state(complete_state, filter_masks, true) // dry_run is always true here
+            .await?;
+
+        let added_workloads = dry_run_result.added_workloads;
+        let deleted_workloads = dry_run_result.deleted_workloads;
+
+        if added_workloads.is_empty() && deleted_workloads.is_empty() {
+            output!("Dry run: no changes.");
+        } else {
+            let rows = build_dry_run_rows(&added_workloads, &deleted_workloads);
+            let table = render_dry_run_table(&rows);
+            output!("{table}");
         }
         Ok(())
     }

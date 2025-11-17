@@ -352,6 +352,7 @@ mod test {
                 UpdateStateRequest {
                     state: Default::default(),
                     update_mask: vec![],
+                    dry_run: false,
                 },
             )),
         };
@@ -424,6 +425,7 @@ mod test {
                 UpdateStateRequest {
                     update_mask: vec![MATCHING_PATH.into()],
                     state: Default::default(),
+                    dry_run: false,
                 },
             )),
         };
@@ -477,6 +479,7 @@ mod test {
                 UpdateStateRequest {
                     update_mask: vec![MATCHING_PATH.into(), MATCHING_PATH_2.into()],
                     state: Default::default(),
+                    dry_run: false, 
                 },
             )),
         };
@@ -505,6 +508,7 @@ mod test {
                 UpdateStateRequest {
                     update_mask: vec![MATCHING_PATH.into(), NON_MATCHING_PATH.into()],
                     state: Default::default(),
+                    dry_run: false,
                 },
             )),
         };

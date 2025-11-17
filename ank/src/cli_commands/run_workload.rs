@@ -125,8 +125,9 @@ mod tests {
                     "desiredState.workloads.{}",
                     TEST_WORKLOAD_NAME
                 )]),
+                eq(false),
             )
-            .return_once(|_, _| {
+            .return_once(|_, _, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![format!(
                         "{}.abc.agent_B",

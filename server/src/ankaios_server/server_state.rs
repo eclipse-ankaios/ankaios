@@ -105,7 +105,6 @@ impl Display for UpdateStateError {
         }
     }
 }
-
 #[derive(Default)]
 pub struct ServerState {
     state: CompleteState,
@@ -115,6 +114,15 @@ pub struct ServerState {
 }
 
 pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>)>;
+
+type StateChangeCalculation = Result<
+    (
+        CompleteState,
+        RenderedWorkloads,
+        AddedDeletedWorkloads,
+    ),
+    UpdateStateError,
+>;
 
 #[cfg_attr(test, automock)]
 impl ServerState {
@@ -196,70 +204,32 @@ impl ServerState {
         new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<AddedDeletedWorkloads, UpdateStateError> {
-        // [impl->swdd~update-desired-state-with-update-mask~1]
-        // [impl->swdd~update-desired-state-empty-update-mask~1]
-        match self.generate_new_state(new_state, update_mask) {
-            Ok(new_templated_state) => {
-                // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
-                let new_rendered_workloads = self
-                    .config_renderer
-                    .render_workloads(
-                        &new_templated_state.desired_state.workloads,
-                        &new_templated_state.desired_state.configs,
-                    )
-                    .map_err(|err| UpdateStateError::ResultInvalid(err.to_string()))?;
 
-                // [impl->swdd~server-state-triggers-validation-of-workload-fields~1]
-                self.verify_workload_fields_format(&new_rendered_workloads)?;
+        let (new_templated_state, new_rendered_workloads, workload_changes) =
+            self.calculate_state_changes(new_state, update_mask)?;
 
-                // [impl->swdd~server-state-compares-rendered-workloads~1]
-                let cmd = extract_added_and_deleted_workloads(
-                    &self.rendered_workloads,
-                    &new_rendered_workloads,
-                );
+        if let Some((added_workloads, mut deleted_workloads)) = workload_changes {
+            // If there are changes, we commit them to the server's state.
 
-                if let Some((added_workloads, mut deleted_workloads)) = cmd {
-                    let start_nodes: Vec<&str> = added_workloads
-                        .iter()
-                        .filter_map(|w| {
-                            if !w.dependencies.is_empty() {
-                                Some(w.instance_name.workload_name())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
+            // [impl->swdd~server-state-stores-delete-condition~1]
+            self.delete_graph.insert(&added_workloads);
 
-                    // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
-                    if let Some(workload_part_of_cycle) =
-                        cycle_check::dfs(&new_templated_state.desired_state, Some(start_nodes))
-                    {
-                        return Err(UpdateStateError::CycleInDependencies(
-                            workload_part_of_cycle,
-                        ));
-                    }
+            self
+                .delete_graph
+                .apply_delete_conditions_to(&mut deleted_workloads);
 
-                    // [impl->swdd~server-state-stores-delete-condition~1]
-                    self.delete_graph.insert(&added_workloads);
 
-                    // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
-                    self.delete_graph
-                        .apply_delete_conditions_to(&mut deleted_workloads);
+            self.set_desired_state(new_templated_state.desired_state);
+            self.rendered_workloads = new_rendered_workloads;
 
-                    self.set_desired_state(new_templated_state.desired_state);
-                    self.rendered_workloads = new_rendered_workloads;
-                    Ok(Some((added_workloads, deleted_workloads)))
-                } else {
-                    // update state with changed fields not affecting workloads, e.g. config items
-                    // [impl->swdd~server-state-updates-state-on-unmodified-workloads~1]
-                    self.set_desired_state(new_templated_state.desired_state);
-                    Ok(None)
-                }
-            }
-            Err(error) => Err(error),
+            Ok(Some((added_workloads, deleted_workloads)))
+        } else {
+            // update state with changed fields not affecting workloads, e.g. config items
+            // [impl->swdd~server-state-updates-state-on-unmodified-workloads~1]
+            self.set_desired_state(new_templated_state.desired_state);
+            Ok(None)
         }
     }
-
     // [impl->swdd~server-state-stores-agent-in-complete-state~1]
     pub fn add_agent(&mut self, agent_name: String) {
         self.state
@@ -298,8 +268,17 @@ impl ServerState {
             .remove_deleted_workloads_from_delete_graph(new_workload_states);
     }
 
+    pub fn update_dry_run(
+        &self,
+        new_state: CompleteState,
+        update_mask: Vec<String>,
+    ) -> Result<AddedDeletedWorkloads, UpdateStateError> {
+        let (_, _, workload_changes) = self.calculate_state_changes(new_state, update_mask)?;
+        Ok(workload_changes)
+    }
+
     fn generate_new_state(
-        &mut self,
+        &self,
         updated_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<CompleteState, UpdateStateError> {
@@ -347,6 +326,62 @@ impl ServerState {
                 .map_err(UpdateStateError::ResultInvalid)?;
         }
         Ok(())
+    }
+
+    fn calculate_state_changes(
+        &self,
+        new_state: CompleteState,
+        update_mask: Vec<String>,
+    ) -> StateChangeCalculation {
+        // [impl->swdd~update-desired-state-with-update-mask~1]
+        // [impl->swdd~update-desired-state-empty-update-mask~1]
+        let new_templated_state = self.generate_new_state(new_state, update_mask)?;
+
+        // [impl->swdd~server-state-triggers-configuration-rendering-of-workloads~1]
+        let new_rendered_workloads = self
+            .config_renderer
+            .render_workloads(
+                &new_templated_state.desired_state.workloads,
+                &new_templated_state.desired_state.configs,
+            )
+            .map_err(|err| UpdateStateError::ResultInvalid(err.to_string()))?;
+
+        // [impl->swdd~server-state-triggers-validation-of-workload-fields~1]
+        self.verify_workload_fields_format(&new_rendered_workloads)?;
+
+        // [impl->swdd~server-state-compares-rendered-workloads~1]
+        let workload_changes =
+            extract_added_and_deleted_workloads(&self.rendered_workloads, &new_rendered_workloads);
+
+        // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
+        if let Some((added_workloads, deleted_workloads)) = workload_changes {
+            let start_nodes: Vec<&str> = added_workloads
+                .iter()
+                .filter_map(|w| {
+                    if !w.dependencies.is_empty() {
+                        Some(w.instance_name.workload_name())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            if let Some(workload_part_of_cycle) =
+                cycle_check::dfs(&new_templated_state.desired_state, Some(start_nodes))
+            {
+                return Err(UpdateStateError::CycleInDependencies(
+                    workload_part_of_cycle,
+                ));
+            }
+
+            Ok((
+                new_templated_state,
+                new_rendered_workloads,
+                Some((added_workloads, deleted_workloads)),
+            ))
+        } else {
+            Ok((new_templated_state, new_rendered_workloads, None))
+        }
     }
 }
 

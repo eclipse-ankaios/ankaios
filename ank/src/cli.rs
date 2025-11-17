@@ -271,6 +271,9 @@ pub enum SetCommands {
         /// A file containing the new State Object Description in yaml format
         #[arg(required = true, value_hint = ValueHint::FilePath)]
         state_object_file: String,
+        /// Show what changes would be made, without actually executing them.
+        #[arg(long = "dry-run", default_value_t = false)]
+        dry_run: bool,
     },
 }
 
@@ -346,6 +349,9 @@ pub struct ApplyArgs {
     /// Delete mode activated
     #[arg(short)]
     pub delete_mode: bool,
+    /// Show what changes would be made, without actually executing them.
+    #[arg(long = "dry-run", default_value_t = false)]
+    pub dry_run: bool,
 }
 
 /// Fetch the logs of workloads

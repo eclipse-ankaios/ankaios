@@ -22,7 +22,11 @@ use std::io::{self, Read};
 fn read_file_to_string(file: String) -> std::io::Result<String> {
     std::fs::read_to_string(file)
 }
-use crate::{cli_error::CliError, output_debug};
+use crate::{
+
+    cli_error::CliError,
+    output_debug,
+};
 #[cfg(test)]
 use tests::read_to_string_mock as read_file_to_string;
 
@@ -109,6 +113,7 @@ impl CliCommands {
         &mut self,
         object_field_mask: Vec<String>,
         state_object_file: String,
+        dry_run: bool,
     ) -> Result<(), CliError> {
         output_debug!(
             "Got: object_field_mask={:?} state_object_file={:?}",
@@ -129,6 +134,10 @@ impl CliCommands {
             "Send UpdateState request with the CompleteState {:?}",
             new_complete_state
         );
+        if dry_run {
+            return self
+                .execute_dry_run(new_complete_state, object_field_mask).await;
+        }
 
         // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
         self.update_state_and_wait_for_complete(new_complete_state, object_field_mask)
@@ -327,8 +336,8 @@ mod tests {
             .returning(|_| Ok(FilteredCompleteState::default()));
         mock_server_connection
             .expect_update_state()
-            .with(eq(updated_state), eq(update_mask.clone()))
-            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
+            .with(eq(updated_state), eq(update_mask.clone()), eq(false))
+            .return_once(|_, _, _| Ok(UpdateStateSuccess::default()));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
@@ -336,7 +345,7 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
-        let set_state_result = cmd.set_state(update_mask, state_object_file).await;
+        let set_state_result = cmd.set_state(update_mask, state_object_file, false).await;
         assert!(set_state_result.is_ok());
     }
 }

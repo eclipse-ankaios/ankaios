@@ -147,11 +147,12 @@ impl ServerConnection {
         &mut self,
         new_state: CompleteState,
         update_mask: Vec<String>,
+        dry_run: bool,
     ) -> Result<ank_base::UpdateStateSuccess, ServerConnectionError> {
         let request_id = uuid::Uuid::new_v4().to_string();
         output_debug!("Sending the new state {:?}", new_state);
         self.to_server
-            .update_state(request_id.clone(), new_state, update_mask)
+            .update_state(request_id.clone(), new_state, update_mask, dry_run)
             .await
             .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
 
@@ -963,6 +964,7 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: false,
             })),
         );
         sim.will_send_response(
@@ -972,7 +974,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()], false)
             .await;
 
         assert!(result.is_ok());
@@ -989,7 +991,7 @@ mod tests {
         server_connection.to_server = to_server;
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()], false)
             .await;
 
         assert!(result.is_err());
@@ -1003,13 +1005,14 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: false,
             })),
         );
 
         let (_, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()], false)
             .await;
 
         assert!(result.is_err());
@@ -1023,6 +1026,7 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: false,
             })),
         );
         sim.will_send_response(
@@ -1033,7 +1037,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()], false)
             .await;
 
         assert!(result.is_err());
@@ -1048,6 +1052,7 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: false,
             })),
         );
 
@@ -1056,7 +1061,7 @@ mod tests {
         server_connection.from_server = from_server;
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()], false)
             .await;
 
         assert!(result.is_err());
@@ -1106,6 +1111,7 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: false,
             })),
         );
         sim.will_send_message(other_response.clone());
@@ -1116,7 +1122,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()], false)
             .await;
 
         assert!(result.is_ok());
@@ -1145,6 +1151,7 @@ mod tests {
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
+                dry_run: false,
             })),
         );
         sim.will_send_message(other_message.clone());
@@ -1155,7 +1162,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()], false)
             .await;
 
         assert!(result.is_ok());
