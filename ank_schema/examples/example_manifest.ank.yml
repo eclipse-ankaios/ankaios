@@ -9,7 +9,6 @@ workloads:
     dependencies:
       hello1: ADD_COND_SUCCEEDED
     restartPolicy: ON_FAILURE
-
     controlInterfaceAccess:
       allowRules:
         - type: StateRule
@@ -46,5 +45,4 @@ configs:
               - and
               - some
               - arrays
-
 
