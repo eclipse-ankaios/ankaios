@@ -5,7 +5,7 @@ The schema is generated automatically using the [schemars](https://github.com/GR
 
 ## Generating a new schema
 
-Building the crate results in updating the schema file under [schemas/ank_schema.json](./schemas/ank_schema.json). If the rust-analyzer is running, you don't even need to manually build as the analyzer triggers the build automatically resulting in an update of the schema.
+Building the crate results in updating the schema file `ank_schema.json` under `target`. If the rust-analyzer is running, you don't even need to manually build as the analyzer triggers the build automatically resulting in an update of the schema.
 
 The [main.rs](./src/main.rs) still contain some code to output the schema to the console in case this is required.
 
