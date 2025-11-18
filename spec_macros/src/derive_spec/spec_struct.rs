@@ -13,13 +13,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
+use quote::quote;
 use syn::{FieldsNamed, Ident, Type, Visibility, parse_quote};
 
 use crate::utils::{
     DerivedSpec, extract_inner, get_doc_attrs, get_prost_enum_type, get_prost_map_enum_value_type,
     get_spec_field_attrs, has_mandatory_attr, inner_hashmap_type_path, inner_vec_type_path,
-    is_custom_type_path, is_option_type_path, to_spec_type, wrap_in_option,
+    is_custom_type_path, is_option_type_path, to_spec_ident, to_spec_type, wrap_in_option,
 };
 
 pub fn derive_spec_struct(
@@ -28,8 +28,7 @@ pub fn derive_spec_struct(
     vis: Visibility,
     type_attrs: Vec<TokenStream>,
 ) -> syn::Result<DerivedSpec> {
-    let spec_name = format_ident!("{}Spec", orig_name);
-
+    let spec_name = to_spec_ident(&orig_name);
     let mut spec_fields = Vec::new();
     let mut try_from_inits = Vec::new();
     let mut from_inits = Vec::new();

@@ -19,7 +19,7 @@ use syn::{Fields, FieldsUnnamed, Ident, Token, Type, Visibility, punctuated::Pun
 use crate::utils::{
     DerivedSpec, check_for_forbidden_mandatory_attr, get_doc_attrs, get_prost_enum_type,
     get_spec_field_attrs, has_enum_named_attr, inner_boxed_type_path, is_custom_type_path,
-    is_option_type_path, pascal_to_snake_case, to_spec_type,
+    is_option_type_path, pascal_to_snake_case, to_spec_ident, to_spec_type,
 };
 
 pub fn derive_spec_enum(
@@ -28,7 +28,7 @@ pub fn derive_spec_enum(
     vis: Visibility,
     type_attrs: Vec<TokenStream>,
 ) -> syn::Result<DerivedSpec> {
-    let spec_name = format_ident!("{}Spec", orig_name);
+    let spec_name = to_spec_ident(&orig_name);
     let mut spec_variants = Vec::new();
     let mut try_from_variants = Vec::new();
     let mut from_variants = Vec::new();

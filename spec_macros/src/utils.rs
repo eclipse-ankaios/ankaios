@@ -337,10 +337,16 @@ pub fn inner_hashmap_type_path(tp: &TypePath) -> Option<(TypePath, TypePath)> {
     None
 }
 
+const SPEC_MACRO_SUFFIX: &str = "Spec";
+
+pub fn to_spec_ident(ident: &Ident) -> Ident {
+    format_ident!("{}{}", ident, SPEC_MACRO_SUFFIX)
+}
+
 pub fn to_spec_type(tp: &TypePath) -> Type {
     let mut new_path = tp.clone();
     let last = new_path.path.segments.last_mut().unwrap();
-    last.ident = Ident::new(&format!("{}Spec", last.ident), last.ident.span());
+    last.ident = to_spec_ident(&last.ident);
     Type::Path(new_path)
 }
 
@@ -361,9 +367,7 @@ mod tests {
     use proc_macro2::TokenStream;
     use quote::{ToTokens, quote};
     use syn::{
-        Attribute, Type, TypePath,
-        parse::{Parse, Parser},
-        parse_quote,
+        Attribute, Ident, Type, TypePath, parse::{Parse, Parser}, parse_quote
     };
 
     #[test]
@@ -854,5 +858,13 @@ mod tests {
             .map(|p| p.segments[0].ident.to_string())
             .collect();
         assert_eq!(idents, vec!["Clone", "Debug"]);
+    }
+
+    #[test]
+    fn test_to_spec_ident() {
+        let original: Ident = parse_quote! { MyType };
+        let spec_ident = super::to_spec_ident(&original);
+        let expected: Ident = parse_quote! { MyTypeSpec };
+        assert_eq!(spec_ident.to_string(), expected.to_string());
     }
 }
