@@ -22,6 +22,8 @@ use api::ank_base;
 use chrono::Utc;
 
 impl CliCommands {
+    // [impl->swdd~cli-provides-get-events-command~1]
+    // [impl->swdd~cli-receives-events~1]
     pub async fn get_events(
         &mut self,
         object_field_mask: Vec<String>,
@@ -33,6 +35,7 @@ impl CliCommands {
             output_format
         );
 
+        // [impl->swdd~cli-subscribes-for-events~1]
         let mut subscription = self
             .server_connection
             .subscribe_and_listen_for_events(object_field_mask)
@@ -49,6 +52,7 @@ impl CliCommands {
         Ok(())
     }
 
+    // [impl->swdd~cli-outputs-events-with-timestamp~1]
     fn output_event(
         event: &ank_base::CompleteStateResponse,
         output_format: &OutputFormat,
@@ -72,14 +76,19 @@ impl CliCommands {
             complete_state: Some(filtered_state),
         };
 
-        let output = match output_format {
-            OutputFormat::Yaml => serde_yaml::to_string(&event_output)
-                .map_err(|err| CliError::ExecutionError(err.to_string()))?,
-            OutputFormat::Json => serde_json::to_string_pretty(&event_output)
-                .map_err(|err| CliError::ExecutionError(err.to_string()))?,
+        // [impl->swdd~cli-supports-multiple-output-types-for-events~1]
+        match output_format {
+            OutputFormat::Yaml => {
+                let yaml_output = serde_yaml::to_string(&event_output)
+                    .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+                output!("---\n{}", yaml_output.trim_end());
+            }
+            OutputFormat::Json => {
+                let json_output = serde_json::to_string(&event_output)
+                    .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+                output!("{json_output}");
+            }
         };
-
-        output!("{output}");
 
         Ok(())
     }
@@ -105,6 +114,9 @@ mod tests {
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
+    // [utest->swdd~cli-provides-get-events-command~1]
+    // [utest->swdd~cli-receives-events~1]
+    // [utest->swdd~cli-supports-multiple-output-types-for-events~1]
     #[tokio::test]
     async fn utest_get_events_yaml_output() {
         let field_mask = vec!["desiredState.workloads".to_string()];
@@ -163,6 +175,8 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    // [utest->swdd~cli-provides-get-events-command~1]
+    // [utest->swdd~cli-supports-multiple-output-types-for-events~1]
     #[tokio::test]
     async fn utest_get_events_json_output() {
         let field_mask = vec!["workloadStates".to_string()];
@@ -195,6 +209,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    // [utest->swdd~cli-subscribes-for-events~1]
     #[tokio::test]
     async fn utest_get_events_empty_field_mask() {
         let field_mask = vec![];
@@ -227,6 +242,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    // [utest->swdd~cli-handles-event-subscription-errors~1]
     #[tokio::test]
     async fn utest_get_events_subscription_fails() {
         let field_mask = vec!["desiredState.workloads".to_string()];
@@ -255,6 +271,7 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // [utest->swdd~cli-handles-event-subscription-errors~1]
     #[tokio::test]
     async fn utest_get_events_receive_event_fails() {
         let field_mask = vec!["desiredState.workloads".to_string()];
@@ -293,6 +310,7 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // [utest->swdd~cli-receives-events~1]
     #[tokio::test]
     async fn utest_get_events_multiple_events() {
         let field_mask = vec!["desiredState.workloads".to_string()];
@@ -375,6 +393,8 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    // [utest->swdd~cli-outputs-events-with-timestamp~1]
+    // [utest->swdd~cli-supports-multiple-output-types-for-events~1]
     #[test]
     fn utest_output_event_yaml_format() {
         let event = ank_base::CompleteStateResponse {
@@ -393,6 +413,8 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    // [utest->swdd~cli-supports-multiple-output-types-for-events~1]
+    // [utest->swdd~cli-outputs-events-with-timestamp~1]
     #[test]
     fn utest_output_event_json_format() {
         let event = ank_base::CompleteStateResponse {
@@ -411,6 +433,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    // [utest->swdd~cli-outputs-events-with-timestamp~1]
     #[test]
     fn utest_output_event_no_altered_fields() {
         let event = ank_base::CompleteStateResponse {
@@ -425,6 +448,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    // [utest->swdd~cli-outputs-events-with-timestamp~1]
     #[test]
     fn utest_output_event_empty_complete_state() {
         let event = ank_base::CompleteStateResponse {
@@ -440,6 +464,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    // [utest->swdd~cli-outputs-events-with-timestamp~1]
     #[test]
     fn utest_output_event_all_altered_fields_types() {
         let event = ank_base::CompleteStateResponse {

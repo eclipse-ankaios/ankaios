@@ -38,7 +38,7 @@ Test Ankaios CLI update workload
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${default_state_yaml_file}"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And all workloads of agent "agent_A" shall start via events
     And the command "curl localhost:8081" finished with exit code "0"
     # Actions
     When user triggers "ank -k get state > ${new_state_yaml_file}"

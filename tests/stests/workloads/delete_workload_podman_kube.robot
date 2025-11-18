@@ -35,7 +35,7 @@ Test Ankaios Podman delete kube workload
     And Podman has deleted all existing volumes
     And Ankaios server is started with config "${CONFIGS_DIR}/kube.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And all workloads of agent "agent_A" shall start via events
     # Actions
     When user triggers "ank -k delete workload hello-k8s"
     # Asserts

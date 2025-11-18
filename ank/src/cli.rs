@@ -250,6 +250,7 @@ pub enum GetCommands {
     /// For automation use "ank get state -o json" and process desiredState.configs
     #[clap(visible_alias("configs"), verbatim_doc_comment)]
     Config {},
+    /// Real-time state change events from the Ankaios system
     Events {
         /// Specify the output format
         #[arg(short = 'o', value_enum, default_value_t = OutputFormat::Yaml)]

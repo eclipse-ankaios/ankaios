@@ -16,7 +16,7 @@ use crate::cli::LogsArgs;
 #[cfg_attr(test, mockall_double::double)]
 use crate::cli_signals::SignalHandler;
 use crate::filtered_complete_state::FilteredCompleteState;
-use crate::{output, output_and_error, output_debug};
+use crate::{output_and_error, output_debug};
 use std::{collections::BTreeSet, mem::take, time::Duration};
 
 use api::ank_base::{self, LogsRequestAccepted};
@@ -401,11 +401,12 @@ impl ServerConnection {
         }
     }
 
+    // [impl->swdd~cli-subscribes-for-events~1]
     pub async fn subscribe_and_listen_for_events(
         &mut self,
         field_mask: Vec<String>,
     ) -> Result<EventSubscription, ServerConnectionError> {
-        output!(
+        output_debug!(
             "Subscribing for events from server with field mask: {:?}",
             field_mask
         );
@@ -426,11 +427,13 @@ impl ServerConnection {
         })
     }
 
+    // [impl->swdd~cli-receives-events~1]
+    // [impl->swdd~cli-handles-event-subscription-errors~1]
     pub async fn receive_next_event(
         &mut self,
         subscription: &mut EventSubscription,
     ) -> Result<Option<ank_base::CompleteStateResponse>, ServerConnectionError> {
-        output!("Listening for events from server...");
+        output_debug!("Listening for events from server...");
         loop {
             tokio::select! {
                 _ = SignalHandler::wait_for_signals() => {
@@ -1932,6 +1935,7 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-subscribes-for-events~1]
     #[tokio::test]
     async fn utest_subscribe_and_listen_for_events_success() {
         let field_mask = vec!["desiredState.workloads".to_string()];
@@ -1961,6 +1965,7 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-subscribes-for-events~1]
     #[tokio::test]
     async fn utest_subscribe_and_listen_for_events_empty_field_mask() {
         let field_mask = vec![];
@@ -1987,6 +1992,7 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-handles-event-subscription-errors~1]
     #[tokio::test]
     async fn utest_subscribe_and_listen_for_events_fails_channel_closed() {
         let field_mask = vec!["desiredState.workloads".to_string()];
@@ -2004,6 +2010,7 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // [utest->swdd~cli-receives-events~1]
     #[tokio::test]
     async fn utest_receive_next_event_initial_state_then_event() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -2117,6 +2124,8 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-receives-events~1]
+    // [utest->swdd~cli-handles-event-subscription-errors~1]
     #[tokio::test]
     async fn utest_receive_next_event_signal_interruption() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -2143,6 +2152,8 @@ mod tests {
         assert!(result.unwrap().is_none());
     }
 
+    // [utest->swdd~cli-receives-events~1]
+    // [utest->swdd~cli-handles-event-subscription-errors~1]
     #[tokio::test]
     async fn utest_receive_next_event_error_response() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -2150,9 +2161,11 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.will_send_message(FromServer::Response(ank_base::Response {
             request_id: REQUEST.to_string(),
-            response_content: Some(ank_base::response::ResponseContent::Error(ank_base::Error {
-                message: "Event subscription error".to_string(),
-            })),
+            response_content: Some(ank_base::response::ResponseContent::Error(
+                ank_base::Error {
+                    message: "Event subscription error".to_string(),
+                },
+            )),
         }));
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
@@ -2182,6 +2195,8 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-receives-events~1]
+    // [utest->swdd~cli-handles-event-subscription-errors~1]
     #[tokio::test]
     async fn utest_receive_next_event_connection_interrupted() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -2215,6 +2230,7 @@ mod tests {
         }
     }
 
+    // [utest->swdd~cli-receives-events~1]
     #[tokio::test]
     async fn utest_receive_next_event_ignores_unexpected_messages() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -2296,6 +2312,7 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-receives-events~1]
     #[tokio::test]
     async fn utest_receive_next_event_multiple_events_in_sequence() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
