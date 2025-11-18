@@ -34,9 +34,9 @@ pub fn setup_spec_state(builder: Builder) -> Builder {
         )
         .field_attribute("CompleteState.desiredState", "#[spec_mandatory]")
         .field_attribute("CompleteState.desiredState", "#[spec_field_attr(#[serde(default)])]")
-        .field_attribute("CompleteState.workloadStates", "#[spec_mandatory]")
+        .field_attribute("CompleteState.workloadStates", "#[spec_default]")
         .field_attribute("CompleteState.workloadStates", "#[spec_field_attr(#[serde(default)])]")
-        .field_attribute("CompleteState.agents", "#[spec_mandatory]")
+        .field_attribute("CompleteState.agents", "#[spec_default]")
         .field_attribute("CompleteState.agents", "#[spec_field_attr(#[serde(default)])]")
 
         .message_attribute(
@@ -52,7 +52,7 @@ pub fn setup_spec_state(builder: Builder) -> Builder {
         )
         .field_attribute("State.workloads","#[spec_mandatory]")
         .field_attribute("State.workloads", "#[spec_field_attr(#[serde(default)])]")
-        .field_attribute("State.configs","#[spec_mandatory]")
+        .field_attribute("State.configs","#[spec_default]")
         .field_attribute("State.configs", "#[spec_field_attr(#[serde(default)])]")
 
         .message_attribute("WorkloadMap", "#[derive(spec_macros::Spec)]")
@@ -125,14 +125,14 @@ pub fn setup_spec_workload(builder: Builder) -> Builder {
         )
 
         .field_attribute("Workload.agent", "#[spec_mandatory]")
-        .field_attribute("Workload.restartPolicy", "#[spec_mandatory]")
-        .field_attribute("Workload.dependencies", "#[spec_mandatory]")
-        .field_attribute("Workload.tags", "#[spec_mandatory]")
+        .field_attribute("Workload.restartPolicy", "#[spec_default]")
+        .field_attribute("Workload.dependencies", "#[spec_default]")
+        .field_attribute("Workload.tags", "#[spec_default]")
         .field_attribute("Workload.runtime", "#[spec_mandatory]")
         .field_attribute("Workload.runtimeConfig", "#[spec_mandatory]")
-        .field_attribute("Workload.controlInterfaceAccess", "#[spec_mandatory]")
-        .field_attribute("Workload.configs", "#[spec_mandatory]")
-        .field_attribute("Workload.files", "#[spec_mandatory]")
+        .field_attribute("Workload.controlInterfaceAccess", "#[spec_default]")
+        .field_attribute("Workload.configs", "#[spec_default]")
+        .field_attribute("Workload.files", "#[spec_default]")
 
         .field_attribute("Workload.dependencies", "#[spec_field_attr(#[serde(flatten)])]")
         .field_attribute("Workload.tags", "#[spec_field_attr(#[serde(flatten)])]")

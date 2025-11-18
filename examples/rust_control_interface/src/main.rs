@@ -14,8 +14,7 @@
 
 use api::ank_base::{
     request::RequestContent, response::ResponseContent, CompleteState, CompleteStateRequest,
-    Dependencies, Request, RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
-    WorkloadMap,
+    Dependencies, Request, RestartPolicy, State, Tags, UpdateStateRequest, Workload, WorkloadMap,
 };
 use api::control_api::{
     from_ankaios::FromAnkaiosEnum, to_ankaios::ToAnkaiosEnum, FromAnkaios, Hello, ToAnkaios,
@@ -68,10 +67,7 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
                 agent: Some("agent_A".to_string()),
                 restart_policy: Some(RestartPolicy::Never.into()),
                 tags: Some(Tags {
-                    tags: vec![Tag {
-                        key: "owner".to_string(),
-                        value: "Ankaios team".to_string(),
-                    }],
+                    tags: HashMap::from([("owner".to_string(), "Ankaios team".to_string())]),
                 }),
                 runtime_config: Some(
                     "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"

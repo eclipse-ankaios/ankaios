@@ -89,7 +89,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .field_attribute("Workload.tags", "#[serde(flatten)]")
         .field_attribute("Workload.configs", "#[serde(flatten)]")
         .field_attribute("Workload.dependencies", "#[serde(flatten)]")
-        .message_attribute("Files", "#[serde(transparent)]")
+        .field_attribute("Workload.files", "#[serde(flatten)]")
         .field_attribute("WorkloadStatesMap.agentStateMap", "#[serde(flatten)]")
         .field_attribute(
             "ExecutionsStatesOfWorkload.wlNameStateMap",
@@ -111,7 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .field_attribute(
             "Files.files",
-            "#[serde(skip_serializing_if = \"Vec::is_empty\")]",
+            "#[serde(default, skip_serializing_if = \"Vec::is_empty\")]",
         )
         // Yes, this is not a map, but this is the only way to get the desired serialization behavior without ! in the YAML and a custom serializer
         .field_attribute(

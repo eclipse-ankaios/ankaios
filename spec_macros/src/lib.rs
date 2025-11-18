@@ -24,6 +24,7 @@ mod fix_enum_serialization;
     Spec,
     attributes(
         spec_mandatory,
+        spec_default,
         spec_enum_named,
         spec_derive,
         spec_type_attr,

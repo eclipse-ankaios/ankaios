@@ -14,13 +14,35 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{FieldsNamed, Ident, Type, Visibility, parse_quote};
+use syn::{Attribute, FieldsNamed, Ident, Meta, Type, Visibility, parse_quote};
 
 use crate::utils::{
     DerivedSpec, extract_inner, get_doc_attrs, get_prost_enum_type, get_prost_map_enum_value_type,
     get_spec_field_attrs, has_mandatory_attr, inner_hashmap_type_path, inner_vec_type_path,
     is_custom_type_path, is_option_type_path, to_spec_ident, to_spec_type, wrap_in_option,
 };
+
+// TODO #313 take care of the utests
+fn has_default_attr(attrs: &[Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("spec_default")))
+}
+
+fn get_option_handling(attrs: &[Attribute], field_name: &Ident) -> Option<TokenStream> {
+    if has_mandatory_attr(attrs) {
+        let missing_field_msg = format!("Missing field '{field_name}'");
+        Some(quote! {
+            .ok_or(#missing_field_msg)?
+        })
+    } else if has_default_attr(attrs) {
+        Some(quote! {
+            .unwrap_or_default()
+        })
+    } else {
+        None
+    }
+}
 
 pub fn derive_spec_struct(
     fields_named: FieldsNamed,
@@ -44,10 +66,10 @@ pub fn derive_spec_struct(
             ));
         };
 
-        let missing_field_msg = format!("Missing field '{field_name}'");
-        let conversion_error_msg = format!("Cannot convert field '{field_name}' to spec object.");
+        let conversion_error_msg =
+            format!("Cannot convert field '{field_name}' to spec object: ") + "'{err}'.";
 
-        let mandatory = has_mandatory_attr(&field.attrs);
+        let option_handling = get_option_handling(&field.attrs, &field_name);
 
         let prost_enum_tp = get_prost_enum_type(&field.attrs);
 
@@ -60,7 +82,7 @@ pub fn derive_spec_struct(
         if is_option_type_path(tp) {
             // Option<inner>
             let inner = extract_inner(tp);
-            if mandatory {
+            if let Some(option_handling) = option_handling {
                 if prost_enum_tp.is_some() || is_custom_type_path(&inner) {
                     new_field_type = if let Some(prost_enum_type) = prost_enum_tp {
                         Type::Path(prost_enum_type)
@@ -70,9 +92,9 @@ pub fn derive_spec_struct(
 
                     try_from_init_entry = quote! {
                         #field_name: orig.#field_name
-                            .ok_or(#missing_field_msg)?
+                            #option_handling
                             .try_into()
-                            .map_err(|_| #conversion_error_msg)?
+                            .map_err(|err| format!(#conversion_error_msg))?
                     };
                     from_init_entry = quote! {
                         #field_name: Some(orig.#field_name.into())
@@ -82,7 +104,7 @@ pub fn derive_spec_struct(
 
                     try_from_init_entry = quote! {
                         #field_name: orig.#field_name
-                            .ok_or(#missing_field_msg)?
+                            #option_handling
                     };
                     from_init_entry = quote! {
                         #field_name: Some(orig.#field_name)
@@ -121,7 +143,7 @@ pub fn derive_spec_struct(
                 };
 
                 try_from_init_entry = quote! {
-                    #field_name: orig.#field_name.try_into().map_err(|_| #conversion_error_msg)?
+                    #field_name: orig.#field_name.try_into().map_err(|err| format!(#conversion_error_msg))?
                 };
                 from_init_entry = quote! {
                     #field_name: orig.#field_name.into()
@@ -151,7 +173,7 @@ pub fn derive_spec_struct(
 
                 try_from_init_entry = quote! {
                     #field_name: orig.#field_name.into_iter()
-                        .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| #conversion_error_msg)?)))
+                        .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|err| format!(#conversion_error_msg))?)))
                         .collect::<Result<_, String>>()?
                 };
                 from_init_entry = quote! {
