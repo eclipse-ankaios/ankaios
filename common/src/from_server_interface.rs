@@ -199,8 +199,7 @@ impl FromServerInterface for FromServerSender {
         request_id: String,
         logs_request: LogsRequest,
     ) -> Result<(), FromServerInterfaceError> {
-        let logs_request_internal = LogsRequestSpec {
-            // MARK #313 LogsRequest -> LogsRequestSpec
+        let logs_request_spec = LogsRequestSpec {
             workload_names: logs_request
                 .workload_names
                 .iter()
@@ -211,7 +210,7 @@ impl FromServerInterface for FromServerSender {
             since: logs_request.since,
             until: logs_request.until,
         };
-        self.send(FromServer::LogsRequest(request_id, logs_request_internal))
+        self.send(FromServer::LogsRequest(request_id, logs_request_spec))
             .await?;
         Ok(())
     }

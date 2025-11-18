@@ -177,8 +177,7 @@ impl ToServerInterface for ToServerSender {
         request_id: String,
         logs_request: LogsRequest,
     ) -> Result<(), ToServerError> {
-        // MARK #313 LogsRequest -> LogsRequestSpec
-        let logs_request_internal = LogsRequestSpec {
+        let logs_request_spec = LogsRequestSpec {
             workload_names: logs_request
                 .workload_names
                 .iter()
@@ -192,7 +191,7 @@ impl ToServerInterface for ToServerSender {
         Ok(self
             .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContentSpec::LogsRequest(logs_request_internal),
+                request_content: RequestContentSpec::LogsRequest(logs_request_spec),
             }))
             .await?)
     }

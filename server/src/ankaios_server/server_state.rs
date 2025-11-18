@@ -1275,7 +1275,7 @@ mod tests {
             .workloads
             .workloads
             .iter()
-            .map(|(name, wl_internal)| WorkloadNamed::from((name.clone(), wl_internal.clone())))
+            .map(|(name, wl_spec)| WorkloadNamed::from((name.clone(), wl_spec.clone())))
             .collect();
         expected_added_workloads.sort_by(|left, right| {
             left.instance_name
@@ -1341,8 +1341,8 @@ mod tests {
             .workloads
             .workloads
             .iter()
-            .map(|(name, wl_internal)| {
-                let wl_named = WorkloadNamed::from((name.clone(), wl_internal.clone()));
+            .map(|(name, wl_spec)| {
+                let wl_named = WorkloadNamed::from((name.clone(), wl_spec.clone()));
                 DeletedWorkload {
                     instance_name: wl_named.instance_name,
                     dependencies: HashMap::new(),
