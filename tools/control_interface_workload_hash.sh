@@ -18,9 +18,19 @@ set -e
 
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 base_dir="$script_dir/.."
-container_image_dir="$base_dir/tests/resources/control_interface_tester"
 
-#TODO #313 also check the API for changes
-
-cd $container_image_dir
-find . -type f | grep -v 'README.md' | sort | xargs sha256sum | sha256sum | sed 's/  -//'
+# Calculate the hash from:
+#  - the control interface tester files
+#  - the proto files
+#  - the api build file, along with the ones form the build directory
+find \
+    "$base_dir/tests/resources/control_interface_tester" \
+    "$base_dir/api/proto" \
+    "$base_dir/api/build.rs" \
+    "$base_dir/api/build" \
+    -type f \
+| grep -v 'README.md' \
+| sort \
+| xargs sha256sum \
+| sha256sum \
+| sed 's/  -//'
