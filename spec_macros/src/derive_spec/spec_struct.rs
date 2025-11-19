@@ -278,10 +278,10 @@ mod tests {
 
                 fn try_from(orig: MyStruct) -> Result<Self, Self::Error> {
                     Ok(MyStructSpec {
-                        field1: orig.field1.ok_or("Missing field 'field1'")?.try_into().map_err(|_| "Cannot convert field 'field1' to spec object.")?,
+                        field1: orig.field1.ok_or("Missing field 'field1'")?.try_into().map_err(| err | format ! ("Cannot convert field 'field1' to spec object: '{err}'."))?,
                         field2: orig.field2.into_iter().map(|v| v.try_into()).collect::<Result<_, _>>()?,
                         field3: orig.field3.into_iter()
-                            .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| "Cannot convert field 'field3' to spec object.")?)))
+                            .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(| err | format ! ("Cannot convert field 'field3' to spec object: '{err}'."))?)))
                             .collect::<Result<_, String>>()?,
                         field4: orig.field4,
                     })
@@ -347,7 +347,7 @@ mod tests {
                             field1: orig.field1.map(|v| v.try_into()).transpose()?,
                             field2: orig.field2.into_iter().map(|v| v.try_into()).collect::<Result<_, _>>()?,
                             field3: orig.field3.into_iter()
-                                .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(|_| "Cannot convert field 'field3' to spec object.")?)))
+                                .map(|(k, v)| Ok((k.clone(), v.try_into().map_err(| err | format ! ("Cannot convert field 'field3' to spec object: '{err}'."))?)))
                                 .collect::<Result<_, String>>()?,
                             field4: orig.field4,
                         })
@@ -427,7 +427,7 @@ mod tests {
                 fn try_from(orig: MyStruct) -> Result<Self, Self::Error> {
                     Ok(MyStructSpec {
                         field1: orig.field1.into_iter()
-                            .map(|(k , v)| Ok ((k.clone (), v.try_into().map_err(|_| "Cannot convert field 'field1' to spec object.")?)))
+                            .map(|(k , v)| Ok ((k.clone (), v.try_into().map_err(| err | format ! ("Cannot convert field 'field1' to spec object: '{err}'."))?)))
                             .collect::<Result<_, String >>() ?,
                         })
                 }
