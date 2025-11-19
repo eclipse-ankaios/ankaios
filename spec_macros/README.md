@@ -31,13 +31,18 @@ pub struct Address {
     additional: Option<CustomType>,
     city: String,
     zip: String,
+    #[spec_default]
+    notes: Option<String>,
+    #[spec_default(1)]
+    floor: Option<i32>
 }
 ```
 
 where:
 
 * `#[derive(Spec)]` is the derive procedural macro that generates the new AddressSpec struct
-* `#[spec_mandatory]` instructs the macro to remove the option in the generated struct
+* `#[spec_mandatory]` instructs the macro to remove the option in the generated struct and raise an exception during the conversion.
+* `#[spec_default]` and `#[spec_default(<value>)]`instructs the macro to remove the option in the generated struct and use a default or specified `<value>` in case of None during the conversion.
 * `#[spec_derive(Debug)` adds the `#[derive(Debug)]` derives to the new struct
 * `#[spec_type_attr(...)` adds a custom annotation to the new struct
 * `#[spec_field_attr(...)` adds a custom annotation to a field of the new struct
@@ -48,11 +53,13 @@ The generated `AddressSpec` struct is the following:
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename = "userAddress")]
 pub struct AddressSpec {
-    street: String,
+    street: String, // This is unwrapped using a .ok_or("Informative message ;)")
     #[serde(skip_serializing_if = "Option::is_none")]
     additional: Option<CustomTypeSpec>,
     city: String,
     zip: String,
+    notes: String, // This is unwrapped with .unwrap_or_default()
+    floor: Option<i32>, // This is unwrapped with .unwrap_or(1)
 }
 ```
 

@@ -194,9 +194,27 @@ pub fn has_mandatory_attr(attrs: &[Attribute]) -> bool {
 }
 
 pub fn has_default_attr(attrs: &[Attribute]) -> bool {
-    attrs
-        .iter()
-        .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("spec_default")))
+    attrs.iter().any(|a| match &a.meta {
+        Meta::Path(path) => path.is_ident("spec_default"),
+        Meta::List(meta_list) => meta_list.path.is_ident("spec_default"),
+        _ => false,
+    })
+}
+
+fn get_default_attr_value(attrs: &[Attribute]) -> Option<proc_macro2::TokenStream> {
+    for a in attrs {
+        match &a.meta {
+            Meta::List(meta_list) if meta_list.path.is_ident("spec_default") => {
+                let nested = &meta_list.tokens;
+                let parsed: Result<Expr, _> = syn::parse2(nested.clone());
+                if let Ok(Expr::Lit(expr_lit)) = parsed {
+                    return Some(expr_lit.to_token_stream());
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 pub fn get_option_handling(attrs: &[Attribute], field_name: &Ident) -> Option<TokenStream> {
@@ -206,9 +224,15 @@ pub fn get_option_handling(attrs: &[Attribute], field_name: &Ident) -> Option<To
             .ok_or(#missing_field_msg)?
         })
     } else if has_default_attr(attrs) {
-        Some(quote! {
-            .unwrap_or_default()
-        })
+        if let Some(default_value) = get_default_attr_value(attrs) {
+            Some(quote! {
+                .unwrap_or(#default_value)
+            })
+        } else {
+            Some(quote! {
+                .unwrap_or_default()
+            })
+        }
     } else {
         None
     }
@@ -388,7 +412,9 @@ mod tests {
     use proc_macro2::TokenStream;
     use quote::{ToTokens, quote};
     use syn::{
-        Attribute, Ident, Type, TypePath, parse::{Parse, Parser}, parse_quote
+        Attribute, Ident, Type, TypePath,
+        parse::{Parse, Parser},
+        parse_quote,
     };
 
     #[test]
@@ -768,6 +794,12 @@ mod tests {
     }
 
     #[test]
+    fn test_has_default_attr_with_default_value() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[spec_default(false)])];
+        assert!(super::has_default_attr(&attrs));
+    }
+
+    #[test]
     fn test_has_default_attr_without_default() {
         let attrs: Vec<Attribute> = vec![parse_quote!(#[serde(rename = "foo")])];
         assert!(!super::has_default_attr(&attrs));
@@ -790,6 +822,29 @@ mod tests {
     }
 
     #[test]
+    fn test_get_default_attr_value_with_value() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[spec_default(42)])];
+        let default_value = super::get_default_attr_value(&attrs).unwrap();
+        let expected: TokenStream = quote! { 42 };
+        assert_eq!(default_value.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_get_default_attr_value_with_value_boolean() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[spec_default(true)])];
+        let default_value = super::get_default_attr_value(&attrs).unwrap();
+        let expected: TokenStream = quote! { true };
+        assert_eq!(default_value.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_get_default_attr_value_without_value() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[spec_default])];
+        let default_value = super::get_default_attr_value(&attrs);
+        assert!(default_value.is_none());
+    }
+
+    #[test]
     fn test_get_option_handling_mandatory() {
         let attrs: Vec<Attribute> = vec![parse_quote!(#[spec_mandatory])];
         let field_name: Ident = parse_quote! { my_field };
@@ -807,6 +862,17 @@ mod tests {
         let handling = super::get_option_handling(&attrs, &field_name).unwrap();
         let expected: TokenStream = quote! {
             .unwrap_or_default()
+        };
+        assert_eq!(handling.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_get_option_handling_default_with_value() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[spec_default(42)])];
+        let field_name: Ident = parse_quote! { my_field };
+        let handling = super::get_option_handling(&attrs, &field_name).unwrap();
+        let expected: TokenStream = quote! {
+            .unwrap_or(42)
         };
         assert_eq!(handling.to_string(), expected.to_string());
     }

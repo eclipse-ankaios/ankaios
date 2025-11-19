@@ -39,6 +39,10 @@ mod tests {
             #[spec_mandatory]
             address: Option<Address>,
             second_address: Option<Address>,
+            #[spec_default(false)]
+            has_children: Option<bool>,
+            #[spec_default(30)]
+            preferred_contact_time: Option<u32>,
         }
 
         let address = Address {
@@ -64,6 +68,8 @@ mod tests {
             middle_name: None,
             address: Some(address),
             second_address: None,
+            has_children: None,
+            preferred_contact_time: None,
         };
         let person_spec: PersonSpec = person.clone().try_into().unwrap();
         let person_spec_expected = PersonSpec {
@@ -71,6 +77,8 @@ mod tests {
             middle_name: None,
             address: address_spec,
             second_address: None,
+            has_children: false,
+            preferred_contact_time: 30,
         };
         assert_eq!(person_spec, person_spec_expected);
 
