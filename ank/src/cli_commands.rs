@@ -131,26 +131,34 @@ impl TryFrom<WorkloadStatesMap> for WorkloadInfos {
             Vec::<WorkloadState>::from(workload_states_map)
                 .into_iter()
                 .map(|wl_state| {
-                    // TODO #313 refactor and remove unwraps
-                    let instance_name = wl_state.instance_name.clone().unwrap();
-                    let exec_state = wl_state.execution_state.clone().unwrap();
-                    (
-                        instance_name.clone().try_into().unwrap(),
+                    let instance_name = wl_state
+                        .instance_name
+                        .clone()
+                        .ok_or_else(|| "Missing instance_name in workload state".to_string())?;
+                    let exec_state = wl_state
+                        .execution_state
+                        .clone()
+                        .ok_or_else(|| "Missing execution_state in workload state".to_string())?;
+                    let instance_name_spec = instance_name
+                        .clone()
+                        .try_into()
+                        .map_err(|e| format!("Failed to convert instance name to spec: {e}"))?;
+                    let exec_state_str = exec_state
+                        .execution_state_enum
+                        .and_then(|state| TryInto::<ExecutionStateEnumSpec>::try_into(state).ok())
+                        .map_or_else(String::new, |state| state.to_string());
+                    Ok((
+                        instance_name_spec,
                         WorkloadTableRow::new(
                             instance_name.workload_name,
                             instance_name.agent_name,
                             String::default(),
-                            exec_state
-                                .execution_state_enum
-                                .and_then(|state| {
-                                    TryInto::<ExecutionStateEnumSpec>::try_into(state).ok()
-                                })
-                                .map_or_else(String::new, |state| state.to_string()),
+                            exec_state_str,
                             exec_state.additional_info.unwrap_or_default(),
                         ),
-                    )
+                    ))
                 })
-                .collect(),
+                .collect::<Result<_, String>>()?,
         ))
     }
 }
