@@ -515,7 +515,7 @@ mod tests {
                     runtime_config: None,
                     control_interface_access: None,
                     configs: None,
-                    files: None,
+                    files: Some(Default::default()),
                 },
             ),
             (
