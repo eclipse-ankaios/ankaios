@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::grpc_api::FromServer;
-use api::std_extensions::IllegalStateResult;
+use common::std_extensions::IllegalStateResult;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

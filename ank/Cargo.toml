@@ -19,7 +19,7 @@ assets = [
 ]
 
 [dependencies]
-api = { path = "../api", features = ["test_utils"] }
+api = { path = "../api" }
 common = { path = "../common" }
 grpc = { path = "../grpc" }
 clap = { version = "4.5", features = ["derive", "env"] }
@@ -43,6 +43,7 @@ clap_complete = { version = "<=4.5.24", features = ["unstable-dynamic", "unstabl
 once_cell = "1.10"
 
 [dev-dependencies]
-mockall = "0.11"
+api = { path = "../api", features = ["test_utils"] }
 common = { path = "../common", features = ["test_utils"] }
+mockall = "0.11"
 mockall_double = "0.3"

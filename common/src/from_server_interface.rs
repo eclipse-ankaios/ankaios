@@ -12,14 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands;
-use api::{
-    ank_base::{
-        CompleteState, DeletedWorkload, Error, LogEntriesResponse, LogsCancelAccepted, LogsRequest,
-        LogsRequestAccepted, LogsRequestSpec, LogsStopResponse, Response, ResponseContent,
-        UpdateStateSuccess, WorkloadNamed, WorkloadStateSpec,
-    },
-    std_extensions::UnreachableResult,
+use crate::{commands, std_extensions::UnreachableResult};
+use api::ank_base::{
+    CompleteState, DeletedWorkload, Error, LogEntriesResponse, LogsCancelAccepted, LogsRequest,
+    LogsRequestAccepted, LogsRequestSpec, LogsStopResponse, Response, ResponseContent,
+    UpdateStateSuccess, WorkloadNamed, WorkloadStateSpec,
 };
 
 use async_trait::async_trait;

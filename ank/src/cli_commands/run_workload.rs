@@ -31,10 +31,10 @@ impl CliCommands {
         tags: HashMap<String, String>,
     ) -> Result<(), CliError> {
         let new_workload = WorkloadSpec {
-            agent: agent_name.clone(),
+            agent: agent_name,
             runtime: runtime_name,
             tags: TagsSpec { tags },
-            runtime_config: runtime_config.clone(),
+            runtime_config,
             restart_policy: Default::default(),
             dependencies: Default::default(),
             control_interface_access: Default::default(),

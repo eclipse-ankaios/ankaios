@@ -36,7 +36,6 @@ impl CliCommands {
 
         output_debug!("Raw complete state: {:?}", filtered_complete_state);
 
-        // let serialized_state: serde_yaml::Value = serde_yaml::to_value(filtered_complete_state)?;
         match output_format {
             // [impl -> swdd~cli-shall-support-desired-state-yaml~1]
             OutputFormat::Yaml => Ok(serde_yaml::to_string(&filtered_complete_state)?),

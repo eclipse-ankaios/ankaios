@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
-use api::std_extensions::IllegalStateResult;
+use common::std_extensions::IllegalStateResult;
 
 use async_trait::async_trait;
 

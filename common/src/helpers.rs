@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ANKAIOS_VERSION;
-use api::std_extensions::IllegalStateResult;
+use crate::std_extensions::IllegalStateResult;
 use semver::Version;
 
 // [impl->swdd~common-helper-methods~1]

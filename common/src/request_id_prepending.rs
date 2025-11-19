@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::std_extensions::UnreachableOption;
+use crate::std_extensions::UnreachableOption;
 
 const SEPARATOR: &str = "@";
 

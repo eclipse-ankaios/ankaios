@@ -16,8 +16,8 @@ use crate::agent_senders_map::AgentSendersMap;
 use crate::grpc_api::{self, agent_connection_server::AgentConnection, to_server::ToServerEnum};
 use crate::to_server_proxy::{GRPCToServerStreaming, forward_from_proto_to_ankaios};
 
-use api::std_extensions::GracefulExitResult;
 use common::check_version_compatibility;
+use common::std_extensions::GracefulExitResult;
 use common::to_server_interface::{ToServer, ToServerInterface};
 
 use futures_core::Stream;

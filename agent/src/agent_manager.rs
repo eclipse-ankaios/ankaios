@@ -15,7 +15,7 @@
 use crate::{subscription_store::SubscriptionStore, workload_state::WorkloadStateReceiver};
 
 use api::ank_base::WorkloadStateSpec;
-use api::std_extensions::{GracefulExitResult, IllegalStateResult};
+use common::std_extensions::{GracefulExitResult, IllegalStateResult};
 use common::{
     commands::AgentLoadStatus,
     from_server_interface::{FromServer, FromServerReceiver},

@@ -15,8 +15,8 @@
 use crate::cli::Arguments;
 use crate::io_utils::DEFAULT_RUN_FOLDER;
 
-use api::std_extensions::UnreachableOption;
 use common::DEFAULT_SERVER_ADDRESS;
+use common::std_extensions::UnreachableOption;
 use grpc::security::read_pem_file;
 
 use serde::Deserialize;

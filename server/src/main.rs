@@ -20,7 +20,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use api::ank_base::{CompleteStateSpec, StateSpec, validate_tags};
-use api::std_extensions::GracefulExitResult;
+use common::std_extensions::GracefulExitResult;
 
 use common::communications_server::CommunicationsServer;
 

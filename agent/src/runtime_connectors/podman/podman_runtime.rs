@@ -27,8 +27,8 @@ use crate::{
 };
 
 use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
-use api::std_extensions::UnreachableOption;
 use common::objects::AgentName;
+use common::std_extensions::UnreachableOption;
 
 use async_trait::async_trait;
 #[cfg(test)]

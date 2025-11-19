@@ -13,13 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::{self, AgentLoadStatus};
-use api::{
-    ank_base::{
-        CompleteStateRequestSpec, CompleteStateSpec, LogEntriesResponse, LogsCancelRequestSpec,
-        LogsRequest, LogsRequestSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
-        UpdateStateRequestSpec, WorkloadStateSpec,
-    },
-    std_extensions::UnreachableResult,
+use crate::std_extensions::UnreachableResult;
+use api::ank_base::{
+    CompleteStateRequestSpec, CompleteStateSpec, LogEntriesResponse, LogsCancelRequestSpec,
+    LogsRequest, LogsRequestSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
+    UpdateStateRequestSpec, WorkloadStateSpec,
 };
 
 use async_trait::async_trait;

@@ -40,8 +40,16 @@ impl From<AgentLoadStatus> for common::commands::AgentLoadStatus {
     fn from(item: AgentLoadStatus) -> Self {
         common::commands::AgentLoadStatus {
             agent_name: item.agent_name,
-            cpu_usage: item.cpu_usage.unwrap_or_default().try_into().unwrap(),
-            free_memory: item.free_memory.unwrap_or_default().try_into().unwrap(),
+            cpu_usage: item
+                .cpu_usage
+                .unwrap_or_default()
+                .try_into()
+                .unwrap_or_default(),
+            free_memory: item
+                .free_memory
+                .unwrap_or_default()
+                .try_into()
+                .unwrap_or_default(),
         }
     }
 }

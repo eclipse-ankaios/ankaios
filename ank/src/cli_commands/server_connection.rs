@@ -35,7 +35,7 @@ use tokio::{sync::mpsc, task::JoinHandle, time::timeout};
 use uuid::Uuid;
 
 #[cfg(not(test))]
-use {api::std_extensions::IllegalStateResult, std::io::Write};
+use {common::std_extensions::IllegalStateResult, std::io::Write};
 
 #[cfg(test)]
 use mockall::automock;

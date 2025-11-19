@@ -17,7 +17,7 @@ use crate::agent_manager::SynchronizedSubscriptionStore;
 use api::ank_base::{
     LogEntriesResponse, LogEntry, LogsRequestSpec, LogsStopResponse, WorkloadInstanceNameSpec,
 };
-use api::std_extensions::IllegalStateResult;
+use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerInterface, ToServerSender};
 
 use futures_util::{StreamExt, stream::FuturesUnordered};

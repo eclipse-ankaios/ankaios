@@ -20,8 +20,8 @@ use api::ank_base::{
     CompleteStateSpec, CpuUsageSpec, DeletedWorkload, FreeMemorySpec, StateSpec,
     WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
-use api::std_extensions::IllegalStateResult;
 use common::state_manipulation::{Object, Path};
+use common::std_extensions::IllegalStateResult;
 
 use std::fmt::Display;
 
@@ -528,6 +528,9 @@ mod tests {
             expected_desired_state.configs = None;
         }
 
+        // TODO #313 Fix utest
+        // left: workload_3/files: None
+        // right: workload_3/files: Some(Files([]))
         assert_eq!(expected_complete_state, complete_state);
     }
 

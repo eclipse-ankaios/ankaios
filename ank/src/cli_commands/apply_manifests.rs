@@ -171,7 +171,11 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
 ) -> Result<Option<(CompleteStateSpec, Vec<String>)>, String> {
-    let mut req_obj: Object = StateSpec::default().try_into().unwrap();
+    let mut req_obj: Object = StateSpec::default().try_into().map_err(|err| {
+        format!(
+            "Could not create initial empty state object from StateSpec: {err}"
+        )
+    })?;
     let mut req_paths: Vec<Path> = Vec::new();
     for manifest in manifests.iter_mut() {
         let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
@@ -696,13 +700,10 @@ mod tests {
         let mut data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut data);
 
-        // Error("workloads: invalid type: string \"ALWAYS\", expected i32", line: 3, column: 9)
         let expected_complete_state_obj = CompleteStateSpec {
             desired_state: serde_yaml::from_str(&data).unwrap(),
             ..Default::default()
         };
-        // let expected_complete_state_obj: CompleteStateSpec =
-        //     expected_complete_state_obj.try_into().unwrap();
 
         let expected_filter_masks = vec!["desiredState.workloads.simple".to_string()];
 
@@ -955,7 +956,6 @@ mod tests {
 
         let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1",
-            // b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: \n    config_item_enum: \"config_value_1\"",
         );
 
         let mut manifest_data = String::new();

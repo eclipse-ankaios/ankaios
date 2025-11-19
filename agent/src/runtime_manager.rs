@@ -211,18 +211,10 @@ impl RuntimeManager {
             if let Some(workload_vec) =
                 added_workloads_per_runtime.get_mut(&workload_named.workload.runtime)
             {
-                // workload_vec.insert(
-                //     workload_named.instance_name.workload_name().to_owned(),
-                //     workload_named,
-                // );
                 workload_vec.push(workload_named);
             } else {
                 added_workloads_per_runtime.insert(
                     workload_named.workload.runtime.clone(),
-                    // HashMap::from([(
-                    //     workload_named.instance_name.workload_name().to_owned(),
-                    //     workload_named,
-                    // )]),
                     vec![workload_named],
                 );
             }
@@ -247,7 +239,6 @@ impl RuntimeManager {
                         if let Some(new_workload_named) = added_workloads_per_runtime
                             .get_mut(runtime_name)
                             .and_then(|workload_vec| {
-                                // map.remove(workload_state.instance_name.workload_name())
                                 // Remove and get the workload named from the workload_vec if name matches
                                 workload_vec
                                     .iter()
@@ -2804,12 +2795,6 @@ mod tests {
             .get_lock_async()
             .await;
         let _from_authorizer_context = setup_from_authorizer();
-
-        // let control_interface_info_mock = MockControlInterfaceInfo::new_context();
-        // control_interface_info_mock
-        //     .expect()
-        //     .once()
-        //     .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
         mock_workload_scheduler_context

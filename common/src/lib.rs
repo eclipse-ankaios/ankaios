@@ -24,6 +24,7 @@ pub mod communications_error;
 pub mod communications_server;
 pub mod from_server_interface;
 pub mod helpers;
+pub mod std_extensions;
 pub use helpers::check_version_compatibility;
 pub mod objects;
 pub mod request_id_prepending;

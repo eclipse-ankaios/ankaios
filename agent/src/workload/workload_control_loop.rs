@@ -21,7 +21,7 @@ use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 
 use api::ank_base::{ExecutionStateSpec, RestartPolicy, WorkloadInstanceNameSpec, WorkloadNamed};
-use api::std_extensions::IllegalStateResult;
+use common::std_extensions::IllegalStateResult;
 
 use futures_util::Future;
 use std::collections::HashMap;

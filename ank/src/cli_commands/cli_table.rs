@@ -20,7 +20,7 @@ fn terminal_width() -> usize {
     80
 }
 
-use api::std_extensions::UnreachableOption;
+use common::std_extensions::UnreachableOption;
 use tabled::{
     Table, Tabled,
     grid::config::Entity,

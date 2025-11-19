@@ -23,8 +23,8 @@ use crate::{
 };
 
 use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
-use api::std_extensions::UnreachableOption;
 use common::objects::AgentName;
+use common::std_extensions::UnreachableOption;
 
 use async_trait::async_trait;
 #[cfg(test)]
@@ -319,7 +319,6 @@ mod tests {
     const BUFFER_SIZE: usize = 20;
 
     const AGENT_NAME: &str = "agent_x";
-    // const WORKLOAD_1_NAME: &str = "workload1";
 
     // [utest->swdd~containerd-name-returns-containerd~1]
     #[test]
