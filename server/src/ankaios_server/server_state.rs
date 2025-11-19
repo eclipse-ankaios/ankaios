@@ -528,9 +528,6 @@ mod tests {
             expected_desired_state.configs = None;
         }
 
-        // TODO #313 Fix utest
-        // left: workload_3/files: None
-        // right: workload_3/files: Some(Files([]))
         assert_eq!(expected_complete_state, complete_state);
     }
 
