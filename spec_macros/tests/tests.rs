@@ -26,6 +26,8 @@ mod tests {
             additional: Option<String>,
             city: String,
             zip: String,
+            #[spec_default]
+            notes: Option<String>,
         }
 
         #[derive(Spec, Debug, Clone)]
@@ -44,6 +46,7 @@ mod tests {
             additional: None,
             city: "Metropolis".to_string(),
             zip: "12345".to_string(),
+            notes: None,
         };
 
         let address_spec: AddressSpec = address.clone().try_into().unwrap();
@@ -52,6 +55,7 @@ mod tests {
             additional: None,
             city: "Metropolis".to_string(),
             zip: "12345".to_string(),
+            notes: String::new(),
         };
         assert_eq!(address_spec, address_spec_expected);
 
@@ -197,13 +201,7 @@ mod tests {
 
         let spec: ContainerSpec = external.try_into().unwrap();
 
-        assert_eq!(
-            spec.items.get("key1").unwrap().value,
-            "Value 1".to_string()
-        );
-        assert_eq!(
-            spec.items.get("key2").unwrap().value,
-            "Value 2".to_string()
-        );
+        assert_eq!(spec.items.get("key1").unwrap().value, "Value 1".to_string());
+        assert_eq!(spec.items.get("key2").unwrap().value, "Value 2".to_string());
     }
 }
