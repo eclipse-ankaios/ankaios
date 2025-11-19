@@ -193,6 +193,27 @@ pub fn has_mandatory_attr(attrs: &[Attribute]) -> bool {
         .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("spec_mandatory")))
 }
 
+pub fn has_default_attr(attrs: &[Attribute]) -> bool {
+    attrs
+        .iter()
+        .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("spec_default")))
+}
+
+pub fn get_option_handling(attrs: &[Attribute], field_name: &Ident) -> Option<TokenStream> {
+    if has_mandatory_attr(attrs) {
+        let missing_field_msg = format!("Missing field '{field_name}'");
+        Some(quote! {
+            .ok_or(#missing_field_msg)?
+        })
+    } else if has_default_attr(attrs) {
+        Some(quote! {
+            .unwrap_or_default()
+        })
+    } else {
+        None
+    }
+}
+
 pub fn has_enum_named_attr(attrs: &[Attribute]) -> bool {
     attrs
         .iter()
@@ -738,6 +759,64 @@ mod tests {
     fn test_has_mandatory_attr_with_empty_attrs() {
         let attrs: Vec<syn::Attribute> = vec![];
         assert!(!super::has_mandatory_attr(&attrs));
+    }
+
+    #[test]
+    fn test_has_default_attr_with_default() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[spec_default])];
+        assert!(super::has_default_attr(&attrs));
+    }
+
+    #[test]
+    fn test_has_default_attr_without_default() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[serde(rename = "foo")])];
+        assert!(!super::has_default_attr(&attrs));
+    }
+
+    #[test]
+    fn test_has_default_attr_with_multiple_attrs_including_default() {
+        let attrs: Vec<Attribute> = vec![
+            parse_quote!(#[serde(rename = "foo")]),
+            parse_quote!(#[spec_default]),
+            parse_quote!(#[doc = "Some doc"]),
+        ];
+        assert!(super::has_default_attr(&attrs));
+    }
+
+    #[test]
+    fn test_has_default_attr_with_empty_attrs() {
+        let attrs: Vec<syn::Attribute> = vec![];
+        assert!(!super::has_default_attr(&attrs));
+    }
+
+    #[test]
+    fn test_get_option_handling_mandatory() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[spec_mandatory])];
+        let field_name: Ident = parse_quote! { my_field };
+        let handling = super::get_option_handling(&attrs, &field_name).unwrap();
+        let expected: TokenStream = quote! {
+            .ok_or("Missing field 'my_field'")?
+        };
+        assert_eq!(handling.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_get_option_handling_default() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[spec_default])];
+        let field_name: Ident = parse_quote! { my_field };
+        let handling = super::get_option_handling(&attrs, &field_name).unwrap();
+        let expected: TokenStream = quote! {
+            .unwrap_or_default()
+        };
+        assert_eq!(handling.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn test_get_option_handling_none() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[serde(rename = "foo")])];
+        let field_name: Ident = parse_quote! { my_field };
+        let handling = super::get_option_handling(&attrs, &field_name);
+        assert!(handling.is_none());
     }
 
     #[test]

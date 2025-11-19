@@ -14,35 +14,14 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Attribute, FieldsNamed, Ident, Meta, Type, Visibility, parse_quote};
+use syn::{FieldsNamed, Ident, Type, Visibility, parse_quote};
 
 use crate::utils::{
-    DerivedSpec, extract_inner, get_doc_attrs, get_prost_enum_type, get_prost_map_enum_value_type,
-    get_spec_field_attrs, has_mandatory_attr, inner_hashmap_type_path, inner_vec_type_path,
-    is_custom_type_path, is_option_type_path, to_spec_ident, to_spec_type, wrap_in_option,
+    DerivedSpec, extract_inner, get_doc_attrs, get_option_handling, get_prost_enum_type,
+    get_prost_map_enum_value_type, get_spec_field_attrs, inner_hashmap_type_path,
+    inner_vec_type_path, is_custom_type_path, is_option_type_path, to_spec_ident, to_spec_type,
+    wrap_in_option,
 };
-
-// TODO #313 take care of the utests
-fn has_default_attr(attrs: &[Attribute]) -> bool {
-    attrs
-        .iter()
-        .any(|a| matches!(&a.meta, Meta::Path(path) if path.is_ident("spec_default")))
-}
-
-fn get_option_handling(attrs: &[Attribute], field_name: &Ident) -> Option<TokenStream> {
-    if has_mandatory_attr(attrs) {
-        let missing_field_msg = format!("Missing field '{field_name}'");
-        Some(quote! {
-            .ok_or(#missing_field_msg)?
-        })
-    } else if has_default_attr(attrs) {
-        Some(quote! {
-            .unwrap_or_default()
-        })
-    } else {
-        None
-    }
-}
 
 pub fn derive_spec_struct(
     fields_named: FieldsNamed,
