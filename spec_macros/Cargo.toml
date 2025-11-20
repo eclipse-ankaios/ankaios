@@ -12,7 +12,6 @@ repository = "https://github.com/eclipse-ankaios/ankaios"
 proc-macro = true
 
 [dependencies]
-log = "0.4"
 syn = { version = "2", features = ["full"] }
 quote = "1"
 proc-macro2 = "1"

@@ -170,7 +170,6 @@ dependencies = [
  "prost",
  "regex",
  "schemars",
- "semver",
  "serde",
  "serde_yaml",
  "sha256",
@@ -424,11 +423,9 @@ dependencies = [
  "api",
  "async-trait",
  "log",
- "regex",
  "semver",
  "serde",
  "serde_yaml",
- "sha256",
  "tokio",
  "toml",
 ]
@@ -439,7 +436,6 @@ version = "0.0.0"
 dependencies = [
  "api",
  "chrono",
- "common",
  "prost",
  "serde",
  "serde_json",
@@ -2086,7 +2082,6 @@ dependencies = [
 name = "spec_macros"
 version = "0.8.0-pre"
 dependencies = [
- "log",
  "proc-macro2",
  "quote",
  "syn 2.0.110",

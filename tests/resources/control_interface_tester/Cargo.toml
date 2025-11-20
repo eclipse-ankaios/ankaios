@@ -8,7 +8,6 @@ description = "Application using the Control Interface used for system tests"
 
 [dependencies]
 api = { package = "api", path = "../../../api" }
-common = { package = "common", path = "../../../common" }
 chrono = "0.4"
 # required for encoding/decoding of protobuf varint format
 prost = "0.14"
