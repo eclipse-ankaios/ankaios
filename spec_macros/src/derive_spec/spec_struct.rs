@@ -232,12 +232,11 @@ pub fn derive_spec_struct(
 
 #[cfg(test)]
 mod tests {
-
+    use crate::derive_spec::spec_struct::derive_spec_struct;
+    
     use proc_macro2::TokenStream;
     use quote::quote;
     use syn::{Ident, Visibility, parse_quote};
-
-    use crate::derive_spec::spec_struct::derive_spec_struct;
 
     #[test]
     fn test_derive_spec_struct_with_mandatory_and_derive() {
