@@ -254,6 +254,11 @@ mod tests {
                 .verify_format()
                 .is_err()
         );
+        assert!(
+            log_rule_with_workload("multiple*wildcards*wrong")
+                .verify_format()
+                .is_err()
+        );
     }
 
     fn log_rule_with_workload(workload_name: &str) -> AccessRightsRuleSpec {

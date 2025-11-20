@@ -105,7 +105,13 @@ mod tests {
 
     #[test]
     fn utest_state_accepts_compatible_state() {
-        let state_compatible_version = StateSpec::default();
+        let mut state_compatible_version = StateSpec::default();
+        assert_eq!(
+            StateSpec::verify_api_version(&state_compatible_version),
+            Ok(())
+        );
+
+        state_compatible_version.api_version = PREVIOUS_API_VERSION.to_string();
         assert_eq!(
             StateSpec::verify_api_version(&state_compatible_version),
             Ok(())

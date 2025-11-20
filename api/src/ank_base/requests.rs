@@ -30,7 +30,33 @@ impl RequestSpec {
     pub fn prefix_id(prefix: &str, request_id: &String) -> String {
         format!("{prefix}{request_id}")
     }
+
     pub fn prefix_request_id(&mut self, prefix: &str) {
         self.request_id = Self::prefix_id(prefix, &self.request_id);
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use crate::ank_base::{RequestContentSpec, RequestSpec};
+
+    #[test]
+    fn test_prefix_request_id() {
+        let mut request_spec = RequestSpec {
+            request_id: "12345".to_string(),
+            request_content: RequestContentSpec::LogsRequest(
+                Default::default(),
+            ),
+        };
+        request_spec.prefix_request_id("PRE");
+        assert_eq!(request_spec.request_id, "PRE12345");
     }
 }

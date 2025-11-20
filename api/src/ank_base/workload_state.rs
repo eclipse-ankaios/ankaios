@@ -396,6 +396,10 @@ mod tests {
             String::from("Removed")
         );
         assert_eq!(
+            ExecutionStateSpec::not_scheduled().to_string(),
+            String::from("NotScheduled")
+        );
+        assert_eq!(
             ExecutionStateSpec::unknown(additional_info).to_string(),
             format!("Failed(Unknown): '{additional_info}'")
         );
