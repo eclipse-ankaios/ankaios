@@ -11,9 +11,9 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use crate::ankaios_server::request_id::to_string_id;
 #[cfg_attr(test, mockall_double::double)]
 use crate::ankaios_server::server_state::ServerState;
+use crate::ankaios_server::{request_id::to_string_id, state_comparator::StateDifferenceTree};
 
 use super::request_id::RequestId;
 use common::{
@@ -22,118 +22,15 @@ use common::{
     state_manipulation::Path,
     std_extensions::IllegalStateResult,
 };
-
-use super::state_comparator::FieldDifference;
 use std::collections::HashMap;
 
 #[cfg(test)]
 use mockall::automock;
 
-const WILDCARD_SEPARATOR: &str = "*";
-
-#[derive(Debug, PartialEq, Eq)]
-enum MaskComparisonResult {
-    ShorterSubscriberFieldMask,
-    ShorterAlteredFieldMask,
-    EqualLength,
-    NoMatch,
-}
-
-#[derive(Debug, Default)]
-struct AlteredFields {
-    added_fields: Vec<String>,
-    removed_fields: Vec<String>,
-    updated_fields: Vec<String>,
-}
-
-impl AlteredFields {
-    fn all_empty(&self) -> bool {
-        self.added_fields.is_empty()
-            && self.removed_fields.is_empty()
-            && self.updated_fields.is_empty()
-    }
-}
-
 type SubscribedFieldMasks = Vec<Path>;
 #[derive(Debug, Default)]
 pub struct EventHandler {
     subscriber_store: HashMap<RequestId, SubscribedFieldMasks>,
-}
-
-// [impl->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
-fn fill_altered_fields_and_filter_masks(
-    mut altered_fields: Vec<String>,
-    mut filter_masks: Vec<String>,
-    altered_field_mask: &Path,
-    subscribed_field_masks: &SubscribedFieldMasks,
-) -> (Vec<String>, Vec<String>) {
-    for subscriber_mask in subscribed_field_masks {
-        match compare_subscriber_mask_with_altered_field_mask(subscriber_mask, altered_field_mask) {
-            MaskComparisonResult::NoMatch => {}
-            MaskComparisonResult::ShorterSubscriberFieldMask
-            | MaskComparisonResult::EqualLength => {
-                filter_masks.push(String::from(altered_field_mask));
-                altered_fields.push(altered_field_mask.into());
-            }
-            MaskComparisonResult::ShorterAlteredFieldMask => {
-                // [impl->swdd~event-handler-expands-subscriber-field-mask-using-altered-field-masks~1]s
-                let expanded_subscriber_mask =
-                    expand_wildcards_in_subscriber_mask(subscriber_mask, altered_field_mask);
-                filter_masks.push(String::from(expanded_subscriber_mask.clone()));
-                altered_fields.push(expanded_subscriber_mask.into());
-            }
-        }
-    }
-
-    (altered_fields, filter_masks)
-}
-
-fn compare_subscriber_mask_with_altered_field_mask(
-    subscriber_mask: &Path,
-    altered_field_path: &Path,
-) -> MaskComparisonResult {
-    let mut subscriber_parts_iter = subscriber_mask.parts().iter();
-    let mut altered_field_parts_iter = altered_field_path.parts().iter();
-
-    let mut next_subscriber_part = subscriber_parts_iter.next();
-    let mut next_altered_field_part = altered_field_parts_iter.next();
-    while let Some(subscriber_part) = next_subscriber_part
-        && let Some(altered_field_part) = next_altered_field_part
-    {
-        if subscriber_part != WILDCARD_SEPARATOR && subscriber_part != altered_field_part {
-            return MaskComparisonResult::NoMatch;
-        }
-        next_subscriber_part = subscriber_parts_iter.next();
-        next_altered_field_part = altered_field_parts_iter.next();
-    }
-
-    if next_subscriber_part.is_some() && next_altered_field_part.is_none() {
-        return MaskComparisonResult::ShorterAlteredFieldMask;
-    }
-
-    if next_altered_field_part.is_some() && next_subscriber_part.is_none() {
-        return MaskComparisonResult::ShorterSubscriberFieldMask;
-    }
-
-    MaskComparisonResult::EqualLength
-}
-
-// [impl->swdd~event-handler-expands-subscriber-field-mask-using-altered-field-masks~1]
-fn expand_wildcards_in_subscriber_mask(subscriber_mask: &Path, altered_field_mask: &Path) -> Path {
-    let mut expanded_subscriber_mask = altered_field_mask.parts().to_vec();
-
-    for part in subscriber_mask
-        .parts()
-        .iter()
-        .skip(expanded_subscriber_mask.len())
-    {
-        if part == WILDCARD_SEPARATOR {
-            break;
-        }
-        expanded_subscriber_mask.push(part.clone());
-    }
-
-    Path::from(expanded_subscriber_mask)
 }
 
 #[cfg_attr(test, automock)]
@@ -161,63 +58,24 @@ impl EventHandler {
         server_state: &ServerState,
         workload_states_map: &WorkloadStatesMap,
         agent_map: &AgentMap,
-        field_differences: Vec<FieldDifference>,
+        field_difference_tree: StateDifferenceTree,
         from_server_channel: &FromServerSender,
     ) {
         for (request_id, subscribed_field_masks) in &self.subscriber_store {
-            let mut filter_masks: Vec<String> = Vec::new();
-            let mut altered_fields = AlteredFields::default();
-
-            for field_difference in &field_differences {
-                match field_difference {
-                    FieldDifference::Added(path) => {
-                        let added_mask: Path = path.clone().into();
-                        (altered_fields.added_fields, filter_masks) =
-                            fill_altered_fields_and_filter_masks(
-                                altered_fields.added_fields,
-                                filter_masks,
-                                &added_mask,
-                                subscribed_field_masks,
-                            );
-                    }
-                    FieldDifference::Removed(path) => {
-                        let removed_mask: Path = path.clone().into();
-                        (altered_fields.removed_fields, filter_masks) =
-                            fill_altered_fields_and_filter_masks(
-                                altered_fields.removed_fields,
-                                filter_masks,
-                                &removed_mask,
-                                subscribed_field_masks,
-                            );
-                    }
-                    FieldDifference::Updated(path) => {
-                        let updated_mask: Path = path.clone().into();
-                        (altered_fields.updated_fields, filter_masks) =
-                            fill_altered_fields_and_filter_masks(
-                                altered_fields.updated_fields,
-                                filter_masks,
-                                &updated_mask,
-                                subscribed_field_masks,
-                            );
-                    }
-                }
-            }
+            let altered_fields = field_difference_tree.get_altered_fields(subscribed_field_masks);
+            let mut filter_masks = altered_fields.added_fields.clone();
+            filter_masks.extend(altered_fields.removed_fields.clone());
+            filter_masks.extend(altered_fields.updated_fields.clone());
 
             if !altered_fields.all_empty() {
                 {
                     let complete_state_differences = server_state
                         .get_complete_state_by_field_mask(
-                            filter_masks.clone(),
+                            filter_masks,
                             workload_states_map,
                             agent_map,
                         )
                         .unwrap_or_illegal_state();
-
-                    let altered_fields = api::ank_base::AlteredFields {
-                        added_fields: altered_fields.added_fields,
-                        updated_fields: altered_fields.updated_fields,
-                        removed_fields: altered_fields.removed_fields,
-                    };
 
                     log::debug!(
                         "Sending event to subscriber '{request_id}' with altered fields: {altered_fields:?} and complete state differences: {complete_state_differences:?}",
@@ -228,7 +86,7 @@ impl EventHandler {
                         .complete_state(
                             request_id,
                             complete_state_differences,
-                            Some(altered_fields),
+                            Some(altered_fields.into()),
                         )
                         .await
                         .unwrap_or_illegal_state();

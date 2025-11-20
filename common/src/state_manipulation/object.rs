@@ -15,7 +15,10 @@
 use std::collections::{HashSet, VecDeque};
 
 use super::Path;
-use crate::objects::{self as ankaios, WILDCARD_SYMBOL};
+use crate::{
+    objects::{self as ankaios, WILDCARD_SYMBOL},
+    std_extensions::UnreachableOption,
+};
 use api::ank_base as proto;
 use serde_yaml::{
     Mapping, Value, from_value,
@@ -219,6 +222,10 @@ impl From<&Object> for Vec<Path> {
 }
 
 impl Object {
+    pub fn is_empty(&self) -> bool {
+        self.data.as_mapping().unwrap_or_unreachable().is_empty()
+    }
+
     //[impl->swdd~common-state-manipulation-set~1]
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
@@ -318,7 +325,8 @@ impl Object {
             let mut current_result_valid = true;
             while !remaining_path.is_empty() {
                 let path_element;
-                (path_element, remaining_path) = remaining_path.split_first().unwrap();
+                (path_element, remaining_path) =
+                    remaining_path.split_first().unwrap_or_unreachable();
                 if path_element == WILDCARD_SYMBOL {
                     current_result_valid = false;
                     if let Value::Mapping(map) = current_value {
