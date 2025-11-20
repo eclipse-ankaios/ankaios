@@ -206,9 +206,9 @@ fn get_default_attr_value(attrs: &[Attribute]) -> Option<proc_macro2::TokenStrea
         match &a.meta {
             Meta::List(meta_list) if meta_list.path.is_ident("spec_default") => {
                 let nested = &meta_list.tokens;
-                let parsed: Result<Expr, _> = syn::parse2(nested.clone());
-                if let Ok(Expr::Lit(expr_lit)) = parsed {
-                    return Some(expr_lit.to_token_stream());
+                // Try to parse the tokens as an expression (not just Expr::Lit)
+                if let Ok(expr) = syn::parse2::<Expr>(nested.clone()) {
+                    return Some(expr.to_token_stream());
                 }
             }
             _ => {}
@@ -883,6 +883,17 @@ mod tests {
         let field_name: Ident = parse_quote! { my_field };
         let handling = super::get_option_handling(&attrs, &field_name);
         assert!(handling.is_none());
+    }
+
+    #[test]
+    fn test_get_option_handling_default_complex_value() {
+        let attrs: Vec<Attribute> = vec![parse_quote!(#[spec_default(vec![1, 2, 3])])];
+        let field_name: Ident = parse_quote! { my_field };
+        let handling = super::get_option_handling(&attrs, &field_name).unwrap();
+        let expected: TokenStream = quote! {
+            .unwrap_or(vec![1, 2, 3])
+        };
+        assert_eq!(handling.to_string(), expected.to_string());
     }
 
     #[test]

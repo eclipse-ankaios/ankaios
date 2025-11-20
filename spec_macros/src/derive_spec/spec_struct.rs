@@ -238,7 +238,7 @@ mod tests {
     use syn::{Ident, Visibility, parse_quote};
 
     #[test]
-    fn test_derive_spec_struct_with_mandatory_and_derive() {
+    fn test_derive_spec_struct_with_mandatory() {
         use syn::{FieldsNamed, parse_quote};
 
         let fields_named: FieldsNamed = parse_quote! {
@@ -304,6 +304,66 @@ mod tests {
         }
         .to_string()
     );
+    }
+
+    #[test]
+    fn test_derive_spec_struct_with_default() {
+        use syn::{FieldsNamed, parse_quote};
+        let fields_named: FieldsNamed = parse_quote! {
+            {
+                #[spec_default]
+                pub field1: Option<i32>,
+                #[spec_default(42)]
+                pub field2: Option<i32>,
+                #[spec_default(vec![42, 42, 42])]
+                pub field3: Option<Vec<i32>>,
+            }
+        };
+        let orig_name: Ident = parse_quote! { MyStruct };
+        let vis: Visibility = parse_quote! { pub };
+        let type_attrs: Vec<TokenStream> = vec![];
+
+        let derived = derive_spec_struct(fields_named, orig_name, vis, type_attrs).unwrap();
+        let expected_obj = quote! {
+            pub struct MyStructSpec {
+                pub field1: i32,
+                pub field2: i32,
+                pub field3: Vec<i32>,
+            }
+        };
+
+        assert_eq!(derived.obj.to_string(), expected_obj.to_string());
+        assert_eq!(
+            derived.try_from_impl.to_string(),
+            quote! {
+                impl std::convert::TryFrom<MyStruct> for MyStructSpec {
+                    type Error = String;
+                    fn try_from(orig: MyStruct) -> Result<Self, Self::Error> {
+                        Ok(MyStructSpec {
+                            field1: orig.field1.unwrap_or_default(),
+                            field2: orig.field2.unwrap_or(42),
+                            field3: orig.field3.unwrap_or(vec![42, 42, 42]),
+                        })
+                    }
+                }
+            }
+            .to_string()
+        );
+        assert_eq!(
+            derived.from_impl.to_string(),
+            quote! {
+                impl From<MyStructSpec> for MyStruct {
+                    fn from(orig: MyStructSpec) -> Self {
+                        MyStruct {
+                            field1: Some(orig.field1),
+                            field2: Some(orig.field2),
+                            field3: Some(orig.field3),
+                        }
+                    }
+                }
+            }
+            .to_string()
+        );
     }
 
     #[test]
