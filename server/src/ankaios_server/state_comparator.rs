@@ -113,18 +113,22 @@ impl StateComparator {
                                     sequence_field_mask.push(key_str.clone());
 
                                     if current_seq.is_empty() && !other_seq.is_empty() {
-                                        state_difference_tree.insert_added(sequence_field_mask);
+                                        state_difference_tree
+                                            .insert_added_path(sequence_field_mask);
                                     } else if !current_seq.is_empty() && other_seq.is_empty() {
-                                        state_difference_tree.insert_removed(sequence_field_mask);
+                                        state_difference_tree
+                                            .insert_removed_path(sequence_field_mask);
                                     } else if current_seq != other_seq {
-                                        state_difference_tree.insert_updated(sequence_field_mask);
+                                        state_difference_tree
+                                            .insert_updated_path(sequence_field_mask);
                                     }
                                 }
                                 (current_value, other_value) => {
                                     if current_value != other_value {
                                         let mut updated_field_mask = current_field_mask.clone();
                                         updated_field_mask.push(key_str.clone());
-                                        state_difference_tree.insert_updated(updated_field_mask);
+                                        state_difference_tree
+                                            .insert_updated_path(updated_field_mask);
                                     }
                                 }
                             }
@@ -177,7 +181,7 @@ impl StateDifferenceTree {
         }
     }
 
-    pub fn insert_added(&mut self, path: Vec<String>) {
+    pub fn insert_added_path(&mut self, path: Vec<String>) {
         Self::insert_path(
             &mut self.added_tree,
             Path::from(path),
@@ -185,7 +189,7 @@ impl StateDifferenceTree {
         );
     }
 
-    pub fn insert_removed(&mut self, path: Vec<String>) {
+    pub fn insert_removed_path(&mut self, path: Vec<String>) {
         Self::insert_path(
             &mut self.removed_tree,
             Path::from(path),
@@ -193,7 +197,7 @@ impl StateDifferenceTree {
         );
     }
 
-    pub fn insert_updated(&mut self, path: Vec<String>) {
+    pub fn insert_updated_path(&mut self, path: Vec<String>) {
         Self::insert_path(
             &mut self.updated_tree,
             Path::from(path),

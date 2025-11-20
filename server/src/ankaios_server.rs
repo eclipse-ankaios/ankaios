@@ -183,10 +183,11 @@ impl AnkaiosServer {
                     // [impl->swdd~server-stores-newly-connected-agent~2]
                     self.agent_map.add_agent(agent_name.clone());
 
-                    // [impl->swdd~server-sends-event-for-newly-connected-agent~1]
                     if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-event-for-newly-connected-agent~1]
                         let mut state_difference_tree = StateDifferenceTree::new();
-                        state_difference_tree.insert_added(FieldDifferencePath::agent(&agent_name));
+                        state_difference_tree
+                            .insert_added_path(FieldDifferencePath::agent(&agent_name));
                         self.event_handler
                             .send_events(
                                 &self.server_state,
@@ -213,13 +214,13 @@ impl AnkaiosServer {
 
                     // For simplicity we treat the resource availability changes always as update
                     if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-event-for-updated-agent-resource-availability~1]
                         let mut state_difference_tree = StateDifferenceTree::new();
                         state_difference_tree
-                            .insert_updated(FieldDifferencePath::agent_cpu(&agent_name));
+                            .insert_updated_path(FieldDifferencePath::agent_cpu(&agent_name));
 
                         state_difference_tree
-                            .insert_updated(FieldDifferencePath::agent_memory(&agent_name));
-                        // [impl->swdd~server-sends-event-for-updated-agent-resource-availability~1]
+                            .insert_updated_path(FieldDifferencePath::agent_memory(&agent_name));
                         self.event_handler
                             .send_events(
                                 &self.server_state,
@@ -247,16 +248,16 @@ impl AnkaiosServer {
                         .workload_states_map
                         .get_workload_state_for_agent(&agent_name);
 
-                    // [impl->swdd~server-sends-events-for-disconnected-agent~1]
                     if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-events-for-disconnected-agent~1]
                         let mut state_difference_tree = StateDifferenceTree::new();
                         state_difference_tree
-                            .insert_removed(FieldDifferencePath::agent(&agent_name));
+                            .insert_removed_path(FieldDifferencePath::agent(&agent_name));
 
                         let altered_fields = agent_workload_states.iter().fold(
                             state_difference_tree,
                             |mut state_difference_tree, ws| {
-                                state_difference_tree.insert_updated(
+                                state_difference_tree.insert_updated_path(
                                     FieldDifferencePath::workload_state(&ws.instance_name),
                                 );
                                 state_difference_tree
@@ -520,12 +521,12 @@ impl AnkaiosServer {
                         method_obj.workload_states.iter().for_each(|ws| {
                             if ws.execution_state.is_removed() {
                                 // [impl->swdd~server-sends-event-for-removed-workload-states~1]
-                                state_difference_tree.insert_removed(
+                                state_difference_tree.insert_removed_path(
                                     FieldDifferencePath::workload_state(&ws.instance_name),
                                 );
                             } else {
                                 // [impl->swdd~server-sends-event-for-updated-workload-states~1]
-                                state_difference_tree.insert_updated(
+                                state_difference_tree.insert_updated_path(
                                     FieldDifferencePath::workload_state(&ws.instance_name),
                                 );
                             }
@@ -632,13 +633,14 @@ impl AnkaiosServer {
             // [impl->swdd~server-sends-event-for-initial-workload-states~1]
             added_workloads.iter().for_each(|wl| {
                 state_difference_tree
-                    .insert_added(FieldDifferencePath::workload_state(&wl.instance_name));
+                    .insert_added_path(FieldDifferencePath::workload_state(&wl.instance_name));
             });
 
             deleted_workload_states.iter().for_each(|wl_state| {
                 // [impl->swdd~server-sends-event-for-removed-workload-states~1]
-                state_difference_tree
-                    .insert_removed(FieldDifferencePath::workload_state(&wl_state.instance_name));
+                state_difference_tree.insert_removed_path(FieldDifferencePath::workload_state(
+                    &wl_state.instance_name,
+                ));
             });
 
             log::debug!("State difference tree after update: '{state_difference_tree:?}'");
@@ -3111,7 +3113,7 @@ mod tests {
             .return_const(true);
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
-        expected_state_difference_tree.insert_added(FieldDifferencePath::agent(AGENT_A));
+        expected_state_difference_tree.insert_added_path(FieldDifferencePath::agent(AGENT_A));
 
         server
             .event_handler
@@ -3162,8 +3164,8 @@ mod tests {
         );
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
-        expected_state_difference_tree.insert_removed(FieldDifferencePath::agent(AGENT_A));
-        expected_state_difference_tree.insert_updated(FieldDifferencePath::workload_state(
+        expected_state_difference_tree.insert_removed_path(FieldDifferencePath::agent(AGENT_A));
+        expected_state_difference_tree.insert_updated_path(FieldDifferencePath::workload_state(
             &test_wl_1_state_running.instance_name,
         ));
 
@@ -3245,7 +3247,7 @@ mod tests {
         };
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
-        expected_state_difference_tree.insert_added(vec![
+        expected_state_difference_tree.insert_added_path(vec![
             "desiredState".to_owned(),
             "workloads".to_owned(),
             WORKLOAD_NAME_1.to_owned(),
@@ -3283,12 +3285,12 @@ mod tests {
             .once()
             .return_const(true);
 
-        expected_state_difference_tree.insert_added(FieldDifferencePath::workload_state(
+        expected_state_difference_tree.insert_added_path(FieldDifferencePath::workload_state(
             &updated_w1.instance_name,
         ));
 
         expected_state_difference_tree
-            .insert_removed(FieldDifferencePath::workload_state(&w1.instance_name));
+            .insert_removed_path(FieldDifferencePath::workload_state(&w1.instance_name));
 
         let mut expected_workload_states_map = WorkloadStatesMap::default();
         expected_workload_states_map.process_new_states(vec![WorkloadState {
@@ -3350,7 +3352,7 @@ mod tests {
         let mut expected_state_difference_tree = StateDifferenceTree::new();
 
         expected_state_difference_tree
-            .insert_updated(vec!["configs".to_owned(), "config_2".to_owned()]);
+            .insert_updated_path(vec!["configs".to_owned(), "config_2".to_owned()]);
 
         let state_difference_tree = expected_state_difference_tree.clone();
         state_generation_result
@@ -3434,10 +3436,10 @@ mod tests {
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
 
-        expected_state_difference_tree.insert_updated(FieldDifferencePath::workload_state(
+        expected_state_difference_tree.insert_updated_path(FieldDifferencePath::workload_state(
             &workload_state_1.instance_name,
         ));
-        expected_state_difference_tree.insert_removed(FieldDifferencePath::workload_state(
+        expected_state_difference_tree.insert_removed_path(FieldDifferencePath::workload_state(
             &workload_state_2.instance_name,
         ));
 
@@ -3480,8 +3482,9 @@ mod tests {
             .return_const(true);
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
-        expected_state_difference_tree.insert_updated(FieldDifferencePath::agent_cpu(AGENT_A));
-        expected_state_difference_tree.insert_updated(FieldDifferencePath::agent_memory(AGENT_A));
+        expected_state_difference_tree.insert_updated_path(FieldDifferencePath::agent_cpu(AGENT_A));
+        expected_state_difference_tree
+            .insert_updated_path(FieldDifferencePath::agent_memory(AGENT_A));
         server
             .event_handler
             .expect_send_events()

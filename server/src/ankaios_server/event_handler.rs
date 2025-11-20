@@ -66,6 +66,7 @@ impl EventHandler {
         from_server_channel: &FromServerSender,
     ) {
         for (request_id, subscribed_field_masks) in &self.subscriber_store {
+            // [impl->swdd~event-handler-calculates-leaf-paths-as-altered-field-masks~1]
             let altered_fields = get_altered_fields(&field_difference_tree, subscribed_field_masks);
             let mut filter_masks = altered_fields.added_fields.clone();
             filter_masks.extend(altered_fields.removed_fields.clone());
@@ -100,6 +101,7 @@ impl EventHandler {
     }
 }
 
+// [impl->swdd~event-handler-calculates-leaf-paths-as-altered-field-masks~1]
 fn get_altered_fields(
     field_difference_tree: &StateDifferenceTree,
     paths: &[Path],
@@ -130,19 +132,23 @@ fn get_altered_fields(
     altered_fields
 }
 
-fn collect_altered_fields(tree: &Object, paths: &[Path], altered_fields: &mut Vec<String>) {
-    for path in paths {
+fn collect_altered_fields(
+    tree: &Object,
+    subscriber_field_masks: &[Path],
+    altered_fields: &mut Vec<String>,
+) {
+    for path in subscriber_field_masks {
         if let Some(node) = tree.get(path).cloned() {
-            let fields_matching_mask = collect_paths_iterative(&node, path.parts());
-            fields_matching_mask.into_iter().for_each(|added_path| {
-                altered_fields.push(added_path);
+            let fields_matching_mask = collect_all_leaf_paths_iterative(&node, path.parts());
+            fields_matching_mask.into_iter().for_each(|leaf_path| {
+                altered_fields.push(leaf_path);
             });
         }
     }
 }
 
 /// Collect all leaf paths reachable from the provided start path.
-pub fn collect_paths_iterative(root: &Value, start_path: &[String]) -> Vec<String> {
+pub fn collect_all_leaf_paths_iterative(root: &Value, start_path: &[String]) -> Vec<String> {
     let node = root;
     let prefix = start_path.join(".");
     let mut results = Vec::new();
@@ -287,7 +293,7 @@ mod tests {
     }
 
     // [utest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
-    // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
+    // [utest->swdd~event-handler-calculates-leaf-paths-as-altered-field-masks~1]
     #[tokio::test]
     async fn utest_event_handler_send_events() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -330,20 +336,21 @@ mod tests {
         let agent_map = AgentMap::default();
 
         let mut state_difference_tree = StateDifferenceTree::new();
-        state_difference_tree.insert_added(vec![
+        state_difference_tree.insert_added_path(vec![
             "desiredState".to_owned(),
             "workloads".to_owned(),
             "workload_2".to_owned(),
         ]);
 
-        state_difference_tree.insert_updated(vec![
+        state_difference_tree.insert_updated_path(vec![
             "desiredState".to_owned(),
             "workloads".to_owned(),
             "workload_1".to_owned(),
             "agent".to_owned(),
         ]);
 
-        state_difference_tree.insert_removed(vec!["configs".to_owned(), "some_config".to_owned()]);
+        state_difference_tree
+            .insert_removed_path(vec!["configs".to_owned(), "some_config".to_owned()]);
 
         let (to_agents, mut agents_receiver) = create_from_server_channel(1);
 
