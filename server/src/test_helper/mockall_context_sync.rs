@@ -12,9 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-mod object;
-mod path;
+#[cfg(test)]
+use mockall::lazy_static;
 
-pub use object::Object;
-pub use object::get_paths_from_yaml_node;
-pub use path::Path;
+#[cfg(test)]
+lazy_static! {
+    pub static ref MOCKALL_CONTEXT_SYNC: common::test_utils::MockAllContextSync =
+        common::test_utils::MockAllContextSync::new();
+}

@@ -30,6 +30,9 @@ use server_config::{DEFAULT_SERVER_CONFIG_FILE_PATH, ServerConfig};
 
 use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 
+#[cfg(test)]
+pub mod test_helper;
+
 fn handle_sever_config(config_path: &Option<String>, default_path: &str) -> ServerConfig {
     match config_path {
         Some(config_path) => {
