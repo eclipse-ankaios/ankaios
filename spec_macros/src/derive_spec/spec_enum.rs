@@ -262,12 +262,11 @@ pub fn derive_spec_enum(
 
 #[cfg(test)]
 mod tests {
-
+    use super::derive_spec_enum;
+    
     use proc_macro2::TokenStream;
     use quote::{format_ident, quote};
     use syn::{Visibility, parse_quote};
-
-    use super::derive_spec_enum;
 
     #[test]
     fn test_derive_spec_enum_simple() {
