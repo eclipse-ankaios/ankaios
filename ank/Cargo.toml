@@ -22,6 +22,7 @@ assets = [
 api = { path = "../api" }
 common = { path = "../common" }
 grpc = { path = "../grpc" }
+chrono = "0.4"
 clap = { version = "4.5", features = ["derive", "env"] }
 tokio = { version = "1.41", features = [
     "macros",
