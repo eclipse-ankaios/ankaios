@@ -39,11 +39,11 @@ impl StateComparator {
             new_state,
         }
     }
-    /// Determine the added, updated and removed fields between self and other using a depth-first search (DFS) algorithm.
+    /// Construct separated trees for added, updated and removed fields between self and other using a depth-first search (DFS) algorithm.
     ///
     /// ## Returns
     ///
-    /// - a [`StateDifferenceTree`] containing added, updated and removed fields and the corresponding field mask.
+    /// - a [`StateDifferenceTree`] containing added, updated and removed fields as separate tree structures.
     ///
     pub fn state_differences(&self) -> StateDifferenceTree {
         let mut state_difference_tree = StateDifferenceTree::new();
