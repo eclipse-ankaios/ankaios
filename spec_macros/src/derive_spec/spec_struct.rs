@@ -13,15 +13,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use proc_macro2::TokenStream;
+use crate::utils::{
+    DerivedSpec, extract_inner, get_doc_attrs, get_prost_enum_type, get_prost_map_enum_value_type,
+    get_spec_field_attrs, has_mandatory_attr, inner_hashmap_type_path, inner_vec_type_path,
+    is_custom_type_path, is_option_type_path, to_spec_ident, to_spec_type, wrap_in_option,
+};
+
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{FieldsNamed, Ident, Type, Visibility, parse_quote};
-
-use crate::utils::{
-    DerivedSpec, extract_inner, get_doc_attrs, get_option_handling, get_prost_enum_type,
-    get_prost_map_enum_value_type, get_spec_field_attrs, inner_hashmap_type_path,
-    inner_vec_type_path, is_custom_type_path, is_option_type_path, to_spec_ident, to_spec_type,
-    wrap_in_option,
-};
 
 pub fn derive_spec_struct(
     fields_named: FieldsNamed,
