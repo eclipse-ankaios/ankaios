@@ -86,7 +86,7 @@ with a resulting spec enum:
 #[derive(Debug, Eq, PartialEq)]
 enum MyEnumSpec {
     A{a: String},
-    OptionTwo{option_two: PersonSpec},
+    B{b: PersonSpec},
     C(Box<PersonSpec>),
 }
 ```
