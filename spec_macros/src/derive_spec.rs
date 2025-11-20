@@ -18,11 +18,11 @@ mod spec_struct;
 use spec_enum::derive_spec_enum;
 use spec_struct::derive_spec_struct;
 
+use crate::utils;
+
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Data, DataEnum, DataStruct, DeriveInput, Fields};
-
-use crate::utils;
 
 pub fn derive_spec(input: DeriveInput) -> syn::Result<TokenStream> {
     let orig_name = input.ident;
