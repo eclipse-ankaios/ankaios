@@ -31,6 +31,12 @@ pub struct StateComparator {
     new_state: Mapping,
 }
 
+pub enum StackTask<'a> {
+    VisitPair(&'a Mapping, &'a Mapping),
+    PushField(String),
+    PopField,
+}
+
 #[cfg_attr(test, automock)]
 impl StateComparator {
     pub fn new(old_state: Mapping, new_state: Mapping) -> Self {
@@ -67,7 +73,9 @@ impl StateComparator {
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.added_tree,
                                 Path::from(added_field_mask),
-                                other_node.get(key).cloned().unwrap_or_unreachable(),
+                                Self::copy_nested_keys_to_tree(
+                                    other_node.get(key).unwrap_or_unreachable(),
+                                ),
                             );
                         }
                     }
@@ -82,7 +90,9 @@ impl StateComparator {
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.removed_tree,
                                 Path::from(removed_field_mask),
-                                current_node.get(key).cloned().unwrap_or_unreachable(),
+                                Self::copy_nested_keys_to_tree(
+                                    current_node.get(key).unwrap_or_unreachable(),
+                                ),
                             );
                         } else {
                             let Value::String(key_str) = key else {
@@ -103,34 +113,18 @@ impl StateComparator {
                                     sequence_field_mask.push(key_str.clone());
 
                                     if current_seq.is_empty() && !other_seq.is_empty() {
-                                        StateDifferenceTree::insert_path(
-                                            &mut state_difference_tree.added_tree,
-                                            Path::from(sequence_field_mask),
-                                            Value::Sequence(other_seq.clone()),
-                                        );
+                                        state_difference_tree.insert_added(sequence_field_mask);
                                     } else if !current_seq.is_empty() && other_seq.is_empty() {
-                                        StateDifferenceTree::insert_path(
-                                            &mut state_difference_tree.removed_tree,
-                                            Path::from(sequence_field_mask),
-                                            Value::Sequence(current_seq.clone()),
-                                        );
+                                        state_difference_tree.insert_removed(sequence_field_mask);
                                     } else if current_seq != other_seq {
-                                        StateDifferenceTree::insert_path(
-                                            &mut state_difference_tree.updated_tree,
-                                            Path::from(sequence_field_mask),
-                                            Value::Sequence(other_seq.clone()),
-                                        );
+                                        state_difference_tree.insert_updated(sequence_field_mask);
                                     }
                                 }
                                 (current_value, other_value) => {
                                     if current_value != other_value {
                                         let mut updated_field_mask = current_field_mask.clone();
                                         updated_field_mask.push(key_str.clone());
-                                        StateDifferenceTree::insert_path(
-                                            &mut state_difference_tree.updated_tree,
-                                            Path::from(updated_field_mask),
-                                            other_value.clone(),
-                                        );
+                                        state_difference_tree.insert_updated(updated_field_mask);
                                     }
                                 }
                             }
@@ -150,13 +144,28 @@ impl StateComparator {
 
         state_difference_tree
     }
+
+    fn copy_nested_keys_to_tree(start_node: &Value) -> Value {
+        match start_node {
+            Value::Mapping(map) if !map.is_empty() => {
+                let mut new_map = Mapping::new();
+                for (key, next_value) in map {
+                    let new_value = Self::copy_nested_keys_to_tree(next_value);
+                    new_map.insert(key.clone(), new_value);
+                }
+                Value::Mapping(new_map)
+            }
+            Value::Sequence(_) => Value::Null,
+            _ => Value::Null,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StateDifferenceTree {
-    added_tree: Object,
-    removed_tree: Object,
-    updated_tree: Object,
+    pub added_tree: Object,
+    pub removed_tree: Object,
+    pub updated_tree: Object,
 }
 
 impl StateDifferenceTree {
@@ -166,33 +175,6 @@ impl StateDifferenceTree {
             removed_tree: Object::default(),
             updated_tree: Object::default(),
         }
-    }
-
-    pub fn get_altered_fields(&self, paths: &[Path]) -> AlteredFields {
-        let mut altered_fields = AlteredFields::default();
-
-        let expanded_added_paths = self.added_tree.expand_wildcards(paths);
-        Self::collect_altered_fields(
-            &self.added_tree,
-            &expanded_added_paths,
-            &mut altered_fields.added_fields,
-        );
-
-        let expanded_removed_paths = self.removed_tree.expand_wildcards(paths);
-        Self::collect_altered_fields(
-            &self.removed_tree,
-            &expanded_removed_paths,
-            &mut altered_fields.removed_fields,
-        );
-
-        let expanded_updated_paths = self.updated_tree.expand_wildcards(paths);
-        Self::collect_altered_fields(
-            &self.updated_tree,
-            &expanded_updated_paths,
-            &mut altered_fields.updated_fields,
-        );
-
-        altered_fields
     }
 
     pub fn insert_added(&mut self, path: Vec<String>) {
@@ -226,67 +208,6 @@ impl StateDifferenceTree {
     fn insert_path(tree: &mut Object, at_path: Path, new_value: Value) {
         tree.set(&at_path, new_value).unwrap_or_illegal_state();
     }
-
-    fn collect_altered_fields(tree: &Object, paths: &[Path], altered_fields: &mut Vec<String>) {
-        for path in paths {
-            if let Some(node) = tree.get(path).cloned() {
-                let fields_matching_mask = collect_paths_iterative(&node, path.parts());
-                fields_matching_mask.into_iter().for_each(|added_path| {
-                    altered_fields.push(added_path);
-                });
-            }
-        }
-    }
-}
-
-/// Collect all leaf paths reachable from the provided start path.
-pub fn collect_paths_iterative(root: &Value, start_path: &[String]) -> Vec<String> {
-    let node = root;
-    let prefix = start_path.join(".");
-    let mut results = Vec::new();
-    let mut stack = vec![(node, prefix)];
-    while let Some((current, current_path)) = stack.pop() {
-        match current {
-            Value::Mapping(map) if !map.is_empty() => {
-                for (k, v) in map {
-                    if let Value::String(key) = k {
-                        let new_path = format!("{current_path}.{key}");
-                        stack.push((v, new_path));
-                    }
-                }
-            }
-            // Any non-mapping or empty mapping is treated as a leaf node
-            _ => {
-                results.push(current_path);
-            }
-        }
-    }
-    results
-}
-
-#[derive(Debug, Default)]
-pub struct AlteredFields {
-    pub added_fields: Vec<String>,
-    pub removed_fields: Vec<String>,
-    pub updated_fields: Vec<String>,
-}
-
-impl AlteredFields {
-    pub fn all_empty(&self) -> bool {
-        self.added_fields.is_empty()
-            && self.removed_fields.is_empty()
-            && self.updated_fields.is_empty()
-    }
-}
-
-impl From<AlteredFields> for api::ank_base::AlteredFields {
-    fn from(altered_fields: AlteredFields) -> Self {
-        api::ank_base::AlteredFields {
-            added_fields: altered_fields.added_fields,
-            removed_fields: altered_fields.removed_fields,
-            updated_fields: altered_fields.updated_fields,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
@@ -302,7 +223,7 @@ impl FieldDifferencePath {
         vec![Self::AGENT_KEY.to_string(), agent_name.to_string()]
     }
 
-    pub fn updated_agent_cpu(agent_name: &str) -> Vec<String> {
+    pub fn agent_cpu(agent_name: &str) -> Vec<String> {
         vec![
             Self::AGENT_KEY.to_string(),
             agent_name.to_string(),
@@ -310,7 +231,7 @@ impl FieldDifferencePath {
         ]
     }
 
-    pub fn updated_agent_memory(agent_name: &str) -> Vec<String> {
+    pub fn agent_memory(agent_name: &str) -> Vec<String> {
         vec![
             Self::AGENT_KEY.to_string(),
             agent_name.to_string(),
@@ -326,12 +247,6 @@ impl FieldDifferencePath {
             instance_name.id().to_owned(),
         ]
     }
-}
-
-pub enum StackTask<'a> {
-    VisitPair(&'a Mapping, &'a Mapping),
-    PushField(String),
-    PopField,
 }
 
 // [utest->swdd~server-calculates-state-differences~1]
@@ -417,11 +332,12 @@ mod tests {
 
         let expected_added_tree_yaml = r#"
             key_1_1:
-              key_2_2: value_2_2
-            key_1_2: {}
+                key_2_2: null
+            key_1_2: null
         "#;
-        let expected_added_tree =
-            Object::try_from(serde_yaml::to_value(expected_added_tree_yaml).unwrap()).unwrap();
+        let expected_added_tree = Object::from(
+            serde_yaml::from_str::<serde_yaml::Value>(expected_added_tree_yaml).unwrap(),
+        );
 
         assert_eq!(state_difference_tree.added_tree, expected_added_tree);
         assert!(state_difference_tree.updated_tree.is_empty());
@@ -451,10 +367,11 @@ mod tests {
 
         let expected_updated_tree_yaml = r#"
             key_1_1:
-              key_2_1: value_2_1_updated
+              key_2_1: null
         "#;
-        let expected_updated_tree =
-            Object::try_from(serde_yaml::to_value(expected_updated_tree_yaml).unwrap()).unwrap();
+        let expected_updated_tree = Object::from(
+            serde_yaml::from_str::<serde_yaml::Value>(expected_updated_tree_yaml).unwrap(),
+        );
 
         assert_eq!(state_difference_tree.updated_tree, expected_updated_tree);
         assert!(state_difference_tree.added_tree.is_empty());
@@ -483,10 +400,11 @@ mod tests {
 
         let expected_removed_tree_yaml = r#"
             key_1_1:
-              key_2_1: value_2_1
+              key_2_1: null
         "#;
-        let expected_removed_tree =
-            Object::try_from(serde_yaml::to_value(expected_removed_tree_yaml).unwrap()).unwrap();
+        let expected_removed_tree = Object::from(
+            serde_yaml::from_str::<serde_yaml::Value>(expected_removed_tree_yaml).unwrap(),
+        );
 
         assert_eq!(state_difference_tree.removed_tree, expected_removed_tree);
         assert!(state_difference_tree.added_tree.is_empty());
@@ -513,10 +431,11 @@ mod tests {
         let state_difference_tree = state_comparator.state_differences();
         let expected_removed_tree_yaml = r#"
             key_1_1:
-              key_2_1: value_2_1
+              key_2_1: null
         "#;
-        let expected_removed_tree =
-            Object::try_from(serde_yaml::to_value(expected_removed_tree_yaml).unwrap()).unwrap();
+        let expected_removed_tree = Object::from(
+            serde_yaml::from_str::<serde_yaml::Value>(expected_removed_tree_yaml).unwrap(),
+        );
 
         assert_eq!(state_difference_tree.removed_tree, expected_removed_tree);
         assert!(state_difference_tree.added_tree.is_empty());
@@ -542,11 +461,11 @@ mod tests {
         let state_difference_tree = state_comparator.state_differences();
 
         let expected_added_tree_yaml = r#"
-            key_1:
-              - seq_value
+            key_1: null
         "#;
-        let expected_added_tree =
-            Object::try_from(serde_yaml::to_value(expected_added_tree_yaml).unwrap()).unwrap();
+        let expected_added_tree = Object::from(
+            serde_yaml::from_str::<serde_yaml::Value>(expected_added_tree_yaml).unwrap(),
+        );
 
         assert_eq!(state_difference_tree.added_tree, expected_added_tree);
         assert!(state_difference_tree.updated_tree.is_empty());
@@ -574,12 +493,11 @@ mod tests {
         let state_difference_tree = state_comparator.state_differences();
 
         let expected_updated_tree_yaml = r#"
-            key_1:
-              - seq_value_1
-              - seq_value_2
+            key_1: null
         "#;
-        let expected_updated_tree =
-            Object::try_from(serde_yaml::to_value(expected_updated_tree_yaml).unwrap()).unwrap();
+        let expected_updated_tree = Object::from(
+            serde_yaml::from_str::<serde_yaml::Value>(expected_updated_tree_yaml).unwrap(),
+        );
 
         assert_eq!(state_difference_tree.updated_tree, expected_updated_tree);
         assert!(state_difference_tree.added_tree.is_empty());
@@ -605,11 +523,11 @@ mod tests {
         let state_difference_tree = state_comparator.state_differences();
 
         let expected_removed_tree_yaml = r#"
-            key_1:
-              - seq_value
+            key_1: null
         "#;
-        let expected_removed_tree =
-            Object::try_from(serde_yaml::to_value(expected_removed_tree_yaml).unwrap()).unwrap();
+        let expected_removed_tree = Object::from(
+            serde_yaml::from_str::<serde_yaml::Value>(expected_removed_tree_yaml).unwrap(),
+        );
 
         assert_eq!(state_difference_tree.removed_tree, expected_removed_tree);
         assert!(state_difference_tree.added_tree.is_empty());
@@ -647,7 +565,7 @@ mod tests {
 
     #[test]
     fn utest_field_difference_updated_agent_cpu() {
-        let field_difference_path = FieldDifferencePath::updated_agent_cpu(AGENT_A);
+        let field_difference_path = FieldDifferencePath::agent_cpu(AGENT_A);
         assert_eq!(
             field_difference_path,
             [
@@ -660,7 +578,7 @@ mod tests {
 
     #[test]
     fn utest_field_difference_updated_agent_memory() {
-        let field_difference_path = FieldDifferencePath::updated_agent_memory(AGENT_A);
+        let field_difference_path = FieldDifferencePath::agent_memory(AGENT_A);
         assert_eq!(
             field_difference_path,
             [

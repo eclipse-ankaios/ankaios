@@ -11,18 +11,22 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+use crate::ankaios_server::request_id::to_string_id;
 #[cfg_attr(test, mockall_double::double)]
 use crate::ankaios_server::server_state::ServerState;
-use crate::ankaios_server::{request_id::to_string_id, state_comparator::StateDifferenceTree};
+
+use crate::ankaios_server::state_comparator::StateDifferenceTree;
 
 use super::request_id::RequestId;
 use common::{
     from_server_interface::{FromServerInterface, FromServerSender},
     objects::{AgentMap, WorkloadStatesMap},
-    state_manipulation::Path,
+    state_manipulation::{Object, Path},
     std_extensions::IllegalStateResult,
 };
 use std::collections::HashMap;
+
+use serde_yaml::Value;
 
 #[cfg(test)]
 use mockall::automock;
@@ -62,7 +66,7 @@ impl EventHandler {
         from_server_channel: &FromServerSender,
     ) {
         for (request_id, subscribed_field_masks) in &self.subscriber_store {
-            let altered_fields = field_difference_tree.get_altered_fields(subscribed_field_masks);
+            let altered_fields = get_altered_fields(&field_difference_tree, subscribed_field_masks);
             let mut filter_masks = altered_fields.added_fields.clone();
             filter_masks.extend(altered_fields.removed_fields.clone());
             filter_masks.extend(altered_fields.updated_fields.clone());
@@ -96,6 +100,97 @@ impl EventHandler {
     }
 }
 
+fn get_altered_fields(
+    field_difference_tree: &StateDifferenceTree,
+    paths: &[Path],
+) -> AlteredFields {
+    let mut altered_fields = AlteredFields::default();
+
+    let expanded_added_paths = field_difference_tree.added_tree.expand_wildcards(paths);
+    collect_altered_fields(
+        &field_difference_tree.added_tree,
+        &expanded_added_paths,
+        &mut altered_fields.added_fields,
+    );
+
+    let expanded_removed_paths = field_difference_tree.removed_tree.expand_wildcards(paths);
+    collect_altered_fields(
+        &field_difference_tree.removed_tree,
+        &expanded_removed_paths,
+        &mut altered_fields.removed_fields,
+    );
+
+    let expanded_updated_paths = field_difference_tree.updated_tree.expand_wildcards(paths);
+    collect_altered_fields(
+        &field_difference_tree.updated_tree,
+        &expanded_updated_paths,
+        &mut altered_fields.updated_fields,
+    );
+
+    altered_fields
+}
+
+fn collect_altered_fields(tree: &Object, paths: &[Path], altered_fields: &mut Vec<String>) {
+    for path in paths {
+        if let Some(node) = tree.get(path).cloned() {
+            let fields_matching_mask = collect_paths_iterative(&node, path.parts());
+            fields_matching_mask.into_iter().for_each(|added_path| {
+                altered_fields.push(added_path);
+            });
+        }
+    }
+}
+
+/// Collect all leaf paths reachable from the provided start path.
+pub fn collect_paths_iterative(root: &Value, start_path: &[String]) -> Vec<String> {
+    let node = root;
+    let prefix = start_path.join(".");
+    let mut results = Vec::new();
+    let mut stack = vec![(node, prefix)];
+    while let Some((current, current_path)) = stack.pop() {
+        match current {
+            Value::Mapping(map) if !map.is_empty() => {
+                for (k, v) in map {
+                    if let Value::String(key) = k {
+                        let new_path = format!("{current_path}.{key}");
+                        stack.push((v, new_path));
+                    }
+                }
+            }
+            // Any non-mapping or empty mapping is treated as a leaf node
+            _ => {
+                results.push(current_path);
+            }
+        }
+    }
+    results
+}
+
+#[derive(Debug, Default)]
+pub struct AlteredFields {
+    pub added_fields: Vec<String>,
+    pub removed_fields: Vec<String>,
+    pub updated_fields: Vec<String>,
+}
+
+impl AlteredFields {
+    pub fn all_empty(&self) -> bool {
+        self.added_fields.is_empty()
+            && self.removed_fields.is_empty()
+            && self.updated_fields.is_empty()
+    }
+}
+
+impl From<AlteredFields> for api::ank_base::AlteredFields {
+    fn from(altered_fields: AlteredFields) -> Self {
+        api::ank_base::AlteredFields {
+            added_fields: altered_fields.added_fields,
+            removed_fields: altered_fields.removed_fields,
+            updated_fields: altered_fields.updated_fields,
+        }
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -115,14 +210,13 @@ mod tests {
         },
     };
 
+    use super::StateDifferenceTree;
+
     use api::ank_base::response::ResponseContent;
     use mockall::predicate;
 
     use super::EventHandler;
-    use crate::ankaios_server::{
-        create_from_server_channel, server_state::MockServerState,
-        state_comparator::FieldDifference,
-    };
+    use crate::ankaios_server::{create_from_server_channel, server_state::MockServerState};
 
     const REQUEST_ID_1: &str = "agent_A@workload_1@1234";
     const REQUEST_ID_2: &str = "agent_B@workload_2@5678";
@@ -195,7 +289,7 @@ mod tests {
     // [utest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
     // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
     #[tokio::test]
-    async fn utest_event_handler_send_events_subscriber_masks_equal() {
+    async fn utest_event_handler_send_events() {
         let _ = env_logger::builder().is_test(true).try_init();
         let added_field_mask = "desiredState.workloads.workload_2";
         let updated_field_mask = "desiredState.workloads.workload_1.agent";
@@ -209,8 +303,8 @@ mod tests {
             .with(
                 predicate::eq(vec![
                     added_field_mask.to_owned(),
-                    updated_field_mask.to_owned(),
                     expected_removed_field_mask.to_owned(),
+                    updated_field_mask.to_owned(),
                 ]),
                 predicate::always(),
                 predicate::always(),
@@ -234,20 +328,23 @@ mod tests {
             .into()));
         let workload_states_map = WorkloadStatesMap::default();
         let agent_map = AgentMap::default();
-        let field_differences = vec![
-            FieldDifference::Added(vec![
-                "desiredState".to_owned(),
-                "workloads".to_owned(),
-                "workload_2".to_owned(),
-            ]),
-            FieldDifference::Updated(vec![
-                "desiredState".to_owned(),
-                "workloads".to_owned(),
-                "workload_1".to_owned(),
-                "agent".to_owned(),
-            ]),
-            FieldDifference::Removed(vec!["configs".to_owned(), "some_config".to_owned()]),
-        ];
+
+        let mut state_difference_tree = StateDifferenceTree::new();
+        state_difference_tree.insert_added(vec![
+            "desiredState".to_owned(),
+            "workloads".to_owned(),
+            "workload_2".to_owned(),
+        ]);
+
+        state_difference_tree.insert_updated(vec![
+            "desiredState".to_owned(),
+            "workloads".to_owned(),
+            "workload_1".to_owned(),
+            "agent".to_owned(),
+        ]);
+
+        state_difference_tree.insert_removed(vec!["configs".to_owned(), "some_config".to_owned()]);
+
         let (to_agents, mut agents_receiver) = create_from_server_channel(1);
 
         let mut event_handler = EventHandler::default();
@@ -265,7 +362,7 @@ mod tests {
                 &mock_server_state,
                 &workload_states_map,
                 &agent_map,
-                field_differences,
+                state_difference_tree,
                 &to_agents,
             )
             .await;
@@ -319,121 +416,5 @@ mod tests {
 
         assert_eq!(complete_state, expected_complete_state);
         assert_eq!(altered_fields, expected_altered_fields);
-    }
-
-    // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
-    // [utest->swdd~event-handler-expands-subscriber-field-mask-using-altered-field-masks~1]
-    #[test]
-    fn utest_fill_altered_fields_and_filter_masks_shorter_wildcard_subscriber_masks() {
-        let expected_field_difference_mask = "desiredState.workloads.workload_1.agent";
-        let subscribed_field_masks = vec!["desiredState.workloads.*".into()];
-        let field_difference_mask = expected_field_difference_mask.into();
-
-        let (altered_fields, filter_masks) = super::fill_altered_fields_and_filter_masks(
-            Vec::new(),
-            Vec::new(),
-            &field_difference_mask,
-            &subscribed_field_masks,
-        );
-
-        assert_eq!(
-            altered_fields,
-            vec![expected_field_difference_mask.to_owned(),]
-        );
-        assert_eq!(
-            filter_masks,
-            vec![expected_field_difference_mask.to_owned(),]
-        );
-    }
-
-    // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
-    #[test]
-    fn utest_fill_altered_fields_and_filter_masks_shorter_subscriber_masks() {
-        let expected_field_difference_mask = "desiredState.workloads.workload_1.agent";
-        let subscribed_field_masks = vec!["desiredState.workloads".into()];
-        let field_difference_mask = expected_field_difference_mask.into();
-
-        let (altered_fields, filter_masks) = super::fill_altered_fields_and_filter_masks(
-            Vec::new(),
-            Vec::new(),
-            &field_difference_mask,
-            &subscribed_field_masks,
-        );
-
-        assert_eq!(
-            altered_fields,
-            vec![expected_field_difference_mask.to_owned(),]
-        );
-        assert_eq!(
-            filter_masks,
-            vec![expected_field_difference_mask.to_owned(),]
-        );
-    }
-
-    // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
-    // [utest->swdd~event-handler-expands-subscriber-field-mask-using-altered-field-masks~1]
-    #[test]
-    fn utest_fill_altered_fields_and_filter_masks_shorter_altered_field_mask_subscriber_wildcards()
-    {
-        let altered_field_mask = "desiredState.workloads.workload_1";
-        let subscribed_field_masks = vec!["desiredState.workloads.*.agent".into()];
-        let altered_field_mask_path = altered_field_mask.into();
-        let expected_altered_field_mask = "desiredState.workloads.workload_1.agent";
-
-        let (altered_fields, filter_masks) = super::fill_altered_fields_and_filter_masks(
-            Vec::new(),
-            Vec::new(),
-            &altered_field_mask_path,
-            &subscribed_field_masks,
-        );
-
-        assert_eq!(
-            altered_fields,
-            vec![expected_altered_field_mask.to_owned(),]
-        );
-        assert_eq!(filter_masks, vec![expected_altered_field_mask.to_owned(),]);
-    }
-
-    // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
-    // [utest->swdd~event-handler-expands-subscriber-field-mask-using-altered-field-masks~1]
-    #[test]
-    fn utest_fill_altered_fields_and_filter_masks_shorter_altered_field_mask_no_wildcards_in_expanded_mask()
-     {
-        let altered_field_mask = "desiredState.workloads.workload_1";
-        let subscribed_field_masks = vec!["desiredState.*.*.*".into()];
-        let altered_field_mask_path = altered_field_mask.into();
-        let expected_altered_field_masks = vec!["desiredState.workloads.workload_1".to_owned()];
-
-        let (altered_fields, filter_masks) = super::fill_altered_fields_and_filter_masks(
-            Vec::new(),
-            Vec::new(),
-            &altered_field_mask_path,
-            &subscribed_field_masks,
-        );
-
-        assert_eq!(altered_fields, expected_altered_field_masks);
-        assert_eq!(filter_masks, expected_altered_field_masks);
-    }
-
-    // [utest->swdd~event-handler-creates-altered-fields-and-filter-masks~1]
-    #[test]
-    fn utest_fill_altered_fields_and_filter_masks_shorter_altered_field_mask() {
-        let altered_field_mask = "desiredState.workloads.workload_1";
-        let expected_altered_field_mask = "desiredState.workloads.workload_1.agent";
-        let subscribed_field_masks = vec![expected_altered_field_mask.into()];
-        let altered_field_mask_path = altered_field_mask.into();
-
-        let (altered_fields, filter_masks) = super::fill_altered_fields_and_filter_masks(
-            Vec::new(),
-            Vec::new(),
-            &altered_field_mask_path,
-            &subscribed_field_masks,
-        );
-
-        assert_eq!(
-            altered_fields,
-            vec![expected_altered_field_mask.to_owned(),]
-        );
-        assert_eq!(filter_masks, vec![expected_altered_field_mask.to_owned(),]);
     }
 }

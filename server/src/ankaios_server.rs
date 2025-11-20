@@ -68,7 +68,9 @@ use log_campaign_store::LogCollectorRequestId;
 
 use std::collections::HashSet;
 
-use crate::ankaios_server::state_comparator::{FieldDifferencePath, StateDifferenceTree};
+use crate::ankaios_server::state_comparator::FieldDifferencePath;
+
+use crate::ankaios_server::state_comparator::StateDifferenceTree;
 
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
@@ -213,10 +215,10 @@ impl AnkaiosServer {
                     if self.event_handler.has_subscribers() {
                         let mut state_difference_tree = StateDifferenceTree::new();
                         state_difference_tree
-                            .insert_updated(FieldDifferencePath::updated_agent_cpu(&agent_name));
+                            .insert_updated(FieldDifferencePath::agent_cpu(&agent_name));
 
                         state_difference_tree
-                            .insert_updated(FieldDifferencePath::updated_agent_memory(&agent_name));
+                            .insert_updated(FieldDifferencePath::agent_memory(&agent_name));
                         // [impl->swdd~server-sends-event-for-updated-agent-resource-availability~1]
                         self.event_handler
                             .send_events(
@@ -791,7 +793,9 @@ mod tests {
     use crate::ankaios_server::server_state::{
         AddedDeletedWorkloads, MockServerState, StateGenerationResult, UpdateStateError,
     };
-    use crate::ankaios_server::state_comparator::{FieldDifference, MockStateComparator};
+    use crate::ankaios_server::state_comparator::{
+        FieldDifferencePath, MockStateComparator, StateDifferenceTree,
+    };
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
     use super::ank_base;
@@ -3106,6 +3110,9 @@ mod tests {
             .expect_has_subscribers()
             .return_const(true);
 
+        let mut expected_state_difference_tree = StateDifferenceTree::new();
+        expected_state_difference_tree.insert_added(FieldDifferencePath::agent(AGENT_A));
+
         server
             .event_handler
             .expect_send_events()
@@ -3113,7 +3120,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::eq(vec![FieldDifference::added_agent(AGENT_A)]),
+                mockall::predicate::eq(expected_state_difference_tree),
                 mockall::predicate::always(),
             )
             .once()
@@ -3153,6 +3160,13 @@ mod tests {
             AGENT_A,
             ExecutionState::running(),
         );
+
+        let mut expected_state_difference_tree = StateDifferenceTree::new();
+        expected_state_difference_tree.insert_removed(FieldDifferencePath::agent(AGENT_A));
+        expected_state_difference_tree.insert_updated(FieldDifferencePath::workload_state(
+            &test_wl_1_state_running.instance_name,
+        ));
+
         server
             .event_handler
             .expect_send_events()
@@ -3160,10 +3174,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::eq(vec![
-                    FieldDifference::removed_agent(AGENT_A),
-                    FieldDifference::updated_workload_state(&test_wl_1_state_running.instance_name),
-                ]),
+                mockall::predicate::eq(expected_state_difference_tree),
                 mockall::predicate::always(),
             )
             .once()
@@ -3233,19 +3244,20 @@ mod tests {
             ..Default::default()
         };
 
-        let mut expected_field_differences = vec![FieldDifference::Updated(vec![
+        let mut expected_state_difference_tree = StateDifferenceTree::new();
+        expected_state_difference_tree.insert_added(vec![
             "desiredState".to_owned(),
             "workloads".to_owned(),
             WORKLOAD_NAME_1.to_owned(),
             "agent".to_owned(),
-        ])];
+        ]);
 
-        let field_differences = expected_field_differences.clone();
+        let state_difference_tree = expected_state_difference_tree.clone();
         state_generation_result
             .state_comparator
             .expect_state_differences()
             .once()
-            .return_once(move || field_differences);
+            .return_once(move || state_difference_tree);
         server
             .server_state
             .expect_generate_new_state()
@@ -3271,11 +3283,12 @@ mod tests {
             .once()
             .return_const(true);
 
-        expected_field_differences.push(FieldDifference::added_workload_state(
+        expected_state_difference_tree.insert_added(FieldDifferencePath::workload_state(
             &updated_w1.instance_name,
         ));
 
-        expected_field_differences.push(FieldDifference::removed_workload_state(&w1.instance_name));
+        expected_state_difference_tree
+            .insert_removed(FieldDifferencePath::workload_state(&w1.instance_name));
 
         let mut expected_workload_states_map = WorkloadStatesMap::default();
         expected_workload_states_map.process_new_states(vec![WorkloadState {
@@ -3290,7 +3303,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::eq(expected_workload_states_map),
                 mockall::predicate::eq(AgentMap::default()),
-                mockall::predicate::eq(expected_field_differences),
+                mockall::predicate::eq(expected_state_difference_tree),
                 mockall::predicate::function(move |event_sender_channel: &FromServerSender| {
                     event_sender_channel.same_channel(&to_agents)
                 }),
@@ -3334,17 +3347,17 @@ mod tests {
             ..Default::default()
         };
 
-        let expected_field_differences = vec![FieldDifference::Updated(vec![
-            "configs".to_owned(),
-            "config_2".to_owned(),
-        ])];
+        let mut expected_state_difference_tree = StateDifferenceTree::new();
 
-        let field_differences = expected_field_differences.clone();
+        expected_state_difference_tree
+            .insert_updated(vec!["configs".to_owned(), "config_2".to_owned()]);
+
+        let state_difference_tree = expected_state_difference_tree.clone();
         state_generation_result
             .state_comparator
             .expect_state_differences()
             .once()
-            .return_once(move || field_differences);
+            .return_once(move || state_difference_tree);
         server
             .server_state
             .expect_generate_new_state()
@@ -3374,7 +3387,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::eq(expected_field_differences),
+                mockall::predicate::eq(expected_state_difference_tree),
                 mockall::predicate::always(),
             )
             .once()
@@ -3419,10 +3432,14 @@ mod tests {
             ExecutionState::removed(),
         );
 
-        let expected_field_differences = vec![
-            FieldDifference::updated_workload_state(&workload_state_1.instance_name),
-            FieldDifference::removed_workload_state(&workload_state_2.instance_name),
-        ];
+        let mut expected_state_difference_tree = StateDifferenceTree::new();
+
+        expected_state_difference_tree.insert_updated(FieldDifferencePath::workload_state(
+            &workload_state_1.instance_name,
+        ));
+        expected_state_difference_tree.insert_removed(FieldDifferencePath::workload_state(
+            &workload_state_2.instance_name,
+        ));
 
         server
             .event_handler
@@ -3431,7 +3448,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::eq(expected_field_differences),
+                mockall::predicate::eq(expected_state_difference_tree),
                 mockall::predicate::always(),
             )
             .once()
@@ -3462,11 +3479,9 @@ mod tests {
             .expect_has_subscribers()
             .return_const(true);
 
-        let expected_field_differences = vec![
-            FieldDifference::updated_agent_cpu(AGENT_A),
-            FieldDifference::updated_agent_memory(AGENT_A),
-        ];
-
+        let mut expected_state_difference_tree = StateDifferenceTree::new();
+        expected_state_difference_tree.insert_updated(FieldDifferencePath::agent_cpu(AGENT_A));
+        expected_state_difference_tree.insert_updated(FieldDifferencePath::agent_memory(AGENT_A));
         server
             .event_handler
             .expect_send_events()
@@ -3474,7 +3489,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::eq(expected_field_differences),
+                mockall::predicate::eq(expected_state_difference_tree),
                 mockall::predicate::always(),
             )
             .once()
