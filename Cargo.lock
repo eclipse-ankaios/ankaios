@@ -2084,7 +2084,7 @@ dependencies = [
 
 [[package]]
 name = "spec_macros"
-version = "0.7.0-pre"
+version = "0.8.0-pre"
 dependencies = [
  "log",
  "proc-macro2",

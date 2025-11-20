@@ -263,14 +263,14 @@ pub fn derive_spec_enum(
 #[cfg(test)]
 mod tests {
     use super::derive_spec_enum;
-    
+
     use proc_macro2::TokenStream;
     use quote::{format_ident, quote};
-    use syn::{Visibility, parse_quote};
+    use syn::{Visibility, parse_quote, punctuated::Punctuated};
 
     #[test]
     fn test_derive_spec_enum_simple() {
-        let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
+        let variants: Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             VariantA,
             VariantB(u32),
             VariantC(String, bool),
@@ -331,7 +331,7 @@ mod tests {
 
     #[test]
     fn test_derive_spec_enum_with_named_variant() {
-        let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
+        let variants: Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             #[spec_enum_named]
             VariantA(String),
             VariantB(u32),
@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_derive_spec_enum_error_on_named_fields() {
-        let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
+        let variants: Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             VariantA { field_a: u32 },
             VariantB(u32),
         };
@@ -413,7 +413,7 @@ mod tests {
 
     #[test]
     fn test_derive_spec_enum_error_on_option_in_named_variant() {
-        let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
+        let variants: Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             #[spec_enum_named]
             VariantA(Option<String>),
             VariantB(u32),
@@ -427,7 +427,7 @@ mod tests {
 
     #[test]
     fn test_derive_spec_enum_error_on_option_in_variant() {
-        let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
+        let variants: Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             VariantA(Option<String>),
             VariantB(u32),
         };
@@ -440,7 +440,7 @@ mod tests {
 
     #[test]
     fn test_derive_spec_enum_prost_enum_type() {
-        let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
+        let variants: Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             #[prost(enumeration = "MyEnum", tag = "2")]
             VariantA(u32),
             VariantB(u32),
@@ -497,7 +497,7 @@ mod tests {
 
     #[test]
     fn test_derive_spec_enum_with_docs() {
-        let variants: syn::punctuated::Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
+        let variants: Punctuated<syn::Variant, syn::Token![,]> = parse_quote! {
             /// This is variant A
             VariantA,
             /// This is variant B
