@@ -11,15 +11,15 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+
+use crate::utils;
+
 use proc_macro2::TokenStream;
 use quote::{
-    //ToTokens,
     format_ident,
     quote,
 };
 use syn::{Attribute, Data, DeriveInput, Fields, FieldsUnnamed, Type};
-
-use crate::utils;
 
 /// Extracts the original type from an enum variant.
 /// Assumes the variant has a single unnamed field (tuple variant).
