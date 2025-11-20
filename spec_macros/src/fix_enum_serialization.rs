@@ -15,10 +15,7 @@
 use crate::utils;
 
 use proc_macro2::TokenStream;
-use quote::{
-    format_ident,
-    quote,
-};
+use quote::{format_ident, quote};
 use syn::{Attribute, Data, DeriveInput, Fields, FieldsUnnamed, Type};
 
 /// Extracts the original type from an enum variant.
@@ -303,13 +300,19 @@ pub fn fix_prost_enum_serialization(mut input: DeriveInput) -> syn::Result<Token
 mod tests {
     use quote::format_ident;
 
+    use crate::fix_enum_serialization::{
+        extract_original_type_from_variant, fix_prost_enum_serialization,
+        generate_deserializer_name, generate_i32_based_deserializer, generate_map_deserializer,
+        generate_map_serializer, generate_serializer, generate_serializer_name, get_name_from_path,
+    };
+
     #[test]
     fn test_extract_original_type_from_variant_valid() {
         let variant: syn::Variant = syn::parse_quote! {
             VariantName(OriginalType)
         };
         let extracted_type =
-            super::extract_original_type_from_variant(&variant).expect("Failed to extract type");
+            extract_original_type_from_variant(&variant).expect("Failed to extract type");
         let expected_type: syn::Type = syn::parse_quote! { OriginalType };
         assert_eq!(
             quote::ToTokens::to_token_stream(extracted_type).to_string(),
@@ -322,7 +325,7 @@ mod tests {
         let variant: syn::Variant = syn::parse_quote! {
             VariantName { field1: Type1, field2: Type2 }
         };
-        let result = super::extract_original_type_from_variant(&variant);
+        let result = extract_original_type_from_variant(&variant);
         assert!(result.is_err());
         assert!(
             result
@@ -338,7 +341,7 @@ mod tests {
         let variant: syn::Variant = syn::parse_quote! {
             VariantName(Type1, Type2 )
         };
-        let result = super::extract_original_type_from_variant(&variant);
+        let result = extract_original_type_from_variant(&variant);
         assert!(result.is_err());
         assert!(
             result
@@ -354,7 +357,7 @@ mod tests {
         let variant: syn::Variant = syn::parse_quote! {
             VariantName
         };
-        let result = super::extract_original_type_from_variant(&variant);
+        let result = extract_original_type_from_variant(&variant);
         assert!(result.is_err());
         assert!(
             result
@@ -368,7 +371,7 @@ mod tests {
     #[test]
     fn test_get_name_from_path_valid() {
         let type_path: syn::TypePath = syn::parse_quote! { crate::module::TypeName };
-        let name = super::get_name_from_path(&type_path).expect("Failed to get name from path");
+        let name = get_name_from_path(&type_path).expect("Failed to get name from path");
         assert_eq!(name, "TypeName");
     }
 
@@ -381,7 +384,7 @@ mod tests {
                 segments: syn::punctuated::Punctuated::new(),
             },
         };
-        let result = super::get_name_from_path(&type_path);
+        let result = get_name_from_path(&type_path);
         assert!(result.is_err());
         assert!(
             result
@@ -396,7 +399,7 @@ mod tests {
     fn test_generate_serializer_name() {
         let type_path: syn::TypePath = syn::parse_quote! { crate::module::MyEnumType };
         let serializer_name =
-            super::generate_serializer_name(&type_path).expect("Failed to generate name");
+            generate_serializer_name(&type_path).expect("Failed to generate name");
         assert_eq!(serializer_name.to_string(), "my_enum_type_serializer");
     }
 
@@ -404,7 +407,7 @@ mod tests {
     fn test_generate_deserializer_name() {
         let type_path: syn::TypePath = syn::parse_quote! { crate::module::AnotherEnum };
         let deserializer_name =
-            super::generate_deserializer_name(&type_path).expect("Failed to generate name");
+            generate_deserializer_name(&type_path).expect("Failed to generate name");
         assert_eq!(deserializer_name.to_string(), "another_enum_deserializer");
     }
 
@@ -414,7 +417,7 @@ mod tests {
         let original_type: syn::Type = syn::parse_quote! { i32 };
         let new_type: syn::Type = syn::parse_quote! { MyEnum };
 
-        let serializer_fn = super::generate_serializer(&fn_name, &original_type, &new_type);
+        let serializer_fn = generate_serializer(&fn_name, &original_type, &new_type);
         let expected_tokens = quote::quote! {
             fn test_serializer<S>(
                 value: &i32,
@@ -438,7 +441,7 @@ mod tests {
         let original_type: syn::Type = syn::parse_quote! { Option<i32> };
         let new_type: syn::Type = syn::parse_quote! { MyEnumType };
 
-        let serializer_fn = super::generate_serializer(&fn_name, &original_type, &new_type);
+        let serializer_fn = generate_serializer(&fn_name, &original_type, &new_type);
         let expected_tokens = quote::quote! {
             fn my_type_serializer<S>(
                 value: &Option<i32>,
@@ -463,8 +466,7 @@ mod tests {
         let original_type: syn::Type = syn::parse_quote! { i32 };
         let new_type: syn::Type = syn::parse_quote! { MyEnum };
 
-        let deserializer_fn =
-            super::generate_i32_based_deserializer(&fn_name, &original_type, &new_type);
+        let deserializer_fn = generate_i32_based_deserializer(&fn_name, &original_type, &new_type);
         let expected_tokens = quote::quote! {
             fn test_deserializer<'de, D>(
                 deserializer: D,
@@ -488,8 +490,7 @@ mod tests {
         let original_type: syn::Type = syn::parse_quote! { Option<i32> };
         let new_type: syn::Type = syn::parse_quote! { MyEnumOption };
 
-        let deserializer_fn =
-            super::generate_i32_based_deserializer(&fn_name, &original_type, &new_type);
+        let deserializer_fn = generate_i32_based_deserializer(&fn_name, &original_type, &new_type);
         let expected_tokens = quote::quote! {
             fn option_deserializer<'de, D>(
                 deserializer: D,
@@ -513,7 +514,7 @@ mod tests {
             syn::parse_quote! { std::collections::BTreeMap<String, i32> };
         let new_type: syn::Type = syn::parse_quote! { MyEnumType };
 
-        let serializer_fn = super::generate_map_serializer(&fn_name, &original_type, &new_type);
+        let serializer_fn = generate_map_serializer(&fn_name, &original_type, &new_type);
         let expected_tokens = quote::quote! {
             fn map_serializer<S>(
                 value: &std::collections::BTreeMap<String, i32>,
@@ -541,7 +542,7 @@ mod tests {
         let fn_name: proc_macro2::Ident = format_ident!("map_deserializer");
         let original_type: syn::Type = syn::parse_quote! { std::collections::HashMap<String, i32> };
         let new_type: syn::Type = syn::parse_quote! { MyEnumType };
-        let deserializer_fn = super::generate_map_deserializer(&fn_name, &original_type, &new_type);
+        let deserializer_fn = generate_map_deserializer(&fn_name, &original_type, &new_type);
         let expected_tokens = quote::quote! {
             fn map_deserializer<'de, D>(
                 deserializer: D,
@@ -577,7 +578,7 @@ mod tests {
         };
 
         let output_tokens =
-            super::fix_prost_enum_serialization(input).expect("Failed to fix serialization");
+            fix_prost_enum_serialization(input).expect("Failed to fix serialization");
 
         let output_string = output_tokens.to_string();
         assert!(output_string.contains("fn my_enum_serializer"));
@@ -601,7 +602,7 @@ mod tests {
         };
 
         let output_tokens =
-            super::fix_prost_enum_serialization(input).expect("Failed to fix serialization");
+            fix_prost_enum_serialization(input).expect("Failed to fix serialization");
 
         let output_string = output_tokens.to_string();
         assert!(output_string.contains("fn my_enum_serializer"));
