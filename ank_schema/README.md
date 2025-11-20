@@ -1,6 +1,6 @@
 # Ankaios JSON schema automation
 
-This create's soul purpose is to generate the JSON schema used to validate Ankaios manifest.
+This crate's soul purpose is to generate the JSON schema used to validate Ankaios manifest.
 The schema is generated automatically using the [schemars](https://github.com/GREsau/schemars) crate where the annotations to the objects are added in the [api](../api) crate itself.
 
 ## Generating a new schema
