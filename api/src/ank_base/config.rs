@@ -78,4 +78,31 @@ impl From<HashMap<String, ConfigItemSpec>> for ConfigItemSpec {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use crate::ank_base::ConfigMappingsSpec;
+    use std::collections::HashMap;
+
+    #[test]
+    fn utest_config_mappings_spec_from_array() {
+        let mappings: ConfigMappingsSpec = [
+            ("key1".to_string(), "value1".to_string()),
+            ("key2".to_string(), "value2".to_string()),
+        ]
+        .into();
+
+        assert_eq!(mappings.configs.get("key1"), Some(&"value1".to_string()));
+        assert_eq!(mappings.configs.get("key2"), Some(&"value2".to_string()));
+    }
+
+    #[test]
+    fn utest_config_mappings_spec_from_hashmap() {
+        let mut map = HashMap::new();
+        map.insert("key1".to_string(), "value1".to_string());
+        map.insert("key2".to_string(), "value2".to_string());
+
+        let mappings: ConfigMappingsSpec = map.into();
+
+        assert_eq!(mappings.configs.get("key1"), Some(&"value1".to_string()));
+        assert_eq!(mappings.configs.get("key2"), Some(&"value2".to_string()));
+    }
+}
