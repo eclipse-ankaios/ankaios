@@ -224,7 +224,7 @@ pub fn derive_spec_enum(
     };
 
     let try_from_impl = quote! {
-        impl std::convert::TryFrom<#orig_name> for #spec_name {
+        impl TryFrom<#orig_name> for #spec_name {
             type Error = String;
 
             fn try_from(orig: #orig_name) -> Result<Self, Self::Error> {
@@ -293,7 +293,7 @@ mod tests {
         };
 
         let expected_try_from_impl = quote! {
-            impl std::convert::TryFrom<TestEnum> for TestEnumSpec {
+            impl TryFrom<TestEnum> for TestEnumSpec {
                 type Error = String;
 
                 fn try_from(orig: TestEnum) -> Result<Self, Self::Error> {
@@ -355,7 +355,7 @@ mod tests {
         };
 
         let expected_try_from_impl = quote! {
-            impl std::convert::TryFrom<TestEnum> for TestEnumSpec {
+            impl TryFrom<TestEnum> for TestEnumSpec {
                 type Error = String;
 
                 fn try_from(orig: TestEnum) -> Result<Self, Self::Error> {
@@ -461,7 +461,7 @@ mod tests {
         };
 
         let expected_try_from_impl = quote! {
-            impl std::convert::TryFrom<TestEnum> for TestEnumSpec {
+            impl TryFrom<TestEnum> for TestEnumSpec {
                 type Error = String;
 
                 fn try_from(orig: TestEnum) -> Result<Self, Self::Error> {
