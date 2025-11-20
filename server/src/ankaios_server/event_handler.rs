@@ -150,10 +150,10 @@ pub fn collect_paths_iterative(root: &Value, start_path: &[String]) -> Vec<Strin
     while let Some((current, current_path)) = stack.pop() {
         match current {
             Value::Mapping(map) if !map.is_empty() => {
-                for (k, v) in map {
-                    if let Value::String(key) = k {
-                        let new_path = format!("{current_path}.{key}");
-                        stack.push((v, new_path));
+                for (current_key, current_value) in map {
+                    if let Value::String(new_key) = current_key {
+                        let new_path = format!("{current_path}.{new_key}");
+                        stack.push((current_value, new_path));
                     }
                 }
             }
