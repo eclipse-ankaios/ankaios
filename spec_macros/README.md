@@ -8,7 +8,7 @@ Currently this crate provides two macros:
 
 ## Spec derive macro
 
-This create provides the functionality to automatically derive `OrigSpec` objects from an `Orig` custom type
+This macro provides the functionality to automatically derive `OrigSpec` objects from an `Orig` custom type.
 
 ### Usage of `#[derive(Spec)]`
 
