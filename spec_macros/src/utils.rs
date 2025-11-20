@@ -941,7 +941,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extact_inner_with_two_generics_shall_fail() {
+    fn test_extract_inner_with_two_generics_shall_fail() {
         let tp: syn::TypePath = parse_quote! { HashMap<u32, String> };
         let result = std::panic::catch_unwind(|| {
             super::extract_inner(&tp);
