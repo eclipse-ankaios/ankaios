@@ -470,8 +470,8 @@ pub fn setup_spec_requests(builder: Builder) -> Builder {
             "LogsRequest",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
-        .field_attribute("LogsRequest.follow", "#[spec_mandatory]")
-        .field_attribute("LogsRequest.tail", "#[spec_mandatory]")
+        .field_attribute("LogsRequest.follow", "#[spec_default(false)]")
+        .field_attribute("LogsRequest.tail", "#[spec_default(-1)]")
         .message_attribute("LogsCancelRequest", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "LogsCancelRequest",

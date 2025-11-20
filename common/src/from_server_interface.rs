@@ -196,19 +196,11 @@ impl FromServerInterface for FromServerSender {
         request_id: String,
         logs_request: LogsRequest,
     ) -> Result<(), FromServerInterfaceError> {
-        let logs_request_spec = LogsRequestSpec {
-            workload_names: logs_request
-                .workload_names
-                .iter()
-                .map(|w| w.clone().try_into().unwrap_or_unreachable())
-                .collect(),
-            follow: logs_request.follow.unwrap_or(false),
-            tail: logs_request.tail.unwrap_or(-1),
-            since: logs_request.since,
-            until: logs_request.until,
-        };
-        self.send(FromServer::LogsRequest(request_id, logs_request_spec))
-            .await?;
+        self.send(FromServer::LogsRequest(
+            request_id,
+            logs_request.try_into().unwrap_or_unreachable(),
+        ))
+        .await?;
         Ok(())
     }
 

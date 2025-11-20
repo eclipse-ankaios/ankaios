@@ -175,21 +175,12 @@ impl ToServerInterface for ToServerSender {
         request_id: String,
         logs_request: LogsRequest,
     ) -> Result<(), ToServerError> {
-        let logs_request_spec = LogsRequestSpec {
-            workload_names: logs_request
-                .workload_names
-                .iter()
-                .map(|w| w.clone().try_into().unwrap_or_unreachable())
-                .collect(),
-            follow: logs_request.follow.unwrap_or(false),
-            tail: logs_request.tail.unwrap_or(-1),
-            since: logs_request.since,
-            until: logs_request.until,
-        };
         Ok(self
             .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContentSpec::LogsRequest(logs_request_spec),
+                request_content: RequestContentSpec::LogsRequest(
+                    LogsRequestSpec::try_from(logs_request).unwrap_or_unreachable(),
+                ),
             }))
             .await?)
     }
