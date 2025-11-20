@@ -54,6 +54,7 @@ impl AccessRightsRuleSpec {
         self.access_rights_rule_enum.verify_format()
     }
 
+    // MARK #313 Can be deleted with no repercussions
     pub fn verify_log_rule_workload_name_pattern_format(workload_name: &str) -> Result<(), String> {
         AccessRightsRuleEnumSpec::verify_log_rule_workload_name_pattern_format(workload_name)
     }

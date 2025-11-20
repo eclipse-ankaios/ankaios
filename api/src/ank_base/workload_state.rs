@@ -113,6 +113,7 @@ impl ExecutionStateSpec {
         )
     }
 
+    // MARK #313 Can be deleted with no repercussions
     pub fn is_waiting_to_stop(&self) -> bool {
         matches!(
             self.state(),
@@ -256,6 +257,7 @@ impl ExecutionStateSpec {
     }
 }
 
+// MARK #313 Can be deleted with no repercussions
 impl ExecutionState {
     pub fn agent_disconnected() -> Self {
         Self {

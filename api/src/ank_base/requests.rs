@@ -14,6 +14,7 @@
 
 use crate::ank_base::{LogsRequestSpec, RequestSpec};
 
+// MARK #313 Can be deleted with no repercussions
 impl Default for LogsRequestSpec {
     fn default() -> Self {
         LogsRequestSpec {

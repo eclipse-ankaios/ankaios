@@ -47,6 +47,7 @@ impl ConfigHash for String {
     }
 }
 
+// MARK #313 Can be deleted with no repercussions
 impl ConfigHash for WorkloadSpec {
     fn hash_config(&self) -> String {
         self.runtime_config.hash_config()
@@ -144,6 +145,7 @@ impl WorkloadInstanceNameBuilder {
         self
     }
 
+    // MARK #313 Can be deleted with no repercussions
     pub fn id(mut self, id: impl Into<String>) -> Self {
         self.hash = id.into();
         self

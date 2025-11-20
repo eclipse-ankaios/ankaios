@@ -53,6 +53,7 @@ impl From<(String, WorkloadSpec)> for WorkloadNamed {
     }
 }
 
+// MARK #313 Can be deleted with no repercussions
 impl From<WorkloadNamed> for WorkloadSpec {
     fn from(item: WorkloadNamed) -> Self {
         item.workload
@@ -134,6 +135,7 @@ impl WorkloadSpec {
     }
 }
 
+// MARK #313 Used only within tests
 impl From<HashMap<String, AddCondition>> for DependenciesSpec {
     fn from(value: HashMap<String, AddCondition>) -> Self {
         DependenciesSpec {

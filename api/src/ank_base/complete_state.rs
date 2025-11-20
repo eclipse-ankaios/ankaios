@@ -75,6 +75,7 @@ impl StateSpec {
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
+    use crate::PREVIOUS_API_VERSION;
     use crate::ank_base::{
         ConfigMap, ConfigMapSpec, State, StateSpec, WorkloadMap, WorkloadMapSpec, WorkloadSpec,
     };

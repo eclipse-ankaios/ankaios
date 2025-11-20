@@ -155,6 +155,7 @@ pub fn generate_test_state() -> StateSpec {
     }
 }
 
+// MARK #313 Can be deleted with no repercussions
 pub fn generate_test_proto_state() -> State {
     let workload_name_1 = WORKLOAD_1_NAME.to_string();
     let workload_name_2 = WORKLOAD_2_NAME.to_string();

@@ -60,6 +60,7 @@ pub(crate) mod requests;
 //                  ####   ##     ##   ##          #########                //
 //////////////////////////////////////////////////////////////////////////////
 
+// MARK #313 Can be deleted with no repercussions
 impl Response {
     pub fn access_denied(request_id: String) -> Response {
         Response {
