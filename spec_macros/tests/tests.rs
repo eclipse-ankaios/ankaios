@@ -212,4 +212,35 @@ mod tests {
         assert_eq!(spec.items.get("key1").unwrap().value, "Value 1".to_string());
         assert_eq!(spec.items.get("key2").unwrap().value, "Value 2".to_string());
     }
+
+    #[test]
+    fn itest_default_with_complex_expression() {
+        #[derive(Spec, Debug, PartialEq)]
+        #[spec_derive(Debug, PartialEq)]
+        struct MyType {
+            field: i32,
+        }
+
+        #[derive(Spec, Debug, PartialEq)]
+        #[spec_derive(Debug, PartialEq)]
+        struct MyStruct {
+            #[spec_default(MyType { field: 42 })]
+            my_field: Option<MyType>,
+        }
+
+        let external = MyStruct { my_field: None };
+
+        let spec: MyStructSpec = external.try_into().unwrap();
+
+        let expected_spec = MyStructSpec {
+            my_field: MyTypeSpec { field: 42 },
+        };
+        assert_eq!(spec, expected_spec);
+
+        let back_converted: MyStruct = spec.into();
+        let expected_back_converted = MyStruct {
+            my_field: Some(MyType { field: 42 }),
+        };
+        assert_eq!(back_converted, expected_back_converted);
+    }
 }

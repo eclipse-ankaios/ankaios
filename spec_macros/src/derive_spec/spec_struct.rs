@@ -317,6 +317,8 @@ mod tests {
                 pub field2: Option<i32>,
                 #[spec_default(vec![42, 42, 42])]
                 pub field3: Option<Vec<i32>>,
+                #[spec_default(MyTypeSpec{field: 42})]
+                pub field4: Option<MyType>,
             }
         };
         let orig_name: Ident = parse_quote! { MyStruct };
@@ -329,6 +331,7 @@ mod tests {
                 pub field1: i32,
                 pub field2: i32,
                 pub field3: Vec<i32>,
+                pub field4: MyTypeSpec,
             }
         };
 
@@ -343,6 +346,7 @@ mod tests {
                             field1: orig.field1.unwrap_or_default(),
                             field2: orig.field2.unwrap_or(42),
                             field3: orig.field3.unwrap_or(vec![42, 42, 42]),
+                            field4: orig.field4.unwrap_or(MyTypeSpec{field: 42}).try_into().map_err(| err | format ! ("Cannot convert field 'field4' to spec object: '{err}'."))?,
                         })
                     }
                 }
@@ -358,6 +362,7 @@ mod tests {
                             field1: Some(orig.field1),
                             field2: Some(orig.field2),
                             field3: Some(orig.field3),
+                            field4: Some(orig.field4.into()),
                         }
                     }
                 }
