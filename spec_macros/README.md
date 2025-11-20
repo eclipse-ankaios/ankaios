@@ -151,7 +151,7 @@ The `fix_enum_serialization` macro currently supports:
     * `i32` fields
     * `Option<i32>` fields
     * `HashMap<String, i32>` fields
-* enums with unnamed variants with only one `i32` field, e.g. `VarianA(i32)`
+* enums with unnamed variants with only one `i32` field, e.g. `VariantA(i32)`
 
 ## Debugging
 
