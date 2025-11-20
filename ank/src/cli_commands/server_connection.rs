@@ -2345,7 +2345,7 @@ mod tests {
             sim.will_send_message(FromServer::Response(ank_base::Response {
                 request_id: REQUEST.to_string(),
                 response_content: Some(test_utils::generate_test_complete_state_response(&[(
-                    &format!("workload_{}", i),
+                    &format!("workload_{i}"),
                     ank_base::Workload {
                         agent: Some(AGENT_A.to_string()),
                         runtime: Some(RUNTIME.to_string()),
