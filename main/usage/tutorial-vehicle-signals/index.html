@@ -1448,6 +1448,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../development/changing-the-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Changing the API
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../development/unit-verification/" class="md-nav__link">
         
   
@@ -1865,7 +1888,7 @@ The following examples assume that the installation script has been used with th
 </code></pre></div>
 <p>Now we have Ankaios up and running with a server and an agent.
 To run the databroker we need to create an Ankaios manifest:</p>
-<div class="highlight"><span class="filename">databroker.yaml</span><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
+<div class="highlight"><span class="filename">databroker.yaml</span><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">workloads</span><span class="p">:</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">databroker</span><span class="p">:</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
@@ -1895,7 +1918,7 @@ It should finally print:</p>
 </code></pre></div>
 <h2 id="start-the-speed-provider">Start the speed provider<a class="headerlink" href="#start-the-speed-provider" title="Permanent link">&para;</a></h2>
 <p>Now we want to start a workload that publishes vehicle speed values and call that <code>speed-provider</code>.</p>
-<div class="highlight"><span class="filename">speed-provider.yaml</span><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
+<div class="highlight"><span class="filename">speed-provider.yaml</span><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">workloads</span><span class="p">:</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">speed-provider</span><span class="p">:</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
@@ -1953,7 +1976,7 @@ Ankaios does not need root privileges and can be started as any user.</p>
 </div>
 <h2 id="start-the-speed-consumer">Start the speed consumer<a class="headerlink" href="#start-the-speed-consumer" title="Permanent link">&para;</a></h2>
 <p>Now we can start a speed-consumer workload on the new agent:</p>
-<div class="highlight"><span class="filename">speed-consumer.yaml</span><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
+<div class="highlight"><span class="filename">speed-consumer.yaml</span><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nt">workloads</span><span class="p">:</span>
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">speed-consumer</span><span class="p">:</span>
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
@@ -2001,7 +2024,7 @@ Use the web UI of the speed-provider to send a few vehicle speed values and watc
 <div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>ank<span class="w"> </span>logs<span class="w"> </span>speed-consumer
 </code></pre></div>
 <p>Now, we want to change the existing Ankaios manifest of the speed-provider to use auto mode which sends a new speed limit value every second.</p>
-<div class="highlight"><span class="filename">speed-provider.yaml</span><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
+<div class="highlight"><span class="filename">speed-provider.yaml</span><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nt">workloads</span><span class="p">:</span>
 <a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">speed-provider</span><span class="p">:</span>
 <a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
@@ -2031,7 +2054,7 @@ Ankaios also maintains a current state which can be retrieved with:</p>
 <p>If we want to start the three workloads on startup of the Ankaios server and agents we need to create a startup manifest file.
 In the default server config (see <code>/etc/ankaios/ank-server.conf</code>), a startup manifest is read from <code>/etc/ankaios/state.yaml</code>.</p>
 <p>Now we create such a startup manifest file containing all three workloads:</p>
-<div class="highlight"><span class="filename">/etc/ankaios/state.yaml</span><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
+<div class="highlight"><span class="filename">/etc/ankaios/state.yaml</span><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
 <a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="nt">workloads</span><span class="p">:</span>
 <a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span><span class="nt">databroker</span><span class="p">:</span>
 <a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
