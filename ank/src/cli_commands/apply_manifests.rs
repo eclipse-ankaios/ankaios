@@ -106,15 +106,6 @@ pub fn handle_agent_overwrite(
                         serde_yaml::Value::String(agent_name.to_owned()),
                     )
                     .map_err(|_| "Could not find workload to update.".to_owned())?;
-                state_obj
-                    .set(
-                        &Path::from(format!(
-                            "{}.instanceName.agentName",
-                            String::from(mask_path)
-                        )),
-                        serde_yaml::Value::String(agent_name.to_owned()),
-                    )
-                    .map_err(|_| "Could not find workload to update.".to_owned())?;
             } else if state_obj.get(&workload_agent_mask).is_none() {
                 // No agent name specified through cli and inside workload configuration!
                 // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~2]
@@ -172,9 +163,7 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     apply_args: &ApplyArgs,
 ) -> Result<Option<(CompleteStateSpec, Vec<String>)>, String> {
     let mut req_obj: Object = StateSpec::default().try_into().map_err(|err| {
-        format!(
-            "Could not create initial empty state object from StateSpec: {err}"
-        )
+        format!("Could not create initial empty state object from StateSpec: {err}")
     })?;
     let mut req_paths: Vec<Path> = Vec::new();
     for manifest in manifests.iter_mut() {
@@ -954,9 +943,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = Cursor::new(
-            b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1",
-        );
+        let manifest_content =
+            Cursor::new(b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1");
 
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
