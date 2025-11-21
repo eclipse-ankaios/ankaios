@@ -19,12 +19,8 @@ set -e
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 base_dir="$script_dir/.."
 
-# Calculate the hash from:
-#  - the control interface tester files
-#  - the proto files
-#  - the api build file, along with the ones form the build directory
+# Note that the file paths and the name are ignored for the final hash calculation
 cd "$base_dir"
-
 find "tests/resources/control_interface_tester" \
     "api/proto" \
     "api/build.rs" \
