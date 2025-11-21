@@ -23,14 +23,16 @@ base_dir="$script_dir/.."
 #  - the control interface tester files
 #  - the proto files
 #  - the api build file, along with the ones form the build directory
-find \
-    "$base_dir/tests/resources/control_interface_tester" \
-    "$base_dir/api/proto" \
-    "$base_dir/api/build.rs" \
-    "$base_dir/api/build" \
+cd "$base_dir"
+
+find "tests/resources/control_interface_tester" \
+    "api/proto" \
+    "api/build.rs" \
+    "api/build" \
     -type f \
 | grep -v 'README.md' \
 | sort \
 | xargs sha256sum \
+| awk '{print $1}' \
 | sha256sum \
 | sed 's/  -//'
