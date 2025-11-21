@@ -33,7 +33,7 @@ pub use fifo::MockFifo;
 #[cfg(test)]
 use mockall::automock;
 
-use api::ank_base::WorkloadInstanceNameSpec;
+use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 use common::{from_server_interface::FromServerSender, to_server_interface::ToServerSender};
 
 #[cfg_attr(test, mockall_double::double)]
@@ -162,7 +162,7 @@ mod tests {
         input_output::generate_test_input_output_mock, input_pipe::MockInputPipe,
         output_pipe::MockOutputPipe,
     };
-    use api::ank_base::WorkloadInstanceNameSpec;
+    use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 
     // [utest->swdd~agent-create-control-interface-pipes-per-workload~2]
     // [utest->swdd~agent-control-interface-pipes-path-naming~2]

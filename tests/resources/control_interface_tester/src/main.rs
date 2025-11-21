@@ -12,13 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     CompleteStateRequestSpec, CompleteStateSpec, LogEntriesResponse, LogsCancelAccepted,
     LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec, RequestContentSpec, RequestSpec,
     ResponseContent, State, UpdateStateRequestSpec, WorkloadInstanceNameSpec,
 };
 
-use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
+use ankaios_api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
 
 use prost::Message;
 use serde::de::DeserializeOwned;
@@ -271,9 +271,9 @@ impl Connection {
     fn send_hello(&mut self, protocol_version: String) -> Result<TestResultEnum, CommandError> {
         logging::log("Executing command: SendHello");
 
-        let proto = api::control_api::ToAnkaios {
-            to_ankaios_enum: Some(api::control_api::to_ankaios::ToAnkaiosEnum::Hello(
-                api::control_api::Hello { protocol_version },
+        let proto = ankaios_api::control_api::ToAnkaios {
+            to_ankaios_enum: Some(ankaios_api::control_api::to_ankaios::ToAnkaiosEnum::Hello(
+                ankaios_api::control_api::Hello { protocol_version },
             )),
         };
 
@@ -312,10 +312,10 @@ impl Connection {
             )),
         };
 
-        let proto = api::control_api::ToAnkaios {
-            to_ankaios_enum: Some(api::control_api::to_ankaios::ToAnkaiosEnum::Request(
-                request.into(),
-            )),
+        let proto = ankaios_api::control_api::ToAnkaios {
+            to_ankaios_enum: Some(
+                ankaios_api::control_api::to_ankaios::ToAnkaiosEnum::Request(request.into()),
+            ),
         };
 
         self.output
@@ -350,10 +350,10 @@ impl Connection {
             }),
         };
 
-        let proto = api::control_api::ToAnkaios {
-            to_ankaios_enum: Some(api::control_api::to_ankaios::ToAnkaiosEnum::Request(
-                request.into(),
-            )),
+        let proto = ankaios_api::control_api::ToAnkaios {
+            to_ankaios_enum: Some(
+                ankaios_api::control_api::to_ankaios::ToAnkaiosEnum::Request(request.into()),
+            ),
         };
 
         self.output
@@ -495,10 +495,10 @@ impl Connection {
             }),
         };
 
-        let proto = api::control_api::ToAnkaios {
-            to_ankaios_enum: Some(api::control_api::to_ankaios::ToAnkaiosEnum::Request(
-                request.into(),
-            )),
+        let proto = ankaios_api::control_api::ToAnkaios {
+            to_ankaios_enum: Some(
+                ankaios_api::control_api::to_ankaios::ToAnkaiosEnum::Request(request.into()),
+            ),
         };
 
         self.output
@@ -544,10 +544,10 @@ impl Connection {
             request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
         };
 
-        let proto = api::control_api::ToAnkaios {
-            to_ankaios_enum: Some(api::control_api::to_ankaios::ToAnkaiosEnum::Request(
-                request.into(),
-            )),
+        let proto = ankaios_api::control_api::ToAnkaios {
+            to_ankaios_enum: Some(
+                ankaios_api::control_api::to_ankaios::ToAnkaiosEnum::Request(request.into()),
+            ),
         };
 
         self.output

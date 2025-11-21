@@ -14,7 +14,7 @@
 
 use super::path::Path;
 
-use api::ank_base::WILDCARD_SYMBOL;
+use ankaios_api::ank_base::WILDCARD_SYMBOL;
 use common::PATH_SEPARATOR;
 
 use std::{fmt::Display, sync::Arc};

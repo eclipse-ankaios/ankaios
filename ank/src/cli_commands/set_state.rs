@@ -14,7 +14,7 @@
 
 use super::CliCommands;
 
-use api::ank_base::{CompleteStateSpec, WorkloadSpec};
+use ankaios_api::ank_base::{CompleteStateSpec, WorkloadSpec};
 use common::state_manipulation::{Object, Path};
 use std::io::{self, Read};
 
@@ -149,7 +149,7 @@ mod tests {
         overwrite_using_field_mask, process_inputs,
     };
     use crate::cli_commands::server_connection::MockServerConnection;
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         CompleteState, CompleteStateSpec, RestartPolicy, StateSpec, UpdateStateSuccess,
         WorkloadMapSpec,
     };

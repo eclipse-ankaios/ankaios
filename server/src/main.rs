@@ -19,7 +19,7 @@ mod server_config;
 use std::fs;
 use std::path::PathBuf;
 
-use api::ank_base::{CompleteStateSpec, StateSpec, validate_tags};
+use ankaios_api::ank_base::{CompleteStateSpec, StateSpec, validate_tags};
 use common::std_extensions::GracefulExitResult;
 
 use common::communications_server::CommunicationsServer;

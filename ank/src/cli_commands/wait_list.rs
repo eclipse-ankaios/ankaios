@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::output_update;
-use api::ank_base::{
+use ankaios_api::ank_base::{
     ExecutionStateEnumSpec, Pending, UpdateStateSuccess, WorkloadInstanceNameSpec,
     WorkloadStateSpec,
 };
@@ -198,8 +198,8 @@ mod tests {
     use super::MockMyWaitListDisplay;
     use crate::cli_commands::wait_list::generate_test_wait_list;
 
-    use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
-    use api::test_utils::generate_test_workload_instance_name;
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
+    use ankaios_api::test_utils::generate_test_workload_instance_name;
 
     use mockall::predicate::eq;
     use std::collections::HashSet;

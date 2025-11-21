@@ -15,7 +15,7 @@
 use super::containerd_runtime::CONTAINERD_RUNTIME_NAME;
 use super::nerdctl_cli::NerdctlRunConfig;
 
-use api::ank_base::WorkloadSpec;
+use ankaios_api::ank_base::WorkloadSpec;
 
 #[derive(Debug, serde::Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -69,8 +69,8 @@ mod tests {
     use super::{ContainerdRuntimeConfig, NerdctlRunConfig};
     use crate::runtime_connectors::containerd::containerd_runtime::CONTAINERD_RUNTIME_NAME;
 
-    use api::ank_base::WorkloadSpec;
-    use api::test_utils::generate_test_workload_with_param;
+    use ankaios_api::ank_base::WorkloadSpec;
+    use ankaios_api::test_utils::generate_test_workload_with_param;
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
     const AGENT_NAME: &str = "agent_x";

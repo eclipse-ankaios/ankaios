@@ -15,7 +15,7 @@
 use super::podman_runtime::PODMAN_RUNTIME_NAME;
 use crate::runtime_connectors::podman_cli::PodmanRunConfig;
 
-use api::ank_base::WorkloadSpec;
+use ankaios_api::ank_base::WorkloadSpec;
 
 #[derive(Debug, serde::Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -71,8 +71,8 @@ mod tests {
         podman::podman_runtime::PODMAN_RUNTIME_NAME, podman_cli::PodmanRunConfig,
     };
 
-    use api::ank_base::WorkloadSpec;
-    use api::test_utils::generate_test_workload_with_param;
+    use ankaios_api::ank_base::WorkloadSpec;
+    use ankaios_api::test_utils::generate_test_workload_with_param;
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
     const AGENT_NAME: &str = "agent_x";

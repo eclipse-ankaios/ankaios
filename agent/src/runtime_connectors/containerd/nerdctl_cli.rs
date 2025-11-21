@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::ExecutionStateSpec;
+use ankaios_api::ank_base::ExecutionStateSpec;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -452,7 +452,7 @@ where
 mod tests {
     use super::{NERDCTL_CMD, NerdctlCli, NerdctlPsCache};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
-    use api::ank_base::ExecutionStateSpec;
+    use ankaios_api::ank_base::ExecutionStateSpec;
 
     use serde::Serialize;
     use std::collections::HashMap;

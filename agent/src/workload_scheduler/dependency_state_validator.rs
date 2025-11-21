@@ -15,7 +15,7 @@
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 
-use api::ank_base::{DeletedWorkload, FulfilledBy, WorkloadNamed};
+use ankaios_api::ank_base::{DeletedWorkload, FulfilledBy, WorkloadNamed};
 
 #[cfg(test)]
 use mockall::automock;
@@ -76,8 +76,8 @@ mod tests {
     use super::DependencyStateValidator;
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
 
-    use api::ank_base::{DeleteCondition, ExecutionStateSpec, WorkloadNamed};
-    use api::test_utils::{
+    use ankaios_api::ank_base::{DeleteCondition, ExecutionStateSpec, WorkloadNamed};
+    use ankaios_api::test_utils::{
         generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
         generate_test_workload_with_param,
     };
@@ -96,7 +96,7 @@ mod tests {
         let mut workload: WorkloadNamed = generate_test_workload_with_param(AGENT_A, RUNTIME);
         workload.workload.dependencies.dependencies = HashMap::from([(
             WORKLOAD_NAME_1.to_owned(),
-            api::ank_base::AddCondition::AddCondRunning,
+            ankaios_api::ank_base::AddCondition::AddCondRunning,
         )]);
 
         let execution_state = ExecutionStateSpec::running();

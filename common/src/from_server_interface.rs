@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{commands, std_extensions::UnreachableResult};
-use api::ank_base::{
+use ankaios_api::ank_base::{
     CompleteState, DeletedWorkload, Error, LogEntriesResponse, LogsCancelAccepted, LogsRequest,
     LogsRequestAccepted, LogsRequestSpec, LogsStopResponse, Response, ResponseContent,
     UpdateStateSuccess, WorkloadNamed, WorkloadStateSpec,
@@ -300,12 +300,12 @@ mod tests {
         from_server_interface::{FromServer, FromServerInterface},
     };
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         CompleteState, Error, ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsRequest,
         LogsRequestSpec, LogsStopResponse, Response, ResponseContent, UpdateStateSuccess,
         WorkloadInstanceName, WorkloadInstanceNameSpec,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_complete_state, generate_test_deleted_workload, generate_test_workload,
         generate_test_workload_state,
     };

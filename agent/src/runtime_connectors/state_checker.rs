@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::workload_state::WorkloadStateSender;
-use api::ank_base::{ExecutionStateSpec, WorkloadNamed};
+use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadNamed};
 
 use async_trait::async_trait;
 #[cfg(test)]

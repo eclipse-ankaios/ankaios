@@ -21,7 +21,7 @@ use crate::{
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
-use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
+use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
 use common::objects::AgentName;
 use common::std_extensions::IllegalStateResult;
 
@@ -457,8 +457,8 @@ mod tests {
         workload_state::assert_execution_state_sequence,
     };
 
-    use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
-    use api::test_utils::generate_test_workload_with_param;
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
+    use ankaios_api::test_utils::generate_test_workload_with_param;
 
     const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";

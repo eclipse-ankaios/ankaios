@@ -16,7 +16,7 @@ use crate::cli_commands::{
     DESIRED_STATE_CONFIGS, cli_table::CliTable, config_table_row::ConfigTableRow,
 };
 use crate::{CliCommands, cli_error::CliError, output_debug};
-use api::ank_base::{CompleteState, ConfigItem};
+use ankaios_api::ank_base::{CompleteState, ConfigItem};
 
 impl CliCommands {
     // [impl->swdd~cli-provides-list-of-configs~1]
@@ -72,8 +72,8 @@ mod tests {
         server_connection::{MockServerConnection, ServerConnectionError},
     };
 
-    use api::ank_base::CompleteState;
-    use api::test_utils::generate_test_complete_state_with_configs;
+    use ankaios_api::ank_base::CompleteState;
+    use ankaios_api::test_utils::generate_test_complete_state_with_configs;
     use mockall::predicate::eq;
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;

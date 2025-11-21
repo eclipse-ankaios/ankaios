@@ -26,7 +26,7 @@ use crate::{
     workload_state::WorkloadStateSender,
 };
 
-use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
+use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
 use common::objects::AgentName;
 use common::std_extensions::UnreachableOption;
 
@@ -302,8 +302,8 @@ mod tests {
     use crate::runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
-    use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
-    use api::test_utils::generate_test_workload_with_param;
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
+    use ankaios_api::test_utils::generate_test_workload_with_param;
     use common::objects::AgentName;
 
     use mockall::Sequence;

@@ -14,7 +14,7 @@
 
 use crate::agent_manager::SynchronizedSubscriptionStore;
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     LogEntriesResponse, LogEntry, LogsRequestSpec, LogsStopResponse, WorkloadInstanceNameSpec,
 };
 use common::std_extensions::IllegalStateResult;
@@ -186,7 +186,7 @@ mod tests {
     use crate::subscription_store::{MockJoinHandle, MockSubscriptionEntry, SubscriptionEntry};
     use crate::workload_log_facade::WorkloadLogFacade;
 
-    use api::ank_base::{LogsRequestSpec, LogsStopResponse, WorkloadInstanceNameSpec};
+    use ankaios_api::ank_base::{LogsRequestSpec, LogsStopResponse, WorkloadInstanceNameSpec};
     use common::to_server_interface::ToServer;
 
     use mockall::{mock, predicate};

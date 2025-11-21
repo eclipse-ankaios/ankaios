@@ -9,7 +9,7 @@ authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
 repository = "https://github.com/eclipse-ankaios/ankaios"
 
 [dependencies]
-api = { path = "../api" }
+ankaios-api = { path = "../ankaios_api" }
 common = { path = "../common" }
 tonic = { version = "0.14", features = ["tls-ring"] }
 tonic-prost = "0.14"
@@ -31,7 +31,7 @@ x509-parser = "0.18"
 regex = "1.10"
 
 [dev-dependencies]
-api = { path = "../api", features = ["test_utils"] }
+ankaios-api = { path = "../ankaios_api", features = ["test_utils"] }
 common = { path = "../common", features = ["test_utils"] }
 tempfile = "3.10"
 env_logger = "0.11"

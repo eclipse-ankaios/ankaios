@@ -20,7 +20,9 @@ use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_files::WorkloadFilesBasePath;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 
-use api::ank_base::{ExecutionStateSpec, RestartPolicy, WorkloadInstanceNameSpec, WorkloadNamed};
+use ankaios_api::ank_base::{
+    ExecutionStateSpec, RestartPolicy, WorkloadInstanceNameSpec, WorkloadNamed,
+};
 use common::std_extensions::IllegalStateResult;
 
 use futures_util::Future;
@@ -704,11 +706,11 @@ mod tests {
     };
     use crate::workload_state::{WorkloadStateSenderInterface, assert_execution_state_sequence};
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         ExecutionStateEnumSpec, ExecutionStateSpec, Pending, RestartPolicy,
         WorkloadInstanceNameSpec, WorkloadNamed,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
     };
 

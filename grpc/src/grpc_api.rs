@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{self, WorkloadNamed};
+use ankaios_api::ank_base::{self, WorkloadNamed};
 use common::commands;
 use std::collections::HashMap;
 
@@ -148,9 +148,9 @@ impl From<WorkloadNamed> for AddedWorkload {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
-use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec};
+use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec};
 #[cfg(test)]
-use api::test_utils::generate_test_workload_state_with_agent;
+use ankaios_api::test_utils::generate_test_workload_state_with_agent;
 #[cfg(test)]
 use common::to_server_interface;
 
@@ -194,12 +194,12 @@ pub fn generate_test_failed_update_workload_state(
 mod tests {
     use crate::{AddedWorkload, DeletedWorkload, generate_test_proto_deleted_workload};
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         self, AddCondition, ConfigHash, Dependencies, ExecutionState, ExecutionStateEnum,
         ExecutionStateSpec, Running as RunningSubstate, WorkloadInstanceName,
         WorkloadInstanceNameSpec, WorkloadNamed, WorkloadState, WorkloadStateSpec,
     };
-    use api::test_utils::{generate_test_deleted_workload, generate_test_workload};
+    use ankaios_api::test_utils::{generate_test_deleted_workload, generate_test_workload};
     use common::commands;
     use std::collections::HashMap;
 

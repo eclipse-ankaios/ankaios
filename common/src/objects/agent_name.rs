@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::INSTANCE_NAME_SEPARATOR;
+use ankaios_api::ank_base::INSTANCE_NAME_SEPARATOR;
 
 use std::fmt::{self, Display};
 

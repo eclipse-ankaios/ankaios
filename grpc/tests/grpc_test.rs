@@ -14,7 +14,7 @@
 
 #[cfg(test)]
 mod grpc_tests {
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         CompleteStateRequestSpec, CompleteStateSpec, RequestContentSpec, RequestSpec,
     };
     use common::{

@@ -14,7 +14,7 @@
 
 use super::{RuntimeStateGetter, StateChecker};
 use crate::workload_state::WorkloadStateSender;
-use api::ank_base::WorkloadNamed;
+use ankaios_api::ank_base::WorkloadNamed;
 
 use async_trait::async_trait;
 use std::str::FromStr;
@@ -57,8 +57,8 @@ mod tests {
     use super::{DummyStateChecker, StateChecker};
     use crate::runtime_connectors::MockRuntimeStateGetter;
 
-    use api::ank_base::WorkloadNamed;
-    use api::test_utils::generate_test_workload_with_param;
+    use ankaios_api::ank_base::WorkloadNamed;
+    use ankaios_api::test_utils::generate_test_workload_with_param;
 
     // [utest->swdd~agent-skips-unknown-runtime~2]
     #[tokio::test]

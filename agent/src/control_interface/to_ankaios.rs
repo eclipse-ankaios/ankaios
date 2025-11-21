@@ -12,8 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::RequestSpec;
-use api::control_api;
+use ankaios_api::ank_base::RequestSpec;
+use ankaios_api::control_api;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -77,7 +77,7 @@ impl Default for Hello {
 #[cfg(test)]
 mod tests {
     use super::{ToAnkaios, control_api};
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         CompleteStateRequest, CompleteStateRequestSpec, Request, RequestContent,
         RequestContentSpec, RequestSpec,
     };

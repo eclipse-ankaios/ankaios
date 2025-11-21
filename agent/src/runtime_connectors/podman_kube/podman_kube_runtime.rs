@@ -28,7 +28,7 @@ use crate::{
     workload_state::WorkloadStateSender,
 };
 
-use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
+use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
 use common::objects::AgentName;
 
 use async_trait::async_trait;
@@ -699,11 +699,11 @@ mod tests {
     use crate::runtime_connectors::{RuntimeConnector, RuntimeError, podman_cli::ContainerState};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         AccessRightsRuleSpec, ExecutionStateSpec, ReadWriteEnum, WorkloadInstanceNameSpec,
         WorkloadNamed, WorkloadSpec,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_workload_with_param, generate_test_workload_with_runtime_config,
     };
 

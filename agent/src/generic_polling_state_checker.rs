@@ -16,7 +16,7 @@ use crate::{
     runtime_connectors::{RuntimeStateGetter, StateChecker},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
-use api::ank_base::{ExecutionStateEnumSpec, ExecutionStateSpec, WorkloadNamed};
+use ankaios_api::ank_base::{ExecutionStateEnumSpec, ExecutionStateSpec, WorkloadNamed};
 
 use async_trait::async_trait;
 use std::{str::FromStr, time::Duration};
@@ -108,8 +108,8 @@ mod tests {
         runtime_connectors::{MockRuntimeStateGetter, StateChecker},
     };
 
-    use api::ank_base::{ExecutionStateSpec, WorkloadNamed};
-    use api::test_utils::{
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadNamed};
+    use ankaios_api::test_utils::{
         generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
     };
 

@@ -40,7 +40,7 @@ mod get_workloads;
 mod run_workload;
 mod set_state;
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     CompleteState, CompleteStateSpec, ExecutionStateEnumSpec, Workload, WorkloadInstanceNameSpec,
     WorkloadState, WorkloadStatesMap,
 };

@@ -22,9 +22,9 @@ base_dir="$script_dir/.."
 # Note that the file paths and the name are ignored for the final hash calculation
 cd "$base_dir"
 find "tests/resources/control_interface_tester" \
-    "api/proto" \
-    "api/build.rs" \
-    "api/build" \
+    "ankaios_api/proto" \
+    "ankaios_api/build.rs" \
+    "ankaios_api/build" \
     -type f \
 | grep -v 'README.md' \
 | sort \

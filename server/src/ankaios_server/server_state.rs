@@ -15,7 +15,7 @@
 use super::config_renderer::RenderedWorkloads;
 use super::cycle_check;
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     AgentAttributesSpec, AgentStatusSpec, CompleteState, CompleteStateRequestSpec,
     CompleteStateSpec, CpuUsageSpec, DeletedWorkload, FreeMemorySpec, StateSpec,
     WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
@@ -369,13 +369,13 @@ impl ServerState {
 mod tests {
     use std::collections::HashMap;
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec,
         ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigObjectSpec, CpuUsageSpec,
         DeletedWorkload, FreeMemorySpec, StateSpec, Workload, WorkloadMapSpec, WorkloadNamed,
         WorkloadSpec, WorkloadStatesMapSpec,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_agent_map, generate_test_complete_state, generate_test_configs,
         generate_test_proto_complete_state, generate_test_workload,
         generate_test_workload_with_param,

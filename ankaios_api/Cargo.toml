@@ -1,5 +1,5 @@
 [package]
-name = "api"
+name = "ankaios-api"
 version = "0.8.0-pre"
 edition = "2024"
 license = "Apache-2.0"

@@ -22,7 +22,7 @@ use crate::{
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::authorizer::Authorizer;
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     DeletedWorkload, ExecutionStateSpec, LogsRequestSpec, Response, WorkloadInstanceNameSpec,
     WorkloadNamed, WorkloadStateSpec,
 };
@@ -679,11 +679,11 @@ mod tests {
     use crate::workload_state::WorkloadStateReceiver;
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         self, CompleteState, ExecutionStateSpec, LogsRequestSpec, Response, ResponseContent,
         WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_complete_state, generate_test_control_interface_access,
         generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
         generate_test_proto_complete_state, generate_test_workload_with_param,

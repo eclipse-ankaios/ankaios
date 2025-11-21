@@ -15,7 +15,7 @@
 use super::log_fetcher::LogFetcher;
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     ExecutionStateSpec, LogsRequestSpec, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
 };
 use common::objects::AgentName;
@@ -182,7 +182,7 @@ pub mod test {
         workload_state::WorkloadStateSender,
     };
 
-    use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
     use common::objects::AgentName;
 
     use async_trait::async_trait;

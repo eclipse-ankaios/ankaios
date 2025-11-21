@@ -21,7 +21,7 @@ use super::authorizer::Authorizer;
 use super::input_pipe::InputPipe;
 #[cfg_attr(test, mockall_double::double)]
 use super::output_pipe::OutputPipe;
-use api::{
+use ankaios_api::{
     ank_base::{self, RequestSpec},
     control_api,
 };
@@ -286,7 +286,7 @@ mod tests {
     };
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
-    use api::{
+    use ankaios_api::{
         ank_base::{
             CompleteStateRequest, Error as AnkError, LogEntriesResponse, LogsCancelRequestSpec,
             Request, RequestContent, RequestContentSpec, RequestSpec, Response, ResponseContent,

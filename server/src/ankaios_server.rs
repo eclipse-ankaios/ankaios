@@ -18,7 +18,7 @@ mod delete_graph;
 mod log_campaign_store;
 mod server_state;
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     CompleteState, CompleteStateSpec, DeletedWorkload, ExecutionStateSpec, LogsStopResponse,
     RequestContentSpec, RequestSpec, StateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec,
     WorkloadStatesMapSpec,
@@ -564,7 +564,7 @@ mod tests {
     use crate::ankaios_server::log_campaign_store::RemovedLogRequests;
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         CompleteState, CompleteStateRequestSpec, CompleteStateSpec, CpuUsageSpec, DeletedWorkload,
         Error, ExecutionStateEnumSpec, ExecutionStateSpec, FreeMemorySpec, LogEntriesResponse,
         LogEntry, LogsCancelAccepted, LogsRequestAccepted, LogsRequestSpec, LogsStopResponse,
@@ -572,7 +572,7 @@ mod tests {
         UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap,
         WorkloadMapSpec, WorkloadNamed, WorkloadSpec, WorkloadStateSpec,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_workload, generate_test_workload_state,
         generate_test_workload_state_with_agent, generate_test_workload_states_map_with_data,
         generate_test_workload_with_param,

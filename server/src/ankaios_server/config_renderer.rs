@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::WorkloadInstanceNameSpec;
-use api::ank_base::{
+use ankaios_api::ank_base::{
     ConfigItemSpec, FileContentSpec, FileSpec, FilesSpec, WorkloadNamed, WorkloadSpec,
 };
 
@@ -219,11 +219,11 @@ mock! {
 #[cfg(test)]
 mod tests {
     use super::{ConfigRenderError, ConfigRenderer, RenderedWorkloads};
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         ConfigItemEnumSpec, ConfigItemSpec, ConfigMappingsSpec, FileContentSpec, FileSpec,
         WorkloadNamed, WorkloadSpec,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_configs, generate_test_workload_with_param,
         generate_test_workload_with_runtime_config,
     };

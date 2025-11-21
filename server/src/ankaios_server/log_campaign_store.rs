@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::WorkloadInstanceNameSpec;
+use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -328,7 +328,7 @@ impl LogCampaignStore {
 #[cfg(test)]
 mod tests {
     use super::{AgentRequestId, CliRequestId, HashMap, HashSet, LogCampaignStore, RequestId};
-    use api::ank_base::WorkloadInstanceNameSpec;
+    use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_1_NAME: &str = "workload_1";

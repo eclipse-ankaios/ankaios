@@ -17,7 +17,7 @@ use super::{
     path_pattern::{PathPattern, PathPatternMatchReason, PathPatternMatcher},
 };
 
-use api::ank_base::WILDCARD_SYMBOL;
+use ankaios_api::ank_base::WILDCARD_SYMBOL;
 use common::std_extensions::UnreachableOption;
 
 // [impl->swdd~agent-authorizing-supported-rules~1]

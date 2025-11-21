@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::ControlInterfacePath;
-use api::ank_base::WorkloadInstanceNameSpec;
+use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 use common::to_server_interface::ToServerSender;
 
 #[cfg(test)]
@@ -92,7 +92,7 @@ mod tests {
     use super::{ControlInterfaceInfo, ControlInterfacePath};
     use crate::control_interface::{MockControlInterface, authorizer::MockAuthorizer};
 
-    use api::ank_base::WorkloadInstanceNameSpec;
+    use ankaios_api::ank_base::WorkloadInstanceNameSpec;
     use common::to_server_interface::ToServer;
 
     use std::path::{Path, PathBuf};

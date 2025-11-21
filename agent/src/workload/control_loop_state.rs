@@ -20,7 +20,7 @@ use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
 use crate::workload_state::{WorkloadStateReceiver, WorkloadStateSender};
 
-use api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec};
+use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec};
 
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -187,8 +187,8 @@ mod tests {
         workload_state::WorkloadStateSenderInterface,
     };
 
-    use api::ank_base::{ExecutionStateSpec, WorkloadNamed};
-    use api::test_utils::{
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadNamed};
+    use ankaios_api::test_utils::{
         generate_test_workload, generate_test_workload_state_with_workload_named,
     };
 

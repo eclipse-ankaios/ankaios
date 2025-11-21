@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{CpuUsageSpec, FreeMemorySpec};
+use ankaios_api::ank_base::{CpuUsageSpec, FreeMemorySpec};
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind};
 
 #[cfg(test)]

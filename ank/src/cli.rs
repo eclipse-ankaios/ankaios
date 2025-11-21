@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{CompleteState, ConfigMap, ExecutionsStatesOfWorkload, WorkloadMap};
+use ankaios_api::ank_base::{CompleteState, ConfigMap, ExecutionsStatesOfWorkload, WorkloadMap};
 
 use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueHint, command};
 use clap_complete::{ArgValueCompleter, CompleteEnv, CompletionCandidate};

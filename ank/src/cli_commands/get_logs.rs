@@ -16,7 +16,7 @@ use super::CliCommands;
 use crate::cli::LogsArgs;
 use crate::cli_error::CliError;
 
-use api::ank_base::{WorkloadInstanceNameSpec, WorkloadState};
+use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadState};
 use std::collections::{BTreeSet, HashMap};
 
 impl CliCommands {
@@ -46,9 +46,10 @@ impl CliCommands {
 
         if let Some(wl_states) = complete_state.workload_states {
             let available_instance_names: HashMap<String, BTreeSet<WorkloadInstanceNameSpec>> =
-                Vec::<WorkloadState>::from(wl_states).into_iter().map(|wl_state| {
-                    let instance_name: WorkloadInstanceNameSpec =
-                        match wl_state.instance_name {
+                Vec::<WorkloadState>::from(wl_states)
+                    .into_iter()
+                    .map(|wl_state| {
+                        let instance_name: WorkloadInstanceNameSpec = match wl_state.instance_name {
                             Some(instance_name) => instance_name.try_into().map_err(|err| {
                                 CliError::ExecutionError(format!(
                                     "Failed to convert instance name: {err}"
@@ -57,23 +58,18 @@ impl CliCommands {
                             None => {
                                 return Err(CliError::ExecutionError(
                                     "Instance name is missing.".to_string(),
-                                ))
+                                ));
                             }
                         };
-                    let workload_name = instance_name.workload_name();
-                    Ok((workload_name.to_owned(), instance_name))
-                })
-                .fold(
-                    HashMap::new(),
-                    |mut acc, item| {
+                        let workload_name = instance_name.workload_name();
+                        Ok((workload_name.to_owned(), instance_name))
+                    })
+                    .fold(HashMap::new(), |mut acc, item| {
                         if let Ok((workload_name, instance_name)) = item {
-                            acc.entry(workload_name)
-                                .or_default()
-                                .insert(instance_name);
+                            acc.entry(workload_name).or_default().insert(instance_name);
                         }
                         acc
-                    },
-                );
+                    });
 
             let mut converted_instance_names = BTreeSet::new();
             for wl_name in workload_names {
@@ -115,8 +111,10 @@ mod tests {
     };
     use crate::cli_error::CliError;
 
-    use api::ank_base::{CompleteState, WorkloadInstanceNameSpec, WorkloadNamed};
-    use api::test_utils::{generate_test_complete_state, generate_test_workload_with_param};
+    use ankaios_api::ank_base::{CompleteState, WorkloadInstanceNameSpec, WorkloadNamed};
+    use ankaios_api::test_utils::{
+        generate_test_complete_state, generate_test_workload_with_param,
+    };
 
     use mockall::predicate;
     use std::collections::BTreeSet;

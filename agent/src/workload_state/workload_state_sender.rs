@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
+use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
 use common::std_extensions::IllegalStateResult;
 
 use async_trait::async_trait;
@@ -79,7 +79,7 @@ pub async fn assert_execution_state_sequence(
 mod tests {
     use crate::workload_state::WorkloadStateSenderInterface;
 
-    use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
 
     const BUFFER_SIZE: usize = 20;
 

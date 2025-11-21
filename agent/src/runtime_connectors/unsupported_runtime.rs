@@ -16,7 +16,7 @@ use super::{
     ReusableWorkloadState, RuntimeConnector, RuntimeError, dummy_state_checker::DummyStateChecker,
 };
 use crate::workload_state::WorkloadStateSender;
-use api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed};
+use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed};
 
 use async_trait::async_trait;
 use common::objects::AgentName;
@@ -104,8 +104,8 @@ mod tests {
     use super::{RuntimeError, UnsupportedRuntime, WorkloadInstanceNameSpec};
     use crate::runtime_connectors::{LogRequestOptions, RuntimeConnector};
 
-    use api::ank_base::WorkloadNamed;
-    use api::test_utils::{generate_test_workload, generate_test_workload_with_param};
+    use ankaios_api::ank_base::WorkloadNamed;
+    use ankaios_api::test_utils::{generate_test_workload, generate_test_workload_with_param};
     use common::objects::AgentName;
 
     use std::collections::HashMap;

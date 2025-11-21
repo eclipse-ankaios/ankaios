@@ -17,7 +17,7 @@ use crate::{
     runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
     workload::WorkloadCommand,
 };
-use api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed};
+use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed};
 
 #[cfg(test)]
 use mockall_double::double;
@@ -123,8 +123,8 @@ mod tests {
         workload::retry_manager::MockRetryToken,
     };
 
-    use api::ank_base::WorkloadNamed;
-    use api::test_utils::generate_test_workload;
+    use ankaios_api::ank_base::WorkloadNamed;
+    use ankaios_api::test_utils::generate_test_workload;
 
     use mockall::lazy_static;
     use std::path::PathBuf;

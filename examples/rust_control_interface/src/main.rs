@@ -12,11 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     request::RequestContent, response::ResponseContent, CompleteState, CompleteStateRequest,
     Dependencies, Request, RestartPolicy, State, Tags, UpdateStateRequest, Workload, WorkloadMap,
 };
-use api::control_api::{
+use ankaios_api::control_api::{
     from_ankaios::FromAnkaiosEnum, to_ankaios::ToAnkaiosEnum, FromAnkaios, Hello, ToAnkaios,
 };
 

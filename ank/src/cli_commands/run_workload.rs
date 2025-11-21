@@ -15,7 +15,7 @@
 use super::CliCommands;
 use crate::{cli_error::CliError, output_debug};
 
-use api::ank_base::{CompleteStateSpec, TagsSpec, WorkloadSpec};
+use ankaios_api::ank_base::{CompleteStateSpec, TagsSpec, WorkloadSpec};
 
 use std::collections::HashMap;
 
@@ -74,7 +74,7 @@ impl CliCommands {
 mod tests {
     use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         CompleteState, CompleteStateSpec, ExecutionStateSpec, TagsSpec, UpdateStateSuccess,
         WorkloadSpec, WorkloadStateSpec,
     };

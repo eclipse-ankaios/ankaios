@@ -136,11 +136,11 @@ flowchart TD
 Code snippet in [Rust](https://www.rust-lang.org/) for sending request message via control interface:
 
 ```rust
-use api::ank_base::{
+use ankaios_api::ank_base::{
     request::RequestContent, CompleteState, Dependencies, Request, RestartPolicy, State, Tag, Tags,
     UpdateStateRequest, Workload, WorkloadMap,
 };
-use api::control_api::{to_ankaios::ToAnkaiosEnum, Hello, ToAnkaios};
+use ankaios_api::control_api::{to_ankaios::ToAnkaiosEnum, Hello, ToAnkaios};
 use prost::Message;
 use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
@@ -250,7 +250,7 @@ flowchart TD
 Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
 
 ```rust
-use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
+use ankaios_api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
 use prost::Message;
 use std::{fs::File, io, io::Read, path::Path};
 

@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{ExecutionStateSpec, WorkloadStateSpec};
+use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadStateSpec};
 use std::collections::HashMap;
 #[cfg(test)]
 use std::collections::VecDeque;
@@ -103,8 +103,8 @@ impl Drop for MockWorkloadStateStore {
 #[cfg(test)]
 mod tests {
     use super::WorkloadStateStore;
-    use api::ank_base::ExecutionStateSpec;
-    use api::test_utils::generate_test_workload_state_with_agent;
+    use ankaios_api::ank_base::ExecutionStateSpec;
+    use ankaios_api::test_utils::generate_test_workload_state_with_agent;
 
     #[test]
     fn utest_update_storage_empty_storage_add_one() {

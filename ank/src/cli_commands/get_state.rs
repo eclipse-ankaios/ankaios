@@ -60,8 +60,10 @@ mod tests {
         cli_commands::{CliCommands, server_connection::MockServerConnection},
     };
 
-    use api::ank_base::Workload;
-    use api::test_utils::{generate_test_proto_complete_state, generate_test_workload_with_param};
+    use ankaios_api::ank_base::Workload;
+    use ankaios_api::test_utils::{
+        generate_test_proto_complete_state, generate_test_workload_with_param,
+    };
     use mockall::predicate::eq;
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;

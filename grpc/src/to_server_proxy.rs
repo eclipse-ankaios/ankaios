@@ -16,7 +16,9 @@ use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_api::{self, to_server::ToServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
-use api::ank_base::{LogsStopResponse, Request, UpdateStateRequest, request::RequestContent};
+use ankaios_api::ank_base::{
+    LogsStopResponse, Request, UpdateStateRequest, request::RequestContent,
+};
 use common::commands;
 use common::request_id_prepending::prepend_request_id;
 use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender};
@@ -306,14 +308,14 @@ mod tests {
     use super::{GRPCStreaming, forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use crate::grpc_api::{self, to_server::ToServerEnum};
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         CompleteState, CompleteStateRequest, CompleteStateRequestSpec, CpuUsage, CpuUsageSpec,
         ExecutionStateSpec, FreeMemory, FreeMemorySpec, LogEntriesResponse, LogEntry,
         LogsCancelRequest, LogsCancelRequestSpec, LogsRequest, LogsRequestSpec, LogsStopResponse,
         Request, RequestContent, RequestContentSpec, RequestSpec, UpdateStateRequest,
         WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadState,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_complete_state, generate_test_workload,
         generate_test_workload_state_with_agent,
     };

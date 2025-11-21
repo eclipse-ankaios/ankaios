@@ -17,7 +17,7 @@ use crate::cli::LogsArgs;
 use crate::cli_signals::SignalHandler;
 use crate::{output_and_error, output_debug};
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     CompleteState, CompleteStateRequestSpec, CompleteStateSpec, LogEntry, LogsRequestAccepted,
     LogsRequestSpec, Response, ResponseContent, UpdateStateSuccess, WorkloadInstanceName,
     WorkloadInstanceNameSpec,
@@ -470,7 +470,7 @@ fn is_output_with_workload_names(
 enum LogStreamingState {
     StopForWorkload(WorkloadInstanceNameSpec),
     Continue,
-    Output(api::ank_base::LogEntriesResponse),
+    Output(ankaios_api::ank_base::LogEntriesResponse),
 }
 
 #[derive(Debug, PartialEq)]
@@ -560,14 +560,14 @@ mod tests {
         test_helper::MOCKALL_CONTEXT_SYNC,
     };
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         CompleteStateRequestSpec, CompleteStateSpec, Error, ExecutionStateSpec, LogEntriesResponse,
         LogEntry, LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec, LogsStopResponse,
         RequestContentSpec, Response, ResponseContent, StateSpec, UpdateStateRequestSpec,
         UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadSpec,
         WorkloadStateSpec,
     };
-    use api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
+    use ankaios_api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
         commands::UpdateWorkloadState, from_server_interface::FromServer,
         to_server_interface::ToServer,

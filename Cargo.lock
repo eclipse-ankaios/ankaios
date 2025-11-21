@@ -24,7 +24,7 @@ dependencies = [
 name = "ank"
 version = "0.8.0-pre"
 dependencies = [
- "api",
+ "ankaios-api",
  "clap",
  "clap_complete",
  "common",
@@ -47,7 +47,7 @@ dependencies = [
 name = "ank-agent"
 version = "0.8.0-pre"
 dependencies = [
- "api",
+ "ankaios-api",
  "async-trait",
  "base64",
  "bytes",
@@ -80,7 +80,7 @@ dependencies = [
 name = "ank-schema"
 version = "0.8.0-pre"
 dependencies = [
- "api",
+ "ankaios-api",
  "env",
  "schemars",
  "serde_json",
@@ -90,7 +90,7 @@ dependencies = [
 name = "ank-server"
 version = "0.8.0-pre"
 dependencies = [
- "api",
+ "ankaios-api",
  "clap",
  "common",
  "env_logger",
@@ -104,6 +104,22 @@ dependencies = [
  "tempfile",
  "tokio",
  "toml",
+]
+
+[[package]]
+name = "ankaios-api"
+version = "0.8.0-pre"
+dependencies = [
+ "log",
+ "prost",
+ "regex",
+ "schemars",
+ "serde",
+ "serde_yaml",
+ "sha256",
+ "spec_macros",
+ "tonic",
+ "tonic-prost-build",
 ]
 
 [[package]]
@@ -161,22 +177,6 @@ name = "anyhow"
 version = "1.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
-
-[[package]]
-name = "api"
-version = "0.8.0-pre"
-dependencies = [
- "log",
- "prost",
- "regex",
- "schemars",
- "serde",
- "serde_yaml",
- "sha256",
- "spec_macros",
- "tonic",
- "tonic-prost-build",
-]
 
 [[package]]
 name = "asn1-rs"
@@ -419,7 +419,7 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 name = "common"
 version = "0.8.0-pre"
 dependencies = [
- "api",
+ "ankaios-api",
  "async-trait",
  "log",
  "semver",
@@ -433,7 +433,7 @@ dependencies = [
 name = "control_interface_tester"
 version = "0.0.0"
 dependencies = [
- "api",
+ "ankaios-api",
  "chrono",
  "prost",
  "serde",
@@ -848,7 +848,7 @@ dependencies = [
 name = "grpc"
 version = "0.8.0-pre"
 dependencies = [
- "api",
+ "ankaios-api",
  "async-trait",
  "common",
  "env_logger",

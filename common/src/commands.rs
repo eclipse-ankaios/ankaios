@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     CpuUsageSpec, DeletedWorkload, FreeMemorySpec, WorkloadNamed, WorkloadStateSpec,
 };
 use serde::{Deserialize, Serialize};
@@ -69,7 +69,7 @@ pub struct AgentLoadStatus {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{CompleteStateRequestSpec, RequestContentSpec, RequestSpec};
+    use ankaios_api::ank_base::{CompleteStateRequestSpec, RequestContentSpec, RequestSpec};
 
     #[test]
     fn utest_prefix_id() {

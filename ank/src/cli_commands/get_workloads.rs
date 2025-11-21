@@ -224,10 +224,10 @@ mod tests {
         workload_table_row::WorkloadTableRow,
     };
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         CompleteState, CompleteStateSpec, ExecutionStateSpec, WorkloadNamed, WorkloadStateSpec,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_complete_state, generate_test_workload_states_map_with_data,
         generate_test_workload_with_param,
     };

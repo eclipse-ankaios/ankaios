@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY api ${WORKSPACE_DIR}/api
+COPY ankaios_api ${WORKSPACE_DIR}/ankaios_api
 COPY spec_macros ${WORKSPACE_DIR}/spec_macros
 COPY examples/rust_control_interface ${WORKSPACE_DIR}
 WORKDIR ${WORKSPACE_DIR}

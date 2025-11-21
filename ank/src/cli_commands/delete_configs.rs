@@ -15,7 +15,7 @@
 use super::CliCommands;
 use crate::{cli_commands::DESIRED_STATE_CONFIGS, cli_error::CliError, output_debug};
 
-use api::ank_base::CompleteStateSpec;
+use ankaios_api::ank_base::CompleteStateSpec;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-delete-configs~1]
@@ -57,7 +57,7 @@ impl CliCommands {
 mod tests {
     use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
 
-    use api::ank_base::{CompleteState, CompleteStateSpec, UpdateStateSuccess};
+    use ankaios_api::ank_base::{CompleteState, CompleteStateSpec, UpdateStateSuccess};
     use mockall::predicate::eq;
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;

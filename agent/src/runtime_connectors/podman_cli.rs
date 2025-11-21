@@ -14,7 +14,7 @@
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_connectors::cli_command::CliCommand;
-use api::ank_base::ExecutionStateSpec;
+use ankaios_api::ank_base::ExecutionStateSpec;
 
 use base64::Engine;
 #[cfg(test)]
@@ -564,7 +564,7 @@ mod tests {
     use super::{CliCommand, ContainerState, PodmanCli, PodmanContainerInfo, PodmanPsCache};
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
-    use api::ank_base::ExecutionStateSpec;
+    use ankaios_api::ank_base::ExecutionStateSpec;
     use common::test_utils::serialize_as_map;
 
     use serde::Serialize;

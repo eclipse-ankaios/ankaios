@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::WorkloadInstanceNameSpec;
+use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 use std::{ops::Deref, path::PathBuf};
 
 #[derive(Debug, PartialEq)]
@@ -55,7 +55,7 @@ pub fn generate_test_workload_files_path() -> WorkloadFilesBasePath {
 #[cfg(test)]
 mod tests {
     use super::{PathBuf, WorkloadFilesBasePath};
-    use api::ank_base::WorkloadInstanceNameSpec;
+    use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 
     const AGENT_A_RUN_FOLDER: &str = "/tmp/ankaios/agent_A_io";
     const AGENT_A: &str = "agent_A";

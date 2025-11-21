@@ -14,7 +14,7 @@
 
 use crate::{subscription_store::SubscriptionStore, workload_state::WorkloadStateReceiver};
 
-use api::ank_base::WorkloadStateSpec;
+use ankaios_api::ank_base::WorkloadStateSpec;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult};
 use common::{
     commands::AgentLoadStatus,
@@ -296,10 +296,10 @@ mod tests {
         workload_state_store::{MockWorkloadStateStore, mock_parameter_storage_new_returns},
     };
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         self, CpuUsageSpec, ExecutionStateSpec, FreeMemorySpec, LogsRequestSpec, WorkloadNamed,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_workload_state_with_agent, generate_test_workload_with_param,
     };
     use common::{

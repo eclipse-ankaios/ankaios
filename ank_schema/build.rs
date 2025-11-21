@@ -19,7 +19,7 @@ const SCHEMA_NAME: &str = "ank_schema.json";
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let generator = schemars::generate::SchemaSettings::draft07().into_generator();
 
-    let schema = generator.into_root_schema_for::<api::ank_base::StateSpec>();
+    let schema = generator.into_root_schema_for::<ankaios_api::ank_base::StateSpec>();
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
     let target_dir = out_dir

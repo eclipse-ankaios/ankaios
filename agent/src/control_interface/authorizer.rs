@@ -16,7 +16,7 @@ mod path;
 mod path_pattern;
 mod rules;
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     AccessRightsRuleEnumSpec, AccessRightsRuleSpec, ControlInterfaceAccessSpec, ReadWriteEnum,
     RequestContentSpec, RequestSpec,
 };
@@ -245,7 +245,7 @@ mod test {
         path_pattern::{AllowPathPattern, DenyPathPattern},
     };
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         AccessRightsRuleSpec, CompleteStateRequestSpec, ControlInterfaceAccessSpec,
         LogsCancelRequestSpec, LogsRequestSpec, ReadWriteEnum, RequestContentSpec, RequestSpec,
         UpdateStateRequestSpec, WorkloadInstanceNameSpec,

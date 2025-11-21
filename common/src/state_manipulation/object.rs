@@ -14,7 +14,7 @@
 
 use super::Path;
 
-use api::ank_base::{CompleteState, CompleteStateSpec, State, StateSpec};
+use ankaios_api::ank_base::{CompleteState, CompleteStateSpec, State, StateSpec};
 
 use serde_yaml::{
     Mapping, Value, from_value,
@@ -294,8 +294,8 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use super::Object;
-    use api::ank_base::{CompleteStateSpec, ExecutionStateSpec, StateSpec, WorkloadNamed};
-    use api::test_utils::{
+    use ankaios_api::ank_base::{CompleteStateSpec, ExecutionStateSpec, StateSpec, WorkloadNamed};
+    use ankaios_api::test_utils::{
         generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
         generate_test_workload, generate_test_workload_states_map_with_data,
     };
@@ -709,9 +709,9 @@ mod tests {
     mod object {
         use serde_yaml::Value;
 
-        use api::CURRENT_API_VERSION;
-        use api::ank_base::ConfigHash;
-        use api::test_utils::generate_test_runtime_config;
+        use ankaios_api::CURRENT_API_VERSION;
+        use ankaios_api::ank_base::ConfigHash;
+        use ankaios_api::test_utils::generate_test_runtime_config;
 
         pub fn generate_test_complete_state_mapping() -> Mapping {
             let agent_name = "agent_A";

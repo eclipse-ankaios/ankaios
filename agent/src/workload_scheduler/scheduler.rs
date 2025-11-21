@@ -20,7 +20,9 @@ use crate::{
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
-use api::ank_base::{DeletedWorkload, ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
+use ankaios_api::ank_base::{
+    DeletedWorkload, ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed,
+};
 use std::{collections::HashMap, fmt::Display};
 
 #[cfg_attr(test, mockall_double::double)]
@@ -341,8 +343,8 @@ mod tests {
         },
     };
 
-    use api::ank_base::{ExecutionStateSpec, WorkloadNamed, WorkloadStateSpec};
-    use api::test_utils::{
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadNamed, WorkloadStateSpec};
+    use ankaios_api::test_utils::{
         generate_test_deleted_workload, generate_test_workload,
         generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
     };

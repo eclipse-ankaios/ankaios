@@ -38,7 +38,7 @@ use crate::{
     runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
 };
 
-use api::ank_base::{self, WorkloadInstanceNameSpec, WorkloadNamed};
+use ankaios_api::ank_base::{self, WorkloadInstanceNameSpec, WorkloadNamed};
 
 use common::from_server_interface::FromServer;
 
@@ -247,10 +247,12 @@ mod tests {
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         self, CompleteStateSpec, Response, WorkloadNamed, WorkloadSpec, response::ResponseContent,
     };
-    use api::test_utils::{generate_test_complete_state, generate_test_workload_with_param};
+    use ankaios_api::test_utils::{
+        generate_test_complete_state, generate_test_workload_with_param,
+    };
     use common::from_server_interface::FromServer;
 
     use std::path::PathBuf;

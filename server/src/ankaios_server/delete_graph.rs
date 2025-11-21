@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     AddCondition, DeleteCondition, DeletedWorkload, WorkloadNamed, WorkloadStateSpec,
 };
 use std::collections::HashMap;
@@ -87,8 +87,8 @@ impl DeleteGraph {
 #[cfg(test)]
 mod tests {
     use super::{super::WorkloadInstanceNameSpec, AddCondition, DeleteCondition, DeleteGraph};
-    use api::ank_base::{DeletedWorkload, DependenciesSpec, ExecutionStateSpec, WorkloadNamed};
-    use api::test_utils::{generate_test_workload, generate_test_workload_state_with_agent};
+    use ankaios_api::ank_base::{DeletedWorkload, DependenciesSpec, ExecutionStateSpec, WorkloadNamed};
+    use ankaios_api::test_utils::{generate_test_workload, generate_test_workload_state_with_agent};
 
     use std::collections::HashMap;
 

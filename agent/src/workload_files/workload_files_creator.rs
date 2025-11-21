@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{FileContentSpec, FileSpec};
+use ankaios_api::ank_base::{FileContentSpec, FileSpec};
 use base64::{Engine, engine::general_purpose};
 use std::{
     collections::HashMap,

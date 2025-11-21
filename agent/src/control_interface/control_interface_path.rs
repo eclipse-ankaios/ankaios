@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::WorkloadInstanceNameSpec;
+use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 use std::{ops::Deref, path::PathBuf};
 
 #[derive(Clone, Debug, PartialEq)]

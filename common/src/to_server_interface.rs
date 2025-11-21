@@ -14,7 +14,7 @@
 
 use crate::commands::{self, AgentLoadStatus};
 use crate::std_extensions::UnreachableResult;
-use api::ank_base::{
+use ankaios_api::ank_base::{
     CompleteStateRequestSpec, CompleteStateSpec, LogEntriesResponse, LogsCancelRequestSpec,
     LogsRequest, LogsRequestSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
     UpdateStateRequestSpec, WorkloadStateSpec,
@@ -240,13 +240,13 @@ mod tests {
         commands::{self, AgentLoadStatus},
         to_server_interface::{ToServer, ToServerInterface},
     };
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         CompleteStateRequestSpec, CpuUsageSpec, ExecutionStateSpec, FreeMemorySpec,
         LogEntriesResponse, LogEntry, LogsCancelRequestSpec, LogsRequestSpec, LogsStopResponse,
         RequestContentSpec, RequestSpec, UpdateStateRequestSpec, WorkloadInstanceName,
         WorkloadInstanceNameSpec,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_complete_state, generate_test_workload, generate_test_workload_state,
     };
     use tokio::sync::mpsc;

@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{DeletedWorkload, WorkloadNamed};
+use ankaios_api::ank_base::{DeletedWorkload, WorkloadNamed};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReusableWorkload {
@@ -21,7 +21,10 @@ pub struct ReusableWorkload {
 }
 
 impl ReusableWorkload {
-    pub fn new(workload_named: WorkloadNamed, runtime_workload_id: Option<String>) -> ReusableWorkload {
+    pub fn new(
+        workload_named: WorkloadNamed,
+        runtime_workload_id: Option<String>,
+    ) -> ReusableWorkload {
         ReusableWorkload {
             workload_named,
             runtime_workload_id,

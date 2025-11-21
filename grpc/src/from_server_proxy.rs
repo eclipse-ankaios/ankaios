@@ -17,7 +17,7 @@ use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_api::{self, from_server::FromServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
-use api::ank_base::{
+use ankaios_api::ank_base::{
     DeletedWorkload, LogsRequestSpec, Response, ResponseContent, WorkloadInstanceNameSpec,
     WorkloadNamed, WorkloadState, WorkloadStateSpec,
 };
@@ -438,12 +438,12 @@ mod tests {
     use crate::grpc_api::{self, FromServer, UpdateWorkload, from_server::FromServerEnum};
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         self, CompleteState, Dependencies, ExecutionStateSpec, LogsRequestSpec, Response,
         ResponseContent, State, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec,
         WorkloadMap, WorkloadNamed,
     };
-    use api::test_utils::{
+    use ankaios_api::test_utils::{
         generate_test_deleted_workload, generate_test_workload,
         generate_test_workload_state_with_agent, generate_test_workload_with_param,
     };

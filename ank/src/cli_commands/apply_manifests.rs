@@ -16,8 +16,8 @@ use super::{CliCommands, InputSourcePair};
 use crate::cli_error::CliError;
 use crate::{cli::ApplyArgs, output, output_debug};
 
-use api::ank_base::{ALLOWED_SYMBOLS, CompleteStateSpec, StateSpec, validate_tags};
-use api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
+use ankaios_api::ank_base::{ALLOWED_SYMBOLS, CompleteStateSpec, StateSpec, validate_tags};
+use ankaios_api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
 
@@ -243,11 +243,13 @@ mod tests {
         },
     };
 
-    use api::ank_base::{
+    use ankaios_api::ank_base::{
         CompleteState, CompleteStateSpec, ExecutionStateSpec, Response, ResponseContent, StateSpec,
         UpdateStateSuccess, WorkloadNamed, WorkloadStateSpec,
     };
-    use api::test_utils::{generate_test_state_from_workloads, generate_test_workload_with_param};
+    use ankaios_api::test_utils::{
+        generate_test_state_from_workloads, generate_test_workload_with_param,
+    };
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::FromServer,

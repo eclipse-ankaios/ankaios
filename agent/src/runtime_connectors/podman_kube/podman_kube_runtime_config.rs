@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::WorkloadSpec;
+use ankaios_api::ank_base::WorkloadSpec;
 
 use super::podman_kube_runtime::PODMAN_KUBE_RUNTIME_NAME;
 
@@ -64,8 +64,8 @@ impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::WorkloadSpec;
-    use api::test_utils::generate_test_workload_with_param;
+    use ankaios_api::ank_base::WorkloadSpec;
+    use ankaios_api::test_utils::generate_test_workload_with_param;
 
     use super::{PODMAN_KUBE_RUNTIME_NAME, PodmanKubeRuntimeConfig};
 

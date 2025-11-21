@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base::{STR_RE_AGENT, WorkloadStateSpec};
+use ankaios_api::ank_base::{STR_RE_AGENT, WorkloadStateSpec};
 use common::communications_client::CommunicationsClient;
 use common::objects::AgentName;
 use common::to_server_interface::ToServer;

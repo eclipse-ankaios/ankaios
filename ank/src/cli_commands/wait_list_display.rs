@@ -16,7 +16,7 @@ use super::cli_table::CliTable;
 use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};
 use crate::cli_commands::workload_table_row::WorkloadTableRowWithSpinner;
 
-use api::ank_base::{WorkloadInstanceNameSpec, WorkloadStateSpec};
+use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadStateSpec};
 
 use std::{
     collections::{HashMap, HashSet},
@@ -112,7 +112,7 @@ mod tests {
         wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow,
     };
 
-    use api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
     use std::collections::{HashMap, HashSet};
 
     #[test]
