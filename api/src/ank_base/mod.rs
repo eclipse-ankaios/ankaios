@@ -42,7 +42,6 @@ pub use execution_state::{ExecutionStateEnum, ExecutionStateEnumSpec};
 
 pub(crate) mod workload_states_map;
 
-pub(crate) mod config;
 pub use config_item::{ConfigItemEnum, ConfigItemEnumSpec};
 
 pub(crate) mod complete_state;

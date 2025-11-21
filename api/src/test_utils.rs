@@ -14,12 +14,11 @@
 
 use crate::ank_base::{
     AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateSpec,
-    ConfigMap, ConfigMapSpec, ConfigMappingsSpec, CpuUsageSpec, DeleteCondition, DeletedWorkload,
-    FreeMemorySpec, State, StateSpec, Workload, WorkloadInstanceNameSpec, WorkloadMap,
-    WorkloadMapSpec, WorkloadNamed, WorkloadSpec,
+    ConfigItemEnumSpec, ConfigItemSpec, ConfigMap, ConfigMapSpec, ConfigMappingsSpec, CpuUsageSpec,
+    DeleteCondition, DeletedWorkload, FreeMemorySpec, State, StateSpec, Workload,
+    WorkloadInstanceNameSpec, WorkloadMap, WorkloadMapSpec, WorkloadNamed, WorkloadSpec,
 };
 pub use crate::ank_base::{
-    config::generate_test_config_item,
     control_interface_access::generate_test_control_interface_access,
     workload::{
         generate_test_runtime_config, generate_test_workload, generate_test_workload_with_param,
@@ -41,6 +40,21 @@ use std::collections::HashMap;
 const API_VERSION: &str = "v1";
 const WORKLOAD_1_NAME: &str = "workload_name_1";
 const WORKLOAD_2_NAME: &str = "workload_name_2";
+
+pub fn generate_test_config_item<T>(item: T) -> ConfigItemSpec
+where
+    T: Into<ConfigItemSpec>,
+{
+    item.into()
+}
+
+impl From<String> for ConfigItemSpec {
+    fn from(s: String) -> Self {
+        ConfigItemSpec {
+            config_item_enum: ConfigItemEnumSpec::String(s),
+        }
+    }
+}
 
 pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadNamed>) -> StateSpec {
     StateSpec {
