@@ -51,24 +51,3 @@ pub use request::{RequestContent, RequestContentSpec};
 pub use response::ResponseContent;
 
 pub(crate) mod requests;
-
-//////////////////////////////////////////////////////////////////////////////
-//                  ####   ##     ##   ########    ##                       //
-//                   ##    ###   ###   ##     ##   ##                       //
-//                   ##    #### ####   ########    ##                       //
-//                   ##    ## ### ##   ##          ##                       //
-//                  ####   ##     ##   ##          #########                //
-//////////////////////////////////////////////////////////////////////////////
-
-// MARK #313 Can be deleted with no repercussions
-impl Response {
-    pub fn access_denied(request_id: String) -> Response {
-        Response {
-            request_id,
-            response_content: response::ResponseContent::Error(Error {
-                message: "Access denied".into(),
-            })
-            .into(),
-        }
-    }
-}
