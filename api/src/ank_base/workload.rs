@@ -13,8 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    AddCondition, DependenciesSpec, ExecutionStateSpec, RestartPolicy, WorkloadInstanceNameSpec,
-    WorkloadSpec,
+    AddCondition, ExecutionStateSpec, RestartPolicy, WorkloadInstanceNameSpec, WorkloadSpec,
 };
 use crate::helpers::serialize_to_ordered_map;
 use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
@@ -50,13 +49,6 @@ impl From<(String, WorkloadSpec)> for WorkloadNamed {
             instance_name,
             workload,
         }
-    }
-}
-
-// MARK #313 Can be deleted with no repercussions
-impl From<WorkloadNamed> for WorkloadSpec {
-    fn from(item: WorkloadNamed) -> Self {
-        item.workload
     }
 }
 
@@ -132,15 +124,6 @@ impl WorkloadSpec {
             }
         }
         Ok(())
-    }
-}
-
-// MARK #313 Used only within tests
-impl From<HashMap<String, AddCondition>> for DependenciesSpec {
-    fn from(value: HashMap<String, AddCondition>) -> Self {
-        DependenciesSpec {
-            dependencies: value,
-        }
     }
 }
 
@@ -265,7 +248,7 @@ pub fn validate_tags(
 
 #[cfg(any(feature = "test_utils", test))]
 use crate::ank_base::{
-    ConfigMappingsSpec, FileContentSpec, FileSpec, FilesSpec, TagsSpec, Workload,
+    ConfigMappingsSpec, DependenciesSpec, FileContentSpec, FileSpec, FilesSpec, TagsSpec, Workload,
 };
 #[cfg(any(feature = "test_utils", test))]
 use crate::test_utils::generate_test_control_interface_access;

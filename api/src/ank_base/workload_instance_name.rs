@@ -17,7 +17,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::ank_base::{WorkloadInstanceNameSpec, WorkloadSpec};
+use crate::ank_base::WorkloadInstanceNameSpec;
 
 // This could be std::mem::variant_count::<WorkloadExecutionInstanceParts>(),
 // but the function is still in only nightly ...
@@ -44,13 +44,6 @@ pub trait ConfigHash {
 impl ConfigHash for String {
     fn hash_config(&self) -> String {
         sha256::digest(self.as_str())
-    }
-}
-
-// MARK #313 Can be deleted with no repercussions
-impl ConfigHash for WorkloadSpec {
-    fn hash_config(&self) -> String {
-        self.runtime_config.hash_config()
     }
 }
 
@@ -142,12 +135,6 @@ impl WorkloadInstanceNameBuilder {
 
     pub fn workload_name(mut self, workload_name: impl Into<String>) -> Self {
         self.workload_name = workload_name.into();
-        self
-    }
-
-    // MARK #313 Can be deleted with no repercussions
-    pub fn id(mut self, id: impl Into<String>) -> Self {
-        self.hash = id.into();
         self
     }
 

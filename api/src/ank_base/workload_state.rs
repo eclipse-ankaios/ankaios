@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    AgentDisconnected, ExecutionState, ExecutionStateEnum, ExecutionStateEnumSpec,
-    ExecutionStateSpec, Failed, NotScheduled, Pending, Removed, Running, Stopping, Succeeded,
+    AgentDisconnected, ExecutionStateEnumSpec, ExecutionStateSpec, Failed, NotScheduled, Pending,
+    Removed, Running, Stopping, Succeeded,
 };
 use std::fmt::Display;
 
@@ -110,14 +110,6 @@ impl ExecutionStateSpec {
         matches!(
             self.state(),
             ExecutionStateEnumSpec::Pending(Pending::WaitingToStart)
-        )
-    }
-
-    // MARK #313 Can be deleted with no repercussions
-    pub fn is_waiting_to_stop(&self) -> bool {
-        matches!(
-            self.state(),
-            ExecutionStateEnumSpec::Stopping(Stopping::WaitingToStop)
         )
     }
 
@@ -252,18 +244,6 @@ impl ExecutionStateSpec {
     pub fn not_scheduled() -> Self {
         Self {
             execution_state_enum: ExecutionStateEnumSpec::NotScheduled(NotScheduled::NotScheduled),
-            ..Default::default()
-        }
-    }
-}
-
-// MARK #313 Can be deleted with no repercussions
-impl ExecutionState {
-    pub fn agent_disconnected() -> Self {
-        Self {
-            execution_state_enum: Some(ExecutionStateEnum::AgentDisconnected(
-                AgentDisconnected::AgentDisconnected as i32,
-            )),
             ..Default::default()
         }
     }

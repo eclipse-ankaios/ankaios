@@ -87,7 +87,7 @@ impl DeleteGraph {
 #[cfg(test)]
 mod tests {
     use super::{super::WorkloadInstanceNameSpec, AddCondition, DeleteCondition, DeleteGraph};
-    use api::ank_base::{DeletedWorkload, ExecutionStateSpec, WorkloadNamed};
+    use api::ank_base::{DeletedWorkload, DependenciesSpec, ExecutionStateSpec, WorkloadNamed};
     use api::test_utils::{generate_test_workload, generate_test_workload_state_with_agent};
 
     use std::collections::HashMap;
@@ -126,25 +126,28 @@ mod tests {
         let mut workload_5 = workload_1.clone().name(WORKLOAD_NAME_5);
         let mut workload_6 = workload_1.clone().name(WORKLOAD_NAME_6);
 
-        workload_1.workload.dependencies = HashMap::from([(
-            workload_2.instance_name.workload_name().to_owned(),
-            AddCondition::AddCondRunning,
-        )])
-        .into();
+        workload_1.workload.dependencies = DependenciesSpec {
+            dependencies: HashMap::from([(
+                workload_2.instance_name.workload_name().to_owned(),
+                AddCondition::AddCondRunning,
+            )]),
+        };
 
         workload_2.workload.dependencies.dependencies.clear();
 
-        workload_3.workload.dependencies = HashMap::from([(
-            workload_5.instance_name.workload_name().to_owned(),
-            AddCondition::AddCondRunning,
-        )])
-        .into();
+        workload_3.workload.dependencies = DependenciesSpec {
+            dependencies: HashMap::from([(
+                workload_5.instance_name.workload_name().to_owned(),
+                AddCondition::AddCondRunning,
+            )]),
+        };
 
-        workload_4.workload.dependencies = HashMap::from([(
-            workload_1.instance_name.workload_name().to_owned(),
-            AddCondition::AddCondFailed,
-        )])
-        .into();
+        workload_4.workload.dependencies = DependenciesSpec {
+            dependencies: HashMap::from([(
+                workload_1.instance_name.workload_name().to_owned(),
+                AddCondition::AddCondFailed,
+            )]),
+        };
 
         workload_5.workload.dependencies.dependencies.clear();
         workload_6.workload.dependencies.dependencies.clear();

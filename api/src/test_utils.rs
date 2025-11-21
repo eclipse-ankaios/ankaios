@@ -155,23 +155,6 @@ pub fn generate_test_state() -> StateSpec {
     }
 }
 
-// MARK #313 Can be deleted with no repercussions
-pub fn generate_test_proto_state() -> State {
-    let workload_name_1 = WORKLOAD_1_NAME.to_string();
-    let workload_name_2 = WORKLOAD_2_NAME.to_string();
-
-    let mut workloads = HashMap::new();
-    workloads.insert(workload_name_1, generate_test_workload());
-    workloads.insert(workload_name_2, generate_test_workload());
-    let proto_workloads: Option<WorkloadMap> = Some(WorkloadMap { workloads });
-
-    State {
-        api_version: API_VERSION.into(),
-        workloads: proto_workloads,
-        configs: Some(Default::default()),
-    }
-}
-
 fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
     HashMap::from([(
         String::from("workload_A"),

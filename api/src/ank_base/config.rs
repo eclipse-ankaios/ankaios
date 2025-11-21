@@ -12,27 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::ConfigMappingsSpec;
-use std::collections::HashMap;
-
-// MARK #313 Can be deleted with no repercussions
-impl<const N: usize> From<[(String, String); N]> for ConfigMappingsSpec {
-    fn from(value: [(String, String); N]) -> Self {
-        ConfigMappingsSpec {
-            configs: value
-                .into_iter()
-                .collect::<std::collections::HashMap<_, _>>(),
-        }
-    }
-}
-
-// MARK #313 Can be deleted with no repercussions
-impl From<HashMap<String, String>> for ConfigMappingsSpec {
-    fn from(value: HashMap<String, String>) -> Self {
-        ConfigMappingsSpec { configs: value }
-    }
-}
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -42,7 +21,7 @@ impl From<HashMap<String, String>> for ConfigMappingsSpec {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
-use crate::ank_base::{ConfigArraySpec, ConfigItemEnumSpec, ConfigItemSpec, ConfigObjectSpec};
+use crate::ank_base::{ConfigItemEnumSpec, ConfigItemSpec};
 
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_config_item<T>(item: T) -> ConfigItemSpec
@@ -58,55 +37,5 @@ impl From<String> for ConfigItemSpec {
         ConfigItemSpec {
             config_item_enum: ConfigItemEnumSpec::String(s),
         }
-    }
-}
-
-// MARK #313 Can be deleted with no repercussions
-#[cfg(any(feature = "test_utils", test))]
-impl From<Vec<ConfigItemSpec>> for ConfigItemSpec {
-    fn from(values: Vec<ConfigItemSpec>) -> Self {
-        ConfigItemSpec {
-            config_item_enum: ConfigItemEnumSpec::Array(ConfigArraySpec { values }),
-        }
-    }
-}
-
-// MARK #313 Can be deleted with no repercussions
-#[cfg(any(feature = "test_utils", test))]
-impl From<HashMap<String, ConfigItemSpec>> for ConfigItemSpec {
-    fn from(fields: HashMap<String, ConfigItemSpec>) -> Self {
-        ConfigItemSpec {
-            config_item_enum: ConfigItemEnumSpec::Object(ConfigObjectSpec { fields }),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::ank_base::ConfigMappingsSpec;
-    use std::collections::HashMap;
-
-    #[test]
-    fn utest_config_mappings_spec_from_array() {
-        let mappings: ConfigMappingsSpec = [
-            ("key1".to_string(), "value1".to_string()),
-            ("key2".to_string(), "value2".to_string()),
-        ]
-        .into();
-
-        assert_eq!(mappings.configs.get("key1"), Some(&"value1".to_string()));
-        assert_eq!(mappings.configs.get("key2"), Some(&"value2".to_string()));
-    }
-
-    #[test]
-    fn utest_config_mappings_spec_from_hashmap() {
-        let mut map = HashMap::new();
-        map.insert("key1".to_string(), "value1".to_string());
-        map.insert("key2".to_string(), "value2".to_string());
-
-        let mappings: ConfigMappingsSpec = map.into();
-
-        assert_eq!(mappings.configs.get("key1"), Some(&"value1".to_string()));
-        assert_eq!(mappings.configs.get("key2"), Some(&"value2".to_string()));
     }
 }

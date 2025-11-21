@@ -12,20 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::{LogsRequestSpec, RequestSpec};
-
-// MARK #313 Can be deleted with no repercussions
-impl Default for LogsRequestSpec {
-    fn default() -> Self {
-        LogsRequestSpec {
-            workload_names: Default::default(),
-            follow: false,
-            tail: -1,
-            since: None,
-            until: None,
-        }
-    }
-}
+use crate::ank_base::RequestSpec;
 
 impl RequestSpec {
     pub fn prefix_id(prefix: &str, request_id: &String) -> String {
@@ -47,15 +34,13 @@ impl RequestSpec {
 
 #[cfg(test)]
 mod tests {
-    use crate::ank_base::{RequestContentSpec, RequestSpec};
+    use crate::ank_base::{LogsCancelRequestSpec, RequestContentSpec, RequestSpec};
 
     #[test]
     fn test_prefix_request_id() {
         let mut request_spec = RequestSpec {
             request_id: "12345".to_string(),
-            request_content: RequestContentSpec::LogsRequest(
-                Default::default(),
-            ),
+            request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
         };
         request_spec.prefix_request_id("PRE");
         assert_eq!(request_spec.request_id, "PRE12345");

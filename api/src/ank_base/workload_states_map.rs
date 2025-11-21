@@ -17,7 +17,7 @@ use crate::ank_base::{
     WorkloadInstanceNameSpec, WorkloadNamed, WorkloadState, WorkloadStateSpec, WorkloadStatesMap,
     WorkloadStatesMapSpec,
 };
-use std::collections::{HashMap, hash_map::Entry};
+use std::collections::hash_map::Entry;
 
 impl WorkloadStatesMap {
     pub fn get_workload_state_for_agent(&self, agent_name: &str) -> Vec<WorkloadState> {
@@ -238,33 +238,6 @@ impl From<WorkloadStatesMap> for Vec<WorkloadState> {
                 )
             })
             .collect()
-    }
-}
-
-// MARK #313 Can be deleted with no repercussions
-impl IntoIterator for WorkloadStatesMapSpec {
-    type Item =
-        <HashMap<String, HashMap<String, HashMap<String, ExecutionStateSpec>>> as IntoIterator>::Item;
-
-    type IntoIter = <HashMap<String, HashMap<String, HashMap<String, ExecutionStateSpec>>> as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.agent_state_map
-            .into_iter()
-            .map(|(agent_name, wl_map)| {
-                (
-                    agent_name,
-                    wl_map
-                        .wl_name_state_map
-                        .into_iter()
-                        .map(|(wl_name, id_map)| {
-                            (wl_name, id_map.id_state_map.into_iter().collect())
-                        })
-                        .collect(),
-                )
-            })
-            .collect::<HashMap<_, _>>()
-            .into_iter()
     }
 }
 
