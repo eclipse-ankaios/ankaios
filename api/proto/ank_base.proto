@@ -455,9 +455,6 @@ message ConfigMap {
 /*
  * A configuration can be a simple string or a mapping or an array
  * of other configurations items.
- *
- * This is a test comment.
- *
  */
 message ConfigItem {
     oneof ConfigItemEnum {
