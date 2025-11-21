@@ -15,21 +15,24 @@
 use crate::cli::LogsArgs;
 #[cfg_attr(test, mockall_double::double)]
 use crate::cli_signals::SignalHandler;
-use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
-use std::{collections::BTreeSet, mem::take, time::Duration};
 
-use api::ank_base::{self, LogsRequestAccepted};
+use ankaios_api::ank_base::{
+    CompleteState, CompleteStateRequestSpec, CompleteStateSpec, LogEntry, LogsRequestAccepted,
+    LogsRequestSpec, Response, ResponseContent, UpdateStateSuccess, WorkloadInstanceName,
+    WorkloadInstanceNameSpec,
+};
 use common::{
-    commands::{CompleteStateRequest, LogsRequest, UpdateWorkloadState},
+    commands::UpdateWorkloadState,
     communications_client::CommunicationsClient,
     communications_error::CommunicationMiddlewareError,
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::CompleteState,
-    objects::WorkloadInstanceName,
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 use grpc::{client::GRPCCommunicationsClient, security::TLSConfig};
+use std::{collections::BTreeSet, mem::take, time::Duration};
+use tokio::{sync::mpsc, task::JoinHandle, time::timeout};
+use uuid::Uuid;
 
 #[cfg(not(test))]
 use {common::std_extensions::IllegalStateResult, std::io::Write};
@@ -43,7 +46,7 @@ const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 pub struct ServerConnection {
     to_server: ToServerSender,
     from_server: FromServerReceiver,
-    task: tokio::task::JoinHandle<()>,
+    task: JoinHandle<()>,
     missed_from_server_messages: Vec<FromServer>,
 }
 
@@ -64,8 +67,8 @@ impl ServerConnection {
             tls_config,
         )?;
 
-        let (to_cli, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
-        let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
+        let (to_cli, cli_receiver) = mpsc::channel::<FromServer>(BUFFER_SIZE);
+        let (to_server, server_receiver) = mpsc::channel::<ToServer>(BUFFER_SIZE);
 
         let task = tokio::spawn(async move {
             if let Err(err) = grpc_communications_client
@@ -95,18 +98,18 @@ impl ServerConnection {
     pub async fn get_complete_state(
         &mut self,
         object_field_mask: &[String],
-    ) -> Result<FilteredCompleteState, ServerConnectionError> {
+    ) -> Result<CompleteState, ServerConnectionError> {
         output_debug!(
             "get_complete_state: object_field_mask={:?} ",
             object_field_mask
         );
 
-        let request_id = uuid::Uuid::new_v4().to_string();
+        let request_id = Uuid::new_v4().to_string();
 
         self.to_server
             .request_complete_state(
                 request_id.to_owned(),
-                CompleteStateRequest {
+                CompleteStateRequestSpec {
                     field_mask: object_field_mask.to_vec(),
                 },
             )
@@ -116,13 +119,12 @@ impl ServerConnection {
         let poll_complete_state_response = async {
             loop {
                 match self.from_server.recv().await {
-                    Some(FromServer::Response(ank_base::Response {
+                    Some(FromServer::Response(Response {
                         request_id: received_request_id,
-                        response_content:
-                            Some(ank_base::response::ResponseContent::CompleteState(res)),
+                        response_content: Some(ResponseContent::CompleteState(res)),
                     })) if received_request_id == request_id => {
                         output_debug!("Received from server: {res:?} ");
-                        return Ok(res.into());
+                        return Ok(res);
                     }
                     None => return Err("Channel preliminary closed."),
                     Some(message) => {
@@ -132,7 +134,7 @@ impl ServerConnection {
                 }
             }
         };
-        match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await {
+        match timeout(WAIT_TIME_MS, poll_complete_state_response).await {
             Ok(Ok(res)) => Ok(res),
             Ok(Err(err)) => Err(ServerConnectionError::ExecutionError(format!(
                 "Failed to get complete state.\nError: {err}"
@@ -145,10 +147,10 @@ impl ServerConnection {
 
     pub async fn update_state(
         &mut self,
-        new_state: CompleteState,
+        new_state: CompleteStateSpec,
         update_mask: Vec<String>,
-    ) -> Result<ank_base::UpdateStateSuccess, ServerConnectionError> {
-        let request_id = uuid::Uuid::new_v4().to_string();
+    ) -> Result<UpdateStateSuccess, ServerConnectionError> {
+        let request_id = Uuid::new_v4().to_string();
         output_debug!("Sending the new state {:?}", new_state);
         self.to_server
             .update_state(request_id.clone(), new_state, update_mask)
@@ -163,17 +165,15 @@ impl ServerConnection {
                     ));
                 };
                 match server_message {
-                    FromServer::Response(ank_base::Response {
+                    FromServer::Response(Response {
                         request_id: received_request_id,
                         response_content:
-                            Some(ank_base::response::ResponseContent::UpdateStateSuccess(
-                                update_state_success,
-                            )),
+                            Some(ResponseContent::UpdateStateSuccess(update_state_success)),
                     }) if received_request_id == request_id => return Ok(update_state_success),
                     // [impl->swdd~cli-requests-update-state-with-watch-error~1]
-                    FromServer::Response(ank_base::Response {
+                    FromServer::Response(Response {
                         request_id: received_request_id,
-                        response_content: Some(ank_base::response::ResponseContent::Error(error)),
+                        response_content: Some(ResponseContent::Error(error)),
                     }) if received_request_id == request_id => {
                         return Err(ServerConnectionError::ExecutionError(format!(
                             "SetState failed with: '{}'",
@@ -187,7 +187,7 @@ impl ServerConnection {
                 }
             }
         };
-        match tokio::time::timeout(WAIT_TIME_MS, poll_update_state_success).await {
+        match timeout(WAIT_TIME_MS, poll_update_state_success).await {
             Ok(Ok(res)) => {
                 output_debug!("Got update success: {:?}", res);
                 Ok(res)
@@ -229,10 +229,10 @@ impl ServerConnection {
     // [impl->swdd~cli-streams-logs-from-the-server~1]
     pub async fn stream_logs(
         &mut self,
-        instance_names: BTreeSet<WorkloadInstanceName>,
+        instance_names: BTreeSet<WorkloadInstanceNameSpec>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
-        let request_id = uuid::Uuid::new_v4().to_string();
+        let request_id = Uuid::new_v4().to_string();
 
         let output_workload_names = args.output_names;
 
@@ -260,10 +260,10 @@ impl ServerConnection {
     async fn send_logs_request_for_workloads(
         &mut self,
         request_id: &str,
-        workload_instance_names: Vec<WorkloadInstanceName>,
+        workload_instance_names: Vec<WorkloadInstanceNameSpec>,
         args: LogsArgs,
     ) -> Result<(), ServerConnectionError> {
-        let logs_request = LogsRequest {
+        let logs_request = LogsRequestSpec {
             workload_names: workload_instance_names,
             follow: args.follow,
             tail: args.tail,
@@ -272,7 +272,7 @@ impl ServerConnection {
         };
 
         self.to_server
-            .logs_request(request_id.to_string(), logs_request)
+            .logs_request(request_id.to_string(), logs_request.into())
             .await
             .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))
     }
@@ -281,7 +281,7 @@ impl ServerConnection {
         &mut self,
         request_id: String,
     ) -> Result<LogsRequestAccepted, ServerConnectionError> {
-        tokio::time::timeout(
+        timeout(
             WAIT_TIME_MS,
             self.poll_logs_request_accepted_response(request_id),
         )
@@ -299,10 +299,10 @@ impl ServerConnection {
     ) -> Result<LogsRequestAccepted, ServerConnectionError> {
         loop {
             match self.from_server.recv().await {
-                Some(FromServer::Response(ank_base::Response {
+                Some(FromServer::Response(Response {
                     request_id: incoming_request_id,
                     response_content:
-                        Some(ank_base::response::ResponseContent::LogsRequestAccepted(
+                        Some(ResponseContent::LogsRequestAccepted(
                             logs_request_accepted_response,
                         )),
                     })) if request_id == incoming_request_id => {
@@ -313,10 +313,10 @@ impl ServerConnection {
                         );
                         break Ok(logs_request_accepted_response);
                 }
-                Some(FromServer::Response(ank_base::Response {
+                Some(FromServer::Response(Response {
                     request_id: incoming_request_id,
                     response_content:
-                        Some(ank_base::response::ResponseContent::Error(error)),
+                        Some(ResponseContent::Error(error)),
                 })) if request_id == incoming_request_id => {
                     break Err(ServerConnectionError::ExecutionError(format!(
                         "Server replied with error: '{}'",
@@ -339,8 +339,8 @@ impl ServerConnection {
 
     fn compare_requested_with_accepted_workloads(
         &self,
-        requested_workloads: &BTreeSet<WorkloadInstanceName>,
-        accepted_workloads: Vec<ank_base::WorkloadInstanceName>,
+        requested_workloads: &BTreeSet<WorkloadInstanceNameSpec>,
+        accepted_workloads: Vec<WorkloadInstanceName>,
     ) -> Result<(), ServerConnectionError> {
         for instance_name in requested_workloads {
             let instance_name = instance_name.to_owned().into();
@@ -358,8 +358,8 @@ impl ServerConnection {
     async fn listen_for_workload_logs(
         &mut self,
         request_id: String,
-        mut instance_names: BTreeSet<WorkloadInstanceName>,
-        output_log_format_function: fn(Vec<ank_base::LogEntry>),
+        mut instance_names: BTreeSet<WorkloadInstanceNameSpec>,
+        output_log_format_function: fn(Vec<LogEntry>),
     ) -> Result<(), ServerConnectionError> {
         loop {
             tokio::select! {
@@ -407,15 +407,13 @@ fn handle_server_log_response(
     server_message: FromServer,
 ) -> Result<LogStreamingState, ServerConnectionError> {
     match server_message {
-        FromServer::Response(ank_base::Response {
+        FromServer::Response(Response {
             request_id: received_request_id,
-            response_content:
-                Some(ank_base::response::ResponseContent::LogEntriesResponse(logs_response)),
+            response_content: Some(ResponseContent::LogEntriesResponse(logs_response)),
         }) if &received_request_id == request_id => Ok(LogStreamingState::Output(logs_response)),
-        FromServer::Response(ank_base::Response {
+        FromServer::Response(Response {
             request_id: received_request_id,
-            response_content:
-                Some(ank_base::response::ResponseContent::LogsStopResponse(logs_stop_response)),
+            response_content: Some(ResponseContent::LogsStopResponse(logs_stop_response)),
         }) if &received_request_id == request_id => {
             let workload_instance_name =
                 logs_stop_response
@@ -429,13 +427,13 @@ fn handle_server_log_response(
                 workload_instance_name
             );
             Ok(LogStreamingState::StopForWorkload(
-                workload_instance_name.into(),
+                workload_instance_name.try_into().unwrap(),
             ))
         }
 
-        FromServer::Response(ank_base::Response {
+        FromServer::Response(Response {
             request_id: received_request_id,
-            response_content: Some(ank_base::response::ResponseContent::Error(error)),
+            response_content: Some(ResponseContent::Error(error)),
         }) if &received_request_id == request_id => Err(ServerConnectionError::ExecutionError(
             format!("Error streaming logs: '{}'", error.message),
         )),
@@ -452,9 +450,9 @@ fn handle_server_log_response(
 
 // [impl->swdd~cli-outputs-logs-in-specific-format~1]
 fn select_log_format_function(
-    instance_names: &BTreeSet<WorkloadInstanceName>,
+    instance_names: &BTreeSet<WorkloadInstanceNameSpec>,
     force_output_names: bool,
-) -> fn(Vec<ank_base::LogEntry>) {
+) -> fn(Vec<LogEntry>) {
     if is_output_with_workload_names(instance_names, force_output_names) {
         output_logs_with_workload_names
     } else {
@@ -463,16 +461,16 @@ fn select_log_format_function(
 }
 
 fn is_output_with_workload_names(
-    instance_names: &BTreeSet<WorkloadInstanceName>,
+    instance_names: &BTreeSet<WorkloadInstanceNameSpec>,
     force_output_names: bool,
 ) -> bool {
     instance_names.len() > 1 || force_output_names
 }
 
 enum LogStreamingState {
-    StopForWorkload(WorkloadInstanceName),
+    StopForWorkload(WorkloadInstanceNameSpec),
     Continue,
-    Output(api::ank_base::LogEntriesResponse),
+    Output(ankaios_api::ank_base::LogEntriesResponse),
 }
 
 #[derive(Debug, PartialEq)]
@@ -481,7 +479,7 @@ pub enum ServerConnectionError {
 }
 
 // [impl->swdd~cli-outputs-logs-in-specific-format~1]
-fn output_logs_with_workload_names(log_entries: Vec<ank_base::LogEntry>) {
+fn output_logs_with_workload_names(log_entries: Vec<LogEntry>) {
     log_entries.iter().for_each(|log_entry| {
         let workload_instance_name = log_entry.workload_name.as_ref().unwrap_or_else(|| {
             crate::output_and_error!(
@@ -496,7 +494,7 @@ fn output_logs_with_workload_names(log_entries: Vec<ank_base::LogEntry>) {
 }
 
 // [impl->swdd~cli-outputs-logs-in-specific-format~1]
-fn output_logs_without_workload_names(log_entries: Vec<ank_base::LogEntry>) {
+fn output_logs_without_workload_names(log_entries: Vec<LogEntry>) {
     log_entries.iter().for_each(|log_entry| {
         print_log(&format!("{}\n", log_entry.message));
     });
@@ -549,10 +547,10 @@ lazy_static! {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeSet, HashMap};
-
+    use super::ServerConnection;
     use crate::{
         cli::LogsArgs,
         cli_commands::server_connection::{
@@ -562,20 +560,24 @@ mod tests {
         test_helper::MOCKALL_CONTEXT_SYNC,
     };
 
-    use super::ank_base::{self, UpdateStateSuccess};
+    use ankaios_api::ank_base::{
+        CompleteStateRequestSpec, CompleteStateSpec, Error, ExecutionStateSpec, LogEntriesResponse,
+        LogEntry, LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec, LogsStopResponse,
+        RequestContentSpec, Response, ResponseContent, StateSpec, UpdateStateRequestSpec,
+        UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadSpec,
+        WorkloadStateSpec,
+    };
+    use ankaios_api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
-        commands::{CompleteStateRequest, RequestContent, UpdateStateRequest, UpdateWorkloadState},
-        from_server_interface::FromServer,
-        objects::{
-            CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadInstanceName,
-            WorkloadState,
-        },
-        test_utils::{self, generate_test_proto_workload_files},
+        commands::UpdateWorkloadState, from_server_interface::FromServer,
         to_server_interface::ToServer,
     };
-    use tokio::sync::mpsc::Receiver;
 
-    use super::ServerConnection;
+    use std::collections::{BTreeSet, HashMap};
+    use tokio::sync::{
+        mpsc::{self, Receiver},
+        oneshot,
+    };
 
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
@@ -591,24 +593,24 @@ mod tests {
         actions: Vec<CommunicationSimulatorAction>,
     }
 
-    struct CorrectCommuncationChecker {
+    struct CorrectCommunicationChecker {
         join_handle: tokio::task::JoinHandle<()>,
-        is_ready: tokio::sync::oneshot::Receiver<Receiver<ToServer>>,
+        is_ready: oneshot::Receiver<Receiver<ToServer>>,
     }
 
     #[derive(Clone)]
     enum CommunicationSimulatorAction {
         WillSendMessage(FromServer),
-        WillSendResponse(String, ank_base::response::ResponseContent),
-        ExpectReceiveRequest(String, RequestContent),
+        WillSendResponse(String, ResponseContent),
+        ExpectReceiveRequest(String, RequestContentSpec),
     }
 
     impl CommunicationSimulator {
-        fn create_server_connection(self) -> (CorrectCommuncationChecker, ServerConnection) {
-            let (from_server, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(1);
-            let (to_server, mut server_receiver) = tokio::sync::mpsc::channel::<ToServer>(1);
+        fn create_server_connection(self) -> (CorrectCommunicationChecker, ServerConnection) {
+            let (from_server, cli_receiver) = mpsc::channel::<FromServer>(1);
+            let (to_server, mut server_receiver) = mpsc::channel::<ToServer>(1);
 
-            let (is_ready_sender, is_ready) = tokio::sync::oneshot::channel();
+            let (is_ready_sender, is_ready) = oneshot::channel();
 
             let join_handle = tokio::spawn(async move {
                 let mut request_ids = HashMap::<String, String>::new();
@@ -620,7 +622,7 @@ mod tests {
                         CommunicationSimulatorAction::WillSendResponse(request_name, response) => {
                             let request_id = request_ids.get(&request_name).unwrap();
                             from_server
-                                .send(FromServer::Response(ank_base::Response {
+                                .send(FromServer::Response(Response {
                                     request_id: request_id.to_owned(),
                                     response_content: Some(response),
                                 }))
@@ -632,9 +634,7 @@ mod tests {
                             expected_request,
                         ) => {
                             let actual_message = server_receiver.recv().await.unwrap();
-                            let common::to_server_interface::ToServer::Request(actual_request) =
-                                actual_message
-                            else {
+                            let ToServer::Request(actual_request) = actual_message else {
                                 panic!("Expected a request")
                             };
                             request_ids.insert(request_name, actual_request.request_id);
@@ -646,7 +646,7 @@ mod tests {
             });
 
             (
-                CorrectCommuncationChecker {
+                CorrectCommunicationChecker {
                     join_handle,
                     is_ready,
                 },
@@ -664,11 +664,7 @@ mod tests {
                 .push(CommunicationSimulatorAction::WillSendMessage(message));
         }
 
-        pub fn will_send_response(
-            &mut self,
-            request_name: &str,
-            response: ank_base::response::ResponseContent,
-        ) {
+        pub fn will_send_response(&mut self, request_name: &str, response: ResponseContent) {
             self.actions
                 .push(CommunicationSimulatorAction::WillSendResponse(
                     request_name.to_string(),
@@ -676,7 +672,7 @@ mod tests {
                 ));
         }
 
-        pub fn expect_receive_request(&mut self, request_name: &str, request: RequestContent) {
+        pub fn expect_receive_request(&mut self, request_name: &str, request: RequestContentSpec) {
             self.actions
                 .push(CommunicationSimulatorAction::ExpectReceiveRequest(
                     request_name.to_string(),
@@ -685,7 +681,7 @@ mod tests {
         }
     }
 
-    impl CorrectCommuncationChecker {
+    impl CorrectCommunicationChecker {
         fn check_communication(mut self) {
             let Ok(mut to_server) = self.is_ready.try_recv() else {
                 panic!("Not all messages have been sent or received");
@@ -697,31 +693,33 @@ mod tests {
         }
     }
 
-    impl Drop for CorrectCommuncationChecker {
+    impl Drop for CorrectCommunicationChecker {
         fn drop(&mut self) {
             self.join_handle.abort();
         }
     }
 
-    fn complete_state(workload_name: &str) -> CompleteState {
-        CompleteState {
-            desired_state: State {
-                workloads: [(
-                    workload_name.into(),
-                    StoredWorkloadSpec {
-                        agent: AGENT_A.into(),
-                        runtime: RUNTIME.into(),
-                        ..Default::default()
-                    },
-                )]
-                .into(),
+    fn complete_state(workload_name: &str) -> CompleteStateSpec {
+        CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
+                    workloads: [(
+                        workload_name.into(),
+                        WorkloadSpec {
+                            agent: AGENT_A.into(),
+                            runtime: RUNTIME.into(),
+                            ..Default::default()
+                        },
+                    )]
+                    .into(),
+                },
                 ..Default::default()
             },
             ..Default::default()
         }
     }
 
-    fn instance_name(workload_name: &str) -> WorkloadInstanceName {
+    fn instance_name(workload_name: &str) -> WorkloadInstanceNameSpec {
         format!("{workload_name}.{ID}.{AGENT_A}")
             .try_into()
             .unwrap()
@@ -732,46 +730,24 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::CompleteStateRequest(CompleteStateRequest {
+            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
 
-        let proto_complete_state = test_utils::generate_test_proto_complete_state(&[(
-            WORKLOAD_NAME_1,
-            ank_base::Workload {
-                agent: Some(AGENT_A.to_string()),
-                runtime: Some(RUNTIME.to_string()),
-                tags: Some(ank_base::Tags {
-                    tags: HashMap::new(),
-                }),
-                dependencies: Some(ank_base::Dependencies {
-                    dependencies: HashMap::new(),
-                }),
-                restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                runtime_config: Some(String::default()),
-                control_interface_access: None,
-                configs: Some(ank_base::ConfigMappings {
-                    configs: [
-                        ("ref1".into(), "config_1".into()),
-                        ("ref2".into(), "config_2".into()),
-                    ]
-                    .into(),
-                }),
-                files: Some(generate_test_proto_workload_files()),
-            },
-        )]);
+        let proto_complete_state =
+            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
 
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(proto_complete_state.clone()),
+            ResponseContent::CompleteState(proto_complete_state.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let received_complete_state = server_connection
             .get_complete_state(&[FIELD_MASK.into()])
             .await;
-        let expected_complete_state = proto_complete_state.into();
+        let expected_complete_state = proto_complete_state;
 
         assert!(received_complete_state.is_ok());
         assert_eq!(received_complete_state.unwrap(), expected_complete_state);
@@ -783,7 +759,7 @@ mod tests {
         let sim = CommunicationSimulator::default();
         let (_, mut server_connection) = sim.create_server_connection();
         // sending the GetCompleteState request to the server, shall already fail
-        let (to_server, _) = tokio::sync::mpsc::channel(1);
+        let (to_server, _) = mpsc::channel(1);
         server_connection.to_server = to_server;
 
         let result = server_connection
@@ -797,7 +773,7 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::CompleteStateRequest(CompleteStateRequest {
+            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
@@ -812,72 +788,27 @@ mod tests {
     // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_get_complete_state_other_response_in_between() {
-        let proto_complete_state = test_utils::generate_test_proto_complete_state(&[(
-            WORKLOAD_NAME_1,
-            ank_base::Workload {
-                agent: Some(AGENT_A.to_string()),
-                runtime: Some(RUNTIME.to_string()),
-                tags: Some(ank_base::Tags {
-                    tags: HashMap::new(),
-                }),
-                dependencies: Some(ank_base::Dependencies {
-                    dependencies: HashMap::new(),
-                }),
-                restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                runtime_config: Some("".to_string()),
-                control_interface_access: None,
-                configs: Some(ank_base::ConfigMappings {
-                    configs: [
-                        ("ref1".into(), "config_1".into()),
-                        ("ref2".into(), "config_2".into()),
-                    ]
-                    .into(),
-                }),
-                files: Some(generate_test_proto_workload_files()),
-            },
-        )]);
+        let proto_complete_state =
+            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
 
-        let other_response = FromServer::Response(ank_base::Response {
+        let other_response = FromServer::Response(Response {
             request_id: OTHER_REQUEST.into(),
-            response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
-                    WORKLOAD_NAME_2,
-                    ank_base::Workload {
-                        agent: Some(AGENT_A.to_string()),
-                        runtime: Some(RUNTIME.to_string()),
-                        tags: Some(ank_base::Tags {
-                            tags: HashMap::new(),
-                        }),
-                        dependencies: Some(ank_base::Dependencies {
-                            dependencies: HashMap::new(),
-                        }),
-                        restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                        runtime_config: Some("".to_string()),
-                        control_interface_access: None,
-                        configs: Some(ank_base::ConfigMappings {
-                            configs: [
-                                ("ref1".into(), "config_1".into()),
-                                ("ref2".into(), "config_2".into()),
-                            ]
-                            .into(),
-                        }),
-                        files: Some(generate_test_proto_workload_files()),
-                    },
-                )]),
+            response_content: Some(ResponseContent::CompleteState(
+                generate_test_proto_complete_state(&[(WORKLOAD_NAME_2, generate_test_workload())]),
             )),
         });
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::CompleteStateRequest(CompleteStateRequest {
+            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(proto_complete_state.clone()),
+            ResponseContent::CompleteState(proto_complete_state.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -885,7 +816,7 @@ mod tests {
             .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), (proto_complete_state.into()));
+        assert_eq!(result.unwrap(), proto_complete_state);
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
             vec![other_response]
@@ -899,42 +830,20 @@ mod tests {
         let other_message = FromServer::UpdateWorkloadState(UpdateWorkloadState {
             workload_states: vec![],
         });
-        let proto_complete_state = test_utils::generate_test_proto_complete_state(&[(
-            WORKLOAD_NAME_1,
-            ank_base::Workload {
-                agent: Some(AGENT_A.to_string()),
-                runtime: Some(RUNTIME.to_string()),
-                tags: Some(ank_base::Tags {
-                    tags: HashMap::new(),
-                }),
-                dependencies: Some(ank_base::Dependencies {
-                    dependencies: HashMap::new(),
-                }),
-                restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                runtime_config: Some("".to_string()),
-                control_interface_access: None,
-                configs: Some(ank_base::ConfigMappings {
-                    configs: [
-                        ("ref1".into(), "config_1".into()),
-                        ("ref2".into(), "config_2".into()),
-                    ]
-                    .into(),
-                }),
-                files: Some(generate_test_proto_workload_files()),
-            },
-        )]);
+        let proto_complete_state =
+            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::CompleteStateRequest(CompleteStateRequest {
+            RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::CompleteState(proto_complete_state.clone()),
+            ResponseContent::CompleteState(proto_complete_state.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -942,7 +851,7 @@ mod tests {
             .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), (proto_complete_state.into()));
+        assert_eq!(result.unwrap(), proto_complete_state);
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
             vec![other_message]
@@ -960,14 +869,14 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::UpdateStateSuccess(update_state_success.clone()),
+            ResponseContent::UpdateStateSuccess(update_state_success.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -985,7 +894,7 @@ mod tests {
         let sim = CommunicationSimulator::default();
         let (_, mut server_connection) = sim.create_server_connection();
         // sending the GetCompleteState request to the server, shall already fail
-        let (to_server, _) = tokio::sync::mpsc::channel(1);
+        let (to_server, _) = mpsc::channel(1);
         server_connection.to_server = to_server;
 
         let result = server_connection
@@ -1000,8 +909,8 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -1020,14 +929,14 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::Error(ank_base::Error { message: "".into() }),
+            ResponseContent::Error(Error { message: "".into() }),
         );
 
         let (checker, mut server_connection) = sim.create_server_connection();
@@ -1045,14 +954,14 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
 
         let (checker, mut server_connection) = sim.create_server_connection();
-        let (_to_client, from_server) = tokio::sync::mpsc::channel(1);
+        let (_to_client, from_server) = mpsc::channel(1);
         server_connection.from_server = from_server;
 
         let result = server_connection
@@ -1070,48 +979,25 @@ mod tests {
             added_workloads: vec![WORKLOAD_NAME_1.into()],
             deleted_workloads: vec![],
         };
-        let other_response = FromServer::Response(ank_base::Response {
+        let other_response = FromServer::Response(Response {
             request_id: OTHER_REQUEST.into(),
-            response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                test_utils::generate_test_proto_complete_state(&[(
-                    WORKLOAD_NAME_2,
-                    ank_base::Workload {
-                        agent: Some(AGENT_A.to_string()),
-                        runtime: Some(RUNTIME.to_string()),
-                        tags: Some(ank_base::Tags {
-                            tags: HashMap::new(),
-                        }),
-                        dependencies: Some(ank_base::Dependencies {
-                            dependencies: HashMap::new(),
-                        }),
-                        restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                        runtime_config: Some("".to_string()),
-                        control_interface_access: None,
-                        configs: Some(ank_base::ConfigMappings {
-                            configs: [
-                                ("ref1".into(), "config_1".into()),
-                                ("ref2".into(), "config_2".into()),
-                            ]
-                            .into(),
-                        }),
-                        files: Some(generate_test_proto_workload_files()),
-                    },
-                )]),
+            response_content: Some(ResponseContent::CompleteState(
+                generate_test_proto_complete_state(&[(WORKLOAD_NAME_2, generate_test_workload())]),
             )),
         });
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::UpdateStateSuccess(update_state_success.clone()),
+            ResponseContent::UpdateStateSuccess(update_state_success.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -1142,15 +1028,15 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state(WORKLOAD_NAME_1),
+            RequestContentSpec::UpdateStateRequest(Box::new(UpdateStateRequestSpec {
+                new_state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::UpdateStateSuccess(update_state_success.clone()),
+            ResponseContent::UpdateStateSuccess(update_state_success.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -1170,9 +1056,9 @@ mod tests {
     #[tokio::test]
     async fn utest_read_next_update_workload_state() {
         let update_workload_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
+            workload_states: vec![WorkloadStateSpec {
                 instance_name: instance_name(WORKLOAD_NAME_1),
-                execution_state: ExecutionState::running(),
+                execution_state: ExecutionStateSpec::running(),
             }],
         };
 
@@ -1192,16 +1078,14 @@ mod tests {
     // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_read_next_update_workload_state_other_message_in_between() {
-        let other_message = FromServer::Response(ank_base::Response {
+        let other_message = FromServer::Response(Response {
             request_id: REQUEST.into(),
-            response_content: Some(ank_base::response::ResponseContent::Error(
-                ank_base::Error { message: "".into() },
-            )),
+            response_content: Some(ResponseContent::Error(Error { message: "".into() })),
         });
         let update_workload_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
+            workload_states: vec![WorkloadStateSpec {
                 instance_name: instance_name(WORKLOAD_NAME_1),
-                execution_state: ExecutionState::running(),
+                execution_state: ExecutionStateSpec::running(),
             }],
         };
 
@@ -1255,12 +1139,12 @@ mod tests {
 
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone(), instance_name_2.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1271,22 +1155,20 @@ mod tests {
 
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::LogsRequestAccepted(
-                ank_base::LogsRequestAccepted {
-                    workload_names: vec![
-                        instance_name_1.clone().into(),
-                        instance_name_2.clone().into(),
-                    ],
-                },
-            ),
+            ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
+                workload_names: vec![
+                    instance_name_1.clone().into(),
+                    instance_name_2.clone().into(),
+                ],
+            }),
         );
 
         let log_entries = vec![
-            ank_base::LogEntry {
+            LogEntry {
                 workload_name: Some(instance_name_1.clone().into()),
                 message: "some log line".to_string(),
             },
-            ank_base::LogEntry {
+            LogEntry {
                 workload_name: Some(instance_name_2.clone().into()),
                 message: "another log line".to_string(),
             },
@@ -1294,21 +1176,21 @@ mod tests {
 
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::LogEntriesResponse(ank_base::LogEntriesResponse {
+            ResponseContent::LogEntriesResponse(LogEntriesResponse {
                 log_entries: log_entries.clone(),
             }),
         );
 
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::LogsStopResponse(ank_base::LogsStopResponse {
+            ResponseContent::LogsStopResponse(LogsStopResponse {
                 workload_name: Some(instance_name_1.into()),
             }),
         );
 
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::LogsStopResponse(ank_base::LogsStopResponse {
+            ResponseContent::LogsStopResponse(LogsStopResponse {
                 workload_name: Some(instance_name_2.into()),
             }),
         );
@@ -1360,8 +1242,8 @@ mod tests {
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
         signal_handler_context.expect().never();
 
-        let (_from_server_sender, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(1);
-        let (to_server, mut server_receiver) = tokio::sync::mpsc::channel::<ToServer>(1);
+        let (_from_server_sender, cli_receiver) = mpsc::channel::<FromServer>(1);
+        let (to_server, mut server_receiver) = mpsc::channel::<ToServer>(1);
 
         server_receiver.close();
 
@@ -1398,7 +1280,7 @@ mod tests {
         let output_log_fn = select_log_format_function(&instance_names, log_args.output_names);
 
         let log_message = "some log line";
-        let log_entry = ank_base::LogEntry {
+        let log_entry = LogEntry {
             workload_name: Some(instance_name_1.clone().into()),
             message: log_message.to_string(),
         };
@@ -1428,7 +1310,7 @@ mod tests {
         let output_log_fn = select_log_format_function(&instance_names, log_args.output_names);
 
         let log_message = "some log line";
-        let log_entry = ank_base::LogEntry {
+        let log_entry = LogEntry {
             workload_name: Some(instance_name_1.clone().into()),
             message: log_message.to_string(),
         };
@@ -1463,12 +1345,12 @@ mod tests {
         let mut sim = CommunicationSimulator::default();
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1479,16 +1361,14 @@ mod tests {
 
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::LogsRequestAccepted(
-                ank_base::LogsRequestAccepted {
-                    workload_names: vec![instance_name_1.into()],
-                },
-            ),
+            ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
+                workload_names: vec![instance_name_1.into()],
+            }),
         );
 
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::Error(ank_base::Error {
+            ResponseContent::Error(Error {
                 message: "log collection error.".to_string(),
             }),
         );
@@ -1534,12 +1414,12 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1550,17 +1430,15 @@ mod tests {
 
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::LogsRequestAccepted(
-                ank_base::LogsRequestAccepted {
-                    workload_names: vec![instance_name_1.clone().into()],
-                },
-            ),
+            ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
+                workload_names: vec![instance_name_1.clone().into()],
+            }),
         );
 
         // Send unrelated response that should be ignored in the log streaming
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+            ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
                 added_workloads: vec![WORKLOAD_NAME_2.into()],
                 ..Default::default()
             }),
@@ -1569,7 +1447,7 @@ mod tests {
         // just to stop the streaming
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::LogsStopResponse(ank_base::LogsStopResponse {
+            ResponseContent::LogsStopResponse(LogsStopResponse {
                 workload_name: Some(instance_name_1.into()),
             }),
         );
@@ -1610,12 +1488,12 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1626,14 +1504,15 @@ mod tests {
 
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::LogsRequestAccepted(
-                ank_base::LogsRequestAccepted {
-                    workload_names: vec![instance_name_1.into()],
-                },
-            ),
+            ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
+                workload_names: vec![instance_name_1.into()],
+            }),
         );
 
-        sim.expect_receive_request(REQUEST, RequestContent::LogsCancelRequest);
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
+        );
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();
         signal_handler_context
@@ -1669,12 +1548,12 @@ mod tests {
         let instance_name_1 = instance_name(WORKLOAD_NAME_1);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1683,16 +1562,15 @@ mod tests {
             }),
         );
 
-        let unexpected_message =
-            ank_base::response::ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-                added_workloads: vec![WORKLOAD_NAME_1.into()],
-                deleted_workloads: vec![],
-            });
+        let unexpected_message = ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+            added_workloads: vec![WORKLOAD_NAME_1.into()],
+            deleted_workloads: vec![],
+        });
 
         sim.will_send_response(REQUEST, unexpected_message);
 
         // error to stop the loop after the ignored message
-        let error_response = ank_base::response::ResponseContent::Error(ank_base::Error {
+        let error_response = ResponseContent::Error(Error {
             message: "connection interruption".to_string(),
         });
 
@@ -1751,12 +1629,12 @@ mod tests {
         let instance_name_2 = instance_name(WORKLOAD_NAME_2);
         let mut sim = CommunicationSimulator::default();
         let instance_names = vec![instance_name_1.clone()];
-        let instance_names_set: BTreeSet<WorkloadInstanceName> =
+        let instance_names_set: BTreeSet<WorkloadInstanceNameSpec> =
             instance_names.iter().cloned().collect();
 
         sim.expect_receive_request(
             REQUEST,
-            RequestContent::LogsRequest(common::commands::LogsRequest {
+            RequestContentSpec::LogsRequest(LogsRequestSpec {
                 workload_names: instance_names,
                 follow: log_args.follow,
                 tail: log_args.tail,
@@ -1767,11 +1645,9 @@ mod tests {
 
         sim.will_send_response(
             REQUEST,
-            ank_base::response::ResponseContent::LogsRequestAccepted(
-                ank_base::LogsRequestAccepted {
-                    workload_names: vec![instance_name_2.into()],
-                },
-            ),
+            ResponseContent::LogsRequestAccepted(LogsRequestAccepted {
+                workload_names: vec![instance_name_2.into()],
+            }),
         );
 
         let signal_handler_context = MockSignalHandler::wait_for_signals_context();

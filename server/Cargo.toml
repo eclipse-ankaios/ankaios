@@ -9,7 +9,7 @@ authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
 repository = "https://github.com/eclipse-ankaios/ankaios"
 
 [dependencies]
-api ={ path = "../api" }
+ankaios-api = { path = "../ankaios_api" }
 common = { path = "../common" }
 grpc = { path = "../grpc" }
 log = "0.4"
@@ -29,6 +29,7 @@ toml = "0.9"
 tempfile = "3.17"
 
 [dev-dependencies]
+ankaios-api = { path = "../ankaios_api", features = ["test_utils"] }
 common = { path = "../common", features = ["test_utils"] }
 mockall = "0.11"
 mockall_double = "0.3"

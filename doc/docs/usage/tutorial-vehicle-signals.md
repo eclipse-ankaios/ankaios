@@ -29,7 +29,7 @@ Now we have Ankaios up and running with a server and an agent.
 To run the databroker we need to create an Ankaios manifest:
 
 ```yaml title="databroker.yaml"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   databroker:
     runtime: podman
@@ -71,7 +71,7 @@ It should finally print:
 Now we want to start a workload that publishes vehicle speed values and call that `speed-provider`.
 
 ```yaml title="speed-provider.yaml"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   speed-provider:
     runtime: podman
@@ -159,7 +159,7 @@ Since `agent_A` is already managing the `databroker` and the `speed-provider` wo
 Now we can start a speed-consumer workload on the new agent:
 
 ```yaml title="speed-consumer.yaml"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   speed-consumer:
     runtime: podman
@@ -233,7 +233,7 @@ ank logs speed-consumer
 Now, we want to change the existing Ankaios manifest of the speed-provider to use auto mode which sends a new speed limit value every second.
 
 ```yaml title="speed-provider.yaml" hl_lines="10 11"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   speed-provider:
     runtime: podman
@@ -280,7 +280,7 @@ In the default server config (see `/etc/ankaios/ank-server.conf`), a startup man
 Now we create such a startup manifest file containing all three workloads:
 
 ```yaml title="/etc/ankaios/state.yaml" hl_lines="13 14 24 25"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   databroker:
     runtime: podman

@@ -12,14 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::control_api;
-use common::commands;
+use ankaios_api::ank_base::RequestSpec;
+use ankaios_api::control_api;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ToAnkaios {
-    Request(commands::Request),
-    Hello(Hello)
+    Request(RequestSpec),
+    Hello(Hello),
 }
 
 // [impl->swdd~agent-converts-control-interface-message-to-ankaios-object~1]
@@ -76,9 +76,11 @@ impl Default for Hello {
 
 #[cfg(test)]
 mod tests {
-    use super::{control_api, ToAnkaios};
-    use api::ank_base;
-    use common::commands::{CompleteStateRequest, Request, RequestContent};
+    use super::{ToAnkaios, control_api};
+    use ankaios_api::ank_base::{
+        CompleteStateRequest, CompleteStateRequestSpec, Request, RequestContent,
+        RequestContentSpec, RequestSpec,
+    };
 
     const FIELD_1: &str = "field_1";
     const FIELD_2: &str = "field_2";
@@ -88,21 +90,17 @@ mod tests {
     #[test]
     fn utest_convert_control_interface_proto_to_ankaios_object() {
         let proto_request = control_api::ToAnkaios {
-            to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(
-                ank_base::Request {
-                    request_id: REQUEST_ID.into(),
-                    request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
-                        ank_base::CompleteStateRequest {
-                            field_mask: vec![FIELD_1.into(), FIELD_2.into()],
-                        },
-                    )),
-                },
-            )),
+            to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(Request {
+                request_id: REQUEST_ID.into(),
+                request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
+                    field_mask: vec![FIELD_1.into(), FIELD_2.into()],
+                })),
+            })),
         };
 
-        let expected = ToAnkaios::Request(Request {
+        let expected = ToAnkaios::Request(RequestSpec {
             request_id: REQUEST_ID.into(),
-            request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
+            request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_1.into(), FIELD_2.into()],
             }),
         });

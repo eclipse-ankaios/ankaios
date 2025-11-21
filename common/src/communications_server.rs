@@ -12,13 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::net::SocketAddr;
-
-use async_trait::async_trait;
-
 use crate::{
     communications_error::CommunicationMiddlewareError, from_server_interface::FromServerReceiver,
 };
+
+use async_trait::async_trait;
+use std::net::SocketAddr;
 
 // [impl->swdd~common-interface-definitions~1]
 #[async_trait]

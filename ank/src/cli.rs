@@ -12,18 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{error::Error, ffi::OsStr};
+use ankaios_api::ank_base::{CompleteState, ConfigMap, ExecutionsStatesOfWorkload, WorkloadMap};
 
 use clap::{ArgAction, CommandFactory, Parser, Subcommand, ValueHint, command};
-
 use clap_complete::{ArgValueCompleter, CompleteEnv, CompletionCandidate};
-
-use crate::filtered_complete_state::FilteredCompleteState;
+use std::{error::Error, ffi::OsStr, process::Command};
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
 
 fn state_from_command(object_field_mask: &str) -> Vec<u8> {
-    std::process::Command::new("sh")
+    Command::new("sh")
         .arg("-c")
         .arg(format!("ank get state -o json {object_field_mask}"))
         .output()
@@ -34,12 +32,12 @@ fn state_from_command(object_field_mask: &str) -> Vec<u8> {
 fn completions_workloads(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
     let mut result = Vec::new();
 
-    let Ok(state) = serde_json::from_slice::<FilteredCompleteState>(&state) else {
+    let Ok(state) = serde_json::from_slice::<CompleteState>(&state) else {
         return vec![];
     };
 
     if let Some(desired_state) = state.desired_state {
-        if let Some(workloads) = desired_state.workloads {
+        if let Some(WorkloadMap { workloads }) = desired_state.workloads {
             for workload_name in workloads.keys() {
                 result.push(workload_name.clone());
             }
@@ -57,12 +55,12 @@ fn completions_workloads(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandi
 fn completions_configs(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
     let mut result = Vec::new();
 
-    let Ok(state) = serde_json::from_slice::<FilteredCompleteState>(&state) else {
+    let Ok(state) = serde_json::from_slice::<CompleteState>(&state) else {
         return vec![];
     };
 
     if let Some(desired_state) = state.desired_state {
-        if let Some(configs) = desired_state.configs {
+        if let Some(ConfigMap { configs }) = desired_state.configs {
             for config_name in configs.keys() {
                 result.push(config_name.clone());
             }
@@ -94,20 +92,20 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
 
     let mut result = Vec::new();
 
-    let Ok(state) = serde_json::from_slice::<FilteredCompleteState>(&state) else {
+    let Ok(state) = serde_json::from_slice::<CompleteState>(&state) else {
         return vec![];
     };
 
     if let Some(desired_state) = state.desired_state {
         result.push(DESIRED_STATE.to_string());
-        if let Some(workloads) = desired_state.workloads {
+        if let Some(WorkloadMap { workloads }) = desired_state.workloads {
             result.push(format!("{DESIRED_STATE}.{WORKLOADS}"));
             for workload_name in workloads.keys() {
                 result.push(format!("{DESIRED_STATE}.{WORKLOADS}.{workload_name}"));
             }
         }
         result.push(CONFIGS.to_string());
-        if let Some(configs) = desired_state.configs {
+        if let Some(ConfigMap { configs }) = desired_state.configs {
             result.push(format!("{DESIRED_STATE}.{CONFIGS}"));
             for config_name in configs.keys() {
                 result.push(format!("{DESIRED_STATE}.{CONFIGS}.{config_name}"));
@@ -117,9 +115,11 @@ fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<Complet
 
     if let Some(workload_states) = state.workload_states {
         result.push(WORKLOAD_STATES.to_string());
-        for (agent, workloads) in workload_states.into_iter() {
+        for (agent, ExecutionsStatesOfWorkload { wl_name_state_map }) in
+            workload_states.agent_state_map.into_iter()
+        {
             result.push(format!("{WORKLOAD_STATES}.{agent}"));
-            for workload_name in workloads.keys() {
+            for workload_name in wl_name_state_map.keys() {
                 result.push(format!("{WORKLOAD_STATES}.{agent}.{workload_name}"));
             }
         }
@@ -396,9 +396,9 @@ pub fn parse() -> AnkCli {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-
     use super::{completions_object_field_mask, completions_workloads};
     use clap_complete::CompletionCandidate;
     use std::ffi::OsStr;

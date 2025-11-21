@@ -25,7 +25,6 @@ use grpc::security::TLSConfig;
 
 use crate::log::{IS_QUIET, IS_VERBOSE};
 mod cli_error;
-mod filtered_complete_state;
 mod log;
 
 #[cfg(test)]

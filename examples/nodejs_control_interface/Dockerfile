@@ -6,7 +6,7 @@ RUN apk update && apk add --update-cache \
     npm \
     && rm -rf /var/cache/apk/*
 
-COPY api/proto/ank_base.proto api/proto/control_api.proto /usr/local/lib/ankaios/
+COPY ankaios_api/proto/ank_base.proto ankaios_api/proto/control_api.proto /usr/local/lib/ankaios/
 COPY examples/nodejs_control_interface /workspaces/app
 WORKDIR /workspaces/app
 RUN npm install

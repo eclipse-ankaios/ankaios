@@ -12,13 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::Path;
-
+use super::DEFAULT_RUN_FOLDER;
 use crate::io_utils::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
 use crate::io_utils::{Directory, filesystem};
 
-use super::DEFAULT_RUN_FOLDER;
+use std::path::Path;
+
 const RUNFOLDER_SUFFIX: &str = "_io";
 
 // [impl->swdd~agent-prepares-dedicated-run-folder~1]
@@ -54,16 +54,17 @@ pub fn prepare_agent_run_directory(
 #[cfg(test)]
 mod tests {
     use super::{DEFAULT_RUN_FOLDER, FileSystemError, Path};
-    use crate::io_utils::generate_test_directory_mock;
-    use crate::io_utils::mock_filesystem;
-    use crate::io_utils::prepare_agent_run_directory;
+    use crate::io_utils::{
+        generate_test_directory_mock, mock_filesystem, prepare_agent_run_directory,
+    };
+    use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     use mockall::predicate;
 
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_create() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let agent_name = "test_agent_name";
         let run_folder = DEFAULT_RUN_FOLDER;
@@ -98,7 +99,7 @@ mod tests {
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_create_fails() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let agent_name = "test_agent_name";
         let run_folder = DEFAULT_RUN_FOLDER;
@@ -135,7 +136,7 @@ mod tests {
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_create_permissions_fail() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let agent_name = "test_agent_name";
         let run_folder = DEFAULT_RUN_FOLDER;
@@ -178,7 +179,7 @@ mod tests {
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_exists() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let agent_name = "test_agent_name";
         let run_folder = DEFAULT_RUN_FOLDER;
@@ -198,7 +199,7 @@ mod tests {
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
     #[test]
     fn utest_arguments_prepare_agent_run_directory_given_directory_not_found() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
         let agent_name = "test_agent_name";
         let run_folder = "/tmp/x";

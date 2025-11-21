@@ -27,15 +27,15 @@ jobs:
     outputs:
       documentation: ${{ steps.filter.outputs.documentation }}
     steps:
-    - uses: actions/checkout@v4.1.1
-    - uses: dorny/paths-filter@v3.0.0
-      id: filter
-      with:
-        filters: |
-          documentation:
-              - 'doc/**'
-              - 'api/proto/**'
-              - '.github/workflows/documentation.yml'
+      - uses: actions/checkout@v4.1.1
+      - uses: dorny/paths-filter@v3.0.0
+        id: filter
+        with:
+          filters: |
+            documentation:
+                - 'doc/**'
+                - 'ankaios_api/proto/**'
+                - '.github/workflows/documentation.yml'
   deploy:
     name: Deploy documentation
     needs: documentation_changes
@@ -47,28 +47,28 @@ jobs:
       - uses: actions/checkout@v4.1.1
       - name: Prepare commit to branch gh-pages
         run: |
-            git config --global --add safe.directory $PWD
-            git config user.name ci-bot
-            git config user.email ci-bot@example.com
-            git fetch origin gh-pages --depth=1
+          git config --global --add safe.directory $PWD
+          git config user.name ci-bot
+          git config user.email ci-bot@example.com
+          git fetch origin gh-pages --depth=1
 
       - name: Generate documentation and deploy (push on main)
         # execute only on push to main branch or when called by another workflow
         if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
         run: |
-            tools/generate_docs.sh deploy
+          tools/generate_docs.sh deploy
 
       - name: Generate documentation and deploy (for release)
         if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
         run: |
-            # Convert tag to documentation version like v0.1.0 to 0.1
-            DOCVER=$(expr match ${{ github.ref_name }} 'v\([0-9]\+\.[0-9]\+\)\.')
-            tools/generate_docs.sh deploy-release "$DOCVER"
+          # Convert tag to documentation version like v0.1.0 to 0.1
+          DOCVER=$(expr match ${{ github.ref_name }} 'v\([0-9]\+\.[0-9]\+\)\.')
+          tools/generate_docs.sh deploy-release "$DOCVER"
 
       - name: Generate documentation (for pull requests and release branches)
         if: ${{ github.event_name == 'pull_request' || startsWith(github.ref_name, 'release-') }}
         run: |
-            tools/generate_docs.sh build
+          tools/generate_docs.sh build
   lint:
     name: Lint documentation
     # No dependencies as we have markdown files in a lot of places
@@ -77,7 +77,7 @@ jobs:
       - name: git checkout
         uses: actions/checkout@v4.1.1
         with:
-          show-progress: ''
+          show-progress: ""
       - name: markdownlint-cli2-action
         uses: DavidAnson/markdownlint-cli2-action@v15.0.0
         with:

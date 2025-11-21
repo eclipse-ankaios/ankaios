@@ -14,22 +14,15 @@
 
 #[cfg(test)]
 mod grpc_tests {
-
-    use std::{
-        fs::File,
-        io::{self, Write},
-        os::unix::fs::PermissionsExt,
-        path::PathBuf,
-        time::Duration,
+    use ankaios_api::ank_base::{
+        CompleteStateRequestSpec, CompleteStateSpec, RequestContentSpec, RequestSpec,
     };
-
     use common::{
-        commands::{self, CompleteStateRequest, Request, RequestContent},
+        commands::{self},
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
         communications_server::CommunicationsServer,
         from_server_interface::{FromServer, FromServerSender},
-        objects::CompleteState,
         to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender},
     };
     use grpc::{
@@ -38,8 +31,17 @@ mod grpc_tests {
         server::GRPCCommunicationsServer,
     };
 
+    use std::{
+        fs::File,
+        io::{self, Write},
+        net::SocketAddr,
+        os::unix::fs::PermissionsExt,
+        path::PathBuf,
+        time::Duration,
+    };
+
     use tempfile::TempDir;
-    use tokio::time::timeout;
+    use tokio::{sync::mpsc, task::JoinHandle, time::timeout};
 
     /* 10 years validity issued at 08/16/2024 check validity if tests are failing */
     static TEST_CA_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
@@ -68,7 +70,7 @@ MC4CAQAwBQYDK2VwBCIEIKuTRWL66qD94qMHXiMyFAephAYmzW/VfqJLbz1b6H9r
 
     /* 10 years validity issued at 08/16/2024 check validity if tests are failing
     make sure to create the cert with DNS.1 = * as alt_name otherwise failing tests
-    because of various choosen agent names inside tests */
+    because of various chosen agent names inside tests */
     static TEST_AGENT_CRT_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
 MIIBbDCCAR6gAwIBAgIUFkWTHz6ubW5z5nfte9/Wa1222EkwBQYDK2VwMBUxEzAR
 BgNVBAMMCmFua2Fpb3MtY2EwHhcNMjQwODE2MDcyNzU3WhcNMzQwODE0MDcyNzU3
@@ -208,9 +210,9 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         tls_config: Option<security::TLSConfig>,
     ) -> (
         ToServerSender,
-        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>,
+        JoinHandle<Result<(), CommunicationMiddlewareError>>,
     ) {
-        let (to_grpc_client, grpc_client_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
+        let (to_grpc_client, grpc_client_receiver) = mpsc::channel::<ToServer>(20);
         let url = format!("https://{server_addr}");
         let grpc_communications_client = match comm_type {
             CommunicationType::Cli => GRPCCommunicationsClient::new_cli_communication(
@@ -240,10 +242,10 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         test_request_id: &str,
         tls_pem_files_package: Option<&TestPEMFilesPackage>,
     ) -> (
-        ToServerSender,                                                    // to_grpc_client
-        ToServerReceiver,                                                  // server_receiver
-        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_server_task
-        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_client_task
+        ToServerSender,                                       // to_grpc_client
+        ToServerReceiver,                                     // server_receiver
+        JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_server_task
+        JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_client_task
     ) {
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         //                                         _____________                                _________________
@@ -255,8 +257,8 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         let server_addr = format!("0.0.0.0:{port}");
-        let (to_grpc_server, grpc_server_receiver) = tokio::sync::mpsc::channel::<FromServer>(20);
-        let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
+        let (to_grpc_server, grpc_server_receiver) = mpsc::channel::<FromServer>(20);
+        let (to_server, server_receiver) = mpsc::channel::<ToServer>(20);
 
         let (server_tls_config, agent_tls_config, cli_tls_config) =
             if let Some(tls_pem_files_package) = tls_pem_files_package {
@@ -272,7 +274,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         // create communication server
         let mut communications_server = GRPCCommunicationsServer::new(to_server, server_tls_config);
 
-        let socket_addr: std::net::SocketAddr = server_addr.parse().unwrap();
+        let socket_addr: SocketAddr = server_addr.parse().unwrap();
 
         let grpc_server_task = tokio::spawn(async move {
             communications_server
@@ -323,7 +325,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequest { field_mask: vec![] },
+                CompleteStateRequestSpec { field_mask: vec![] },
             )
             .await;
 
@@ -335,9 +337,9 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         assert!(matches!(
             result,
             Ok(Some(ToServer::Request(
-                Request{
+                RequestSpec{
                     request_id,
-                    request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
+                    request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                         field_mask
                     })
                 }
@@ -365,7 +367,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                CompleteStateRequest { field_mask: vec![] },
+                CompleteStateRequestSpec { field_mask: vec![] },
             )
             .await;
 
@@ -377,9 +379,9 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         assert!(matches!(
             result,
             Ok(Some(ToServer::Request(
-                Request{
+                RequestSpec{
                     request_id,
-                    request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
+                    request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                         field_mask
                     })
                 }
@@ -404,7 +406,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         let update_state_result = to_grpc_client
             .update_state(
                 test_request_id.to_owned(),
-                CompleteState {
+                CompleteStateSpec {
                     ..Default::default()
                 },
                 vec![],
@@ -417,7 +419,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
 
         assert!(matches!(
             result,
-            Ok(Some(ToServer::Request(Request{request_id, request_content: _}))
+            Ok(Some(ToServer::Request(RequestSpec{request_id, request_content: _}))
             ) if request_id.contains(test_request_id)
         ));
     }

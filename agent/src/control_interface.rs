@@ -33,7 +33,7 @@ pub use fifo::MockFifo;
 #[cfg(test)]
 use mockall::automock;
 
-use common::objects::WorkloadInstanceName;
+use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 use common::{from_server_interface::FromServerSender, to_server_interface::ToServerSender};
 
 #[cfg_attr(test, mockall_double::double)]
@@ -79,7 +79,7 @@ pub struct ControlInterface {
 impl ControlInterface {
     pub fn new(
         base_path: ControlInterfacePath,
-        execution_instance_name: &WorkloadInstanceName,
+        execution_instance_name: &WorkloadInstanceNameSpec,
         output_pipe_channel: ToServerSender,
         authorizer: Authorizer,
     ) -> Result<Self, ControlInterfaceError> {
@@ -162,7 +162,7 @@ mod tests {
         input_output::generate_test_input_output_mock, input_pipe::MockInputPipe,
         output_pipe::MockOutputPipe,
     };
-    use common::objects::WorkloadInstanceName;
+    use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 
     // [utest->swdd~agent-create-control-interface-pipes-per-workload~2]
     // [utest->swdd~agent-control-interface-pipes-path-naming~2]
@@ -196,7 +196,7 @@ mod tests {
 
         let control_interface = ControlInterface::new(
             ControlInterfacePath::new(PIPES_FOLDER.into()),
-            &WorkloadInstanceName::builder()
+            &WorkloadInstanceNameSpec::builder()
                 .workload_name("workload_name_1")
                 .config(&String::from(CONFIG))
                 .build(),
@@ -246,7 +246,7 @@ mod tests {
 
         let control_interface = ControlInterface::new(
             ControlInterfacePath::new("api_pipes_location".into()),
-            &WorkloadInstanceName::builder()
+            &WorkloadInstanceNameSpec::builder()
                 .agent_name("workload_name_1")
                 .config(&String::from(CONFIG))
                 .build(),

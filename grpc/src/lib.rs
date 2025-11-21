@@ -133,7 +133,7 @@ mod grpc_cli_connection;
 pub mod server;
 mod to_server_proxy;
 
-use api::ank_base;
+use ankaios_api::ank_base;
 pub mod grpc_api;
 pub use crate::grpc_api::*;
 

@@ -13,12 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{CliCommands, InputSourcePair};
-use crate::cli_commands::State;
 use crate::cli_error::CliError;
-use crate::output;
-use crate::{cli::ApplyArgs, output_debug};
-use common::helpers::validate_tags;
-use common::objects::{ALLOWED_SYMBOLS, CURRENT_API_VERSION, CompleteState, PREVIOUS_API_VERSION};
+use crate::{cli::ApplyArgs, output, output_debug};
+
+use ankaios_api::ank_base::{ALLOWED_SYMBOLS, CompleteStateSpec, StateSpec, validate_tags};
+use ankaios_api::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use common::state_manipulation::{Object, Path};
 use std::collections::HashSet;
 
@@ -92,10 +91,10 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
 
 // [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
 pub fn handle_agent_overwrite(
-    filter_masks: &Vec<common::state_manipulation::Path>,
+    filter_masks: &Vec<Path>,
     cli_specified_agent_name: &Option<String>,
     mut state_obj: Object,
-) -> Result<State, String> {
+) -> Result<StateSpec, String> {
     for mask_path in filter_masks {
         if mask_path.parts().starts_with(&["workloads".into()]) {
             let workload_agent_mask: Path = format!("{}.agent", String::from(mask_path)).into();
@@ -116,6 +115,7 @@ pub fn handle_agent_overwrite(
             }
         }
     }
+
     state_obj
         .try_into()
         .map_err(|err| format!("Invalid manifest data provided: {err}"))
@@ -133,9 +133,9 @@ pub fn update_request_obj(
                 "The provided path does not exist! This may be caused by improper naming. Names expected to have characters in '{ALLOWED_SYMBOLS}'"
             ));
         }
-        let cur_workload_spec = cur_obj.get(workload_path).unwrap();
+        let cur_workload = cur_obj.get(workload_path).unwrap();
         if req_obj.get(workload_path).is_none() {
-            let _ = req_obj.set(workload_path, cur_workload_spec.clone());
+            let _ = req_obj.set(workload_path, cur_workload.clone());
         } else {
             return Err(format!(
                 "Multiple workloads with the same name '{workload_name}' found!"
@@ -146,10 +146,7 @@ pub fn update_request_obj(
     Ok(())
 }
 
-pub fn create_filter_masks_from_paths(
-    paths: &[common::state_manipulation::Path],
-    prefix: &str,
-) -> Vec<String> {
+pub fn create_filter_masks_from_paths(paths: &[Path], prefix: &str) -> Vec<String> {
     let mut filter_masks = paths
         .iter()
         .map(|path| format!("{}.{}", prefix, String::from(path)))
@@ -164,9 +161,11 @@ pub fn create_filter_masks_from_paths(
 pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
-) -> Result<Option<(CompleteState, Vec<String>)>, String> {
-    let mut req_obj: Object = State::default().try_into().unwrap();
-    let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
+) -> Result<Option<(CompleteStateSpec, Vec<String>)>, String> {
+    let mut req_obj: Object = StateSpec::default().try_into().map_err(|err| {
+        format!("Could not create initial empty state object from StateSpec: {err}")
+    })?;
+    let mut req_paths: Vec<Path> = Vec::new();
     for manifest in manifests.iter_mut() {
         let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
 
@@ -184,13 +183,13 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
 
     let complete_state_req_obj = if apply_args.delete_mode {
-        CompleteState {
+        CompleteStateSpec {
             ..Default::default()
         }
     } else {
         let state_from_req_obj =
             handle_agent_overwrite(&req_paths, &apply_args.agent_name, req_obj)?;
-        CompleteState {
+        CompleteStateSpec {
             desired_state: state_from_req_obj,
             ..Default::default()
         }
@@ -229,26 +228,9 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-    use std::io;
-    use std::io::Read;
-
-    use api::ank_base::{self, UpdateStateSuccess};
-    use mockall::predicate::eq;
-
-    use common::{
-        commands::UpdateWorkloadState,
-        from_server_interface::FromServer,
-        objects::{
-            self, CompleteState, ExecutionState, RunningSubstate, State, WorkloadState,
-            generate_test_workload_spec_with_param,
-        },
-        state_manipulation::{Object, Path},
-        test_utils,
-    };
-    use serde_yaml::Value;
-
     use crate::{
         cli::ApplyArgs,
         cli_commands::{
@@ -259,13 +241,32 @@ mod tests {
             },
             server_connection::MockServerConnection,
         },
-        filtered_complete_state::FilteredCompleteState,
     };
+
+    use ankaios_api::ank_base::{
+        CompleteState, CompleteStateSpec, ExecutionStateSpec, Response, ResponseContent, StateSpec,
+        UpdateStateSuccess, WorkloadNamed, WorkloadStateSpec,
+    };
+    use ankaios_api::test_utils::{
+        generate_test_state_from_workloads, generate_test_workload_with_param,
+    };
+    use common::{
+        commands::UpdateWorkloadState,
+        from_server_interface::FromServer,
+        state_manipulation::{Object, Path},
+    };
+
+    use mockall::predicate::eq;
+    use serde_yaml::Value;
+    use std::io::{Cursor, Read};
 
     mockall::lazy_static! {
         pub static ref FAKE_GET_INPUT_SOURCE_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<Result<Vec<InputSourcePair>, String>>>  =
         std::sync::Mutex::new(std::collections::VecDeque::new());
     }
+
+    const WORKLOAD_NAME_1: &str = "workload_A";
+    const WORKLOAD_NAME_2: &str = "workload_B";
 
     pub fn get_input_sources_mock(
         _manifest_files: &[String],
@@ -283,7 +284,7 @@ mod tests {
     // [utest->swdd~cli-apply-supports-ankaios-manifest~1]
     #[test]
     fn utest_parse_manifest_ok() {
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
     simple:
       runtime: podman
@@ -304,7 +305,7 @@ mod tests {
 
     #[test]
     fn utest_parse_manifest_invalid_manifest_content() {
-        let manifest_content = io::Cursor::new(b"invalid manifest content");
+        let manifest_content = Cursor::new(b"invalid manifest content");
 
         let (obj, paths) = parse_manifest(&mut (
             "invalid_manifest_content".to_string(),
@@ -312,14 +313,14 @@ mod tests {
         ))
         .unwrap();
 
-        assert!(TryInto::<State>::try_into(obj).is_err());
+        assert!(TryInto::<StateSpec>::try_into(obj).is_err());
         assert!(paths.is_empty());
     }
 
     // [utest->swdd~cli-apply-manifest-check-for-api-version-compatibility~1]
     #[test]
     fn utest_parse_manifest_invalid_api_version() {
-        let manifest_content = io::Cursor::new(b"apiVersion: v3");
+        let manifest_content = Cursor::new(b"apiVersion: v3");
 
         assert!(
             parse_manifest(&mut (
@@ -333,7 +334,7 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_mapping_ok() {
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
     simple:
       runtime: podman
@@ -357,7 +358,7 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_current_api_version_tags_as_sequence_fails() {
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
     simple:
       runtime: podman
@@ -387,7 +388,7 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_previous_api_version_tags_as_sequence_ok() {
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v0.1\"\nworkloads:
     simple:
       runtime: podman
@@ -413,7 +414,7 @@ mod tests {
     // [utest->swdd~cli-apply-manifest-accepts-v01-api-version~1]
     #[test]
     fn utest_parse_manifest_previous_api_version_tags_as_mapping_fails() {
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v0.1\"\nworkloads:
     simple:
       runtime: podman
@@ -518,26 +519,19 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
-        let state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_param(
-                "agent_A".to_string(),
-                "wl1".to_string(),
-                "runtime_X".to_string(),
-            ),
-        ]);
+        let workload: WorkloadNamed = generate_test_workload_with_param("agent_A", "runtime_X");
+        let state = generate_test_state_from_workloads(vec![workload.clone()]);
 
-        let expected_state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_param(
-                "overwritten_agent_name".to_string(),
-                "wl1".to_string(),
-                "runtime_X".to_string(),
-            ),
-        ]);
+        let overwritten_agent_name = "overwritten_agent_name";
+        let mut new_workload = workload.clone();
+        new_workload.workload.agent = overwritten_agent_name.to_owned();
+        new_workload.instance_name.agent_name = overwritten_agent_name.to_owned();
+        let expected_state = generate_test_state_from_workloads(vec![new_workload]);
 
         assert_eq!(
             handle_agent_overwrite(
-                &vec!["workloads.wl1".into()],
-                &Some("overwritten_agent_name".to_string()),
+                &vec![format!("workloads.{WORKLOAD_NAME_1}").into()],
+                &Some(overwritten_agent_name.to_owned()),
                 state.try_into().unwrap(),
             )
             .unwrap(),
@@ -547,18 +541,15 @@ mod tests {
 
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
-    fn utest_handle_agent_overwrite_one_agent_name_provided_in_workload_specs() {
-        let state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_param(
-                "agent_A".to_string(),
-                "wl1".to_string(),
-                "runtime_X".to_string(),
-            ),
-        ]);
+    fn utest_handle_agent_overwrite_one_agent_name_provided_in_workloads() {
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
+            "agent_A",
+            "runtime_X",
+        )]);
 
         assert_eq!(
             handle_agent_overwrite(
-                &vec!["workloads.wl1".into()],
+                &vec![format!("workloads.{WORKLOAD_NAME_1}").into()],
                 &None,
                 state.clone().try_into().unwrap(),
             )
@@ -569,23 +560,20 @@ mod tests {
 
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
-    fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload_specs() {
-        let state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_param(
-                "agent_A".to_string(),
-                "wl1".to_string(),
-                "runtime_X".to_string(),
-            ),
-            generate_test_workload_spec_with_param(
-                "agent_B".to_string(),
-                "wl2".to_string(),
-                "runtime_X".to_string(),
-            ),
+    fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload() {
+        let state = generate_test_state_from_workloads(vec![
+            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime_X")
+                .name(WORKLOAD_NAME_1),
+            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_X")
+                .name(WORKLOAD_NAME_2),
         ]);
 
         assert_eq!(
             handle_agent_overwrite(
-                &vec!["workloads.wl1".into(), "workloads.wl2".into()],
+                &vec![
+                    format!("workloads.{WORKLOAD_NAME_1}").into(),
+                    format!("workloads.{WORKLOAD_NAME_2}").into()
+                ],
                 &None,
                 state.clone().try_into().unwrap(),
             )
@@ -598,50 +586,48 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
-        let state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_param(
-                "agent_A".to_string(),
-                "wl1".to_string(),
-                "runtime_X".to_string(),
-            ),
-        ]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
+            "agent_A",
+            "runtime_X",
+        )]);
 
         let mut obj: Object = state.try_into().unwrap();
 
-        obj.remove(&"workloads.wl1.agent".into()).unwrap();
+        obj.remove(&format!("workloads.{WORKLOAD_NAME_1}.agent").into())
+            .unwrap();
 
         assert_eq!(
             Err("No agent name specified -> use '--agent' option to specify!".to_string()),
-            handle_agent_overwrite(&vec!["workloads.wl1".into()], &None, obj)
+            handle_agent_overwrite(
+                &vec![format!("workloads.{WORKLOAD_NAME_1}").into()],
+                &None,
+                obj
+            )
         );
     }
 
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_missing_agent_name() {
-        let state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_param(
-                "agent_A".to_string(),
-                "wl1".to_string(),
-                "runtime_X".to_string(),
-            ),
-        ]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
+            "agent_A".to_string(),
+            "runtime_X".to_string(),
+        )]);
 
-        let expected_state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_param(
+        let expected_state =
+            generate_test_state_from_workloads(vec![generate_test_workload_with_param(
                 "overwritten_agent_name".to_string(),
-                "wl1".to_string(),
                 "runtime_X".to_string(),
-            ),
-        ]);
+            )]);
 
         let mut obj: Object = state.try_into().unwrap();
 
-        obj.remove(&"workloads.wl1.agent".into()).unwrap();
+        obj.remove(&format!("workloads.{WORKLOAD_NAME_1}.agent").into())
+            .unwrap();
 
         assert_eq!(
             handle_agent_overwrite(
-                &vec!["workloads.wl1".into()],
+                &vec![format!("workloads.{WORKLOAD_NAME_1}").into()],
                 &Some("overwritten_agent_name".to_string()),
                 obj,
             )
@@ -653,27 +639,25 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_considers_only_workloads() {
-        let state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_param(
-                "agent_A".to_string(),
-                "wl1".to_string(),
-                "runtime_X".to_string(),
-            ),
-        ]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
+            "agent_A".to_string(),
+            "runtime_X".to_string(),
+        )]);
 
-        let expected_state = test_utils::generate_test_state_from_workloads(vec![
-            generate_test_workload_spec_with_param(
+        let expected_state =
+            generate_test_state_from_workloads(vec![generate_test_workload_with_param(
                 "agent_A".to_string(),
-                "wl1".to_string(),
                 "runtime_X".to_string(),
-            ),
-        ]);
+            )]);
 
         let cli_specified_agent_name = None;
 
         assert_eq!(
             handle_agent_overwrite(
-                &vec!["workloads.wl1".into(), "configs.config_key".into()],
+                &vec![
+                    format!("workloads.{WORKLOAD_NAME_1}").into(),
+                    "configs.config_key".into()
+                ],
                 &cli_specified_agent_name,
                 state.try_into().unwrap(),
             )
@@ -687,7 +671,7 @@ mod tests {
     #[test]
     fn utest_generate_state_obj_and_filter_masks_from_manifests_ok() {
         let manifest_file_name = "manifest.yaml";
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
         simple:
           runtime: podman
@@ -706,7 +690,8 @@ mod tests {
 
         let mut data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut data);
-        let expected_complete_state_obj = CompleteState {
+
+        let expected_complete_state_obj = CompleteStateSpec {
             desired_state: serde_yaml::from_str(&data).unwrap(),
             ..Default::default()
         };
@@ -734,7 +719,7 @@ mod tests {
     #[test]
     fn utest_generate_state_obj_and_filter_masks_from_manifests_delete_mode_ok() {
         let manifest_file_name = "manifest.yaml";
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
         simple:
           runtime: podman
@@ -744,7 +729,7 @@ mod tests {
             commandOptions: [\"-p\", \"8081:80\"]",
         );
 
-        let expected_complete_state_obj = CompleteState {
+        let expected_complete_state_obj = CompleteStateSpec {
             ..Default::default()
         };
 
@@ -774,7 +759,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
     simple_manifest1:
       runtime: podman
@@ -787,7 +772,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteState {
+        let updated_state = CompleteStateSpec {
             ..Default::default()
         };
 
@@ -809,9 +794,7 @@ mod tests {
             .expect_get_complete_state()
             .times(2)
             .with(eq(vec![]))
-            .returning(move |_| {
-                Ok((ank_base::CompleteState::from(updated_state_clone.clone())).into())
-            });
+            .returning(move |_| Ok(CompleteState::from(updated_state_clone.clone())));
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(std::vec::Vec::new);
@@ -819,12 +802,9 @@ mod tests {
             .expect_read_next_update_workload_state()
             .return_once(|| {
                 Ok(UpdateWorkloadState {
-                    workload_states: vec![WorkloadState {
+                    workload_states: vec![WorkloadStateSpec {
                         instance_name: "name4.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionState {
-                            state: objects::ExecutionStateEnum::Removed,
-                            ..Default::default()
-                        },
+                        execution_state: ExecutionStateSpec::removed(),
                     }],
                 })
             });
@@ -861,7 +841,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
         simple_manifest1:
           runtime: podman
@@ -873,7 +853,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteState {
+        let updated_state = CompleteStateSpec {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
@@ -894,35 +874,29 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .once()
-            .returning(|_| Ok(FilteredCompleteState::default()));
+            .returning(|_| Ok(CompleteState::default()));
 
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok((ank_base::CompleteState::from(CompleteState {
+                Ok(CompleteState::from(CompleteStateSpec {
                     desired_state: updated_state.desired_state,
                     ..Default::default()
                 }))
-                .into())
             });
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(|| {
                 vec![
-                    FromServer::Response(ank_base::Response {
+                    FromServer::Response(Response {
                         request_id: OTHER_REQUEST_ID.into(),
-                        response_content: Some(ank_base::response::ResponseContent::Error(
-                            Default::default(),
-                        )),
+                        response_content: Some(ResponseContent::Error(Default::default())),
                     }),
                     FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                        workload_states: vec![WorkloadState {
+                        workload_states: vec![WorkloadStateSpec {
                             instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
-                            execution_state: ExecutionState {
-                                state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
-                                ..Default::default()
-                            },
+                            execution_state: ExecutionStateSpec::running(),
                         }],
                     }),
                 ]
@@ -931,12 +905,9 @@ mod tests {
             .expect_read_next_update_workload_state()
             .return_once(|| {
                 Ok(UpdateWorkloadState {
-                    workload_states: vec![WorkloadState {
+                    workload_states: vec![WorkloadStateSpec {
                         instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionState {
-                            state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
-                            ..Default::default()
-                        },
+                        execution_state: ExecutionStateSpec::running(),
                     }],
                 })
             });
@@ -974,14 +945,13 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(
-            b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1",
-        );
+        let manifest_content =
+            Cursor::new(b"apiVersion: \"v1\"\nworkloads: {}\nconfigs:\n  config_1: config_value_1");
 
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteState {
+        let updated_state = CompleteStateSpec {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
@@ -997,7 +967,7 @@ mod tests {
 
         mock_server_connection
             .expect_get_complete_state()
-            .return_once(|_| Ok(FilteredCompleteState::default()));
+            .return_once(|_| Ok(CompleteState::default()));
 
         mock_server_connection
             .expect_take_missed_from_server_messages()
@@ -1039,7 +1009,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(b"apiVersion: \"v1\"");
+        let manifest_content = Cursor::new(b"apiVersion: \"v1\"");
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection.expect_update_state().never();
@@ -1084,7 +1054,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let manifest_content = io::Cursor::new(
+        let manifest_content = Cursor::new(
             b"apiVersion: \"v1\"\nworkloads:
             simple.manifest1:
               runtime: podman
@@ -1096,7 +1066,7 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        let updated_state = CompleteState {
+        let updated_state = CompleteStateSpec {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
             ..Default::default()
         };
@@ -1118,29 +1088,23 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok((ank_base::CompleteState::from(CompleteState {
+                Ok(CompleteState::from(CompleteStateSpec {
                     desired_state: updated_state.desired_state,
                     ..Default::default()
                 }))
-                .into())
             });
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(|| {
                 vec![
-                    FromServer::Response(ank_base::Response {
+                    FromServer::Response(Response {
                         request_id: OTHER_REQUEST_ID.into(),
-                        response_content: Some(ank_base::response::ResponseContent::Error(
-                            Default::default(),
-                        )),
+                        response_content: Some(ResponseContent::Error(Default::default())),
                     }),
                     FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                        workload_states: vec![WorkloadState {
+                        workload_states: vec![WorkloadStateSpec {
                             instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
-                            execution_state: ExecutionState {
-                                state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
-                                ..Default::default()
-                            },
+                            execution_state: ExecutionStateSpec::running(),
                         }],
                     }),
                 ]
@@ -1149,12 +1113,9 @@ mod tests {
             .expect_read_next_update_workload_state()
             .return_once(|| {
                 Ok(UpdateWorkloadState {
-                    workload_states: vec![WorkloadState {
+                    workload_states: vec![WorkloadStateSpec {
                         instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionState {
-                            state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
-                            ..Default::default()
-                        },
+                        execution_state: ExecutionStateSpec::running(),
                     }],
                 })
             });

@@ -11,11 +11,11 @@ workloads:
       allowRules:
         - type: StateRule
           operation: Write
-          filterMask:
+          filterMasks:
             # workload has write access to the config of the workload dynamic_nginx
             - "desiredState.workloads.dynamic_nginx"
         - type: StateRule
           operation: Read
-          filterMask:
+          filterMasks:
             # workload is allowed to read the workload state of the workload dynamic_nginx
             - "workloadStates.agent_A.dynamic_nginx"

@@ -148,9 +148,8 @@ mockall::mock! {
 
 #[cfg(test)]
 mod tests {
-    use std::{io::ErrorKind, path::Path, sync::Arc};
-
     use nix::{sys::stat::Mode, unistd::mkfifo};
+    use std::{io::ErrorKind, path::Path, sync::Arc};
     use tokio::{io::AsyncReadExt, sync::Barrier};
 
     // [utest->swdd~agent-handles-control-interface-output-pipe-closed~1]

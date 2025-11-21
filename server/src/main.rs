@@ -19,12 +19,10 @@ mod server_config;
 use std::fs;
 use std::path::PathBuf;
 
-use common::helpers::validate_tags;
-use common::objects::CompleteState;
+use ankaios_api::ank_base::{CompleteStateSpec, StateSpec, validate_tags};
+use common::std_extensions::GracefulExitResult;
 
 use common::communications_server::CommunicationsServer;
-use common::objects::State;
-use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{AnkaiosServer, create_from_server_channel, create_to_server_channel};
 use server_config::{DEFAULT_SERVER_CONFIG_FILE_PATH, ServerConfig};
@@ -75,8 +73,8 @@ fn validate_tags_format_in_manifest(data: &str) -> Result<(), String> {
     if let Some(workloads) = yaml_value.get("workloads")
         && let Some(workloads_map) = workloads.as_mapping()
     {
-        for (workload_name, workload_spec) in workloads_map {
-            if let Some(tags_value) = workload_spec.get("tags") {
+        for (workload_name, workload) in workloads_map {
+            if let Some(tags_value) = workload.get("tags") {
                 let workload_name_str = workload_name.as_str().unwrap_or("unknown");
                 validate_tags(&api_version, tags_value, workload_name_str)?;
             }
@@ -116,13 +114,13 @@ async fn main() {
 
             // [impl->swdd~server-state-in-memory~1]
             // [impl->swdd~server-loads-startup-state-file~3]
-            let state: State = serde_yaml::from_str(&data)
+            let state: StateSpec = serde_yaml::from_str(&data)
                 .unwrap_or_exit("Parsing start config failed with error");
             log::trace!(
                 "The state is initialized with the following workloads: {:?}",
                 state.workloads
             );
-            Some(CompleteState {
+            Some(CompleteStateSpec {
                 desired_state: state,
                 ..Default::default()
             })

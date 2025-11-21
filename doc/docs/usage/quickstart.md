@@ -11,15 +11,14 @@ The startup manifest file contains all of the workloads and their configuration 
 Let's modify the default config which is stored in `/etc/ankaios/state.yaml`:
 
 ```yaml
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   nginx:
     runtime: podman
     agent: agent_A
     restartPolicy: ALWAYS
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
       commandOptions: ["-p", "8081:80"]
@@ -55,13 +54,12 @@ which creates:
 
 ```yaml
 desiredState:
-  apiVersion: v0.1
+  apiVersion: v1
   workloads:
     nginx:
       agent: agent_A
       tags:
-      - key: owner
-        value: Ankaios team
+        owner: Ankaios team
       dependencies: {}
       restartPolicy: ALWAYS
       runtime: podman

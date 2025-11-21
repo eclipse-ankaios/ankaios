@@ -41,7 +41,7 @@ workloads:
       allowRules:
       - type: StateRule
         operation: Read
-        filterMask:
+        filterMasks:
         - "workloadStates"
 configs:
   web_server_port:

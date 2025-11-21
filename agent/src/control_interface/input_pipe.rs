@@ -118,9 +118,8 @@ mockall::mock! {
 
 #[cfg(test)]
 mod tests {
-    use std::{io::ErrorKind, time::Duration};
-
     use nix::{sys::stat::Mode, unistd::mkfifo};
+    use std::{io::ErrorKind, time::Duration};
     use tokio::io::AsyncWriteExt;
 
     const TEST_TIMEOUT: u64 = 50;
