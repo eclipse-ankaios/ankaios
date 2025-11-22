@@ -27,7 +27,12 @@ pub fn parse() -> Arguments {
            about="Ankaios - your friendly automotive workload orchestrator.\nWhat can the server do for you?")]
 // default values for the server are set in server-config.rs
 pub struct Arguments {
-    #[arg(short = 'c', long = "startup-manifest", alias = "startup-config")]
+    #[arg(
+        short = 'm',
+        visible_short_alias = 'c',
+        long = "startup-manifest",
+        alias = "startup-config"
+    )]
     /// The path to the startup manifest yaml.
     pub manifest_path: Option<String>,
     #[arg(required = false, short = 'x', long = "server-config")]

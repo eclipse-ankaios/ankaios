@@ -74,7 +74,7 @@ run_ankaios() {
   else
     # Start the Ankaios server
     echo "Starting Ankaios server located in '${ANK_BIN_DIR}'."
-    RUST_LOG=debug ${ANK_BIN_DIR}/ank-server --insecure --startup-config ${SCRIPT_DIR}/${EXAMPLE}/${MANIFEST_FILE} --address ${ANKAIOS_SERVER_SOCKET} > ${ANKAIOS_LOG_DIR}/ankaios-server.log 2>&1 &
+    RUST_LOG=debug ${ANK_BIN_DIR}/ank-server --insecure --startup-manifest ${SCRIPT_DIR}/${EXAMPLE}/${MANIFEST_FILE} --address ${ANKAIOS_SERVER_SOCKET} > ${ANKAIOS_LOG_DIR}/ankaios-server.log 2>&1 &
 
     sleep 2
     # Start an Ankaios agent
