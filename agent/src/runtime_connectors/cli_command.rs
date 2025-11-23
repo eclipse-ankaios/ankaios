@@ -107,12 +107,12 @@ impl<'a> CliCommand<'a> {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
+    use super::CliCommand;
+
     use std::{
         collections::{HashMap, VecDeque},
         sync::Mutex,
     };
-
-    use super::CliCommand;
 
     #[tokio::test]
     async fn utest_cli_command_simple_output() {

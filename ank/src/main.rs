@@ -25,7 +25,6 @@ use grpc::security::TLSConfig;
 
 use crate::log::{IS_QUIET, IS_VERBOSE};
 mod cli_error;
-mod filtered_complete_state;
 mod log;
 
 #[cfg(test)]
@@ -235,7 +234,7 @@ async fn main() {
                         runtime_name,
                         runtime_config,
                         agent_name,
-                        tags,
+                        tags.into_iter().collect(),
                     )
                     .await
                 {

@@ -97,11 +97,11 @@ pub fn generate_test_input_output_mock() -> __mock_MockInputOutput::__new::Conte
 #[cfg(test)]
 mod tests {
     use super::InputOutput;
-    use mockall::predicate;
-    use std::path::Path;
-
     use crate::control_interface::MockFifo;
     use crate::io_utils::generate_test_directory_mock;
+
+    use mockall::predicate;
+    use std::path::Path;
 
     // [utest->swdd~agent-control-interface-creates-two-pipes-per-workload~1]
     #[test]

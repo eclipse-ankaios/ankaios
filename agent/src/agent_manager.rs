@@ -11,11 +11,14 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+
+use crate::{subscription_store::SubscriptionStore, workload_state::WorkloadStateReceiver};
+
+use ankaios_api::ank_base::WorkloadStateSpec;
+use common::std_extensions::{GracefulExitResult, IllegalStateResult};
 use common::{
     commands::AgentLoadStatus,
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::WorkloadState,
-    std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServerInterface, ToServerSender},
 };
 
@@ -26,7 +29,6 @@ use crate::workload_state::workload_state_store::WorkloadStateStore;
 use crate::runtime_manager::RuntimeManager;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_log_facade::WorkloadLogFacade;
-use crate::{subscription_store::SubscriptionStore, workload_state::WorkloadStateReceiver};
 
 const RESOURCE_MEASUREMENT_INTERVAL_TICK: std::time::Duration = tokio::time::Duration::from_secs(2);
 
@@ -221,7 +223,7 @@ impl AgentManager {
 
     async fn store_and_forward_own_workload_states(
         &mut self,
-        mut new_workload_state: WorkloadState,
+        mut new_workload_state: WorkloadStateSpec,
     ) {
         // execute hysteresis on the local workload states as we could be stopping
         // [impl->swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1]
@@ -287,20 +289,24 @@ mod tests {
     use super::RuntimeManager;
     use crate::agent_manager::AgentManager;
     use crate::resource_monitor::MockResourceMonitor;
+    use crate::subscription_store::generate_test_subscription_entry;
     use crate::workload_log_facade::MockWorkloadLogFacade;
     use crate::workload_state::{
         WorkloadStateSenderInterface,
         workload_state_store::{MockWorkloadStateStore, mock_parameter_storage_new_returns},
     };
-    use api::ank_base;
+
+    use ankaios_api::ank_base::{
+        self, CpuUsageSpec, ExecutionStateSpec, FreeMemorySpec, LogsRequestSpec, WorkloadNamed,
+    };
+    use ankaios_api::test_utils::{
+        generate_test_workload_state_with_agent, generate_test_workload_with_param,
+    };
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::{FromServer, FromServerInterface},
-        objects::{CpuUsage, ExecutionState, FreeMemory, generate_test_workload_spec_with_param},
         to_server_interface::ToServer,
     };
-
-    use crate::subscription_store::generate_test_subscription_entry;
 
     use mockall::predicate::{self, eq};
     use tokio::{
@@ -350,25 +356,18 @@ mod tests {
             workload_state_receiver,
         );
 
-        let workload_spec_1 = generate_test_workload_spec_with_param(
-            AGENT_NAME.into(),
-            WORKLOAD_1_NAME.into(),
-            RUNTIME_NAME.into(),
-        );
+        let workload_1 =
+            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
+                .name(WORKLOAD_1_NAME);
 
-        let workload_spec_2 = generate_test_workload_spec_with_param(
-            AGENT_NAME.into(),
-            WORKLOAD_2_NAME.into(),
-            RUNTIME_NAME.into(),
-        );
+        let workload_2 =
+            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
+                .name(WORKLOAD_2_NAME);
 
         let handle = tokio::spawn(async move { agent_manager.start().await });
 
         let update_workload_result = to_manager
-            .update_workload(
-                vec![workload_spec_1.clone(), workload_spec_2.clone()],
-                vec![],
-            )
+            .update_workload(vec![workload_1.clone(), workload_2.clone()], vec![])
             .await;
         assert!(update_workload_result.is_ok());
 
@@ -391,10 +390,10 @@ mod tests {
         let (to_server, _) = channel(BUFFER_SIZE);
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload_state = common::objects::generate_test_workload_state_with_agent(
+        let workload_state = generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
-            ExecutionState::running(),
+            ExecutionStateSpec::running(),
         );
 
         let mut mock_runtime_manager = RuntimeManager::default();
@@ -552,23 +551,23 @@ mod tests {
         let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
         let (workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload_state_incoming = common::objects::generate_test_workload_state_with_agent(
+        let workload_state_incoming = generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
-            ExecutionState::running(),
+            ExecutionStateSpec::running(),
         );
 
-        let wl_state_after_hysteresis = common::objects::generate_test_workload_state_with_agent(
+        let wl_state_after_hysteresis = generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
-            ExecutionState::stopping_requested(),
+            ExecutionStateSpec::stopping_requested(),
         );
 
         let mut mock_wl_state_store = MockWorkloadStateStore::default();
 
         mock_wl_state_store.states_storage.insert(
             WORKLOAD_1_NAME.to_string(),
-            ExecutionState::stopping_requested(),
+            ExecutionStateSpec::stopping_requested(),
         );
 
         mock_wl_state_store
@@ -583,11 +582,21 @@ mod tests {
             .once()
             .return_const(());
 
+        let mut mock_resource_monitor = MockResourceMonitor::default();
+        mock_resource_monitor
+            .expect_sample_resource_usage()
+            .returning(|| {
+                (
+                    CpuUsageSpec { cpu_usage: 50 },
+                    FreeMemorySpec { free_memory: 1024 },
+                )
+            });
+
         let mock_resource_monitor_context = MockResourceMonitor::new_context();
         mock_resource_monitor_context
             .expect()
             .once()
-            .return_once(MockResourceMonitor::default);
+            .return_once(|| mock_resource_monitor);
 
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
@@ -653,7 +662,12 @@ mod tests {
                 let mut mock_resource_monitor = MockResourceMonitor::default();
                 mock_resource_monitor
                     .expect_sample_resource_usage()
-                    .returning(|| (CpuUsage::new(50.0), FreeMemory { free_memory: 1024 }));
+                    .returning(|| {
+                        (
+                            CpuUsageSpec { cpu_usage: 50 },
+                            FreeMemorySpec { free_memory: 1024 },
+                        )
+                    });
                 mock_resource_monitor
             });
 
@@ -694,11 +708,7 @@ mod tests {
         let (to_server, _server_receiver) = channel(BUFFER_SIZE);
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.into(),
-            WORKLOAD_1_NAME.into(),
-            RUNTIME_NAME.into(),
-        );
+        let workload: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
 
         let mock_runtime_manager = RuntimeManager::default();
 
@@ -708,8 +718,8 @@ mod tests {
             .once()
             .return_once(MockResourceMonitor::default);
 
-        let logs_request = common::commands::LogsRequest {
-            workload_names: vec![workload_spec.instance_name],
+        let logs_request = LogsRequestSpec {
+            workload_names: vec![workload.instance_name],
             follow: false,
             tail: -1,
             since: None,

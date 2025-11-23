@@ -12,22 +12,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::process::Stdio;
+use super::super::log_fetcher::{GetOutputStreams, StreamTrait};
+use super::ContainerdWorkloadId;
+use crate::runtime_connectors::runtime_connector::LogRequestOptions;
 
+use std::process::Stdio;
 #[cfg(test)]
 use tests::{MockChild as Child, MockCommand as Command};
 #[cfg(not(test))]
 use tokio::process::{Child, Command};
 
-use crate::runtime_connectors::runtime_connector::LogRequestOptions;
-
-use super::super::log_fetcher::{GetOutputStreams, StreamTrait};
-use super::ContainerdWorkloadId;
-
 const NERDCTL_CMD: &str = "nerdctl";
 
 // [impl->swdd~containerd-log-fetching-collects-logs~1]
-
 #[derive(Debug)]
 pub struct ContainerdLogFetcher {
     child: Option<Child>,
@@ -129,13 +126,14 @@ impl GetOutputStreams for ContainerdLogFetcher {
 // [utest->swdd~containerd-log-fetching-collects-logs~1]
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
-    use tokio::io::Empty;
-
     use super::{ContainerdLogFetcher, NERDCTL_CMD};
     use crate::runtime_connectors::{
         LogRequestOptions, containerd::ContainerdWorkloadId, log_fetcher::GetOutputStreams,
     };
+
+    use std::process::Stdio;
+    use std::sync::Mutex;
+    use tokio::io::Empty;
 
     const WORKLOAD_ID: &str = "workload_id";
     static CAN_SPAWN: Mutex<bool> = Mutex::new(true);
@@ -148,8 +146,8 @@ mod tests {
         pub _stdout: Option<Empty>,
         cmd: String,
         args: Vec<String>,
-        stdout_option: Option<std::process::Stdio>,
-        stderr_option: Option<std::process::Stdio>,
+        stdout_option: Option<Stdio>,
+        stderr_option: Option<Stdio>,
     }
     impl MockChild {
         pub(crate) fn start_kill(&self) -> Result<(), String> {
@@ -166,8 +164,8 @@ mod tests {
     pub struct MockCommand {
         cmd: String,
         args: Vec<String>,
-        stdout: Option<std::process::Stdio>,
-        stderr: Option<std::process::Stdio>,
+        stdout: Option<Stdio>,
+        stderr: Option<Stdio>,
     }
 
     impl MockCommand {
@@ -183,12 +181,12 @@ mod tests {
             self
         }
 
-        pub(crate) fn stdout(&mut self, piped: std::process::Stdio) -> &mut Self {
+        pub(crate) fn stdout(&mut self, piped: Stdio) -> &mut Self {
             self.stdout = Some(piped);
             self
         }
 
-        pub(crate) fn stderr(&mut self, piped: std::process::Stdio) -> &mut Self {
+        pub(crate) fn stderr(&mut self, piped: Stdio) -> &mut Self {
             self.stderr = Some(piped);
             self
         }

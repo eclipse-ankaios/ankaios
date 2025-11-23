@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use super::log_channel;
+
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
 use tokio::{io::AsyncRead, select};
-
-use super::log_channel;
 
 // [impl->swdd~agent-log-fetching-collects-logs~1]
 
@@ -87,14 +87,12 @@ pub async fn run(mut log_fetcher: Box<dyn LogFetcher>, mut sender: log_channel::
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::VecDeque, sync::Arc, time::Duration};
-
-    use async_trait::async_trait;
-    use tokio::{sync::Semaphore, time::timeout};
-
+    use super::{LogFetcher, NextLinesResult};
     use crate::runtime_connectors::log_channel;
 
-    use super::{LogFetcher, NextLinesResult};
+    use async_trait::async_trait;
+    use std::{collections::VecDeque, sync::Arc, time::Duration};
+    use tokio::{sync::Semaphore, time::timeout};
 
     const LINES_1: [&str; 3] = ["line 1 1", "line 1 2", "line 1 3"];
     const LINES_2: [&str; 2] = ["line 2 1", "line 2 2"];

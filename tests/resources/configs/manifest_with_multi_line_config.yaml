@@ -1,4 +1,4 @@
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   nginx_with_custom_config:
     agent: agent_A

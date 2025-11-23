@@ -38,6 +38,29 @@ check_executable() {
     fi
 }
 
+pull_container_images() {
+    echo "Pull required container images..."
+    # filter for stest container images starting with ghcr.io in yaml files in tests/resources/configs and make them unique (sorted)
+    stest_container_images=$(find -P "${base_dir}/tests/resources/configs" \( -name "*.yaml" -o -name "*.yml" \) -exec grep -Po "ghcr\.io.*[^\s]" {} \; | sort -u)
+    for image in $stest_container_images; do
+        if podman image exists $image; then
+            echo "Podman: container image '$image' already exists. Skipping pull."
+        else
+            echo "Podman: pull container image '$image'"
+            podman pull $image
+        fi
+
+        # nerdctl has no 'exists' command and when filtering it outputs in any case with exit 0
+        if nerdctl image ls --format='{{.Name}}' | grep -q "$image"; then
+            echo "Nerdctl: container image '$image' already exists in nerdctl. Skipping pull."
+        else
+            echo "Nerdctl: pull container image '$image'"
+            nerdctl pull $image
+        fi
+    done
+    echo "All container images pulled."
+}
+
 if [[ -z "$ANK_BIN_DIR" ]]; then
     ANK_BIN_DIR="$default_executable_dir"
     echo Use default executable directory: $ANK_BIN_DIR
@@ -68,4 +91,8 @@ else
     $script_dir/start-containerd.sh $target_dir/containerd.log
 fi
 
+# pre-fetch container images to avoid timeouts during tests
+pull_container_images
+
+# run robot tests
 ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:TRACE -x xunitOut.xml -d ${target_dir} "$@"

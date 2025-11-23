@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use async_trait::async_trait;
-
 use crate::{
     communications_error::CommunicationMiddlewareError, from_server_interface::FromServerSender,
     to_server_interface::ToServerReceiver,
 };
+
+use async_trait::async_trait;
 
 // [impl->swdd~common-interface-definitions~1]
 #[async_trait]

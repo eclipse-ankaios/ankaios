@@ -1,0 +1,20 @@
+[package]
+name = "ank-schema"
+version = "0.8.0-pre"
+edition = "2024"
+license = "Apache-2.0"
+description = "Eclipse Ankaios schema generating component"
+documentation = "https://eclipse-ankaios.github.io/ankaios"
+authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
+repository = "https://github.com/eclipse-ankaios/ankaios"
+
+[dependencies]
+ankaios-api = { path = "../ankaios_api" }
+serde_json = "1.0"
+schemars = "1.0"
+
+[build-dependencies]
+ankaios-api = { path = "../ankaios_api" }
+serde_json = "1.0"
+schemars = "1.0"
+env = "1.0"

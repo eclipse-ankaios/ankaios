@@ -1,0 +1,58 @@
+// Copyright (c) 2025 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+mod spec_enum;
+mod spec_struct;
+
+use spec_enum::derive_spec_enum;
+use spec_struct::derive_spec_struct;
+
+use crate::utils;
+
+use proc_macro2::TokenStream;
+use quote::quote;
+use syn::{Data, DataEnum, DataStruct, DeriveInput, Fields};
+
+pub fn derive_spec(input: DeriveInput) -> syn::Result<TokenStream> {
+    let orig_name = input.ident;
+    let vis = input.vis.clone();
+    let current_doc_attrs = utils::get_doc_attrs(&input.attrs);
+    let new_type_attrs = utils::get_spec_type_attrs(&input.attrs);
+
+    let combined_attrs = current_doc_attrs
+        .clone()
+        .into_iter()
+        .chain(new_type_attrs)
+        .collect::<Vec<_>>();
+
+    let spec = match input.data {
+        Data::Struct(DataStruct {
+            fields: Fields::Named(fields),
+            ..
+        }) => derive_spec_struct(fields, orig_name, vis, combined_attrs)?,
+        Data::Enum(DataEnum { variants, .. }) => {
+            derive_spec_enum(variants, orig_name, vis, combined_attrs)?
+        }
+        _ => Err(syn::Error::new_spanned(
+            orig_name,
+            "Spec derive only supports named structs and enums",
+        ))?,
+    };
+
+    let expanded = quote! {
+        #spec
+    };
+
+    Ok(expanded)
+}

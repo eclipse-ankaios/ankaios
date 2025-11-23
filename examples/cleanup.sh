@@ -18,7 +18,7 @@ fi
 # Cleanup containerd
 if pgrep -x "containerd" > /dev/null; then
     echo "Cleaning up containerd ..."
-    nerdctl stop "$(nerdctl ps -a -q)" >/dev/null 2>&1
-    nerdctl rm "$(nerdctl ps -a -q)" >/dev/null 2>&1
+    nerdctl ps -aq | xargs -r nerdctl stop >/dev/null 2>&1
+    nerdctl ps -aq | xargs -r nerdctl rm >/dev/null 2>&1
     echo "done."
 fi
