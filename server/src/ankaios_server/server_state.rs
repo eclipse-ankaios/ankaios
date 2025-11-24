@@ -871,6 +871,27 @@ mod tests {
 
     // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
+    fn utest_server_state_update_state_remove_fails_from_non_map() {
+        let old_state = generate_test_old_state();
+        let update_state = generate_test_update_state();
+        let field_mask = "desiredState.workloads.non.existing";
+        let update_mask = vec![field_mask.into()];
+
+        let server_state = ServerState {
+            state: old_state.clone(),
+            ..Default::default()
+        };
+        let result = server_state.generate_new_state(update_state, update_mask);
+
+        assert_eq!(
+            Err(UpdateStateError::FieldNotFound(field_mask.into())),
+            result
+        );
+        assert_eq!(server_state.state, old_state);
+    }
+
+    // [utest->swdd~update-desired-state-with-update-mask~1]
+    #[test]
     fn utest_server_state_update_state_fails_with_update_mask_empty_string() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
