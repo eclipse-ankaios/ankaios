@@ -19,33 +19,6 @@ use crate::ank_base::{
 };
 use std::collections::hash_map::Entry;
 
-impl WorkloadStatesMap {
-    pub fn get_workload_state_for_agent(&self, agent_name: &str) -> Vec<WorkloadState> {
-        self.agent_state_map
-            .get(agent_name)
-            .map(|name_map| {
-                name_map
-                    .wl_name_state_map
-                    .iter()
-                    .flat_map(|(wl_name, id_map)| {
-                        id_map
-                            .id_state_map
-                            .iter()
-                            .map(move |(wl_id, exec_state)| WorkloadState {
-                                instance_name: Some(WorkloadInstanceName {
-                                    agent_name: agent_name.to_owned(),
-                                    workload_name: wl_name.clone(),
-                                    id: wl_id.clone(),
-                                }),
-                                execution_state: Some(exec_state.clone()),
-                            })
-                    })
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-}
-
 // [impl->swdd~state-map-for-workload-execution-states~2]
 impl WorkloadStatesMapSpec {
     pub fn new() -> WorkloadStatesMapSpec {
