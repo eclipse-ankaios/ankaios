@@ -188,7 +188,7 @@ impl WorkloadControlLoop {
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         log::debug!(
-            "Restart workload '{}' with restart policy '{}'",
+            "Restart workload '{}' with restart policy '{:?}'",
             control_loop_state
                 .workload_named
                 .instance_name
