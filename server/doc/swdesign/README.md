@@ -1291,17 +1291,17 @@ Needs:
 
 Status: approved
 
-The Ankaios Server shall provide a method for calculating the state differences between a current state and a new state represented as associative data structures with returning a tree structures for added, updated and removed fields.
+The StateComparator shall provide a method for calculating the state differences between a current state and a new state represented as associative data structures with returning tree structures for added, updated and removed field paths.
 
 Comment:
+Each tree contains the paths of the fields that have been changed, with a null value as the leaf.
 A custom Depth-Search-First (DFS) implementation comparing the current and new state fields is used.
 A sequence is treated as a leaf and in mappings only `string`s are supported as keys.
 An update from an empty sequence to a non-empty sequence is treated as an added field and the other way around as a removed field.
 Any other changes to a sequence field is treated as an updated field.
-A leaf value is represented as null value.
 
 Tags:
-- AnkaiosServer
+- StateComparator
 
 Needs:
 - impl
@@ -1470,8 +1470,8 @@ Status: approved
 
 When the EventHandler is triggered to send events, for each event subscriber the EventHandler shall:
 
-* create the altered fields for added, updated and deleted fields for each field difference of the state matching the subscriber's field mask
-* filter the CompleteState with all altered fields
+* create the altered fields for added, updated and deleted fields matching the subscriber's field mask
+* filter the CompleteState with all altered fields matching the subscriber's field masks
 * send a `CompleteStateResponse` message containing the altered fields and the filtered CompleteState if there is at least one entry in one of the altered fields.
 
 Tags:
@@ -1481,18 +1481,19 @@ Needs:
 - impl
 - utest
 
-##### EventHandler calculates leaf paths as altered field masks
-`swdd~event-handler-calculates-leaf-paths-as-altered-field-masks~1`
+##### EventHandler calculates altered field masks
+`swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1`
 
 Status: approved
 
 When the EventHandler creates altered field masks for the field masks of a subscriber, for each difference tree, the EventHandler shall:
 
-* expand the subscriber's field masks on the difference tree
-* add the leaf path for every expanded subscriber's field mask matching at least one path in the difference tree
+* compare the subscriber's field mask parts including wildcard symbols (`*`) against the available paths in the difference tree
+* extend the matching paths with all available sub paths in the difference tree based on the current subscriber's field mask
+* create the altered fields of all constructed matching field paths
 
 Comment:
-The comparison is done by a custom depth-first-search (DFS) algorithm comparing the expanded subscriber field masks with the field masks in the trees for added, updated and removed fields.
+The comparison is done by a custom depth-first-search (DFS) algorithm comparing the subscriber field masks including wildcards with the field masks paths in the trees for added, updated and removed fields.
 
 Rationale:
 A subscriber's field mask may contain wild cards to subscribe to all subfields.

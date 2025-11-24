@@ -797,6 +797,7 @@ mod tests {
     };
     use crate::ankaios_server::state_comparator::{
         FieldDifferencePath, MockStateComparator, StateDifferenceTree,
+        generate_difference_tree_from_paths, validate_path_in_tree,
     };
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
@@ -3112,9 +3113,6 @@ mod tests {
             .expect_has_subscribers()
             .return_const(true);
 
-        let mut expected_state_difference_tree = StateDifferenceTree::new();
-        expected_state_difference_tree.insert_added_path(FieldDifferencePath::agent(AGENT_A));
-
         server
             .event_handler
             .expect_send_events()
@@ -3122,7 +3120,14 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::eq(expected_state_difference_tree),
+                mockall::predicate::function(|state_diff_tree: &StateDifferenceTree| {
+                    assert!(state_diff_tree.removed_tree.is_empty());
+                    assert!(state_diff_tree.updated_tree.is_empty());
+                    validate_path_in_tree(
+                        state_diff_tree.added_tree.clone(),
+                        &FieldDifferencePath::agent(AGENT_A),
+                    )
+                }),
                 mockall::predicate::always(),
             )
             .once()
@@ -3163,12 +3168,7 @@ mod tests {
             ExecutionState::running(),
         );
 
-        let mut expected_state_difference_tree = StateDifferenceTree::new();
-        expected_state_difference_tree.insert_removed_path(FieldDifferencePath::agent(AGENT_A));
-        expected_state_difference_tree.insert_updated_path(FieldDifferencePath::workload_state(
-            &test_wl_1_state_running.instance_name,
-        ));
-
+        let wl_state = test_wl_1_state_running.clone();
         server
             .event_handler
             .expect_send_events()
@@ -3176,7 +3176,16 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::eq(expected_state_difference_tree),
+                mockall::predicate::function(move |state_diff_tree: &StateDifferenceTree| {
+                    assert!(state_diff_tree.added_tree.is_empty());
+                    validate_path_in_tree(
+                        state_diff_tree.removed_tree.clone(),
+                        &FieldDifferencePath::agent(AGENT_A),
+                    ) && validate_path_in_tree(
+                        state_diff_tree.updated_tree.clone(),
+                        &FieldDifferencePath::workload_state(&wl_state.instance_name),
+                    )
+                }),
                 mockall::predicate::always(),
             )
             .once()
@@ -3247,12 +3256,11 @@ mod tests {
         };
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
-        expected_state_difference_tree.insert_added_path(vec![
+        expected_state_difference_tree.added_tree = generate_difference_tree_from_paths(&[vec![
             "desiredState".to_owned(),
             "workloads".to_owned(),
             WORKLOAD_NAME_1.to_owned(),
-            "agent".to_owned(),
-        ]);
+        ]]);
 
         let state_difference_tree = expected_state_difference_tree.clone();
         state_generation_result
@@ -3285,10 +3293,6 @@ mod tests {
             .once()
             .return_const(true);
 
-        expected_state_difference_tree.insert_added_path(FieldDifferencePath::workload_state(
-            &updated_w1.instance_name,
-        ));
-
         expected_state_difference_tree
             .insert_removed_path(FieldDifferencePath::workload_state(&w1.instance_name));
 
@@ -3298,6 +3302,8 @@ mod tests {
             execution_state: ExecutionState::initial(),
         }]);
 
+        let updated_instance_name = updated_w1.instance_name.clone();
+        let removed_instance_name = w1.instance_name.clone();
         server
             .event_handler
             .expect_send_events()
@@ -3305,7 +3311,16 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::eq(expected_workload_states_map),
                 mockall::predicate::eq(AgentMap::default()),
-                mockall::predicate::eq(expected_state_difference_tree),
+                mockall::predicate::function(move |state_diff_tree: &StateDifferenceTree| {
+                    assert!(state_diff_tree.updated_tree.is_empty());
+                    validate_path_in_tree(
+                        state_diff_tree.added_tree.clone(),
+                        &FieldDifferencePath::workload_state(&updated_instance_name),
+                    ) && validate_path_in_tree(
+                        state_diff_tree.removed_tree.clone(),
+                        &FieldDifferencePath::workload_state(&removed_instance_name),
+                    )
+                }),
                 mockall::predicate::function(move |event_sender_channel: &FromServerSender| {
                     event_sender_channel.same_channel(&to_agents)
                 }),
@@ -3350,9 +3365,13 @@ mod tests {
         };
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
-
-        expected_state_difference_tree
-            .insert_updated_path(vec!["configs".to_owned(), "config_2".to_owned()]);
+        let updated_path = vec![
+            "desiredState".to_owned(),
+            "configs".to_owned(),
+            "config_2".to_owned(),
+        ];
+        expected_state_difference_tree.updated_tree =
+            generate_difference_tree_from_paths(&[updated_path.clone()]);
 
         let state_difference_tree = expected_state_difference_tree.clone();
         state_generation_result
@@ -3389,7 +3408,11 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::eq(expected_state_difference_tree),
+                mockall::predicate::function(move |state_diff_tree: &StateDifferenceTree| {
+                    assert!(state_diff_tree.added_tree.is_empty());
+                    assert!(state_diff_tree.removed_tree.is_empty());
+                    validate_path_in_tree(state_diff_tree.updated_tree.clone(), &updated_path)
+                }),
                 mockall::predicate::always(),
             )
             .once()
@@ -3435,14 +3458,17 @@ mod tests {
         );
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
+        expected_state_difference_tree.updated_tree =
+            generate_difference_tree_from_paths(&[FieldDifferencePath::workload_state(
+                &workload_state_1.instance_name,
+            )]);
+        expected_state_difference_tree.removed_tree =
+            generate_difference_tree_from_paths(&[FieldDifferencePath::workload_state(
+                &workload_state_2.instance_name,
+            )]);
 
-        expected_state_difference_tree.insert_updated_path(FieldDifferencePath::workload_state(
-            &workload_state_1.instance_name,
-        ));
-        expected_state_difference_tree.insert_removed_path(FieldDifferencePath::workload_state(
-            &workload_state_2.instance_name,
-        ));
-
+        let updated_instance_name = workload_state_1.instance_name.clone();
+        let removed_instance_name = workload_state_2.instance_name.clone();
         server
             .event_handler
             .expect_send_events()
@@ -3450,7 +3476,16 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::eq(expected_state_difference_tree),
+                mockall::predicate::function(move |state_diff_tree: &StateDifferenceTree| {
+                    assert!(state_diff_tree.added_tree.is_empty());
+                    validate_path_in_tree(
+                        state_diff_tree.updated_tree.clone(),
+                        &FieldDifferencePath::workload_state(&updated_instance_name),
+                    ) && validate_path_in_tree(
+                        state_diff_tree.removed_tree.clone(),
+                        &FieldDifferencePath::workload_state(&removed_instance_name),
+                    )
+                }),
                 mockall::predicate::always(),
             )
             .once()
@@ -3482,9 +3517,11 @@ mod tests {
             .return_const(true);
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
-        expected_state_difference_tree.insert_updated_path(FieldDifferencePath::agent_cpu(AGENT_A));
-        expected_state_difference_tree
-            .insert_updated_path(FieldDifferencePath::agent_memory(AGENT_A));
+        expected_state_difference_tree.updated_tree = generate_difference_tree_from_paths(&[
+            FieldDifferencePath::agent_cpu(AGENT_A),
+            FieldDifferencePath::agent_memory(AGENT_A),
+        ]);
+
         server
             .event_handler
             .expect_send_events()
@@ -3492,7 +3529,17 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::eq(expected_state_difference_tree),
+                mockall::predicate::function(move |state_diff_tree: &StateDifferenceTree| {
+                    assert!(state_diff_tree.added_tree.is_empty());
+                    assert!(state_diff_tree.removed_tree.is_empty());
+                    validate_path_in_tree(
+                        state_diff_tree.updated_tree.clone(),
+                        &FieldDifferencePath::agent_cpu(AGENT_A),
+                    ) && validate_path_in_tree(
+                        state_diff_tree.updated_tree.clone(),
+                        &FieldDifferencePath::agent_memory(AGENT_A),
+                    )
+                }),
                 mockall::predicate::always(),
             )
             .once()

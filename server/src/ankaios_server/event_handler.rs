@@ -21,7 +21,7 @@ use super::request_id::RequestId;
 use common::{
     from_server_interface::{FromServerInterface, FromServerSender},
     objects::{AgentMap, WorkloadStatesMap},
-    state_manipulation::{Object, Path},
+    state_manipulation::Path,
     std_extensions::IllegalStateResult,
 };
 use std::collections::HashMap;
@@ -36,6 +36,8 @@ type SubscribedFieldMasks = Vec<Path>;
 pub struct EventHandler {
     subscriber_store: HashMap<RequestId, SubscribedFieldMasks>,
 }
+
+const WILDCARD_SYMBOL: &str = "*";
 
 #[cfg_attr(test, automock)]
 impl EventHandler {
@@ -65,9 +67,26 @@ impl EventHandler {
         field_difference_tree: StateDifferenceTree,
         from_server_channel: &FromServerSender,
     ) {
+        let added_tree = field_difference_tree.added_tree.into();
+        let removed_tree = field_difference_tree.removed_tree.into();
+        let updated_tree = field_difference_tree.updated_tree.into();
         for (request_id, subscribed_field_masks) in &self.subscriber_store {
-            // [impl->swdd~event-handler-calculates-leaf-paths-as-altered-field-masks~1]
-            let altered_fields = get_altered_fields(&field_difference_tree, subscribed_field_masks);
+            // [impl->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
+            let altered_fields = AlteredFields {
+                added_fields: collect_altered_fields_matching_subscriber_masks(
+                    &added_tree,
+                    subscribed_field_masks,
+                ),
+                removed_fields: collect_altered_fields_matching_subscriber_masks(
+                    &removed_tree,
+                    subscribed_field_masks,
+                ),
+                updated_fields: collect_altered_fields_matching_subscriber_masks(
+                    &updated_tree,
+                    subscribed_field_masks,
+                ),
+            };
+
             let mut filter_masks = altered_fields.added_fields.clone();
             filter_masks.extend(altered_fields.removed_fields.clone());
             filter_masks.extend(altered_fields.updated_fields.clone());
@@ -101,64 +120,73 @@ impl EventHandler {
     }
 }
 
-// [impl->swdd~event-handler-calculates-leaf-paths-as-altered-field-masks~1]
-fn get_altered_fields(
-    field_difference_tree: &StateDifferenceTree,
-    paths: &[Path],
-) -> AlteredFields {
-    let mut altered_fields = AlteredFields::default();
+// [impl->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
+fn collect_altered_fields_matching_subscriber_masks(
+    tree: &serde_yaml::Mapping,
+    subscriber_field_masks: &[Path],
+) -> Vec<String> {
+    let mut altered_fields = Vec::new();
+    for subscriber_mask in subscriber_field_masks {
+        let mut stack_task = vec![(tree, subscriber_mask.parts().as_slice(), String::new())];
 
-    let expanded_added_paths = field_difference_tree.added_tree.expand_wildcards(paths);
-    collect_altered_fields(
-        &field_difference_tree.added_tree,
-        &expanded_added_paths,
-        &mut altered_fields.added_fields,
-    );
-
-    let expanded_removed_paths = field_difference_tree.removed_tree.expand_wildcards(paths);
-    collect_altered_fields(
-        &field_difference_tree.removed_tree,
-        &expanded_removed_paths,
-        &mut altered_fields.removed_fields,
-    );
-
-    let expanded_updated_paths = field_difference_tree.updated_tree.expand_wildcards(paths);
-    collect_altered_fields(
-        &field_difference_tree.updated_tree,
-        &expanded_updated_paths,
-        &mut altered_fields.updated_fields,
-    );
+        while let Some((current_node, remaining_parts, current_path)) = stack_task.pop() {
+            if remaining_parts.is_empty() {
+                // We've reached the end of the subscriber mask; collect all leaf paths from here
+                let leaf_paths =
+                    collect_all_leaf_paths_iterative(&Value::Mapping(current_node.clone()));
+                for leaf_path in leaf_paths {
+                    let full_path = update_path_with_new_key(&current_path, &leaf_path);
+                    altered_fields.push(full_path);
+                }
+            } else {
+                let next_part = &remaining_parts[0];
+                if next_part == WILDCARD_SYMBOL {
+                    // Wildcard: traverse all children
+                    for (key, child_node) in current_node {
+                        if let Value::String(key_str) = key {
+                            let new_path = update_path_with_new_key(&current_path, key_str);
+                            if let Value::Mapping(child_map) = child_node {
+                                stack_task.push((child_map, &remaining_parts[1..], new_path));
+                            } else if let Value::Null = child_node
+                                && remaining_parts[1..].is_empty()
+                            {
+                                // Treat Null as a leaf node
+                                altered_fields.push(new_path);
+                            }
+                        }
+                    }
+                } else {
+                    // Specific part: traverse that child if it exists
+                    if let Some(child_node) = current_node.get(Value::String(next_part.clone())) {
+                        let new_path = update_path_with_new_key(&current_path, next_part);
+                        if let Value::Mapping(child_map) = child_node {
+                            stack_task.push((child_map, &remaining_parts[1..], new_path));
+                        } else if let Value::Null = child_node
+                            && remaining_parts[1..].is_empty()
+                        {
+                            // Treat Null as a leaf node
+                            altered_fields.push(new_path);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     altered_fields
 }
 
-fn collect_altered_fields(
-    tree: &Object,
-    subscriber_field_masks: &[Path],
-    altered_fields: &mut Vec<String>,
-) {
-    for path in subscriber_field_masks {
-        if let Some(node) = tree.get(path).cloned() {
-            let fields_matching_mask = collect_all_leaf_paths_iterative(&node, path.parts());
-            fields_matching_mask.into_iter().for_each(|leaf_path| {
-                altered_fields.push(leaf_path);
-            });
-        }
-    }
-}
-
-/// Collect all leaf paths reachable from the provided start path.
-pub fn collect_all_leaf_paths_iterative(root: &Value, start_path: &[String]) -> Vec<String> {
-    let node = root;
-    let prefix = start_path.join(".");
+// [impl->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
+pub fn collect_all_leaf_paths_iterative(start_node: &Value) -> Vec<String> {
+    let node = start_node;
     let mut results = Vec::new();
-    let mut stack = vec![(node, prefix)];
+    let mut stack = vec![(node, String::new())];
     while let Some((current, current_path)) = stack.pop() {
         match current {
             Value::Mapping(map) if !map.is_empty() => {
                 for (current_key, current_value) in map {
                     if let Value::String(new_key) = current_key {
-                        let new_path = format!("{current_path}.{new_key}");
+                        let new_path = update_path_with_new_key(&current_path, new_key);
                         stack.push((current_value, new_path));
                     }
                 }
@@ -170,6 +198,15 @@ pub fn collect_all_leaf_paths_iterative(root: &Value, start_path: &[String]) -> 
         }
     }
     results
+}
+
+// [impl->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
+fn update_path_with_new_key(current_path: &str, new_key: &str) -> String {
+    if current_path.is_empty() {
+        new_key.to_owned()
+    } else {
+        format!("{current_path}.{new_key}")
+    }
 }
 
 #[derive(Debug, Default)]
@@ -222,7 +259,11 @@ mod tests {
     use mockall::predicate;
 
     use super::EventHandler;
-    use crate::ankaios_server::{create_from_server_channel, server_state::MockServerState};
+    use crate::ankaios_server::{
+        create_from_server_channel,
+        event_handler::collect_altered_fields_matching_subscriber_masks,
+        server_state::MockServerState,
+    };
 
     const REQUEST_ID_1: &str = "agent_A@workload_1@1234";
     const REQUEST_ID_2: &str = "agent_B@workload_2@5678";
@@ -293,7 +334,7 @@ mod tests {
     }
 
     // [utest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
-    // [utest->swdd~event-handler-calculates-leaf-paths-as-altered-field-masks~1]
+    // [utest->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
     #[tokio::test]
     async fn utest_event_handler_send_events() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -423,5 +464,82 @@ mod tests {
 
         assert_eq!(complete_state, expected_complete_state);
         assert_eq!(altered_fields, expected_altered_fields);
+    }
+
+    // [utest->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
+    #[test]
+    fn utest_collect_altered_fields_matching_subscriber_masks_with_masks_matching_sub_tree_or_exact_field_path()
+     {
+        let yaml_data = r#"
+        root:
+            child1:
+                grandchild1: null
+                grandchild2:
+                    great_grandchild: null
+            child2: null
+        "#;
+
+        let parsed_yaml: serde_yaml::Value = serde_yaml::from_str(yaml_data).unwrap();
+        let serde_yaml::Value::Mapping(tree) = parsed_yaml else {
+            panic!("Expected YAML mapping at root");
+        };
+
+        // case 1: all sub paths from root
+        let altered_fields = collect_altered_fields_matching_subscriber_masks(&tree, &["".into()]);
+        assert_eq!(altered_fields.len(), 3);
+        assert!(altered_fields.contains(&"root.child1.grandchild1".to_owned()));
+        assert!(altered_fields.contains(&"root.child1.grandchild2.great_grandchild".to_owned()));
+        assert!(altered_fields.contains(&"root.child2".to_owned()));
+
+        // case 2: all sub paths from a child
+        let altered_fields =
+            collect_altered_fields_matching_subscriber_masks(&tree, &["root.child1".into()]);
+        assert_eq!(altered_fields.len(), 2);
+        assert!(altered_fields.contains(&"root.child1.grandchild1".to_owned()));
+        assert!(altered_fields.contains(&"root.child1.grandchild2.great_grandchild".to_owned()));
+    }
+
+    #[test]
+    fn utest_collect_altered_fields_matching_subscriber_masks_with_wildcard_mask_matching_sub_tree()
+    {
+        let yaml_data = r#"
+        root:
+            child1:
+                grandchild1: null
+                grandchild2:
+                    great_grandchild: null
+            child2: null
+        "#;
+
+        let parsed_yaml: serde_yaml::Value = serde_yaml::from_str(yaml_data).unwrap();
+        let serde_yaml::Value::Mapping(tree) = parsed_yaml else {
+            panic!("Expected YAML mapping at root");
+        };
+
+        let altered_fields = collect_altered_fields_matching_subscriber_masks(&tree, &["*".into()]);
+        assert_eq!(altered_fields.len(), 3);
+        assert!(altered_fields.contains(&"root.child1.grandchild1".to_owned()));
+        assert!(altered_fields.contains(&"root.child1.grandchild2.great_grandchild".to_owned()));
+        assert!(altered_fields.contains(&"root.child2".to_owned()));
+    }
+
+    #[test]
+    fn utest_collect_altered_fields_matching_subscriber_masks_with_not_existing_field() {
+        let yaml_data = r#"
+        root:
+            child1:
+                grandchild1: null
+        "#;
+
+        let parsed_yaml: serde_yaml::Value = serde_yaml::from_str(yaml_data).unwrap();
+        let serde_yaml::Value::Mapping(tree) = parsed_yaml else {
+            panic!("Expected YAML mapping at root");
+        };
+
+        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+            &tree,
+            &["root.child1.grandchild1.non_existing".into()],
+        );
+        assert!(altered_fields.is_empty());
     }
 }

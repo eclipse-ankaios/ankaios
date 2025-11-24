@@ -49,7 +49,7 @@ impl StateComparator {
     ///
     /// ## Returns
     ///
-    /// - a [`StateDifferenceTree`] containing added, updated and removed fields as separate tree structures.
+    /// - a [`StateDifferenceTree`] containing added, updated and removed field paths as separate tree structures. Leaf nodes have a null value.
     ///
     pub fn state_differences(&self) -> StateDifferenceTree {
         let mut state_difference_tree = StateDifferenceTree::new();
@@ -253,13 +253,54 @@ impl FieldDifferencePath {
     }
 }
 
+#[cfg(test)]
+pub fn validate_path_in_tree(tree: Object, path: &[String]) -> bool {
+    let mapping = &Value::Mapping(tree.into());
+    let mut current_node = mapping;
+    for key in path {
+        let next_node = current_node.get(key);
+        assert!(next_node.is_some(), "Key '{key}' not found in the tree.");
+        current_node = next_node.unwrap_or_unreachable();
+    }
+    true
+}
+
+#[cfg(test)]
+pub fn generate_difference_tree_from_paths(new_tree_paths: &[Vec<String>]) -> Object {
+    let mut mapping = serde_yaml::Mapping::new();
+    for tree_path in new_tree_paths {
+        let mut current_map = &mut mapping;
+        let last = tree_path.last();
+        for part in tree_path {
+            if Some(part) == last {
+                break;
+            }
+            current_map.insert(
+                Value::String(part.clone()),
+                serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
+            );
+            current_map = current_map
+                .get_mut(Value::String(part.to_owned()))
+                .unwrap_or_unreachable()
+                .as_mapping_mut()
+                .unwrap_or_unreachable();
+        }
+        if let Some(last) = last {
+            current_map.insert(Value::String(last.to_owned()), serde_yaml::Value::Null);
+        }
+    }
+    Object::from(serde_yaml::Value::Mapping(mapping))
+}
+
 // [utest->swdd~server-calculates-state-differences~1]
 #[cfg(test)]
 mod tests {
+    use common::{
+        objects::WorkloadInstanceName,
+        state_manipulation::{Object, Path},
+    };
 
-    use common::{objects::WorkloadInstanceName, state_manipulation::Object};
-
-    use super::{FieldDifferencePath, Mapping, StateComparator};
+    use super::{FieldDifferencePath, Mapping, StateComparator, StateDifferenceTree};
 
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";
@@ -606,5 +647,92 @@ mod tests {
                 instance_name.id().to_owned(),
             ]
         );
+    }
+
+    #[test]
+    fn utest_state_difference_tree_insert_variants() {
+        let mut state_difference_tree = StateDifferenceTree::new();
+        let path = vec!["level_1".to_owned(), "level_2".to_owned()];
+        state_difference_tree.insert_added_path(path.clone());
+        state_difference_tree.insert_removed_path(path.clone());
+        state_difference_tree.insert_updated_path(path);
+
+        let expected_tree_yaml = r#"
+            level_1:
+              level_2: null
+        "#;
+        let expected_tree =
+            Object::from(serde_yaml::from_str::<serde_yaml::Value>(expected_tree_yaml).unwrap());
+
+        assert_eq!(state_difference_tree.added_tree, expected_tree);
+        assert_eq!(state_difference_tree.removed_tree, expected_tree);
+        assert_eq!(state_difference_tree.updated_tree, expected_tree);
+    }
+
+    #[test]
+    fn utest_state_difference_tree_is_empty() {
+        let empty_tree = StateDifferenceTree::new();
+        assert!(empty_tree.is_empty());
+
+        let empty_tree = StateDifferenceTree {
+            added_tree: Object::default(),
+            removed_tree: Object::from(serde_yaml::Value::Mapping(Mapping::new())),
+            updated_tree: Object::default(),
+        };
+
+        assert!(empty_tree.is_empty());
+
+        let new_tree = Mapping::from_iter([(
+            serde_yaml::Value::String("key".to_owned()),
+            serde_yaml::Value::String("value".to_owned()),
+        )]);
+        let non_empty_tree = StateDifferenceTree {
+            added_tree: Object::default(),
+            removed_tree: Object::from(serde_yaml::Value::Mapping(new_tree)),
+            updated_tree: Object::default(),
+        };
+        assert!(!non_empty_tree.is_empty());
+    }
+
+    #[test]
+    fn utest_state_difference_tree_insert_path() {
+        let initial_tree_yaml = r#"
+            level_1_0:
+              level_2_0: null
+        "#;
+
+        let mut tree =
+            Object::from(serde_yaml::from_str::<serde_yaml::Value>(initial_tree_yaml).unwrap());
+
+        let path = Path::from(vec!["level_1_0".to_owned(), "level_2_1".to_owned()]);
+        StateDifferenceTree::insert_path(
+            &mut tree,
+            path,
+            serde_yaml::Value::String("value".to_owned()),
+        );
+
+        let expected_tree_yaml = r#"
+            level_1_0:
+              level_2_0: null
+              level_2_1: value
+        "#;
+        let expected_tree =
+            Object::from(serde_yaml::from_str::<serde_yaml::Value>(expected_tree_yaml).unwrap());
+
+        assert_eq!(tree, expected_tree);
+
+        let path = Path::from(vec!["level_1_1".to_owned(), "level_2_0".to_owned()]);
+        StateDifferenceTree::insert_path(&mut tree, path, serde_yaml::Value::Null);
+
+        let expected_tree_yaml = r#"
+            level_1_0:
+              level_2_0: null
+              level_2_1: value
+            level_1_1:
+              level_2_0: null
+        "#;
+        let expected_tree =
+            Object::from(serde_yaml::from_str::<serde_yaml::Value>(expected_tree_yaml).unwrap());
+        assert_eq!(tree, expected_tree);
     }
 }
