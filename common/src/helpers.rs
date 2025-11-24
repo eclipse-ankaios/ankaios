@@ -11,10 +11,9 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use serde::{Serialize, Serializer};
-use std::collections::{BTreeMap, HashMap};
 
-use crate::{std_extensions::IllegalStateResult, ANKAIOS_VERSION};
+use crate::ANKAIOS_VERSION;
+use crate::std_extensions::IllegalStateResult;
 use semver::Version;
 
 // [impl->swdd~common-helper-methods~1]
@@ -23,17 +22,6 @@ where
     T: TryFrom<S, Error = E>,
 {
     input.into_iter().map(|x| x.try_into()).collect()
-}
-
-pub fn serialize_to_ordered_map<S, T: Serialize>(
-    value: &HashMap<String, T>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let ordered: BTreeMap<_, _> = value.iter().collect();
-    ordered.serialize(serializer)
 }
 
 // [impl->swdd~common-version-checking~1]
@@ -73,9 +61,8 @@ pub fn check_version_compatibility(version: impl AsRef<str>) -> Result<(), Strin
 
 #[cfg(test)]
 mod tests {
+    use crate::{ANKAIOS_VERSION, check_version_compatibility};
     use semver::Version;
-
-    use crate::{check_version_compatibility, ANKAIOS_VERSION};
 
     // [utest->swdd~common-version-checking~1]
     #[test]

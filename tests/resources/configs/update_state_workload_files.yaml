@@ -1,9 +1,9 @@
 desiredState:
-  apiVersion: v0.1
+  apiVersion: v1
   workloads:
     podman_workload_with_mounted_text_file:
       agent: agent_A
-      tags: []
+      tags: {}
       dependencies: {}
       restartPolicy: NEVER
       runtime: podman
@@ -17,7 +17,7 @@ desiredState:
         data: '{{nginx_conf}}'
     podman_workload_with_mounted_binary_file:
       agent: agent_A
-      tags: []
+      tags: {}
       dependencies: {}
       restartPolicy: NEVER
       runtime: podman

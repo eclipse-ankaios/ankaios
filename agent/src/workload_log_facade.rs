@@ -12,15 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_base;
-use common::commands::LogsRequest;
-use common::objects::WorkloadInstanceName;
+use crate::agent_manager::SynchronizedSubscriptionStore;
+
+use ankaios_api::ank_base::{
+    LogEntriesResponse, LogEntry, LogsRequestSpec, LogsStopResponse, WorkloadInstanceNameSpec,
+};
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerInterface, ToServerSender};
+
 use futures_util::{StreamExt, stream::FuturesUnordered};
 use std::{future::Future, pin::Pin};
-
-use crate::agent_manager::SynchronizedSubscriptionStore;
 
 #[cfg(not(test))]
 use crate::runtime_connectors::log_channel::Receiver;
@@ -46,7 +47,7 @@ use crate::subscription_store::MockSubscriptionEntry as SubscriptionEntry;
 
 pub struct WorkloadLogFacade;
 
-type ContinuableResult = (WorkloadInstanceName, Receiver, Option<Vec<String>>);
+type ContinuableResult = (WorkloadInstanceNameSpec, Receiver, Option<Vec<String>>);
 type UnorderedLogReceiverFutures =
     FuturesUnordered<Pin<Box<dyn Future<Output = ContinuableResult> + Send>>>;
 
@@ -55,7 +56,7 @@ impl WorkloadLogFacade {
     // [impl->swdd~agent-workload-log-facade-starts-log-collection~1]
     pub async fn spawn_log_collection(
         request_id: String,
-        logs_request: LogsRequest,
+        logs_request: LogsRequestSpec,
         to_server: ToServerSender,
         synchronized_subscription_store: SynchronizedSubscriptionStore,
         runtime_manager: &RuntimeManager,
@@ -104,7 +105,7 @@ impl WorkloadLogFacade {
     }
 
     fn convert_log_receivers_to_futures(
-        receivers: Vec<(WorkloadInstanceName, Receiver)>,
+        receivers: Vec<(WorkloadInstanceNameSpec, Receiver)>,
     ) -> UnorderedLogReceiverFutures {
         FuturesUnordered::from_iter(receivers.into_iter().map(
             |workload_log_info| -> Pin<Box<dyn Future<Output = ContinuableResult> + Send>> {
@@ -132,10 +133,10 @@ impl WorkloadLogFacade {
                 to_server
                     .log_entries_response(
                         request_id.clone(),
-                        ank_base::LogEntriesResponse {
+                        LogEntriesResponse {
                             log_entries: log_lines
                                 .into_iter()
-                                .map(|log_message| ank_base::LogEntry {
+                                .map(|log_message| LogEntry {
                                     workload_name: Some(workload_instance_name.clone().into()),
                                     message: log_message,
                                 })
@@ -158,7 +159,7 @@ impl WorkloadLogFacade {
                 to_server
                     .logs_stop_response(
                         request_id.clone(),
-                        ank_base::LogsStopResponse {
+                        LogsStopResponse {
                             workload_name: Some(workload_instance_name.into()),
                         },
                     )
@@ -184,8 +185,10 @@ mod tests {
     use crate::runtime_manager::MockRuntimeManager;
     use crate::subscription_store::{MockJoinHandle, MockSubscriptionEntry, SubscriptionEntry};
     use crate::workload_log_facade::WorkloadLogFacade;
-    use api::ank_base;
+
+    use ankaios_api::ank_base::{LogsRequestSpec, LogsStopResponse, WorkloadInstanceNameSpec};
     use common::to_server_interface::ToServer;
+
     use mockall::{mock, predicate};
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
@@ -301,25 +304,25 @@ mod tests {
             .expect()
             .return_once(move |_| SubscriptionEntry::new(mock_join_handle));
 
-        let workload_instance_name_1 = ank_base::WorkloadInstanceName {
+        let workload_instance_name_1 = WorkloadInstanceNameSpec {
             workload_name: WORKLOAD_1_NAME.into(),
             agent_name: AGENT_NAME.into(),
             id: "1234".into(),
         };
 
-        let workload_instance_name_2 = ank_base::WorkloadInstanceName {
+        let workload_instance_name_2 = WorkloadInstanceNameSpec {
             workload_name: WORKLOAD_2_NAME.into(),
             agent_name: AGENT_NAME.into(),
             id: "1234".into(),
         };
 
-        let logs_request = ank_base::LogsRequest {
+        let logs_request = LogsRequestSpec {
             workload_names: vec![
                 workload_instance_name_1.clone(),
                 workload_instance_name_2.clone(),
             ],
-            follow: None,
-            tail: None,
+            follow: false,
+            tail: -1,
             since: None,
             until: None,
         };
@@ -327,25 +330,17 @@ mod tests {
         let mut mock_runtime_manager = MockRuntimeManager::default();
         mock_runtime_manager
             .expect_get_log_fetchers()
-            .with(predicate::eq(common::commands::LogsRequest::from(
-                logs_request.clone(),
-            )))
+            .with(predicate::eq(logs_request.clone()))
             .return_once(|_| {
                 vec![
-                    (
-                        workload_instance_name_1.into(),
-                        Box::new(mock_log_fetcher_1),
-                    ),
-                    (
-                        workload_instance_name_2.into(),
-                        Box::new(mock_log_fetcher_2),
-                    ),
+                    (workload_instance_name_1, Box::new(mock_log_fetcher_1)),
+                    (workload_instance_name_2, Box::new(mock_log_fetcher_2)),
                 ]
             });
 
         WorkloadLogFacade::spawn_log_collection(
             REQUEST_ID.into(),
-            common::commands::LogsRequest::from(logs_request),
+            logs_request,
             to_server,
             SynchronizedSubscriptionStore::default(),
             &mock_runtime_manager,
@@ -428,16 +423,16 @@ mod tests {
             )
         });
 
-        let workload_instance_name_1 = ank_base::WorkloadInstanceName {
+        let workload_instance_name_1 = WorkloadInstanceNameSpec {
             workload_name: WORKLOAD_1_NAME.into(),
             agent_name: AGENT_NAME.into(),
             id: "1234".into(),
         };
 
-        let logs_request = ank_base::LogsRequest {
+        let logs_request = LogsRequestSpec {
             workload_names: vec![workload_instance_name_1.clone()],
-            follow: None,
-            tail: None,
+            follow: false,
+            tail: -1,
             since: None,
             until: None,
         };
@@ -448,7 +443,7 @@ mod tests {
             .expect_get_log_fetchers()
             .return_once(|_| {
                 vec![(
-                    cloned_workload_instance_name_1.into(),
+                    cloned_workload_instance_name_1,
                     Box::new(mock_log_fetcher_1),
                 )]
             });
@@ -463,7 +458,7 @@ mod tests {
         let synchronized_subscription_store = SynchronizedSubscriptionStore::default();
         WorkloadLogFacade::spawn_log_collection(
             REQUEST_ID.into(),
-            common::commands::LogsRequest::from(logs_request),
+            logs_request,
             to_server,
             synchronized_subscription_store.clone(),
             &mock_runtime_manager,
@@ -476,8 +471,8 @@ mod tests {
             logs_stop_response,
             Ok(Some(ToServer::LogsStopResponse(
                 REQUEST_ID.into(),
-                ank_base::LogsStopResponse {
-                    workload_name: Some(workload_instance_name_1),
+                LogsStopResponse {
+                    workload_name: Some(workload_instance_name_1.into()),
                 },
             )))
         );

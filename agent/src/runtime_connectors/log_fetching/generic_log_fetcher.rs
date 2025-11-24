@@ -12,14 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use super::log_fetcher::{GetOutputStreams, LogFetcher, NextLinesResult};
 use async_trait::async_trait;
 use bytes::BytesMut;
 use tokio::{
     io::{AsyncRead, AsyncReadExt},
     select,
 };
-
-use super::log_fetcher::{GetOutputStreams, LogFetcher, NextLinesResult};
 
 // [impl->swdd~agent-log-fetching-collects-logs~1]
 
@@ -160,10 +159,6 @@ fn convert_to_string(vec: impl Into<Vec<u8>>) -> String {
 
 #[cfg(test)]
 pub mod test {
-    use std::{collections::VecDeque, vec};
-
-    use tokio::io::AsyncRead;
-
     use super::NextLinesResult;
     use crate::runtime_connectors::{
         generic_log_fetcher::{GenericLogFetcher, GenericSingleLogFetcher},
@@ -171,6 +166,15 @@ pub mod test {
         podman::{PodmanWorkloadId, podman_log_fetcher::PodmanLogFetcher},
         runtime_connector::LogRequestOptions,
     };
+
+    use std::{
+        collections::VecDeque,
+        io::Error,
+        pin::Pin,
+        task::{Context, Poll},
+        vec,
+    };
+    use tokio::io::AsyncRead;
 
     const LINE_1: &str = "first line";
     const LINE_2: &str = "second line";
@@ -188,7 +192,7 @@ pub mod test {
     #[derive(Debug)]
     pub(crate) enum MockReadDataEntry {
         Data(Vec<u8>),
-        Error(std::io::Error),
+        Error(Error),
     }
 
     impl MockReadDataEntry {
@@ -197,26 +201,24 @@ pub mod test {
         }
 
         fn error() -> Self {
-            Self::Error(std::io::Error::other("".to_string()))
+            Self::Error(Error::other("".to_string()))
         }
     }
 
     impl AsyncRead for MockRead {
         fn poll_read(
-            mut self: std::pin::Pin<&mut Self>,
-            _cx: &mut std::task::Context<'_>,
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
             buf: &mut tokio::io::ReadBuf<'_>,
-        ) -> std::task::Poll<std::io::Result<()>> {
+        ) -> Poll<std::io::Result<()>> {
             let element = self.data.pop_front();
             match element {
                 Some(MockReadDataEntry::Data(data)) => {
                     buf.put_slice(&data);
-                    std::task::Poll::Ready(std::io::Result::Ok(()))
+                    Poll::Ready(std::io::Result::Ok(()))
                 }
-                Some(MockReadDataEntry::Error(err)) => {
-                    std::task::Poll::Ready(std::io::Result::Err(err))
-                }
-                None => std::task::Poll::Ready(std::io::Result::Ok(())),
+                Some(MockReadDataEntry::Error(err)) => Poll::Ready(std::io::Result::Err(err)),
+                None => Poll::Ready(std::io::Result::Ok(())),
             }
         }
     }

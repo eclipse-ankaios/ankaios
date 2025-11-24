@@ -18,7 +18,17 @@ set -e
 
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 base_dir="$script_dir/.."
-container_image_dir="$base_dir/tests/resources/control_interface_tester"
 
-cd $container_image_dir
-find . -type f | grep -v 'README.md' | sort | xargs sha256sum | sha256sum | sed 's/  -//'
+# Note that the file paths and the name are ignored for the final hash calculation
+cd "$base_dir"
+find "tests/resources/control_interface_tester" \
+    "ankaios_api/proto" \
+    "ankaios_api/build.rs" \
+    "ankaios_api/build" \
+    -type f \
+| grep -v 'README.md' \
+| sort \
+| xargs sha256sum \
+| awk '{print $1}' \
+| sha256sum \
+| sed 's/  -//'

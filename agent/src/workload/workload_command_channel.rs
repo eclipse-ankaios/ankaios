@@ -11,12 +11,14 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+
 use crate::{
     control_interface::ControlInterfacePath,
-    runtime_connectors::{log_fetcher::LogFetcher, LogRequestOptions},
+    runtime_connectors::{LogRequestOptions, log_fetcher::LogFetcher},
     workload::WorkloadCommand,
 };
-use common::objects::{WorkloadInstanceName, WorkloadSpec};
+use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadNamed};
+
 #[cfg(test)]
 use mockall_double::double;
 use tokio::sync::{mpsc, oneshot};
@@ -49,7 +51,7 @@ impl WorkloadCommandSender {
 
     pub async fn retry(
         &self,
-        instance_name: WorkloadInstanceName,
+        instance_name: WorkloadInstanceNameSpec,
         retry_token: RetryToken,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         let sender = self.sender.clone();
@@ -70,12 +72,12 @@ impl WorkloadCommandSender {
 
     pub async fn update(
         &self,
-        workload_spec: Option<WorkloadSpec>,
+        workload_named: Option<WorkloadNamed>,
         control_interface_path: Option<ControlInterfacePath>,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender
             .send(WorkloadCommand::Update(
-                workload_spec.map(Box::new),
+                workload_named.map(Box::new),
                 control_interface_path,
             ))
             .await
@@ -115,17 +117,18 @@ impl WorkloadCommandSender {
 
 #[cfg(test)]
 mod tests {
+    use super::{ControlInterfacePath, WorkloadCommand, WorkloadCommandSender};
     use crate::{
-        runtime_connectors::{log_fetcher::MockLogFetcher, LogRequestOptions},
+        runtime_connectors::{LogRequestOptions, log_fetcher::MockLogFetcher},
         workload::retry_manager::MockRetryToken,
     };
 
-    use super::{ControlInterfacePath, WorkloadCommand, WorkloadCommandSender, WorkloadSpec};
-    use common::objects::generate_test_workload_spec;
-    use std::path::PathBuf;
-    use tokio::sync::mpsc::Receiver;
+    use ankaios_api::ank_base::WorkloadNamed;
+    use ankaios_api::test_utils::generate_test_workload;
 
     use mockall::lazy_static;
+    use std::path::PathBuf;
+    use tokio::sync::mpsc::Receiver;
 
     const PIPES_LOCATION: &str = "/some/path";
     const LOG_REQUEST_OPTIONS: LogRequestOptions = LogRequestOptions {
@@ -136,7 +139,7 @@ mod tests {
     };
 
     lazy_static! {
-        pub static ref WORKLOAD_SPEC: WorkloadSpec = generate_test_workload_spec();
+        pub static ref WORKLOAD_SPEC: WorkloadNamed = generate_test_workload();
         pub static ref CONTROL_INTERFACE_PATH: Option<ControlInterfacePath> =
             Some(ControlInterfacePath::new(PathBuf::from(PIPES_LOCATION)));
     }
@@ -184,21 +187,18 @@ mod tests {
     async fn utest_send_update() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
-        let workload_spec = WORKLOAD_SPEC.clone();
+        let workload = WORKLOAD_SPEC.clone();
         let control_interface_path = CONTROL_INTERFACE_PATH.clone();
 
         workload_command_sender
-            .update(Some(workload_spec.clone()), control_interface_path.clone())
+            .update(Some(workload.clone()), control_interface_path.clone())
             .await
             .unwrap();
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert_eq!(
-            WorkloadCommand::Update(
-                Some(Box::new(workload_spec)),
-                control_interface_path.clone()
-            ),
+            WorkloadCommand::Update(Some(Box::new(workload)), control_interface_path.clone()),
             workload_command
         );
     }

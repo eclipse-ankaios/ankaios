@@ -15,7 +15,7 @@ A workload specification must contain the following information:
 * `runtime`, specify the type of the runtime. Currently supported values are `podman`, `containerd` and `podman-kube`.
 * `agent`, specify the name of the owning agent which is going to execute the workload. Supports templated strings.
 * `restartPolicy`, specify how the workload should be restarted upon exiting.
-* `tags`, specify a list of `key` `value`  pairs.
+* `tags`, specify a map of string key-value pairs for workload metadata and filtering.
 * `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) and for `containerd` the [ContainerdRuntimeConfig](#containerdruntimeconfig) is used. Supports templated strings.
 * `configs`: assign configuration items defined in the state's `configs` field to the workload
 * `files`: map workload files to a workload, see [here](../usage/manifest/workload-files.md) for details
@@ -24,15 +24,14 @@ A workload specification must contain the following information:
 Example `startup-config.yaml` file:
 
 ```yaml
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   nginx: # this is used as the workload name which is 'nginx'
     runtime: podman
     agent: agent_A
     restartPolicy: ALWAYS
     tags:
-      - key: owner
-        value: Ankaios team
+      owner: Ankaios team
     configs:
       port: web_server_port
     runtimeConfig: |
@@ -42,7 +41,7 @@ workloads:
       allowRules:
       - type: StateRule
         operation: Read
-        filterMask:
+        filterMasks:
         - "workloadStates"
 configs:
   web_server_port:
@@ -120,10 +119,13 @@ The runtime configuration for the `podman-kube` runtime is specified as follows:
 generalOptions: [<comma>, <separated>, <options>]
 playOptions: [<comma>, <separated>, <options>]
 downOptions: [<comma>, <separated>, <options>]
+controlInterfaceTarget: <pod_name>/<container_name>
 manifest: <string containing the K8s manifest>
 ```
 
 where each attribute is passed directly to `podman play kube`.
+
+The `controlInterfaceTarget` field is optional and specifies the target pod and container for the control interface. If not specified, the control interface will not be mounted for the workload.
 
 If we take as an example the `podman play kube` command:
 
