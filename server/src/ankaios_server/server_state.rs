@@ -372,8 +372,8 @@ mod tests {
     use ankaios_api::ank_base::{
         AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec,
         ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigObjectSpec, CpuUsageSpec,
-        DeletedWorkload, FreeMemorySpec, StateSpec, Workload, WorkloadMapSpec, WorkloadNamed,
-        WorkloadSpec, WorkloadStatesMapSpec,
+        DeletedWorkload, FreeMemorySpec, StateSpec, Workload, WorkloadInstanceNameSpec,
+        WorkloadMapSpec, WorkloadNamed, WorkloadSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
         generate_test_agent_map, generate_test_complete_state, generate_test_configs,
@@ -412,6 +412,31 @@ mod tests {
             .collect()
     }
 
+    fn from_map_to_vec(value: WorkloadStatesMapSpec) -> Vec<WorkloadStateSpec> {
+        value
+            .agent_state_map
+            .into_iter()
+            .flat_map(|(agent_name, name_state_map)| {
+                name_state_map.wl_name_state_map.into_iter().flat_map(
+                    move |(wl_name, id_state_map)| {
+                        let agent_name = agent_name.clone();
+                        id_state_map
+                            .id_state_map
+                            .into_iter()
+                            .map(move |(wl_id, exec_state)| WorkloadStateSpec {
+                                instance_name: WorkloadInstanceNameSpec::new(
+                                    agent_name.clone(),
+                                    wl_name.clone(),
+                                    wl_id,
+                                ),
+                                execution_state: exec_state,
+                            })
+                    },
+                )
+            })
+            .collect()
+    }
+
     // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
@@ -428,7 +453,8 @@ mod tests {
         let request_complete_state = CompleteStateRequestSpec { field_mask: vec![] };
 
         let mut workload_state_db = WorkloadStatesMapSpec::default();
-        workload_state_db.process_new_states(server_state.state.workload_states.clone().into());
+        workload_state_db
+            .process_new_states(from_map_to_vec(server_state.state.workload_states.clone()));
 
         let received_complete_state = server_state
             .get_complete_state_by_field_mask(request_complete_state, &workload_state_db)
@@ -457,7 +483,8 @@ mod tests {
         };
 
         let mut workload_state_map = WorkloadStatesMapSpec::default();
-        workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
+        workload_state_map
+            .process_new_states(from_map_to_vec(server_state.state.workload_states.clone()));
 
         let received_complete_state = server_state
             .get_complete_state_by_field_mask(request_complete_state, &workload_state_map)
@@ -497,7 +524,8 @@ mod tests {
         };
 
         let mut workload_state_map = WorkloadStatesMapSpec::default();
-        workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
+        workload_state_map
+            .process_new_states(from_map_to_vec(server_state.state.workload_states.clone()));
 
         let complete_state = server_state
             .get_complete_state_by_field_mask(request_complete_state, &workload_state_map)

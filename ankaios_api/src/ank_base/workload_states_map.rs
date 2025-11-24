@@ -187,33 +187,6 @@ impl WorkloadStatesMapSpec {
     }
 }
 
-impl From<WorkloadStatesMapSpec> for Vec<WorkloadStateSpec> {
-    fn from(value: WorkloadStatesMapSpec) -> Self {
-        value
-            .agent_state_map
-            .into_iter()
-            .flat_map(|(agent_name, name_state_map)| {
-                name_state_map.wl_name_state_map.into_iter().flat_map(
-                    move |(wl_name, id_state_map)| {
-                        let agent_name = agent_name.clone();
-                        id_state_map
-                            .id_state_map
-                            .into_iter()
-                            .map(move |(wl_id, exec_state)| WorkloadStateSpec {
-                                instance_name: WorkloadInstanceNameSpec::new(
-                                    agent_name.clone(),
-                                    wl_name.clone(),
-                                    wl_id,
-                                ),
-                                execution_state: exec_state,
-                            })
-                    },
-                )
-            })
-            .collect()
-    }
-}
-
 impl From<WorkloadStatesMap> for Vec<WorkloadState> {
     fn from(value: WorkloadStatesMap) -> Self {
         value
