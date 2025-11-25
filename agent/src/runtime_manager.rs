@@ -2331,19 +2331,6 @@ mod tests {
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
 
-        // runtime_manager
-        //     .forward_response(ank_base::Response {
-        //         request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-        //         response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
-        //             generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-        //                 AGENT_NAME.to_string(),
-        //                 WORKLOAD_1_NAME.to_string(),
-        //                 RUNTIME_NAME.to_string(),
-        //             )])
-        //             .into(),
-        //         ))),
-        //     })
-        //     .await;
         runtime_manager.forward_response(forwarded_response).await;
     }
 
