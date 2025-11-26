@@ -12,9 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::control_interface::{ToAnkaios, output_pipe::OutputPipeError, to_ankaios::Hello};
 use std::sync::Arc;
-
-use crate::control_interface::{ToAnkaios, output_pipe::OutputPipeError, to_ankaios};
 
 #[cfg_attr(test, mockall_double::double)]
 use super::authorizer::Authorizer;
@@ -22,9 +21,12 @@ use super::authorizer::Authorizer;
 use super::input_pipe::InputPipe;
 #[cfg_attr(test, mockall_double::double)]
 use super::output_pipe::OutputPipe;
-use api::{ank_base, control_api};
+use ankaios_api::{
+    ank_base::{self, RequestSpec},
+    control_api,
+};
 use common::{
-    check_version_compatibility, commands,
+    check_version_compatibility,
     from_server_interface::{FromServer, FromServerReceiver},
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
@@ -84,7 +86,7 @@ impl ControlInterfaceTask {
                 PROTOBUF_DECODE_ERROR_MSG.to_string()
             })?;
         match to_ankaios.try_into() {
-            Ok(ToAnkaios::Hello(to_ankaios::Hello { protocol_version })) => {
+            Ok(ToAnkaios::Hello(Hello { protocol_version })) => {
                 check_version_compatibility(protocol_version)?
             }
             unexpected => {
@@ -124,7 +126,7 @@ impl ControlInterfaceTask {
                             log::info!("Could not forward the response with Id: '{}'. Stopping log collection.", response.request_id);
                             match response.response_content {
                                 Some(ank_base::response::ResponseContent::LogEntriesResponse(_))=> {
-                                    let _ =self.to_server_sender.logs_cancel_request(commands::Request::prefix_id(&self.request_id_prefix, &response.request_id)).await;
+                                    let _ =self.to_server_sender.logs_cancel_request(RequestSpec::prefix_id(&self.request_id_prefix, &response.request_id)).await;
                                 }
                                 unexpected => {
                                     log::warn!("Unexpected response content: '{unexpected:?}'");
@@ -160,7 +162,7 @@ impl ControlInterfaceTask {
                                     let _ = self.forward_from_server(error).await;
                                 };
                             },
-                            Ok(ToAnkaios::Hello(to_ankaios::Hello{protocol_version})) => {
+                            Ok(ToAnkaios::Hello(Hello{protocol_version})) => {
                                 log::warn!("Received yet another Hello with protocol version '{protocol_version}'");
                                 if let Err(message) = check_version_compatibility(protocol_version) {
                                     log::warn!("{message}");
@@ -275,26 +277,29 @@ pub fn generate_test_control_interface_task_mock() -> __mock_MockControlInterfac
 
 #[cfg(test)]
 mod tests {
-    use std::{io::Error, sync::Arc};
-
-    use common::{
-        commands, from_server_interface::FromServerInterface, to_server_interface::ToServer,
-    };
-    use mockall::{Sequence, predicate};
-    use semver::Version;
-    use tokio::sync::mpsc;
-
-    use api::{ank_base, control_api};
-    use prost::Message;
-
     use super::ControlInterfaceTask;
-
     use crate::control_interface::{
         authorizer::MockAuthorizer,
         control_interface_task::INITIAL_HELLO_MISSING_MSG,
         input_pipe::MockInputPipe,
         output_pipe::{MockOutputPipe, OutputPipeError},
     };
+    use crate::test_helper::MOCKALL_CONTEXT_SYNC;
+
+    use ankaios_api::{
+        ank_base::{
+            CompleteStateRequest, Error as AnkError, LogEntriesResponse, LogsCancelRequestSpec,
+            Request, RequestContent, RequestContentSpec, RequestSpec, Response, ResponseContent,
+        },
+        control_api,
+    };
+    use common::{from_server_interface::FromServerInterface, to_server_interface::ToServer};
+
+    use mockall::{Sequence, predicate};
+    use prost::Message;
+    use semver::Version;
+    use std::{io::Error as IoError, sync::Arc};
+    use tokio::sync::mpsc;
 
     const REQUEST_ID: &str = "req_id";
 
@@ -322,14 +327,12 @@ mod tests {
     }
 
     fn prepare_request_complete_state_binary_message(field_mask: impl Into<String>) -> Vec<u8> {
-        let ank_request = ank_base::Request {
+        let ank_request = Request {
             request_id: REQUEST_ID.into(),
-            request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
-                ank_base::CompleteStateRequest {
-                    field_mask: vec![field_mask.into()],
-                    subscribe_for_events: false,
-                },
-            )),
+            request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: vec![field_mask.into()],
+                subscribe_for_events: false,
+            })),
         };
         let test_output_request = control_api::ToAnkaios {
             to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(ank_request)),
@@ -340,15 +343,11 @@ mod tests {
 
     #[tokio::test]
     async fn utest_control_interface_task_forward_from_server() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let response = ank_base::Response {
+        let response = Response {
             request_id: REQUEST_ID.into(),
-            response_content: Some(ank_base::response::ResponseContent::CompleteStateResponse(
-                Default::default(),
-            )),
+            response_content: Some(ResponseContent::CompleteStateResponse(Default::default())),
         };
 
         let test_command_binary = control_api::FromAnkaios {
@@ -390,15 +389,11 @@ mod tests {
     // [utest->swdd~agent-handles-control-interface-workload-gone~1]
     #[tokio::test]
     async fn utest_control_interface_task_forward_from_server_receiver_gone() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let response = ank_base::Response {
+        let response = Response {
             request_id: REQUEST_ID.into(),
-            response_content: Some(ank_base::response::ResponseContent::LogEntriesResponse(
-                Default::default(),
-            )),
+            response_content: Some(ResponseContent::LogEntriesResponse(Default::default())),
         };
 
         let test_command_binary = control_api::FromAnkaios {
@@ -414,7 +409,7 @@ mod tests {
             .expect_write_all()
             .with(predicate::eq(test_command_binary))
             .return_once(|_| {
-                Err(OutputPipeError::ReceiverGone(Error::new(
+                Err(OutputPipeError::ReceiverGone(IoError::new(
                     std::io::ErrorKind::BrokenPipe,
                     "error",
                 )))
@@ -450,15 +445,11 @@ mod tests {
     // [utest->swdd~agent-handles-control-interface-workload-gone~1]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn utest_control_interface_task_run_delivery_of_logs_fails() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let response = ank_base::Response {
+        let response = Response {
             request_id: REQUEST_ID.into(),
-            response_content: Some(ank_base::response::ResponseContent::LogEntriesResponse(
-                Default::default(),
-            )),
+            response_content: Some(ResponseContent::LogEntriesResponse(Default::default())),
         };
 
         let test_command_binary = control_api::FromAnkaios {
@@ -486,7 +477,7 @@ mod tests {
             .return_once(|| {
                 Box::pin(async {
                     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                    Err(Error::other("error"))
+                    Err(IoError::other("error"))
                 })
             });
 
@@ -503,7 +494,7 @@ mod tests {
             .with(predicate::eq(test_command_binary))
             .once()
             .returning(|_| {
-                Err(OutputPipeError::ReceiverGone(Error::new(
+                Err(OutputPipeError::ReceiverGone(IoError::new(
                     std::io::ErrorKind::BrokenPipe,
                     "error",
                 )))
@@ -526,14 +517,14 @@ mod tests {
 
         // send a response to the _input_pipe_sender
         let _ = input_pipe_sender
-            .log_entries_response(REQUEST_ID.into(), ank_base::LogEntriesResponse::default())
+            .log_entries_response(REQUEST_ID.into(), LogEntriesResponse::default())
             .await;
 
         tokio::spawn(async { control_interface_task.run().await });
 
-        let mut expected_log_cancel_request = commands::Request {
+        let mut expected_log_cancel_request = RequestSpec {
             request_id: response.request_id,
-            request_content: commands::RequestContent::LogsCancelRequest,
+            request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
         };
         expected_log_cancel_request.prefix_request_id(request_id_prefix);
         assert_eq!(
@@ -549,22 +540,16 @@ mod tests {
     // [utest->swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_access_denied() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let test_output_request = control_api::ToAnkaios {
-            to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(
-                ank_base::Request {
-                    request_id: REQUEST_ID.into(),
-                    request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
-                        ank_base::CompleteStateRequest {
-                            field_mask: vec![],
-                            subscribe_for_events: false,
-                        },
-                    )),
-                },
-            )),
+            to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(Request {
+                request_id: REQUEST_ID.into(),
+                request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
+                    field_mask: vec![],
+                    subscribe_for_events: false,
+                })),
+            })),
         };
 
         let test_output_request_binary = test_output_request.encode_to_vec();
@@ -590,15 +575,13 @@ mod tests {
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .returning(move || Box::pin(async { Err(Error::other("error")) }));
+            .returning(move || Box::pin(async { Err(IoError::other("error")) }));
 
-        let error = ank_base::Response {
+        let error = Response {
             request_id: REQUEST_ID.into(),
-            response_content: Some(ank_base::response::ResponseContent::Error(
-                ank_base::Error {
-                    message: "Access denied".into(),
-                },
-            )),
+            response_content: Some(ResponseContent::Error(AnkError {
+                message: "Access denied".into(),
+            })),
         };
 
         let test_input_command_binary = control_api::FromAnkaios {
@@ -648,18 +631,14 @@ mod tests {
     // [utest->swdd~control-interface-accepted-message-on-initial-hello~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_access_allowed() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let ank_request = ank_base::Request {
+        let ank_request = Request {
             request_id: REQUEST_ID.into(),
-            request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
-                ank_base::CompleteStateRequest {
-                    field_mask: vec!["desiredState.workloads.nginx".to_string()],
-                    subscribe_for_events: false,
-                },
-            )),
+            request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: vec!["desiredState.workloads.nginx".to_string()],
+                subscribe_for_events: false,
+            })),
         };
         let test_output_request = control_api::ToAnkaios {
             to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(
@@ -690,7 +669,7 @@ mod tests {
             .expect_read_protobuf_data()
             .once()
             .in_sequence(&mut mockall_seq)
-            .returning(move || Box::pin(async { Err(Error::other("error")) }));
+            .returning(move || Box::pin(async { Err(IoError::other("error")) }));
 
         let mut output_stream_mock = MockOutputPipe::default();
 
@@ -718,7 +697,7 @@ mod tests {
 
         control_interface_task.run().await;
 
-        let mut expected_request: commands::Request = ank_request.try_into().unwrap();
+        let mut expected_request: RequestSpec = ank_request.try_into().unwrap();
         expected_request.prefix_request_id(request_id_prefix);
         assert_eq!(
             output_pipe_receiver.recv().await,
@@ -729,9 +708,7 @@ mod tests {
     // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_no_hello() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let test_output_request_binary = prepare_request_complete_state_binary_message("");
 
@@ -782,9 +759,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_control_interface_task_run_error_sending_control_interface_accepted() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let control_interface_accepted = prepare_control_interface_accepted_message();
 
@@ -806,7 +781,7 @@ mod tests {
             .with(predicate::eq(control_interface_accepted))
             .once()
             .returning(|_| {
-                Err(OutputPipeError::ReceiverGone(Error::new(
+                Err(OutputPipeError::ReceiverGone(IoError::new(
                     std::io::ErrorKind::BrokenPipe,
                     "error",
                 )))
@@ -832,9 +807,7 @@ mod tests {
     // [utest->swdd~agent-closes-control-interface-on-missing-initial-hello~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_hello_unsupported_version() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let mut mockall_seq = Sequence::new();
         let mut input_stream_mock = MockInputPipe::default();

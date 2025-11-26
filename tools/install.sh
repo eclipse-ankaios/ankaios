@@ -194,15 +194,14 @@ if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
         $SVC_SUDO mkdir -p "${CONFIG_DEST}"
         $SVC_SUDO tee "$FILE_STARTUP_STATE" >/dev/null << EOF
 # Per default no workload is started. Adapt the file according to your needs.
-apiVersion: v0.1
+apiVersion: v1
 workloads:
 #   nginx:
 #     runtime: podman
 #     agent: agent_A
 #     restartPolicy: NEVER
 #     tags:
-#       - key: owner
-#         value: Ankaios team
+#       owner: Ankaios team
 #     runtimeConfig: |
 #       image: docker.io/nginx:latest
 #       commandOptions: ["-p", "8081:80"]

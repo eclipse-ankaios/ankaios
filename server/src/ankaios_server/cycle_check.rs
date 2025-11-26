@@ -11,7 +11,8 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use common::objects::State;
+
+use ankaios_api::ank_base::StateSpec;
 use std::collections::{HashSet, VecDeque};
 
 /// Returns an Option containing the workload dependency that is part of a cycle
@@ -26,7 +27,7 @@ use std::collections::{HashSet, VecDeque};
 /// * `start_nodes` - Start visiting the graph only for the passed workloads
 ///   if [`None`] the search is started from all workloads of the state
 ///
-pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
+pub fn dfs(state: &StateSpec, start_nodes: Option<Vec<&str>>) -> Option<String> {
     log::trace!("Execute cyclic dependency check with start_nodes = {start_nodes:?}");
 
     /* The stack is used to push the neighbors of a workload inside the dependency graph
@@ -38,17 +39,18 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
     let mut stack: VecDeque<&str> = VecDeque::new();
 
     // used to prevent visiting nodes repeatedly
-    let mut visited: HashSet<&str> = HashSet::with_capacity(state.workloads.len());
+    let mut visited: HashSet<&str> = HashSet::with_capacity(state.workloads.workloads.len());
 
     /* although the path container is used for lookups,
     measurements have shown that it is faster than associative data structure within this code path */
-    let mut path: VecDeque<&str> = VecDeque::with_capacity(state.workloads.len());
+    let mut path: VecDeque<&str> = VecDeque::with_capacity(state.workloads.workloads.len());
 
     // start visiting workloads in the graph only for a subset of workloads (e.g. in case of a an update) or for all
     let mut workloads_to_visit: Vec<&str> = if let Some(nodes) = start_nodes {
         nodes
     } else {
         state
+            .workloads
             .workloads
             .keys()
             .map(|workload_names| workload_names.as_str())
@@ -67,7 +69,7 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
         log::trace!("searching for workload = '{workload_name}'");
         stack.push_front(workload_name);
         while let Some(head) = stack.front() {
-            if let Some(workload_spec) = state.workloads.get(*head) {
+            if let Some(workload) = state.workloads.workloads.get(*head) {
                 if !visited.contains(head) {
                     log::trace!("visit '{head}'");
                     visited.insert(head);
@@ -79,7 +81,8 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
                 }
 
                 // sort the map to have an constant equal outcome
-                let mut dependencies: Vec<&String> = workload_spec.dependencies.keys().collect();
+                let mut dependencies: Vec<&String> =
+                    workload.dependencies.dependencies.keys().collect();
                 dependencies.sort();
 
                 for dependency in dependencies {
@@ -108,13 +111,13 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use common::{
-        objects::{AddCondition, generate_test_stored_workload_spec},
-        test_utils::generate_test_complete_state,
-    };
+    use super::dfs;
+    use ankaios_api::ank_base::{AddCondition, StateSpec, WorkloadSpec};
+    use ankaios_api::test_utils::{generate_test_complete_state, generate_test_workload_with_param};
+
     use std::{collections::HashSet, ops::Deref};
 
     const AGENT_NAME: &str = "agent_A";
@@ -581,7 +584,7 @@ mod tests {
     }
 
     #[derive(Clone)]
-    struct StateBuilder(State);
+    struct StateBuilder(StateSpec);
     impl StateBuilder {
         fn default() -> Self {
             let state = generate_test_complete_state(Vec::new()).desired_state;
@@ -590,10 +593,13 @@ mod tests {
 
         fn with_workloads(mut self, workloads: &[&str]) -> Self {
             for w in workloads {
-                let mut test_workload_spec =
-                    generate_test_stored_workload_spec(AGENT_NAME, RUNTIME);
-                test_workload_spec.dependencies.clear();
-                self.0.workloads.insert(w.to_string(), test_workload_spec);
+                let mut test_workload: WorkloadSpec =
+                    generate_test_workload_with_param(AGENT_NAME, RUNTIME);
+                test_workload.dependencies.dependencies.clear();
+                self.0
+                    .workloads
+                    .workloads
+                    .insert(w.to_string(), test_workload);
             }
             self
         }
@@ -604,21 +610,23 @@ mod tests {
             depend_on: &str,
             add_condition: AddCondition,
         ) -> Self {
-            self.0
-                .workloads
-                .get_mut(workload)
-                .and_then(|w_spec| w_spec.dependencies.insert(depend_on.into(), add_condition));
+            self.0.workloads.workloads.get_mut(workload).and_then(|wl| {
+                wl.dependencies
+                    .dependencies
+                    .insert(depend_on.into(), add_condition)
+            });
             self
         }
 
         fn set_start_node(mut self, start_node: &str) -> Self {
             let new_name = format!("1_{start_node}");
-            let entry = self.0.workloads.remove(start_node).unwrap();
-            self.0.workloads.insert(new_name.clone(), entry);
+            let entry = self.0.workloads.workloads.remove(start_node).unwrap();
+            self.0.workloads.workloads.insert(new_name.clone(), entry);
 
-            for workload_spec in self.0.workloads.values_mut() {
-                if let Some(dep_condition) = workload_spec.dependencies.remove(start_node) {
-                    workload_spec
+            for workload in self.0.workloads.workloads.values_mut() {
+                if let Some(dep_condition) = workload.dependencies.dependencies.remove(start_node) {
+                    workload
+                        .dependencies
                         .dependencies
                         .insert(new_name.clone(), dep_condition);
                 }
@@ -626,7 +634,7 @@ mod tests {
             self
         }
 
-        fn build(self) -> State {
+        fn build(self) -> StateSpec {
             self.0
         }
     }

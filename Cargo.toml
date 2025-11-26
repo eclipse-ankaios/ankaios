@@ -2,10 +2,12 @@
 resolver = "2"
 
 members = [
-    "api",
+    "ankaios_api",
+    "ank_schema",
     "common",
     "agent",
     "server",
+    "spec_macros",
     "grpc",
     "ank",
     "tests/resources/control_interface_tester",

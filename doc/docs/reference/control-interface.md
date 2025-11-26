@@ -30,14 +30,14 @@ The [control interface](./control-interface.md) enables a [workload](glossary.md
 
 Ankaios authorizes each workload's request to the control interface based on its `controlInterfaceAccess` configuration. If not set, all actions are denied. The authorization uses allow and deny rules to specify the permitted operations, where rules can be of type `StateRule` or `LogRule`.
 
-`StateRule`s authorize the reading and/or the updating (writing) of the CompleteState. Additionally to the operation, a `StateRule` defines the target of the rule using a filter mask. A filter mask describes a path in the CompleteState object, where segments are divided by the '.' symbol and can also be generalized with the wildcard character '*', e.g., `desiredState.workloads.*.tag` allows access to the tags of all workloads.
+`StateRule`s authorize the reading and/or the updating (writing) of the CompleteState. Additionally to the operation, a `StateRule` defines the target of the rule using a filter mask. A filter mask describes a path in the CompleteState object, where segments are divided by the '.' symbol and can also be generalized with the wildcard character '*', e.g., `desiredState.workloads.*.tags` allows access to the tags of all workloads.
 
 `LogRule`s authorize requesting logs of workloads. A `LogRule` defines the names of workloads that it targets, where a wildcard can be used to match multiple names with a single statement. If only a wildcard is specified, i.e., `*`, all workload names match. Prefixes and/or suffixes can be matched by specifying multiple characters and a wildcard, where only a single wildcard is allowed per statement, e.g., "ivi_*"
 
 The following example shows the manifest for the workload `watchdog` with read access to all workload tags beside "ivi_updater" and log access to all workloads starting with "ivi_" beside "ivi_updater":
 
 ```bash
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   watchdog:
     ...
@@ -45,15 +45,15 @@ workloads:
       allowRules:
       - type: StateRule
         operation: Read
-        filterMask:
-          - "desiredState.workloads.*.tag"
+        filterMasks:
+          - "desiredState.workloads.*.tags"
       - type: LogRule
         workloadNames:
           - "ivi_*"
       denyRules:
       - type: StateRule
         operation: Read
-        filterMask:
+        filterMasks:
           - "desiredState.workloads.ivi_updater.tag"
       - type: LogRule
         workloadNames:
@@ -74,6 +74,11 @@ flowchart TD
 ```
 
 The [control interface](./control-interface.md) relies on [FIFO](https://en.wikipedia.org/wiki/Named_pipe) (also known as [named pipes](https://en.wikipedia.org/wiki/Named_pipe)) to enable a [workload](glossary.md#workload) to communicate with the Ankaios system. For that purpose, Ankaios creates a mount point for each [workload](glossary.md#workload) to store the FIFO files. At the mount point `/run/ankaios/control_interface/` the [workload](glossary.md#workload) developer can find the FIFO files `input` and `output` and use them for the communication with the Ankaios server. Ankaios uses its own communication protocol described in [protocol documentation](./_ankaios.proto.md#control_apiproto) as a [protobuf IDL](https://protobuf.com/docs/language-spec) which allows the client code to be generated in any programming language supported by the [protobuf compiler](https://protobuf.dev/reference/). The generated client code can then be integrated and used in a [workload](#communication-between-ankaios-and-workloads).
+
+In the case of workloads using the `podman-kube` runtime, the FIFO files are mounted to the pod and container specified in the `controlInterfaceTarget` field of the runtime config in the startup manifest. The `controlInterfaceTarget` field must be a string in the format `<pod_name>/<container_name>`, where:
+
+- `<pod_name>` is the name of the pod where the workload is running.
+- `<container_name>` is the name of the container within the pod that will use the control interface.
 
 ## Communication between Ankaios and workloads
 
@@ -131,11 +136,11 @@ flowchart TD
 Code snippet in [Rust](https://www.rust-lang.org/) for sending request message via control interface:
 
 ```rust
-use api::ank_base::{
+use ankaios_api::ank_base::{
     request::RequestContent, CompleteState, Dependencies, Request, RestartPolicy, State, Tag, Tags,
     UpdateStateRequest, Workload, WorkloadMap,
 };
-use api::control_api::{to_ankaios::ToAnkaiosEnum, Hello, ToAnkaios};
+use ankaios_api::control_api::{to_ankaios::ToAnkaiosEnum, Hello, ToAnkaios};
 use prost::Message;
 use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
@@ -158,11 +163,7 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
                 runtime: Some("podman".to_string()),
                 agent: Some("agent_A".to_string()),
                 restart_policy: Some(RestartPolicy::Never.into()),
-                tags: Some(Tags {
-                    tags: vec![Tag {
-                        key: "owner".to_string(),
-                        value: "Ankaios team".to_string(),
-                    }],
+                tags: HashMap::from([("owner".to_string(), "Ankaios team".to_string())]),
                 }),
                 runtime_config: Some(
                     "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
@@ -184,7 +185,7 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
                 UpdateStateRequest {
                     new_state: Some(CompleteState {
                         desired_state: Some(State {
-                            api_version: "v0.1".into(),
+                            api_version: "v1".into(),
                             workloads: new_workloads,
                             ..Default::default()
                         }),
@@ -249,7 +250,7 @@ flowchart TD
 Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
 
 ```rust
-use api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
+use ankaios_api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
 use prost::Message;
 use std::{fs::File, io, io::Read, path::Path};
 

@@ -12,11 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::WorkloadSpec;
-
+use super::podman_runtime::PODMAN_RUNTIME_NAME;
 use crate::runtime_connectors::podman_cli::PodmanRunConfig;
 
-use super::podman_runtime::PODMAN_RUNTIME_NAME;
+use ankaios_api::ank_base::WorkloadSpec;
 
 #[derive(Debug, serde::Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -46,7 +45,7 @@ impl TryFrom<&WorkloadSpec> for PodmanRuntimeConfig {
     fn try_from(workload_spec: &WorkloadSpec) -> Result<Self, Self::Error> {
         if PODMAN_RUNTIME_NAME != workload_spec.runtime {
             return Err(format!(
-                "Received a spec for the wrong runtime: '{}'",
+                "Received a workload for the wrong runtime: '{}'",
                 workload_spec.runtime
             ));
         }
@@ -67,46 +66,43 @@ impl TryFrom<&WorkloadSpec> for PodmanRuntimeConfig {
 
 #[cfg(test)]
 mod tests {
-    use common::objects::generate_test_workload_spec_with_param;
-
     use super::PodmanRuntimeConfig;
     use crate::runtime_connectors::{
         podman::podman_runtime::PODMAN_RUNTIME_NAME, podman_cli::PodmanRunConfig,
     };
 
+    use ankaios_api::ank_base::WorkloadSpec;
+    use ankaios_api::test_utils::generate_test_workload_with_param;
+
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
     const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
 
     #[test]
     fn utest_podman_config_failure_missing_image() {
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let mut workload: WorkloadSpec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
 
-        workload_spec.runtime_config = "something without an image".to_string();
+        workload.runtime_config = "something without an image".to_string();
 
-        assert!(PodmanRuntimeConfig::try_from(&workload_spec).is_err());
+        assert!(PodmanRuntimeConfig::try_from(&workload).is_err());
     }
 
     #[test]
     fn utest_podman_config_failure_wrong_runtime() {
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload: WorkloadSpec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             DIFFERENT_RUNTIME_NAME.to_string(),
         );
 
-        assert!(PodmanRuntimeConfig::try_from(&workload_spec).is_err());
+        assert!(PodmanRuntimeConfig::try_from(&workload).is_err());
     }
 
     #[test]
     fn utest_podman_config_success() {
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let mut workload: WorkloadSpec = generate_test_workload_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
 
@@ -117,10 +113,10 @@ mod tests {
             command_args: vec!["bash".to_string()],
         };
 
-        workload_spec.runtime_config = "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string();
+        workload.runtime_config = "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string();
 
         assert_eq!(
-            PodmanRuntimeConfig::try_from(&workload_spec).unwrap(),
+            PodmanRuntimeConfig::try_from(&workload).unwrap(),
             expected_podman_config
         );
     }

@@ -4,6 +4,8 @@ set -e
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 LOG_DIR="$(readlink -f "$SCRIPT_DIR/../../logs")"
 
+"$SCRIPT_DIR/ankaios-clean"
+
 mkdir -p "$LOG_DIR"
 
 echo "Staring up Ankaios server with TLS disabled"

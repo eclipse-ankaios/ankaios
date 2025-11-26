@@ -124,7 +124,7 @@ if [[ -n $PROTO_SOURCE ]]; then
             mkdir -p "ank-sdk-python/ankaios_sdk/_protos/${ank_version}"
 
             # Get ank_base proto file
-            PROTO_LINK="https://raw.githubusercontent.com/eclipse-ankaios/ankaios/refs/heads/${PROTO_BRANCH}/api/proto/ank_base.proto"
+            PROTO_LINK="https://raw.githubusercontent.com/eclipse-ankaios/ankaios/refs/heads/${PROTO_BRANCH}/ankaios_api/proto/ank_base.proto"
             curl -s "$PROTO_LINK" | grep -v "^\s*//" | grep -v "^\s*$" > ank-sdk-python/ankaios_sdk/_protos/"$ank_version"/ank_base.proto
             if [ $? -ne 0 ]; then
                 echo "Failed to download or process the ank_base.proto file."
@@ -132,7 +132,7 @@ if [[ -n $PROTO_SOURCE ]]; then
             fi
 
             # Get the control_api proto file
-            PROTO_LINK="https://raw.githubusercontent.com/eclipse-ankaios/ankaios/refs/heads/${PROTO_BRANCH}/api/proto/control_api.proto"
+            PROTO_LINK="https://raw.githubusercontent.com/eclipse-ankaios/ankaios/refs/heads/${PROTO_BRANCH}/ankaios_api/proto/control_api.proto"
             curl -s "$PROTO_LINK" | grep -v "^\s*//" | grep -v "^\s*$" > ank-sdk-python/ankaios_sdk/_protos/"$ank_version"/control_api.proto
             if [ $? -ne 0 ]; then
                 echo "Failed to download or process the control_api.proto file."

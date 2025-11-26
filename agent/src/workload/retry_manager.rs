@@ -165,6 +165,10 @@ mock! {
 
 #[cfg(test)]
 mod tests {
+    use super::RetryToken;
+    use crate::test_helper::MOCKALL_CONTEXT_SYNC;
+
+    use futures_util::Future;
     use std::{
         cell::RefCell,
         ops::{DerefMut, RangeToInclusive},
@@ -174,13 +178,7 @@ mod tests {
         task::{Context, Poll, Wake, Waker},
         time::Duration,
     };
-
-    use futures_util::Future;
     use tokio::sync::oneshot;
-
-    use super::RetryToken;
-
-    use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     static SLEEP_SENDER: Mutex<Option<oneshot::Sender<()>>> = Mutex::new(None);
     static SLEEP_LAST_DURATION: Mutex<Option<Duration>> = Mutex::new(None);

@@ -29,7 +29,7 @@ Now we have Ankaios up and running with a server and an agent.
 To run the databroker we need to create an Ankaios manifest:
 
 ```yaml title="databroker.yaml"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   databroker:
     runtime: podman
@@ -54,12 +54,8 @@ Store the Ankaios manifest listed above in a file `databroker.yaml`.
 Then start the workload:
 
 ```shell
-ank -k apply databroker.yaml
+ank apply databroker.yaml
 ```
-
-!!! Note
-
-    The instructions assume the default installation without mutual TLS (mTLS) for communication. With `-k` or `--insecure` the `ank` CLI will connect without mTLS. Alternatively, set the environment variable `ANK_INSECURE=true` to avoid passing the argument to each `ank` CLI command. For an Ankaios setup with mTLS, see [here](./mtls-setup.md).
 
 The Ankaios agent `agent_A` will now instruct podman to start the workload.
 The command waits until the databroker is running.
@@ -75,7 +71,7 @@ It should finally print:
 Now we want to start a workload that publishes vehicle speed values and call that `speed-provider`.
 
 ```yaml title="speed-provider.yaml"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   speed-provider:
     runtime: podman
@@ -91,7 +87,7 @@ The source code for that image is available in the [Ankaios repository](https://
 Start the workload with:
 
 ```shell
-ank -k apply speed-provider.yaml
+ank apply speed-provider.yaml
 ```
 
 The command waits until the speed-provider is running.
@@ -119,13 +115,13 @@ For this tutorial we can either use a separate Linux host or use the existing on
 Start a new agent with:
 
 ```shell
-ank-agent -k --name infotainment --server-url http://<SERVER_IP>:25551
+ank-agent --name infotainment --server-url http://<SERVER_IP>:25551
 ```
 
 If the agent is started on the same host as the existing Ankaios server and agent, then we will call it as follows:
 
 ```shell
-ank-agent -k --name infotainment --server-url http://127.0.0.1:25551
+ank-agent --name infotainment --server-url http://127.0.0.1:25551
 ```
 
 As the first agent was started by systemd, it runs as root and therefore calls podman as root.
@@ -141,7 +137,7 @@ For the next steps we need to keep this terminal untouched in order to keep the 
 Let's verify that the new `infotainment` agent has connected to the Ankaios server by running the following command, which will list all Ankaios agents currently connected to the Ankaios server, along with their number of workloads:
 
 ```shell
-ank -k get agents
+ank get agents
 ```
 
 It should print:
@@ -163,7 +159,7 @@ Since `agent_A` is already managing the `databroker` and the `speed-provider` wo
 Now we can start a speed-consumer workload on the new agent:
 
 ```yaml title="speed-consumer.yaml"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   speed-consumer:
     runtime: podman
@@ -181,7 +177,7 @@ Note that this time the image does not specify the agent.
 While we could add `agent: infotainment`, this time we pass the agent name when the workload starts:
 
 ```shell
-ank -k apply --agent infotainment speed-consumer.yaml
+ank apply --agent infotainment speed-consumer.yaml
 ```
 
 !!! note
@@ -190,14 +186,14 @@ ank -k apply --agent infotainment speed-consumer.yaml
     on which the Ankaios server is running, you need to add a parameter `-s <SERVER_URL>` like:
 
     ```
-    ank -k apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
+    ank apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
     ```
 
     Optionally the server URL can also be provided via environment variable:
 
     ```
     export ANK_SERVER_URL=http://127.0.0.1:25551
-    ank -k apply --agent infotainment speed-consumer.yaml
+    ank apply --agent infotainment speed-consumer.yaml
     ```
 
 The command waits until speed consumer is running.
@@ -211,7 +207,7 @@ It should print:
 We can check all running workloads with
 
 ```shell
-ank -k get workloads
+ank get workloads
 ```
 
 The output should be:
@@ -223,7 +219,7 @@ The output should be:
  speed-provider   agent_A        podman    Running(Ok)
 ```
 
-Optionally, you can re-run the previous `ank -k get agents` command again, to verify that the number of workloads managed by the `infotainment` agent has now increased.
+Optionally, you can re-run the previous `ank get agents` command again, to verify that the number of workloads managed by the `infotainment` agent has now increased.
 
 ## Reading workload logs
 
@@ -237,7 +233,7 @@ ank logs speed-consumer
 Now, we want to change the existing Ankaios manifest of the speed-provider to use auto mode which sends a new speed limit value every second.
 
 ```yaml title="speed-provider.yaml" hl_lines="10 11"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   speed-provider:
     runtime: podman
@@ -253,7 +249,7 @@ workloads:
 We apply the changes with:
 
 ```shell
-ank -k apply speed-provider.yaml
+ank apply speed-provider.yaml
 ```
 
 and recognize that we get a new speed value every 1 second:
@@ -264,18 +260,18 @@ ank logs --follow speed-consumer
 
 ## Ankaios state
 
-Previously we have used `ank -k get workloads` to a get list of running workloads.
+Previously we have used `ank get workloads` to a get list of running workloads.
 Ankaios also maintains a current state which can be retrieved with:
 
 ```shell
-ank -k get state
+ank get state
 ```
 
 Let's delete all workloads and check the state again:
 
 ```shell
-ank -k delete workload databroker speed-provider speed-consumer
-ank -k get state
+ank delete workload databroker speed-provider speed-consumer
+ank get state
 ```
 
 If we want to start the three workloads on startup of the Ankaios server and agents we need to create a startup manifest file.
@@ -284,7 +280,7 @@ In the default server config (see `/etc/ankaios/ank-server.conf`), a startup man
 Now we create such a startup manifest file containing all three workloads:
 
 ```yaml title="/etc/ankaios/state.yaml" hl_lines="13 14 24 25"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   databroker:
     runtime: podman

@@ -11,13 +11,14 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use std::fmt;
 
 use crate::grpc_api::{FromServer, ToServer};
 use common::{
     communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServerInterfaceError, to_server_interface::ToServerError,
 };
+
+use std::fmt;
 use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug, Clone)]

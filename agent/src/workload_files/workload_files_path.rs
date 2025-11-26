@@ -12,9 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 use std::{ops::Deref, path::PathBuf};
-
-use common::objects::WorkloadInstanceName;
 
 #[derive(Debug, PartialEq)]
 pub struct WorkloadFilesBasePath(PathBuf);
@@ -29,8 +28,8 @@ impl Deref for WorkloadFilesBasePath {
 }
 
 // [impl->swdd~location-of-workload-files-at-predefined-path~1]
-impl From<(&PathBuf, &WorkloadInstanceName)> for WorkloadFilesBasePath {
-    fn from((run_folder, workload_instance_name): (&PathBuf, &WorkloadInstanceName)) -> Self {
+impl From<(&PathBuf, &WorkloadInstanceNameSpec)> for WorkloadFilesBasePath {
+    fn from((run_folder, workload_instance_name): (&PathBuf, &WorkloadInstanceNameSpec)) -> Self {
         let workload_files_path = workload_instance_name
             .pipes_folder_name(run_folder.as_path())
             .join(SUBFOLDER_WORKLOAD_FILES);
@@ -55,10 +54,8 @@ pub fn generate_test_workload_files_path() -> WorkloadFilesBasePath {
 
 #[cfg(test)]
 mod tests {
-
-    use common::objects::WorkloadInstanceName;
-
     use super::{PathBuf, WorkloadFilesBasePath};
+    use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 
     const AGENT_A_RUN_FOLDER: &str = "/tmp/ankaios/agent_A_io";
     const AGENT_A: &str = "agent_A";
@@ -68,7 +65,7 @@ mod tests {
     // [utest->swdd~location-of-workload-files-at-predefined-path~1]
     #[test]
     fn utest_workload_files_path_from() {
-        let instance_name = WorkloadInstanceName::new(AGENT_A, WORKLOAD_1_NAME, WORKLOAD_1_ID);
+        let instance_name = WorkloadInstanceNameSpec::new(AGENT_A, WORKLOAD_1_NAME, WORKLOAD_1_ID);
         let workload_files_path =
             WorkloadFilesBasePath::from((&AGENT_A_RUN_FOLDER.into(), &instance_name));
         let expected = PathBuf::from(format!(
