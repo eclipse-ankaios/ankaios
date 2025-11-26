@@ -52,6 +52,19 @@ impl StateComparator {
     /// - a [`StateDifferenceTree`] containing added, updated and removed field paths as separate tree structures. Leaf nodes have a null value.
     ///
     pub fn state_differences(&self) -> StateDifferenceTree {
+        let convert_key_to_string = |key: &Value| -> Option<String> {
+            match key {
+                Value::String(key_str) => Some(key_str.clone()),
+                Value::Number(key_number) if key_number.is_i64() => Some(key_number.to_string()),
+                _ => {
+                    log::warn!(
+                        "Unsupported key type in state for state difference calculation: {key:?}"
+                    );
+                    None
+                }
+            }
+        };
+
         let mut state_difference_tree = StateDifferenceTree::new();
         let mut stack_tasks = Vec::new();
 
@@ -65,11 +78,11 @@ impl StateComparator {
 
                     for key in &other_keys {
                         if !current_keys.contains(key) {
-                            let Value::String(added_key) = key else {
+                            let Some(added_key) = convert_key_to_string(key) else {
                                 continue;
                             };
                             let mut added_field_mask = current_field_mask.clone();
-                            added_field_mask.push(added_key.clone());
+                            added_field_mask.push(added_key);
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.added_tree,
                                 Path::from(added_field_mask),
@@ -82,11 +95,11 @@ impl StateComparator {
 
                     for key in &current_keys {
                         if !other_keys.contains(key) {
-                            let Value::String(removed_key) = key else {
+                            let Some(removed_key) = convert_key_to_string(key) else {
                                 continue;
                             };
                             let mut removed_field_mask = current_field_mask.clone();
-                            removed_field_mask.push(removed_key.clone());
+                            removed_field_mask.push(removed_key);
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.removed_tree,
                                 Path::from(removed_field_mask),
@@ -95,7 +108,7 @@ impl StateComparator {
                                 ),
                             );
                         } else {
-                            let Value::String(key_str) = key else {
+                            let Some(key_str) = convert_key_to_string(key) else {
                                 continue;
                             };
 
@@ -106,11 +119,11 @@ impl StateComparator {
                                 (Value::Mapping(current_map), Value::Mapping(other_map)) => {
                                     stack_tasks.push(StackTask::PopField);
                                     stack_tasks.push(StackTask::VisitPair(current_map, other_map));
-                                    stack_tasks.push(StackTask::PushField(key_str.clone()));
+                                    stack_tasks.push(StackTask::PushField(key_str));
                                 }
                                 (Value::Sequence(current_seq), Value::Sequence(other_seq)) => {
                                     let mut sequence_field_mask = current_field_mask.clone();
-                                    sequence_field_mask.push(key_str.clone());
+                                    sequence_field_mask.push(key_str);
 
                                     if current_seq.is_empty() && !other_seq.is_empty() {
                                         state_difference_tree
@@ -126,7 +139,7 @@ impl StateComparator {
                                 (current_value, other_value) => {
                                     if current_value != other_value {
                                         let mut updated_field_mask = current_field_mask.clone();
-                                        updated_field_mask.push(key_str.clone());
+                                        updated_field_mask.push(key_str);
                                         state_difference_tree
                                             .insert_updated_path(updated_field_mask);
                                     }
@@ -580,14 +593,38 @@ mod tests {
     }
 
     #[test]
-    fn utest_calculate_state_differences_key_is_not_string() {
+    fn utest_calculate_state_differences_key_is_number() {
         let old_state_yaml = r#"
-            0: value
+            20: value
         "#;
 
         let state_comparator = StateComparator {
             old_state: serde_yaml::from_str(old_state_yaml).unwrap(),
             new_state: Mapping::default(),
+        };
+
+        let state_difference_tree = state_comparator.state_differences();
+
+        let expected_removed_tree_yaml = r#"
+            "20": null
+        "#;
+        let expected_removed_tree = Object::from(
+            serde_yaml::from_str::<serde_yaml::Value>(expected_removed_tree_yaml).unwrap(),
+        );
+        assert_eq!(state_difference_tree.removed_tree, expected_removed_tree);
+        assert!(state_difference_tree.added_tree.is_empty());
+        assert!(state_difference_tree.updated_tree.is_empty());
+    }
+
+    #[test]
+    fn utest_calculate_state_differences_unsupported_key() {
+        let old_state_yaml = r#"
+            20.0: value
+        "#;
+
+        let state_comparator = StateComparator {
+            old_state: Mapping::default(),
+            new_state: serde_yaml::from_str(old_state_yaml).unwrap(),
         };
 
         let state_difference_tree = state_comparator.state_differences();

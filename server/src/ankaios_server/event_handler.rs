@@ -143,16 +143,18 @@ fn collect_altered_fields_matching_subscriber_masks(
                 if next_part == WILDCARD_SYMBOL {
                     // Wildcard: traverse all children
                     for (key, child_node) in current_node {
-                        if let Value::String(key_str) = key {
-                            let new_path = update_path_with_new_key(&current_path, key_str);
-                            if let Value::Mapping(child_map) = child_node {
-                                stack_task.push((child_map, &remaining_parts[1..], new_path));
-                            } else if let Value::Null = child_node
-                                && remaining_parts[1..].is_empty()
-                            {
-                                // Treat Null as a leaf node
-                                altered_fields.push(new_path);
-                            }
+                        let Value::String(key_str) = key else {
+                            continue; // the difference tree only contains string keys
+                        };
+
+                        let new_path = update_path_with_new_key(&current_path, key_str);
+                        if let Value::Mapping(child_map) = child_node {
+                            stack_task.push((child_map, &remaining_parts[1..], new_path));
+                        } else if let Value::Null = child_node
+                            && remaining_parts[1..].is_empty()
+                        {
+                            // Treat Null as a leaf node
+                            altered_fields.push(new_path);
                         }
                     }
                 } else {
@@ -185,10 +187,11 @@ pub fn collect_all_leaf_paths_iterative(start_node: &Value) -> Vec<String> {
         match current {
             Value::Mapping(map) if !map.is_empty() => {
                 for (current_key, current_value) in map {
-                    if let Value::String(new_key) = current_key {
-                        let new_path = update_path_with_new_key(&current_path, new_key);
-                        stack.push((current_value, new_path));
-                    }
+                    let Value::String(new_key) = current_key else {
+                        continue; // the difference tree only contains string keys
+                    };
+                    let new_path = update_path_with_new_key(&current_path, new_key);
+                    stack.push((current_value, new_path));
                 }
             }
             // Any non-mapping or empty mapping is treated as a leaf node

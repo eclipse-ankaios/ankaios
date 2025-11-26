@@ -1296,7 +1296,7 @@ The StateComparator shall provide a method for calculating the state differences
 Comment:
 Each tree contains the paths of the fields that have been changed, with a null value as the leaf.
 A custom Depth-Search-First (DFS) implementation comparing the current and new state fields is used.
-A sequence is treated as a leaf and in mappings only `string`s are supported as keys.
+A sequence is treated as a leaf and in mappings only `string`s and numbers are supported as keys.
 An update from an empty sequence to a non-empty sequence is treated as an added field and the other way around as a removed field.
 Any other changes to a sequence field is treated as an updated field.
 
