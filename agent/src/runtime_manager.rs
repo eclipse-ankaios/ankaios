@@ -680,8 +680,9 @@ mod tests {
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
 
     use ankaios_api::ank_base::{
-        self, CompleteState, ExecutionStateSpec, LogsRequestSpec, Response, ResponseContent,
-        WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadStateSpec,
+        self, CompleteStateResponse, ExecutionStateSpec, LogsRequestSpec, Response,
+        ResponseContent, WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadNamed,
+        WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
         generate_test_complete_state, generate_test_control_interface_access,
@@ -2198,10 +2199,12 @@ mod tests {
                 .build();
 
         let request_id: String = REQUEST_ID.to_string();
-        let complete_state = CompleteState::default();
+        let complete_state_response = CompleteStateResponse::default();
         let expected_response = Response {
             request_id,
-            response_content: Some(ResponseContent::CompleteState(complete_state.clone())),
+            response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                complete_state_response.clone(),
+            ))),
         };
         let mut mock_workload = MockWorkload::default();
         mock_workload
@@ -2217,7 +2220,9 @@ mod tests {
         runtime_manager
             .forward_response(Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: Some(ResponseContent::CompleteState(complete_state)),
+                response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                    complete_state_response,
+                ))),
             })
             .await;
     }
@@ -2288,17 +2293,27 @@ mod tests {
 
         let expected_response = Response {
             request_id,
-            response_content: Some(ResponseContent::CompleteState(complete_state)),
+            response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                ank_base::CompleteStateResponse {
+                    complete_state: Some(complete_state),
+                    ..Default::default()
+                },
+            ))),
         };
         let forwarded_response = Response {
             request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-            response_content: Some(ResponseContent::CompleteState(
-                generate_test_complete_state(vec![generate_test_workload_with_param(
-                    AGENT_NAME.to_string(),
-                    RUNTIME_NAME.to_string(),
-                )])
-                .into(),
-            )),
+            response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                ank_base::CompleteStateResponse {
+                    complete_state: Some(
+                        generate_test_complete_state(vec![generate_test_workload_with_param(
+                            AGENT_NAME.to_string(),
+                            RUNTIME_NAME.to_string(),
+                        )])
+                        .into(),
+                    ),
+                    ..Default::default()
+                },
+            ))),
         };
 
         let mut mock_workload = MockWorkload::default();
@@ -2316,6 +2331,19 @@ mod tests {
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
 
+        // runtime_manager
+        //     .forward_response(ank_base::Response {
+        //         request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
+        //         response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+        //             generate_test_complete_state(vec![generate_test_workload_spec_with_param(
+        //                 AGENT_NAME.to_string(),
+        //                 WORKLOAD_1_NAME.to_string(),
+        //                 RUNTIME_NAME.to_string(),
+        //             )])
+        //             .into(),
+        //         ))),
+        //     })
+        //     .await;
         runtime_manager.forward_response(forwarded_response).await;
     }
 
@@ -2348,13 +2376,13 @@ mod tests {
         runtime_manager
             .forward_response(Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: Some(ResponseContent::CompleteState(
+                response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
                     generate_test_complete_state(vec![generate_test_workload_with_param(
                         AGENT_NAME.to_string(),
                         RUNTIME_NAME.to_string(),
                     )])
                     .into(),
-                )),
+                ))),
             })
             .await;
     }

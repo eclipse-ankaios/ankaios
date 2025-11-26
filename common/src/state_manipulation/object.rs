@@ -13,15 +13,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::Path;
+use crate::std_extensions::UnreachableOption;
 
-use ankaios_api::ank_base::{CompleteState, CompleteStateSpec, State, StateSpec};
+use ankaios_api::ank_base::{CompleteState, CompleteStateSpec, State, StateSpec, WILDCARD_SYMBOL};
 
 use serde_yaml::{
     Mapping, Value, from_value,
-    mapping::{Entry::Occupied, Entry::Vacant},
+    mapping::Entry::{Occupied, Vacant},
     to_value,
 };
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Object {
@@ -208,7 +209,24 @@ impl From<&Object> for Vec<Path> {
         get_paths_from_yaml_node(&value.data, true)
     }
 }
+
+type FieldMask = Vec<String>; // e.g. ["desiredState", "workloads", "workload_1", "agent"]
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FieldDifference {
+    Added(FieldMask),
+    Removed(FieldMask),
+    Updated(FieldMask),
+}
+
+pub enum StackTask<'a> {
+    VisitPair(&'a Mapping, &'a Mapping),
+    PushField(String),
+    PopField,
+}
+
 impl Object {
+    //[impl->swdd~common-state-manipulation-set~1]
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
         let mut current = self
@@ -219,6 +237,7 @@ impl Object {
         for path_part in path_head.parts() {
             let next = match current.entry(path_part.to_owned().into()) {
                 Occupied(value) => &mut *value.into_mut(),
+                //[impl->swdd~common-state-manipulation-set-add-missing-objects~1]
                 Vacant(value) => &mut *value.insert(Value::Mapping(Mapping::default())),
             };
 
@@ -229,13 +248,14 @@ impl Object {
         Ok(())
     }
 
-    pub fn remove(&mut self, path: &Path) -> Result<(), String> {
+    //[impl->swdd~common-state-manipulation-remove~1]
+    pub fn remove(&mut self, path: &Path) -> Result<Option<serde_yaml::Value>, String> {
         let (path_head, path_last) = path.split_last()?;
 
-        self.get_as_mapping(&path_head)
+        Ok(self
+            .get_as_mapping(&path_head)
             .ok_or_else(|| format!("{path_head:?} is not mapping"))?
-            .remove(Value::String(path_last));
-        Ok(())
+            .remove(Value::String(path_last)))
     }
 
     fn get_as_mapping(&mut self, path: &Path) -> Option<&mut Mapping> {
@@ -246,6 +266,7 @@ impl Object {
         }
     }
 
+    //[impl->swdd~common-state-manipulation-get~1]
     pub fn get(&self, path: &Path) -> Option<&Value> {
         let mut current_obj = &self.data;
         for p in path.parts() {
@@ -278,8 +299,174 @@ impl Object {
         Some(current_obj)
     }
 
+    /// Expands wildcard paths into all concrete paths present in the object.
+    ///
+    /// For each input path, this method performs a depth-first search, replacing any wildcard segment (e.g., "*") with all available keys at that level.
+    /// ## Arguments
+    ///
+    /// - `path`: A slice of [`Path`] that may contain wildcards
+    ///
+    /// ## Returns
+    ///
+    /// - a [Vec<`Path`>] containing every concrete path that matches the provided wildcard patterns.
+    ///
+    //[impl->swdd~common-state-manipulation-expand-wildcards~1]
+    pub fn expand_wildcards(&self, path: &[Path]) -> Vec<Path> {
+        let value = &self.data;
+        let mut result = Vec::new();
+        let mut to_do = path
+            .iter()
+            .map(|p| (Vec::<String>::new(), value, p.parts().as_slice()))
+            .collect::<VecDeque<_>>();
+
+        while let Some((mut current_prefix, mut current_value, mut remaining_path)) =
+            to_do.pop_front()
+        {
+            let mut current_result_valid = true;
+            while !remaining_path.is_empty() {
+                let path_element;
+                (path_element, remaining_path) = remaining_path.split_first().unwrap();
+                if path_element == WILDCARD_SYMBOL {
+                    current_result_valid = false;
+                    if let Value::Mapping(map) = current_value {
+                        for (key, value) in map {
+                            let key = match key {
+                                Value::String(s) => s.clone(),
+                                Value::Number(n) if n.is_i64() || n.is_u64() => n.to_string(),
+                                _ => continue,
+                            };
+                            let mut new_prefix = current_prefix.clone();
+                            new_prefix.push(key);
+                            to_do.push_front((new_prefix, value, remaining_path));
+                        }
+                    }
+
+                    break;
+                } else {
+                    current_prefix.push(path_element.clone());
+                    current_value = if let Some(next_element) = current_value.get(path_element) {
+                        next_element
+                    } else {
+                        current_result_valid = false;
+                        break;
+                    }
+                }
+            }
+            if current_result_valid {
+                result.push(current_prefix.into());
+            }
+        }
+
+        result
+    }
+
     pub fn check_if_provided_path_exists(&self, path: &Path) -> bool {
         self.get(path).is_some()
+    }
+
+    /// Determine the added, updated and removed fields between self and other using a depth-first search (DFS) algorithm.
+    ///
+    /// ## Arguments
+    ///
+    /// - `other`: The [Object] containing the new state to compare against the current state.
+    ///
+    /// ## Returns
+    ///
+    /// - a [Vec<`FieldDifference`>] containing added, updated and removed fields and the corresponding field mask.
+    ///
+    pub fn calculate_state_differences(&self, other: &Object) -> Vec<FieldDifference> {
+        // [impl->swdd~server-calculates-state-differences-for-events~1]
+        let mut field_differences = Vec::new();
+        let mut stack_tasks = Vec::new();
+
+        let Value::Mapping(current_mapping) = &self.data else {
+            return vec![];
+        };
+
+        let Value::Mapping(other_mapping) = &other.data else {
+            return vec![];
+        };
+
+        stack_tasks.push(StackTask::VisitPair(current_mapping, other_mapping));
+        let mut current_field_mask = Vec::new();
+        while let Some(task) = stack_tasks.pop() {
+            match task {
+                StackTask::VisitPair(current_node, other_node) => {
+                    let current_keys: HashSet<_> = current_node.keys().collect();
+                    let other_keys: HashSet<_> = other_node.keys().collect();
+
+                    for key in &other_keys {
+                        if !current_keys.contains(key) {
+                            let Value::String(added_key) = key else {
+                                continue;
+                            };
+                            let mut added_field_mask = current_field_mask.clone();
+                            added_field_mask.push(added_key.clone());
+                            field_differences.push(FieldDifference::Added(added_field_mask));
+                        }
+                    }
+
+                    for key in &current_keys {
+                        if !other_keys.contains(key) {
+                            let Value::String(removed_key) = key else {
+                                continue;
+                            };
+                            let mut removed_field_mask = current_field_mask.clone();
+                            removed_field_mask.push(removed_key.clone());
+                            field_differences.push(FieldDifference::Removed(removed_field_mask));
+                        } else {
+                            let Value::String(key_str) = key else {
+                                continue;
+                            };
+
+                            let current_value = current_node.get(key).unwrap_or_unreachable();
+                            let other_value = other_node.get(key).unwrap_or_unreachable();
+
+                            match (current_value, other_value) {
+                                (Value::Mapping(current_map), Value::Mapping(other_map)) => {
+                                    stack_tasks.push(StackTask::PopField);
+                                    stack_tasks.push(StackTask::VisitPair(current_map, other_map));
+                                    stack_tasks.push(StackTask::PushField(key_str.clone()));
+                                }
+                                (Value::Sequence(current_seq), Value::Sequence(other_seq)) => {
+                                    let mut sequence_field_mask = current_field_mask.clone();
+                                    sequence_field_mask.push(key_str.clone());
+
+                                    if current_seq.is_empty() && !other_seq.is_empty() {
+                                        field_differences
+                                            .push(FieldDifference::Added(sequence_field_mask));
+                                    } else if !current_seq.is_empty() && other_seq.is_empty() {
+                                        field_differences
+                                            .push(FieldDifference::Removed(sequence_field_mask));
+                                    } else if current_seq != other_seq {
+                                        field_differences
+                                            .push(FieldDifference::Updated(sequence_field_mask));
+                                    }
+                                }
+                                _ => {
+                                    if current_value != other_value {
+                                        let mut updated_field_mask = current_field_mask.clone();
+                                        updated_field_mask.push(key_str.clone());
+                                        field_differences
+                                            .push(FieldDifference::Updated(updated_field_mask));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                StackTask::PushField(key) => {
+                    current_field_mask.push(key);
+                    continue;
+                }
+                StackTask::PopField => {
+                    current_field_mask.pop();
+                    continue;
+                }
+            }
+        }
+
+        field_differences
     }
 }
 
@@ -293,7 +480,9 @@ impl Object {
 
 #[cfg(test)]
 mod tests {
-    use super::Object;
+    use super::{FieldDifference, Object};
+    use crate::state_manipulation::object::tests::object::Mapping;
+
     use ankaios_api::ank_base::{CompleteStateSpec, ExecutionStateSpec, StateSpec, WorkloadNamed};
     use ankaios_api::test_utils::{
         generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
@@ -301,6 +490,7 @@ mod tests {
     };
 
     use serde_yaml::Value;
+    use std::collections::HashSet;
 
     #[test]
     fn utest_object_from_state() {
@@ -377,6 +567,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_fails_on_empty() {
         let expected = Object {
@@ -392,6 +583,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_fails_as_base_not_mapping() {
         let expected = Object {
@@ -410,6 +602,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_existing() {
         let mut expected = Object {
@@ -442,6 +635,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set~1]
     #[test]
     fn utest_object_set_new() {
         let mut expected = Object {
@@ -469,6 +663,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-set-add-missing-objects~1]
     #[test]
     fn utest_object_set_in_new_mapping() {
         let mut expected = Object {
@@ -502,6 +697,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_existing() {
         let mut expected = Object {
@@ -530,6 +726,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_non_existing_end_of_path() {
         let expected = Object {
@@ -546,6 +743,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_non_existing_in_path() {
         let expected = Object {
@@ -562,6 +760,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_non_map_in_path() {
         let expected = Object {
@@ -578,6 +777,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-remove~1]
     #[test]
     fn utest_object_remove_empty_path() {
         let expected = Object {
@@ -594,6 +794,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_existing() {
         let data = Object {
@@ -606,6 +807,7 @@ mod tests {
         assert_eq!(res.expect(""), &serde_yaml::Value::from("ALWAYS"));
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_non_existing() {
         let data = Object {
@@ -617,6 +819,7 @@ mod tests {
         assert!(res.is_none());
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_from_not_map() {
         let data = Object {
@@ -628,6 +831,7 @@ mod tests {
         assert!(res.is_none());
     }
 
+    //[utest->swdd~common-state-manipulation-get~1]
     #[test]
     fn utest_object_get_from_sequence() {
         let data = Object {
@@ -637,6 +841,122 @@ mod tests {
         let res = data.get(&"B.0".into());
 
         assert!(res.is_some());
+    }
+
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
+    #[test]
+    fn utest_object_expand_wildcards_with_no_wildcards() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let paths = ["A.a.age".into(), "B.b.name".into()];
+
+        let expanded = data.expand_wildcards(&paths);
+
+        let x = expanded
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            (paths
+                .iter()
+                .map(ToString::to_string)
+                .collect::<HashSet<_>>())
+        );
+    }
+
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
+    #[test]
+    fn utest_object_expand_wildcards_with_one_wildcard() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expanded = data.expand_wildcards(&["A.*.age".into(), "B.*.name".into()]);
+
+        let x = expanded
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            HashSet::from([
+                "A.a.age".into(),
+                "A.b.age".into(),
+                "A.c.age".into(),
+                "B.a.name".into(),
+                "B.b.name".into(),
+                "B.c.name".into(),
+            ])
+        );
+    }
+
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
+    #[test]
+    fn utest_object_expand_wildcards_with_two_wildcard() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expanded = data.expand_wildcards(&["*.*.name".into()]);
+
+        let x = expanded
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            HashSet::from([
+                "A.a.name".into(),
+                "A.b.name".into(),
+                "A.c.name".into(),
+                "B.a.name".into(),
+                "B.b.name".into(),
+                "B.c.name".into(),
+            ])
+        );
+    }
+
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
+    #[test]
+    fn utest_object_expand_wildcards_with_two_wildcard_exclude_intermediate_missing() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expanded = data.expand_wildcards(&["*.a.*".into()]);
+
+        let x = expanded
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            x,
+            HashSet::from(["A.a.name".into(), "A.a.age".into(), "B.a.name".into(),])
+        );
+    }
+
+    //[utest->swdd~common-state-manipulation-expand-wildcards~1]
+    #[test]
+    fn utest_object_expand_wildcards_ignore_non_string_keys() {
+        let data = Object {
+            data: object::generate_test_value_object_for_wildcards(),
+        };
+
+        let expanded = data.expand_wildcards(&["C.*.*".into()]);
+
+        let x = expanded
+            .iter()
+            .map(ToString::to_string)
+            .collect::<HashSet<_>>();
+
+        assert_eq!(x, HashSet::from(["C.d.a".into(), "C.d.c".into(),]));
     }
 
     #[test]
@@ -704,6 +1024,295 @@ mod tests {
         let expected_set: HashSet<_> = expected.iter().collect();
 
         assert_eq!(actual_set, expected_set)
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_no_differences_on_empty_states() {
+        let old_state = Object {
+            data: Mapping::default().into(),
+        };
+        let new_state = Object {
+            data: Mapping::default().into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert!(changed_fields.is_empty());
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_no_differences_on_equal_states() {
+        let old_state = Object {
+            data: object::generate_test_complete_state_mapping().into(),
+        };
+        let new_state = &old_state;
+
+        let changed_fields = old_state.calculate_state_differences(new_state);
+
+        assert!(changed_fields.is_empty());
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_added_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+              key_2_2: value_2_2
+            key_1_2: {}
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let mut changed_fields = old_state.calculate_state_differences(&new_state);
+        changed_fields.sort();
+
+        assert_eq!(
+            changed_fields,
+            vec![
+                FieldDifference::Added(vec!["key_1_1".to_owned(), "key_2_2".to_owned()]),
+                FieldDifference::Added(vec!["key_1_2".to_owned()]),
+            ]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_updated_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+            key_1_2: {}
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1_updated
+            key_1_2: {}
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Updated(vec![
+                "key_1_1".to_owned(),
+                "key_2_1".to_owned()
+            ]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_removed_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+            key_1_2: {}
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1_1: {}
+            key_1_2: {}
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Removed(vec![
+                "key_1_1".to_owned(),
+                "key_2_1".to_owned()
+            ]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_removed_nested_mapping() {
+        let old_state_yaml = r#"
+            key_1_1:
+              key_2_1: value_2_1
+            key_1_2: {}
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1_2: {}
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Removed(vec!["key_1_1".to_owned(),]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_added_sequence() {
+        let old_state_yaml = r#"
+            key_1: []
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1:
+              - seq_value
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Added(vec!["key_1".to_owned(),]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_updated_sequence() {
+        let old_state_yaml = r#"
+            key_1:
+              - seq_value_1
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1:
+              - seq_value_1
+              - seq_value_2
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Updated(vec!["key_1".to_owned(),]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_removed_sequence() {
+        let old_state_yaml = r#"
+            key_1:
+              - seq_value
+        "#;
+
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state_yaml = r#"
+            key_1: []
+        "#;
+
+        let new_state = Object {
+            data: serde_yaml::from_str(new_state_yaml).unwrap(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert_eq!(
+            changed_fields,
+            vec![FieldDifference::Removed(vec!["key_1".to_owned(),]),]
+        );
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_data_is_not_mapping() {
+        // owned data is not mapping
+        let old_state = Object { data: Value::Null };
+
+        let new_state = Object {
+            data: Mapping::default().into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert!(changed_fields.is_empty());
+
+        // other state is not mapping
+        let old_state = Object {
+            data: Mapping::default().into(),
+        };
+
+        let new_state = Object { data: Value::Null };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert!(changed_fields.is_empty());
+    }
+
+    // [utest->swdd~server-calculates-state-differences-for-events~1]
+    #[test]
+    fn utest_calculate_state_differences_key_is_not_string() {
+        let old_state_yaml = r#"
+            0: value
+        "#;
+        let old_state = Object {
+            data: serde_yaml::from_str(old_state_yaml).unwrap(),
+        };
+
+        let new_state = Object {
+            data: Mapping::default().into(),
+        };
+
+        let changed_fields = old_state.calculate_state_differences(&new_state);
+
+        assert!(changed_fields.is_empty());
     }
 
     mod object {
@@ -838,6 +1447,40 @@ mod tests {
                 B: [bb1, bb2]
                 C: 666
                 42: true # integer as object key
+                "#,
+            )
+            .unwrap()
+        }
+
+        pub fn generate_test_value_object_for_wildcards() -> Value {
+            serde_yaml::from_str(
+                r#"
+                A:
+                    a:
+                        name: Anton
+                        age: 42
+                    b:
+                        name: Berta
+                        age: 36
+                    c:
+                        name: Caesar
+                        age: 12
+                B:
+                    a:
+                        name: Alpha
+                    b:
+                        name: Beta
+                    c:
+                        name: Charlie
+                C:
+                    d:
+                        a: b
+                        c: d
+                    32: "number as key"
+                    23:
+                    - one
+                    - two
+                    - three
                 "#,
             )
             .unwrap()

@@ -427,31 +427,21 @@ Needs:
 - utest
 
 #### Server stores a newly connected agent
-`swdd~server-stores-newly-connected-agent~1`
+`swdd~server-stores-newly-connected-agent~2`
 
 Status: approved
 
-When an Agent connects to the Ankaios server, the Ankaios server shall instruct the ServerState to store the newly connected agent within its state.
+When an Agent connects to the Ankaios server, the Ankaios server shall create an entry of the agent in its internal agent map.
+
+Comment:
+The agent map is an associative data structure that stores the agent's name and additional data for an agent.
+When the server is requested to provide the `CompleteState`, the content of the agent map is populated into the `agents` field part of the `CompleteState`.
 
 Rationale:
 Storing the connected Ankaios agents allows a workload to retrieve the connected agents via the Control Interface and the Ankaios CLI to list the connected agents to the user.
 
 Tags:
 - AnkaiosServer
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### ServerState stores agent inside the CompleteState
-`swdd~server-state-stores-agent-in-complete-state~1`
-
-Status: approved
-
-When the ServerState is triggered to store the agent, the ServerState shall create an entry of the agent in the `agents` field of the `CompleteState`.
-
-Tags:
 - ServerState
 
 Needs:
@@ -574,6 +564,22 @@ Tags:
 Needs:
 - impl
 - utest
+
+##### Server filters GetCompleteState requests with wildcards
+`swdd~server-filters-get-complete-state-result-with-wildcards~1`
+
+Status: approved
+
+When the Ankaios Server responses to a GetCompleteState with `field_mask` containing wildcards,
+the wildcards segment of the `field_mask` match all possible values on this level.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
 
 ##### Server includes RequestID in the ControlInterface response
 `swdd~server-includes-id-in-control-interface-response~1`
@@ -762,6 +768,31 @@ Needs:
 - impl
 - utest
 - itest
+
+#### Server calculates state differences for configured events
+`swdd~server-calculates-state-differences-for-events~1`
+
+Status: approved
+
+When the Ankaios Server gets the `ToServer` message `UpdateStateRequest`
+and there is at least one subscriber for events,
+the Ankaios Server shall calculate the state differences between the current and the new state by determining the field masks for added, updated and deleted fields.
+
+Comment:
+A custom Depth-Search-First (DFS) implementation comparing the current and new state fields is used.
+A sequence is treated as a leaf and in mappings only `string`s are supported as keys.
+An update from an empty sequence to a non-empty sequence is treated as an added field and the other way around as a removed field.
+Any other changes to a sequence field is treated as an updated field.
+
+Rationale:
+The determined field masks are forwarded to the subscriber.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
 
 #### ServerState compares rendered workload configurations
 `swdd~server-state-compares-rendered-workloads~1`
@@ -1013,32 +1044,20 @@ Needs:
 - utest
 
 #### Server receives agent node resource availability
-`swdd~server-receives-resource-availability~1`
+`swdd~server-receives-resource-availability~2`
 
 Status: approved
 
-When the Ankaios server receives a new agent load status, the Ankaios server shall trigger the ServerState to update the connected agent's resource availability with the provided new agent load status.
+When the Ankaios server receives a new agent load status, the Ankaios server shall update its internal agent map with agent node resource availability information regarding the cpu usage and the free memory.
+
+Comment:
+The agent map is an associative data structure that stores the agent's name and additional data for an agent.
 
 Rationale:
 The resource availability can be used for scheduling, e.g. done by controller workloads.
 
 Tags:
 - AnkaiosServer
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### ServerState updates agent node resource availability
-`swdd~server-updates-resource-availability~1`
-
-Status: approved
-
-When the ServerState receives a new agent load status, the ServerState shall update its internal state with agent node resource availability information regarding the cpu usage and the free memory.
-
-Tags:
-- ServerState
 
 Needs:
 - impl
@@ -1084,43 +1103,17 @@ Needs:
 - utest
 
 #### Server removes disconnected agents from its state
-`swdd~server-removes-disconnected-agents-from-state~1`
+`swdd~server-removes-disconnected-agents-from-state~2`
 
 Status: approved
 
-When the ToServer message AgentGone is received by the Ankaios server from an Ankaios agent, the AnkaiosServer shall instruct the ServerState to remove the agent from its internal state.
+When the ToServer message AgentGone is received by the Ankaios server from an Ankaios agent, the AnkaiosServer shall remove the entry of the agent in its internal agent map.
+
+Comment:
+The agent map is an associative data structure that stores the agent's name and additional data for an agent.
 
 Tags:
 - AnkaiosServer
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### ServerState removes agent from CompleteState
-`swdd~server-state-removes-agent-from-complete-state~1`
-
-Status: approved
-
-When the ServerState is triggered to remove the agent from its state, the ServerState shall remove the entry of the agent in the `agents` field of the `CompleteState`.
-
-Tags:
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### ServerState provides check for existence of a connected agent inside the complete state
-`swdd~server-state-provides-connected-agent-exists-check~1`
-
-Status: approved
-
-When the ServerState is triggered to check if an agent is part of its state, the ServerState shall check if the `agents` field of the `CompleteState` contains the agent name passed as argument.
-
-Tags:
-- ServerState
 
 Needs:
 - impl

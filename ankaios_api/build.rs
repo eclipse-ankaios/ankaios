@@ -25,6 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(true)
         .boxed("Request.RequestContent.updateStateRequest")
         .boxed("FromAnkaios.FromAnkaiosEnum.response")
+        .boxed("Response.ResponseContent.completeStateResponse")
         // Fix the enum serialization for fields/variants of the specified types as proto is generating them as integers
         .type_attribute(
             "Workload",

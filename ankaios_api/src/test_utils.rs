@@ -13,10 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ank_base::{
-    AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateSpec,
-    ConfigItemEnumSpec, ConfigItemSpec, ConfigMap, ConfigMapSpec, ConfigMappingsSpec, CpuUsageSpec,
-    DeleteCondition, DeletedWorkload, FreeMemorySpec, State, StateSpec, Workload,
-    WorkloadInstanceNameSpec, WorkloadMap, WorkloadMapSpec, WorkloadNamed, WorkloadSpec,
+    AgentAttributesSpec, AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateResponse,
+    CompleteStateSpec, ConfigItemEnumSpec, ConfigItemSpec, ConfigMap, ConfigMapSpec,
+    ConfigMappingsSpec, CpuUsageSpec, DeleteCondition, DeletedWorkload, FreeMemorySpec,
+    ResponseContent, State, StateSpec, Workload, WorkloadInstanceNameSpec, WorkloadMap,
+    WorkloadMapSpec, WorkloadNamed, WorkloadSpec,
 };
 pub use crate::ank_base::{
     control_interface_access::generate_test_control_interface_access,
@@ -138,6 +139,13 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadNamed>) -> CompleteSt
         workload_states: generate_test_workload_states_map_from_workloads(workloads),
         agents,
     }
+}
+
+pub fn generate_test_complete_state_response(workloads: &[(&str, Workload)]) -> ResponseContent {
+    ResponseContent::CompleteStateResponse(Box::new(CompleteStateResponse {
+        complete_state: Some(generate_test_proto_complete_state(workloads)),
+        ..Default::default()
+    }))
 }
 
 pub fn generate_test_complete_state_with_configs(configs: Vec<String>) -> CompleteStateSpec {

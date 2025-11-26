@@ -13,9 +13,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ankaios_api::ank_base::{
-    CompleteStateRequestSpec, CompleteStateSpec, LogEntriesResponse, LogsCancelAccepted,
-    LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec, RequestContentSpec, RequestSpec,
-    ResponseContent, State, UpdateStateRequestSpec, WorkloadInstanceNameSpec,
+    CompleteStateRequestSpec, CompleteStateResponse, CompleteStateSpec, LogEntriesResponse,
+    LogsCancelAccepted, LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec,
+    RequestContentSpec, RequestSpec, ResponseContent, State, UpdateStateRequestSpec,
+    WorkloadInstanceNameSpec,
 };
 
 use ankaios_api::control_api::{FromAnkaios, from_ankaios::FromAnkaiosEnum};
@@ -347,6 +348,7 @@ impl Connection {
             request_id: request_id.clone(),
             request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask,
+                subscribe_for_events: false,
             }),
         };
 
@@ -370,11 +372,16 @@ impl Connection {
         let response = self.get_complete_state(get_state_command.field_mask)?;
 
         Ok(TestResultEnum::GetStateResult(match response {
-            ResponseContent::CompleteState(complete_state) => {
-                TagSerializedResult::Ok(complete_state.desired_state)
+            ResponseContent::CompleteStateResponse(complete_state) => {
+                match (complete_state).complete_state {
+                    Some(complete_state) => TagSerializedResult::Ok(complete_state.desired_state),
+                    None => TagSerializedResult::Err(
+                        "Received CompleteStateResponse without complete_state field.".to_string(),
+                    ),
+                }
             }
-            response_content => TagSerializedResult::Err(format!(
-                "Received wrong response type. Expected CompleteState, received: '{response_content:?}'"
+            response => TagSerializedResult::Err(format!(
+                "Received wrong response type. Expected CompleteState, received: '{response:?}'"
             )),
         }))
     }
@@ -441,7 +448,16 @@ impl Connection {
         // Get the workload states to extract the workload instance names
         let workload_states_response = self.get_complete_state(vec!["workloadStates".into()])?;
         let workload_states = match workload_states_response {
-            ResponseContent::CompleteState(complete_state) => complete_state.workload_states,
+            ResponseContent::CompleteStateResponse(complete_state) => {
+                match *complete_state {
+                    CompleteStateResponse{complete_state: Some(complete_state), ..} => complete_state.workload_states,
+                    _ => {
+                        return Err(CommandError::GenericError(
+                            "Received CompleteStateResponse without complete_state field.".into(),
+                        ))
+                    }
+                }
+            }
             response_content => {
                 return Err(CommandError::GenericError(format!(
                     "Received wrong response type. Expected CompleteState, received: '{response_content:?}'"

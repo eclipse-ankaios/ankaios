@@ -12,7 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::{STR_RE_CONFIG_REFERENCES, StateSpec, WorkloadSpec};
+use crate::ank_base::{
+    CompleteStateResponse, CompleteStateSpec, STR_RE_CONFIG_REFERENCES, StateSpec, WorkloadSpec,
+};
 use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use regex::Regex;
 
@@ -59,6 +61,15 @@ impl StateSpec {
             WorkloadSpec::verify_config_reference_format(&workload.configs.configs)?;
         }
         Ok(())
+    }
+}
+
+impl From<CompleteStateSpec> for CompleteStateResponse {
+    fn from(item: CompleteStateSpec) -> Self {
+        Self {
+            complete_state: Some(item.into()),
+            ..Default::default()
+        }
     }
 }
 

@@ -459,6 +459,7 @@ pub fn setup_spec_workload_states(builder: Builder) -> Builder {
 /// This function is used to create and configure the following structs:
 /// - LogsRequestSpec
 /// - LogsCancelRequestSpec
+/// - EventsCancelRequestSpec
 /// - UpdateStateRequestSpec
 /// - CompleteStateRequestSpec
 /// - RequestContentSpec
@@ -475,6 +476,11 @@ pub fn setup_spec_requests(builder: Builder) -> Builder {
         .message_attribute("LogsCancelRequest", "#[derive(spec_macros::Spec)]")
         .message_attribute(
             "LogsCancelRequest",
+            "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
+        )
+        .message_attribute("EventsCancelRequest", "#[derive(spec_macros::Spec)]")
+        .message_attribute(
+            "EventsCancelRequest",
             "#[spec_derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq, Eq)]",
         )
         .message_attribute("UpdateStateRequest", "#[derive(spec_macros::Spec)]")

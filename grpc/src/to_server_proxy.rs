@@ -109,6 +109,10 @@ pub async fn forward_from_proto_to_ankaios(
                         log::trace!("Received LogsCancelRequest from '{agent_name}'");
                         sink.logs_cancel_request(request_id).await?;
                     }
+                    RequestContent::EventsCancelRequest(_event_cancel_request) => {
+                        log::trace!("Received EventsCancelRequest from '{agent_name}'");
+                        sink.event_cancel_request(request_id).await?;
+                    }
                 }
             }
 
@@ -722,7 +726,10 @@ mod tests {
                     to_server_enum: Some(ToServerEnum::Request(Request {
                         request_id: REQUEST_ID.to_string(),
                         request_content: Some(RequestContent::CompleteStateRequest(
-                            CompleteStateRequest { field_mask: vec![] },
+                            CompleteStateRequest {
+                                field_mask: vec![],
+                                subscribe_for_events: false,
+                            },
                         )),
                     })),
                 }),
@@ -747,9 +754,9 @@ mod tests {
                 request_id,
                 request_content:
                     RequestContentSpec::CompleteStateRequest(
-                        CompleteStateRequestSpec { field_mask },
+                        CompleteStateRequestSpec { field_mask, subscribe_for_events },
                     ),
-            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask));
+            }) if request_id == expected_prefixed_my_request_id && field_mask == expected_empty_field_mask && !subscribe_for_events));
     }
 
     #[tokio::test]
@@ -757,7 +764,10 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let request_complete_state = CompleteStateRequestSpec { field_mask: vec![] };
+        let request_complete_state = CompleteStateRequestSpec {
+            field_mask: vec![],
+            subscribe_for_events: false,
+        };
 
         let request_complete_state_result = server_tx
             .request_complete_state(REQUEST_ID.to_owned(), request_complete_state.clone())
@@ -779,10 +789,10 @@ mod tests {
             request_id,
             request_content:
                 Some(RequestContent::CompleteStateRequest(
-                    CompleteStateRequest { field_mask },
+                    CompleteStateRequest { field_mask, subscribe_for_events },
                 )),
         }))
-        if request_id == REQUEST_ID && field_mask == vec![] as Vec<String>));
+        if request_id == REQUEST_ID && field_mask == vec![] as Vec<String> && !subscribe_for_events));
     }
 
     #[tokio::test]
