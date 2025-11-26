@@ -183,17 +183,16 @@ impl ServerConfig {
 
 #[cfg(test)]
 mod tests {
+    use super::DEFAULT_SERVER_CONFIG_FILE_PATH;
+    use super::ServerConfig;
+    use crate::{cli::Arguments, server_config::ConversionErrors};
+    use common::DEFAULT_SOCKET_ADDRESS;
+
     use std::io::Write;
     use std::net::SocketAddr;
     use std::path::PathBuf;
+
     use tempfile::NamedTempFile;
-
-    use common::DEFAULT_SOCKET_ADDRESS;
-
-    use crate::{cli::Arguments, server_config::ConversionErrors};
-
-    use super::DEFAULT_SERVER_CONFIG_FILE_PATH;
-    use super::ServerConfig;
 
     const STARTUP_MANIFEST_PATH: &str = "some_path_to_config/config.yaml";
     const TEST_SOCKET_ADDRESS: &str = "127.0.0.1:3333";

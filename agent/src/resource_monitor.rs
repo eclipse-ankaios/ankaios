@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{CpuUsage, FreeMemory};
+use ankaios_api::ank_base::{CpuUsageSpec, FreeMemorySpec};
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind};
 
 #[cfg(test)]
@@ -42,13 +42,13 @@ impl ResourceMonitor {
         }
     }
 
-    pub fn sample_resource_usage(&mut self) -> (CpuUsage, FreeMemory) {
+    pub fn sample_resource_usage(&mut self) -> (CpuUsageSpec, FreeMemorySpec) {
         self.sys.refresh_specifics(self.refresh_kind);
 
-        let cpu_usage = self.sys.global_cpu_usage();
+        let cpu_usage = self.sys.global_cpu_usage().round() as u32;
         let free_memory = self.sys.free_memory();
 
-        (CpuUsage::new(cpu_usage), FreeMemory { free_memory })
+        (CpuUsageSpec { cpu_usage }, FreeMemorySpec { free_memory })
     }
 }
 
@@ -63,7 +63,6 @@ impl ResourceMonitor {
 #[cfg(test)]
 // [utest->swdd~agent-provides-resource-metrics~1]
 mod tests {
-
     pub struct MockSystem {
         refresh_kind: RefreshKind,
         cpu_usage: f32,

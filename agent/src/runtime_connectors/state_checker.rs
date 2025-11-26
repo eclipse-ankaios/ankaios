@@ -12,16 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::str::FromStr;
+use crate::workload_state::WorkloadStateSender;
+use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadNamed};
 
 use async_trait::async_trait;
-
-use common::objects::{ExecutionState, WorkloadSpec};
-
 #[cfg(test)]
 use mockall::automock;
-
-use crate::workload_state::WorkloadStateSender;
+use std::str::FromStr;
 
 // [impl->swdd~agent-general-runtime-state-getter-interface~1]
 #[async_trait]
@@ -31,7 +28,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     // [impl->swdd~allowed-workload-states~2]
-    async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionState;
+    async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionStateSpec;
 }
 
 // [impl->swdd~agent-general-state-checker-interface~1]
@@ -41,7 +38,7 @@ where
     WorkloadId: ToString + FromStr + Clone + Send + Sync + 'static,
 {
     fn start_checker(
-        workload_spec: &WorkloadSpec,
+        workload_named: &WorkloadNamed,
         workload_id: WorkloadId,
         manager_interface: WorkloadStateSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,

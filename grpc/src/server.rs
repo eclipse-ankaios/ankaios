@@ -12,28 +12,23 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::grpc_api::cli_connection_server::CliConnectionServer;
-use common::communications_error::CommunicationMiddlewareError;
-use common::communications_server::CommunicationsServer;
-
-use tonic::transport::{Certificate, Identity, Server};
-
-use std::net::SocketAddr;
-
 use crate::agent_senders_map::AgentSendersMap;
-use crate::grpc_api::agent_connection_server::AgentConnectionServer;
-use crate::grpc_cli_connection::GRPCCliConnection;
-use crate::grpc_middleware_error::GrpcMiddlewareError;
-
-use crate::security::TLSConfig;
-
 use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
+use crate::grpc_api::agent_connection_server::AgentConnectionServer;
+use crate::grpc_api::cli_connection_server::CliConnectionServer;
+use crate::grpc_cli_connection::GRPCCliConnection;
+use crate::grpc_middleware_error::GrpcMiddlewareError;
+use crate::security::TLSConfig;
 
+use common::communications_error::CommunicationMiddlewareError;
+use common::communications_server::CommunicationsServer;
 use common::from_server_interface::FromServerReceiver;
 use common::to_server_interface::ToServerSender;
 
 use async_trait::async_trait;
+use std::net::SocketAddr;
+use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
 
 #[derive(Debug)]
 pub struct GRPCCommunicationsServer {
@@ -67,7 +62,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 let key = &tls_config.key_pem;
 
                 let server_identity = Identity::from_pem(cert, key);
-                let tls = tonic::transport::ServerTlsConfig::new()
+                let tls = ServerTlsConfig::new()
                     .client_ca_root(Certificate::from_pem(ca))
                     .identity(server_identity);
                 tokio::select! {
@@ -97,8 +92,8 @@ impl CommunicationsServer for GRPCCommunicationsServer {
             // [impl->swdd~grpc-server-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
             None => {
                 log::warn!(
-                            "!!!ANKSERVER IS STARTED IN INSECURE MODE (-k, --insecure) -> TLS is disabled!!!"
-                        );
+                    "!!!ANKSERVER IS STARTED IN INSECURE MODE (-k, --insecure) -> TLS is disabled!!!"
+                );
                 tokio::select! {
                     // [impl->swdd~grpc-server-spawns-tonic-service~1]
                     // [impl->swdd~grpc-delegate-workflow-to-external-library~1]

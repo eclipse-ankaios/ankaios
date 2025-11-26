@@ -10,10 +10,11 @@ RUN apt-get update && apt-get install -y \
     libprotobuf-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY api ${WORKSPACE_DIR}/api
+COPY ankaios_api ${WORKSPACE_DIR}/ankaios_api
+COPY spec_macros ${WORKSPACE_DIR}/spec_macros
 COPY examples/rust_control_interface ${WORKSPACE_DIR}
 WORKDIR ${WORKSPACE_DIR}
-ENV ANKAIOS_VERSION=0.7.0-pre
+ENV ANKAIOS_VERSION=0.8.0-pre
 RUN --mount=type=cache,target=${WORKSPACE_DIR}/target/release cargo build --release \
     && cp ${WORKSPACE_DIR}/target/release/control_interface_example /usr/local/bin/
 

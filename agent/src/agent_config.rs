@@ -14,6 +14,7 @@
 
 use crate::cli::Arguments;
 use crate::io_utils::DEFAULT_RUN_FOLDER;
+
 use common::DEFAULT_SERVER_ADDRESS;
 use common::std_extensions::UnreachableOption;
 use grpc::security::read_pem_file;
@@ -186,16 +187,14 @@ impl AgentConfig {
 
 #[cfg(test)]
 mod tests {
+    use super::{AgentConfig, CONFIG_VERSION};
+    use crate::io_utils::DEFAULT_RUN_FOLDER;
+    use crate::{agent_config::ConversionErrors, cli::Arguments};
+    use common::DEFAULT_SERVER_ADDRESS;
+
     use std::io::Write;
     use std::path::PathBuf;
     use tempfile::NamedTempFile;
-
-    use common::DEFAULT_SERVER_ADDRESS;
-
-    use crate::io_utils::DEFAULT_RUN_FOLDER;
-    use crate::{agent_config::ConversionErrors, cli::Arguments};
-
-    use super::{AgentConfig, CONFIG_VERSION};
 
     const AGENT_NAME: &str = "agent_1";
     const CA_PEM_PATH: &str = "some_path_to_ca_pem/ca.pem";

@@ -7,7 +7,7 @@ The following manifest contains a workload with a mounted web server configurati
 To get an overview about which workload configuration fields currently support template expansion, see [here](config-objects.md).
 
 ```yaml linenums="1" hl_lines="8-10 19-21"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   nginx:
     agent: agent_A

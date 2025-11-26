@@ -223,27 +223,6 @@ Needs:
 - impl
 - utest
 
-#### AgentMap manages agent names along with agent attributes
-`swdd~agent-map-manages-agent-names-with-agent-attributes~2`
-
-Status: approved
-
-The AgentMap provides the following functionalities:
-* inserting an agent name with default attributes
-* checking whether an entry for an agent exists
-* removing an agent name with its associated attributes
-* storing the agent attributes
-* updating an agent's node resource availability
-
-Comment:
-The AgentMap is actually the object exposed to the external interfaces, but provides some additional functionality.
-
-Tags:
-- AgentMap
-
-Needs:
-- impl
-
 #### Workload add conditions for dependencies
 `swdd~workload-add-conditions-for-dependencies~1`
 
@@ -307,20 +286,6 @@ Needs:
 Status: approved
 
 When allow rules for the Control Interface access are specified in the workload specification, the Common library shall approve the creation of a Control Interface.
-
-Tags:
-- Objects
-
-Needs:
-- impl
-- utest
-
-#### Provide a method that checks if the workload has files assigned
-`swdd~common-workload-has-files~1`
-
-Status: approved
-
-When the field `files` of the workload specification contains at least one entry, the Common library shall approve the mount of the workload files specified in the field.
 
 Tags:
 - Objects
@@ -523,7 +488,7 @@ Needs:
 
 Status: approved
 
-The Common library shall provide a common version checking functionality that fails if a provided version differs from the current major and minor one.
+The Common library shall provide a common release version checking functionality that fails if a provided version differs from the current major and minor one.
 
 Rationale:
 The version checking is executed in different Ankaios components and must behave in the same way. The failure on a different minor version is required as Ankaios is currently at a 0 (zero) major version.

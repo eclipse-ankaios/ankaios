@@ -138,17 +138,11 @@ message UpdateWorkload {
 */
 message AddedWorkload {
     ank_base.WorkloadInstanceName instanceName = 1; /// The instance name of the workload.
-    string runtime = 2; /// The name of the runtime, e.g., podman.
-    map<string, ank_base.AddCondition> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
-    ank_base.RestartPolicy restartPolicy = 4; /// An enum value that defines the condition under which a workload is restarted.
-    repeated ank_base.Tag tags = 5; /// A list of tags.
-    string runtimeConfig = 6; /// The configuration information specific to the runtime.
-    ank_base.ControlInterfaceAccess controlInterfaceAccess = 7; /// Defines which parts of the control interface the workload is authorized to access.
-    repeated ank_base.File files = 8; /// A list of files to be mounted to the workload.
+    ank_base.Workload workload = 2; /// The workload to be added.
 }
 
 /**
-* A message containing information about a workload to be deleted from the Anakaios system.
+* A message containing information about a workload to be deleted from the Ankaios system.
 */
 message DeletedWorkload {
     ank_base.WorkloadInstanceName instanceName = 1; /// The instance name of the workload.
