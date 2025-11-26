@@ -532,8 +532,6 @@ impl AnkaiosServer {
                             }
                         });
 
-                        log::debug!("State difference tree: {state_difference_tree:?}",);
-
                         self.event_handler
                             .send_events(
                                 &self.server_state,
@@ -642,8 +640,6 @@ impl AnkaiosServer {
                     &wl_state.instance_name,
                 ));
             });
-
-            log::debug!("State difference tree after update: '{state_difference_tree:?}'");
 
             if !state_difference_tree.is_empty() {
                 self.event_handler
