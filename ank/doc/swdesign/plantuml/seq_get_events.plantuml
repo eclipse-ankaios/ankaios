@@ -1,0 +1,86 @@
+@startuml seq_get_events
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Ank"
+    actor "user" as user
+    participant Main as main
+    participant "CliCommands" as cli_commands
+    participant "ServerConnection" as server_connection
+    participant "<<task>>\nCommunicationsClient" as communications_client
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+-> main ++ : ank get events
+
+== startup ==
+
+... initialization ...
+
+== command ==
+
+main -> cli_commands ++ : get events with field mask and output format
+
+cli_commands -> server_connection ++: subscribe for events with field mask
+server_connection ->> communications_client++: send CompleteStateRequest\nwith subscribe_for_events=true
+communications_client ->> server --++ : send CompleteStateRequest
+server_connection <<-- communications_client --: EventSubscription\nwith request_id
+
+cli_commands <<-- server_connection --: EventSubscription
+
+cli_commands -> server_connection ++ : receive events until signal or error
+server_connection -> server_connection ++ : listen for event messages
+
+loop until unix termination signal or error
+    server_connection ->> communications_client --++: listen to FromServer messages
+    communications_client ->> server --++: listen to FromServer messages
+    communications_client <<-- server --++: FromServer message (CompleteStateResponse)
+    deactivate server
+    server_connection <<-- communications_client --++: CompleteStateResponse
+
+    alt initial state response (first message)
+        server_connection -> server_connection ++--: skip initial state\nset initial_response_received = true
+        note right
+            Initial state is not an event,
+            just baseline snapshot
+        end note
+    else subsequent event responses
+        server_connection -> server_connection ++: filter by request_id
+        alt request_id matches subscription
+            server_connection -->> cli_commands --++: event (CompleteStateResponse)
+            cli_commands -> cli_commands ++: format event with timestamp\nand altered fields
+            note right
+                Output format:
+                - timestamp (RFC3339)
+                - addedFields
+                - updatedFields
+                - removedFields
+                - completeState
+            end note
+            cli_commands -> cli_commands ++--: output event (YAML or JSON)
+            cli_commands -> server_connection ++: receive next event
+        else request_id does not match
+            server_connection -> server_connection ++--: ignore message
+        end
+    end
+end
+
+alt signal interruption (SIGINT/SIGTERM)
+    server_connection -->> cli_commands --++: graceful exit (Ok)
+    cli_commands -->> main --++: exit successfully
+    main -->> user --: exit
+else connection interrupted
+    server_connection -->> cli_commands --++: connection error
+    cli_commands -->> main --++: error
+    main -> main ++--: print error
+    main -->> user --: exit with error
+else subscription or reception error
+    server_connection -->> cli_commands --++: error
+    cli_commands -->> main --++: error
+    main -> main ++--: print error
+    main -->> user --: exit with error
+end
+
+@enduml

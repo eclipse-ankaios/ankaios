@@ -37,7 +37,7 @@ Test Ankaios CLI update workload
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${default_state_yaml_file}"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And all workloads of agent "agent_A" shall start via events
     # Actions
     And user triggers "ank -k --no-wait set state desiredState.workloads.simple.agent ${new_state_yaml_file}"
     # Asserts
@@ -54,7 +54,7 @@ Test Ankaios CLI get workloads with wildcard
     Given Podman has deleted all existing containers
     And Ankaios server is started with config "${default_state_yaml_file}"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And all workloads of agent "agent_A" shall start via events
     # Actions
     And user triggers "ank -k get state -o json 'desiredState.workloads.*.agent' 'desiredState.workloads.*.runtime'"
     # Asserts

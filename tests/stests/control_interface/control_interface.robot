@@ -31,7 +31,7 @@ Test Ankaios workload successful start-up without a Control Interface access
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "{agent_name}" have an initial execution state
+    And all workloads of agent "${agent_name}" shall start via events
     # Actions
     # Asserts
     Then the mount point for the control interface has not been generated for ${agent_name}
@@ -44,7 +44,7 @@ Test Ankaios workload restart after update without a Control Interface access
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple_with_control.yaml"
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "{agent_name}" have an initial execution state
+    And all workloads of agent "${agent_name}" shall start via events
     # Actions
     When user triggers "ank -k apply ${CONFIGS_DIR}/simple.yaml"
     # Asserts
@@ -58,7 +58,7 @@ Test Ankaios workload restart after update with a Control Interface access
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "{agent_name}" have an initial execution state
+    And all workloads of agent "${agent_name}" shall start via events
     And the mount point for the control interface has not been generated for ${agent_name}
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/simple_with_control.yaml"
@@ -73,7 +73,7 @@ Test Ankaios containerd workload restart after update with a Control Interface a
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple_containerd.yaml"
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "{agent_name}" have an initial execution state
+    And all workloads of agent "${agent_name}" shall start via events
     And the mount point for the control interface has not been generated for ${agent_name}
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/simple_with_control_containerd.yaml"
@@ -95,7 +95,7 @@ Test workload with empty Control Interface access field mask rejected
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/simple.yaml"
     And Ankaios agent is started with name "${agent_name}"
-    And all workloads of agent "{agent_name}" have an initial execution state
+    And all workloads of agent "${agent_name}" shall start via events
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/faulty_with_control_as_empty.yaml"
     # Asserts
