@@ -12,27 +12,30 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    commands::{self, LogsRequest, RequestContent},
-    objects::CompleteState,
+use crate::commands::{self, AgentLoadStatus};
+use crate::std_extensions::UnreachableResult;
+use ankaios_api::ank_base::{
+    CompleteStateRequestSpec, CompleteStateSpec, EventsCancelRequestSpec, LogEntriesResponse,
+    LogsCancelRequestSpec, LogsRequest, LogsRequestSpec, LogsStopResponse, RequestContentSpec,
+    RequestSpec, UpdateStateRequestSpec, WorkloadStateSpec,
 };
-use api::ank_base;
+
 use async_trait::async_trait;
 use std::fmt;
-use tokio::sync::mpsc::error::SendError;
+use tokio::sync::mpsc::{self, error::SendError};
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum ToServer {
     AgentHello(commands::AgentHello),
-    AgentLoadStatus(commands::AgentLoadStatus),
+    AgentLoadStatus(AgentLoadStatus),
     AgentGone(commands::AgentGone),
-    Request(commands::Request),
+    Request(RequestSpec),
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Stop(commands::Stop),
     Goodbye(commands::Goodbye),
-    LogEntriesResponse(String, ank_base::LogEntriesResponse),
-    LogsStopResponse(String, ank_base::LogsStopResponse),
+    LogEntriesResponse(String, LogEntriesResponse),
+    LogsStopResponse(String, LogsStopResponse),
 }
 
 #[derive(Debug)]
@@ -54,25 +57,23 @@ impl fmt::Display for ToServerError {
 #[async_trait]
 pub trait ToServerInterface {
     async fn agent_hello(&self, agent_name: String) -> Result<(), ToServerError>;
-    async fn agent_load_status(
-        &self,
-        agent_resource: commands::AgentLoadStatus,
-    ) -> Result<(), ToServerError>;
+    async fn agent_load_status(&self, agent_resource: AgentLoadStatus)
+    -> Result<(), ToServerError>;
     async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError>;
     async fn update_state(
         &self,
         request_id: String,
-        state: CompleteState,
+        new_state: CompleteStateSpec,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError>;
     async fn update_workload_state(
         &self,
-        workload_running: Vec<crate::objects::WorkloadState>,
+        workload_running: Vec<WorkloadStateSpec>,
     ) -> Result<(), ToServerError>;
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: commands::CompleteStateRequest,
+        request_complete_state: CompleteStateRequestSpec,
     ) -> Result<(), ToServerError>;
     async fn logs_request(
         &self,
@@ -83,20 +84,20 @@ pub trait ToServerInterface {
     async fn log_entries_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogEntriesResponse,
+        logs_response: LogEntriesResponse,
     ) -> Result<(), ToServerError>;
     async fn logs_stop_response(
         &self,
         request_id: String,
-        logs_stop_response: ank_base::LogsStopResponse,
+        logs_stop_response: LogsStopResponse,
     ) -> Result<(), ToServerError>;
     async fn event_cancel_request(&self, request_id: String) -> Result<(), ToServerError>;
     async fn goodbye(&self, connection_name: String) -> Result<(), ToServerError>;
     async fn stop(&self) -> Result<(), ToServerError>;
 }
 
-pub type ToServerSender = tokio::sync::mpsc::Sender<ToServer>;
-pub type ToServerReceiver = tokio::sync::mpsc::Receiver<ToServer>;
+pub type ToServerSender = mpsc::Sender<ToServer>;
+pub type ToServerReceiver = mpsc::Receiver<ToServer>;
 
 #[async_trait]
 impl ToServerInterface for ToServerSender {
@@ -108,7 +109,7 @@ impl ToServerInterface for ToServerSender {
 
     async fn agent_load_status(
         &self,
-        agent_load_status: commands::AgentLoadStatus,
+        agent_load_status: AgentLoadStatus,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::AgentLoadStatus(agent_load_status))
@@ -124,14 +125,17 @@ impl ToServerInterface for ToServerSender {
     async fn update_state(
         &self,
         request_id: String,
-        state: CompleteState,
+        new_state: CompleteStateSpec,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(commands::Request {
+            .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: commands::RequestContent::UpdateStateRequest(Box::new(
-                    commands::UpdateStateRequest { state, update_mask },
+                request_content: RequestContentSpec::UpdateStateRequest(Box::new(
+                    UpdateStateRequestSpec {
+                        new_state,
+                        update_mask,
+                    },
                 )),
             }))
             .await?)
@@ -139,7 +143,7 @@ impl ToServerInterface for ToServerSender {
 
     async fn update_workload_state(
         &self,
-        workload_running: Vec<crate::objects::WorkloadState>,
+        workload_running: Vec<WorkloadStateSpec>,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::UpdateWorkloadState(
@@ -153,12 +157,12 @@ impl ToServerInterface for ToServerSender {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: commands::CompleteStateRequest,
+        request_complete_state: CompleteStateRequestSpec,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(commands::Request {
+            .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContent::CompleteStateRequest(request_complete_state),
+                request_content: RequestContentSpec::CompleteStateRequest(request_complete_state),
             }))
             .await?)
     }
@@ -169,18 +173,20 @@ impl ToServerInterface for ToServerSender {
         logs_request: LogsRequest,
     ) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(commands::Request {
+            .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContent::LogsRequest(logs_request),
+                request_content: RequestContentSpec::LogsRequest(
+                    LogsRequestSpec::try_from(logs_request).unwrap_or_unreachable(),
+                ),
             }))
             .await?)
     }
 
     async fn logs_cancel_request(&self, request_id: String) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(commands::Request {
+            .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContent::LogsCancelRequest,
+                request_content: RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {}),
             }))
             .await?)
     }
@@ -188,7 +194,7 @@ impl ToServerInterface for ToServerSender {
     async fn log_entries_response(
         &self,
         request_id: String,
-        logs_response: ank_base::LogEntriesResponse,
+        logs_response: LogEntriesResponse,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::LogEntriesResponse(request_id, logs_response))
@@ -198,7 +204,7 @@ impl ToServerInterface for ToServerSender {
     async fn logs_stop_response(
         &self,
         request_id: String,
-        logs_stop_response: ank_base::LogsStopResponse,
+        logs_stop_response: LogsStopResponse,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::LogsStopResponse(request_id, logs_stop_response))
@@ -207,9 +213,11 @@ impl ToServerInterface for ToServerSender {
 
     async fn event_cancel_request(&self, request_id: String) -> Result<(), ToServerError> {
         Ok(self
-            .send(ToServer::Request(commands::Request {
+            .send(ToServer::Request(RequestSpec {
                 request_id,
-                request_content: RequestContent::EventsCancelRequest,
+                request_content: RequestContentSpec::EventsCancelRequest(
+                    EventsCancelRequestSpec {},
+                ),
             }))
             .await?)
     }
@@ -235,33 +243,34 @@ impl ToServerInterface for ToServerSender {
 
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, LogEntriesResponse, LogEntry};
-
+    use super::{ToServerReceiver, ToServerSender};
     use crate::{
-        commands::{self, AgentLoadStatus, RequestContent},
-        objects::{
-            CpuUsage, ExecutionState, FreeMemory, WorkloadInstanceName,
-            generate_test_workload_spec, generate_test_workload_state,
-        },
-        test_utils::generate_test_complete_state,
+        commands::{self, AgentLoadStatus},
         to_server_interface::{ToServer, ToServerInterface},
     };
+    use ankaios_api::ank_base::{
+        CompleteStateRequestSpec, CpuUsageSpec, ExecutionStateSpec, FreeMemorySpec,
+        LogEntriesResponse, LogEntry, LogsCancelRequestSpec, LogsRequestSpec, LogsStopResponse,
+        RequestContentSpec, RequestSpec, UpdateStateRequestSpec, WorkloadInstanceName,
+        WorkloadInstanceNameSpec,
+    };
+    use ankaios_api::test_utils::{
+        generate_test_complete_state, generate_test_workload, generate_test_workload_state,
+    };
+    use tokio::sync::mpsc;
 
-    use super::{ToServerReceiver, ToServerSender};
-
-    const TEST_CHANNEL_CAPA: usize = 5;
+    const TEST_CHANNEL_CAP: usize = 5;
     const WORKLOAD_NAME: &str = "X";
     const AGENT_NAME: &str = "agent_A";
     const REQUEST_ID: &str = "emkw489ejf89ml";
     const FIELD_MASK: &str = "desiredState.bla_bla";
-    const CPU_USAGE: CpuUsage = CpuUsage { cpu_usage: 42 };
-    const FREE_MEMORY: FreeMemory = FreeMemory { free_memory: 42 };
+    const CPU_USAGE: CpuUsageSpec = CpuUsageSpec { cpu_usage: 42 };
+    const FREE_MEMORY: FreeMemorySpec = FreeMemorySpec { free_memory: 42 };
 
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_agent_hello() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
         assert!(tx.agent_hello(AGENT_NAME.to_string()).await.is_ok());
 
@@ -276,8 +285,7 @@ mod tests {
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_agent_load_status() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
         assert!(
             tx.agent_load_status(AgentLoadStatus {
@@ -302,8 +310,7 @@ mod tests {
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_agent_gone() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
         assert!(tx.agent_gone(AGENT_NAME.to_string()).await.is_ok());
 
@@ -318,10 +325,9 @@ mod tests {
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_state() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
-        let workload1 = generate_test_workload_spec();
+        let workload1 = generate_test_workload();
         let complete_state = generate_test_complete_state(vec![workload1]);
         assert!(
             tx.update_state(
@@ -335,11 +341,11 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(commands::Request {
+            ToServer::Request(RequestSpec {
                 request_id: REQUEST_ID.to_string(),
-                request_content: commands::RequestContent::UpdateStateRequest(Box::new(
-                    commands::UpdateStateRequest {
-                        state: complete_state,
+                request_content: RequestContentSpec::UpdateStateRequest(Box::new(
+                    UpdateStateRequestSpec {
+                        new_state: complete_state,
                         update_mask: vec![FIELD_MASK.to_string()]
                     },
                 )),
@@ -350,10 +356,10 @@ mod tests {
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_workload_state() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
-        let workload_state = generate_test_workload_state(WORKLOAD_NAME, ExecutionState::running());
+        let workload_state =
+            generate_test_workload_state(WORKLOAD_NAME, ExecutionStateSpec::running());
         assert!(
             tx.update_workload_state(vec![workload_state.clone()])
                 .await
@@ -371,14 +377,14 @@ mod tests {
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_request_complete_state() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
-        let complete_state_request = commands::CompleteStateRequest {
+        let complete_state_request = CompleteStateRequestSpec {
             field_mask: vec![FIELD_MASK.to_string()],
             subscribe_for_events: false,
         };
-        let request_content = RequestContent::CompleteStateRequest(complete_state_request.clone());
+        let request_content =
+            RequestContentSpec::CompleteStateRequest(complete_state_request.clone());
         assert!(
             tx.request_complete_state(REQUEST_ID.to_string(), complete_state_request)
                 .await
@@ -387,7 +393,7 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(commands::Request {
+            ToServer::Request(RequestSpec {
                 request_id: REQUEST_ID.to_string(),
                 request_content
             })
@@ -396,26 +402,29 @@ mod tests {
 
     #[tokio::test]
     async fn utest_to_server_send_logs_request() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
-        let logs_request = commands::LogsRequest {
-            workload_names: vec![WorkloadInstanceName::new(AGENT_NAME, WORKLOAD_NAME, "id")],
+        let logs_request = LogsRequestSpec {
+            workload_names: vec![WorkloadInstanceNameSpec::new(
+                AGENT_NAME,
+                WORKLOAD_NAME,
+                "id",
+            )],
             follow: true,
             tail: 10,
             since: None,
             until: None,
         };
-        let request_content = RequestContent::LogsRequest(logs_request.clone());
+        let request_content = RequestContentSpec::LogsRequest(logs_request.clone());
         assert!(
-            tx.logs_request(REQUEST_ID.into(), logs_request)
+            tx.logs_request(REQUEST_ID.into(), logs_request.into())
                 .await
                 .is_ok()
         );
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(commands::Request {
+            ToServer::Request(RequestSpec {
                 request_id: REQUEST_ID.to_string(),
                 request_content
             })
@@ -424,15 +433,14 @@ mod tests {
 
     #[tokio::test]
     async fn utest_to_server_send_logs_cancel_request() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
-        let request_content = RequestContent::LogsCancelRequest;
+        let request_content = RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {});
         assert!(tx.logs_cancel_request(REQUEST_ID.into()).await.is_ok());
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::Request(commands::Request {
+            ToServer::Request(RequestSpec {
                 request_id: REQUEST_ID.to_string(),
                 request_content
             })
@@ -441,12 +449,11 @@ mod tests {
 
     #[tokio::test]
     async fn utest_to_server_send_logs_response() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
         let logs_response = LogEntriesResponse {
             log_entries: vec![LogEntry {
-                workload_name: Some(ank_base::WorkloadInstanceName {
+                workload_name: Some(WorkloadInstanceName {
                     agent_name: AGENT_NAME.into(),
                     workload_name: WORKLOAD_NAME.into(),
                     id: "id".into(),
@@ -470,11 +477,10 @@ mod tests {
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_logs_stop_response() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
-        let response_content = ank_base::LogsStopResponse {
-            workload_name: Some(ank_base::WorkloadInstanceName {
+        let response_content = LogsStopResponse {
+            workload_name: Some(WorkloadInstanceName {
                 agent_name: AGENT_NAME.into(),
                 workload_name: WORKLOAD_NAME.into(),
                 id: "id".into(),

@@ -12,15 +12,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(test)]
-use tests::{spawn, JoinHandle};
-#[cfg(not(test))]
-use tokio::task::{spawn, JoinHandle};
-
 use super::{
     log_channel,
     log_fetcher::{self, LogFetcher},
 };
+
+#[cfg(test)]
+use tests::{JoinHandle, spawn};
+#[cfg(not(test))]
+use tokio::task::{JoinHandle, spawn};
 
 pub struct LogFetchingRunner {
     join_handles: Vec<JoinHandle<()>>,
@@ -63,17 +63,17 @@ impl Drop for LogFetchingRunner {
 
 #[cfg(test)]
 mod tests {
+    use crate::runtime_connectors::{
+        log_fetcher::{MockLogFetcher, NextLinesResult},
+        log_fetching_runner::LogFetchingRunner,
+    };
+
     use lazy_static::lazy_static;
     use std::{
         future::Future,
         sync::{Arc, Mutex},
     };
-    use tokio::{self};
-
-    use crate::runtime_connectors::{
-        log_fetcher::{MockLogFetcher, NextLinesResult},
-        log_fetching_runner::LogFetchingRunner,
-    };
+    use tokio;
 
     lazy_static! {
         static ref SPAWN_JOIN_HANDLE: Mutex<Vec<Box<dyn TypelessJoinHandle>>> =

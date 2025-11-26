@@ -1,5 +1,5 @@
 desiredState:
-  apiVersion: v0.1
+  apiVersion: v1
   workloads:
     workload_C:
       runtime: podman
@@ -9,8 +9,7 @@ desiredState:
         workload_D: ADD_COND_SUCCEEDED
         workload_A: ADD_COND_RUNNING
       tags:
-        - key: owner
-          value: Ankaios team
+        owner: Ankaios team
       runtimeConfig: |
         image: ghcr.io/eclipse-ankaios/tests/alpine:latest
         commandArgs: [ "echo", "Hello Ankaios"]

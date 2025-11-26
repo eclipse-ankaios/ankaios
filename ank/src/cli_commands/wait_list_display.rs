@@ -12,24 +12,23 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use super::cli_table::CliTable;
+use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};
+use crate::cli_commands::workload_table_row::WorkloadTableRowWithSpinner;
+
+use ankaios_api::ank_base::{WorkloadInstanceNameSpec, WorkloadStateSpec};
+
 use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Display},
 };
 
-use common::objects::WorkloadInstanceName;
-
-use crate::cli_commands::workload_table_row::WorkloadTableRowWithSpinner;
-
-use super::cli_table::CliTable;
-use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};
-
 pub(crate) const COMPLETED_SYMBOL: &str = " ";
 const SPINNER_SYMBOLS: [&str; 4] = ["|", "/", "-", "\\"];
 
 pub struct WaitListDisplay {
-    pub data: HashMap<WorkloadInstanceName, WorkloadTableRow>,
-    pub not_completed: HashSet<WorkloadInstanceName>,
+    pub data: HashMap<WorkloadInstanceNameSpec, WorkloadTableRow>,
+    pub not_completed: HashSet<WorkloadInstanceNameSpec>,
     pub spinner: Spinner,
 }
 
@@ -65,14 +64,14 @@ impl Display for WaitListDisplay {
 }
 
 impl WaitListDisplayTrait for WaitListDisplay {
-    fn update(&mut self, workload_state: &common::objects::WorkloadState) {
+    fn update(&mut self, workload_state: &WorkloadStateSpec) {
         if let Some(entry) = self.data.get_mut(&workload_state.instance_name) {
-            entry.execution_state = workload_state.execution_state.state.to_string();
+            entry.execution_state = workload_state.execution_state.state().to_string();
             entry.set_additional_info(&workload_state.execution_state.additional_info);
         }
     }
 
-    fn set_complete(&mut self, workload: &WorkloadInstanceName) {
+    fn set_complete(&mut self, workload: &WorkloadInstanceNameSpec) {
         self.not_completed.remove(workload);
     }
 
@@ -105,22 +104,20 @@ impl Display for Spinner {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-
-    use std::collections::{HashMap, HashSet};
-
-    use common::objects::{ExecutionState, WorkloadInstanceName, WorkloadState};
-
+    use super::WaitListDisplay;
     use crate::cli_commands::{
         wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow,
     };
 
-    use super::WaitListDisplay;
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
+    use std::collections::{HashMap, HashSet};
 
     #[test]
     fn update_table() {
-        let workload_instance_name = WorkloadInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceNameSpec::builder()
             .agent_name("agent")
             .config(&String::from("runtime"))
             .workload_name("workload")
@@ -148,9 +145,9 @@ mod tests {
                 .execution_state,
             "execution_state"
         );
-        wait_list_display.update(&WorkloadState {
+        wait_list_display.update(&WorkloadStateSpec {
             instance_name: workload_instance_name.clone(),
-            execution_state: ExecutionState::succeeded(),
+            execution_state: ExecutionStateSpec::succeeded(),
         });
         assert_eq!(
             wait_list_display

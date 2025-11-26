@@ -23,7 +23,7 @@ tar -cvzf "${DIST_DIR}/"test-results.tar.gz --directory="${DIST_DIR}/test-result
 (cd "${DIST_DIR}/test-results" && zip -r "${DIST_DIR}/"test-results.zip .)
 
 echo "Exporting control api protos"
-cp "${ROOT_DIR}"/api/proto/*.proto "${DIST_DIR}"
+cp "${ROOT_DIR}"/ankaios_api/proto/*.proto "${DIST_DIR}"
 
 echo "Exporting install script"
 cp "${ROOT_DIR}"/tools/install.sh "${DIST_DIR}"

@@ -153,6 +153,28 @@ Tags:
 Needs:
 - impl
 
+#### Server validates tags format in startup manifest
+`swdd~server-validates-startup-manifest-tags-format~1`
+
+Status: approved
+
+When loading a startup manifest, the Server shall
+* display a warning message informing the user that the version is deprecated and support will be removed in future releases
+* validate that workload tags conform to the format required by the manifest's apiVersion, and exit with an error if validation fails
+* provide an error message indicating the expected format for the detected API version and the workload name where the error occurred
+
+Rationale:
+Prevents the server from starting with an invalid configuration, ensuring system integrity from startup.
+
+Tags:
+- AnkaiosServer
+- StartupStateLoader
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Server starts without startup config
 `swdd~server-starts-without-startup-config~1`
 

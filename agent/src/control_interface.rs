@@ -33,7 +33,7 @@ pub use fifo::MockFifo;
 #[cfg(test)]
 use mockall::automock;
 
-use common::objects::WorkloadInstanceName;
+use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 use common::{from_server_interface::FromServerSender, to_server_interface::ToServerSender};
 
 #[cfg_attr(test, mockall_double::double)]
@@ -79,7 +79,7 @@ pub struct ControlInterface {
 impl ControlInterface {
     pub fn new(
         base_path: ControlInterfacePath,
-        execution_instance_name: &WorkloadInstanceName,
+        execution_instance_name: &WorkloadInstanceNameSpec,
         output_pipe_channel: ToServerSender,
         authorizer: Authorizer,
     ) -> Result<Self, ControlInterfaceError> {
@@ -153,15 +153,16 @@ mod tests {
     use tokio::sync::mpsc;
 
     const CONFIG: &str = "config";
+    const PIPES_FOLDER: &str = "api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910/control_interface";
 
     use crate::control_interface::{
-        authorizer::MockAuthorizer,
+        ControlInterfacePath, authorizer::MockAuthorizer,
         control_interface_task::generate_test_control_interface_task_mock,
         from_server_channels::MockFromServerChannels,
         input_output::generate_test_input_output_mock, input_pipe::MockInputPipe,
-        output_pipe::MockOutputPipe, ControlInterfacePath,
+        output_pipe::MockOutputPipe,
     };
-    use common::objects::WorkloadInstanceName;
+    use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 
     // [utest->swdd~agent-create-control-interface-pipes-per-workload~2]
     // [utest->swdd~agent-control-interface-pipes-path-naming~2]
@@ -193,10 +194,9 @@ mod tests {
 
         let _control_interface_task_mock = generate_test_control_interface_task_mock();
 
-        const PIPES_FOLDER: &str = "api_pipes_location/workload_name_1.b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910/control_interface";
         let control_interface = ControlInterface::new(
             ControlInterfacePath::new(PIPES_FOLDER.into()),
-            &WorkloadInstanceName::builder()
+            &WorkloadInstanceNameSpec::builder()
                 .workload_name("workload_name_1")
                 .config(&String::from(CONFIG))
                 .build(),
@@ -246,7 +246,7 @@ mod tests {
 
         let control_interface = ControlInterface::new(
             ControlInterfacePath::new("api_pipes_location".into()),
-            &WorkloadInstanceName::builder()
+            &WorkloadInstanceNameSpec::builder()
                 .agent_name("workload_name_1")
                 .config(&String::from(CONFIG))
                 .build(),

@@ -20,10 +20,11 @@ use crate::ankaios_server::state_comparator::StateDifferenceTree;
 use super::request_id::RequestId;
 use common::{
     from_server_interface::{FromServerInterface, FromServerSender},
-    objects::{AgentMap, WorkloadStatesMap},
     state_manipulation::Path,
     std_extensions::IllegalStateResult,
 };
+
+use ankaios_api::ank_base::{AgentMapSpec, CompleteStateRequestSpec, WorkloadStatesMapSpec};
 use std::collections::HashMap;
 
 use serde_yaml::Value;
@@ -62,8 +63,8 @@ impl EventHandler {
     pub async fn send_events(
         &self,
         server_state: &ServerState,
-        workload_states_map: &WorkloadStatesMap,
-        agent_map: &AgentMap,
+        workload_states_map: &WorkloadStatesMapSpec,
+        agent_map: &AgentMapSpec,
         field_difference_tree: StateDifferenceTree,
         from_server_channel: &FromServerSender,
     ) {
@@ -95,7 +96,10 @@ impl EventHandler {
                 {
                     let complete_state_differences = server_state
                         .get_complete_state_by_field_mask(
-                            filter_masks,
+                            CompleteStateRequestSpec {
+                                field_mask: filter_masks,
+                                subscribe_for_events: false,
+                            },
                             workload_states_map,
                             agent_map,
                         )
@@ -227,9 +231,9 @@ impl AlteredFields {
     }
 }
 
-impl From<AlteredFields> for api::ank_base::AlteredFields {
+impl From<AlteredFields> for ankaios_api::ank_base::AlteredFields {
     fn from(altered_fields: AlteredFields) -> Self {
-        api::ank_base::AlteredFields {
+        ankaios_api::ank_base::AlteredFields {
             added_fields: altered_fields.added_fields,
             removed_fields: altered_fields.removed_fields,
             updated_fields: altered_fields.updated_fields,
@@ -249,16 +253,15 @@ impl From<AlteredFields> for api::ank_base::AlteredFields {
 mod tests {
     use std::collections::HashMap;
 
-    use common::{
-        from_server_interface::FromServer,
-        objects::{
-            AgentMap, CompleteState, State, WorkloadStatesMap, generate_test_stored_workload_spec,
-        },
-    };
+    use common::from_server_interface::FromServer;
 
     use super::StateDifferenceTree;
 
-    use api::ank_base::response::ResponseContent;
+    use ankaios_api::ank_base::{
+        AgentMapSpec, CompleteStateRequestSpec, CompleteStateSpec, StateSpec, WorkloadMapSpec,
+        WorkloadSpec, WorkloadStatesMapSpec, response::ResponseContent,
+    };
+    use ankaios_api::test_utils::generate_test_workload_with_param;
     use mockall::predicate;
 
     use super::EventHandler;
@@ -345,39 +348,49 @@ mod tests {
         let updated_field_mask = "desiredState.workloads.workload_1.agent";
         let removed_field_mask = "configs.*";
         let expected_removed_field_mask = "configs.some_config";
-        let added_workload = generate_test_stored_workload_spec("agent_A", "runtime_1");
+        let added_workload: WorkloadSpec =
+            generate_test_workload_with_param("agent_A", "runtime_1");
         let mut mock_server_state = MockServerState::default();
         mock_server_state
             .expect_get_complete_state_by_field_mask()
             .once()
             .with(
-                predicate::eq(vec![
-                    added_field_mask.to_owned(),
-                    expected_removed_field_mask.to_owned(),
-                    updated_field_mask.to_owned(),
-                ]),
+                mockall::predicate::function(|request_complete_state| {
+                    request_complete_state
+                        == &CompleteStateRequestSpec {
+                            field_mask: vec![
+                                added_field_mask.to_owned(),
+                                expected_removed_field_mask.to_owned(),
+                                updated_field_mask.to_owned(),
+                            ],
+                            subscribe_for_events: false,
+                        }
+                }),
                 predicate::always(),
                 predicate::always(),
             )
-            .return_const(Ok(CompleteState {
-                desired_state: State {
-                    workloads: HashMap::from([
-                        (
-                            "workload_1".to_string(),
-                            common::objects::StoredWorkloadSpec {
-                                agent: "agent_1".to_string(),
-                                ..Default::default()
-                            },
-                        ),
-                        ("workload_2".to_string(), added_workload.clone()),
-                    ]),
+            .return_const(Ok(CompleteStateSpec {
+                desired_state: StateSpec {
+                    workloads: WorkloadMapSpec {
+                        workloads: [
+                            (
+                                "workload_1".to_string(),
+                                WorkloadSpec {
+                                    agent: "agent_1".to_string(),
+                                    ..Default::default()
+                                },
+                            ),
+                            ("workload_2".to_string(), added_workload.clone()),
+                        ]
+                        .into(),
+                    },
                     ..Default::default()
                 },
                 ..Default::default()
             }
             .into()));
-        let workload_states_map = WorkloadStatesMap::default();
-        let agent_map = AgentMap::default();
+        let workload_states_map = WorkloadStatesMapSpec::default();
+        let agent_map = AgentMapSpec::default();
 
         let mut state_difference_tree = StateDifferenceTree::new();
         state_difference_tree.insert_added_path(vec![
@@ -441,25 +454,28 @@ mod tests {
         let complete_state = complete_state_response.complete_state.unwrap();
         let altered_fields = complete_state_response.altered_fields.unwrap();
 
-        let expected_complete_state: api::ank_base::CompleteState = CompleteState {
-            desired_state: State {
-                workloads: HashMap::from([
-                    (
-                        "workload_1".to_owned(),
-                        common::objects::StoredWorkloadSpec {
-                            agent: "agent_1".to_owned(),
-                            ..Default::default()
-                        },
-                    ),
-                    ("workload_2".to_owned(), added_workload),
-                ]),
+        let expected_complete_state: ankaios_api::ank_base::CompleteState = CompleteStateSpec {
+            desired_state: StateSpec {
+                workloads: WorkloadMapSpec {
+                    workloads: [
+                        (
+                            "workload_1".to_owned(),
+                            WorkloadSpec {
+                                agent: "agent_1".to_owned(),
+                                ..Default::default()
+                            },
+                        ),
+                        ("workload_2".to_owned(), added_workload),
+                    ]
+                    .into(),
+                },
                 ..Default::default()
             },
             ..Default::default()
         }
         .into();
 
-        let expected_altered_fields = api::ank_base::AlteredFields {
+        let expected_altered_fields = ankaios_api::ank_base::AlteredFields {
             added_fields: vec![added_field_mask.to_owned()],
             updated_fields: vec![updated_field_mask.to_owned()],
             removed_fields: vec![expected_removed_field_mask.to_owned()],

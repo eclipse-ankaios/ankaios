@@ -12,11 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{CompleteState, StoredWorkloadSpec, Tag};
-
+use super::CliCommands;
 use crate::{cli_error::CliError, output_debug};
 
-use super::CliCommands;
+use ankaios_api::ank_base::{CompleteStateSpec, TagsSpec, WorkloadSpec};
+
+use std::collections::HashMap;
 
 impl CliCommands {
     // [impl->swdd~cli-provides-run-workload~1]
@@ -27,27 +28,27 @@ impl CliCommands {
         runtime_name: String,
         runtime_config: String,
         agent_name: String,
-        tags_strings: Vec<(String, String)>,
+        tags: HashMap<String, String>,
     ) -> Result<(), CliError> {
-        let tags: Vec<Tag> = tags_strings
-            .into_iter()
-            .map(|(k, v)| Tag { key: k, value: v })
-            .collect();
-
-        let new_workload = StoredWorkloadSpec {
+        let new_workload = WorkloadSpec {
             agent: agent_name,
             runtime: runtime_name,
-            tags,
+            tags: TagsSpec { tags },
             runtime_config,
-            ..Default::default()
+            restart_policy: Default::default(),
+            dependencies: Default::default(),
+            control_interface_access: Default::default(),
+            configs: Default::default(),
+            files: Default::default(),
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 
         let update_mask = vec![format!("desiredState.workloads.{}", workload_name)];
 
-        let mut complete_state_update = CompleteState::default();
+        let mut complete_state_update = CompleteStateSpec::default();
         complete_state_update
             .desired_state
+            .workloads
             .workloads
             .insert(workload_name, new_workload);
 
@@ -68,20 +69,19 @@ impl CliCommands {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-    use api::ank_base::{self, UpdateStateSuccess};
-    use common::{
-        commands::UpdateWorkloadState,
-        from_server_interface::FromServer,
-        objects::{self, CompleteState, ExecutionState, StoredWorkloadSpec, Tag, WorkloadState},
-    };
-    use mockall::predicate::eq;
+    use crate::cli_commands::{CliCommands, server_connection::MockServerConnection};
 
-    use crate::{
-        cli_commands::{server_connection::MockServerConnection, CliCommands},
-        filtered_complete_state::FilteredCompleteState,
+    use ankaios_api::ank_base::{
+        CompleteState, CompleteStateSpec, ExecutionStateSpec, TagsSpec, UpdateStateSuccess,
+        WorkloadSpec, WorkloadStateSpec,
     };
+    use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
+
+    use mockall::predicate::eq;
+    use std::collections::HashMap;
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
@@ -99,19 +99,23 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let new_workload = StoredWorkloadSpec {
+        let new_workload = WorkloadSpec {
             agent: test_workload_agent.to_owned(),
             runtime: test_workload_runtime_name.clone(),
-            tags: vec![Tag {
-                key: "key".to_string(),
-                value: "value".to_string(),
-            }],
+            tags: TagsSpec {
+                tags: HashMap::from([("key".to_string(), "value".to_string())]),
+            },
             runtime_config: test_workload_runtime_cfg.clone(),
-            ..Default::default()
+            restart_policy: Default::default(),
+            dependencies: Default::default(),
+            control_interface_access: Default::default(),
+            configs: Default::default(),
+            files: Default::default(),
         };
-        let mut complete_state_update = CompleteState::default();
+        let mut complete_state_update = CompleteStateSpec::default();
         complete_state_update
             .desired_state
+            .workloads
             .workloads
             .insert(TEST_WORKLOAD_NAME.into(), new_workload);
 
@@ -120,7 +124,7 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .once()
-            .return_once(|_| Ok(FilteredCompleteState::default()));
+            .return_once(|_| Ok(CompleteState::default()));
         mock_server_connection
             .expect_update_state()
             .with(
@@ -144,19 +148,14 @@ mod tests {
             .expect_get_complete_state()
             .once()
             .with(eq(vec![]))
-            .return_once(|_| Ok((ank_base::CompleteState::from(complete_state_update)).into()));
+            .return_once(|_| Ok(CompleteState::from(complete_state_update)));
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(|| {
                 vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                    workload_states: vec![WorkloadState {
+                    workload_states: vec![WorkloadStateSpec {
                         instance_name: "name4.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionState {
-                            state: objects::ExecutionStateEnum::Running(
-                                objects::RunningSubstate::Ok,
-                            ),
-                            additional_info: "".to_string(),
-                        },
+                        execution_state: ExecutionStateSpec::running(),
                     }],
                 })]
             });
@@ -173,7 +172,7 @@ mod tests {
                 test_workload_runtime_name,
                 test_workload_runtime_cfg,
                 test_workload_agent,
-                vec![("key".to_string(), "value".to_string())],
+                HashMap::from([("key".to_string(), "value".to_string())]),
             )
             .await;
         assert!(run_workload_result.is_ok());

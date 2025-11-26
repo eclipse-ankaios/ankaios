@@ -93,16 +93,16 @@ fn trim_and_replace_newlines(text: String) -> String {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
-    use tabled::Table;
-
     use super::{WorkloadTableRow, WorkloadTableRowWithSpinner};
+    use tabled::{Table, settings::Style};
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_one_row_table() {
-        let table_row = super::WorkloadTableRow {
+        let table_row = WorkloadTableRow {
             name: "workload".into(),
             agent: "agent".into(),
             runtime: "runtime".into(),
@@ -115,10 +115,7 @@ mod tests {
         }];
         let mut table = Table::new(table_rows_with_spinner);
         let expected_table = " WORKLOAD NAME   AGENT   RUNTIME     EXECUTION STATE   ADDITIONAL INFO \n workload        agent   runtime   / execution_state   additional_info ";
-        assert_eq!(
-            table.with(tabled::settings::Style::blank()).to_string(),
-            expected_table
-        );
+        assert_eq!(table.with(Style::blank()).to_string(), expected_table);
     }
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]

@@ -12,8 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use ankaios_api::ank_base::WorkloadInstanceNameSpec;
 use common::{
-    objects::WorkloadInstanceName,
     state_manipulation::{Object, Path},
     std_extensions::{IllegalStateResult, UnreachableOption},
 };
@@ -256,7 +256,7 @@ impl FieldDifferencePath {
         ]
     }
 
-    pub fn workload_state(instance_name: &WorkloadInstanceName) -> Vec<String> {
+    pub fn workload_state(instance_name: &WorkloadInstanceNameSpec) -> Vec<String> {
         vec![
             Self::WORKLOAD_STATES_KEY.to_owned(),
             instance_name.agent_name().to_owned(),
@@ -308,10 +308,8 @@ pub fn generate_difference_tree_from_paths(new_tree_paths: &[Vec<String>]) -> Ob
 // [utest->swdd~server-calculates-state-differences~1]
 #[cfg(test)]
 mod tests {
-    use common::{
-        objects::WorkloadInstanceName,
-        state_manipulation::{Object, Path},
-    };
+    use super::WorkloadInstanceNameSpec;
+    use common::state_manipulation::{Object, Path};
 
     use super::{FieldDifferencePath, Mapping, StateComparator, StateDifferenceTree};
 
@@ -673,7 +671,7 @@ mod tests {
 
     #[test]
     fn utest_field_difference_added_workload_state() {
-        let instance_name = WorkloadInstanceName::new(AGENT_A, WORKLOAD_NAME_1, WORKLOAD_ID_1);
+        let instance_name = WorkloadInstanceNameSpec::new(AGENT_A, WORKLOAD_NAME_1, WORKLOAD_ID_1);
         let field_difference_path = FieldDifferencePath::workload_state(&instance_name);
         assert_eq!(
             field_difference_path,

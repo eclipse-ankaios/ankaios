@@ -13,7 +13,7 @@ To connect the vehicles to the cloud, we use an MQTT connection. Each vehicle co
 </figure>
 
 To complete this tutorial, you will need a Linux platform, which can be a WSL2, RaspberryPi, a Linux PC or a virtual machine.
-It's also assumed that the Ankaios setup is done with mutual TLS (mTLS) disabled or using the default installation settings.
+It's also assumed that the Ankaios setup has been performed using the default [installation](installation.md) script.
 
 ## MQTT broker
 
@@ -163,7 +163,7 @@ The following examples assume that the installation script was used with the def
 We want the fleet connector to run when the vehicle is started and Ankaios is started. Therefore, we add the fleet connector to the startup configuration for Ankaios. Modify `/etc/ankaios/state.yaml` to include:
 
 ```yaml title="/etc/ankaios/state.yaml"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   fleetconnector:
     runtime: podman
@@ -172,11 +172,11 @@ workloads:
       allowRules:
         - type: StateRule
           operation: ReadWrite
-          filterMask:
+          filterMasks:
             - "*"
     restartPolicy: NEVER
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/fleet-connector:0.6.0
+      image: ghcr.io/eclipse-ankaios/fleet-connector:0.7.0
       commandOptions: [ "--net=host", "-e", "VIN=1"]
 ```
 
@@ -192,7 +192,7 @@ sudo systemctl start ank-server ank-agent
 And we check that the fleet connector is up and running with:
 
 ```shell
-ank -k get workloads
+ank get workloads
 ```
 
 ## Remote installation of a vehicle data sender
@@ -202,7 +202,7 @@ Now we want to use the fleet connector to remotely install a new containerized w
 First, we need to create a manifest and name that file `vehicle-data-sender.yaml`:
 
 ```yaml title="vehicle-data-sender.yaml"
-apiVersion: v0.1
+apiVersion: v1
 workloads:
   vehicle-data-sender:
     runtime: podman
@@ -269,7 +269,7 @@ Maybe sending speed values to the cloud once per second is a little too often. T
 Let's create a new file `config.yaml` with just the config for the vehicle data sender and increase the interval to 10 seconds.
 
 ```yaml title="config.yaml" hl_lines="11-12"
-apiVersion: v0.1
+apiVersion: v1
 configs:
   vehicle-data-sender-config:
     env:
