@@ -29,7 +29,7 @@ pub fn parse() -> Arguments {
 pub struct Arguments {
     #[arg(
         short = 'm',
-        visible_short_alias = 'c',
+        short_alias = 'c',
         long = "startup-manifest",
         alias = "startup-config"
     )]
