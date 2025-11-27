@@ -19,7 +19,7 @@ use crate::{
     output_debug,
 };
 
-use ankaios_api::ank_base::{AgentAttributes, AgentStatus, WorkloadStatesMap};
+use ankaios_api::ank_base::{AgentAttributes, AgentStatus, WorkloadStatesMapSpec};
 
 const EMPTY_FILTER_MASK: [String; 0] = [];
 
@@ -32,7 +32,13 @@ impl CliCommands {
             .get_complete_state(&EMPTY_FILTER_MASK)
             .await?;
 
-        let workload_states_map = filtered_complete_state.workload_states.unwrap_or_default();
+        let workload_states_map = filtered_complete_state
+            .workload_states
+            .unwrap_or_default()
+            .try_into()
+            .map_err(|err| {
+                CliError::ExecutionError(format!("Failed to convert workload states map: {err}"))
+            })?;
 
         let connected_agents = filtered_complete_state
             .agents
@@ -46,7 +52,7 @@ impl CliCommands {
             .unwrap_or_default()
             .into_iter();
 
-        let agent_table_rows = transform_into_table_rows(connected_agents, &workload_states_map);
+        let agent_table_rows = transform_into_table_rows(connected_agents, workload_states_map);
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
         // [impl->swdd~cli-presents-connected-agents-as-table~2]
@@ -80,7 +86,7 @@ pub fn get_free_memory_as_string(agent_attributes: &AgentAttributes) -> String {
 
 fn transform_into_table_rows(
     agents_map: impl Iterator<Item = (String, AgentAttributes)>,
-    workload_states_map: &WorkloadStatesMap,
+    workload_states_map: WorkloadStatesMapSpec,
 ) -> Vec<AgentTableRow> {
     let mut agent_table_rows: Vec<AgentTableRow> = agents_map
         .map(|(agent_name, agent_attributes)| {

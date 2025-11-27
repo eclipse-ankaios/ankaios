@@ -12,9 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::{
-    AddCondition, ExecutionStateSpec, RestartPolicy, WorkloadInstanceNameSpec, WorkloadSpec,
-};
+use crate::ank_base::{AddCondition, ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadSpec};
 use crate::helpers::serialize_to_ordered_map;
 use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 
@@ -201,16 +199,6 @@ impl TryFrom<i32> for DeleteCondition {
     }
 }
 
-impl std::fmt::Display for RestartPolicy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RestartPolicy::Never => write!(f, "Never"),
-            RestartPolicy::OnFailure => write!(f, "OnFailure"),
-            RestartPolicy::Always => write!(f, "Always"),
-        }
-    }
-}
-
 // This method is used for backwards compatibility to older versions and can be deleted later
 pub fn validate_tags(
     api_version: &str,
@@ -305,7 +293,7 @@ impl TestWorkloadFixture for WorkloadSpec {
                     (String::from("workload_C"), AddCondition::AddCondSucceeded),
                 ]),
             },
-            restart_policy: RestartPolicy::Always,
+            restart_policy: crate::ank_base::RestartPolicy::Always,
             runtime: runtime_name.into(),
             tags: TagsSpec {
                 tags: HashMap::from([
@@ -570,13 +558,6 @@ mod tests {
             RestartPolicy::try_from(100),
             Err(prost::UnknownEnumValue(100))
         );
-    }
-
-    #[test]
-    fn utest_restart_display() {
-        assert_eq!(RestartPolicy::Never.to_string(), "Never");
-        assert_eq!(RestartPolicy::OnFailure.to_string(), "OnFailure");
-        assert_eq!(RestartPolicy::Always.to_string(), "Always");
     }
 
     // [utest->swdd~common-workload-needs-control-interface~1]
