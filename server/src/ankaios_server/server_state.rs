@@ -12,8 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::config_renderer::RenderedWorkloads;
 use super::cycle_check;
+use super::rendered_workloads::RenderedWorkloads;
 
 use ankaios_api::ank_base::{
     AgentAttributesSpec, AgentStatusSpec, CompleteState, CompleteStateRequestSpec,
@@ -206,7 +206,9 @@ impl ServerState {
                     .map_err(|err| UpdateStateError::ResultInvalid(err.to_string()))?;
 
                 // [impl->swdd~server-state-triggers-validation-of-workload-fields~1]
-                self.verify_workload_fields_format(&new_rendered_workloads)?;
+                new_rendered_workloads
+                    .validate()
+                    .map_err(UpdateStateError::ResultInvalid)?;
 
                 // [impl->swdd~server-state-compares-rendered-workloads~1]
                 let cmd = extract_added_and_deleted_workloads(
@@ -342,19 +344,6 @@ impl ServerState {
     fn set_desired_state(&mut self, new_desired_state: StateSpec) {
         self.state.desired_state = new_desired_state;
     }
-
-    // [impl->swdd~server-state-triggers-validation-of-workload-fields~1]
-    fn verify_workload_fields_format(
-        &self,
-        workloads: &RenderedWorkloads,
-    ) -> Result<(), UpdateStateError> {
-        for workload in workloads.values() {
-            workload
-                .verify_fields_format()
-                .map_err(UpdateStateError::ResultInvalid)?;
-        }
-        Ok(())
-    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -384,8 +373,9 @@ mod tests {
     use mockall::predicate;
 
     use crate::ankaios_server::{
-        config_renderer::{ConfigRenderError, MockConfigRenderer, RenderedWorkloads},
+        config_renderer::{ConfigRenderError, MockConfigRenderer},
         delete_graph::MockDeleteGraph,
+        rendered_workloads::RenderedWorkloads,
         server_state::UpdateStateError,
     };
 
@@ -399,17 +389,19 @@ mod tests {
     const RUNTIME: &str = "runtime";
 
     fn generate_rendered_workloads_from_state(state: &StateSpec) -> RenderedWorkloads {
-        state
-            .workloads
-            .workloads
-            .iter()
-            .map(|(name, wl)| {
-                (
-                    name.to_owned(),
-                    WorkloadNamed::from((name.to_owned(), wl.to_owned())),
-                )
-            })
-            .collect()
+        RenderedWorkloads(
+            state
+                .workloads
+                .workloads
+                .iter()
+                .map(|(name, wl)| {
+                    (
+                        name.to_owned(),
+                        WorkloadNamed::from((name.to_owned(), wl.to_owned())),
+                    )
+                })
+                .collect(),
+        )
     }
 
     fn from_map_to_vec(value: WorkloadStatesMapSpec) -> Vec<WorkloadStateSpec> {
@@ -1241,7 +1233,7 @@ mod tests {
         mock_config_renderer
             .expect_render_workloads()
             .once()
-            .returning(|_, _| Ok(HashMap::new()));
+            .returning(|_, _| Ok(RenderedWorkloads::new()));
 
         let mut server_state = ServerState {
             delete_graph: delete_graph_mock,
@@ -1341,7 +1333,7 @@ mod tests {
         mock_config_renderer
             .expect_render_workloads()
             .once()
-            .returning(|_, _| Ok(HashMap::new()));
+            .returning(|_, _| Ok(RenderedWorkloads::new()));
 
         let mut server_state = ServerState {
             state: current_complete_state.clone(),

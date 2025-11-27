@@ -20,7 +20,7 @@ use ankaios_api::ank_base::{
 use handlebars::{Handlebars, RenderError};
 use std::{collections::HashMap, fmt};
 
-pub type RenderedWorkloads = HashMap<String, WorkloadNamed>;
+use super::rendered_workloads::RenderedWorkloads;
 
 #[cfg(test)]
 use mockall::mock;
@@ -87,7 +87,7 @@ impl ConfigRenderer {
         workloads: &HashMap<String, WorkloadSpec>,
         configs: &HashMap<String, ConfigItemSpec>,
     ) -> Result<RenderedWorkloads, ConfigRenderError> {
-        let mut rendered_workloads = HashMap::new();
+        let mut rendered_workloads = RenderedWorkloads::new();
         for (workload_name, workload) in workloads {
             let rendered_workload = if workload.configs.configs.is_empty() {
                 log::debug!(
