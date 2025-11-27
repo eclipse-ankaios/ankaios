@@ -2055,7 +2055,7 @@ A basic Ankaios system test consists of the following sections:</p>
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>Test Ankaios CLI get workloads
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    [Setup]        Setup Ankaios
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    # Preconditions
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    Given Ankaios server is started with &quot;ank-server --startup-config ${CONFIGS_DIR}/default.yaml&quot;
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    Given Ankaios server is started with &quot;ank-server --startup-manifest ${CONFIGS_DIR}/default.yaml&quot;
 <a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    And Ankaios agent is started with &quot;ank-agent --name agent_B&quot;
 <a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    And all workloads of agent &quot;agent_B&quot; have an initial execution state
 <a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    And Ankaios agent is started with &quot;ank-agent --name agent_A&quot;
