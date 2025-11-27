@@ -375,7 +375,8 @@ mod tests {
         let new_state_yaml = r#"
             key_1_1:
               key_2_1: value_2_1
-              key_2_2: value_2_2
+              key_2_2:
+                key_3_1: value_3_1
             key_1_2: {}
         "#;
 
@@ -388,7 +389,8 @@ mod tests {
 
         let expected_added_tree_yaml = r#"
             key_1_1:
-                key_2_2: null
+                key_2_2:
+                    key_3_1: null
             key_1_2: null
         "#;
         let expected_added_tree = Object::from(
