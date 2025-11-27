@@ -473,7 +473,8 @@ mod tests {
     fn utest_calculate_state_differences_removed_nested_mapping() {
         let old_state_yaml = r#"
             key_1_1:
-              key_2_1: value_2_1
+              key_2_1:
+                key_3_1: value_3_1
             key_1_2: {}
         "#;
 
@@ -489,7 +490,8 @@ mod tests {
         let state_difference_tree = state_comparator.state_differences();
         let expected_removed_tree_yaml = r#"
             key_1_1:
-              key_2_1: null
+              key_2_1:
+                key_3_1: null
         "#;
         let expected_removed_tree = Object::from(
             serde_yaml::from_str::<serde_yaml::Value>(expected_removed_tree_yaml).unwrap(),
