@@ -182,8 +182,12 @@ impl AnkaiosServer {
                     if self.event_handler.has_subscribers() {
                         // [impl->swdd~server-sends-event-for-newly-connected-agent~1]
                         let mut state_difference_tree = StateDifferenceTree::new();
-                        state_difference_tree
-                            .insert_added_path(FieldDifferencePath::agent(&agent_name));
+                        state_difference_tree.insert_added_first_difference_tree(
+                            FieldDifferencePath::agent(&agent_name),
+                        );
+                        state_difference_tree.insert_added_full_difference_tree(
+                            FieldDifferencePath::agent(&agent_name),
+                        );
                         self.event_handler
                             .send_events(
                                 &self.server_state,
@@ -204,11 +208,15 @@ impl AnkaiosServer {
                         method_obj.free_memory.free_memory,
                     );
 
+                    let mut status_added_first_times = false;
                     let agent_name = method_obj.agent_name.clone();
                     self.agent_map
                         .agents
                         .entry(method_obj.agent_name)
                         .and_modify(|e| {
+                            if e.status.is_none() {
+                                status_added_first_times = true;
+                            }
                             e.status = Some(AgentStatusSpec {
                                 cpu_usage: Some(method_obj.cpu_usage),
                                 free_memory: Some(method_obj.free_memory),
@@ -219,11 +227,27 @@ impl AnkaiosServer {
                     if self.event_handler.has_subscribers() {
                         // [impl->swdd~server-sends-event-for-updated-agent-resource-availability~1]
                         let mut state_difference_tree = StateDifferenceTree::new();
-                        state_difference_tree
-                            .insert_updated_path(FieldDifferencePath::agent_cpu(&agent_name));
+                        if status_added_first_times {
+                            state_difference_tree.insert_added_first_difference_tree(
+                                FieldDifferencePath::agent_cpu(&agent_name),
+                            );
+                            state_difference_tree.insert_added_first_difference_tree(
+                                FieldDifferencePath::agent_memory(&agent_name),
+                            );
+                            state_difference_tree.insert_added_full_difference_tree(
+                                FieldDifferencePath::agent_cpu(&agent_name),
+                            );
+                            state_difference_tree.insert_added_full_difference_tree(
+                                FieldDifferencePath::agent_memory(&agent_name),
+                            );
+                        } else {
+                            state_difference_tree
+                                .insert_updated_path(FieldDifferencePath::agent_cpu(&agent_name));
 
-                        state_difference_tree
-                            .insert_updated_path(FieldDifferencePath::agent_memory(&agent_name));
+                            state_difference_tree.insert_updated_path(
+                                FieldDifferencePath::agent_memory(&agent_name),
+                            );
+                        }
                         self.event_handler
                             .send_events(
                                 &self.server_state,
@@ -254,8 +278,16 @@ impl AnkaiosServer {
                     if self.event_handler.has_subscribers() {
                         // [impl->swdd~server-sends-events-for-disconnected-agent~1]
                         let mut state_difference_tree = StateDifferenceTree::new();
-                        state_difference_tree
-                            .insert_removed_path(FieldDifferencePath::agent(&agent_name));
+                        state_difference_tree.insert_removed_first_difference_tree(
+                            FieldDifferencePath::agent(&agent_name),
+                        );
+                        state_difference_tree.insert_removed_full_difference_tree(
+                            FieldDifferencePath::agent_cpu(&agent_name),
+                        );
+
+                        state_difference_tree.insert_removed_full_difference_tree(
+                            FieldDifferencePath::agent_memory(&agent_name),
+                        );
 
                         let altered_fields = agent_workload_states.iter().fold(
                             state_difference_tree,
@@ -520,7 +552,23 @@ impl AnkaiosServer {
                         method_obj.workload_states.iter().for_each(|ws| {
                             if ws.execution_state.is_removed() {
                                 // [impl->swdd~server-sends-event-for-removed-workload-states~1]
-                                state_difference_tree.insert_removed_path(
+                                if self
+                                    .workload_states_map
+                                    .get_workload_state_for_agent(ws.instance_name.agent_name())
+                                    .is_empty()
+                                {
+                                    // all workload states are removed for an agent
+                                    state_difference_tree.insert_removed_first_difference_tree(
+                                        FieldDifferencePath::workload_state_agent(
+                                            &ws.instance_name,
+                                        ),
+                                    );
+                                } else {
+                                    state_difference_tree.insert_removed_first_difference_tree(
+                                        FieldDifferencePath::workload_state(&ws.instance_name),
+                                    );
+                                }
+                                state_difference_tree.insert_removed_full_difference_tree(
                                     FieldDifferencePath::workload_state(&ws.instance_name),
                                 );
                             } else {
@@ -600,6 +648,25 @@ impl AnkaiosServer {
             deleted_workloads.len()
         );
 
+        let new_workload_state_agents: HashSet<&str> = if self.event_handler.has_subscribers() {
+            added_workloads
+                .iter()
+                .filter_map(|wl| {
+                    if self
+                        .workload_states_map
+                        .get_workload_state_for_agent(wl.instance_name.agent_name())
+                        .is_empty()
+                    {
+                        Some(wl.instance_name.agent_name())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            HashSet::default()
+        };
+
         // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
         self.workload_states_map.initial_state(&added_workloads);
 
@@ -623,21 +690,44 @@ impl AnkaiosServer {
 
         // [impl->swdd~server-sends-state-differences-as-events~1]
         if self.event_handler.has_subscribers() {
-            // state changes must be calculated after every update since only config item can be changed as well
             let mut state_difference_tree = state_comparator.state_differences();
 
             // add initial workload states as added fields
             // [impl->swdd~server-sends-event-for-initial-workload-states~1]
             added_workloads.iter().for_each(|wl| {
-                state_difference_tree
-                    .insert_added_path(FieldDifferencePath::workload_state(&wl.instance_name));
+                if new_workload_state_agents.contains(&wl.instance_name.agent_name()) {
+                    state_difference_tree.insert_added_first_difference_tree(
+                        FieldDifferencePath::workload_state_agent(&wl.instance_name),
+                    );
+                } else {
+                    state_difference_tree.insert_added_first_difference_tree(
+                        FieldDifferencePath::workload_state(&wl.instance_name),
+                    );
+                }
+
+                state_difference_tree.insert_added_full_difference_tree(
+                    FieldDifferencePath::workload_state(&wl.instance_name),
+                );
             });
 
             deleted_workload_states.iter().for_each(|wl_state| {
                 // [impl->swdd~server-sends-event-for-removed-workload-states~1]
-                state_difference_tree.insert_removed_path(FieldDifferencePath::workload_state(
-                    &wl_state.instance_name,
-                ));
+                if self
+                    .workload_states_map
+                    .get_workload_state_for_agent(wl_state.instance_name.agent_name())
+                    .is_empty()
+                {
+                    state_difference_tree.insert_removed_first_difference_tree(
+                        FieldDifferencePath::workload_state_agent(&wl_state.instance_name),
+                    );
+                } else {
+                    state_difference_tree.insert_removed_first_difference_tree(
+                        FieldDifferencePath::workload_state(&wl_state.instance_name),
+                    );
+                }
+                state_difference_tree.insert_removed_full_difference_tree(
+                    FieldDifferencePath::workload_state(&wl_state.instance_name),
+                );
             });
 
             if !state_difference_tree.is_empty() {
@@ -3277,8 +3367,9 @@ mod tests {
             .once()
             .return_const(true);
 
-        expected_state_difference_tree
-            .insert_removed_path(FieldDifferencePath::workload_state(&w1.instance_name));
+        expected_state_difference_tree.insert_removed_first_difference_tree(
+            FieldDifferencePath::workload_state(&w1.instance_name),
+        );
 
         let mut expected_workload_states_map = WorkloadStatesMapSpec::default();
         expected_workload_states_map.process_new_states(vec![WorkloadStateSpec {
