@@ -14,9 +14,18 @@
 
 use tonic_prost_build::Builder;
 
+/// Add annotations required for generating the JSON schema for the spec objects.
+///
+/// The Json schema will be generated using the `ank_schema` crate.
 pub fn setup_schema_annotations(mut builder: Builder) -> Builder {
-    // Setup the State schema annotations
-    builder = builder
+    builder = setup_state_annotations(builder);
+    builder = setup_workload_related_annotations(builder);
+
+    builder
+}
+
+fn setup_state_annotations(builder: Builder) -> Builder {
+    builder
         .message_attribute(
             "State",
             "#[spec_type_attr(#[derive(schemars::JsonSchema)])]",
@@ -76,9 +85,10 @@ pub fn setup_schema_annotations(mut builder: Builder) -> Builder {
         .message_attribute(
             "ConfigArray",
             "#[spec_type_attr(#[serde(rename = \"configArray\")])]",
-        );
+        )
+}
 
-    // Setup the Workload related schema annotations
+fn setup_workload_related_annotations(builder: Builder) -> Builder {
     builder
         .enum_attribute("RestartPolicy", "#[derive(schemars::JsonSchema)]")
         .enum_attribute("RestartPolicy", "#[serde(rename = \"restartPolicy\")]")
