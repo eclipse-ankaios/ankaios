@@ -745,6 +745,15 @@ The controller workload gets the state
 The controller workload gets the state of fields ${field_mask}
     internal_add_get_state_command    ${field_mask}
 
+The controller workload subscribes to the state of fields ${field_mask}
+    internal_add_get_state_command    ${field_mask}    true
+
+The controller workload get events for fields ${field_mask}
+    internal_add_get_state_command    ${field_mask}
+
+The controller workload cancels events for fields ${field_mask}
+    internal_add_cancel_events_command    ${field_mask}
+
 The controller workload requests shall all succeed
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
