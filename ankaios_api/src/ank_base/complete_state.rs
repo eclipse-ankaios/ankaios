@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::{STR_RE_CONFIG_REFERENCES, StateSpec, WorkloadSpec};
+use crate::ank_base::{STR_RE_CONFIG_REFERENCES, StateSpec};
 use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 use regex::Regex;
 
@@ -27,8 +27,15 @@ impl Default for StateSpec {
 }
 
 impl StateSpec {
-    pub fn verify_api_version(provided_state: &StateSpec) -> Result<(), String> {
-        match provided_state.api_version.as_str() {
+    pub fn validate_pre_rendering(&self) -> Result<(), String> {
+        // Before rendering we can only validate static fields
+        Self::validate_api_version(self)?;
+        Self::validate_configs_format(self)?;
+        Ok(())
+    }
+
+    fn validate_api_version(&self) -> Result<(), String> {
+        match self.api_version.as_str() {
             CURRENT_API_VERSION => Ok(()),
             PREVIOUS_API_VERSION => {
                 log::warn!(
@@ -44,9 +51,9 @@ impl StateSpec {
     }
 
     // [impl->swdd~common-config-item-key-naming-convention~1]
-    pub fn verify_configs_format(provided_state: &StateSpec) -> Result<(), String> {
+    fn validate_configs_format(&self) -> Result<(), String> {
         let re_config_items = Regex::new(STR_RE_CONFIG_REFERENCES).unwrap();
-        for config_key in provided_state.configs.configs.keys() {
+        for config_key in self.configs.configs.keys() {
             if !re_config_items.is_match(config_key.as_str()) {
                 return Err(format!(
                     "Unsupported config item key. Received '{config_key}', expected to have characters in {STR_RE_CONFIG_REFERENCES}"
@@ -54,10 +61,12 @@ impl StateSpec {
             }
         }
 
-        for workload in provided_state.workloads.workloads.values() {
-            // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
-            WorkloadSpec::verify_config_reference_format(&workload.configs.configs)?;
-        }
+        // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+        self.workloads
+            .workloads
+            .values()
+            .try_for_each(|workload_spec| workload_spec.validate_config_reference_format())?;
+
         Ok(())
     }
 }
@@ -108,13 +117,13 @@ mod tests {
     fn utest_state_accepts_compatible_state() {
         let mut state_compatible_version = StateSpec::default();
         assert_eq!(
-            StateSpec::verify_api_version(&state_compatible_version),
+            StateSpec::validate_api_version(&state_compatible_version),
             Ok(())
         );
 
         state_compatible_version.api_version = PREVIOUS_API_VERSION.to_string();
         assert_eq!(
-            StateSpec::verify_api_version(&state_compatible_version),
+            StateSpec::validate_api_version(&state_compatible_version),
             Ok(())
         );
     }
@@ -127,7 +136,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            StateSpec::verify_api_version(&state_incompatible_version),
+            StateSpec::validate_api_version(&state_incompatible_version),
             Err(format!(
                 "Unsupported API version. Received '{}', expected '{}'",
                 api_version,
@@ -160,7 +169,7 @@ mod tests {
 
     // [utest->swdd~common-config-item-key-naming-convention~1]
     #[test]
-    fn utest_verify_configs_format_compatible_config_item_keys_and_config_references() {
+    fn utest_validate_configs_format_compatible_config_item_keys_and_config_references() {
         let workload = generate_test_workload();
         let state = StateSpec {
             api_version: super::CURRENT_API_VERSION.into(),
@@ -170,12 +179,12 @@ mod tests {
             configs: generate_test_configs(),
         };
 
-        assert_eq!(StateSpec::verify_configs_format(&state), Ok(()));
+        assert_eq!(StateSpec::validate_configs_format(&state), Ok(()));
     }
 
     // [utest->swdd~common-config-item-key-naming-convention~1]
     #[test]
-    fn utest_verify_configs_format_incompatible_config_item_key() {
+    fn utest_validate_configs_format_incompatible_config_item_key() {
         let state = StateSpec {
             api_version: super::CURRENT_API_VERSION.into(),
             configs: ConfigMapSpec {
@@ -188,7 +197,7 @@ mod tests {
         };
 
         assert_eq!(
-            StateSpec::verify_configs_format(&state),
+            StateSpec::validate_configs_format(&state),
             Err(format!(
                 "Unsupported config item key. Received '{}', expected to have characters in {}",
                 INVALID_CONFIG_KEY,
@@ -199,7 +208,7 @@ mod tests {
 
     // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
     #[test]
-    fn utest_verify_configs_format_incompatible_workload_config_alias() {
+    fn utest_validate_configs_format_incompatible_workload_config_alias() {
         let mut workload: WorkloadSpec = generate_test_workload();
         workload
             .configs
@@ -215,7 +224,7 @@ mod tests {
         };
 
         assert_eq!(
-            StateSpec::verify_configs_format(&state),
+            StateSpec::validate_configs_format(&state),
             Err(format!(
                 "Unsupported config alias. Received '{}', expected to have characters in {}",
                 INVALID_CONFIG_KEY,
