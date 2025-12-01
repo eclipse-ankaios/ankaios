@@ -297,10 +297,11 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        self, CpuUsageSpec, ExecutionStateSpec, FreeMemorySpec, LogsRequestSpec, WorkloadNamed,
+        self, CpuUsageSpec, ExecutionStateSpec, FreeMemorySpec, LogsRequestSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_workload_state_with_agent, generate_test_workload_with_param,
+        generate_test_workload_named, generate_test_workload_named_with_params,
+        generate_test_workload_state_with_agent,
     };
     use common::{
         commands::UpdateWorkloadState,
@@ -357,12 +358,10 @@ mod tests {
         );
 
         let workload_1 =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_1_NAME);
+            generate_test_workload_named_with_params(WORKLOAD_1_NAME, AGENT_NAME, RUNTIME_NAME);
 
         let workload_2 =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_2_NAME);
+            generate_test_workload_named_with_params(WORKLOAD_2_NAME, AGENT_NAME, RUNTIME_NAME);
 
         let handle = tokio::spawn(async move { agent_manager.start().await });
 
@@ -705,7 +704,7 @@ mod tests {
         let (to_server, _server_receiver) = channel(BUFFER_SIZE);
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
+        let workload = generate_test_workload_named();
 
         let mock_runtime_manager = RuntimeManager::default();
 

@@ -708,10 +708,10 @@ mod tests {
 
     use ankaios_api::ank_base::{
         ExecutionStateEnumSpec, ExecutionStateSpec, Pending, RestartPolicy,
-        WorkloadInstanceNameSpec, WorkloadNamed,
+        WorkloadInstanceNameSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_workload_state_with_workload_named, generate_test_workload_with_param,
+        generate_test_workload_named, generate_test_workload_state_with_workload_named,
     };
 
     use mockall::predicate;
@@ -721,7 +721,6 @@ mod tests {
     use tokio::sync::oneshot;
     use tokio::{sync::mpsc, time::timeout};
 
-    const RUNTIME_NAME: &str = "runtime_A";
     const AGENT_NAME: &str = "agent_A";
     const WORKLOAD_1_NAME: &str = "workload_A";
     const WORKLOAD_ID_2: &str = "workload_B";
@@ -761,8 +760,7 @@ mod tests {
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
 
-        let mut old_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let mut old_workload = generate_test_workload_named();
         old_workload.workload.files = Default::default();
 
         let mut new_workload = old_workload.clone();
@@ -870,8 +868,7 @@ mod tests {
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
 
-        let old_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let old_workload = generate_test_workload_named();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![
@@ -964,8 +961,7 @@ mod tests {
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
 
-        let mut old_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let mut old_workload = generate_test_workload_named();
         old_workload.workload.files = Default::default();
 
         let mut new_workload = old_workload.clone();
@@ -1079,8 +1075,7 @@ mod tests {
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
 
-        let mut old_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let mut old_workload = generate_test_workload_named();
         old_workload.workload.files = Default::default();
 
         let mut new_workload = old_workload.clone();
@@ -1181,8 +1176,7 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let old_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let old_workload = generate_test_workload_named();
 
         let mut new_workload = old_workload.clone();
         new_workload.workload.runtime_config = "changed config".to_string();
@@ -1288,8 +1282,7 @@ mod tests {
         // Send the delete command now. It will be buffered until the await receives it.
         workload_command_sender.delete().await.unwrap();
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let instance_name = workload.instance_name.clone();
 
@@ -1354,8 +1347,7 @@ mod tests {
         // Send the delete command now. It will be buffered until the await receives it.
         workload_command_sender.delete().await.unwrap();
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
@@ -1400,8 +1392,7 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let mut workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
 
         let mut new_mock_state_checker = StubStateChecker::new();
@@ -1483,8 +1474,7 @@ mod tests {
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
@@ -1554,8 +1544,7 @@ mod tests {
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![
@@ -1608,8 +1597,7 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![RuntimeCall::GetWorkloadId(
@@ -1653,8 +1641,7 @@ mod tests {
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![
@@ -1712,8 +1699,7 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![]);
@@ -1787,8 +1773,7 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![]);
@@ -1841,8 +1826,7 @@ mod tests {
         let (workload_state_forward_tx, _workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let mut workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
 
         let mut old_mock_state_checker = StubStateChecker::new();
@@ -2043,7 +2027,7 @@ mod tests {
         let (workload_state_forward_tx, _workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
+        let workload = generate_test_workload_named();
 
         let workload_configs_dir =
             WorkloadFilesBasePath::from((&PathBuf::from(RUN_FOLDER), &workload.instance_name));
@@ -2122,7 +2106,7 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
+        let workload = generate_test_workload_named();
 
         let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
         mock_workload_files_creator_context
@@ -2188,7 +2172,7 @@ mod tests {
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed = generate_test_workload_with_param(AGENT_NAME, RUNTIME_NAME);
+        let workload = generate_test_workload_named();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
@@ -2260,8 +2244,7 @@ mod tests {
             WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let mut workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
 
         let instance_name = workload.instance_name.clone();
@@ -2352,8 +2335,7 @@ mod tests {
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
 
-        let mut old_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let mut old_workload = generate_test_workload_named();
         old_workload.workload.files = Default::default();
 
         let mut new_workload = old_workload.clone();
@@ -2454,8 +2436,7 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let mut workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
 
         let instance_name = workload.instance_name.clone();
@@ -2532,8 +2513,7 @@ mod tests {
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let instance_name = workload.instance_name.clone();
 
@@ -2606,8 +2586,7 @@ mod tests {
             WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let mut workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
 
         let instance_name = workload.instance_name.clone();
@@ -2694,8 +2673,7 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![RuntimeCall::StartLogFetcher(
@@ -2758,8 +2736,7 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![RuntimeCall::StartLogFetcher(
@@ -2822,8 +2799,7 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let runtime_mock = MockRuntimeConnector::new();
 
@@ -2876,8 +2852,7 @@ mod tests {
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![RuntimeCall::StartLogFetcher(

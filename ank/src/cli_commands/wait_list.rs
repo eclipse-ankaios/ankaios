@@ -199,7 +199,7 @@ mod tests {
     use crate::cli_commands::wait_list::generate_test_wait_list;
 
     use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
-    use ankaios_api::test_utils::generate_test_workload_instance_name;
+    use ankaios_api::test_utils::generate_test_workload_instance_name_with_params;
 
     use mockall::predicate::eq;
     use std::collections::HashSet;
@@ -213,9 +213,12 @@ mod tests {
         WorkloadInstanceNameSpec,
         WorkloadInstanceNameSpec,
     ) {
-        let i_name_1 = generate_test_workload_instance_name(WORKLOAD_NAME_1);
-        let i_name_2 = generate_test_workload_instance_name(WORKLOAD_NAME_2);
-        let i_name_3 = generate_test_workload_instance_name(WORKLOAD_NAME_3);
+        let i_name_1 =
+            generate_test_workload_instance_name_with_params(WORKLOAD_NAME_1, "agent_name");
+        let i_name_2 =
+            generate_test_workload_instance_name_with_params(WORKLOAD_NAME_2, "agent_name");
+        let i_name_3 =
+            generate_test_workload_instance_name_with_params(WORKLOAD_NAME_3, "agent_name");
         (i_name_1, i_name_2, i_name_3)
     }
 

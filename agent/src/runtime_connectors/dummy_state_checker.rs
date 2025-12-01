@@ -57,14 +57,12 @@ mod tests {
     use super::{DummyStateChecker, StateChecker};
     use crate::runtime_connectors::MockRuntimeStateGetter;
 
-    use ankaios_api::ank_base::WorkloadNamed;
-    use ankaios_api::test_utils::generate_test_workload_with_param;
+    use ankaios_api::test_utils::generate_test_workload_named;
 
     // [utest->swdd~agent-skips-unknown-runtime~2]
     #[tokio::test]
     async fn utest_dummy_state_checker() {
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param("agent_name".to_string(), "runtime_name".to_string());
+        let workload = generate_test_workload_named();
         let workload_id = "test_id".to_string();
         let (state_sender, _) = tokio::sync::mpsc::channel(10);
         let state_getter = MockRuntimeStateGetter::default();

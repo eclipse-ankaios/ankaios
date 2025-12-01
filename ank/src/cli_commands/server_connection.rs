@@ -735,8 +735,10 @@ mod tests {
             }),
         );
 
-        let proto_complete_state =
-            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
+        let proto_complete_state = generate_test_proto_complete_state(&[(
+            WORKLOAD_NAME_1,
+            generate_test_workload().into(),
+        )]);
 
         sim.will_send_response(
             REQUEST,
@@ -788,13 +790,18 @@ mod tests {
     // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_get_complete_state_other_response_in_between() {
-        let proto_complete_state =
-            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
+        let proto_complete_state = generate_test_proto_complete_state(&[(
+            WORKLOAD_NAME_1,
+            generate_test_workload().into(),
+        )]);
 
         let other_response = FromServer::Response(Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ResponseContent::CompleteState(
-                generate_test_proto_complete_state(&[(WORKLOAD_NAME_2, generate_test_workload())]),
+                generate_test_proto_complete_state(&[(
+                    WORKLOAD_NAME_2,
+                    generate_test_workload().into(),
+                )]),
             )),
         });
 
@@ -830,8 +837,10 @@ mod tests {
         let other_message = FromServer::UpdateWorkloadState(UpdateWorkloadState {
             workload_states: vec![],
         });
-        let proto_complete_state =
-            generate_test_proto_complete_state(&[(WORKLOAD_NAME_1, generate_test_workload())]);
+        let proto_complete_state = generate_test_proto_complete_state(&[(
+            WORKLOAD_NAME_1,
+            generate_test_workload().into(),
+        )]);
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
@@ -982,7 +991,10 @@ mod tests {
         let other_response = FromServer::Response(Response {
             request_id: OTHER_REQUEST.into(),
             response_content: Some(ResponseContent::CompleteState(
-                generate_test_proto_complete_state(&[(WORKLOAD_NAME_2, generate_test_workload())]),
+                generate_test_proto_complete_state(&[(
+                    WORKLOAD_NAME_2,
+                    generate_test_workload().into(),
+                )]),
             )),
         });
 

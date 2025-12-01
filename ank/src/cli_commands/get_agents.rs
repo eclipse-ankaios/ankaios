@@ -122,11 +122,11 @@ mod tests {
         CliCommands,
         server_connection::{MockServerConnection, ServerConnectionError},
     };
-    use ankaios_api::ank_base::{AgentMapSpec, CompleteState, ExecutionStateSpec, WorkloadNamed};
+    use ankaios_api::ank_base::{AgentMapSpec, CompleteState, ExecutionStateSpec};
     use ankaios_api::test_utils::{
         generate_test_agent_map, generate_test_agent_map_from_workloads,
-        generate_test_complete_state, generate_test_workload_states_map_with_data,
-        generate_test_workload_with_param,
+        generate_test_complete_state, generate_test_workload_named_with_params,
+        generate_test_workload_states_map_with_data,
     };
     use mockall::predicate::eq;
 
@@ -149,10 +149,16 @@ mod tests {
             .with(eq(vec![]))
             .return_once(|_| {
                 Ok(CompleteState::from(generate_test_complete_state(vec![
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_1),
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_B_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_2),
+                    generate_test_workload_named_with_params(
+                        WORKLOAD_NAME_1,
+                        AGENT_A_NAME,
+                        RUNTIME_NAME,
+                    ),
+                    generate_test_workload_named_with_params(
+                        WORKLOAD_NAME_2,
+                        AGENT_B_NAME,
+                        RUNTIME_NAME,
+                    ),
                 ])))
             });
 
@@ -183,7 +189,8 @@ mod tests {
             .with(eq(vec![]))
             .return_once(|_| {
                 let mut complete_state =
-                    generate_test_complete_state(vec![generate_test_workload_with_param(
+                    generate_test_complete_state(vec![generate_test_workload_named_with_params(
+                        WORKLOAD_NAME_1,
                         AGENT_UNCONNECTED_NAME,
                         RUNTIME_NAME,
                     )]);
@@ -267,16 +274,18 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                let workload1 =
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_2);
+                let workload1 = generate_test_workload_named_with_params(
+                    WORKLOAD_NAME_2,
+                    AGENT_A_NAME,
+                    RUNTIME_NAME,
+                );
                 let mut complete_state = generate_test_complete_state(vec![
                     workload1.clone(),
-                    generate_test_workload_with_param::<WorkloadNamed>(
+                    generate_test_workload_named_with_params(
+                        WORKLOAD_NAME_1,
                         String::default(),
                         RUNTIME_NAME,
-                    )
-                    .name(WORKLOAD_NAME_1),
+                    ),
                 ]);
 
                 complete_state.agents =

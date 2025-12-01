@@ -111,9 +111,9 @@ mod tests {
     };
     use crate::cli_error::CliError;
 
-    use ankaios_api::ank_base::{CompleteState, WorkloadInstanceNameSpec, WorkloadNamed};
+    use ankaios_api::ank_base::{CompleteState, WorkloadInstanceNameSpec};
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload_with_param,
+        generate_test_complete_state, generate_test_workload_named_with_params,
     };
 
     use mockall::predicate;
@@ -131,8 +131,7 @@ mod tests {
     #[tokio::test]
     async fn utest_get_locks_blocking_success() {
         let log_workload =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_1);
+            generate_test_workload_named_with_params(WORKLOAD_NAME_1, AGENT_A_NAME, RUNTIME_NAME);
         let cloned_log_workload = log_workload.clone();
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
@@ -141,8 +140,11 @@ mod tests {
             .return_once(|_| {
                 Ok(CompleteState::from(generate_test_complete_state(vec![
                     cloned_log_workload,
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_B_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_2),
+                    generate_test_workload_named_with_params(
+                        WORKLOAD_NAME_2,
+                        AGENT_B_NAME,
+                        RUNTIME_NAME,
+                    ),
                 ])))
             });
 
@@ -231,8 +233,11 @@ mod tests {
             .expect_get_complete_state()
             .return_once(|_| {
                 Ok(CompleteState::from(generate_test_complete_state(vec![
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_1),
+                    generate_test_workload_named_with_params(
+                        WORKLOAD_NAME_1,
+                        AGENT_A_NAME,
+                        RUNTIME_NAME,
+                    ),
                 ])))
             });
 
@@ -278,8 +283,11 @@ mod tests {
             .expect_get_complete_state()
             .return_once(|_| {
                 Ok(CompleteState::from(generate_test_complete_state(vec![
-                    generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                        .name(WORKLOAD_NAME_1),
+                    generate_test_workload_named_with_params(
+                        WORKLOAD_NAME_1,
+                        AGENT_A_NAME,
+                        RUNTIME_NAME,
+                    ),
                 ])))
             });
 
@@ -332,12 +340,10 @@ mod tests {
     async fn utest_workload_names_to_instance_names_multiple_instance_names_for_one_workload() {
         let mut mock_server_connection = MockServerConnection::default();
         let workload_1_agent_a =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_A_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_1);
+            generate_test_workload_named_with_params(WORKLOAD_NAME_1, AGENT_A_NAME, RUNTIME_NAME);
 
         let workload_1_agent_b =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_B_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_1);
+            generate_test_workload_named_with_params(WORKLOAD_NAME_1, AGENT_B_NAME, RUNTIME_NAME);
 
         let instance_name_wl_1_agent_a = workload_1_agent_a.instance_name.clone();
         let instance_name_wl_1_agent_b = workload_1_agent_b.instance_name.clone();

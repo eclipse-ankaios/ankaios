@@ -124,7 +124,7 @@ mod tests {
     };
 
     use ankaios_api::ank_base::WorkloadNamed;
-    use ankaios_api::test_utils::generate_test_workload;
+    use ankaios_api::test_utils::generate_test_workload_named;
 
     use mockall::lazy_static;
     use std::path::PathBuf;
@@ -139,7 +139,7 @@ mod tests {
     };
 
     lazy_static! {
-        pub static ref WORKLOAD_SPEC: WorkloadNamed = generate_test_workload();
+        pub static ref WORKLOAD_NAMED: WorkloadNamed = generate_test_workload_named();
         pub static ref CONTROL_INTERFACE_PATH: Option<ControlInterfacePath> =
             Some(ControlInterfacePath::new(PathBuf::from(PIPES_LOCATION)));
     }
@@ -167,7 +167,7 @@ mod tests {
         };
 
         workload_command_sender
-            .retry(WORKLOAD_SPEC.instance_name.clone(), retry_token)
+            .retry(WORKLOAD_NAMED.instance_name.clone(), retry_token)
             .await
             .unwrap();
 
@@ -178,7 +178,7 @@ mod tests {
             panic!("Expected WorkloadCommand::Retry");
         };
 
-        assert_eq!(*received_instance_name, WORKLOAD_SPEC.instance_name);
+        assert_eq!(*received_instance_name, WORKLOAD_NAMED.instance_name);
         assert!(received_retry_token.has_been_called);
     }
 
@@ -187,7 +187,7 @@ mod tests {
     async fn utest_send_update() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
-        let workload = WORKLOAD_SPEC.clone();
+        let workload = WORKLOAD_NAMED.clone();
         let control_interface_path = CONTROL_INTERFACE_PATH.clone();
 
         workload_command_sender

@@ -306,8 +306,8 @@ mod tests {
         WorkloadInstanceName, WorkloadInstanceNameSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_deleted_workload, generate_test_workload,
-        generate_test_workload_state,
+        generate_test_complete_state, generate_test_deleted_workload_with_params,
+        generate_test_workload_named, generate_test_workload_state,
     };
 
     use tokio::sync::mpsc;
@@ -323,8 +323,8 @@ mod tests {
     async fn utest_to_server_send_update_workload() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
-        let added_workloads = vec![generate_test_workload()];
-        let deleted_workloads = vec![generate_test_deleted_workload(
+        let added_workloads = vec![generate_test_workload_named()];
+        let deleted_workloads = vec![generate_test_deleted_workload_with_params(
             AGENT_NAME.to_string(),
             WORKLOAD_NAME_1.to_string(),
         )];
@@ -370,7 +370,7 @@ mod tests {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
         let complete_state: CompleteState =
-            generate_test_complete_state(vec![generate_test_workload()]).into();
+            generate_test_complete_state(vec![generate_test_workload_named()]).into();
         assert!(
             tx.complete_state(REQUEST_ID.to_string(), complete_state.clone())
                 .await

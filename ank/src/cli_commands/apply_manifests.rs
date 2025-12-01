@@ -245,10 +245,11 @@ mod tests {
 
     use ankaios_api::ank_base::{
         CompleteState, CompleteStateSpec, ExecutionStateSpec, Response, ResponseContent, StateSpec,
-        UpdateStateSuccess, WorkloadNamed, WorkloadStateSpec,
+        UpdateStateSuccess, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_state_from_workloads, generate_test_workload_with_param,
+        generate_test_state_from_workloads, generate_test_workload_named,
+        generate_test_workload_named_with_params,
     };
     use common::{
         commands::UpdateWorkloadState,
@@ -519,7 +520,7 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
-        let workload: WorkloadNamed = generate_test_workload_with_param("agent_A", "runtime_X");
+        let workload = generate_test_workload_named();
         let state = generate_test_state_from_workloads(vec![workload.clone()]);
 
         let overwritten_agent_name = "overwritten_agent_name";
@@ -542,10 +543,7 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_one_agent_name_provided_in_workloads() {
-        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-            "agent_A",
-            "runtime_X",
-        )]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_named()]);
 
         assert_eq!(
             handle_agent_overwrite(
@@ -562,10 +560,8 @@ mod tests {
     #[test]
     fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload() {
         let state = generate_test_state_from_workloads(vec![
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime_X")
-                .name(WORKLOAD_NAME_1),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_X")
-                .name(WORKLOAD_NAME_2),
+            generate_test_workload_named_with_params(WORKLOAD_NAME_1, "agent_A", "runtime_X"),
+            generate_test_workload_named_with_params(WORKLOAD_NAME_2, "agent_B", "runtime_X"),
         ]);
 
         assert_eq!(
@@ -586,10 +582,7 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
-        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-            "agent_A",
-            "runtime_X",
-        )]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_named()]);
 
         let mut obj: Object = state.try_into().unwrap();
 
@@ -609,16 +602,14 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_missing_agent_name() {
-        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-            "agent_A".to_string(),
-            "runtime_X".to_string(),
-        )]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_named()]);
 
-        let expected_state =
-            generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-                "overwritten_agent_name".to_string(),
-                "runtime_X".to_string(),
-            )]);
+        let expected_state = generate_test_state_from_workloads(vec![{
+            let mut workload = generate_test_workload_named();
+            workload.workload.agent = "overwritten_agent_name".to_string();
+            workload.instance_name.agent_name = "overwritten_agent_name".to_string();
+            workload
+        }]);
 
         let mut obj: Object = state.try_into().unwrap();
 
@@ -639,16 +630,14 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_considers_only_workloads() {
-        let state = generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-            "agent_A".to_string(),
-            "runtime_X".to_string(),
-        )]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_named()]);
+        let expected_state = state.clone();
 
-        let expected_state =
-            generate_test_state_from_workloads(vec![generate_test_workload_with_param(
-                "agent_A".to_string(),
-                "runtime_X".to_string(),
-            )]);
+        // let expected_state =
+        //     generate_test_state_from_workloads(vec![generate_test_workload_with_param(
+        //         "agent_A".to_string(),
+        //         "runtime_X".to_string(),
+        //     )]);
 
         let cli_specified_agent_name = None;
 

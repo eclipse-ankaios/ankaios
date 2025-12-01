@@ -567,12 +567,12 @@ mod tests {
         LogEntry, LogsCancelAccepted, LogsRequestAccepted, LogsRequestSpec, LogsStopResponse,
         Pending as PendingSubstate, Response, ResponseContent, State, StateSpec,
         UpdateStateSuccess, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadMap,
-        WorkloadMapSpec, WorkloadNamed, WorkloadSpec, WorkloadStateSpec,
+        WorkloadMapSpec, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_workload, generate_test_workload_state,
-        generate_test_workload_state_with_agent, generate_test_workload_states_map_with_data,
-        generate_test_workload_with_param,
+        generate_test_workload_named, generate_test_workload_named_with_params,
+        generate_test_workload_state, generate_test_workload_state_with_agent,
+        generate_test_workload_states_map_with_data, generate_test_workload_with_params,
     };
     use common::commands::{AgentLoadStatus, ServerHello, UpdateWorkload, UpdateWorkloadState};
     use common::from_server_interface::FromServer;
@@ -605,7 +605,7 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         // contains a self cycle to workload_A
-        let workload: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
+        let workload = generate_test_workload_with_params(AGENT_A, RUNTIME_NAME);
 
         let startup_state = CompleteStateSpec {
             desired_state: StateSpec {
@@ -676,8 +676,7 @@ mod tests {
         /* new workload invalidates the state because
         it contains a self cycle in the inter workload dependencies config */
         let mut updated_workload =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_1);
+            generate_test_workload_named_with_params(WORKLOAD_NAME_1, AGENT_A, RUNTIME_NAME);
 
         let new_state = CompleteStateSpec {
             desired_state: StateSpec {
@@ -799,8 +798,8 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_A.to_string(), RUNTIME_NAME.to_string());
+        let workload =
+            generate_test_workload_named_with_params(WORKLOAD_NAME_1, AGENT_A, RUNTIME_NAME);
 
         let startup_state = CompleteStateSpec {
             desired_state: StateSpec {
@@ -878,11 +877,8 @@ mod tests {
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
-        let w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_1);
-
-        let w2 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_2);
+        let w1 = generate_test_workload_named_with_params(WORKLOAD_NAME_1, AGENT_A, RUNTIME_NAME);
+        let w2 = generate_test_workload_named_with_params(WORKLOAD_NAME_2, AGENT_B, RUNTIME_NAME);
 
         let mut mock_server_state = MockServerState::new();
 
@@ -1027,8 +1023,8 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_1);
+        let mut w1 =
+            generate_test_workload_named_with_params(WORKLOAD_NAME_1, AGENT_A, RUNTIME_NAME);
         w1.workload.runtime_config = "changed".to_string();
 
         let update_state = CompleteStateSpec {
@@ -1109,8 +1105,8 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_1);
+        let mut w1 =
+            generate_test_workload_named_with_params(WORKLOAD_NAME_1, AGENT_A, RUNTIME_NAME);
         w1.workload.runtime_config = "changed".to_string();
 
         let update_state = CompleteStateSpec {
@@ -1176,7 +1172,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1: WorkloadSpec = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
+        let w1 = generate_test_workload_with_params(AGENT_A, RUNTIME_NAME);
 
         let update_state = CompleteStateSpec {
             desired_state: StateSpec {
@@ -1402,7 +1398,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1: Workload = generate_test_workload_with_param(AGENT_A, RUNTIME_NAME);
+        let w1: Workload = generate_test_workload_with_params(AGENT_A, RUNTIME_NAME).into();
         let w2 = w1.clone();
         let w3 = Workload {
             agent: Some(AGENT_B.to_string()),
@@ -1748,10 +1744,8 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_A, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_1);
-        let w2 = generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
-            .name(WORKLOAD_NAME_2);
+        let w1 = generate_test_workload_named_with_params(WORKLOAD_NAME_1, AGENT_A, RUNTIME_NAME);
+        let w2 = generate_test_workload_named_with_params(WORKLOAD_NAME_2, AGENT_B, RUNTIME_NAME);
 
         let mut updated_w1 = w1.clone();
         updated_w1.instance_name = WorkloadInstanceNameSpec::builder()
@@ -2101,12 +2095,10 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let workload_without_agent =
-            generate_test_workload_with_param::<WorkloadNamed>("", RUNTIME_NAME)
-                .name(WORKLOAD_NAME_1);
+            generate_test_workload_named_with_params(WORKLOAD_NAME_1, "", RUNTIME_NAME);
 
         let workload_with_agent =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_2);
+            generate_test_workload_named_with_params(WORKLOAD_NAME_2, AGENT_B, RUNTIME_NAME);
 
         let update_state = CompleteStateSpec::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
@@ -2193,8 +2185,7 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let log_collecting_workload =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_B, RUNTIME_NAME)
-                .name(WORKLOAD_NAME_2);
+            generate_test_workload_named_with_params(WORKLOAD_NAME_2, AGENT_B, RUNTIME_NAME);
 
         let update_state = CompleteStateSpec::default();
         let update_mask = vec!["desiredState.workloads".to_string()];
@@ -2318,7 +2309,7 @@ mod tests {
             .once()
             .return_const(false);
 
-        let workload: WorkloadNamed = generate_test_workload();
+        let workload = generate_test_workload_named();
 
         server.server_state = mock_server_state;
         server.workload_states_map = generate_test_workload_states_map_with_data(

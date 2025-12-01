@@ -303,15 +303,20 @@ mod tests {
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
-    use ankaios_api::test_utils::generate_test_workload_with_param;
+    use ankaios_api::test_utils::{generate_test_workload_named_with_params, vars};
     use common::objects::AgentName;
 
     use mockall::Sequence;
     use std::path::PathBuf;
     use std::str::FromStr;
 
-    const BUFFER_SIZE: usize = 20;
-    const AGENT_NAME: &str = "agent_x";
+    fn generate_test_podman_workload() -> WorkloadNamed {
+        generate_test_workload_named_with_params(
+            vars::WORKLOAD_NAMES[0],
+            vars::AGENT_NAMES[0],
+            PODMAN_RUNTIME_NAME,
+        )
+    }
 
     // [utest->swdd~podman-name-returns-podman~1]
     #[test]
@@ -416,11 +421,8 @@ mod tests {
         let reset_cache_context = PodmanCli::reset_ps_cache_context();
         reset_cache_context.expect().return_const(());
 
-        let workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
-        );
-        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
+        let workload = generate_test_podman_workload();
+        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(vars::BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
@@ -454,11 +456,8 @@ mod tests {
         let reset_cache_context = PodmanCli::reset_ps_cache_context();
         reset_cache_context.expect().return_const(());
 
-        let workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
-        );
-        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
+        let workload = generate_test_podman_workload();
+        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(vars::BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
@@ -501,11 +500,8 @@ mod tests {
             .return_const(Ok(Some(ExecutionStateSpec::running())))
             .in_sequence(&mut seq);
 
-        let workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
-        );
-        let (state_change_tx, mut state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
+        let workload = generate_test_podman_workload();
+        let (state_change_tx, mut state_change_rx) = tokio::sync::mpsc::channel(vars::BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
@@ -557,11 +553,8 @@ mod tests {
         let delete_context = PodmanCli::remove_workloads_by_id_context();
         delete_context.expect().return_const(Ok(()));
 
-        let workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
-        );
-        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
+        let workload = generate_test_podman_workload();
+        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(vars::BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
@@ -592,11 +585,8 @@ mod tests {
             .expect()
             .return_const(Err("simulated error".into()));
 
-        let workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
-        );
-        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
+        let workload = generate_test_podman_workload();
+        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(vars::BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
@@ -616,13 +606,10 @@ mod tests {
     async fn utest_create_workload_parsing_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let mut workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
-        );
+        let mut workload = generate_test_podman_workload();
         workload.workload.runtime_config = "broken runtime config".to_string();
 
-        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
+        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(vars::BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime

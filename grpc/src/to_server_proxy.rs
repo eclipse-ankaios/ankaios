@@ -313,11 +313,11 @@ mod tests {
         ExecutionStateSpec, FreeMemory, FreeMemorySpec, LogEntriesResponse, LogEntry,
         LogsCancelRequest, LogsCancelRequestSpec, LogsRequest, LogsRequestSpec, LogsStopResponse,
         Request, RequestContent, RequestContentSpec, RequestSpec, UpdateStateRequest,
-        WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadNamed, WorkloadState,
+        WorkloadInstanceName, WorkloadInstanceNameSpec, WorkloadState,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload,
-        generate_test_workload_state_with_agent,
+        generate_test_complete_state, generate_test_workload_named,
+        generate_test_workload_state_with_agent, vars,
     };
 
     use common::commands;
@@ -434,7 +434,7 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
-        let workload_named = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_1_NAME);
+        let workload_named = generate_test_workload_named(); //.name(WORKLOAD_1_NAME);
         let input_state = generate_test_complete_state(vec![workload_named]);
         let update_mask = vec!["bla".into()];
 
@@ -564,7 +564,7 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_fail_on_invalid_state() {
         let (server_tx, mut _server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
-        let workload_named = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_1_NAME);
+        let workload_named = generate_test_workload_named();
         let agent_name = workload_named.workload.agent.clone();
 
         let mut ankaios_state: CompleteState =
@@ -577,7 +577,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .workloads
-            .get_mut(WORKLOAD_1_NAME)
+            .get_mut(vars::WORKLOAD_NAMES[0])
             .unwrap()
             .dependencies
             .as_mut()
@@ -619,7 +619,7 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_command_forward_from_proto_to_ankaios_update_workload() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
-        let workload_named = generate_test_workload::<WorkloadNamed>().name(WORKLOAD_1_NAME);
+        let workload_named = generate_test_workload_named(); //.name(WORKLOAD_1_NAME);
         let agent_name = workload_named.workload.agent.clone();
 
         let ankaios_state = generate_test_complete_state(vec![workload_named]);

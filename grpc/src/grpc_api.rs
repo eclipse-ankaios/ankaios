@@ -150,7 +150,7 @@ impl From<WorkloadNamed> for AddedWorkload {
 #[cfg(test)]
 use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec};
 #[cfg(test)]
-use ankaios_api::test_utils::generate_test_workload_state_with_agent;
+use ankaios_api::test_utils::{generate_test_workload_state_with_agent, vars};
 #[cfg(test)]
 use common::to_server_interface;
 
@@ -167,7 +167,7 @@ pub fn generate_test_proto_deleted_workload() -> DeletedWorkload {
     let instance_name = WorkloadInstanceNameSpec::builder()
         .agent_name("agent")
         .workload_name("workload X")
-        .config(&String::from("config"))
+        .config(&String::from(vars::RUNTIME_CONFIGS[0]))
         .build();
 
     DeletedWorkload {
@@ -199,7 +199,10 @@ mod tests {
         ExecutionStateSpec, Running as RunningSubstate, WorkloadInstanceName,
         WorkloadInstanceNameSpec, WorkloadNamed, WorkloadState, WorkloadStateSpec,
     };
-    use ankaios_api::test_utils::{generate_test_deleted_workload, generate_test_workload};
+    use ankaios_api::test_utils::{
+        generate_test_deleted_workload_with_params, generate_test_workload,
+        generate_test_workload_named,
+    };
     use common::commands;
     use std::collections::HashMap;
 
@@ -209,8 +212,10 @@ mod tests {
     #[test]
     fn utest_converts_to_proto_deleted_workload() {
         let proto_workload = generate_test_proto_deleted_workload();
-        let workload =
-            generate_test_deleted_workload("agent".to_string(), "workload X".to_string());
+        let workload = generate_test_deleted_workload_with_params(
+            "agent".to_string(),
+            "workload X".to_string(),
+        );
 
         assert_eq!(DeletedWorkload::from(workload), proto_workload);
     }
@@ -218,8 +223,10 @@ mod tests {
     #[test]
     fn utest_converts_to_ankaios_deleted_workload() {
         let proto_workload = generate_test_proto_deleted_workload();
-        let workload =
-            generate_test_deleted_workload("agent".to_string(), "workload X".to_string());
+        let workload = generate_test_deleted_workload_with_params(
+            "agent".to_string(),
+            "workload X".to_string(),
+        );
 
         assert_eq!(
             ank_base::DeletedWorkload::try_from(proto_workload),
@@ -237,11 +244,11 @@ mod tests {
 
     #[test]
     fn utest_converts_to_proto_added_workload() {
-        let workload: WorkloadNamed = generate_test_workload();
+        let workload = generate_test_workload_named();
 
         let proto_workload = AddedWorkload {
             instance_name: Some(workload.instance_name.clone().into()),
-            workload: Some(generate_test_workload()),
+            workload: Some(generate_test_workload().into()),
         };
 
         assert_eq!(AddedWorkload::from(workload), proto_workload);
@@ -249,11 +256,11 @@ mod tests {
 
     #[test]
     fn utest_converts_to_ankaios_added_workload() {
-        let workload: WorkloadNamed = generate_test_workload();
+        let workload = generate_test_workload_named();
 
         let proto_workload = AddedWorkload {
             instance_name: Some(workload.instance_name.clone().into()),
-            workload: Some(generate_test_workload()),
+            workload: Some(generate_test_workload().into()),
         };
 
         assert_eq!(WorkloadNamed::try_from(proto_workload), Ok(workload));
@@ -263,7 +270,7 @@ mod tests {
     fn utest_converts_to_ankaios_added_workload_fails() {
         let mut proto_workload = AddedWorkload {
             instance_name: None,
-            workload: Some(generate_test_workload()),
+            workload: Some(generate_test_workload().into()),
         };
         if let Some(workload) = proto_workload.workload.as_mut() {
             workload.dependencies = Some(Dependencies {

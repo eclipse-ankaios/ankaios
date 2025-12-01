@@ -685,8 +685,10 @@ mod tests {
     };
     use ankaios_api::test_utils::{
         generate_test_complete_state, generate_test_control_interface_access,
-        generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
-        generate_test_proto_complete_state, generate_test_workload_with_param,
+        generate_test_deleted_workload_with_dependencies,
+        generate_test_deleted_workload_with_params, generate_test_proto_complete_state,
+        generate_test_workload_named, generate_test_workload_named_with_params,
+        generate_test_workload_with_params,
     };
     use common::to_server_interface::ToServerReceiver;
 
@@ -755,12 +757,10 @@ mod tests {
             .returning(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let new_workload_access =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
-                .name(WORKLOAD_1_NAME);
+            generate_test_workload_named_with_params(WORKLOAD_1_NAME, AGENT_NAME, RUNTIME_NAME);
 
         let mut new_workload_no_access =
-            generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME_2)
-                .name(WORKLOAD_2_NAME);
+            generate_test_workload_named_with_params(WORKLOAD_2_NAME, AGENT_NAME, RUNTIME_NAME_2);
         new_workload_no_access.workload.control_interface_access = Default::default();
 
         let added_workloads = vec![new_workload_access.clone(), new_workload_no_access.clone()];
@@ -836,9 +836,10 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let workload_with_unknown_runtime: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            "unknown_runtime1".to_string(),
+        let workload_with_unknown_runtime = generate_test_workload_named_with_params(
+            WORKLOAD_1_NAME,
+            AGENT_NAME,
+            "unknown_runtime1",
         );
         let added_workloads = vec![workload_with_unknown_runtime.clone()];
 
@@ -906,8 +907,8 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload =
+            generate_test_workload_named_with_params(WORKLOAD_1_NAME, AGENT_NAME, RUNTIME_NAME);
         let added_workloads = vec![workload.clone()];
 
         let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
@@ -1016,14 +1017,12 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
-        let mut workload_no_access: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let mut workload_no_access = generate_test_workload_named();
         workload_no_access.workload.control_interface_access = Default::default();
         runtime_manager.update_workload(workload_no_access).await;
 
         control_interface_info_new_context.expect().never();
-        let workload_has_access =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload_has_access = generate_test_workload_named();
         runtime_manager.update_workload(workload_has_access).await;
     }
 
@@ -1056,8 +1055,7 @@ mod tests {
             .once()
             .return_once(|_| mock_workload_scheduler);
 
-        let existing_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let existing_workload = generate_test_workload_named();
 
         let existing_workload_instance_name = existing_workload.instance_name.clone();
         let resuable_workload_state_running = ReusableWorkloadState::new(
@@ -1101,8 +1099,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let existing_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let existing_workload = generate_test_workload_named();
 
         let added_workloads = vec![existing_workload.clone()];
 
@@ -1167,8 +1164,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let existing_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let existing_workload = generate_test_workload_named();
         let added_workloads = vec![existing_workload.clone()];
 
         let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
@@ -1224,8 +1220,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let existing_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let existing_workload = generate_test_workload_named();
 
         let added_workloads = vec![existing_workload.clone()];
 
@@ -1284,8 +1279,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let existing_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let existing_workload = generate_test_workload_named();
 
         let added_workloads = vec![existing_workload.clone()];
 
@@ -1296,7 +1290,7 @@ mod tests {
             .return_once(|_| MockWorkloadScheduler::default());
 
         const WORKLOAD_ID: &str = "workload_id_1";
-        let resuable_workload_state_succeeded = ReusableWorkloadState::new(
+        let reusable_workload_state_succeeded = ReusableWorkloadState::new(
             existing_workload.instance_name.clone(),
             ExecutionStateSpec::succeeded(),
             Some(WORKLOAD_ID.to_string()),
@@ -1306,7 +1300,7 @@ mod tests {
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![resuable_workload_state_succeeded]) }));
+            .return_once(|_| Box::pin(async { Ok(vec![reusable_workload_state_succeeded]) }));
 
         runtime_facade_mock.expect_delete_workload().never();
 
@@ -1461,10 +1455,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let added_workloads: Vec<WorkloadNamed> = vec![generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        )];
+        let added_workloads: Vec<WorkloadNamed> = vec![generate_test_workload_named()];
 
         let workload_operations = vec![];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -1544,16 +1535,14 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
-        let mut workload_no_access: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let mut workload_no_access = generate_test_workload_named();
         workload_no_access.workload.control_interface_access = Default::default();
         runtime_manager
             .add_workload(ReusableWorkload::new(workload_no_access, None))
             .await;
 
         control_interface_info_new_context.expect().never();
-        let workload_has_access: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload_has_access = generate_test_workload_named();
         runtime_manager
             .add_workload(ReusableWorkload::new(workload_has_access, None))
             .await;
@@ -1593,8 +1582,7 @@ mod tests {
             .once()
             .return_once(|_| mock_workload_scheduler);
 
-        let existing_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let existing_workload = generate_test_workload_named();
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
@@ -1646,8 +1634,8 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let new_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let new_workload =
+            generate_test_workload_named_with_params(WORKLOAD_1_NAME, AGENT_NAME, RUNTIME_NAME);
 
         let control_interface_info_mock = MockControlInterfaceInfo::new_context();
         control_interface_info_mock
@@ -1655,8 +1643,10 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let old_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+        let old_workload = generate_test_deleted_workload_with_params(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+        );
 
         let workload_operations = vec![WorkloadOperation::Update(
             new_workload.clone(),
@@ -1733,14 +1723,11 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload = generate_test_workload_with_param::<WorkloadNamed>(
-            AGENT_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        )
-        .name(WORKLOAD_2_NAME);
+        let new_workload =
+            generate_test_workload_named_with_params(WORKLOAD_2_NAME, AGENT_NAME, RUNTIME_NAME);
 
         let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+            generate_test_deleted_workload_with_params(AGENT_NAME, WORKLOAD_1_NAME);
 
         let workload_operations = vec![
             WorkloadOperation::Delete(deleted_workload.clone()),
@@ -1825,11 +1812,11 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let new_workload =
+            generate_test_workload_named_with_params(WORKLOAD_1_NAME, AGENT_NAME, RUNTIME_NAME);
 
         let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+            generate_test_deleted_workload_with_params(AGENT_NAME, WORKLOAD_1_NAME);
 
         let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             new_workload.clone(),
@@ -1882,8 +1869,7 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let new_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let new_workload = generate_test_workload_named();
 
         let control_interface_info_mock = MockControlInterfaceInfo::new_context();
         control_interface_info_mock
@@ -1960,8 +1946,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let new_workload = generate_test_workload_named();
 
         let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             new_workload.clone(),
@@ -2043,10 +2028,7 @@ mod tests {
                 )
                 .build();
 
-        let added_workloads: Vec<WorkloadNamed> = vec![generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        )];
+        let added_workloads: Vec<WorkloadNamed> = vec![generate_test_workload_named()];
 
         runtime_manager
             .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
@@ -2064,11 +2046,10 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let new_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let new_workload =
+            generate_test_workload_named_with_params(WORKLOAD_1_NAME, AGENT_NAME, RUNTIME_NAME);
 
-        let old_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+        let old_workload = generate_test_deleted_workload_with_params(AGENT_NAME, WORKLOAD_1_NAME);
 
         let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(old_workload.clone())];
 
@@ -2149,7 +2130,7 @@ mod tests {
         workload_mock.expect_delete().never();
 
         let new_deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+            generate_test_deleted_workload_with_params(AGENT_NAME, WORKLOAD_1_NAME);
 
         runtime_manager.workloads.insert(
             new_deleted_workload
@@ -2247,7 +2228,7 @@ mod tests {
         let request_id: String = REQUEST_ID.to_string();
         let workloads = [(
             WORKLOAD_1_NAME,
-            generate_test_workload_with_param::<ank_base::Workload>(AGENT_NAME, RUNTIME_NAME),
+            generate_test_workload_with_params(AGENT_NAME, RUNTIME_NAME).into(),
         )];
         let mut complete_state = generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
@@ -2293,9 +2274,10 @@ mod tests {
         let forwarded_response = Response {
             request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
             response_content: Some(ResponseContent::CompleteState(
-                generate_test_complete_state(vec![generate_test_workload_with_param(
-                    AGENT_NAME.to_string(),
-                    RUNTIME_NAME.to_string(),
+                generate_test_complete_state(vec![generate_test_workload_named_with_params(
+                    WORKLOAD_1_NAME,
+                    AGENT_NAME,
+                    RUNTIME_NAME,
                 )])
                 .into(),
             )),
@@ -2349,11 +2331,7 @@ mod tests {
             .forward_response(Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
                 response_content: Some(ResponseContent::CompleteState(
-                    generate_test_complete_state(vec![generate_test_workload_with_param(
-                        AGENT_NAME.to_string(),
-                        RUNTIME_NAME.to_string(),
-                    )])
-                    .into(),
+                    generate_test_complete_state(vec![generate_test_workload_named()]).into(),
                 )),
             })
             .await;
@@ -2373,11 +2351,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let mut workload: WorkloadNamed = generate_test_workload_with_param(
-            AGENT_NAME,
-            RUNTIME_NAME,
-            // HashMap::from([(WORKLOAD_2_NAME.to_string(), AddCondition::AddCondRunning)]),
-        );
+        let mut workload = generate_test_workload_named();
         workload.workload.control_interface_access = generate_test_control_interface_access();
 
         let next_workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
@@ -2465,7 +2439,7 @@ mod tests {
             .await;
 
         let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+            generate_test_deleted_workload_with_params(AGENT_NAME, WORKLOAD_1_NAME);
 
         let next_workload_operations = vec![WorkloadOperation::Delete(deleted_workload)];
 
@@ -2599,8 +2573,7 @@ mod tests {
         let (_server_receiver, runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
 
-        let new_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_owned(), RUNTIME_NAME.to_owned());
+        let new_workload = generate_test_workload_named();
         let added_workloads = vec![ReusableWorkload::new(new_workload.clone(), None)];
         let deleted_workloads = vec![];
         let workload_operations =
@@ -2632,7 +2605,7 @@ mod tests {
             RuntimeManagerBuilder::default().build();
         let added_workloads = vec![];
         let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+            generate_test_deleted_workload_with_params(AGENT_NAME, WORKLOAD_1_NAME);
         let deleted_workloads = vec![deleted_workload.clone()];
         let workload_operations =
             runtime_manager.transform_into_workload_operations(added_workloads, deleted_workloads);
@@ -2659,11 +2632,11 @@ mod tests {
         let (_server_receiver, runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
 
-        let new_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_owned(), RUNTIME_NAME.to_owned());
+        let new_workload =
+            generate_test_workload_named_with_params(WORKLOAD_1_NAME, AGENT_NAME, RUNTIME_NAME);
         let added_workloads = vec![ReusableWorkload::new(new_workload.clone(), None)];
         let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+            generate_test_deleted_workload_with_params(AGENT_NAME, WORKLOAD_1_NAME);
         let deleted_workloads = vec![deleted_workload.clone()];
         let workload_operations =
             runtime_manager.transform_into_workload_operations(added_workloads, deleted_workloads);
@@ -2708,8 +2681,7 @@ mod tests {
                 )
                 .build();
 
-        let new_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_owned(), RUNTIME_NAME.to_owned());
+        let new_workload = generate_test_workload_named();
         let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
             new_workload,
             None,
@@ -2746,7 +2718,7 @@ mod tests {
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
 
         let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+            generate_test_deleted_workload_with_params(AGENT_NAME, WORKLOAD_1_NAME);
         let workload_operations = vec![WorkloadOperation::Delete(deleted_workload)];
         runtime_manager
             .execute_workload_operations(workload_operations)
@@ -2780,7 +2752,7 @@ mod tests {
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
 
         let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+            generate_test_deleted_workload_with_params(AGENT_NAME, WORKLOAD_1_NAME);
 
         let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(deleted_workload)];
         runtime_manager
@@ -2805,8 +2777,8 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
 
-        let mut new_workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_owned(), RUNTIME_NAME.to_owned());
+        let mut new_workload =
+            generate_test_workload_named_with_params(WORKLOAD_1_NAME, AGENT_NAME, RUNTIME_NAME);
         new_workload.workload.control_interface_access = Default::default();
 
         let mut workload_mock = MockWorkload::default();
@@ -2820,7 +2792,7 @@ mod tests {
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
 
         let deleted_workload =
-            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+            generate_test_deleted_workload_with_params(AGENT_NAME, WORKLOAD_1_NAME);
 
         let workload_operations = vec![WorkloadOperation::Update(new_workload, deleted_workload)];
         runtime_manager

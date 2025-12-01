@@ -76,10 +76,10 @@ mod tests {
     use super::DependencyStateValidator;
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
 
-    use ankaios_api::ank_base::{DeleteCondition, ExecutionStateSpec, WorkloadNamed};
+    use ankaios_api::ank_base::{DeleteCondition, ExecutionStateSpec};
     use ankaios_api::test_utils::{
-        generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
-        generate_test_workload_with_param,
+        generate_test_deleted_workload_with_dependencies,
+        generate_test_deleted_workload_with_params, generate_test_workload_named,
     };
 
     use std::collections::HashMap;
@@ -87,13 +87,12 @@ mod tests {
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
-    const RUNTIME: &str = "runtime";
 
     // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
     // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     #[test]
     fn utest_create_fulfilled() {
-        let mut workload: WorkloadNamed = generate_test_workload_with_param(AGENT_A, RUNTIME);
+        let mut workload = generate_test_workload_named();
         workload.workload.dependencies.dependencies = HashMap::from([(
             WORKLOAD_NAME_1.to_owned(),
             ankaios_api::ank_base::AddCondition::AddCondRunning,
@@ -114,8 +113,7 @@ mod tests {
     // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
     #[test]
     fn utest_create_fulfilled_no_dependencies() {
-        let mut workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_A.to_string(), RUNTIME.to_string());
+        let mut workload = generate_test_workload_named();
 
         workload.workload.dependencies.dependencies.clear(); // no inter-workload dependencies
 
@@ -130,7 +128,7 @@ mod tests {
     // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     #[test]
     fn utest_create_fulfilled_no_workload_state_known() {
-        let workload: WorkloadNamed = generate_test_workload_with_param(AGENT_A, RUNTIME);
+        let workload = generate_test_workload_named();
 
         let wl_state_store_mock = MockWorkloadStateStore::default();
 
@@ -144,7 +142,7 @@ mod tests {
     // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     #[test]
     fn utest_create_fulfilled_unfulfilled_execution_state() {
-        let workload = generate_test_workload_with_param(AGENT_A, RUNTIME);
+        let workload = generate_test_workload_named();
 
         let execution_state = ExecutionStateSpec::succeeded();
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
@@ -212,7 +210,7 @@ mod tests {
     #[test]
     fn utest_delete_fulfilled_no_dependencies() {
         let mut deleted_workload =
-            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+            generate_test_deleted_workload_with_params(AGENT_A, WORKLOAD_NAME_1);
 
         deleted_workload.dependencies.clear(); // no inter-workload dependencies
 

@@ -104,8 +104,9 @@ mod tests {
     use super::{RuntimeError, UnsupportedRuntime, WorkloadInstanceNameSpec};
     use crate::runtime_connectors::{LogRequestOptions, RuntimeConnector};
 
-    use ankaios_api::ank_base::WorkloadNamed;
-    use ankaios_api::test_utils::{generate_test_workload, generate_test_workload_with_param};
+    use ankaios_api::test_utils::{
+        generate_test_workload_named, generate_test_workload_named_with_params,
+    };
     use common::objects::AgentName;
 
     use std::collections::HashMap;
@@ -139,8 +140,8 @@ mod tests {
     #[tokio::test]
     async fn utest_create_workload_returns_unsupported_error_for_matching_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param("test-agent", TEST_RUNTIME_NAME);
+        let workload =
+            generate_test_workload_named_with_params("workload_A", "test-agent", TEST_RUNTIME_NAME);
 
         let result = unsupported_runtime
             .create_workload(workload, None, None, mpsc::channel(1).0, HashMap::new())
@@ -156,8 +157,11 @@ mod tests {
     #[tokio::test]
     async fn utest_create_workload_returns_unsupported_error_for_different_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param("test-agent", "different_runtime");
+        let workload = generate_test_workload_named_with_params(
+            "workload_A",
+            "test-agent",
+            "different_runtime",
+        );
 
         let result = unsupported_runtime
             .create_workload(workload, None, None, mpsc::channel(1).0, HashMap::new())
@@ -188,7 +192,7 @@ mod tests {
     async fn utest_start_checker_returns_dummy_checker() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
         let workload_id = "test_id".to_string();
-        let workload = generate_test_workload();
+        let workload = generate_test_workload_named();
 
         let result = unsupported_runtime
             .start_checker(&workload_id, workload, mpsc::channel(1).0)

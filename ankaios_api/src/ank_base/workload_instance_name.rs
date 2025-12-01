@@ -160,41 +160,29 @@ impl WorkloadInstanceNameBuilder {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-#[cfg(any(feature = "test_utils", test))]
-use crate::test_utils::generate_test_runtime_config;
-
-#[cfg(any(feature = "test_utils", test))]
-pub fn generate_test_workload_instance_name(name: impl Into<String>) -> WorkloadInstanceNameSpec {
-    WorkloadInstanceNameSpec::builder()
-        .agent_name("agent_name")
-        .workload_name(name)
-        .config(&generate_test_runtime_config())
-        .build()
-}
-
 #[cfg(test)]
 mod tests {
     use super::WorkloadInstanceNameSpec;
-
-    const AGENT_NAME: &str = "agent";
-    const WORKLOAD_NAME: &str = "workload";
-    const CONFIG: &str = "config";
-    const EXPECTED_HASH: &str = "b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910";
+    use crate::test_utils::vars;
 
     // [utest->swdd~common-workload-execution-instance-naming~1]
     #[test]
     fn utest_workload_execution_instance_name_builder() {
+        let workload_name = vars::WORKLOAD_NAMES[0];
+        let agent_name = vars::AGENT_NAMES[0];
+        let expected_hash = vars::WORKLOAD_IDS[0];
+
         let name = WorkloadInstanceNameSpec::builder()
-            .agent_name(AGENT_NAME)
-            .workload_name(WORKLOAD_NAME)
-            .config(&String::from(CONFIG))
+            .agent_name(agent_name)
+            .workload_name(workload_name)
+            .config(&String::from(vars::RUNTIME_CONFIGS[0]))
             .build();
 
-        assert_eq!(name.workload_name(), WORKLOAD_NAME);
-        assert_eq!(name.id, EXPECTED_HASH);
+        assert_eq!(name.workload_name(), workload_name);
+        assert_eq!(name.id, expected_hash);
         assert_eq!(
             name.to_string(),
-            format!("{WORKLOAD_NAME}.{EXPECTED_HASH}.{AGENT_NAME}")
+            format!("{workload_name}.{expected_hash}.{agent_name}")
         )
     }
 }

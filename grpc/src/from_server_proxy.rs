@@ -441,11 +441,12 @@ mod tests {
     use ankaios_api::ank_base::{
         self, CompleteState, Dependencies, ExecutionStateSpec, LogsRequestSpec, Response,
         ResponseContent, State, Workload, WorkloadInstanceName, WorkloadInstanceNameSpec,
-        WorkloadMap, WorkloadNamed,
+        WorkloadMap,
     };
     use ankaios_api::test_utils::{
-        generate_test_deleted_workload, generate_test_workload,
-        generate_test_workload_state_with_agent, generate_test_workload_with_param,
+        generate_test_deleted_workload_with_params, generate_test_workload,
+        generate_test_workload_named_with_params, generate_test_workload_state_with_agent,
+        generate_test_workload_with_params,
     };
     use common::from_server_interface::{self, FromServerInterface};
 
@@ -509,17 +510,20 @@ mod tests {
     #[test]
     fn utest_get_workloads_per_agent_one_agent_one_workload() {
         let added_workloads = vec![
-            generate_test_workload_with_param::<WorkloadNamed>("agent1", "runtime1")
-                .name("name 1".to_string()),
-            generate_test_workload_with_param::<WorkloadNamed>("agent1", "runtime2")
-                .name("name 2".to_string()),
-            generate_test_workload_with_param::<WorkloadNamed>("agent2", "runtime3")
-                .name("name 3".to_string()),
+            generate_test_workload_named_with_params("name 1", "agent1", "runtime1"),
+            generate_test_workload_named_with_params("name 2", "agent1", "runtime2"),
+            generate_test_workload_named_with_params("name 3", "agent2", "runtime3"),
         ];
 
         let deleted_workloads = vec![
-            generate_test_deleted_workload("agent1".to_string(), "workload 8".to_string()),
-            generate_test_deleted_workload("agent4".to_string(), "workload 9".to_string()),
+            generate_test_deleted_workload_with_params(
+                "agent1".to_string(),
+                "workload 8".to_string(),
+            ),
+            generate_test_deleted_workload_with_params(
+                "agent4".to_string(),
+                "workload 9".to_string(),
+            ),
         ];
 
         let workload_map = super::get_workloads_per_agent(added_workloads, deleted_workloads);
@@ -577,11 +581,12 @@ mod tests {
         // As the channel capacity is big enough the await is satisfied right away
         let update_workload_result = to_manager
             .update_workload(
-                vec![
-                    generate_test_workload_with_param::<WorkloadNamed>(agent, "my_runtime")
-                        .name("name"),
-                ],
-                vec![generate_test_deleted_workload(
+                vec![generate_test_workload_named_with_params(
+                    "name",
+                    agent,
+                    "my_runtime",
+                )],
+                vec![generate_test_deleted_workload_with_params(
                     agent.to_string(),
                     "workload X".to_string(),
                 )],
@@ -670,7 +675,7 @@ mod tests {
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        let mut workload: Workload = generate_test_workload();
+        let mut workload: Workload = generate_test_workload().into();
         workload.dependencies = Some(Dependencies {
             dependencies: HashMap::from([("workload_B".to_string(), -1)]), // Set invalid AddCondition
         });
@@ -819,7 +824,11 @@ mod tests {
 
         join!(super::distribute_workloads_to_agents(
             &agent_senders,
-            vec![generate_test_workload_with_param(agent_name, "runtime")],
+            vec![generate_test_workload_named_with_params(
+                "workload_A",
+                agent_name,
+                "runtime"
+            )],
             vec![]
         ))
         .0;
@@ -841,7 +850,8 @@ mod tests {
 
         join!(super::distribute_workloads_to_agents(
             &agent_senders,
-            vec![generate_test_workload_with_param(
+            vec![generate_test_workload_named_with_params(
+                "workload_A",
                 "non_existing_agent",
                 "runtime"
             )],
@@ -887,7 +897,7 @@ mod tests {
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
-            generate_test_workload_with_param(agent_name, "my_runtime"),
+            generate_test_workload_with_params(agent_name, "my_runtime").into(),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -1046,7 +1056,7 @@ mod tests {
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
-            generate_test_workload_with_param(agent_name, "my_runtime"),
+            generate_test_workload_with_params(agent_name, "my_runtime").into(),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -1114,7 +1124,7 @@ mod tests {
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
-            generate_test_workload_with_param(agent_name, "my_runtime"),
+            generate_test_workload_with_params(agent_name, "my_runtime").into(),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -1179,7 +1189,7 @@ mod tests {
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
-            generate_test_workload_with_param(agent_name, "my_runtime"),
+            generate_test_workload_with_params(agent_name, "my_runtime").into(),
         );
 
         let my_request_id = "my_request_id".to_owned();

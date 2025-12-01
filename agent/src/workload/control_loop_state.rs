@@ -187,9 +187,9 @@ mod tests {
         workload_state::WorkloadStateSenderInterface,
     };
 
-    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadNamed};
+    use ankaios_api::ank_base::ExecutionStateSpec;
     use ankaios_api::test_utils::{
-        generate_test_workload, generate_test_workload_state_with_workload_named,
+        generate_test_workload_named, generate_test_workload_state_with_workload_named,
     };
 
     use tokio::{sync::mpsc, time};
@@ -199,7 +199,7 @@ mod tests {
     #[tokio::test]
     async fn utest_control_loop_state_builder_build_success() {
         let control_interface_path = Some(ControlInterfacePath::new("/some/path".into()));
-        let workload_named: WorkloadNamed = generate_test_workload();
+        let workload_named = generate_test_workload_named();
 
         let (workload_state_sender, mut workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
@@ -287,7 +287,7 @@ mod tests {
 
     #[test]
     fn utest_control_loop_state_instance_name() {
-        let workload_named: WorkloadNamed = generate_test_workload();
+        let workload_named = generate_test_workload_named();
         let (workload_state_sender, _workload_state_receiver) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =

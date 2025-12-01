@@ -294,17 +294,18 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use super::Object;
-    use ankaios_api::ank_base::{CompleteStateSpec, ExecutionStateSpec, StateSpec, WorkloadNamed};
+    use ankaios_api::ank_base::{CompleteStateSpec, ExecutionStateSpec, StateSpec};
     use ankaios_api::test_utils::{
         generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
-        generate_test_workload, generate_test_workload_states_map_with_data,
+        generate_test_workload_named, generate_test_workload_states_map_with_data,
     };
 
     use serde_yaml::Value;
 
     #[test]
     fn utest_object_from_state() {
-        let state: StateSpec = generate_test_state_from_workloads(vec![generate_test_workload()]);
+        let state: StateSpec =
+            generate_test_state_from_workloads(vec![generate_test_workload_named()]);
 
         let expected = Object {
             data: object::generate_test_state().into(),
@@ -320,14 +321,14 @@ mod tests {
         };
 
         let actual: StateSpec = object.try_into().unwrap();
-        let expected = generate_test_state_from_workloads(vec![generate_test_workload()]);
+        let expected = generate_test_state_from_workloads(vec![generate_test_workload_named()]);
 
         assert_eq!(actual, expected)
     }
 
     #[test]
     fn utest_object_from_complete_state() {
-        let wl_named: WorkloadNamed = generate_test_workload();
+        let wl_named = generate_test_workload_named();
         let agent_map = generate_test_agent_map_from_workloads(&vec![wl_named.workload.clone()]);
         let workloads = vec![wl_named];
         let state = generate_test_state_from_workloads(workloads);
@@ -356,7 +357,7 @@ mod tests {
         let object = Object {
             data: object::generate_test_complete_state_mapping().into(),
         };
-        let wl_named: WorkloadNamed = generate_test_workload();
+        let wl_named = generate_test_workload_named();
         let agent_map = generate_test_agent_map_from_workloads(&vec![wl_named.workload.clone()]);
         let workloads = vec![wl_named];
 
@@ -711,11 +712,11 @@ mod tests {
 
         use ankaios_api::CURRENT_API_VERSION;
         use ankaios_api::ank_base::ConfigHash;
-        use ankaios_api::test_utils::generate_test_runtime_config;
+        use ankaios_api::test_utils::vars;
 
         pub fn generate_test_complete_state_mapping() -> Mapping {
             let agent_name = "agent_A";
-            let config_hash: &dyn ConfigHash = &generate_test_runtime_config();
+            let config_hash: &dyn ConfigHash = &String::from(vars::RUNTIME_CONFIGS[0]);
             Mapping::default()
                 .entry("desiredState", generate_test_state())
                 .entry(
@@ -776,7 +777,7 @@ mod tests {
                             )
                             .entry("restartPolicy", "ALWAYS")
                             .entry("runtime", "runtime_A")
-                            .entry("runtimeConfig", generate_test_runtime_config())
+                            .entry("runtimeConfig", vars::RUNTIME_CONFIGS[0])
                             .entry(
                                 "controlInterfaceAccess",
                                 Mapping::default()
@@ -787,6 +788,9 @@ mod tests {
                                                 .entry("type", "StateRule")
                                                 .entry("operation", "ReadWrite")
                                                 .entry("filterMasks", vec!["desiredState"]),
+                                            Mapping::default()
+                                                .entry("type", "LogRule")
+                                                .entry("workloadNames", vec!["workload_A"]),
                                         ],
                                     )
                                     .entry(
@@ -816,7 +820,7 @@ mod tests {
                                         .entry("data", "text data"),
                                     Mapping::default()
                                         .entry("mountPoint", "/binary_file")
-                                        .entry("binaryData", "base64_data"),
+                                        .entry("binaryData", "YmFzZTY0IGRhdGE="),
                                 ],
                             ),
                     ),

@@ -457,10 +457,9 @@ mod tests {
         workload_state::assert_execution_state_sequence,
     };
 
-    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
-    use ankaios_api::test_utils::generate_test_workload_with_param;
+    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec};
+    use ankaios_api::test_utils::generate_test_workload_named;
 
-    const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_ID: &str = "workload_id_1";
@@ -521,7 +520,7 @@ mod tests {
         const WORKLOAD_ID: &str = "workload_id_1";
 
         let reusable_workload = ReusableWorkload::new(
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string()),
+            generate_test_workload_named(),
             Some(WORKLOAD_ID.to_string()),
         );
 
@@ -627,8 +626,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| Ok(MockControlInterface::default()));
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let (wl_state_sender, _wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
@@ -676,8 +674,7 @@ mod tests {
         let control_interface_new_context = MockControlInterface::new_context();
         control_interface_new_context.expect().never();
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let (wl_state_sender, _wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);

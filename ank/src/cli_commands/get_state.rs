@@ -62,7 +62,7 @@ mod tests {
 
     use ankaios_api::ank_base::Workload;
     use ankaios_api::test_utils::{
-        generate_test_proto_complete_state, generate_test_workload_with_param,
+        generate_test_proto_complete_state, generate_test_workload_with_params,
     };
     use mockall::predicate::eq;
 
@@ -77,15 +77,15 @@ mod tests {
         let test_data = generate_test_proto_complete_state(&[
             (
                 "name1",
-                generate_test_workload_with_param("agent_A", "runtime"),
+                generate_test_workload_with_params("agent_A", "runtime").into(),
             ),
             (
                 "name2",
-                generate_test_workload_with_param("agent_B", "runtime"),
+                generate_test_workload_with_params("agent_B", "runtime").into(),
             ),
             (
                 "name3",
-                generate_test_workload_with_param("agent_B", "runtime"),
+                generate_test_workload_with_params("agent_B", "runtime").into(),
             ),
         ]);
 
@@ -112,15 +112,15 @@ mod tests {
         let test_data = generate_test_proto_complete_state(&[
             (
                 "name1",
-                generate_test_workload_with_param("agent_A", "runtime"),
+                generate_test_workload_with_params("agent_A", "runtime").into(),
             ),
             (
                 "name2",
-                generate_test_workload_with_param("agent_B", "runtime"),
+                generate_test_workload_with_params("agent_B", "runtime").into(),
             ),
             (
                 "name3",
-                generate_test_workload_with_param("agent_B", "runtime"),
+                generate_test_workload_with_params("agent_B", "runtime").into(),
             ),
         ]);
 
@@ -149,15 +149,15 @@ mod tests {
         let test_data = generate_test_proto_complete_state(&[
             (
                 "name1",
-                generate_test_workload_with_param("agent_A", "runtime"),
+                generate_test_workload_with_params("agent_A", "runtime").into(),
             ),
             (
                 "name2",
-                generate_test_workload_with_param("agent_B", "runtime"),
+                generate_test_workload_with_params("agent_B", "runtime").into(),
             ),
             (
                 "name3",
-                generate_test_workload_with_param("agent_B", "runtime"),
+                generate_test_workload_with_params("agent_B", "runtime").into(),
             ),
         ]);
 
@@ -195,15 +195,15 @@ mod tests {
         let test_data = generate_test_proto_complete_state(&[
             (
                 "name1",
-                generate_test_workload_with_param("agent_A", "runtime"),
+                generate_test_workload_with_params("agent_A", "runtime").into(),
             ),
             (
                 "name2",
-                generate_test_workload_with_param("agent_B", "runtime"),
+                generate_test_workload_with_params("agent_B", "runtime").into(),
             ),
             (
                 "name3",
-                generate_test_workload_with_param("agent_B", "runtime"),
+                generate_test_workload_with_params("agent_B", "runtime").into(),
             ),
         ]);
 

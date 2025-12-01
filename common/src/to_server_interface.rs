@@ -247,7 +247,7 @@ mod tests {
         WorkloadInstanceNameSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload, generate_test_workload_state,
+        generate_test_complete_state, generate_test_workload_named, generate_test_workload_state,
     };
     use tokio::sync::mpsc;
 
@@ -319,7 +319,7 @@ mod tests {
     async fn utest_to_server_send_update_state() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
 
-        let workload1 = generate_test_workload();
+        let workload1 = generate_test_workload_named();
         let complete_state = generate_test_complete_state(vec![workload1]);
         assert!(
             tx.update_state(

@@ -225,11 +225,11 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        CompleteState, CompleteStateSpec, ExecutionStateSpec, WorkloadNamed, WorkloadStateSpec,
+        CompleteState, CompleteStateSpec, ExecutionStateSpec, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload_states_map_with_data,
-        generate_test_workload_with_param,
+        generate_test_complete_state, generate_test_workload_named_with_params,
+        generate_test_workload_states_map_with_data,
     };
     use common::commands::UpdateWorkloadState;
 
@@ -270,9 +270,9 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workloads_no_filtering() {
         let test_data = generate_test_complete_state(vec![
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
+            generate_test_workload_named_with_params("name1", "agent_A", "runtime"),
+            generate_test_workload_named_with_params("name2", "agent_B", "runtime"),
+            generate_test_workload_named_with_params("name3", "agent_B", "runtime"),
         ]);
 
         let mut mock_server_connection = MockServerConnection::default();
@@ -305,9 +305,9 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workloads_filter_workload_name() {
         let test_data = generate_test_complete_state(vec![
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
+            generate_test_workload_named_with_params("name1", "agent_A", "runtime"),
+            generate_test_workload_named_with_params("name2", "agent_B", "runtime"),
+            generate_test_workload_named_with_params("name3", "agent_B", "runtime"),
         ]);
 
         let mut mock_server_connection = MockServerConnection::default();
@@ -339,9 +339,9 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workloads_filter_agent() {
         let test_data = generate_test_complete_state(vec![
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
+            generate_test_workload_named_with_params("name1", "agent_A", "runtime"),
+            generate_test_workload_named_with_params("name2", "agent_B", "runtime"),
+            generate_test_workload_named_with_params("name3", "agent_B", "runtime"),
         ]);
 
         let mut mock_server_connection = MockServerConnection::default();
@@ -373,9 +373,9 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workloads_filter_state() {
         let test_data = generate_test_complete_state(vec![
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name2"),
-            generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime").name("name3"),
+            generate_test_workload_named_with_params("name1", "agent_A", "runtime"),
+            generate_test_workload_named_with_params("name2", "agent_B", "runtime"),
+            generate_test_workload_named_with_params("name3", "agent_B", "runtime"),
         ]);
 
         let mut mock_server_connection = MockServerConnection::default();
@@ -462,10 +462,8 @@ mod tests {
     // [utest->swdd~cli-get-workloads-with-watch~1]
     #[tokio::test]
     async fn utest_watch_workloads_addition() {
-        let initial_wl =
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1");
-        let new_wl =
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name2");
+        let initial_wl = generate_test_workload_named_with_params("name1", "agent_A", "runtime");
+        let new_wl = generate_test_workload_named_with_params("name2", "agent_A", "runtime");
         let initial_key = initial_wl.instance_name.to_string();
 
         let initial_state = generate_test_complete_state(vec![initial_wl.clone()]);
@@ -553,8 +551,7 @@ mod tests {
     // [utest->swdd~cli-process-workload-updates~1]
     #[tokio::test]
     async fn utest_process_workload_updates_removal() {
-        let wl1 =
-            generate_test_workload_with_param::<WorkloadNamed>("agent_A", "runtime").name("name1");
+        let wl1 = generate_test_workload_named_with_params("name1", "agent_A", "runtime");
 
         let key_wl1 = wl1.instance_name.to_string();
 
@@ -612,10 +609,10 @@ mod tests {
     // [utest->swdd~cli-process-workload-updates~1]
     #[tokio::test]
     async fn utest_process_workload_updates_state_change() {
-        let workload_1 = generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_1")
-            .name("workload_alpha");
-        let workload_2 = generate_test_workload_with_param::<WorkloadNamed>("agent_B", "runtime_2")
-            .name("workload_beta");
+        let workload_1 =
+            generate_test_workload_named_with_params("workload_alpha", "agent_B", "runtime_1");
+        let workload_2 =
+            generate_test_workload_named_with_params("workload_beta", "agent_B", "runtime_2");
 
         let key_wl1 = workload_1.instance_name.to_string();
         let key_wl2 = workload_2.instance_name.to_string();

@@ -77,7 +77,7 @@ mod tests {
     use super::RenderedWorkloads;
     use ankaios_api::{
         ank_base::{AccessRightsRuleEnumSpec, WorkloadNamed, WorkloadSpec},
-        test_utils::{generate_test_workload, generate_test_workload_instance_name},
+        test_utils::{generate_test_workload, generate_test_workload_instance_name_with_name},
     };
 
     #[test]
@@ -85,7 +85,7 @@ mod tests {
         let mut rendered_workloads = RenderedWorkloads::new();
         let workload_name = "test_workload".to_string();
         let workload_named = WorkloadNamed {
-            instance_name: generate_test_workload_instance_name(&workload_name),
+            instance_name: generate_test_workload_instance_name_with_name(&workload_name),
             workload: generate_test_workload(),
         };
 
@@ -101,7 +101,7 @@ mod tests {
         let mut rendered_workloads = RenderedWorkloads::new();
         let workload_name = "test_workload".to_string();
         let workload_named = WorkloadNamed {
-            instance_name: generate_test_workload_instance_name(&workload_name),
+            instance_name: generate_test_workload_instance_name_with_name(&workload_name),
             workload: generate_test_workload(),
         };
 
@@ -117,7 +117,7 @@ mod tests {
     fn test_rendered_workloads_validation_success() {
         let wl_name = "a_valid-Name_1";
         let workload = WorkloadNamed {
-            instance_name: generate_test_workload_instance_name(wl_name),
+            instance_name: generate_test_workload_instance_name_with_name(wl_name),
             workload: generate_test_workload(),
         };
 
@@ -131,7 +131,7 @@ mod tests {
     fn test_rendered_workloads_validation_failure_on_name() {
         let wl_name = "!nvalid+Name_1";
         let workload = WorkloadNamed {
-            instance_name: generate_test_workload_instance_name(wl_name),
+            instance_name: generate_test_workload_instance_name_with_name(wl_name),
             workload: generate_test_workload(),
         };
 
@@ -153,7 +153,7 @@ mod tests {
         workload.agent = agent_name.to_string();
 
         let workload_named = WorkloadNamed {
-            instance_name: generate_test_workload_instance_name(wl_name),
+            instance_name: generate_test_workload_instance_name_with_name(wl_name),
             workload,
         };
 
@@ -182,7 +182,7 @@ mod tests {
         }
 
         let workload_named = WorkloadNamed {
-            instance_name: generate_test_workload_instance_name(wl_name),
+            instance_name: generate_test_workload_instance_name_with_name(wl_name),
             workload,
         };
 

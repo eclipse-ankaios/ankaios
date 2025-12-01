@@ -247,11 +247,10 @@ mod tests {
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
-    use ankaios_api::ank_base::{
-        self, CompleteStateSpec, Response, WorkloadNamed, WorkloadSpec, response::ResponseContent,
-    };
+    use ankaios_api::ank_base::{self, CompleteStateSpec, Response, response::ResponseContent};
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload_with_param,
+        generate_test_complete_state, generate_test_workload_named,
+        generate_test_workload_named_with_params, generate_test_workload_with_params,
     };
     use common::from_server_interface::FromServer;
 
@@ -406,8 +405,7 @@ mod tests {
         let mut test_workload =
             Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
 
-        let workload: WorkloadSpec =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_with_params(AGENT_NAME, RUNTIME_NAME);
 
         test_workload.exchange_control_interface(None, workload.needs_control_interface());
 
@@ -429,8 +427,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let workload: WorkloadNamed =
-            generate_test_workload_with_param(AGENT_NAME.to_string(), RUNTIME_NAME.to_string());
+        let workload = generate_test_workload_named();
 
         let mut new_control_interface_mock = MockControlInterface::default();
         new_control_interface_mock
@@ -519,8 +516,8 @@ mod tests {
             .once()
             .return_const(CONTROL_INTERFACE_PATH.clone());
 
-        let workload = generate_test_workload_with_param::<WorkloadNamed>(AGENT_NAME, RUNTIME_NAME)
-            .name(WORKLOAD_1_NAME);
+        let workload =
+            generate_test_workload_named_with_params(WORKLOAD_1_NAME, AGENT_NAME, RUNTIME_NAME);
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
@@ -621,13 +618,12 @@ mod tests {
             workload_command_sender,
             Some(control_interface_mock),
         );
-        let complete_state = generate_test_complete_state(vec![
-            generate_test_workload_with_param::<WorkloadNamed>(
-                AGENT_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            )
-            .name(WORKLOAD_1_NAME),
-        ]);
+        let complete_state =
+            generate_test_complete_state(vec![generate_test_workload_named_with_params(
+                WORKLOAD_1_NAME,
+                AGENT_NAME,
+                RUNTIME_NAME,
+            )]);
 
         test_workload
             .forward_response(ank_base::Response {
