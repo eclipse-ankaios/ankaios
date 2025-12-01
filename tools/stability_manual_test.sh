@@ -18,7 +18,7 @@ trap cleanup EXIT
 for i in {1..5}
 do
   echo "Starting $i-th iteration"
-  ./ank-server -c startConfig.yaml &
+  ./ank-server --startup-manifest startConfig.yaml &
 
   sleep 10
 
@@ -35,7 +35,7 @@ do
   sleep 10
   ./ank delete workload nginx
   sleep 10
-  
+
   pkill -f ank-
   ps -a
   sleep 10

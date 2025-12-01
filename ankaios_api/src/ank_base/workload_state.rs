@@ -52,15 +52,17 @@ impl ExecutionStateSpec {
     pub fn transition(&self, incoming: ExecutionStateSpec) -> ExecutionStateSpec {
         match (&self.state(), &incoming.state()) {
             (
+                // Skip transitions from stopping states: 
                 ExecutionStateEnumSpec::Stopping(Stopping::RequestedAtRuntime)
                 | ExecutionStateEnumSpec::Stopping(Stopping::WaitingToStop),
+                // to these states:
                 ExecutionStateEnumSpec::Running(Running::Ok)
                 | ExecutionStateEnumSpec::Succeeded(Succeeded::Ok)
                 | ExecutionStateEnumSpec::Failed(Failed::ExecFailed)
                 | ExecutionStateEnumSpec::Failed(Failed::Lost)
                 | ExecutionStateEnumSpec::Failed(Failed::Unknown),
             ) => {
-                // log::trace!("Skipping transition from '{self}' to '{incoming}' state.");
+                log::trace!("Skipping transition from '{self}' to '{incoming}' state.");
                 self.clone()
             }
             _ => incoming,
