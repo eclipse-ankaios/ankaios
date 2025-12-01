@@ -28,15 +28,13 @@ use std::fmt::Display;
 use super::config_renderer::ConfigRenderer;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-#[cfg_attr(test, mockall_double::double)]
-use crate::ankaios_server::state_comparator::StateComparator;
 
 #[cfg(test)]
 use mockall::automock;
 
 #[derive(Debug, Default)]
 pub struct StateGenerationResult {
-    pub state_comparator: StateComparator,
+    pub old_desired_state: StateSpec,
     pub new_desired_state: StateSpec,
 }
 
@@ -295,7 +293,7 @@ impl ServerState {
         // [impl->swdd~update-desired-state-empty-update-mask~1]
         if update_mask.is_empty() {
             return Ok(StateGenerationResult {
-                state_comparator: StateComparator::new(old_state.into(), state_from_update.into()),
+                old_desired_state: self.state.desired_state.clone(),
                 new_desired_state: updated_state.desired_state,
             });
         }
@@ -321,7 +319,7 @@ impl ServerState {
             })?;
 
         Ok(StateGenerationResult {
-            state_comparator: StateComparator::new(old_state.into(), new_state.into()),
+            old_desired_state: self.state.desired_state.clone(),
             new_desired_state: new_complete_state.desired_state,
         })
     }

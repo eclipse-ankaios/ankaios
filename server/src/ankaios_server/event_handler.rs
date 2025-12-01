@@ -118,6 +118,20 @@ impl EventHandler {
             filter_masks.extend(altered_fields.removed_fields.clone());
             filter_masks.extend(altered_fields.updated_fields.clone());
 
+            log::debug!(
+                "Added trees: {added_first_difference_tree:?}, {added_full_difference_tree:?}"
+            );
+            log::debug!(
+                "Removed trees: {removed_first_difference_tree:?}, {removed_full_difference_tree:?}"
+            );
+            log::debug!("Updated tree: {updated_full_difference_tree:?}");
+
+            log::debug!("Altered fields for subscriber '{request_id}': {altered_fields:?}");
+
+            log::debug!(
+                "Subscriber masks for subscriber '{request_id}': {subscribed_field_masks:?}"
+            );
+
             if !altered_fields.all_empty() {
                 {
                     let complete_state_differences = server_state

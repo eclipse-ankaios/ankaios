@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use ankaios_api::ank_base::WorkloadInstanceNameSpec;
+use ankaios_api::ank_base::CompleteStateSpec;
 use common::{
     state_manipulation::{Object, Path},
     std_extensions::{IllegalStateResult, UnreachableOption},
@@ -39,12 +39,6 @@ pub enum StackTask<'a> {
 
 #[cfg_attr(test, automock)]
 impl StateComparator {
-    pub fn new(old_state: Mapping, new_state: Mapping) -> Self {
-        Self {
-            old_state,
-            new_state,
-        }
-    }
     /// Construct separated trees for added, updated and removed fields between self and other using a depth-first search (DFS) algorithm.
     ///
     /// ## Returns
@@ -84,7 +78,7 @@ impl StateComparator {
                             let mut added_field_mask = current_field_mask.clone();
                             added_field_mask.push(added_key);
                             state_difference_tree
-                                .insert_added_first_difference_tree(added_field_mask.clone());
+                                .insert_added_path(added_field_mask.clone(), Default::default());
 
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.added_tree.full_difference_tree,
@@ -103,8 +97,10 @@ impl StateComparator {
                             };
                             let mut removed_field_mask = current_field_mask.clone();
                             removed_field_mask.push(removed_key);
-                            state_difference_tree
-                                .insert_removed_first_difference_tree(removed_field_mask.clone());
+                            state_difference_tree.insert_removed_path(
+                                removed_field_mask.clone(),
+                                Default::default(),
+                            );
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.removed_tree.full_difference_tree,
                                 Path::from(removed_field_mask),
@@ -131,12 +127,14 @@ impl StateComparator {
                                     sequence_field_mask.push(key_str);
 
                                     if current_seq.is_empty() && !other_seq.is_empty() {
-                                        state_difference_tree.insert_added_first_difference_tree(
+                                        state_difference_tree.insert_added_path(
                                             sequence_field_mask,
+                                            Default::default(),
                                         );
                                     } else if !current_seq.is_empty() && other_seq.is_empty() {
-                                        state_difference_tree.insert_removed_first_difference_tree(
+                                        state_difference_tree.insert_removed_path(
                                             sequence_field_mask,
+                                            Default::default(),
                                         );
                                     } else if current_seq != other_seq {
                                         state_difference_tree
@@ -237,34 +235,37 @@ impl StateDifferenceTree {
         }
     }
 
-    pub fn insert_added_first_difference_tree(&mut self, path: Vec<String>) {
+    pub fn insert_added_path(
+        &mut self,
+        first_level_change_path: Vec<String>,
+        full_difference_path: Vec<String>,
+    ) {
         Self::insert_path(
             &mut self.added_tree.first_difference_tree,
-            Path::from(path),
+            Path::from(first_level_change_path),
             serde_yaml::Value::Null,
         );
-    }
 
-    pub fn insert_added_full_difference_tree(&mut self, path: Vec<String>) {
         Self::insert_path(
             &mut self.added_tree.full_difference_tree,
-            Path::from(path),
+            Path::from(full_difference_path),
             serde_yaml::Value::Null,
         );
     }
 
-    pub fn insert_removed_first_difference_tree(&mut self, path: Vec<String>) {
+    pub fn insert_removed_path(
+        &mut self,
+        first_level_change_path: Vec<String>,
+        full_difference_path: Vec<String>,
+    ) {
         Self::insert_path(
             &mut self.removed_tree.first_difference_tree,
-            Path::from(path),
+            Path::from(first_level_change_path),
             serde_yaml::Value::Null,
         );
-    }
-
-    pub fn insert_removed_full_difference_tree(&mut self, path: Vec<String>) {
         Self::insert_path(
             &mut self.removed_tree.full_difference_tree,
-            Path::from(path),
+            Path::from(full_difference_path),
             serde_yaml::Value::Null,
         );
     }
@@ -282,53 +283,40 @@ impl StateDifferenceTree {
     }
 
     fn insert_path(tree: &mut Object, at_path: Path, new_value: Value) {
+        if at_path.parts().is_empty() {
+            return;
+        }
+
         tree.set(&at_path, new_value).unwrap_or_illegal_state();
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub struct FieldDifferencePath;
+impl From<(CompleteStateSpec, CompleteStateSpec)> for StateComparator {
+    fn from((old_state_spec, new_state_spec): (CompleteStateSpec, CompleteStateSpec)) -> Self {
+        let old_state =
+            serde_yaml::to_value(ankaios_api::ank_base::CompleteState::from(old_state_spec))
+                .unwrap_or_illegal_state()
+                .as_mapping()
+                .unwrap_or_unreachable()
+                .to_owned();
+        let new_state =
+            serde_yaml::to_value(ankaios_api::ank_base::CompleteState::from(new_state_spec))
+                .unwrap_or_illegal_state()
+                .as_mapping()
+                .unwrap_or_unreachable()
+                .to_owned();
 
-impl FieldDifferencePath {
-    const AGENT_KEY: &'static str = "agents";
-    pub const CPU_RESOURCE_KEY: &'static str = "cpuUsage";
-    pub const MEMORY_RESOURCE_KEY: &'static str = "freeMemory";
-    const WORKLOAD_STATES_KEY: &'static str = "workloadStates";
-
-    pub fn agent(agent_name: &str) -> Vec<String> {
-        vec![Self::AGENT_KEY.to_string(), agent_name.to_string()]
+        Self {
+            old_state,
+            new_state,
+        }
     }
+}
 
-    pub fn agent_cpu(agent_name: &str) -> Vec<String> {
-        vec![
-            Self::AGENT_KEY.to_string(),
-            agent_name.to_string(),
-            Self::CPU_RESOURCE_KEY.to_string(),
-        ]
-    }
-
-    pub fn agent_memory(agent_name: &str) -> Vec<String> {
-        vec![
-            Self::AGENT_KEY.to_string(),
-            agent_name.to_string(),
-            Self::MEMORY_RESOURCE_KEY.to_string(),
-        ]
-    }
-
-    pub fn workload_state_agent(instance_name: &WorkloadInstanceNameSpec) -> Vec<String> {
-        vec![
-            Self::WORKLOAD_STATES_KEY.to_owned(),
-            instance_name.agent_name().to_owned(),
-        ]
-    }
-
-    pub fn workload_state(instance_name: &WorkloadInstanceNameSpec) -> Vec<String> {
-        vec![
-            Self::WORKLOAD_STATES_KEY.to_owned(),
-            instance_name.agent_name().to_owned(),
-            instance_name.workload_name().to_owned(),
-            instance_name.id().to_owned(),
-        ]
+#[cfg(test)]
+impl From<(CompleteStateSpec, CompleteStateSpec)> for MockStateComparator {
+    fn from((_old_states, _new_states): (CompleteStateSpec, CompleteStateSpec)) -> Self {
+        Self::default()
     }
 }
 
