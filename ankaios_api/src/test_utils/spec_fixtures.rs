@@ -18,8 +18,8 @@ use crate::ank_base::{
     CompleteStateSpec, ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigMappingsSpec,
     ControlInterfaceAccessSpec, CpuUsageSpec, DependenciesSpec, ExecutionStateSpec,
     FileContentSpec, FileSpec, FilesSpec, FreeMemorySpec, ReadWriteEnum, RestartPolicy, StateSpec,
-    TagsSpec, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadNamed, WorkloadSpec,
-    WorkloadStateSpec, WorkloadStatesMapSpec,
+    TagsSpec, WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadMapSpec,
+    WorkloadNamed, WorkloadSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use std::collections::HashMap;
 
@@ -204,7 +204,7 @@ pub fn generate_test_config_map() -> ConfigMapSpec {
               - list_value_2
           agent_name: agent_A
           config_file: text data
-          binary_file: base64_data
+          binary_file: YmFzZTY0IGRhdGE=
         config_2: value_3
         ",
     )
@@ -241,7 +241,6 @@ pub fn generate_test_workload_states_map_with_data(
     id: impl Into<String>,
     exec_state: ExecutionStateSpec,
 ) -> WorkloadStatesMapSpec {
-    println!("Generating test workload states map with data");
     let mut wl_states_map = WorkloadStatesMapSpec::new();
 
     wl_states_map
@@ -308,10 +307,12 @@ pub fn generate_test_workload_named_with_runtime_config(
     runtime_config: impl Into<String>,
 ) -> WorkloadNamed {
     let agent_name = agent_name.into();
+    let runtime_config = runtime_config.into();
     WorkloadNamed {
-        instance_name: generate_test_workload_instance_name_with_params(
+        instance_name: generate_test_workload_instance_name_with_runtime_config(
             workload_name,
             agent_name.clone(),
+            runtime_config.clone(),
         ),
         workload: generate_test_workload_with_runtime_config(
             agent_name,
@@ -335,11 +336,23 @@ pub fn generate_test_workload_instance_name_with_params(
     workload_name: impl Into<String>,
     agent_name: impl Into<String>,
 ) -> WorkloadInstanceNameSpec {
-    WorkloadInstanceNameSpec {
-        workload_name: workload_name.into(),
-        agent_name: agent_name.into(),
-        id: vars::WORKLOAD_IDS[0].to_owned(),
-    }
+    generate_test_workload_instance_name_with_runtime_config(
+        workload_name,
+        agent_name,
+        vars::RUNTIME_CONFIGS[0],
+    )
+}
+
+pub fn generate_test_workload_instance_name_with_runtime_config(
+    workload_name: impl Into<String>,
+    agent_name: impl Into<String>,
+    runtime_config: impl Into<String>,
+) -> WorkloadInstanceNameSpec {
+    WorkloadInstanceNameBuilder::default()
+        .workload_name(workload_name)
+        .agent_name(agent_name)
+        .config(&runtime_config.into())
+        .build()
 }
 
 // ## WorkloadSpec fixtures ##

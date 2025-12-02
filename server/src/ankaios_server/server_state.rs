@@ -367,7 +367,7 @@ mod tests {
     use ankaios_api::test_utils::{
         generate_test_agent_map, generate_test_complete_state, generate_test_config_map,
         generate_test_proto_complete_state, generate_test_workload,
-        generate_test_workload_named_with_params, generate_test_workload_with_params,
+        generate_test_workload_named_with_params, generate_test_workload_with_params, vars,
     };
     use common::commands::AgentLoadStatus;
     use mockall::predicate;
@@ -498,9 +498,21 @@ mod tests {
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask() {
-        let mut w1 = generate_test_workload_named_with_params(WORKLOAD_NAME_1, AGENT_A, RUNTIME);
-        let w2 = generate_test_workload_named_with_params(WORKLOAD_NAME_2, AGENT_A, RUNTIME);
-        let w3 = generate_test_workload_named_with_params(WORKLOAD_NAME_3, AGENT_A, RUNTIME);
+        let mut w1 = generate_test_workload_named_with_params(
+            vars::WORKLOAD_NAMES[0],
+            vars::AGENT_NAMES[0],
+            vars::RUNTIME_NAMES[0],
+        );
+        let w2 = generate_test_workload_named_with_params(
+            vars::WORKLOAD_NAMES[1],
+            vars::AGENT_NAMES[0],
+            vars::RUNTIME_NAMES[0],
+        );
+        let w3 = generate_test_workload_named_with_params(
+            vars::WORKLOAD_NAMES[2],
+            vars::AGENT_NAMES[0],
+            vars::RUNTIME_NAMES[0],
+        );
         w1.workload.configs.configs.clear();
 
         let server_state = ServerState {
@@ -510,8 +522,8 @@ mod tests {
 
         let request_complete_state = CompleteStateRequestSpec {
             field_mask: vec![
-                format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
-                format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
+                format!("desiredState.workloads.{}", vars::WORKLOAD_NAMES[0]),
+                format!("desiredState.workloads.{}.agent", vars::WORKLOAD_NAMES[2]),
             ],
         };
 
@@ -554,9 +566,21 @@ mod tests {
     // [utest->swdd~agent-from-agent-field~1]
     #[test]
     fn utest_server_state_get_workloads_per_agent() {
-        let w1 = generate_test_workload_named_with_params(WORKLOAD_NAME_1, AGENT_A, RUNTIME);
-        let w2 = generate_test_workload_named_with_params(WORKLOAD_NAME_2, AGENT_A, RUNTIME);
-        let w3 = generate_test_workload_named_with_params(WORKLOAD_NAME_3, AGENT_B, RUNTIME);
+        let w1 = generate_test_workload_named_with_params(
+            vars::WORKLOAD_NAMES[0],
+            vars::AGENT_NAMES[0],
+            vars::RUNTIME_NAMES[0],
+        );
+        let w2 = generate_test_workload_named_with_params(
+            vars::WORKLOAD_NAMES[1],
+            vars::AGENT_NAMES[0],
+            vars::RUNTIME_NAMES[0],
+        );
+        let w3 = generate_test_workload_named_with_params(
+            vars::WORKLOAD_NAMES[2],
+            vars::AGENT_NAMES[1],
+            vars::RUNTIME_NAMES[0],
+        );
 
         let old_complete_state =
             generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]);
@@ -569,7 +593,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut workloads = server_state.get_workloads_for_agent(AGENT_A);
+        let mut workloads = server_state.get_workloads_for_agent(vars::AGENT_NAMES[0]);
         workloads.sort_by(|left, right| {
             left.instance_name
                 .workload_name()
@@ -577,7 +601,7 @@ mod tests {
         });
         assert_eq!(workloads, vec![w1, w2]);
 
-        let workloads = server_state.get_workloads_for_agent(AGENT_B);
+        let workloads = server_state.get_workloads_for_agent(vars::AGENT_NAMES[1]);
         assert_eq!(workloads, vec![w3]);
 
         let workloads = server_state.get_workloads_for_agent("unknown_agent");
