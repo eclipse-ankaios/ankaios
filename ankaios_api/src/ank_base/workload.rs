@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ank_base::{AddCondition, ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadSpec};
+use crate::ank_base::{WorkloadInstanceNameSpec, WorkloadSpec};
 use crate::helpers::serialize_to_ordered_map;
 use crate::{CURRENT_API_VERSION, PREVIOUS_API_VERSION};
 
@@ -150,10 +150,6 @@ impl WorkloadNamed {
     }
 }
 
-pub trait FulfilledBy<T> {
-    fn fulfilled_by(&self, other: &T) -> bool;
-}
-
 // [impl->swdd~common-object-serialization~1]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
 pub struct DeletedWorkload {
@@ -168,31 +164,6 @@ pub struct DeletedWorkload {
 pub enum DeleteCondition {
     DelCondRunning = 0,
     DelCondNotPendingNorRunning = 1,
-}
-
-impl FulfilledBy<ExecutionStateSpec> for AddCondition {
-    // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
-    fn fulfilled_by(&self, other: &ExecutionStateSpec) -> bool {
-        match self {
-            AddCondition::AddCondRunning => (*other).is_running(),
-            AddCondition::AddCondSucceeded => (*other).is_succeeded(),
-            AddCondition::AddCondFailed => (*other).is_failed(),
-        }
-    }
-}
-
-impl FulfilledBy<ExecutionStateSpec> for DeleteCondition {
-    // [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
-    fn fulfilled_by(&self, other: &ExecutionStateSpec) -> bool {
-        if other.is_waiting_to_start() {
-            return true;
-        }
-
-        match self {
-            DeleteCondition::DelCondNotPendingNorRunning => (*other).is_not_pending_nor_running(),
-            DeleteCondition::DelCondRunning => (*other).is_running(),
-        }
-    }
 }
 
 impl TryFrom<i32> for DeleteCondition {
@@ -297,6 +268,8 @@ impl TestWorkloadFixture for WorkloadSpec {
         runtime_name: impl Into<String>,
         runtime_config: impl Into<String>,
     ) -> Self {
+        use crate::ank_base::AddCondition;
+
         WorkloadSpec {
             agent: agent_name.into(),
             dependencies: DependenciesSpec {
@@ -440,10 +413,7 @@ pub fn generate_test_runtime_config() -> String {
 mod tests {
     use super::validate_workload_name_format;
 
-    use crate::ank_base::{
-        AddCondition, DeleteCondition, ExecutionStateSpec, FulfilledBy, RestartPolicy,
-        WorkloadNamed, WorkloadSpec,
-    };
+    use crate::ank_base::{AddCondition, DeleteCondition, WorkloadNamed, WorkloadSpec};
     use crate::test_utils::{
         generate_test_deleted_workload, generate_test_workload, generate_test_workload_with_param,
     };
@@ -526,50 +496,6 @@ mod tests {
         assert!(
             indices.windows(2).all(|window| window[0] < window[1]),
             "expected ordered dependencies."
-        );
-    }
-
-    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
-    #[test]
-    fn utest_add_condition_fulfilled_by_fulfilled() {
-        let add_condition = AddCondition::AddCondRunning;
-        assert!(add_condition.fulfilled_by(&ExecutionStateSpec::running()));
-
-        let add_condition = AddCondition::AddCondSucceeded;
-        assert!(add_condition.fulfilled_by(&ExecutionStateSpec::succeeded()));
-
-        let add_condition = AddCondition::AddCondFailed;
-        assert!(
-            add_condition.fulfilled_by(&ExecutionStateSpec::failed("some failure".to_string()))
-        );
-    }
-
-    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
-    #[test]
-    fn utest_delete_condition_fulfilled_by() {
-        let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionStateSpec::succeeded()));
-
-        let delete_condition = DeleteCondition::DelCondRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionStateSpec::running()));
-
-        let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
-        assert!(delete_condition.fulfilled_by(&ExecutionStateSpec::waiting_to_start()));
-    }
-
-    // [utest->swdd~agent-supports-restart-policies~1]
-    #[test]
-    fn utest_restart_to_int() {
-        assert_eq!(RestartPolicy::try_from(0).unwrap(), RestartPolicy::Never);
-        assert_eq!(
-            RestartPolicy::try_from(1).unwrap(),
-            RestartPolicy::OnFailure
-        );
-        assert_eq!(RestartPolicy::try_from(2).unwrap(), RestartPolicy::Always);
-
-        assert_eq!(
-            RestartPolicy::try_from(100),
-            Err(prost::UnknownEnumValue(100))
         );
     }
 
