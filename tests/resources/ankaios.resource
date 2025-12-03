@@ -699,6 +699,9 @@ Setup Ankaios for Control Interface test
     Prepare Test Control Interface Workload
     Retrieve current Ankaios version
 
+The controller workload wait for ${milliseconds} milliseconds
+    internal_controller_wait_milliseconds    ${milliseconds}
+
 The controller workload has no access rights
     The controller workload sends initial hello with correct version
 
@@ -754,8 +757,29 @@ The controller workload gets events for fields ${field_mask}
 The last result contains exactly the workloads ${workload_names}
     internal_check_control_interface_workloads_in_last_result    ${workload_names}
 
+The last result contains no workloads
+    internal_check_control_interface_workloads_in_last_result    ${EMPTY}
+
 In the last result the workload ${workload_name} has exactly the fields ${field_names}
     internal_check_control_interface_workload_fields_in_last_result    ${workload_name}    ${field_names}
+
+The last result has added fields ${field_names}
+    internal_check_control_interface_altered_fields_in_last_result    addedFields    ${field_names}
+
+The last result has no added fields
+    internal_check_control_interface_altered_fields_in_last_result    addedFields    ${EMPTY}
+
+The last result has updated fields ${field_names}
+    internal_check_control_interface_altered_fields_in_last_result    updatedFields    ${field_names}
+
+The last result has no updated fields
+    internal_check_control_interface_altered_fields_in_last_result    updatedFields    ${EMPTY}
+
+The last result has removed fields ${field_names}
+    internal_check_control_interface_altered_fields_in_last_result    removedFields    ${field_names}
+
+The last result has no removed fields
+    internal_check_control_interface_altered_fields_in_last_result    removedFields    ${EMPTY}
 
 The controller workload cancels events for fields ${field_mask}
     internal_add_cancel_events_command    ${field_mask}

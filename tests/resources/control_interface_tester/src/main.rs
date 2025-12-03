@@ -13,10 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ankaios_api::ank_base::{
-    AlteredFields, CompleteStateRequestSpec, CompleteStateResponse, CompleteStateSpec,
-    EventsCancelAccepted, EventsCancelRequestSpec, LogEntriesResponse, LogsCancelAccepted,
-    LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec, RequestContentSpec, RequestSpec,
-    ResponseContent, State, UpdateStateRequestSpec, WorkloadInstanceNameSpec,
+    AlteredFields, CompleteState, CompleteStateRequestSpec, CompleteStateResponse,
+    CompleteStateSpec, EventsCancelAccepted, EventsCancelRequestSpec, LogEntriesResponse,
+    LogsCancelAccepted, LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec,
+    RequestContentSpec, RequestSpec, ResponseContent, State, UpdateStateRequestSpec,
+    WorkloadInstanceNameSpec,
 };
 
 use ankaios_api::control_api::ToAnkaios;
@@ -71,6 +72,7 @@ enum CommandEnum {
     CancelLogs(CancelLogs),
     GetEvents(GetEvents),
     CancelEvents(CancelEvents),
+    Timeout(Timeout),
 }
 
 #[derive(Deserialize, Debug)]
@@ -118,6 +120,11 @@ struct CancelEvents {
     request_id: String,
 }
 
+#[derive(Deserialize)]
+struct Timeout {
+    duration_ms: u64,
+}
+
 #[derive(Serialize)]
 struct TestResult {
     result: TestResultEnum,
@@ -131,11 +138,12 @@ enum TestResultEnum {
     LogRequestResponse(TagSerializedResult<LogsRequestAccepted>),
     LogEntriesResponse(TagSerializedResult<LogEntriesResponse>),
     LogCancelResponse(TagSerializedResult<LogsCancelAccepted>),
-    EventEntriesResponse(TagSerializedResult<(Option<State>, AlteredFields)>),
+    EventEntriesResponse(TagSerializedResult<(CompleteState, AlteredFields)>),
     EventsCancelResponse(TagSerializedResult<EventsCancelAccepted>),
     NoApi,
     SendHelloResult(TagSerializedResult<()>),
     ConnectionClosed,
+    OK,
 }
 
 #[derive(Serialize)]
@@ -293,6 +301,10 @@ impl Connection {
                 CommandEnum::GetEvents(GetEvents { request_id }) => {
                     logging::log("Executing command: GetEvents");
                     self.handle_get_events_command(request_id)?
+                }
+                CommandEnum::Timeout(Timeout { duration_ms }) => {
+                    logging::log("Executing command: Timeout");
+                    self.handle_timeout_command(duration_ms)?
                 }
             },
         })
@@ -461,9 +473,11 @@ impl Connection {
                         self.response_store
                             .entry(response.request_id.clone())
                             .or_default()
-                            .push_back(response.response_content.expect(
-                                "Received Response without content."
-                            ));
+                            .push_back(
+                                response
+                                    .response_content
+                                    .expect("Received Response without content."),
+                            );
                     }
                 }
                 FromAnkaiosEnum::ControlInterfaceAccepted(_) => {
@@ -680,7 +694,7 @@ impl Connection {
             ResponseContent::CompleteStateResponse(complete_state) => {
                 match (complete_state.complete_state, complete_state.altered_fields) {
                     (Some(complete_state), Some(altered_fields)) => {
-                        TagSerializedResult::Ok((complete_state.desired_state, altered_fields))
+                        TagSerializedResult::Ok((complete_state, altered_fields))
                     }
                     _ => TagSerializedResult::Err(
                         "Received CompleteStateResponse without complete_state field.".to_string(),
@@ -691,6 +705,11 @@ impl Connection {
                 "Received wrong response type. Expected CompleteState, received: '{response:?}'"
             )),
         }))
+    }
+
+    fn handle_timeout_command(&mut self, duration_ms: u64) -> Result<TestResultEnum, CommandError> {
+        std::thread::sleep(std::time::Duration::from_millis(duration_ms));
+        Ok(TestResultEnum::OK)
     }
 
     fn read_message(&mut self) -> Result<FromAnkaiosEnum, String> {
