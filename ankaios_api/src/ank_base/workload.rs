@@ -50,7 +50,7 @@ impl From<(String, WorkloadSpec)> for WorkloadNamed {
     }
 }
 
-// [impl->swdd~common-access-rules-logs-workload-names-convention~1]
+// [impl->swdd~api-access-rules-logs-workload-names-convention~1]
 pub fn validate_wildcard_workload_name_format(
     workload_name: &str,
     wildcard_pos: usize,
@@ -64,7 +64,7 @@ pub fn validate_wildcard_workload_name_format(
         .map_err(|err| format!("Unsupported workload name with wildcard '{workload_name}'. {err}"))
 }
 
-// [impl->swdd~common-workload-naming-convention~1]
+// [impl->swdd~api-workload-naming-convention~1]
 pub fn validate_workload_name_format(workload_name: &str) -> Result<(), String> {
     let length = workload_name.len();
     validate_workload_name_pattern(workload_name)
@@ -100,7 +100,7 @@ fn validate_workload_name_not_empty(length: usize) -> Result<(), String> {
     }
 }
 
-// [impl->swdd~common-agent-naming-convention~3]
+// [impl->swdd~api-agent-naming-convention~1]
 fn validate_agent_name_format(agent_name: &str) -> Result<(), String> {
     let re_agent = Regex::new(STR_RE_AGENT).unwrap();
     if !re_agent.is_match(agent_name) {
@@ -113,11 +113,12 @@ fn validate_agent_name_format(agent_name: &str) -> Result<(), String> {
 }
 
 impl WorkloadSpec {
+    // [impl->swdd~api-workload-needs-control-interface~1]
     pub fn needs_control_interface(&self) -> bool {
         !self.control_interface_access.allow_rules.is_empty()
     }
 
-    // [impl->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    // [impl->swdd~api-config-aliases-and-config-reference-keys-naming-convention~1]
     pub fn validate_config_reference_format(&self) -> Result<(), String> {
         let re_config_references = Regex::new(STR_RE_CONFIG_REFERENCES).unwrap();
         for (config_alias, referenced_config) in self.configs.configs.iter() {
@@ -138,9 +139,9 @@ impl WorkloadSpec {
 }
 
 impl WorkloadNamed {
-    // [impl->swdd~common-workload-naming-convention~1]
-    // [impl->swdd~common-agent-naming-convention~3]
-    // [impl->swdd~common-access-rules-filter-mask-convention~1]
+    // [impl->swdd~api-workload-naming-convention~1]
+    // [impl->swdd~api-agent-naming-convention~1]
+    // [impl->swdd~api-access-rules-filter-mask-convention~1]
     pub fn validate_fields_format(&self) -> Result<(), String> {
         validate_workload_name_format(self.instance_name.workload_name())?;
         validate_agent_name_format(self.instance_name.agent_name())?;
@@ -150,7 +151,7 @@ impl WorkloadNamed {
     }
 }
 
-// [impl->swdd~common-object-serialization~1]
+// [impl->swdd~api-object-serialization~1]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
 pub struct DeletedWorkload {
     pub instance_name: WorkloadInstanceNameSpec,
@@ -158,7 +159,7 @@ pub struct DeletedWorkload {
     pub dependencies: HashMap<String, DeleteCondition>,
 }
 
-// [impl->swdd~workload-delete-conditions-for-dependencies~1]
+// [impl->swdd~api-delete-conditions-for-dependencies~1]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DeleteCondition {
@@ -406,9 +407,6 @@ pub fn generate_test_runtime_config() -> String {
     "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()
 }
 
-// [utest->swdd~common-conversions-between-ankaios-and-proto~1]
-// [utest->swdd~common-object-representation~1]
-// [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
     use super::validate_workload_name_format;
@@ -419,7 +417,7 @@ mod tests {
     };
 
     // one test for a failing case, other cases are tested on the caller side to not repeat test code
-    // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
+    // [utest->swdd~api-config-aliases-and-config-reference-keys-naming-convention~1]
     #[test]
     fn utest_validate_config_reference_format_invalid_config_reference_key() {
         let invalid_config_reference_key = "invalid%key";
@@ -438,7 +436,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~workload-add-conditions-for-dependencies~1]
+    // [utest->swdd~api-add-conditions-for-dependencies~1]
     #[test]
     fn utest_add_condition_from_int() {
         assert_eq!(
@@ -459,7 +457,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~workload-delete-conditions-for-dependencies~1]
+    // [utest->swdd~api-delete-conditions-for-dependencies~1]
     #[test]
     fn utest_delete_condition_from_int() {
         assert_eq!(
@@ -478,6 +476,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~api-object-serialization~1]
     #[test]
     fn utest_serialize_deleted_workload_into_ordered_output() {
         let mut deleted_workload =
@@ -499,7 +498,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-workload-needs-control-interface~1]
+    // [utest->swdd~api-workload-needs-control-interface~1]
     #[test]
     fn utest_needs_control_interface() {
         let mut workload: WorkloadSpec = generate_test_workload(); // Generates with control interface access
@@ -509,16 +508,16 @@ mod tests {
         assert!(!workload.needs_control_interface());
     }
 
-    // [utest->swdd~common-workload-naming-convention~1]
-    // [utest->swdd~common-agent-naming-convention~3]
-    // [utest->swdd~common-access-rules-filter-mask-convention~1]
+    // [utest->swdd~api-workload-naming-convention~1]
+    // [utest->swdd~api-agent-naming-convention~1]
+    // [utest->swdd~api-access-rules-filter-mask-convention~1]
     #[test]
     fn utest_workload_validate_fields_format_success() {
         let compatible_workload: WorkloadNamed = generate_test_workload();
         assert!(compatible_workload.validate_fields_format().is_ok());
     }
 
-    // [utest->swdd~common-workload-naming-convention~1]
+    // [utest->swdd~api-workload-naming-convention~1]
     #[test]
     fn utest_validate_workload_name_format_empty_workload_name() {
         let workload_name = "".to_string();
@@ -528,7 +527,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-workload-naming-convention~1]
+    // [utest->swdd~api-workload-naming-convention~1]
     #[test]
     fn utest_workload_validate_fields_incompatible_workload_name() {
         let workload_with_wrong_name =
@@ -544,7 +543,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-agent-naming-convention~3]
+    // [utest->swdd~api-agent-naming-convention~1]
     #[test]
     fn utest_workload_validate_fields_incompatible_agent_name() {
         let workload_with_wrong_agent_name: WorkloadNamed =
@@ -560,7 +559,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-agent-naming-convention~3]
+    // [utest->swdd~api-agent-naming-convention~1]
     #[test]
     fn utest_workload_with_valid_empty_agent_name() {
         let workload_with_valid_missing_agent_name: WorkloadNamed =
@@ -573,7 +572,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~common-workload-naming-convention~1]
+    // [utest->swdd~api-workload-naming-convention~1]
     #[test]
     fn utest_validate_workload_name_format_inordinately_long_workload_name() {
         let workload_name = "workload_name_is_too_long_for_ankaios_to_accept_it_and_I_don_t_know_what_else_to_write".to_string();
@@ -588,12 +587,14 @@ mod tests {
         );
     }
 
+    // [utest->swdd~api-access-rules-logs-workload-names-convention~1]
     #[test]
     fn utest_validate_wildcard_workload_name_format_success() {
         let workload_name = "valid*Workload_Name-1";
         assert!(super::validate_wildcard_workload_name_format(workload_name, 5).is_ok());
     }
 
+    // [utest->swdd~api-access-rules-logs-workload-names-convention~1]
     #[test]
     fn utest_validate_wildcard_workload_name_format_failure() {
         let workload_name = "inva!lid*Workload+Name@1";

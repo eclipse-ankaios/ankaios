@@ -698,7 +698,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server gets an UpdateStateRequest, the server shall enforce the desired state field conventions defined in the common library.
+When the Ankaios Server gets an UpdateStateRequest, the server shall enforce the desired state field conventions defined in the Ankaios API.
 
 Comment:
 We need to check the names of both the workload and agent names in order to ensure the proper function of the filtering.
