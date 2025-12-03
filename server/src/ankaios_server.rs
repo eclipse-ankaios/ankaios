@@ -193,7 +193,7 @@ impl AnkaiosServer {
                         };
 
                         // [impl->swdd~server-sends-event-for-newly-connected-agent~1]
-                        let state_comparator: StateComparator = (old_state, new_state).into();
+                        let state_comparator = StateComparator::new(old_state, new_state);
                         let state_difference_tree = state_comparator.state_differences();
                         self.event_handler
                             .send_events(
@@ -242,7 +242,7 @@ impl AnkaiosServer {
                             ..Default::default()
                         };
 
-                        let state_comparator: StateComparator = (old_state, new_state).into();
+                        let state_comparator = StateComparator::new(old_state, new_state);
 
                         let state_difference_tree = state_comparator.state_differences();
 
@@ -291,7 +291,7 @@ impl AnkaiosServer {
                         };
 
                         // [impl->swdd~server-sends-events-for-disconnected-agent~1]
-                        let state_comparator: StateComparator = (old_state, new_state).into();
+                        let state_comparator = StateComparator::new(old_state, new_state);
 
                         let state_difference_tree = state_comparator.state_differences();
 
@@ -453,8 +453,8 @@ impl AnkaiosServer {
                                         ..Default::default()
                                     };
 
-                                    let state_comparator: StateComparator =
-                                        (old_state, new_state).into();
+                                    let state_comparator =
+                                        StateComparator::new(old_state, new_state);
 
                                     let state_difference_tree =
                                         state_comparator.state_differences();
@@ -569,7 +569,7 @@ impl AnkaiosServer {
                             ..Default::default()
                         };
 
-                        let state_comparator: StateComparator = (old_state, new_state).into();
+                        let state_comparator = StateComparator::new(old_state, new_state);
 
                         let state_difference_tree = state_comparator.state_differences();
 
@@ -681,7 +681,7 @@ impl AnkaiosServer {
                 ..Default::default()
             };
 
-            let state_comparator: StateComparator = (old_state, new_state).into();
+            let state_comparator = StateComparator::new(old_state, new_state);
 
             let state_difference_tree = state_comparator.state_differences();
 
@@ -840,7 +840,6 @@ mod tests {
     };
     use crate::ankaios_server::state_comparator::{
         MockStateComparator, StateDifferenceTree, generate_difference_tree_from_paths,
-        validate_path_in_tree,
     };
 
     use ankaios_api::ank_base::{
@@ -913,7 +912,7 @@ mod tests {
             .returning(move |_, _| {
                 Ok(StateGenerationResult {
                     new_desired_state: cloned_startup_state.desired_state.clone(),
-                    state_comparator: MockStateComparator::default(),
+                    ..Default::default()
                 })
             });
 
@@ -1051,7 +1050,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .once()
+            .times(2)
             .in_sequence(&mut seq)
             .return_const(false);
 
@@ -1387,7 +1386,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .once()
+            .times(2)
             .return_const(false);
 
         let server_task = tokio::spawn(async move { server.start(None).await });
@@ -1927,7 +1926,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .times(2)
+            .times(4)
             .return_const(false);
 
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
@@ -2010,7 +2009,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .once()
+            .times(2)
             .return_const(false);
 
         let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
@@ -2075,7 +2074,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .once()
+            .times(2)
             .return_const(false);
 
         let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
@@ -2534,7 +2533,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .once()
+            .times(2)
             .return_const(false);
 
         let update_state_result = to_server
@@ -2620,7 +2619,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .once()
+            .times(2)
             .return_const(false);
 
         let logs_request_id = format!(
@@ -2700,7 +2699,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .once()
+            .times(2)
             .return_const(false);
 
         let agent_resource_result = to_server.agent_load_status(payload).await;
@@ -2733,7 +2732,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .times(2)
+            .times(4)
             .return_const(false);
 
         let agent_resource_result = to_server.agent_hello(AGENT_A.to_owned()).await;
@@ -2778,7 +2777,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .times(2)
+            .times(4)
             .return_const(false);
 
         let mut agent_map = AgentMapSpec::default();
@@ -2849,7 +2848,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .once()
+            .times(2)
             .return_const(false);
 
         server.workload_states_map = generate_test_workload_states_map_with_data(
@@ -3121,6 +3120,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_events_for_newly_connected_agents() {
         let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
@@ -3139,7 +3141,29 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
+            .times(2)
             .return_const(true);
+
+        let mut state_diference_tree = StateDifferenceTree::new();
+
+        state_diference_tree.added_tree.first_difference_tree =
+            generate_difference_tree_from_paths(&[vec!["agents".to_owned(), AGENT_A.to_owned()]]);
+
+        state_diference_tree.added_tree.full_difference_tree = state_diference_tree
+            .added_tree
+            .first_difference_tree
+            .clone();
+
+        let mock_state_comparator_context = MockStateComparator::new_context();
+        let mut mock_state_comparator = MockStateComparator::default();
+        mock_state_comparator
+            .expect_state_differences()
+            .once()
+            .return_const(state_diference_tree.clone());
+        mock_state_comparator_context
+            .expect()
+            .once()
+            .return_once(|_, _| mock_state_comparator);
 
         server
             .event_handler
@@ -3148,14 +3172,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::function(|state_diff_tree: &StateDifferenceTree| {
-                    assert!(state_diff_tree.removed_tree.is_empty());
-                    assert!(state_diff_tree.updated_tree.is_empty());
-                    validate_path_in_tree(
-                        state_diff_tree.added_tree.clone(),
-                        &FieldDifferencePath::agent(AGENT_A),
-                    )
-                }),
+                mockall::predicate::eq(state_diference_tree),
                 mockall::predicate::always(),
             )
             .once()
@@ -3173,6 +3190,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_events_for_disconnected_agents() {
         let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
@@ -3187,7 +3207,7 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .once()
+            .times(2)
             .return_const(true);
 
         let test_wl_1_state_running = generate_test_workload_state_with_agent(
@@ -3196,7 +3216,35 @@ mod tests {
             ExecutionStateSpec::running(),
         );
 
+        let mut state_diference_tree = StateDifferenceTree::new();
+        state_diference_tree.removed_tree.first_difference_tree =
+            generate_difference_tree_from_paths(&[vec!["agents".to_owned(), AGENT_A.to_owned()]]);
+
+        state_diference_tree.removed_tree.full_difference_tree = state_diference_tree
+            .removed_tree
+            .first_difference_tree
+            .clone();
+
         let wl_state = test_wl_1_state_running.clone();
+        state_diference_tree.updated_tree.full_difference_tree =
+            generate_difference_tree_from_paths(&[vec![
+                "workloadStates".to_owned(),
+                wl_state.instance_name.agent_name().to_owned(),
+                wl_state.instance_name.workload_name().to_owned(),
+                wl_state.instance_name.id().to_owned(),
+            ]]);
+
+        let mock_state_comparator_context = MockStateComparator::new_context();
+        let mut mock_state_comparator = MockStateComparator::default();
+        mock_state_comparator
+            .expect_state_differences()
+            .once()
+            .return_const(state_diference_tree.clone());
+        mock_state_comparator_context
+            .expect()
+            .once()
+            .return_once(|_, _| mock_state_comparator);
+
         server
             .event_handler
             .expect_send_events()
@@ -3204,16 +3252,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::function(move |state_diff_tree: &StateDifferenceTree| {
-                    assert!(state_diff_tree.added_tree.is_empty());
-                    validate_path_in_tree(
-                        state_diff_tree.removed_tree.clone(),
-                        &FieldDifferencePath::agent(AGENT_A),
-                    ) && validate_path_in_tree(
-                        state_diff_tree.updated_tree.clone(),
-                        &FieldDifferencePath::workload_state(&wl_state.instance_name),
-                    )
-                }),
+                mockall::predicate::eq(state_diference_tree),
                 mockall::predicate::always(),
             )
             .once()
@@ -3238,6 +3277,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_events_upon_update_state_with_updated_workloads() {
         let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
@@ -3253,6 +3295,13 @@ mod tests {
             RUNTIME_NAME.to_string(),
         )
         .name(WORKLOAD_NAME_1);
+
+        let mut old_state = CompleteStateSpec::default();
+        old_state.desired_state.workloads = WorkloadMapSpec {
+            workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.workload.clone())]
+                .into_iter()
+                .collect(),
+        };
 
         let mut update_state = CompleteStateSpec::default();
         update_state.desired_state.workloads = WorkloadMapSpec {
@@ -3279,24 +3328,70 @@ mod tests {
 
         let updated_desired_state = update_state.desired_state.clone();
 
-        let mut state_generation_result = StateGenerationResult {
+        let state_generation_result = StateGenerationResult {
+            old_desired_state: old_state.desired_state,
             new_desired_state: updated_desired_state.clone(),
-            ..Default::default()
         };
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
-        expected_state_difference_tree.added_tree = generate_difference_tree_from_paths(&[vec![
-            "desiredState".to_owned(),
-            "workloads".to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-        ]]);
+        let updated_instance_name = updated_w1.instance_name.clone();
+        let removed_instance_name = w1.instance_name.clone();
+        expected_state_difference_tree
+            .added_tree
+            .first_difference_tree = generate_difference_tree_from_paths(&[
+            vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                WORKLOAD_NAME_1.to_owned(),
+            ],
+            vec![
+                "workloadStates".to_owned(),
+                updated_instance_name.agent_name().to_owned(),
+                updated_instance_name.workload_name().to_owned(),
+                updated_instance_name.id().to_owned(),
+            ],
+        ]);
+
+        expected_state_difference_tree
+            .removed_tree
+            .first_difference_tree = generate_difference_tree_from_paths(&[
+            vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                WORKLOAD_NAME_1.to_owned(),
+            ],
+            vec![
+                "workloadStates".to_owned(),
+                removed_instance_name.agent_name().to_owned(),
+                removed_instance_name.workload_name().to_owned(),
+                removed_instance_name.id().to_owned(),
+            ],
+        ]);
+
+        expected_state_difference_tree
+            .added_tree
+            .full_difference_tree = expected_state_difference_tree
+            .added_tree
+            .first_difference_tree
+            .clone();
+        expected_state_difference_tree
+            .removed_tree
+            .full_difference_tree = expected_state_difference_tree
+            .removed_tree
+            .first_difference_tree
+            .clone();
 
         let state_difference_tree = expected_state_difference_tree.clone();
-        state_generation_result
-            .state_comparator
+        let state_comparator_context = MockStateComparator::new_context();
+        let mut state_comparator = MockStateComparator::default();
+        state_comparator
             .expect_state_differences()
             .once()
-            .return_once(move || state_difference_tree);
+            .return_const(state_difference_tree);
+        state_comparator_context
+            .expect()
+            .once()
+            .return_once(|_, _| state_comparator);
         server
             .server_state
             .expect_generate_new_state()
@@ -3319,12 +3414,8 @@ mod tests {
         server
             .event_handler
             .expect_has_subscribers()
-            .once()
+            .times(2)
             .return_const(true);
-
-        expected_state_difference_tree.insert_removed_first_difference_tree(
-            FieldDifferencePath::workload_state(&w1.instance_name),
-        );
 
         let mut expected_workload_states_map = WorkloadStatesMapSpec::default();
         expected_workload_states_map.process_new_states(vec![WorkloadStateSpec {
@@ -3332,8 +3423,6 @@ mod tests {
             execution_state: ExecutionStateSpec::initial(),
         }]);
 
-        let updated_instance_name = updated_w1.instance_name.clone();
-        let removed_instance_name = w1.instance_name.clone();
         server
             .event_handler
             .expect_send_events()
@@ -3341,16 +3430,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::eq(expected_workload_states_map),
                 mockall::predicate::eq(AgentMapSpec::default()),
-                mockall::predicate::function(move |state_diff_tree: &StateDifferenceTree| {
-                    assert!(state_diff_tree.updated_tree.is_empty());
-                    validate_path_in_tree(
-                        state_diff_tree.added_tree.clone(),
-                        &FieldDifferencePath::workload_state(&updated_instance_name),
-                    ) && validate_path_in_tree(
-                        state_diff_tree.removed_tree.clone(),
-                        &FieldDifferencePath::workload_state(&removed_instance_name),
-                    )
-                }),
+                mockall::predicate::eq(expected_state_difference_tree),
                 mockall::predicate::function(move |event_sender_channel: &FromServerSender| {
                     event_sender_channel.same_channel(&to_agents)
                 }),
@@ -3373,6 +3453,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_events_upon_update_state_with_updated_configs() {
         let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
@@ -3390,7 +3473,7 @@ mod tests {
 
         let updated_desired_state = update_state.desired_state.clone();
 
-        let mut state_generation_result = StateGenerationResult {
+        let state_generation_result = StateGenerationResult {
             new_desired_state: updated_desired_state.clone(),
             ..Default::default()
         };
@@ -3401,15 +3484,21 @@ mod tests {
             "configs".to_owned(),
             "config_2".to_owned(),
         ];
-        expected_state_difference_tree.updated_tree =
-            generate_difference_tree_from_paths(&[updated_path.clone()]);
+        expected_state_difference_tree
+            .updated_tree
+            .full_difference_tree = generate_difference_tree_from_paths(&[updated_path.clone()]);
 
         let state_difference_tree = expected_state_difference_tree.clone();
-        state_generation_result
-            .state_comparator
+        let state_comparator_context = MockStateComparator::new_context();
+        let mut state_comparator = MockStateComparator::default();
+        state_comparator
             .expect_state_differences()
             .once()
-            .return_once(move || state_difference_tree);
+            .return_const(state_difference_tree);
+        state_comparator_context
+            .expect()
+            .once()
+            .return_once(|_, _| state_comparator);
         server
             .server_state
             .expect_generate_new_state()
@@ -3439,11 +3528,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::function(move |state_diff_tree: &StateDifferenceTree| {
-                    assert!(state_diff_tree.added_tree.is_empty());
-                    assert!(state_diff_tree.removed_tree.is_empty());
-                    validate_path_in_tree(state_diff_tree.updated_tree.clone(), &updated_path)
-                }),
+                mockall::predicate::eq(expected_state_difference_tree),
                 mockall::predicate::always(),
             )
             .once()
@@ -3465,6 +3550,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_events_for_workload_states() {
         let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
@@ -3484,18 +3572,48 @@ mod tests {
         let workload_state_2 =
             generate_test_workload_state(WORKLOAD_NAME_2, ExecutionStateSpec::removed());
 
-        let mut expected_state_difference_tree = StateDifferenceTree::new();
-        expected_state_difference_tree.updated_tree =
-            generate_difference_tree_from_paths(&[FieldDifferencePath::workload_state(
-                &workload_state_1.instance_name,
-            )]);
-        expected_state_difference_tree.removed_tree =
-            generate_difference_tree_from_paths(&[FieldDifferencePath::workload_state(
-                &workload_state_2.instance_name,
-            )]);
-
         let updated_instance_name = workload_state_1.instance_name.clone();
         let removed_instance_name = workload_state_2.instance_name.clone();
+
+        let mut expected_state_difference_tree = StateDifferenceTree::new();
+        expected_state_difference_tree
+            .updated_tree
+            .full_difference_tree = generate_difference_tree_from_paths(&[vec![
+            "workloadStates".to_owned(),
+            updated_instance_name.agent_name().to_owned(),
+            updated_instance_name.workload_name().to_owned(),
+            updated_instance_name.id().to_owned(),
+        ]]);
+
+        expected_state_difference_tree
+            .removed_tree
+            .first_difference_tree = generate_difference_tree_from_paths(&[vec![
+            "workloadStates".to_owned(),
+            removed_instance_name.agent_name().to_owned(),
+            removed_instance_name.workload_name().to_owned(),
+            removed_instance_name.id().to_owned(),
+        ]]);
+
+        expected_state_difference_tree
+            .removed_tree
+            .full_difference_tree = expected_state_difference_tree
+            .removed_tree
+            .first_difference_tree
+            .clone();
+
+        let mut state_comparator = MockStateComparator::default();
+        let state_difference_tree = expected_state_difference_tree.clone();
+        state_comparator
+            .expect_state_differences()
+            .once()
+            .return_once(|| state_difference_tree);
+
+        let mock_state_comparator = MockStateComparator::new_context();
+        mock_state_comparator
+            .expect()
+            .once()
+            .return_once(|_, _| state_comparator);
+
         server
             .event_handler
             .expect_send_events()
@@ -3503,16 +3621,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::function(move |state_diff_tree: &StateDifferenceTree| {
-                    assert!(state_diff_tree.added_tree.is_empty());
-                    validate_path_in_tree(
-                        state_diff_tree.updated_tree.clone(),
-                        &FieldDifferencePath::workload_state(&updated_instance_name),
-                    ) && validate_path_in_tree(
-                        state_diff_tree.removed_tree.clone(),
-                        &FieldDifferencePath::workload_state(&removed_instance_name),
-                    )
-                }),
+                mockall::predicate::eq(expected_state_difference_tree),
                 mockall::predicate::always(),
             )
             .once()
@@ -3532,22 +3641,56 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_events_for_agent_load_status() {
         let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, _comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        server
+            .agent_map
+            .agents
+            .entry(AGENT_A.to_owned())
+            .or_default();
 
         server
             .event_handler
             .expect_has_subscribers()
+            .times(2)
             .return_const(true);
 
         let mut expected_state_difference_tree = StateDifferenceTree::new();
-        expected_state_difference_tree.updated_tree = generate_difference_tree_from_paths(&[
-            FieldDifferencePath::agent_cpu(AGENT_A),
-            FieldDifferencePath::agent_memory(AGENT_A),
+        expected_state_difference_tree
+            .updated_tree
+            .full_difference_tree = generate_difference_tree_from_paths(&[
+            vec![
+                "agents".to_owned(),
+                AGENT_A.to_owned(),
+                "status".to_owned(),
+                "cpuUsage".to_owned(),
+            ],
+            vec![
+                "agents".to_owned(),
+                AGENT_A.to_owned(),
+                "status".to_owned(),
+                "freeMemory".to_owned(),
+            ],
         ]);
+
+        let mut state_comparator = MockStateComparator::default();
+        let state_difference_tree = expected_state_difference_tree.clone();
+        state_comparator
+            .expect_state_differences()
+            .once()
+            .return_once(|| state_difference_tree);
+
+        let mock_state_comparator = MockStateComparator::new_context();
+        mock_state_comparator
+            .expect()
+            .once()
+            .return_once(|_, _| state_comparator);
 
         server
             .event_handler
@@ -3556,17 +3699,7 @@ mod tests {
                 mockall::predicate::always(),
                 mockall::predicate::always(),
                 mockall::predicate::always(),
-                mockall::predicate::function(move |state_diff_tree: &StateDifferenceTree| {
-                    assert!(state_diff_tree.added_tree.is_empty());
-                    assert!(state_diff_tree.removed_tree.is_empty());
-                    validate_path_in_tree(
-                        state_diff_tree.updated_tree.clone(),
-                        &FieldDifferencePath::agent_cpu(AGENT_A),
-                    ) && validate_path_in_tree(
-                        state_diff_tree.updated_tree.clone(),
-                        &FieldDifferencePath::agent_memory(AGENT_A),
-                    )
-                }),
+                mockall::predicate::eq(expected_state_difference_tree),
                 mockall::predicate::always(),
             )
             .once()

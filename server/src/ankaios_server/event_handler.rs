@@ -383,6 +383,7 @@ mod tests {
     use mockall::predicate;
 
     use super::EventHandler;
+    use crate::ankaios_server::state_comparator::generate_difference_tree_from_paths;
     use crate::ankaios_server::{
         create_from_server_channel,
         event_handler::collect_altered_fields_matching_subscriber_masks,
@@ -511,11 +512,19 @@ mod tests {
         let agent_map = AgentMapSpec::default();
 
         let mut state_difference_tree = StateDifferenceTree::new();
-        state_difference_tree.insert_added_first_difference_tree(vec![
-            "desiredState".to_owned(),
-            "workloads".to_owned(),
-            "workload_2".to_owned(),
-        ]);
+        state_difference_tree.added_tree.first_difference_tree =
+            generate_difference_tree_from_paths(&[vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                "workload_2".to_owned(),
+            ]]);
+
+        state_difference_tree.added_tree.full_difference_tree =
+            generate_difference_tree_from_paths(&[vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                "workload_2".to_owned(),
+            ]]);
 
         state_difference_tree.insert_updated_path(vec![
             "desiredState".to_owned(),
@@ -524,10 +533,18 @@ mod tests {
             "agent".to_owned(),
         ]);
 
-        state_difference_tree.insert_removed_first_difference_tree(vec![
-            "configs".to_owned(),
-            "some_config".to_owned(),
-        ]);
+        state_difference_tree.removed_tree.first_difference_tree =
+            generate_difference_tree_from_paths(&[vec![
+                "configs".to_owned(),
+                "some_config".to_owned(),
+            ]]);
+
+        state_difference_tree.removed_tree.full_difference_tree =
+            generate_difference_tree_from_paths(&[vec![
+                "configs".to_owned(),
+                "some_config".to_owned(),
+                "deeper_config_item".to_owned(),
+            ]]);
 
         let (to_agents, mut agents_receiver) = create_from_server_channel(1);
 
@@ -607,9 +624,17 @@ mod tests {
 
     // [utest->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
     #[test]
-    fn utest_collect_altered_fields_matching_subscriber_masks_with_masks_matching_sub_tree_or_exact_field_path()
+    fn utest_collect_altered_fields_matching_subscriber_masks_with_shorter_mask_than_first_difference()
      {
-        let yaml_data = r#"
+        let first_difference_tree_yaml = r#"
+        root:
+            child1:
+                grandchild1: null
+                grandchild2: null
+            child2: null
+        "#;
+
+        let full_difference_tree_yaml = r#"
         root:
             child1:
                 grandchild1: null
@@ -618,30 +643,91 @@ mod tests {
             child2: null
         "#;
 
-        let parsed_yaml: serde_yaml::Value = serde_yaml::from_str(yaml_data).unwrap();
-        let serde_yaml::Value::Mapping(tree) = parsed_yaml else {
-            panic!("Expected YAML mapping at root");
-        };
+        let first_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(first_difference_tree_yaml).unwrap();
 
-        // case 1: all sub paths from root
-        let altered_fields = collect_altered_fields_matching_subscriber_masks(&tree, &["".into()]);
+        let full_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(full_difference_tree_yaml).unwrap();
+
+        // case 1: without wildcard
+        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+            &full_difference_tree,
+            &first_difference_tree,
+            &["root".into()],
+        );
         assert_eq!(altered_fields.len(), 3);
         assert!(altered_fields.contains(&"root.child1.grandchild1".to_owned()));
-        assert!(altered_fields.contains(&"root.child1.grandchild2.great_grandchild".to_owned()));
+        assert!(altered_fields.contains(&"root.child1.grandchild2".to_owned()));
         assert!(altered_fields.contains(&"root.child2".to_owned()));
 
-        // case 2: all sub paths from a child
-        let altered_fields =
-            collect_altered_fields_matching_subscriber_masks(&tree, &["root.child1".into()]);
-        assert_eq!(altered_fields.len(), 2);
+        // case 2: with wildcard
+        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+            &full_difference_tree,
+            &first_difference_tree,
+            &["root.*".into()],
+        );
+        assert_eq!(altered_fields.len(), 3);
         assert!(altered_fields.contains(&"root.child1.grandchild1".to_owned()));
+        assert!(altered_fields.contains(&"root.child1.grandchild2".to_owned()));
+        assert!(altered_fields.contains(&"root.child2".to_owned()));
+    }
+
+    #[test]
+    fn utest_collect_altered_fields_matching_subscriber_masks_with_longer_masks_than_first_difference()
+     {
+        let first_difference_tree_yaml = r#"
+        root:
+            child1:
+                grandchild1: null
+                grandchild2: null
+            child2: null
+        "#;
+
+        let full_difference_tree_yaml = r#"
+        root:
+            child1:
+                grandchild1: null
+                grandchild2:
+                    great_grandchild: null
+            child2: null
+        "#;
+
+        let first_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(first_difference_tree_yaml).unwrap();
+
+        let full_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(full_difference_tree_yaml).unwrap();
+
+        // case 1: without wildcard
+        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+            &full_difference_tree,
+            &first_difference_tree,
+            &["root.child1.grandchild2.great_grandchild".into()],
+        );
+        assert_eq!(altered_fields.len(), 1);
+        assert!(altered_fields.contains(&"root.child1.grandchild2.great_grandchild".to_owned()));
+
+        // case 2: with wildcard
+        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+            &full_difference_tree,
+            &first_difference_tree,
+            &["root.*.*.great_grandchild".into()],
+        );
+        assert_eq!(altered_fields.len(), 1);
         assert!(altered_fields.contains(&"root.child1.grandchild2.great_grandchild".to_owned()));
     }
 
     #[test]
-    fn utest_collect_altered_fields_matching_subscriber_masks_with_wildcard_mask_matching_sub_tree()
-    {
-        let yaml_data = r#"
+    fn utest_collect_altered_fields_matching_subscriber_masks_with_exact_field_mask() {
+        let first_difference_tree_yaml = r#"
+        root:
+            child1:
+                grandchild1: null
+                grandchild2: null
+            child2: null
+        "#;
+
+        let full_difference_tree_yaml = r#"
         root:
             child1:
                 grandchild1: null
@@ -650,33 +736,55 @@ mod tests {
             child2: null
         "#;
 
-        let parsed_yaml: serde_yaml::Value = serde_yaml::from_str(yaml_data).unwrap();
-        let serde_yaml::Value::Mapping(tree) = parsed_yaml else {
-            panic!("Expected YAML mapping at root");
-        };
+        let first_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(first_difference_tree_yaml).unwrap();
 
-        let altered_fields = collect_altered_fields_matching_subscriber_masks(&tree, &["*".into()]);
-        assert_eq!(altered_fields.len(), 3);
+        let full_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(full_difference_tree_yaml).unwrap();
+
+        // case 1: without wildcard
+        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+            &full_difference_tree,
+            &first_difference_tree,
+            &["root.child1.grandchild1".into(), "root.child2".into()],
+        );
+        assert_eq!(altered_fields.len(), 2);
         assert!(altered_fields.contains(&"root.child1.grandchild1".to_owned()));
-        assert!(altered_fields.contains(&"root.child1.grandchild2.great_grandchild".to_owned()));
         assert!(altered_fields.contains(&"root.child2".to_owned()));
+
+        // case 2: with wildcard
+        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+            &full_difference_tree,
+            &first_difference_tree,
+            &["root.*.*".into()],
+        );
+        assert_eq!(altered_fields.len(), 2);
+        assert!(altered_fields.contains(&"root.child1.grandchild1".to_owned()));
+        assert!(altered_fields.contains(&"root.child1.grandchild2".to_owned()));
     }
 
     #[test]
     fn utest_collect_altered_fields_matching_subscriber_masks_with_not_existing_field() {
-        let yaml_data = r#"
+        let first_difference_tree_yaml = r#"
+        root:
+            child1: null
+        "#;
+
+        let full_difference_tree_yaml = r#"
         root:
             child1:
                 grandchild1: null
         "#;
 
-        let parsed_yaml: serde_yaml::Value = serde_yaml::from_str(yaml_data).unwrap();
-        let serde_yaml::Value::Mapping(tree) = parsed_yaml else {
-            panic!("Expected YAML mapping at root");
-        };
+        let first_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(first_difference_tree_yaml).unwrap();
+
+        let full_difference_tree: serde_yaml::Mapping =
+            serde_yaml::from_str(full_difference_tree_yaml).unwrap();
 
         let altered_fields = collect_altered_fields_matching_subscriber_masks(
-            &tree,
+            &full_difference_tree,
+            &first_difference_tree,
             &["root.child1.grandchild1.non_existing".into()],
         );
         assert!(altered_fields.is_empty());

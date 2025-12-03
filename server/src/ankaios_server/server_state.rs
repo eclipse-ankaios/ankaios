@@ -353,7 +353,6 @@ mod tests {
         server_state::{
             AddedDeletedWorkloads, UpdateStateError, extract_added_and_deleted_workloads,
         },
-        state_comparator::MockStateComparator,
     };
 
     use ankaios_api::ank_base::{
@@ -689,11 +688,6 @@ mod tests {
         let update_state = generate_test_update_state();
         let update_mask = vec![];
 
-        let state_comparator_context = MockStateComparator::new_context();
-        state_comparator_context
-            .expect()
-            .returning(|_, _| MockStateComparator::default());
-
         let server_state = ServerState {
             state: old_state.clone(),
             ..Default::default()
@@ -736,11 +730,6 @@ mod tests {
             ..Default::default()
         };
 
-        let state_comparator_context = MockStateComparator::new_context();
-        state_comparator_context
-            .expect()
-            .returning(|_, _| MockStateComparator::default());
-
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
             .unwrap();
@@ -778,10 +767,6 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
-        let state_comparator_context = MockStateComparator::new_context();
-        state_comparator_context
-            .expect()
-            .returning(|_, _| MockStateComparator::default());
 
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
@@ -807,11 +792,6 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
-
-        let state_comparator_context = MockStateComparator::new_context();
-        state_comparator_context
-            .expect()
-            .returning(|_, _| MockStateComparator::default());
 
         let expected = state_with_updated_config.clone();
 
@@ -846,11 +826,6 @@ mod tests {
             ..Default::default()
         };
 
-        let state_comparator_context = MockStateComparator::new_context();
-        state_comparator_context
-            .expect()
-            .returning(|_, _| MockStateComparator::default());
-
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
             .unwrap();
@@ -875,11 +850,6 @@ mod tests {
             state: old_state.clone(),
             ..Default::default()
         };
-
-        let state_comparator_context = MockStateComparator::new_context();
-        state_comparator_context
-            .expect()
-            .returning(|_, _| MockStateComparator::default());
 
         let state_generation_result = server_state
             .generate_new_state(update_state, update_mask)
@@ -937,11 +907,6 @@ mod tests {
     fn utest_server_state_generate_new_state_no_changes_on_equal_states() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
         let server_state = ServerState::default(); // empty old state
-
-        let state_comparator_context = MockStateComparator::new_context();
-        state_comparator_context
-            .expect()
-            .returning(|_, _| MockStateComparator::default());
 
         let state_generation_result = server_state
             .generate_new_state(CompleteStateSpec::default(), vec![])
