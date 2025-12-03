@@ -71,18 +71,14 @@ mod tests {
         podman::podman_runtime::PODMAN_RUNTIME_NAME, podman_cli::PodmanRunConfig,
     };
 
-    use ankaios_api::ank_base::WorkloadSpec;
-    use ankaios_api::test_utils::generate_test_workload_with_param;
+    use ankaios_api::test_utils::{generate_test_workload_with_params, vars};
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
-    const AGENT_NAME: &str = "agent_x";
 
     #[test]
     fn utest_podman_config_failure_missing_image() {
-        let mut workload: WorkloadSpec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
-        );
+        let mut workload =
+            generate_test_workload_with_params(vars::AGENT_NAMES[0], PODMAN_RUNTIME_NAME);
 
         workload.runtime_config = "something without an image".to_string();
 
@@ -91,20 +87,16 @@ mod tests {
 
     #[test]
     fn utest_podman_config_failure_wrong_runtime() {
-        let workload: WorkloadSpec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            DIFFERENT_RUNTIME_NAME.to_string(),
-        );
+        let workload =
+            generate_test_workload_with_params(vars::AGENT_NAMES[0], DIFFERENT_RUNTIME_NAME);
 
         assert!(PodmanRuntimeConfig::try_from(&workload).is_err());
     }
 
     #[test]
     fn utest_podman_config_success() {
-        let mut workload: WorkloadSpec = generate_test_workload_with_param(
-            AGENT_NAME.to_string(),
-            PODMAN_RUNTIME_NAME.to_string(),
-        );
+        let mut workload =
+            generate_test_workload_with_params(vars::AGENT_NAMES[0], PODMAN_RUNTIME_NAME);
 
         let expected_podman_config = PodmanRuntimeConfig {
             general_options: vec!["--version".to_string()],

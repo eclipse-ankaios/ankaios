@@ -243,49 +243,57 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use crate::{AgentConfig, agent_config::DEFAULT_AGENT_CONFIG_FILE_PATH, handle_agent_config};
+    use ankaios_api::test_utils::vars;
+
     use std::io::Write;
     use tempfile::NamedTempFile;
 
-    const VALID_AGENT_CONFIG_CONTENT: &str = r"#
+    const VALID_AGENT_CONFIG_TEMPLATE: &str = r#"
     version = 'v1'
-    name = 'agent_1'
+    name = '{AGENT_NAME}'
     server_url = 'https://127.0.0.1:25551'
-    run_folder = '/tmp/ankaios/'
+    run_folder = '{RUN_FOLDER}'
     insecure = true
-    #";
+    "#;
 
     #[test]
     fn utest_handle_agent_config_valid_config() {
         let mut tmp_config = NamedTempFile::new().expect("could not create temp file");
-        write!(tmp_config, "{VALID_AGENT_CONFIG_CONTENT}").expect("could not write to temp file");
+        let config_content = VALID_AGENT_CONFIG_TEMPLATE
+            .replace("{AGENT_NAME}", vars::AGENT_NAMES[0])
+            .replace("{RUN_FOLDER}", vars::RUN_FOLDER);
+        write!(tmp_config, "{config_content}").expect("could not write to temp file");
 
         let agent_config = handle_agent_config(
             &Some(tmp_config.into_temp_path().to_str().unwrap().to_string()),
             DEFAULT_AGENT_CONFIG_FILE_PATH,
         );
 
-        assert_eq!(agent_config.name, "agent_1".to_string());
+        assert_eq!(agent_config.name, vars::AGENT_NAMES[0].to_string());
         assert_eq!(
             agent_config.server_url,
             "https://127.0.0.1:25551".to_string()
         );
-        assert_eq!(agent_config.run_folder, "/tmp/ankaios/".to_string());
+        assert_eq!(agent_config.run_folder, vars::RUN_FOLDER.to_string());
         assert!(agent_config.insecure);
     }
 
     #[test]
     fn utest_handle_agent_config_default_path() {
         let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
-        writeln!(file, "{VALID_AGENT_CONFIG_CONTENT}").expect("Failed to write to file");
+        let config_content = VALID_AGENT_CONFIG_TEMPLATE
+            .replace("{AGENT_NAME}", vars::AGENT_NAMES[0])
+            .replace("{RUN_FOLDER}", vars::RUN_FOLDER);
+        writeln!(file, "{config_content}").expect("Failed to write to file");
 
         let agent_config = handle_agent_config(&None, file.path().to_str().unwrap());
 
-        assert_eq!(agent_config.name, "agent_1".to_string());
+        assert_eq!(agent_config.name, vars::AGENT_NAMES[0].to_string());
         assert_eq!(
             agent_config.server_url,
             "https://127.0.0.1:25551".to_string()
         );
-        assert_eq!(agent_config.run_folder, "/tmp/ankaios/".to_string());
+        assert_eq!(agent_config.run_folder, vars::RUN_FOLDER.to_string());
         assert!(agent_config.insecure);
     }
 

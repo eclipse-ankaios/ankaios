@@ -153,6 +153,7 @@ mod tests {
         CompleteState, CompleteStateSpec, RestartPolicy, StateSpec, UpdateStateSuccess,
         WorkloadMapSpec,
     };
+    use ankaios_api::test_utils::vars;
     use common::state_manipulation::Object;
     use mockall::predicate::eq;
     use serde_yaml::Value;
@@ -161,8 +162,6 @@ mod tests {
     pub fn read_to_string_mock(_file: String) -> io::Result<String> {
         Ok(_file)
     }
-
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
     const SAMPLE_CONFIG: &str = r#"desiredState:
         workloads:
@@ -346,7 +345,7 @@ mod tests {
             .return_once(|_, _| Ok(UpdateStateSuccess::default()));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
             no_wait: true,
             server_connection: mock_server_connection,
         };

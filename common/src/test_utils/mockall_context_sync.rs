@@ -12,9 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Serialize, Serializer};
-use std::collections::HashMap;
-
 pub struct MockAllContextSync {
     mutex_tokio: tokio::sync::Mutex<()>,
     mutex_std: std::sync::Mutex<()>,
@@ -43,14 +40,4 @@ impl Default for MockAllContextSync {
     fn default() -> Self {
         Self::new()
     }
-}
-
-pub fn serialize_as_map<A, B, S>(x: &[(A, B)], s: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-    A: Clone + Serialize + Eq + std::hash::Hash,
-    B: Clone + Serialize,
-{
-    let x: HashMap<A, B> = x.iter().cloned().collect();
-    x.serialize(s)
 }

@@ -112,23 +112,26 @@ mod tests {
         wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow,
     };
 
-    use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
+    use ankaios_api::{
+        ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec},
+        test_utils::vars,
+    };
     use std::collections::{HashMap, HashSet};
 
     #[test]
     fn update_table() {
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .agent_name("agent")
-            .config(&String::from("runtime"))
-            .workload_name("workload")
+            .agent_name(vars::AGENT_NAMES[0])
+            .config(&String::from(vars::RUNTIME_CONFIGS[0]))
+            .workload_name(vars::WORKLOAD_NAMES[0])
             .build();
         let mut wait_list_display = WaitListDisplay {
             data: HashMap::from([(
                 workload_instance_name.clone(),
                 WorkloadTableRow {
-                    name: "workload".into(),
-                    agent: "agent".into(),
-                    runtime: "runtime".into(),
+                    name: vars::WORKLOAD_NAMES[0].into(),
+                    agent: vars::AGENT_NAMES[0].into(),
+                    runtime: vars::RUNTIME_CONFIGS[0].into(),
                     execution_state: "execution_state".into(),
                     additional_info: "additional_info".into(),
                 },
