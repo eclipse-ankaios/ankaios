@@ -458,14 +458,7 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec};
-    use ankaios_api::test_utils::generate_test_workload_named;
-
-    const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
-    const WORKLOAD_ID: &str = "workload_id_1";
-    const RUN_FOLDER: &str = "/some";
-    const PIPES_LOCATION: &str = "/some/path";
-    const TEST_CHANNEL_BUFFER_SIZE: usize = 20;
+    use ankaios_api::test_utils::{vars, generate_test_workload_named};
 
     // [utest->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
     #[tokio::test]
@@ -473,7 +466,7 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
 
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(WORKLOAD_1_NAME)
+            .workload_name(vars::WORKLOAD_NAMES[0])
             .build();
 
         let workload_state = ReusableWorkloadState::new(
@@ -483,7 +476,7 @@ mod tests {
         );
 
         runtime_mock.expect(vec![RuntimeCall::GetReusableWorkloads(
-            AGENT_NAME.into(),
+            vars::AGENT_NAMES[0].into(),
             Ok(vec![workload_state]),
         )]);
 
@@ -491,12 +484,12 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            RUN_FOLDER.into(),
+            vars::RUN_FOLDER.into(),
         ));
 
         assert_eq!(
             test_runtime_facade
-                .get_reusable_workloads(&AGENT_NAME.into())
+                .get_reusable_workloads(&vars::AGENT_NAMES[0].into())
                 .await
                 .unwrap()
                 .iter()
@@ -517,11 +510,9 @@ mod tests {
             .get_lock_async()
             .await;
 
-        const WORKLOAD_ID: &str = "workload_id_1";
-
         let reusable_workload = ReusableWorkload::new(
             generate_test_workload_named(),
-            Some(WORKLOAD_ID.to_string()),
+            Some(vars::WORKLOAD_IDS[0].to_string()),
         );
 
         let control_interface_mock = MockControlInterface::default();
@@ -535,7 +526,7 @@ mod tests {
         control_interface_info_mock
             .expect_get_control_interface_path()
             .once()
-            .return_const(ControlInterfacePath::new(PIPES_LOCATION.into()));
+            .return_const(ControlInterfacePath::new(vars::PIPES_LOCATION.into()));
 
         control_interface_info_mock
             .expect_get_to_server_sender()
@@ -553,7 +544,7 @@ mod tests {
             .return_once(MockAuthorizer::default);
 
         let (wl_state_sender, _wl_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -569,7 +560,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            RUN_FOLDER.into(),
+            vars::RUN_FOLDER.into(),
         ));
 
         let mock_control_loop = MockWorkloadControlLoop::run_context();
@@ -602,7 +593,7 @@ mod tests {
         control_interface_info_mock
             .expect_get_control_interface_path()
             .once()
-            .return_const(ControlInterfacePath::new(PIPES_LOCATION.into()));
+            .return_const(ControlInterfacePath::new(vars::PIPES_LOCATION.into()));
         control_interface_info_mock
             .expect_get_to_server_sender()
             .once()
@@ -612,7 +603,7 @@ mod tests {
             .once()
             .return_const(
                 WorkloadInstanceNameSpec::builder()
-                    .workload_name(WORKLOAD_1_NAME)
+                    .workload_name(vars::WORKLOAD_NAMES[0])
                     .build(),
             );
         control_interface_info_mock
@@ -629,7 +620,7 @@ mod tests {
         let workload = generate_test_workload_named();
 
         let (wl_state_sender, _wl_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
 
         let mock_control_loop = MockWorkloadControlLoop::run_context();
         mock_control_loop
@@ -650,7 +641,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            RUN_FOLDER.into(),
+            vars::RUN_FOLDER.into(),
         ));
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
@@ -677,7 +668,7 @@ mod tests {
         let workload = generate_test_workload_named();
 
         let (wl_state_sender, _wl_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
 
         let mock_control_loop = MockWorkloadControlLoop::run_context();
         mock_control_loop
@@ -698,7 +689,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            RUN_FOLDER.into(),
+            vars::RUN_FOLDER.into(),
         ));
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
@@ -718,22 +709,22 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
 
         let (wl_state_sender, wl_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
 
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(WORKLOAD_1_NAME)
+            .workload_name(vars::WORKLOAD_NAMES[0])
             .build();
 
         runtime_mock.expect(vec![
-            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(WORKLOAD_ID.to_string())),
-            RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(vars::WORKLOAD_IDS[0].to_string())),
+            RuntimeCall::DeleteWorkload(vars::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
 
         let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            RUN_FOLDER.into(),
+            vars::RUN_FOLDER.into(),
         ));
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
@@ -764,16 +755,16 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
 
         let (wl_state_sender, wl_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
 
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(WORKLOAD_1_NAME)
+            .workload_name(vars::WORKLOAD_NAMES[0])
             .build();
 
         runtime_mock.expect(vec![
-            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(WORKLOAD_ID.to_string())),
+            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(vars::WORKLOAD_IDS[0].to_string())),
             RuntimeCall::DeleteWorkload(
-                WORKLOAD_ID.to_string(),
+                vars::WORKLOAD_IDS[0].to_string(),
                 Err(crate::runtime_connectors::RuntimeError::Delete(
                     "delete failed".to_owned(),
                 )),
@@ -784,7 +775,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            RUN_FOLDER.into(),
+            vars::RUN_FOLDER.into(),
         ));
 
         test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);

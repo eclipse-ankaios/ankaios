@@ -100,6 +100,8 @@ mod tests {
     use crate::control_interface::MockFifo;
     use crate::io_utils::generate_test_directory_mock;
 
+    use ankaios_api::test_utils::vars;
+
     use mockall::predicate;
     use std::path::Path;
 
@@ -107,47 +109,60 @@ mod tests {
     #[test]
     fn utest_input_output_new_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
-        let _directory_mock_context = generate_test_directory_mock("test_path", "workload_name");
+        let _directory_mock_context =
+            generate_test_directory_mock(vars::PIPES_LOCATION, vars::WORKLOAD_NAMES[0]);
         let fifo_mock_context = MockFifo::new_context();
         fifo_mock_context
             .expect()
             .with(predicate::eq(
-                Path::new("test_path").join("workload_name").join("input"),
+                Path::new(vars::PIPES_LOCATION)
+                    .join(vars::WORKLOAD_NAMES[0])
+                    .join("input"),
             ))
             .returning(|_| {
                 let mut input_mock = MockFifo::default();
-                input_mock
-                    .expect_get_path()
-                    .return_const(Path::new("test_path").join("workload_name").join("input"));
+                input_mock.expect_get_path().return_const(
+                    Path::new(vars::PIPES_LOCATION)
+                        .join(vars::WORKLOAD_NAMES[0])
+                        .join("input"),
+                );
                 input_mock.expect_drop().return_const(());
                 Ok(input_mock)
             });
         fifo_mock_context
             .expect()
             .with(predicate::eq(
-                Path::new("test_path").join("workload_name").join("output"),
+                Path::new(vars::PIPES_LOCATION)
+                    .join(vars::WORKLOAD_NAMES[0])
+                    .join("output"),
             ))
             .return_once(|_| {
                 let mut output_mock = MockFifo::default();
-                output_mock
-                    .expect_get_path()
-                    .return_const(Path::new("test_path").join("workload_name").join("output"));
+                output_mock.expect_get_path().return_const(
+                    Path::new(vars::PIPES_LOCATION)
+                        .join(vars::WORKLOAD_NAMES[0])
+                        .join("output"),
+                );
                 output_mock.expect_drop().return_const(());
                 Ok(output_mock)
             });
 
-        let io = InputOutput::new(Path::new("test_path").join("workload_name"));
+        let io = InputOutput::new(Path::new(vars::PIPES_LOCATION).join(vars::WORKLOAD_NAMES[0]));
         assert!(io.is_ok());
         assert_eq!(
-            &Path::new("test_path").join("workload_name").join("input"),
+            &Path::new(vars::PIPES_LOCATION)
+                .join(vars::WORKLOAD_NAMES[0])
+                .join("input"),
             io.as_ref().unwrap().get_input().get_path()
         );
         assert_eq!(
-            &Path::new("test_path").join("workload_name").join("output"),
+            &Path::new(vars::PIPES_LOCATION)
+                .join(vars::WORKLOAD_NAMES[0])
+                .join("output"),
             io.as_ref().unwrap().get_output().get_path()
         );
         assert_eq!(
-            Path::new("test_path").join("workload_name"),
+            Path::new(vars::PIPES_LOCATION).join(vars::WORKLOAD_NAMES[0]),
             io.as_ref().unwrap().get_location()
         );
     }

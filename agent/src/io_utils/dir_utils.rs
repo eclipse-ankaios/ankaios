@@ -58,6 +58,7 @@ mod tests {
         generate_test_directory_mock, mock_filesystem, prepare_agent_run_directory,
     };
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
+    use ankaios_api::test_utils::vars;
 
     use mockall::predicate;
 
@@ -66,7 +67,6 @@ mod tests {
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_create() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
-        let agent_name = "test_agent_name";
         let run_folder = DEFAULT_RUN_FOLDER;
 
         let exists_mock_context = mock_filesystem::exists_context();
@@ -90,10 +90,12 @@ mod tests {
             )
             .return_once(|_, _| Ok(()));
 
-        let _directory_mock_context =
-            generate_test_directory_mock(DEFAULT_RUN_FOLDER, "test_agent_name_io");
+        let _directory_mock_context = generate_test_directory_mock(
+            run_folder,
+            format!("{}_io", vars::AGENT_NAMES[0]).as_str(),
+        );
 
-        assert!(prepare_agent_run_directory(run_folder, agent_name).is_ok());
+        assert!(prepare_agent_run_directory(run_folder, vars::AGENT_NAMES[0]).is_ok());
     }
 
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
@@ -101,7 +103,6 @@ mod tests {
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_create_fails() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
-        let agent_name = "test_agent_name";
         let run_folder = DEFAULT_RUN_FOLDER;
 
         let exists_mock_context = mock_filesystem::exists_context();
@@ -125,7 +126,7 @@ mod tests {
         set_permissions_mock_context.expect().never();
 
         assert_eq!(
-            prepare_agent_run_directory(run_folder, agent_name),
+            prepare_agent_run_directory(run_folder, vars::AGENT_NAMES[0]),
             Err(FileSystemError::CreateDirectory(
                 Path::new("/tmp/x").as_os_str().to_os_string(),
                 std::io::ErrorKind::Other
@@ -138,7 +139,6 @@ mod tests {
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_create_permissions_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
-        let agent_name = "test_agent_name";
         let run_folder = DEFAULT_RUN_FOLDER;
 
         let exists_mock_context = mock_filesystem::exists_context();
@@ -168,7 +168,7 @@ mod tests {
             });
 
         assert_eq!(
-            prepare_agent_run_directory(run_folder, agent_name),
+            prepare_agent_run_directory(run_folder, vars::AGENT_NAMES[0]),
             Err(FileSystemError::Permissions(
                 Path::new("/tmp/x").as_os_str().to_os_string(),
                 std::io::ErrorKind::Other,
@@ -181,7 +181,6 @@ mod tests {
     fn utest_arguments_prepare_agent_run_directory_use_default_directory_exists() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
-        let agent_name = "test_agent_name";
         let run_folder = DEFAULT_RUN_FOLDER;
 
         let exists_mock_context = mock_filesystem::exists_context();
@@ -190,10 +189,12 @@ mod tests {
             .with(predicate::eq(Path::new(run_folder).to_path_buf()))
             .return_const(true);
 
-        let _directory_mock_context =
-            generate_test_directory_mock(run_folder, "test_agent_name_io");
+        let _directory_mock_context = generate_test_directory_mock(
+            run_folder,
+            format!("{}_io", vars::AGENT_NAMES[0]).as_str(),
+        );
 
-        assert!(prepare_agent_run_directory(run_folder, agent_name).is_ok());
+        assert!(prepare_agent_run_directory(run_folder, vars::AGENT_NAMES[0]).is_ok());
     }
 
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
@@ -201,7 +202,6 @@ mod tests {
     fn utest_arguments_prepare_agent_run_directory_given_directory_not_found() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
 
-        let agent_name = "test_agent_name";
         let run_folder = "/tmp/x";
 
         let exists_mock_context = mock_filesystem::exists_context();
@@ -211,7 +211,7 @@ mod tests {
             .return_const(false);
 
         assert_eq!(
-            prepare_agent_run_directory(run_folder, agent_name),
+            prepare_agent_run_directory(run_folder, vars::AGENT_NAMES[0]),
             Err(FileSystemError::NotFoundDirectory(
                 Path::new(run_folder).as_os_str().to_os_string()
             ))

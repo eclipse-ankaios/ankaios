@@ -189,27 +189,25 @@ mod tests {
 
     use ankaios_api::ank_base::ExecutionStateSpec;
     use ankaios_api::test_utils::{
-        generate_test_workload_named, generate_test_workload_state_with_workload_named,
+        generate_test_workload_named, generate_test_workload_state_with_workload_named, vars,
     };
 
     use tokio::{sync::mpsc, time};
 
-    const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 20;
-
     #[tokio::test]
     async fn utest_control_loop_state_builder_build_success() {
-        let control_interface_path = Some(ControlInterfacePath::new("/some/path".into()));
+        let control_interface_path = Some(ControlInterfacePath::new(vars::RUN_FOLDER.into()));
         let workload_named = generate_test_workload_named();
 
         let (workload_state_sender, mut workload_state_receiver) =
-            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+            mpsc::channel(vars::TEST_CHANNEL_CAP);
         let runtime = Box::new(MockRuntimeConnector::new());
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState::builder()
             .workload_named(workload_named.clone())
             .control_interface_path(control_interface_path.clone())
-            .run_folder("/some/path".into())
+            .run_folder(vars::RUN_FOLDER.into())
             .workload_state_sender(workload_state_sender)
             .runtime(runtime)
             .workload_command_receiver(workload_command_receiver)
@@ -289,16 +287,16 @@ mod tests {
     fn utest_control_loop_state_instance_name() {
         let workload_named = generate_test_workload_named();
         let (workload_state_sender, _workload_state_receiver) =
-            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+            mpsc::channel(vars::TEST_CHANNEL_CAP);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
-            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+            mpsc::channel(vars::TEST_CHANNEL_CAP);
         let runtime = Box::new(MockRuntimeConnector::new());
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState {
             workload_named: workload_named.clone(),
             control_interface_path: None,
-            run_folder: "/some/path".into(),
+            run_folder: vars::RUN_FOLDER.into(),
             workload_id: None,
             state_checker: None,
             to_agent_workload_state_sender: workload_state_sender,

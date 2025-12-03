@@ -79,14 +79,10 @@ mod tests {
     use ankaios_api::ank_base::{DeleteCondition, ExecutionStateSpec};
     use ankaios_api::test_utils::{
         generate_test_deleted_workload_with_dependencies,
-        generate_test_deleted_workload_with_params, generate_test_workload_named,
+        generate_test_deleted_workload_with_params, generate_test_workload_named, vars,
     };
 
     use std::collections::HashMap;
-
-    const AGENT_A: &str = "agent_A";
-    const WORKLOAD_NAME_1: &str = "workload_1";
-    const WORKLOAD_NAME_2: &str = "workload_2";
 
     // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
     // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
@@ -94,7 +90,7 @@ mod tests {
     fn utest_create_fulfilled() {
         let mut workload = generate_test_workload_named();
         workload.workload.dependencies.dependencies = HashMap::from([(
-            WORKLOAD_NAME_1.to_owned(),
+            vars::WORKLOAD_NAMES[0].to_owned(),
             ankaios_api::ank_base::AddCondition::AddCondRunning,
         )]);
 
@@ -102,7 +98,7 @@ mod tests {
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
-            .insert(WORKLOAD_NAME_1.to_owned(), execution_state);
+            .insert(vars::WORKLOAD_NAMES[0].to_owned(), execution_state);
 
         assert!(DependencyStateValidator::create_fulfilled(
             &workload,
@@ -148,7 +144,7 @@ mod tests {
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
-            .insert(WORKLOAD_NAME_1.to_owned(), execution_state);
+            .insert(vars::WORKLOAD_NAMES[0].to_owned(), execution_state);
 
         assert!(!DependencyStateValidator::create_fulfilled(
             &workload,
@@ -161,10 +157,10 @@ mod tests {
     #[test]
     fn utest_delete_fulfilled() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_1.to_string(),
+            vars::AGENT_NAMES[0].to_string(),
+            vars::WORKLOAD_NAMES[0].to_string(),
             HashMap::from([(
-                WORKLOAD_NAME_2.to_owned(),
+                vars::WORKLOAD_NAMES[1].to_owned(),
                 DeleteCondition::DelCondNotPendingNorRunning,
             )]),
         );
@@ -173,7 +169,7 @@ mod tests {
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
-            .insert(WORKLOAD_NAME_2.to_owned(), execution_state);
+            .insert(vars::WORKLOAD_NAMES[1].to_owned(), execution_state);
 
         assert!(DependencyStateValidator::delete_fulfilled(
             &deleted_workload_with_dependencies,
@@ -186,10 +182,10 @@ mod tests {
     #[test]
     fn utest_delete_fulfilled_unfulfilled_execution_state() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_1.to_string(),
+            vars::AGENT_NAMES[0].to_string(),
+            vars::WORKLOAD_NAMES[0].to_string(),
             HashMap::from([(
-                WORKLOAD_NAME_2.to_owned(),
+                vars::WORKLOAD_NAMES[1].to_owned(),
                 DeleteCondition::DelCondNotPendingNorRunning,
             )]),
         );
@@ -198,7 +194,7 @@ mod tests {
         let mut wl_state_store_mock = MockWorkloadStateStore::default();
         wl_state_store_mock
             .states_storage
-            .insert(WORKLOAD_NAME_2.to_owned(), execution_state);
+            .insert(vars::WORKLOAD_NAMES[1].to_owned(), execution_state);
 
         assert!(!DependencyStateValidator::delete_fulfilled(
             &deleted_workload_with_dependencies,
@@ -210,7 +206,7 @@ mod tests {
     #[test]
     fn utest_delete_fulfilled_no_dependencies() {
         let mut deleted_workload =
-            generate_test_deleted_workload_with_params(AGENT_A, WORKLOAD_NAME_1);
+            generate_test_deleted_workload_with_params(vars::AGENT_NAMES[0], vars::WORKLOAD_NAMES[0]);
 
         deleted_workload.dependencies.clear(); // no inter-workload dependencies
 
@@ -226,10 +222,10 @@ mod tests {
     #[test]
     fn utest_delete_fulfilled_no_workload_state_known() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
+            vars::AGENT_NAMES[0].to_owned(),
+            vars::WORKLOAD_NAMES[0].to_owned(),
             HashMap::from([(
-                WORKLOAD_NAME_2.to_owned(),
+                vars::WORKLOAD_NAMES[1].to_owned(),
                 DeleteCondition::DelCondNotPendingNorRunning,
             )]),
         );

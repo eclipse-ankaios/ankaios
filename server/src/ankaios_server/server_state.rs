@@ -360,8 +360,8 @@ mod tests {
 
     use ankaios_api::ank_base::{
         AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec,
-        ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigObjectSpec, CpuUsageSpec,
-        DeletedWorkload, FreeMemorySpec, StateSpec, Workload, WorkloadInstanceNameSpec,
+        ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigObjectSpec,
+        DeletedWorkload, StateSpec, Workload, WorkloadInstanceNameSpec,
         WorkloadMapSpec, WorkloadNamed, WorkloadStateSpec, WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
@@ -1559,12 +1559,10 @@ mod tests {
             state: generate_test_complete_state(vec![w1.clone()]),
             ..Default::default()
         };
-        let cpu_usage = CpuUsageSpec { cpu_usage: 42 };
-        let free_memory = FreeMemorySpec { free_memory: 42 };
         server_state.update_agent_resource_availability(AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
-            cpu_usage: cpu_usage.clone(),
-            free_memory: free_memory.clone(),
+            cpu_usage: vars::CPU_USAGE_SPEC,
+            free_memory: vars::FREE_MEMORY_SPEC,
         });
 
         let agent_status = server_state
@@ -1577,8 +1575,8 @@ mod tests {
             .status
             .unwrap_or_default();
 
-        assert_eq!(agent_status.cpu_usage, Some(cpu_usage));
-        assert_eq!(agent_status.free_memory, Some(free_memory));
+        assert_eq!(agent_status.cpu_usage, Some(vars::CPU_USAGE_SPEC));
+        assert_eq!(agent_status.free_memory, Some(vars::FREE_MEMORY_SPEC));
     }
 
     // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
@@ -1607,8 +1605,8 @@ mod tests {
         server_state.add_agent(AGENT_A.to_string());
         server_state.update_agent_resource_availability(AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
-            cpu_usage: CpuUsageSpec { cpu_usage: 42 },
-            free_memory: FreeMemorySpec { free_memory: 42 },
+            cpu_usage: vars::CPU_USAGE_SPEC,
+            free_memory: vars::FREE_MEMORY_SPEC,
         });
 
         let expected_agent_map = generate_test_agent_map(AGENT_A);

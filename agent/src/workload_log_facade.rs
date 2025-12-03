@@ -186,7 +186,8 @@ mod tests {
     use crate::subscription_store::{MockJoinHandle, MockSubscriptionEntry, SubscriptionEntry};
     use crate::workload_log_facade::WorkloadLogFacade;
 
-    use ankaios_api::ank_base::{LogsRequestSpec, LogsStopResponse, WorkloadInstanceNameSpec};
+    use ankaios_api::ank_base::{LogsRequestSpec, LogsStopResponse};
+    use ankaios_api::test_utils::{generate_test_workload_instance_name_with_name, vars};
     use common::to_server_interface::ToServer;
 
     use mockall::{mock, predicate};
@@ -194,12 +195,6 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
     use tokio::{sync::mpsc, sync::mpsc::channel, time::timeout};
-
-    const BUFFER_SIZE: usize = 20;
-    const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_1_NAME: &str = "workload1";
-    const WORKLOAD_2_NAME: &str = "workload2";
-    const REQUEST_ID: &str = "request_id";
 
     async fn get_log_responses(
         num: usize,
@@ -227,7 +222,9 @@ mod tests {
 
     mock! {
         pub LogFetchingRunner {
-            pub fn start_collecting_logs(log_fetchers: Vec<Box<dyn crate::runtime_connectors::log_fetcher::LogFetcher>>) -> (Self, Vec<MockRuntimeConnectorReceiver>);
+            pub fn start_collecting_logs(
+                log_fetchers: Vec<Box<dyn crate::runtime_connectors::log_fetcher::LogFetcher>>
+            ) -> (Self, Vec<MockRuntimeConnectorReceiver>);
         }
 
         impl Drop for LogFetchingRunner {
@@ -250,7 +247,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
+        let (to_server, mut to_server_receiver) = channel(vars::TEST_CHANNEL_CAP);
 
         let mock_log_fetcher_1 = MockLogFetcher::new();
         let mock_log_fetcher_2 = MockLogFetcher::new();
@@ -304,17 +301,11 @@ mod tests {
             .expect()
             .return_once(move |_| SubscriptionEntry::new(mock_join_handle));
 
-        let workload_instance_name_1 = WorkloadInstanceNameSpec {
-            workload_name: WORKLOAD_1_NAME.into(),
-            agent_name: AGENT_NAME.into(),
-            id: "1234".into(),
-        };
+        let workload_instance_name_1 =
+            generate_test_workload_instance_name_with_name(vars::WORKLOAD_NAMES[0]);
 
-        let workload_instance_name_2 = WorkloadInstanceNameSpec {
-            workload_name: WORKLOAD_2_NAME.into(),
-            agent_name: AGENT_NAME.into(),
-            id: "1234".into(),
-        };
+        let workload_instance_name_2 =
+            generate_test_workload_instance_name_with_name(vars::WORKLOAD_NAMES[1]);
 
         let logs_request = LogsRequestSpec {
             workload_names: vec![
@@ -339,7 +330,7 @@ mod tests {
             });
 
         WorkloadLogFacade::spawn_log_collection(
-            REQUEST_ID.into(),
+            vars::REQUEST_ID.into(),
             logs_request,
             to_server,
             SynchronizedSubscriptionStore::default(),
@@ -350,10 +341,12 @@ mod tests {
         let log_responses = get_log_responses(3, &mut to_server_receiver).await.unwrap();
 
         assert_eq!(log_responses.len(), 2);
-        assert!(log_responses.contains_key(&(REQUEST_ID.into(), WORKLOAD_1_NAME.into())));
+        assert!(
+            log_responses.contains_key(&(vars::REQUEST_ID.into(), vars::WORKLOAD_NAMES[0].into()))
+        );
         assert_eq!(
             log_responses
-                .get(&(REQUEST_ID.into(), WORKLOAD_1_NAME.into()))
+                .get(&(vars::REQUEST_ID.into(), vars::WORKLOAD_NAMES[0].into()))
                 .unwrap(),
             &vec![
                 "rec1: line1".to_string(),
@@ -361,10 +354,12 @@ mod tests {
                 "rec1: line3".to_string(),
             ]
         );
-        assert!(log_responses.contains_key(&(REQUEST_ID.into(), WORKLOAD_2_NAME.into())));
+        assert!(
+            log_responses.contains_key(&(vars::REQUEST_ID.into(), vars::WORKLOAD_NAMES[1].into()))
+        );
         assert_eq!(
             log_responses
-                .get(&(REQUEST_ID.into(), WORKLOAD_2_NAME.into()))
+                .get(&(vars::REQUEST_ID.into(), vars::WORKLOAD_NAMES[1].into()))
                 .unwrap(),
             &vec!["rec2: line1".to_string(),]
         );
@@ -398,7 +393,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
+        let (to_server, mut to_server_receiver) = channel(vars::TEST_CHANNEL_CAP);
 
         let mock_log_fetcher_1 = MockLogFetcher::new();
 
@@ -423,11 +418,8 @@ mod tests {
             )
         });
 
-        let workload_instance_name_1 = WorkloadInstanceNameSpec {
-            workload_name: WORKLOAD_1_NAME.into(),
-            agent_name: AGENT_NAME.into(),
-            id: "1234".into(),
-        };
+        let workload_instance_name_1 =
+            generate_test_workload_instance_name_with_name(vars::WORKLOAD_NAMES[0]);
 
         let logs_request = LogsRequestSpec {
             workload_names: vec![workload_instance_name_1.clone()],
@@ -457,7 +449,7 @@ mod tests {
 
         let synchronized_subscription_store = SynchronizedSubscriptionStore::default();
         WorkloadLogFacade::spawn_log_collection(
-            REQUEST_ID.into(),
+            vars::REQUEST_ID.into(),
             logs_request,
             to_server,
             synchronized_subscription_store.clone(),
@@ -470,7 +462,7 @@ mod tests {
         assert_eq!(
             logs_stop_response,
             Ok(Some(ToServer::LogsStopResponse(
-                REQUEST_ID.into(),
+                vars::REQUEST_ID.into(),
                 LogsStopResponse {
                     workload_name: Some(workload_instance_name_1.into()),
                 },

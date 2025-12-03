@@ -256,11 +256,11 @@ mod tests {
     use crate::ank_base::{
         AddCondition, DeleteCondition, ExecutionStateSpec, FulfilledBy, RestartPolicy,
     };
+    use crate::test_utils::generate_test_deleted_workload_with_params;
     use crate::test_utils::{
         generate_test_workload, generate_test_workload_named,
-        generate_test_workload_named_with_params,
+        generate_test_workload_named_with_params, vars,
     };
-    use crate::test_utils::generate_test_deleted_workload_with_params;
 
     // one test for a failing case, other cases are tested on the caller side to not repeat test code
     // [utest->swdd~common-config-aliases-and-config-reference-keys-naming-convention~1]
@@ -324,18 +324,24 @@ mod tests {
 
     #[test]
     fn utest_serialize_deleted_workload_into_ordered_output() {
-        let mut deleted_workload =
-            generate_test_deleted_workload_with_params("agent X".to_string(), "workload X".to_string());
+        let mut deleted_workload = generate_test_deleted_workload_with_params(
+            "agent X".to_string(),
+            "workload X".to_string(),
+        );
 
         deleted_workload.dependencies.insert(
-            "workload_C".to_string(),
+            vars::WORKLOAD_NAMES[2].to_owned(),
             DeleteCondition::DelCondNotPendingNorRunning,
         );
 
         let serialized_deleted_workload = serde_yaml::to_string(&deleted_workload).unwrap();
         let indices = [
-            serialized_deleted_workload.find("workload_A").unwrap(),
-            serialized_deleted_workload.find("workload_C").unwrap(),
+            serialized_deleted_workload
+                .find(vars::WORKLOAD_NAMES[0])
+                .unwrap(),
+            serialized_deleted_workload
+                .find(vars::WORKLOAD_NAMES[2])
+                .unwrap(),
         ];
         assert!(
             indices.windows(2).all(|window| window[0] < window[1]),
@@ -421,8 +427,8 @@ mod tests {
     fn utest_workload_validate_fields_incompatible_workload_name() {
         let workload_with_wrong_name = generate_test_workload_named_with_params(
             "incompatible.workload_name",
-            "agent",
-            "runtime",
+            vars::AGENT_NAMES[0],
+            vars::RUNTIME_NAMES[0],
         );
 
         assert_eq!(
@@ -439,9 +445,9 @@ mod tests {
     #[test]
     fn utest_workload_validate_fields_incompatible_agent_name() {
         let workload_with_wrong_agent_name = generate_test_workload_named_with_params(
-            "workload_name",
+            vars::WORKLOAD_NAMES[0],
             "incompatible.agent_name",
-            "runtime",
+            vars::RUNTIME_NAMES[0],
         );
 
         assert_eq!(
@@ -457,8 +463,11 @@ mod tests {
     // [utest->swdd~common-agent-naming-convention~3]
     #[test]
     fn utest_workload_with_valid_empty_agent_name() {
-        let workload_with_valid_missing_agent_name =
-            generate_test_workload_named_with_params("workload_name", "", "runtime");
+        let workload_with_valid_missing_agent_name = generate_test_workload_named_with_params(
+            vars::WORKLOAD_NAMES[0],
+            "",
+            vars::RUNTIME_NAMES[0],
+        );
 
         assert!(
             workload_with_valid_missing_agent_name

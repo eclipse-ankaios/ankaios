@@ -286,6 +286,7 @@ mod tests {
     };
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
+    use ankaios_api::test_utils::vars;
     use ankaios_api::{
         ank_base::{
             CompleteStateRequest, Error as AnkError, LogEntriesResponse, LogsCancelRequestSpec,
@@ -300,8 +301,6 @@ mod tests {
     use semver::Version;
     use std::{io::Error as IoError, sync::Arc};
     use tokio::sync::mpsc;
-
-    const REQUEST_ID: &str = "req_id";
 
     fn prepare_workload_hello_binary_message(version: impl Into<String>) -> Vec<u8> {
         let workload_hello = control_api::ToAnkaios {
@@ -328,7 +327,7 @@ mod tests {
 
     fn prepare_request_complete_state_binary_message(field_mask: impl Into<String>) -> Vec<u8> {
         let ank_request = Request {
-            request_id: REQUEST_ID.into(),
+            request_id: vars::REQUEST_ID.into(),
             request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![field_mask.into()],
             })),
@@ -345,7 +344,7 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let response = Response {
-            request_id: REQUEST_ID.into(),
+            request_id: vars::REQUEST_ID.into(),
             response_content: Some(ResponseContent::CompleteState(Default::default())),
         };
 
@@ -391,7 +390,7 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let response = Response {
-            request_id: REQUEST_ID.into(),
+            request_id: vars::REQUEST_ID.into(),
             response_content: Some(ResponseContent::LogEntriesResponse(Default::default())),
         };
 
@@ -447,7 +446,7 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let response = Response {
-            request_id: REQUEST_ID.into(),
+            request_id: vars::REQUEST_ID.into(),
             response_content: Some(ResponseContent::LogEntriesResponse(Default::default())),
         };
 
@@ -516,7 +515,7 @@ mod tests {
 
         // send a response to the _input_pipe_sender
         let _ = input_pipe_sender
-            .log_entries_response(REQUEST_ID.into(), LogEntriesResponse::default())
+            .log_entries_response(vars::REQUEST_ID.into(), LogEntriesResponse::default())
             .await;
 
         tokio::spawn(async { control_interface_task.run().await });
@@ -543,7 +542,7 @@ mod tests {
 
         let test_output_request = control_api::ToAnkaios {
             to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(Request {
-                request_id: REQUEST_ID.into(),
+                request_id: vars::REQUEST_ID.into(),
                 request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                     field_mask: vec![],
                 })),
@@ -576,7 +575,7 @@ mod tests {
             .returning(move || Box::pin(async { Err(IoError::other("error")) }));
 
         let error = Response {
-            request_id: REQUEST_ID.into(),
+            request_id: vars::REQUEST_ID.into(),
             response_content: Some(ResponseContent::Error(AnkError {
                 message: "Access denied".into(),
             })),
@@ -632,7 +631,7 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let ank_request = Request {
-            request_id: REQUEST_ID.into(),
+            request_id: vars::REQUEST_ID.into(),
             request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec!["desiredState.workloads.nginx".to_string()],
             })),

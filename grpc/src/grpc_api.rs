@@ -157,7 +157,7 @@ use common::to_server_interface;
 #[cfg(test)]
 fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
     HashMap::from([(
-        String::from("workload_A"),
+        String::from(vars::WORKLOAD_NAMES[0]),
         DeleteCondition::DelCondNotPendingNorRunning.into(),
     )])
 }
@@ -165,8 +165,8 @@ fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
 #[cfg(test)]
 pub fn generate_test_proto_deleted_workload() -> DeletedWorkload {
     let instance_name = WorkloadInstanceNameSpec::builder()
-        .agent_name("agent")
-        .workload_name("workload X")
+        .agent_name(vars::AGENT_NAMES[0])
+        .workload_name(vars::WORKLOAD_NAMES[1])
         .config(&String::from(vars::RUNTIME_CONFIGS[0]))
         .build();
 
@@ -195,13 +195,11 @@ mod tests {
     use crate::{AddedWorkload, DeletedWorkload, generate_test_proto_deleted_workload};
 
     use ankaios_api::ank_base::{
-        self, AddCondition, ConfigHash, Dependencies, ExecutionState, ExecutionStateEnum,
-        ExecutionStateSpec, Running as RunningSubstate, WorkloadInstanceName,
-        WorkloadInstanceNameSpec, WorkloadNamed, WorkloadState, WorkloadStateSpec,
+        self, AddCondition, Dependencies, ExecutionStateSpec, WorkloadNamed, WorkloadState,
     };
     use ankaios_api::test_utils::{
         generate_test_deleted_workload_with_params, generate_test_workload,
-        generate_test_workload_named,
+        generate_test_workload_named, generate_test_workload_state, vars,
     };
     use common::commands;
     use std::collections::HashMap;
@@ -213,8 +211,8 @@ mod tests {
     fn utest_converts_to_proto_deleted_workload() {
         let proto_workload = generate_test_proto_deleted_workload();
         let workload = generate_test_deleted_workload_with_params(
-            "agent".to_string(),
-            "workload X".to_string(),
+            vars::AGENT_NAMES[0].to_string(),
+            vars::WORKLOAD_NAMES[1].to_string(),
         );
 
         assert_eq!(DeletedWorkload::from(workload), proto_workload);
@@ -224,8 +222,8 @@ mod tests {
     fn utest_converts_to_ankaios_deleted_workload() {
         let proto_workload = generate_test_proto_deleted_workload();
         let workload = generate_test_deleted_workload_with_params(
-            "agent".to_string(),
-            "workload X".to_string(),
+            vars::AGENT_NAMES[0].to_string(),
+            vars::WORKLOAD_NAMES[1].to_string(),
         );
 
         assert_eq!(
@@ -237,7 +235,9 @@ mod tests {
     #[test]
     fn utest_converts_to_ankaios_deleted_workload_fails() {
         let mut proto_workload = generate_test_proto_deleted_workload();
-        proto_workload.dependencies.insert("workload_B".into(), -1);
+        proto_workload
+            .dependencies
+            .insert(vars::WORKLOAD_NAMES[0].into(), -1);
 
         assert!(ank_base::DeletedWorkload::try_from(proto_workload).is_err());
     }
@@ -276,12 +276,12 @@ mod tests {
             workload.dependencies = Some(Dependencies {
                 dependencies: HashMap::from([
                     (
-                        String::from("workload_A"),
+                        String::from(vars::WORKLOAD_NAMES[0]),
                         AddCondition::AddCondRunning.into(),
                     ),
-                    (String::from("workload_B"), -1), // Invalid value for dependency
+                    (String::from(vars::WORKLOAD_NAMES[1]), -1), // Invalid value for dependency
                     (
-                        String::from("workload_C"),
+                        String::from(vars::WORKLOAD_NAMES[2]),
                         AddCondition::AddCondSucceeded.into(),
                     ),
                 ]),
@@ -291,51 +291,21 @@ mod tests {
         assert!(WorkloadNamed::try_from(proto_workload).is_err());
     }
 
-    // UpdateWorkloadState tests
-    const AGENT_NAME: &str = "agent_1";
-    const WORKLOAD_NAME_1: &str = "workload_name_1";
-    const HASH: &str = "hash_1";
-
     macro_rules! update_workload_state {
         (ankaios) => {
             commands::UpdateWorkloadState {
-                workload_states: vec![{
-                    struct HashableString(String);
-
-                    impl ConfigHash for HashableString {
-                        fn hash_config(&self) -> String {
-                            self.0.clone()
-                        }
-                    }
-                    WorkloadStateSpec {
-                        instance_name: WorkloadInstanceNameSpec::builder()
-                            .workload_name(WORKLOAD_NAME_1)
-                            .config(&HashableString(HASH.into()))
-                            .agent_name(AGENT_NAME)
-                            .build(),
-                        execution_state: ExecutionStateSpec::running(),
-                    }
-                }],
+                workload_states: vec![generate_test_workload_state(
+                    vars::WORKLOAD_NAMES[0],
+                    ExecutionStateSpec::running(),
+                )],
             }
         };
         (grpc_api) => {
             crate::UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
-                    instance_name: WorkloadInstanceName {
-                        workload_name: WORKLOAD_NAME_1.into(),
-                        agent_name: AGENT_NAME.into(),
-                        id: HASH.into(),
-                    }
-                    .into(),
-                    execution_state: ExecutionState {
-                        additional_info: Some("".to_string()),
-                        execution_state_enum: ExecutionStateEnum::Running(
-                            RunningSubstate::Ok.into(),
-                        )
-                        .into(),
-                    }
-                    .into(),
-                }],
+                workload_states: vec![WorkloadState::from(generate_test_workload_state(
+                    vars::WORKLOAD_NAMES[0],
+                    ExecutionStateSpec::running(),
+                ))],
             }
         };
     }

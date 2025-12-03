@@ -346,13 +346,10 @@ mod tests {
     use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadStateSpec};
     use ankaios_api::test_utils::{
         generate_test_deleted_workload_with_params, generate_test_workload_named,
-        generate_test_workload_state_with_workload_named,
+        generate_test_workload_state_with_workload_named, vars,
     };
 
     use tokio::sync::mpsc::channel;
-
-    const AGENT_A: &str = "agent_A";
-    const WORKLOAD_NAME_1: &str = "workload_1";
 
     // [utest->swdd~agent-handles-new-workload-operations~1]
     // [utest->swdd~agent-enqueues-unfulfilled-create~1]
@@ -480,7 +477,7 @@ mod tests {
             .return_const(false);
 
         let pending_deleted_workload =
-            generate_test_deleted_workload_with_params(AGENT_A, WORKLOAD_NAME_1);
+            generate_test_deleted_workload_with_params(vars::AGENT_NAMES[0], vars::WORKLOAD_NAMES[0]);
 
         let workload_operations = vec![WorkloadOperation::Delete(pending_deleted_workload.clone())];
         let ready_workload_operations = workload_scheduler
@@ -530,7 +527,7 @@ mod tests {
             .return_const(true);
 
         let ready_deleted_workload =
-            generate_test_deleted_workload_with_params(AGENT_A, WORKLOAD_NAME_1);
+            generate_test_deleted_workload_with_params(vars::AGENT_NAMES[0], vars::WORKLOAD_NAMES[0]);
 
         let workload_operations = vec![WorkloadOperation::Delete(ready_deleted_workload.clone())];
         let ready_workload_operations = workload_scheduler
@@ -562,7 +559,7 @@ mod tests {
 
         drop(workload_state_receiver);
 
-        let pending_workload = generate_test_deleted_workload_with_params(AGENT_A, WORKLOAD_NAME_1);
+        let pending_workload = generate_test_deleted_workload_with_params(vars::AGENT_NAMES[0], vars::WORKLOAD_NAMES[0]);
 
         workload_scheduler
             .report_pending_delete_state(&pending_workload.instance_name)
@@ -926,7 +923,7 @@ mod tests {
         let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
 
         let ready_deleted_workload =
-            generate_test_deleted_workload_with_params(AGENT_A, WORKLOAD_NAME_1);
+            generate_test_deleted_workload_with_params(vars::AGENT_NAMES[0], vars::WORKLOAD_NAMES[0]);
 
         let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(
             ready_deleted_workload.clone(),
@@ -1070,7 +1067,7 @@ mod tests {
             .return_const(false);
 
         let pending_deleted_workload =
-            generate_test_deleted_workload_with_params(AGENT_A, WORKLOAD_NAME_1);
+            generate_test_deleted_workload_with_params(vars::AGENT_NAMES[0], vars::WORKLOAD_NAMES[0]);
 
         let instance_name_deleted_workload = pending_deleted_workload.instance_name.clone();
 
@@ -1108,7 +1105,7 @@ mod tests {
             .return_const(false);
 
         let pending_deleted_workload =
-            generate_test_deleted_workload_with_params(AGENT_A, WORKLOAD_NAME_1);
+            generate_test_deleted_workload_with_params(vars::AGENT_NAMES[0], vars::WORKLOAD_NAMES[0]);
 
         let instance_name_deleted_workload = pending_deleted_workload.instance_name.clone();
 
@@ -1427,7 +1424,7 @@ mod tests {
             .return_const(true);
 
         let ready_deleted_workload =
-            generate_test_deleted_workload_with_params(AGENT_A, WORKLOAD_NAME_1);
+            generate_test_deleted_workload_with_params(vars::AGENT_NAMES[0], vars::WORKLOAD_NAMES[0]);
 
         workload_scheduler.queue.insert(
             ready_deleted_workload

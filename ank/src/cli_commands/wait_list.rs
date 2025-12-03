@@ -199,26 +199,28 @@ mod tests {
     use crate::cli_commands::wait_list::generate_test_wait_list;
 
     use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
-    use ankaios_api::test_utils::generate_test_workload_instance_name_with_params;
+    use ankaios_api::test_utils::{generate_test_workload_instance_name_with_params, vars};
 
     use mockall::predicate::eq;
     use std::collections::HashSet;
-
-    const WORKLOAD_NAME_1: &str = "workload_1";
-    const WORKLOAD_NAME_2: &str = "workload_2";
-    const WORKLOAD_NAME_3: &str = "workload_3";
 
     fn prepare_test_instance_names() -> (
         WorkloadInstanceNameSpec,
         WorkloadInstanceNameSpec,
         WorkloadInstanceNameSpec,
     ) {
-        let i_name_1 =
-            generate_test_workload_instance_name_with_params(WORKLOAD_NAME_1, "agent_name");
-        let i_name_2 =
-            generate_test_workload_instance_name_with_params(WORKLOAD_NAME_2, "agent_name");
-        let i_name_3 =
-            generate_test_workload_instance_name_with_params(WORKLOAD_NAME_3, "agent_name");
+        let i_name_1 = generate_test_workload_instance_name_with_params(
+            vars::WORKLOAD_NAMES[0],
+            vars::AGENT_NAMES[0],
+        );
+        let i_name_2 = generate_test_workload_instance_name_with_params(
+            vars::WORKLOAD_NAMES[1],
+            vars::AGENT_NAMES[0],
+        );
+        let i_name_3 = generate_test_workload_instance_name_with_params(
+            vars::WORKLOAD_NAMES[2],
+            vars::AGENT_NAMES[0],
+        );
         (i_name_1, i_name_2, i_name_3)
     }
 
@@ -258,7 +260,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
-            HashSet::from(["agent_name".to_string()]),
+            HashSet::from([vars::AGENT_NAMES[0].to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -284,7 +286,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
-            HashSet::from(["agent_name".to_string()]),
+            HashSet::from([vars::AGENT_NAMES[0].to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -310,7 +312,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
-            HashSet::from(["agent_name".to_string()]),
+            HashSet::from([vars::AGENT_NAMES[0].to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -336,7 +338,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
-            HashSet::from(["agent_name".to_string()]),
+            HashSet::from([vars::AGENT_NAMES[0].to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -362,7 +364,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
-            HashSet::from(["agent_name".to_string()]),
+            HashSet::from([vars::AGENT_NAMES[0].to_string()]),
         );
 
         wait_list.update(vec![workload_state]);
@@ -388,7 +390,7 @@ mod tests {
             my_mock,
             vec![i_name_1.clone(), i_name_2.clone()],
             vec![i_name_3.clone()],
-            HashSet::from(["agent_name".to_string()]),
+            HashSet::from([vars::AGENT_NAMES[0].to_string()]),
         );
 
         wait_list.update(vec![workload_state]);

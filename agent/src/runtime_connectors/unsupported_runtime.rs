@@ -105,7 +105,7 @@ mod tests {
     use crate::runtime_connectors::{LogRequestOptions, RuntimeConnector};
 
     use ankaios_api::test_utils::{
-        generate_test_workload_named, generate_test_workload_named_with_params,
+        generate_test_workload_named, generate_test_workload_named_with_params, vars,
     };
     use common::objects::AgentName;
 
@@ -126,7 +126,7 @@ mod tests {
     #[tokio::test]
     async fn utest_get_reusable_workloads_returns_empty_vec() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let agent_name = AgentName::from("dummy_agent");
+        let agent_name = AgentName::from(vars::AGENT_NAMES[0]);
 
         let result = unsupported_runtime
             .get_reusable_workloads(&agent_name)
@@ -140,8 +140,11 @@ mod tests {
     #[tokio::test]
     async fn utest_create_workload_returns_unsupported_error_for_matching_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let workload =
-            generate_test_workload_named_with_params("workload_A", "test-agent", TEST_RUNTIME_NAME);
+        let workload = generate_test_workload_named_with_params(
+            vars::WORKLOAD_NAMES[0],
+            vars::AGENT_NAMES[0],
+            TEST_RUNTIME_NAME,
+        );
 
         let result = unsupported_runtime
             .create_workload(workload, None, None, mpsc::channel(1).0, HashMap::new())
@@ -158,8 +161,8 @@ mod tests {
     async fn utest_create_workload_returns_unsupported_error_for_different_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
         let workload = generate_test_workload_named_with_params(
-            "workload_A",
-            "test-agent",
+            vars::WORKLOAD_NAMES[0],
+            vars::AGENT_NAMES[0],
             "different_runtime",
         );
 
@@ -177,7 +180,11 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workload_id_returns_list_error() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let instance_name = WorkloadInstanceNameSpec::new("test-agent", "test-workload", "test-id");
+        let instance_name = WorkloadInstanceNameSpec::new(
+            vars::AGENT_NAMES[0],
+            vars::WORKLOAD_NAMES[0],
+            vars::WORKLOAD_IDS[0],
+        );
 
         let result = unsupported_runtime.get_workload_id(&instance_name).await;
 
@@ -191,11 +198,14 @@ mod tests {
     #[tokio::test]
     async fn utest_start_checker_returns_dummy_checker() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let workload_id = "test_id".to_string();
         let workload = generate_test_workload_named();
 
         let result = unsupported_runtime
-            .start_checker(&workload_id, workload, mpsc::channel(1).0)
+            .start_checker(
+                &vars::WORKLOAD_IDS[0].to_owned(),
+                workload,
+                mpsc::channel(1).0,
+            )
             .await;
 
         assert!(result.is_ok());
@@ -205,7 +215,6 @@ mod tests {
     #[tokio::test]
     async fn utest_get_log_fetcher_returns_err() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let workload_id = "test_id".to_string();
         let options = LogRequestOptions {
             follow: false,
             since: None,
@@ -213,7 +222,8 @@ mod tests {
             tail: None,
         };
 
-        let result = unsupported_runtime.get_log_fetcher(workload_id, &options);
+        let result =
+            unsupported_runtime.get_log_fetcher(vars::WORKLOAD_IDS[0].to_owned(), &options);
 
         assert!(matches!(
             result,
@@ -225,9 +235,10 @@ mod tests {
     #[tokio::test]
     async fn utest_delete_workload_returns_ok() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let workload_id = "test_id".to_string();
 
-        let result = unsupported_runtime.delete_workload(&workload_id).await;
+        let result = unsupported_runtime
+            .delete_workload(&vars::WORKLOAD_IDS[0].to_owned())
+            .await;
 
         assert!(result.is_ok());
     }

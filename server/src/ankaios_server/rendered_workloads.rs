@@ -77,13 +77,13 @@ mod tests {
     use super::RenderedWorkloads;
     use ankaios_api::{
         ank_base::{AccessRightsRuleEnumSpec, WorkloadNamed, WorkloadSpec},
-        test_utils::{generate_test_workload, generate_test_workload_instance_name_with_name},
+        test_utils::{vars, generate_test_workload, generate_test_workload_instance_name_with_name},
     };
 
     #[test]
     fn test_rendered_workloads_insert_get() {
         let mut rendered_workloads = RenderedWorkloads::new();
-        let workload_name = "test_workload".to_string();
+        let workload_name = vars::WORKLOAD_NAMES[0].to_string();
         let workload_named = WorkloadNamed {
             instance_name: generate_test_workload_instance_name_with_name(&workload_name),
             workload: generate_test_workload(),
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn test_rendered_workloads_deref() {
         let mut rendered_workloads = RenderedWorkloads::new();
-        let workload_name = "test_workload".to_string();
+        let workload_name = vars::WORKLOAD_NAMES[0].to_string();
         let workload_named = WorkloadNamed {
             instance_name: generate_test_workload_instance_name_with_name(&workload_name),
             workload: generate_test_workload(),

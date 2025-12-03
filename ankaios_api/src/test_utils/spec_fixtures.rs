@@ -16,8 +16,8 @@ use super::vars;
 use crate::ank_base::{
     AccessRightsRuleSpec, AddCondition, AgentAttributesSpec, AgentMapSpec, AgentStatusSpec,
     CompleteStateSpec, ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigMappingsSpec,
-    ControlInterfaceAccessSpec, CpuUsageSpec, DependenciesSpec, ExecutionStateSpec,
-    FileContentSpec, FileSpec, FilesSpec, FreeMemorySpec, ReadWriteEnum, RestartPolicy, StateSpec,
+    ControlInterfaceAccessSpec, DependenciesSpec, ExecutionStateSpec,
+    FileContentSpec, FileSpec, FilesSpec, ReadWriteEnum, RestartPolicy, StateSpec,
     TagsSpec, WorkloadInstanceNameBuilder, WorkloadInstanceNameSpec, WorkloadMapSpec,
     WorkloadNamed, WorkloadSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
@@ -151,7 +151,7 @@ pub fn generate_test_workload_state(
     workload_name: &str,
     execution_state: ExecutionStateSpec,
 ) -> WorkloadStateSpec {
-    generate_test_workload_state_with_agent(workload_name, "agent_name", execution_state)
+    generate_test_workload_state_with_agent(workload_name, vars::AGENT_NAMES[0], execution_state)
 }
 
 // ## AgentMapSpec fixtures ##
@@ -186,8 +186,8 @@ pub fn generate_test_agent_map_from_workloads(workloads: &[WorkloadSpec]) -> Age
 
 pub fn generate_test_agent_status() -> AgentStatusSpec {
     AgentStatusSpec {
-        cpu_usage: Some(CpuUsageSpec { cpu_usage: 42 }),
-        free_memory: Some(FreeMemorySpec { free_memory: 42 }),
+        cpu_usage: Some(vars::CPU_USAGE_SPEC),
+        free_memory: Some(vars::FREE_MEMORY_SPEC),
     }
 }
 
@@ -195,18 +195,24 @@ pub fn generate_test_agent_status() -> AgentStatusSpec {
 
 pub fn generate_test_config_map() -> ConfigMapSpec {
     serde_yaml::from_str(
-        "
+        format!(
+            "
         config_1:
           values:
             value_1: value123
             value_2:
               - list_value_1
               - list_value_2
-          agent_name: agent_A
-          config_file: text data
-          binary_file: YmFzZTY0IGRhdGE=
+          agent_name: {}
+          config_file: {}
+          binary_file: {}
         config_2: value_3
         ",
+            vars::AGENT_NAMES[0],
+            vars::FILE_TEXT_DATA,
+            vars::FILE_BINARY_DATA
+        )
+        .as_str(),
     )
     .unwrap()
 }
@@ -435,7 +441,10 @@ pub fn generate_test_control_interface_access() -> ControlInterfaceAccessSpec {
         ],
         deny_rules: vec![AccessRightsRuleSpec::state_rule(
             ReadWriteEnum::RwWrite,
-            vec![format!("desiredState.workload.{}", vars::WORKLOAD_NAMES[1])],
+            vec![format!(
+                "desiredState.workloads.{}",
+                vars::WORKLOAD_NAMES[1]
+            )],
         )],
     }
 }
@@ -444,15 +453,15 @@ pub fn generate_test_files() -> FilesSpec {
     FilesSpec {
         files: vec![
             FileSpec {
-                mount_point: "/file.json".to_string(),
+                mount_point: vars::FILE_TEXT_PATH.to_string(),
                 file_content: FileContentSpec::Data {
-                    data: "text data".into(),
+                    data: vars::FILE_TEXT_DATA.into(),
                 },
             },
             FileSpec {
-                mount_point: "/binary_file".to_string(),
+                mount_point: vars::FILE_BINARY_PATH.to_string(),
                 file_content: FileContentSpec::BinaryData {
-                    binary_data: "YmFzZTY0IGRhdGE=".into(),
+                    binary_data: vars::FILE_BINARY_DATA.into(),
                 },
             },
         ],

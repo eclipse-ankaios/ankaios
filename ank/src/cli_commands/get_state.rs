@@ -60,13 +60,31 @@ mod tests {
         cli_commands::{CliCommands, server_connection::MockServerConnection},
     };
 
-    use ankaios_api::ank_base::Workload;
+    use ankaios_api::ank_base::{CompleteState, Workload};
     use ankaios_api::test_utils::{
-        generate_test_proto_complete_state, generate_test_workload_with_params,
+        generate_test_proto_complete_state, generate_test_workload_with_params, vars,
     };
     use mockall::predicate::eq;
 
-    const RESPONSE_TIMEOUT_MS: u64 = 3000;
+    fn generate_test_data() -> CompleteState {
+        generate_test_proto_complete_state(&[
+            (
+                vars::WORKLOAD_NAMES[0],
+                generate_test_workload_with_params(vars::AGENT_NAMES[0], vars::RUNTIME_NAMES[0])
+                    .into(),
+            ),
+            (
+                vars::WORKLOAD_NAMES[1],
+                generate_test_workload_with_params(vars::AGENT_NAMES[1], vars::RUNTIME_NAMES[0])
+                    .into(),
+            ),
+            (
+                vars::WORKLOAD_NAMES[2],
+                generate_test_workload_with_params(vars::AGENT_NAMES[1], vars::RUNTIME_NAMES[0])
+                    .into(),
+            ),
+        ])
+    }
 
     // [utest -> swdd~cli-returns-desired-state-from-server~1]
     // [utest -> swdd~cli-shall-support-desired-state-yaml~1]
@@ -74,20 +92,7 @@ mod tests {
     // [utest->swdd~cli-provides-get-desired-state~1]
     #[tokio::test]
     async fn utest_get_state_complete_desired_state_yaml() {
-        let test_data = generate_test_proto_complete_state(&[
-            (
-                "name1",
-                generate_test_workload_with_params("agent_A", "runtime").into(),
-            ),
-            (
-                "name2",
-                generate_test_workload_with_params("agent_B", "runtime").into(),
-            ),
-            (
-                "name3",
-                generate_test_workload_with_params("agent_B", "runtime").into(),
-            ),
-        ]);
+        let test_data = generate_test_data();
 
         let mut mock_server_connection = MockServerConnection::default();
         let test_data_clone = test_data.clone();
@@ -96,7 +101,7 @@ mod tests {
             .with(eq(vec![]))
             .return_once(|_| Ok(test_data_clone));
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -109,20 +114,7 @@ mod tests {
     // [utest -> swdd~cli-shall-support-desired-state-json~1]
     #[tokio::test]
     async fn utest_get_state_complete_desired_state_json() {
-        let test_data = generate_test_proto_complete_state(&[
-            (
-                "name1",
-                generate_test_workload_with_params("agent_A", "runtime").into(),
-            ),
-            (
-                "name2",
-                generate_test_workload_with_params("agent_B", "runtime").into(),
-            ),
-            (
-                "name3",
-                generate_test_workload_with_params("agent_B", "runtime").into(),
-            ),
-        ]);
+        let test_data = generate_test_data();
 
         let mut mock_server_connection = MockServerConnection::default();
         let cloned_test_data = test_data.clone();
@@ -146,37 +138,30 @@ mod tests {
     // [utest->swdd~cli-returns-api-version-with-desired-state~1]
     #[tokio::test]
     async fn utest_get_state_single_field_of_desired_state() {
-        let test_data = generate_test_proto_complete_state(&[
-            (
-                "name1",
-                generate_test_workload_with_params("agent_A", "runtime").into(),
-            ),
-            (
-                "name2",
-                generate_test_workload_with_params("agent_B", "runtime").into(),
-            ),
-            (
-                "name3",
-                generate_test_workload_with_params("agent_B", "runtime").into(),
-            ),
-        ]);
+        let test_data = generate_test_data();
 
         let test_data_clone = test_data.clone();
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
-            .with(eq(vec!["desiredState.workloads.name3.runtime".into()]))
+            .with(eq(vec![format!(
+                "desiredState.workloads.{}.runtime",
+                vars::WORKLOAD_NAMES[2]
+            )]))
             .return_once(|_| Ok(test_data_clone));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
         let cmd_text = cmd
             .get_state(
-                vec!["desiredState.workloads.name3.runtime".to_owned()],
+                vec![format!(
+                    "desiredState.workloads.{}.runtime",
+                    vars::WORKLOAD_NAMES[2]
+                )],
                 OutputFormat::Yaml,
             )
             .await
@@ -192,33 +177,20 @@ mod tests {
     // [utest->swdd~cli-returns-api-version-with-desired-state~1]
     #[tokio::test]
     async fn utest_get_state_multiple_fields_of_desired_state() {
-        let test_data = generate_test_proto_complete_state(&[
-            (
-                "name1",
-                generate_test_workload_with_params("agent_A", "runtime").into(),
-            ),
-            (
-                "name2",
-                generate_test_workload_with_params("agent_B", "runtime").into(),
-            ),
-            (
-                "name3",
-                generate_test_workload_with_params("agent_B", "runtime").into(),
-            ),
-        ]);
+        let test_data = generate_test_data();
 
         let test_data_clone = test_data.clone();
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![
-                "desiredState.workloads.name1.runtime".into(),
-                "desiredState.workloads.name2.runtime".into(),
+                format!("desiredState.workloads.{}.runtime", vars::WORKLOAD_NAMES[0]),
+                format!("desiredState.workloads.{}.runtime", vars::WORKLOAD_NAMES[1]),
             ]))
             .return_once(|_| Ok(test_data_clone));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -226,8 +198,8 @@ mod tests {
         let cmd_text = cmd
             .get_state(
                 vec![
-                    "desiredState.workloads.name1.runtime".to_owned(),
-                    "desiredState.workloads.name2.runtime".to_owned(),
+                    format!("desiredState.workloads.{}.runtime", vars::WORKLOAD_NAMES[0]),
+                    format!("desiredState.workloads.{}.runtime", vars::WORKLOAD_NAMES[1]),
                 ],
                 OutputFormat::Yaml,
             )
@@ -248,7 +220,7 @@ mod tests {
             .with(eq(vec!["workloadStates".to_owned()]))
             .return_once(|_| Ok(test_data_clone));
         let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
