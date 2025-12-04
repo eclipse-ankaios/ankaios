@@ -751,8 +751,8 @@ The controller workload gets the state of fields ${field_mask}
 The controller workload subscribes to the state of fields ${field_mask}
     internal_add_get_state_command    ${field_mask}    true
 
-The controller workload gets events for fields ${field_mask}
-    internal_add_get_events_command    ${field_mask}
+The controller workload gets event for fields ${field_mask}
+    internal_add_get_event_command    ${field_mask}
 
 The last result contains exactly the workloads ${workload_names}
     internal_check_control_interface_workloads_in_last_result    ${workload_names}
