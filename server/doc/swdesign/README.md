@@ -145,6 +145,20 @@ Tags:
 Needs:
 - impl
 
+#### Server validates desired state api version
+`swdd~server-validates-desired-state-api-version~1`
+
+Status: approved
+
+When the Ankaios server receives a `desiredState`, the server shall validate the API version of the `desiredState`.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+
 #### Server validates tags format in startup manifest
 `swdd~server-validates-startup-manifest-tags-format~1`
 
