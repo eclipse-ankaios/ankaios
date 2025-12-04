@@ -126,7 +126,7 @@ Test events on configs
 
 Test events on workload states
     Given the controller workload is allowed to read and write on *
-    And The controller workload wait for 500 milliseconds
+    And The controller workload wait for 1000 milliseconds
 
     When the controller workload subscribes to the state of fields workloadStates
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
