@@ -590,14 +590,14 @@ def internal_add_cancel_events_command(field_mask: str):
     })
 
 @err_logging_decorator
-def internal_add_get_events_command(field_mask: str, subscribe_for_events: bool=False):
+def internal_add_get_event_command(field_mask: str):
     global control_interface_workload_config
 
     assert field_mask in events_requests, f"Workload names {field_mask} are not in previous logs requests"
     request_id = events_requests.get(field_mask)
     control_interface_workload_config.append({
         "command": {
-            "type": "GetEvents",
+            "type": "GetEvent",
             "request_id": request_id,
         }
     })

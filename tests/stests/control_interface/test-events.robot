@@ -30,21 +30,21 @@ Test events no wildcard
 
     When the controller workload subscribes to the state of fields desiredState.workloads.simple
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
-    And the controller workload gets events for fields desiredState.workloads.simple
+    And the controller workload gets event for fields desiredState.workloads.simple
     Then the last result contains exactly the workloads simple
     And the last result has added fields desiredState.workloads.simple
     And the last result has no updated fields
     And the last result has no removed fields
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state_different_agent_add_dependencies_and_toplevel_configs.yaml" and update mask desiredState.workloads.simple
-    And the controller workload gets events for fields desiredState.workloads.simple
+    And the controller workload gets event for fields desiredState.workloads.simple
     Then the last result contains exactly the workloads simple
     And the last result has added fields desiredState.workloads.simple.dependencies.some_other_workload
     And the last result has updated fields desiredState.workloads.simple.agent
     And the last result has no removed fields
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/empty.yaml" and update mask desiredState.workloads.simple
-    And the controller workload gets events for fields desiredState.workloads.simple
+    And the controller workload gets event for fields desiredState.workloads.simple
     Then The last result contains no workloads
     And the last result has no added fields
     And the last result has no updated fields
@@ -58,21 +58,21 @@ Test events workload name wildcard only get agent
 
     When the controller workload subscribes to the state of fields desiredState.workloads.*.agent
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
-    And the controller workload gets events for fields desiredState.workloads.*.agent
+    And the controller workload gets event for fields desiredState.workloads.*.agent
     Then the last result contains exactly the workloads simple
     And the last result has added fields desiredState.workloads.simple.agent
     And the last result has no updated fields
     And the last result has no removed fields
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state_different_agent_add_dependencies_and_toplevel_configs.yaml" and update mask desiredState.workloads.simple
-    And the controller workload gets events for fields desiredState.workloads.*.agent
+    And the controller workload gets event for fields desiredState.workloads.*.agent
     Then the last result contains exactly the workloads simple
     And the last result has no added fields
     And the last result has updated fields desiredState.workloads.simple.agent
     And the last result has no removed fields
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/empty.yaml" and update mask desiredState.workloads.simple
-    And the controller workload gets events for fields desiredState.workloads.*.agent
+    And the controller workload gets event for fields desiredState.workloads.*.agent
     Then The last result contains no workloads
     And the last result has no added fields
     And the last result has no updated fields
@@ -87,14 +87,14 @@ Test events with multiple wildcards
     When the controller workload subscribes to the state of fields desiredState.workloads.*.*.some_other_workload
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state_different_agent_add_dependencies_and_toplevel_configs.yaml" and update mask desiredState.workloads.simple
-    And the controller workload gets events for fields desiredState.workloads.*.*.some_other_workload
+    And the controller workload gets event for fields desiredState.workloads.*.*.some_other_workload
     Then the last result contains exactly the workloads simple
     And the last result has added fields desiredState.workloads.simple.dependencies.some_other_workload
     And the last result has no updated fields
     And the last result has no removed fields
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/empty.yaml" and update mask desiredState.workloads.simple
-    And the controller workload gets events for fields desiredState.workloads.*.*.some_other_workload
+    And the controller workload gets event for fields desiredState.workloads.*.*.some_other_workload
     Then The last result contains no workloads
     And the last result has no added fields
     And the last result has no updated fields
@@ -109,13 +109,13 @@ Test events on configs
     When the controller workload subscribes to the state of fields desiredState.configs
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state_different_agent_add_dependencies_and_toplevel_configs.yaml" and update mask configs
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state_update_toplevel_configs.yaml" and update mask desiredState.configs
-    And the controller workload gets events for fields desiredState.configs
+    And the controller workload gets event for fields desiredState.configs
     And the last result has added fields desiredState.configs.some_config
     And the last result has no updated fields
     And the last result has no removed fields
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/empty.yaml" and update mask desiredState.configs
-    And the controller workload gets events for fields desiredState.configs
+    And the controller workload gets event for fields desiredState.configs
     Then The last result contains no workloads
     And the last result has no added fields
     And the last result has no updated fields
@@ -130,29 +130,29 @@ Test events on workload states
 
     When the controller workload subscribes to the state of fields workloadStates
     And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
-    Then the controller workload gets events for fields workloadStates
+    Then the controller workload gets event for fields workloadStates
     And the last result has added fields workloadStates.agent_A.simple.*
     And the last result has no updated fields
     And the last result has no removed fields
 
-    When the controller workload gets events for fields workloadStates
+    When the controller workload gets event for fields workloadStates
     Then the last result has no added fields
     And the last result has updated fields workloadStates.agent_A.simple.*
     And the last result has no removed fields
 
-    When the controller workload gets events for fields workloadStates
+    When the controller workload gets event for fields workloadStates
     Then the last result has no added fields
     And the last result has updated fields workloadStates.agent_A.simple.*
     And the last result has no removed fields
 
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/empty.yaml" and update mask desiredState.workloads.simple
-    And the controller workload gets events for fields workloadStates
+    And the controller workload gets event for fields workloadStates
     Then the last result has no added fields
     And the last result has updated fields workloadStates.agent_A.simple.*
     And the last result has no removed fields
 
-    When the controller workload gets events for fields workloadStates
+    When the controller workload gets event for fields workloadStates
     Then the last result has no added fields
     And the last result has no updated fields
     And the last result has removed fields workloadStates.agent_A.simple.*

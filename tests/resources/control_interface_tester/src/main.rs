@@ -70,7 +70,7 @@ enum CommandEnum {
     RequestLogs(RequestLogs),
     GetLogs(GetLogs),
     CancelLogs(CancelLogs),
-    GetEvents(GetEvents),
+    GetEvent(GetEvent),
     CancelEvents(CancelEvents),
     Timeout(Timeout),
 }
@@ -106,7 +106,7 @@ struct GetLogs {
 }
 
 #[derive(Deserialize)]
-struct GetEvents {
+struct GetEvent {
     request_id: String,
 }
 
@@ -138,7 +138,7 @@ enum TestResultEnum {
     LogRequestResponse(TagSerializedResult<LogsRequestAccepted>),
     LogEntriesResponse(TagSerializedResult<LogEntriesResponse>),
     LogCancelResponse(TagSerializedResult<LogsCancelAccepted>),
-    EventEntriesResponse(TagSerializedResult<(CompleteState, AlteredFields)>),
+    EventEntryResponse(TagSerializedResult<(CompleteState, AlteredFields)>),
     EventsCancelResponse(TagSerializedResult<EventsCancelAccepted>),
     NoApi,
     SendHelloResult(TagSerializedResult<()>),
@@ -298,9 +298,9 @@ impl Connection {
                     logging::log("Executing command: CancelEvents");
                     self.handle_cancel_events_command(request_id)?
                 }
-                CommandEnum::GetEvents(GetEvents { request_id }) => {
+                CommandEnum::GetEvent(GetEvent { request_id }) => {
                     logging::log("Executing command: GetEvents");
-                    self.handle_get_events_command(request_id)?
+                    self.handle_get_event_command(request_id)?
                 }
                 CommandEnum::Timeout(Timeout { duration_ms }) => {
                     logging::log("Executing command: Timeout");
@@ -684,13 +684,13 @@ impl Connection {
         }
     }
 
-    fn handle_get_events_command(
+    fn handle_get_event_command(
         &mut self,
         request_id: String,
     ) -> Result<TestResultEnum, CommandError> {
         let response = self.wait_for_response(request_id)?;
 
-        Ok(TestResultEnum::EventEntriesResponse(match response {
+        Ok(TestResultEnum::EventEntryResponse(match response {
             ResponseContent::CompleteStateResponse(complete_state) => {
                 match (complete_state.complete_state, complete_state.altered_fields) {
                     (Some(complete_state), Some(altered_fields)) => {
