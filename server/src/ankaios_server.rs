@@ -564,6 +564,7 @@ impl AnkaiosServer {
                     self.server_state.cleanup_state(&method_obj.workload_states);
 
                     if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-event-for-removed-workload-states~1]
                         let new_state = CompleteStateSpec {
                             workload_states: self.workload_states_map.clone(),
                             ..Default::default()
@@ -674,6 +675,8 @@ impl AnkaiosServer {
             .await;
 
         // [impl->swdd~server-sends-state-differences-as-events~1]
+        // [impl->swdd~server-sends-event-for-initial-workload-states~1]
+        // [impl->swdd~server-sends-event-for-removed-workload-states~1]
         if self.event_handler.has_subscribers() {
             let new_state = CompleteStateSpec {
                 desired_state: state_generation_result.new_desired_state,
