@@ -792,6 +792,19 @@ The controller workload requests shall all succeed
     internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
     internal_check_all_result_expectations_succeeded    ${ankaios_config_folder.name}
 
+The controller workload requests shall all succeed with second agent
+    ${ankaios_config_folder}=    create_control_interface_config_for_test
+    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios agent is started with name "${AGENT_NAME}"
+    BuiltIn.Sleep    1s
+    Ankaios agent is started with name "${AGENT_2_NAME}"
+    # we do no want the agent to send a second update of its state, which would be send after 1 second
+    BuiltIn.Sleep    500ms
+    Ankaios agent with name "${AGENT_2_NAME}" is terminated
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "${AGENT_NAME}" within "20" seconds
+    internal_check_all_control_interface_requests_succeeded    ${ankaios_config_folder.name}
+    internal_check_all_result_expectations_succeeded    ${ankaios_config_folder.name}
+
 The controller workload last request shall fail
     ${ankaios_config_folder}=    create_control_interface_config_for_test
     Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"

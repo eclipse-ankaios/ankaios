@@ -159,3 +159,27 @@ Test events on workload states
 
     When the controller workload cancels events for fields workloadStates
     Then the controller workload requests shall all succeed
+
+
+Test events on agents
+    Given the controller workload is allowed to read and write on *
+
+    When the controller workload subscribes to the state of fields agents.agent_B
+    And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
+    And the controller workload gets event for fields agents.agent_B
+    Then the last result has added fields agents.agent_B
+    And the last result has no updated fields
+    And the last result has no removed fields
+
+    When the controller workload gets event for fields agents.agent_B
+    Then the last result has added fields agents.agent_B.freeMemory and agents.agent_B.cpuUsage
+    And the last result has no updated fields
+    And the last result has no removed fields
+
+    When the controller workload gets event for fields agents.agent_B
+    Then the last result has no added fields
+    And the last result has no updated fields
+    And the last result has removed fields agents.agent_B
+
+    When the controller workload cancels events for fields agents.agent_B
+    Then the controller workload requests shall all succeed with second agent

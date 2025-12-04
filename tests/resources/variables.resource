@@ -16,4 +16,5 @@
 ${CONFIGS_DIR}=    ${CURDIR}/configs
 ${CERTS_DIR}=    /tmp/.certs
 ${AGENT_NAME}=    agent_A
+${AGENT_2_NAME}=    agent_B
 ${ANKAIOS_TMP_FOLDER}=    /tmp/ankaios
