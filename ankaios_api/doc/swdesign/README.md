@@ -469,9 +469,10 @@ Needs:
 
 Status: approved
 
-Ankaios shall provide functions to check the version a received desired state.
+Ankaios shall provide functions to check the API version of a received desired state.
 
 Comment:
+Desired states can be received as manifests or at the Control Interface.
 More then one version can be supported at the same time, where warning log messages are written in case a deprecated version is used.
 
 Tags:
