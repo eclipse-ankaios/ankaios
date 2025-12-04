@@ -127,6 +127,7 @@ impl Display for WorkloadInstanceNameSpec {
     }
 }
 
+// [impl->swdd~api-workload-execution-instance-naming~1]
 impl WorkloadInstanceNameBuilder {
     pub fn agent_name(mut self, agent_name: impl Into<String>) -> Self {
         self.agent_name = agent_name.into();
@@ -181,7 +182,7 @@ mod tests {
     const CONFIG: &str = "config";
     const EXPECTED_HASH: &str = "b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910";
 
-    // [utest->swdd~common-workload-execution-instance-naming~1]
+    // [utest->swdd~api-workload-execution-instance-naming~1]
     #[test]
     fn utest_workload_execution_instance_name_builder() {
         let name = WorkloadInstanceNameSpec::builder()

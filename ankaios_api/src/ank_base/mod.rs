@@ -33,8 +33,8 @@ pub use control_interface_access::WILDCARD_SYMBOL;
 
 pub(crate) mod workload;
 pub use workload::{
-    ALLOWED_SYMBOLS, DeleteCondition, DeletedWorkload, FulfilledBy, STR_RE_AGENT,
-    STR_RE_CONFIG_REFERENCES, WorkloadNamed, validate_tags,
+    ALLOWED_SYMBOLS, DeleteCondition, DeletedWorkload, STR_RE_AGENT, STR_RE_CONFIG_REFERENCES,
+    WorkloadNamed, validate_tags,
 };
 
 pub(crate) mod workload_state;

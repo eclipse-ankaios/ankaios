@@ -83,7 +83,7 @@ Test Ankaios Podman Update workload with invalid api version
 
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~common-workload-naming-convention~1]
+# [stest->swdd~api-workload-naming-convention~1]
 # [stest->swdd~server-desired-state-field-conventions~1]
 Test Ankaios Podman Update workload with invalid workload name
     [Setup]    Run Keywords    Setup Ankaios
@@ -102,7 +102,7 @@ Test Ankaios Podman Update workload with invalid workload name
 
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~common-workload-naming-convention~1]
+# [stest->swdd~api-workload-naming-convention~1]
 # [stest->swdd~server-desired-state-field-conventions~1]
 Test Ankaios Podman Update workload with lengthy workload name
     [Setup]    Run Keywords    Setup Ankaios
@@ -121,7 +121,7 @@ Test Ankaios Podman Update workload with lengthy workload name
 
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~common-agent-naming-convention~3]
+# [stest->swdd~api-agent-naming-convention~1]
 # [stest->swdd~server-desired-state-field-conventions~1]
 # [stest->swdd~agent-naming-convention~1]
 Test Ankaios Podman Update workload with invalid agent name
@@ -142,7 +142,7 @@ Test Ankaios Podman Update workload with invalid agent name
 
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~common-agent-naming-convention~3]
+# [stest->swdd~api-agent-naming-convention~1]
 # [stest->swdd~server-desired-state-field-conventions~1]
 # [stest->swdd~agent-naming-convention~1]
 Test Ankaios Podman Update workload support empty agent name in workload specification

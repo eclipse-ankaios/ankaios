@@ -100,6 +100,8 @@ message LogEntry {
     string message = 2; // The log message.
 }
 
+// [impl->swdd~api-add-conditions-for-dependencies~1]
+
 /*
  * An enum type describing the expected workload state. Used for dependency management.
  */
@@ -146,6 +148,9 @@ message CompleteState {
     AgentMap agents = 3; // The agents currently connected to the Ankaios cluster.
 }
 
+
+// [impl->swdd~api-workload-state-identification~1]
+
 /*
  * A nested map that provides the execution state of a workload in a structured way.
  * The first level allows searches by agent.
@@ -168,6 +173,9 @@ message ExecutionsStatesOfWorkload {
 message ExecutionsStatesForId {
     map<string, ExecutionState> idStateMap = 1;
 }
+
+// [impl->swdd~api-workload-states-supported-states~1]
+// [impl->swdd~api-workload-state-additional-information~1]
 
 /*
  * A message containing information about the detailed state of a workload in the Ankaios system.
@@ -354,6 +362,8 @@ message Tags {
 message Dependencies {
     map<string, AddCondition> dependencies = 1; // A mapping from a workload name to an expected state.
 }
+
+// [impl->swdd~api-supports-restart-policies~1]
 
 /*
  * An enum type describing the restart behavior of a workload.

@@ -14,6 +14,8 @@
 
 use tonic_prost_build::Builder;
 
+// [impl->swdd~api-object-serialization~1]
+
 /// This function provides the proto objects with annotations required for:
 /// - serde serialization/deserialization
 /// - changes to the object structure for better usability

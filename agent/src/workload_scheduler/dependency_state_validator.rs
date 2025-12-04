@@ -15,10 +15,39 @@
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 
-use ankaios_api::ank_base::{DeletedWorkload, FulfilledBy, WorkloadNamed};
+use ankaios_api::ank_base::{
+    AddCondition, DeleteCondition, DeletedWorkload, ExecutionStateSpec, WorkloadNamed,
+};
 
 #[cfg(test)]
 use mockall::automock;
+
+// [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
+fn is_add_condition_fulfilled_by_state(
+    add_cond: &AddCondition,
+    state: &ExecutionStateSpec,
+) -> bool {
+    match add_cond {
+        AddCondition::AddCondRunning => (*state).is_running(),
+        AddCondition::AddCondSucceeded => (*state).is_succeeded(),
+        AddCondition::AddCondFailed => (*state).is_failed(),
+    }
+}
+
+// [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
+fn is_del_condition_fulfilled_by_state(
+    del_cond: &DeleteCondition,
+    state: &ExecutionStateSpec,
+) -> bool {
+    if state.is_waiting_to_start() {
+        return true;
+    }
+
+    match del_cond {
+        DeleteCondition::DelCondNotPendingNorRunning => (*state).is_not_pending_nor_running(),
+        DeleteCondition::DelCondRunning => (*state).is_running(),
+    }
+}
 
 pub struct DependencyStateValidator {}
 
@@ -39,7 +68,7 @@ impl DependencyStateValidator {
                     .get_state_of_workload(dependency_name)
                     .is_some_and(|wl_state| {
                         // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
-                        add_condition.fulfilled_by(wl_state)
+                        is_add_condition_fulfilled_by_state(add_condition, wl_state)
                     })
             })
     }
@@ -57,7 +86,7 @@ impl DependencyStateValidator {
                     .get_state_of_workload(dependency_name)
                     .is_none_or(|wl_state| {
                         // [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
-                        delete_condition.fulfilled_by(wl_state)
+                        is_del_condition_fulfilled_by_state(delete_condition, wl_state)
                     })
             })
     }
@@ -74,9 +103,12 @@ impl DependencyStateValidator {
 #[cfg(test)]
 mod tests {
     use super::DependencyStateValidator;
+    use crate::workload_scheduler::dependency_state_validator::{
+        is_add_condition_fulfilled_by_state, is_del_condition_fulfilled_by_state,
+    };
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
 
-    use ankaios_api::ank_base::{DeleteCondition, ExecutionStateSpec, WorkloadNamed};
+    use ankaios_api::ank_base::{AddCondition, DeleteCondition, ExecutionStateSpec, WorkloadNamed};
     use ankaios_api::test_utils::{
         generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
         generate_test_workload_with_param,
@@ -88,6 +120,50 @@ mod tests {
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
     const RUNTIME: &str = "runtime";
+
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
+    #[test]
+    fn utest_add_condition_fulfilled_by() {
+        let add_condition = AddCondition::AddCondRunning;
+        assert!(is_add_condition_fulfilled_by_state(
+            &add_condition,
+            &ExecutionStateSpec::running()
+        ));
+
+        let add_condition = AddCondition::AddCondSucceeded;
+        assert!(is_add_condition_fulfilled_by_state(
+            &add_condition,
+            &ExecutionStateSpec::succeeded()
+        ));
+
+        let add_condition = AddCondition::AddCondFailed;
+        assert!(is_add_condition_fulfilled_by_state(
+            &add_condition,
+            &ExecutionStateSpec::failed("some failure".to_string())
+        ));
+    }
+
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
+    #[test]
+    fn utest_delete_condition_fulfilled_by() {
+        let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
+        assert!(is_del_condition_fulfilled_by_state(
+            &delete_condition,
+            &ExecutionStateSpec::succeeded()
+        ));
+
+        let delete_condition = DeleteCondition::DelCondRunning;
+        assert!(is_del_condition_fulfilled_by_state(
+            &delete_condition,
+            &ExecutionStateSpec::running()
+        ));
+
+        let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
+        assert!(is_del_condition_fulfilled_by_state(
+            &delete_condition,
+            &ExecutionStateSpec::waiting_to_start()
+        ));
+    }
 
     // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
     // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]

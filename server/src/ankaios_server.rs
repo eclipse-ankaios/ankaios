@@ -80,6 +80,7 @@ impl AnkaiosServer {
 
     pub async fn start(&mut self, startup_state: Option<CompleteStateSpec>) -> Result<(), String> {
         if let Some(state) = startup_state {
+            // [impl->swdd~server-validates-desired-state-api-version~1]
             state.desired_state.validate_pre_rendering()?;
 
             match self.server_state.update(state, vec![]) {
@@ -252,6 +253,7 @@ impl AnkaiosServer {
                         // [impl->swdd~update-desired-state-with-missing-version~1]
                         // [impl->swdd~server-desired-state-field-conventions~1]
                         let new_desired_state = &update_state_request.new_state.desired_state;
+                        // [impl->swdd~server-validates-desired-state-api-version~1]
                         if let Err(error_message) = new_desired_state.validate_pre_rendering() {
                             log::warn!(
                                 "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
@@ -643,6 +645,7 @@ mod tests {
     }
 
     // [utest->swdd~server-fails-on-invalid-startup-state~1]
+    // [utest->swdd~server-validates-desired-state-api-version~1]
     #[tokio::test]
     async fn utest_server_start_fail_on_startup_manifest_with_invalid_version() {
         let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
