@@ -30,6 +30,7 @@ fn annotate_general(builder: Builder) -> Builder {
     builder
         .boxed("Request.RequestContent.updateStateRequest")
         .boxed("FromAnkaios.FromAnkaiosEnum.response")
+        .boxed("Response.ResponseContent.completeStateResponse")
         .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")
         .message_attribute(".", "#[serde(rename_all = \"camelCase\")]")
 }

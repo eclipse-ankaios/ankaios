@@ -111,6 +111,7 @@ impl ServerConnection {
                 request_id.to_owned(),
                 CompleteStateRequestSpec {
                     field_mask: object_field_mask.to_vec(),
+                    subscribe_for_events: false,
                 },
             )
             .await
@@ -121,10 +122,10 @@ impl ServerConnection {
                 match self.from_server.recv().await {
                     Some(FromServer::Response(Response {
                         request_id: received_request_id,
-                        response_content: Some(ResponseContent::CompleteState(res)),
+                        response_content: Some(ResponseContent::CompleteStateResponse(res)),
                     })) if received_request_id == request_id => {
                         output_debug!("Received from server: {res:?} ");
-                        return Ok(res);
+                        return Ok(res.complete_state.unwrap_or_default());
                     }
                     None => return Err("Channel preliminary closed."),
                     Some(message) => {
@@ -561,11 +562,11 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        CompleteStateRequestSpec, CompleteStateSpec, Error, ExecutionStateSpec, LogEntriesResponse,
-        LogEntry, LogsCancelRequestSpec, LogsRequestAccepted, LogsRequestSpec, LogsStopResponse,
-        RequestContentSpec, Response, ResponseContent, StateSpec, UpdateStateRequestSpec,
-        UpdateStateSuccess, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadSpec,
-        WorkloadStateSpec,
+        CompleteStateRequestSpec, CompleteStateResponse, CompleteStateSpec, Error,
+        ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsCancelRequestSpec,
+        LogsRequestAccepted, LogsRequestSpec, LogsStopResponse, RequestContentSpec, Response,
+        ResponseContent, StateSpec, UpdateStateRequestSpec, UpdateStateSuccess,
+        WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadSpec, WorkloadStateSpec,
     };
     use ankaios_api::test_utils::{generate_test_proto_complete_state, generate_test_workload};
     use common::{
@@ -732,6 +733,7 @@ mod tests {
             REQUEST,
             RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
+                subscribe_for_events: false,
             }),
         );
 
@@ -740,7 +742,10 @@ mod tests {
 
         sim.will_send_response(
             REQUEST,
-            ResponseContent::CompleteState(proto_complete_state.clone()),
+            ResponseContent::CompleteStateResponse(Box::new(CompleteStateResponse {
+                complete_state: Some(proto_complete_state.clone()),
+                ..Default::default()
+            })),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -775,6 +780,7 @@ mod tests {
             REQUEST,
             RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
+                subscribe_for_events: false,
             }),
         );
         let (_checker, mut server_connection) = sim.create_server_connection();
@@ -793,9 +799,15 @@ mod tests {
 
         let other_response = FromServer::Response(Response {
             request_id: OTHER_REQUEST.into(),
-            response_content: Some(ResponseContent::CompleteState(
-                generate_test_proto_complete_state(&[(WORKLOAD_NAME_2, generate_test_workload())]),
-            )),
+            response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                CompleteStateResponse {
+                    complete_state: Some(generate_test_proto_complete_state(&[(
+                        WORKLOAD_NAME_2,
+                        generate_test_workload(),
+                    )])),
+                    ..Default::default()
+                },
+            ))),
         });
 
         let mut sim = CommunicationSimulator::default();
@@ -803,12 +815,16 @@ mod tests {
             REQUEST,
             RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
+                subscribe_for_events: false,
             }),
         );
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
             REQUEST,
-            ResponseContent::CompleteState(proto_complete_state.clone()),
+            ResponseContent::CompleteStateResponse(Box::new(CompleteStateResponse {
+                complete_state: Some(proto_complete_state.clone()),
+                ..Default::default()
+            })),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -838,12 +854,16 @@ mod tests {
             REQUEST,
             RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_MASK.into()],
+                subscribe_for_events: false,
             }),
         );
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
             REQUEST,
-            ResponseContent::CompleteState(proto_complete_state.clone()),
+            ResponseContent::CompleteStateResponse(Box::new(CompleteStateResponse {
+                complete_state: Some(proto_complete_state.clone()),
+                ..Default::default()
+            })),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -981,9 +1001,15 @@ mod tests {
         };
         let other_response = FromServer::Response(Response {
             request_id: OTHER_REQUEST.into(),
-            response_content: Some(ResponseContent::CompleteState(
-                generate_test_proto_complete_state(&[(WORKLOAD_NAME_2, generate_test_workload())]),
-            )),
+            response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                CompleteStateResponse {
+                    complete_state: Some(generate_test_proto_complete_state(&[(
+                        WORKLOAD_NAME_2,
+                        generate_test_workload(),
+                    )])),
+                    ..Default::default()
+                },
+            ))),
         });
 
         let mut sim = CommunicationSimulator::default();

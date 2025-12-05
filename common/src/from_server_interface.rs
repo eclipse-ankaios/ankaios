@@ -14,9 +14,10 @@
 
 use crate::{commands, std_extensions::UnreachableResult};
 use ankaios_api::ank_base::{
-    CompleteState, DeletedWorkload, Error, LogEntriesResponse, LogsCancelAccepted, LogsRequest,
-    LogsRequestAccepted, LogsRequestSpec, LogsStopResponse, Response, ResponseContent,
-    UpdateStateSuccess, WorkloadNamed, WorkloadStateSpec,
+    CompleteState, CompleteStateResponse, DeletedWorkload, Error, EventsCancelAccepted,
+    LogEntriesResponse, LogsCancelAccepted, LogsRequest, LogsRequestAccepted, LogsRequestSpec,
+    LogsStopResponse, Response, ResponseContent, UpdateStateSuccess, WorkloadNamed,
+    WorkloadStateSpec,
 };
 
 use async_trait::async_trait;
@@ -105,6 +106,10 @@ pub trait FromServerInterface {
         &self,
         request_id: String,
     ) -> Result<(), FromServerInterfaceError>;
+    async fn event_cancel_request_accepted(
+        &self,
+        request_id: String,
+    ) -> Result<(), FromServerInterfaceError>;
     async fn error(
         &self,
         request_id: String,
@@ -168,7 +173,13 @@ impl FromServerInterface for FromServerSender {
         Ok(self
             .send(FromServer::Response(Response {
                 request_id,
-                response_content: ResponseContent::CompleteState(complete_state).into(),
+                response_content: ResponseContent::CompleteStateResponse(Box::new(
+                    CompleteStateResponse {
+                        complete_state: Some(complete_state),
+                        altered_fields: Default::default(),
+                    },
+                ))
+                .into(),
             }))
             .await?)
     }
@@ -266,6 +277,18 @@ impl FromServerInterface for FromServerSender {
         Ok(())
     }
 
+    async fn event_cancel_request_accepted(
+        &self,
+        request_id: String,
+    ) -> Result<(), FromServerInterfaceError> {
+        self.send(FromServer::Response(Response {
+            request_id,
+            response_content: ResponseContent::EventsCancelAccepted(EventsCancelAccepted {}).into(),
+        }))
+        .await?;
+        Ok(())
+    }
+
     async fn error(
         &self,
         request_id: String,
@@ -301,9 +324,9 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{
-        CompleteState, Error, ExecutionStateSpec, LogEntriesResponse, LogEntry, LogsRequest,
-        LogsRequestSpec, LogsStopResponse, Response, ResponseContent, UpdateStateSuccess,
-        WorkloadInstanceName, WorkloadInstanceNameSpec,
+        CompleteState, CompleteStateResponse, Error, ExecutionStateSpec, LogEntriesResponse,
+        LogEntry, LogsRequest, LogsRequestSpec, LogsStopResponse, Response, ResponseContent,
+        UpdateStateSuccess, WorkloadInstanceName, WorkloadInstanceNameSpec,
     };
     use ankaios_api::test_utils::{
         generate_test_complete_state, generate_test_deleted_workload, generate_test_workload,
@@ -381,7 +404,12 @@ mod tests {
             rx.recv().await.unwrap(),
             FromServer::Response(Response {
                 request_id: REQUEST_ID.to_string(),
-                response_content: Some(ResponseContent::CompleteState(complete_state)),
+                response_content: Some(ResponseContent::CompleteStateResponse(Box::new(
+                    CompleteStateResponse {
+                        complete_state: Some(complete_state.clone()),
+                        altered_fields: Default::default(),
+                    }
+                ))),
             })
         )
     }
