@@ -172,6 +172,7 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
 
+                    // [impl->swdd~server-sends-state-differences-as-events~1]
                     let old_state = if self.event_handler.has_subscribers() {
                         CompleteStateSpec {
                             agents: self.agent_map.clone(),
@@ -187,12 +188,12 @@ impl AnkaiosServer {
                         .insert(agent_name.clone(), Default::default());
 
                     if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-state-differences-as-events~1]
                         let new_state = CompleteStateSpec {
                             agents: self.agent_map.clone(),
                             ..Default::default()
                         };
 
-                        // [impl->swdd~server-sends-event-for-newly-connected-agent~1]
                         let state_comparator = StateComparator::new(old_state, new_state);
                         let state_difference_tree = state_comparator.state_differences();
                         self.event_handler
@@ -215,6 +216,7 @@ impl AnkaiosServer {
                         method_obj.free_memory.free_memory,
                     );
 
+                    // [impl->swdd~server-sends-state-differences-as-events~1]
                     let old_state = if self.event_handler.has_subscribers() {
                         CompleteStateSpec {
                             agents: self.agent_map.clone(),
@@ -234,9 +236,8 @@ impl AnkaiosServer {
                             })
                         });
 
-                    // For simplicity we treat the resource availability changes always as update
                     if self.event_handler.has_subscribers() {
-                        // [impl->swdd~server-sends-event-for-updated-agent-resource-availability~1]
+                        // [impl->swdd~server-sends-state-differences-as-events~1]
                         let new_state = CompleteStateSpec {
                             agents: self.agent_map.clone(),
                             ..Default::default()
@@ -259,6 +260,7 @@ impl AnkaiosServer {
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
+                    // [impl->swdd~server-sends-state-differences-as-events~1]
                     let old_state = if self.event_handler.has_subscribers() {
                         CompleteStateSpec {
                             agents: self.agent_map.clone(),
@@ -284,13 +286,13 @@ impl AnkaiosServer {
                         .get_workload_state_for_agent(&agent_name);
 
                     if self.event_handler.has_subscribers() {
+                        // [impl->swdd~server-sends-state-differences-as-events~1]
                         let new_state = CompleteStateSpec {
                             agents: self.agent_map.clone(),
                             workload_states: self.workload_states_map.clone(),
                             ..Default::default()
                         };
 
-                        // [impl->swdd~server-sends-events-for-disconnected-agent~1]
                         let state_comparator = StateComparator::new(old_state, new_state);
 
                         let state_difference_tree = state_comparator.state_differences();
@@ -440,8 +442,8 @@ impl AnkaiosServer {
                                     .await
                                     .unwrap_or_illegal_state();
 
-                                // [impl->swdd~server-sends-state-differences-as-events~1]
                                 if self.event_handler.has_subscribers() {
+                                    // [impl->swdd~server-sends-state-differences-as-events~1]
                                     // state changes must be calculated after every update since only config item can be changed as well
                                     let old_state = CompleteStateSpec {
                                         desired_state: state_generation_result.old_desired_state,
@@ -547,6 +549,7 @@ impl AnkaiosServer {
                         method_obj.workload_states
                     );
 
+                    // [impl->swdd~server-sends-state-differences-as-events~1]
                     let old_state = if self.event_handler.has_subscribers() {
                         CompleteStateSpec {
                             workload_states: self.workload_states_map.clone(),
@@ -564,7 +567,7 @@ impl AnkaiosServer {
                     self.server_state.cleanup_state(&method_obj.workload_states);
 
                     if self.event_handler.has_subscribers() {
-                        // [impl->swdd~server-sends-event-for-removed-workload-states~1]
+                        // [impl->swdd~server-sends-state-differences-as-events~1]
                         let new_state = CompleteStateSpec {
                             workload_states: self.workload_states_map.clone(),
                             ..Default::default()
@@ -674,10 +677,8 @@ impl AnkaiosServer {
             .handle_not_started_deleted_workloads(deleted_workloads)
             .await;
 
-        // [impl->swdd~server-sends-state-differences-as-events~1]
-        // [impl->swdd~server-sends-event-for-initial-workload-states~1]
-        // [impl->swdd~server-sends-event-for-removed-workload-states~1]
         if self.event_handler.has_subscribers() {
+            // [impl->swdd~server-sends-state-differences-as-events~1]
             let new_state = CompleteStateSpec {
                 desired_state: state_generation_result.new_desired_state,
                 workload_states: self.workload_states_map.clone(),
@@ -3119,7 +3120,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
-    // [utest->swdd~server-sends-event-for-newly-connected-agent~1]
+    // [utest->swdd~server-sends-state-differences-as-events~1]
     #[tokio::test]
     async fn utest_server_sends_events_for_newly_connected_agents() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -3189,7 +3190,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // [utest->swdd~server-sends-events-for-disconnected-agent~1]
+    // [utest->swdd~server-sends-state-differences-as-events~1]
     #[tokio::test]
     async fn utest_server_sends_events_for_disconnected_agents() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -3275,8 +3276,6 @@ mod tests {
     }
 
     // [utest->swdd~server-sends-state-differences-as-events~1]
-    // [utest->swdd~server-sends-event-for-initial-workload-states~1]
-    // [utest->swdd~server-sends-event-for-removed-workload-states~1]
     #[tokio::test]
     async fn utest_server_sends_events_upon_update_state_with_updated_workloads() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -3548,8 +3547,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // [utest->swdd~server-sends-event-for-updated-workload-states~1]
-    // [utest->swdd~server-sends-event-for-removed-workload-states~1]
+    // [utest->swdd~server-sends-state-differences-as-events~1]
     #[tokio::test]
     async fn utest_server_sends_events_for_workload_states() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -3640,7 +3638,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // [utest->swdd~server-sends-event-for-updated-agent-resource-availability~1]
+    // [utest->swdd~server-sends-state-differences-as-events~1]
     #[tokio::test]
     async fn utest_server_sends_events_for_agent_load_status() {
         let _ = env_logger::builder().is_test(true).try_init();

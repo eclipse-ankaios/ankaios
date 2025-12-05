@@ -89,20 +89,24 @@ impl EventHandler {
             .into();
 
         for (request_id, subscribed_field_masks) in &self.subscriber_store {
-            // [impl->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
-            let added_altered_fields = collect_altered_fields_matching_subscriber_masks(
+            // [impl->swdd~event-handler-creates-altered-fields-using-first-difference-tree~1]
+            // [impl->swdd~event-handler-creates-altered-fields-using-full-difference-tree~1]
+            let added_altered_fields = create_altered_fields_matching_subscriber_masks(
                 &added_full_difference_tree,
                 &added_first_difference_tree,
                 subscribed_field_masks,
             );
 
-            let removed_altered_fields = collect_altered_fields_matching_subscriber_masks(
+            // [impl->swdd~event-handler-creates-altered-fields-using-first-difference-tree~1]
+            // [impl->swdd~event-handler-creates-altered-fields-using-full-difference-tree~1]
+            let removed_altered_fields = create_altered_fields_matching_subscriber_masks(
                 &removed_full_difference_tree,
                 &removed_first_difference_tree,
                 subscribed_field_masks,
             );
 
-            let updated_altered_fields = collect_altered_fields_matching_subscriber_masks(
+            // [impl->swdd~event-handler-creates-altered-fields-using-full-difference-tree-for-updated-fields~1]
+            let updated_altered_fields = create_altered_fields_matching_subscriber_masks(
                 &updated_full_difference_tree,
                 &updated_full_difference_tree,
                 subscribed_field_masks,
@@ -118,54 +122,40 @@ impl EventHandler {
             filter_masks.extend(altered_fields.removed_fields.clone());
             filter_masks.extend(altered_fields.updated_fields.clone());
 
-            log::debug!(
-                "Added trees: {added_first_difference_tree:?}, {added_full_difference_tree:?}"
-            );
-            log::debug!(
-                "Removed trees: {removed_first_difference_tree:?}, {removed_full_difference_tree:?}"
-            );
-            log::debug!("Updated tree: {updated_full_difference_tree:?}");
-
-            log::debug!("Altered fields for subscriber '{request_id}': {altered_fields:?}");
-
-            log::debug!(
-                "Subscriber masks for subscriber '{request_id}': {subscribed_field_masks:?}"
-            );
-
             if !altered_fields.all_empty() {
-                {
-                    let complete_state_differences = server_state
-                        .get_complete_state_by_field_mask(
-                            CompleteStateRequestSpec {
-                                field_mask: filter_masks,
-                                subscribe_for_events: false,
-                            },
-                            workload_states_map,
-                            agent_map,
-                        )
-                        .unwrap_or_illegal_state();
+                let complete_state_differences = server_state
+                    .get_complete_state_by_field_mask(
+                        CompleteStateRequestSpec {
+                            field_mask: filter_masks,
+                            subscribe_for_events: false,
+                        },
+                        workload_states_map,
+                        agent_map,
+                    )
+                    .unwrap_or_illegal_state();
 
-                    log::debug!(
-                        "Sending event to subscriber '{request_id}' with altered fields: {altered_fields:?} and complete state differences: {complete_state_differences:?}",
-                    );
+                log::debug!(
+                    "Sending event to subscriber '{request_id}' with altered fields: {altered_fields:?} and complete state differences: {complete_state_differences:?}",
+                );
 
-                    let request_id = to_string_id(request_id);
-                    from_server_channel
-                        .complete_state(
-                            request_id,
-                            complete_state_differences,
-                            Some(altered_fields.into()),
-                        )
-                        .await
-                        .unwrap_or_illegal_state();
-                }
+                let request_id = to_string_id(request_id);
+                from_server_channel
+                    .complete_state(
+                        request_id,
+                        complete_state_differences,
+                        Some(altered_fields.into()),
+                    )
+                    .await
+                    .unwrap_or_illegal_state();
             }
         }
     }
 }
 
-// [impl->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
-fn collect_altered_fields_matching_subscriber_masks(
+// [impl->swdd~event-handler-creates-altered-fields-using-first-difference-tree~1]
+// [impl->swdd~event-handler-creates-altered-fields-using-full-difference-tree~1]
+// [impl->swdd~event-handler-creates-altered-fields-using-full-difference-tree-for-updated-fields~1]
+fn create_altered_fields_matching_subscriber_masks(
     full_level_tree: &serde_yaml::Mapping,
     first_level_tree: &serde_yaml::Mapping,
     subscriber_field_masks: &[Path],
@@ -298,7 +288,8 @@ fn collect_altered_fields_matching_subscriber_masks(
     altered_fields
 }
 
-// [impl->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
+// [impl->swdd~event-handler-creates-altered-fields-using-first-difference-tree~1]
+// [impl->swdd~event-handler-creates-altered-fields-using-full-difference-tree~1]
 pub fn collect_all_leaf_paths_iterative(start_node: &Value) -> Vec<String> {
     let node = start_node;
     let mut results = Vec::new();
@@ -323,7 +314,6 @@ pub fn collect_all_leaf_paths_iterative(start_node: &Value) -> Vec<String> {
     results
 }
 
-// [impl->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
 fn update_path_with_new_key(current_path: &str, new_key: &str) -> String {
     if current_path.is_empty() {
         new_key.to_owned()
@@ -385,8 +375,7 @@ mod tests {
     use super::EventHandler;
     use crate::ankaios_server::state_comparator::generate_difference_tree_from_paths;
     use crate::ankaios_server::{
-        create_from_server_channel,
-        event_handler::collect_altered_fields_matching_subscriber_masks,
+        create_from_server_channel, event_handler::create_altered_fields_matching_subscriber_masks,
         server_state::MockServerState,
     };
 
@@ -459,7 +448,9 @@ mod tests {
     }
 
     // [utest->swdd~event-handler-sends-complete-state-differences-including-altered-fields~1]
-    // [utest->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
+    // [utest->swdd~event-handler-creates-altered-fields-using-first-difference-tree~1]
+    // [utest->swdd~event-handler-creates-altered-fields-using-full-difference-tree~1]
+    // [utest->swdd~event-handler-creates-altered-fields-using-full-difference-tree-for-updated-fields~1]
     #[tokio::test]
     async fn utest_event_handler_send_events() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -622,7 +613,7 @@ mod tests {
         assert_eq!(altered_fields, expected_altered_fields);
     }
 
-    // [utest->swdd~event-handler-calculates-altered-field-masks-matching-subscribers-field-masks~1]
+    // [utest->swdd~event-handler-creates-altered-fields-using-first-difference-tree~1]
     #[test]
     fn utest_collect_altered_fields_matching_subscriber_masks_with_shorter_mask_than_first_difference()
      {
@@ -650,7 +641,7 @@ mod tests {
             serde_yaml::from_str(full_difference_tree_yaml).unwrap();
 
         // case 1: without wildcard
-        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+        let altered_fields = create_altered_fields_matching_subscriber_masks(
             &full_difference_tree,
             &first_difference_tree,
             &["root".into()],
@@ -661,7 +652,7 @@ mod tests {
         assert!(altered_fields.contains(&"root.child2".to_owned()));
 
         // case 2: with wildcard
-        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+        let altered_fields = create_altered_fields_matching_subscriber_masks(
             &full_difference_tree,
             &first_difference_tree,
             &["root.*".into()],
@@ -672,6 +663,7 @@ mod tests {
         assert!(altered_fields.contains(&"root.child2".to_owned()));
     }
 
+    // [utest->swdd~event-handler-creates-altered-fields-using-full-difference-tree~1]
     #[test]
     fn utest_collect_altered_fields_matching_subscriber_masks_with_longer_masks_than_first_difference()
      {
@@ -699,7 +691,7 @@ mod tests {
             serde_yaml::from_str(full_difference_tree_yaml).unwrap();
 
         // case 1: without wildcard
-        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+        let altered_fields = create_altered_fields_matching_subscriber_masks(
             &full_difference_tree,
             &first_difference_tree,
             &["root.child1.grandchild2.great_grandchild".into()],
@@ -708,7 +700,7 @@ mod tests {
         assert!(altered_fields.contains(&"root.child1.grandchild2.great_grandchild".to_owned()));
 
         // case 2: with wildcard
-        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+        let altered_fields = create_altered_fields_matching_subscriber_masks(
             &full_difference_tree,
             &first_difference_tree,
             &["root.*.*.great_grandchild".into()],
@@ -717,6 +709,7 @@ mod tests {
         assert!(altered_fields.contains(&"root.child1.grandchild2.great_grandchild".to_owned()));
     }
 
+    // [utest->swdd~event-handler-creates-altered-fields-using-first-difference-tree~1]
     #[test]
     fn utest_collect_altered_fields_matching_subscriber_masks_with_exact_field_mask() {
         let first_difference_tree_yaml = r#"
@@ -743,7 +736,7 @@ mod tests {
             serde_yaml::from_str(full_difference_tree_yaml).unwrap();
 
         // case 1: without wildcard
-        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+        let altered_fields = create_altered_fields_matching_subscriber_masks(
             &full_difference_tree,
             &first_difference_tree,
             &["root.child1.grandchild1".into(), "root.child2".into()],
@@ -753,7 +746,7 @@ mod tests {
         assert!(altered_fields.contains(&"root.child2".to_owned()));
 
         // case 2: with wildcard
-        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+        let altered_fields = create_altered_fields_matching_subscriber_masks(
             &full_difference_tree,
             &first_difference_tree,
             &["root.*.*".into()],
@@ -763,6 +756,8 @@ mod tests {
         assert!(altered_fields.contains(&"root.child1.grandchild2".to_owned()));
     }
 
+    // [utest->swdd~event-handler-creates-altered-fields-using-first-difference-tree~1]
+    // [utest->swdd~event-handler-creates-altered-fields-using-full-difference-tree~1]
     #[test]
     fn utest_collect_altered_fields_matching_subscriber_masks_with_not_existing_field() {
         let first_difference_tree_yaml = r#"
@@ -782,7 +777,7 @@ mod tests {
         let full_difference_tree: serde_yaml::Mapping =
             serde_yaml::from_str(full_difference_tree_yaml).unwrap();
 
-        let altered_fields = collect_altered_fields_matching_subscriber_masks(
+        let altered_fields = create_altered_fields_matching_subscriber_masks(
             &full_difference_tree,
             &first_difference_tree,
             &["root.child1.grandchild1.non_existing".into()],

@@ -95,6 +95,7 @@ impl StateComparator {
                             };
                             let mut added_field_mask = current_field_mask.clone();
                             added_field_mask.push(added_key);
+                            // [impl->swdd~server-generates-trees-for-first-and-full-difference-field-paths~1]
                             state_difference_tree
                                 .insert_added_path(added_field_mask.clone(), Default::default());
 
@@ -115,10 +116,12 @@ impl StateComparator {
                             };
                             let mut removed_field_mask = current_field_mask.clone();
                             removed_field_mask.push(removed_key);
+                            // [impl->swdd~server-generates-trees-for-first-and-full-difference-field-paths~1]
                             state_difference_tree.insert_removed_path(
                                 removed_field_mask.clone(),
                                 Default::default(),
                             );
+
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.removed_tree.full_difference_tree,
                                 Path::from(removed_field_mask),
@@ -185,6 +188,7 @@ impl StateComparator {
         state_difference_tree
     }
 
+    // [impl->swdd~server-generates-trees-for-first-and-full-difference-field-paths~1]
     fn copy_nested_keys_to_tree(start_node: &Value) -> Value {
         match start_node {
             Value::Mapping(map) if !map.is_empty() => {
@@ -404,6 +408,7 @@ mod tests {
         assert!(state_difference_tree.is_empty());
     }
 
+    // [utest->swdd~server-generates-trees-for-first-and-full-difference-field-paths~1]
     #[test]
     fn utest_calculate_state_differences_added_mapping() {
         let old_state_yaml = r#"
@@ -496,6 +501,7 @@ mod tests {
         assert!(state_difference_tree.removed_tree.is_empty());
     }
 
+    // [utest->swdd~server-generates-trees-for-first-and-full-difference-field-paths~1]
     #[test]
     fn utest_calculate_state_differences_removed_mapping() {
         let old_state_yaml = r#"
@@ -552,6 +558,7 @@ mod tests {
         assert!(state_difference_tree.updated_tree.is_empty());
     }
 
+    // [utest->swdd~server-generates-trees-for-first-and-full-difference-field-paths~1]
     #[test]
     fn utest_calculate_state_differences_removed_mapping_equal_first_and_full_difference_tree() {
         let old_state_yaml = r#"
