@@ -1,0 +1,9 @@
+desiredState:
+  apiVersion: v0.1
+  configs:
+    some_config:
+      param1: value1-updated
+      param2: value2
+      some_sub_config:
+        sub_param1: sub_value1-updated
+        sub_param2: sub_value2
