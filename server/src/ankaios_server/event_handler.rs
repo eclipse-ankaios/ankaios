@@ -21,7 +21,7 @@ use super::request_id::RequestId;
 use common::{
     from_server_interface::{FromServerInterface, FromServerSender},
     state_manipulation::Path,
-    std_extensions::{IllegalStateResult, UnreachableResult},
+    std_extensions::IllegalStateResult,
 };
 
 use ankaios_api::ank_base::{AgentMapSpec, CompleteStateRequestSpec, WorkloadStatesMapSpec};
@@ -72,28 +72,28 @@ impl EventHandler {
             .added_tree
             .first_difference_tree
             .try_into()
-            .unwrap_or_unreachable();
+            .unwrap_or_default();
         let added_full_difference_tree = field_difference_tree
             .added_tree
             .full_difference_tree
             .try_into()
-            .unwrap_or_unreachable();
+            .unwrap_or_default();
         let removed_first_difference_tree = field_difference_tree
             .removed_tree
             .first_difference_tree
             .try_into()
-            .unwrap_or_unreachable();
+            .unwrap_or_default();
         let removed_full_difference_tree = field_difference_tree
             .removed_tree
             .full_difference_tree
             .try_into()
-            .unwrap_or_unreachable();
+            .unwrap_or_default();
 
         let updated_full_difference_tree = field_difference_tree
             .updated_tree
             .full_difference_tree
             .try_into()
-            .unwrap_or_unreachable();
+            .unwrap_or_default();
 
         for (request_id, subscribed_field_masks) in &self.subscriber_store {
             // [impl->swdd~event-handler-creates-altered-fields-using-first-difference-tree~1]
