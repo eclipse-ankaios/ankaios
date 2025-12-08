@@ -66,7 +66,7 @@ impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
 mod tests {
     use super::{PODMAN_KUBE_RUNTIME_NAME, PodmanKubeRuntimeConfig};
 
-    use ankaios_api::test_utils::{generate_test_workload_with_params, vars};
+    use ankaios_api::test_utils::{generate_test_workload_with_params, fixtures};
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
     const MANIFEST_CONTENT: &str = "kube, man";
@@ -74,7 +74,7 @@ mod tests {
     #[tokio::test]
     async fn utest_podman_kube_config_failure_missing_manifest() {
         let workload =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], PODMAN_KUBE_RUNTIME_NAME);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], PODMAN_KUBE_RUNTIME_NAME);
 
         assert!(PodmanKubeRuntimeConfig::try_from(&workload).is_err());
     }
@@ -82,7 +82,7 @@ mod tests {
     #[tokio::test]
     async fn utest_podman_kube_config_failure_wrong_runtime() {
         let workload =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], DIFFERENT_RUNTIME_NAME);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], DIFFERENT_RUNTIME_NAME);
 
         assert!(PodmanKubeRuntimeConfig::try_from(&workload).is_err());
     }
@@ -91,7 +91,7 @@ mod tests {
     #[tokio::test]
     async fn utest_podman_kube_config_failure_unsupported_files_field() {
         let workload_with_files =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], DIFFERENT_RUNTIME_NAME);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], DIFFERENT_RUNTIME_NAME);
 
         assert!(PodmanKubeRuntimeConfig::try_from(&workload_with_files).is_err());
     }
@@ -99,7 +99,7 @@ mod tests {
     #[tokio::test]
     async fn utest_podman_kube_config_success() {
         let mut workload =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], PODMAN_KUBE_RUNTIME_NAME);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], PODMAN_KUBE_RUNTIME_NAME);
         workload.files = Default::default();
         workload.runtime_config = format!("manifest: {MANIFEST_CONTENT}");
 

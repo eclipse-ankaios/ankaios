@@ -187,7 +187,7 @@ mod tests {
     use super::ServerConfig;
     use crate::{cli::Arguments, server_config::ConversionErrors};
 
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
     use common::DEFAULT_SOCKET_ADDRESS;
 
     use std::io::Write;
@@ -239,8 +239,8 @@ mod tests {
         ca_pem = '''{}'''
         ca_pem_content = '''{}'''
         #",
-            vars::CA_PEM_PATH,
-            vars::CRT_PEM_CONTENT,
+            fixtures::CA_PEM_PATH,
+            fixtures::CRT_PEM_CONTENT,
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -265,9 +265,9 @@ mod tests {
             config_path: Some(DEFAULT_SERVER_CONFIG_FILE_PATH.to_string()),
             addr: TEST_SOCKET_ADDRESS.parse::<SocketAddr>().ok(),
             insecure: Some(false),
-            ca_pem: Some(vars::CA_PEM_PATH.to_string()),
-            crt_pem: Some(vars::CRT_PEM_PATH.to_string()),
-            key_pem: Some(vars::KEY_PEM_PATH.to_string()),
+            ca_pem: Some(fixtures::CA_PEM_PATH.to_string()),
+            crt_pem: Some(fixtures::CRT_PEM_PATH.to_string()),
+            key_pem: Some(fixtures::KEY_PEM_PATH.to_string()),
         };
 
         server_config.update_with_args(&args);
@@ -281,9 +281,9 @@ mod tests {
             TEST_SOCKET_ADDRESS.parse::<SocketAddr>().unwrap()
         );
         assert_eq!(server_config.insecure, Some(false));
-        assert_eq!(server_config.ca_pem, Some(vars::CA_PEM_PATH.to_string()));
-        assert_eq!(server_config.crt_pem, Some(vars::CRT_PEM_PATH.to_string()));
-        assert_eq!(server_config.key_pem, Some(vars::KEY_PEM_PATH.to_string()));
+        assert_eq!(server_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
+        assert_eq!(server_config.crt_pem, Some(fixtures::CRT_PEM_PATH.to_string()));
+        assert_eq!(server_config.key_pem, Some(fixtures::KEY_PEM_PATH.to_string()));
     }
 
     // [utest->swdd~server-loads-config-file~1]
@@ -296,9 +296,9 @@ mod tests {
         crt_pem_content = '''{}'''
         key_pem_content = '''{}'''
         #",
-            vars::CA_PEM_CONTENT,
-            vars::CRT_PEM_CONTENT,
-            vars::KEY_PEM_CONTENT,
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT,
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -320,15 +320,15 @@ mod tests {
 
         assert_eq!(
             server_config.ca_pem_content,
-            Some(vars::CA_PEM_CONTENT.to_string())
+            Some(fixtures::CA_PEM_CONTENT.to_string())
         );
         assert_eq!(
             server_config.crt_pem_content,
-            Some(vars::CRT_PEM_CONTENT.to_string())
+            Some(fixtures::CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
             server_config.key_pem_content,
-            Some(vars::KEY_PEM_CONTENT.to_string())
+            Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
     }
 
@@ -345,9 +345,9 @@ mod tests {
         crt_pem_content = '''{}'''
         key_pem_content = '''{}'''
         #",
-            vars::CA_PEM_CONTENT,
-            vars::CRT_PEM_CONTENT,
-            vars::KEY_PEM_CONTENT,
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT,
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -365,15 +365,15 @@ mod tests {
         );
         assert_eq!(
             server_config.ca_pem_content,
-            Some(vars::CA_PEM_CONTENT.to_string())
+            Some(fixtures::CA_PEM_CONTENT.to_string())
         );
         assert_eq!(
             server_config.crt_pem_content,
-            Some(vars::CRT_PEM_CONTENT.to_string())
+            Some(fixtures::CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
             server_config.key_pem_content,
-            Some(vars::KEY_PEM_CONTENT.to_string())
+            Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
         assert_eq!(server_config.insecure, Some(true));
         assert_eq!(

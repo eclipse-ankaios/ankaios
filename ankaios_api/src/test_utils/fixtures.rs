@@ -26,7 +26,7 @@ pub const REQUEST_ID: &str = "request_id";
 pub const PIPES_LOCATION: &str = "/tmp/ankaios_test/pipes";
 pub const RUN_FOLDER: &str = "/run/folder";
 
-// The runtime workload ids match the runtime configs' hashes
+// The the RUNTIME_CONFIGS' hashes matches the WORKLOAD_IDS with the corresponding index
 pub const RUNTIME_CONFIGS: [&str; 2] = [
     "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n",
     "image: ghcr.io/eclipse-ankaios/tests/sleepy:latest",
@@ -43,7 +43,8 @@ pub const RUNTIME_NAMES: [&str; 2] = ["runtime_A", "runtime_B"];
 pub const FILE_TEXT_PATH: &str = "/text_file.json";
 pub const FILE_TEXT_DATA: &str = "text data";
 pub const FILE_BINARY_PATH: &str = "/binary_file";
-pub const FILE_BINARY_DATA: &str = "YmFzZTY0IGRhdGE="; // base64 encoded "base64 data"
+pub const FILE_BINARY_DATA: &str = "YmFzZTY0IGRhdGE=";
+pub const FILE_DECODED_BINARY_DATA: &str = "base64 data";
 
 pub const CA_PEM_PATH: &str = "some_path_to_ca_pem/ca.pem";
 pub const CRT_PEM_PATH: &str = "some_path_to_crt_pem/crt.pem";

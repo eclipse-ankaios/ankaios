@@ -367,7 +367,7 @@ mod tests {
     use ankaios_api::test_utils::{
         generate_test_agent_map, generate_test_complete_state, generate_test_config_map,
         generate_test_proto_complete_state, generate_test_workload,
-        generate_test_workload_named_with_params, generate_test_workload_with_params, vars,
+        generate_test_workload_named_with_params, generate_test_workload_with_params, fixtures,
     };
     use common::commands::AgentLoadStatus;
     use mockall::predicate;
@@ -499,19 +499,19 @@ mod tests {
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask() {
         let mut w1 = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         let w2 = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[1],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         let w3 = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[2],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[2],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         w1.workload.configs.configs.clear();
 
@@ -522,8 +522,8 @@ mod tests {
 
         let request_complete_state = CompleteStateRequestSpec {
             field_mask: vec![
-                format!("desiredState.workloads.{}", vars::WORKLOAD_NAMES[0]),
-                format!("desiredState.workloads.{}.agent", vars::WORKLOAD_NAMES[2]),
+                format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
+                format!("desiredState.workloads.{}.agent", fixtures::WORKLOAD_NAMES[2]),
             ],
         };
 
@@ -567,19 +567,19 @@ mod tests {
     #[test]
     fn utest_server_state_get_workloads_per_agent() {
         let w1 = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         let w2 = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[1],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         let w3 = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[2],
-            vars::AGENT_NAMES[1],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[2],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         let old_complete_state =
@@ -593,7 +593,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut workloads = server_state.get_workloads_for_agent(vars::AGENT_NAMES[0]);
+        let mut workloads = server_state.get_workloads_for_agent(fixtures::AGENT_NAMES[0]);
         workloads.sort_by(|left, right| {
             left.instance_name
                 .workload_name()
@@ -601,7 +601,7 @@ mod tests {
         });
         assert_eq!(workloads, vec![w1, w2]);
 
-        let workloads = server_state.get_workloads_for_agent(vars::AGENT_NAMES[1]);
+        let workloads = server_state.get_workloads_for_agent(fixtures::AGENT_NAMES[1]);
         assert_eq!(workloads, vec![w3]);
 
         let workloads = server_state.get_workloads_for_agent("unknown_agent");
@@ -1561,8 +1561,8 @@ mod tests {
         };
         server_state.update_agent_resource_availability(AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
-            cpu_usage: vars::CPU_USAGE_SPEC,
-            free_memory: vars::FREE_MEMORY_SPEC,
+            cpu_usage: fixtures::CPU_USAGE_SPEC,
+            free_memory: fixtures::FREE_MEMORY_SPEC,
         });
 
         let agent_status = server_state
@@ -1575,8 +1575,8 @@ mod tests {
             .status
             .unwrap_or_default();
 
-        assert_eq!(agent_status.cpu_usage, Some(vars::CPU_USAGE_SPEC));
-        assert_eq!(agent_status.free_memory, Some(vars::FREE_MEMORY_SPEC));
+        assert_eq!(agent_status.cpu_usage, Some(fixtures::CPU_USAGE_SPEC));
+        assert_eq!(agent_status.free_memory, Some(fixtures::FREE_MEMORY_SPEC));
     }
 
     // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
@@ -1605,8 +1605,8 @@ mod tests {
         server_state.add_agent(AGENT_A.to_string());
         server_state.update_agent_resource_availability(AgentLoadStatus {
             agent_name: AGENT_A.to_string(),
-            cpu_usage: vars::CPU_USAGE_SPEC,
-            free_memory: vars::FREE_MEMORY_SPEC,
+            cpu_usage: fixtures::CPU_USAGE_SPEC,
+            free_memory: fixtures::FREE_MEMORY_SPEC,
         });
 
         let expected_agent_map = generate_test_agent_map(AGENT_A);

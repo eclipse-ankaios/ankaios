@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::vars;
+use super::fixtures;
 use crate::ank_base::{
     AccessRightsRuleSpec, AddCondition, AgentAttributesSpec, AgentMapSpec, AgentStatusSpec,
     CompleteStateSpec, ConfigItemEnumSpec, ConfigItemSpec, ConfigMapSpec, ConfigMappingsSpec,
@@ -43,7 +43,7 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadNamed>) -> CompleteSt
 pub fn generate_test_complete_state_with_configs(configs: Vec<String>) -> CompleteStateSpec {
     CompleteStateSpec {
         desired_state: StateSpec {
-            api_version: vars::API_VERSION.into(),
+            api_version: fixtures::API_VERSION.into(),
             configs: ConfigMapSpec {
                 configs: configs
                     .into_iter()
@@ -60,11 +60,11 @@ pub fn generate_test_complete_state_with_configs(configs: Vec<String>) -> Comple
 
 pub fn generate_test_state() -> StateSpec {
     StateSpec {
-        api_version: vars::API_VERSION.into(),
+        api_version: fixtures::API_VERSION.into(),
         workloads: WorkloadMapSpec {
             workloads: HashMap::from([
-                (vars::WORKLOAD_NAMES[0].to_owned(), generate_test_workload()),
-                (vars::WORKLOAD_NAMES[1].to_owned(), generate_test_workload()),
+                (fixtures::WORKLOAD_NAMES[0].to_owned(), generate_test_workload()),
+                (fixtures::WORKLOAD_NAMES[1].to_owned(), generate_test_workload()),
             ]),
         },
         configs: Default::default(),
@@ -73,7 +73,7 @@ pub fn generate_test_state() -> StateSpec {
 
 pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadNamed>) -> StateSpec {
     StateSpec {
-        api_version: vars::API_VERSION.into(),
+        api_version: fixtures::API_VERSION.into(),
         workloads: WorkloadMapSpec {
             workloads: workloads
                 .into_iter()
@@ -130,7 +130,7 @@ pub fn generate_test_workload_state_with_agent(
         instance_name: WorkloadInstanceNameSpec::builder()
             .workload_name(workload_name)
             .agent_name(agent_name)
-            .config(&vars::RUNTIME_CONFIGS[0].to_owned())
+            .config(&fixtures::RUNTIME_CONFIGS[0].to_owned())
             .build(),
         execution_state,
     }
@@ -151,7 +151,7 @@ pub fn generate_test_workload_state(
     workload_name: &str,
     execution_state: ExecutionStateSpec,
 ) -> WorkloadStateSpec {
-    generate_test_workload_state_with_agent(workload_name, vars::AGENT_NAMES[0], execution_state)
+    generate_test_workload_state_with_agent(workload_name, fixtures::AGENT_NAMES[0], execution_state)
 }
 
 // ## AgentMapSpec fixtures ##
@@ -186,8 +186,8 @@ pub fn generate_test_agent_map_from_workloads(workloads: &[WorkloadSpec]) -> Age
 
 pub fn generate_test_agent_status() -> AgentStatusSpec {
     AgentStatusSpec {
-        cpu_usage: Some(vars::CPU_USAGE_SPEC),
-        free_memory: Some(vars::FREE_MEMORY_SPEC),
+        cpu_usage: Some(fixtures::CPU_USAGE_SPEC),
+        free_memory: Some(fixtures::FREE_MEMORY_SPEC),
     }
 }
 
@@ -208,9 +208,9 @@ pub fn generate_test_config_map() -> ConfigMapSpec {
           binary_file: {}
         config_2: value_3
         ",
-            vars::AGENT_NAMES[0],
-            vars::FILE_TEXT_DATA,
-            vars::FILE_BINARY_DATA
+            fixtures::AGENT_NAMES[0],
+            fixtures::FILE_TEXT_DATA,
+            fixtures::FILE_BINARY_DATA
         )
         .as_str(),
     )
@@ -287,9 +287,9 @@ pub fn generate_test_workload_states_map_from_workload_states(
 
 pub fn generate_test_workload_named() -> WorkloadNamed {
     generate_test_workload_named_with_params(
-        vars::WORKLOAD_NAMES[0],
-        vars::AGENT_NAMES[0],
-        vars::RUNTIME_NAMES[0],
+        fixtures::WORKLOAD_NAMES[0],
+        fixtures::AGENT_NAMES[0],
+        fixtures::RUNTIME_NAMES[0],
     )
 }
 
@@ -302,7 +302,7 @@ pub fn generate_test_workload_named_with_params(
         workload_name,
         agent_name,
         runtime_name,
-        vars::RUNTIME_CONFIGS[0],
+        fixtures::RUNTIME_CONFIGS[0],
     )
 }
 
@@ -329,13 +329,13 @@ pub fn generate_test_workload_named_with_runtime_config(
 }
 
 pub fn generate_test_workload_instance_name() -> WorkloadInstanceNameSpec {
-    generate_test_workload_instance_name_with_name(vars::WORKLOAD_NAMES[0])
+    generate_test_workload_instance_name_with_name(fixtures::WORKLOAD_NAMES[0])
 }
 
 pub fn generate_test_workload_instance_name_with_name(
     workload_name: impl Into<String>,
 ) -> WorkloadInstanceNameSpec {
-    generate_test_workload_instance_name_with_params(workload_name, vars::AGENT_NAMES[0])
+    generate_test_workload_instance_name_with_params(workload_name, fixtures::AGENT_NAMES[0])
 }
 
 pub fn generate_test_workload_instance_name_with_params(
@@ -345,7 +345,7 @@ pub fn generate_test_workload_instance_name_with_params(
     generate_test_workload_instance_name_with_runtime_config(
         workload_name,
         agent_name,
-        vars::RUNTIME_CONFIGS[0],
+        fixtures::RUNTIME_CONFIGS[0],
     )
 }
 
@@ -364,14 +364,14 @@ pub fn generate_test_workload_instance_name_with_runtime_config(
 // ## WorkloadSpec fixtures ##
 
 pub fn generate_test_workload() -> WorkloadSpec {
-    generate_test_workload_with_params(vars::AGENT_NAMES[0], vars::RUNTIME_NAMES[0])
+    generate_test_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::RUNTIME_NAMES[0])
 }
 
 pub fn generate_test_workload_with_params(
     agent_name: impl Into<String>,
     runtime_name: impl Into<String>,
 ) -> WorkloadSpec {
-    generate_test_workload_with_runtime_config(agent_name, runtime_name, vars::RUNTIME_CONFIGS[0])
+    generate_test_workload_with_runtime_config(agent_name, runtime_name, fixtures::RUNTIME_CONFIGS[0])
 }
 
 pub fn generate_test_workload_with_runtime_config(
@@ -396,11 +396,11 @@ pub fn generate_test_dependencies() -> DependenciesSpec {
     DependenciesSpec {
         dependencies: HashMap::from([
             (
-                String::from(vars::WORKLOAD_NAMES[1]),
+                String::from(fixtures::WORKLOAD_NAMES[1]),
                 AddCondition::AddCondRunning,
             ),
             (
-                String::from(vars::WORKLOAD_NAMES[2]),
+                String::from(fixtures::WORKLOAD_NAMES[2]),
                 AddCondition::AddCondSucceeded,
             ),
         ]),
@@ -433,7 +433,7 @@ pub fn generate_test_control_interface_access() -> ControlInterfaceAccessSpec {
                 vec!["desiredState".to_string()],
             ),
             AccessRightsRuleSpec::log_rule(
-                vars::WORKLOAD_NAMES[0..1]
+                fixtures::WORKLOAD_NAMES[0..1]
                     .iter()
                     .map(|&s| s.to_string())
                     .collect(),
@@ -443,7 +443,7 @@ pub fn generate_test_control_interface_access() -> ControlInterfaceAccessSpec {
             ReadWriteEnum::RwWrite,
             vec![format!(
                 "desiredState.workloads.{}",
-                vars::WORKLOAD_NAMES[1]
+                fixtures::WORKLOAD_NAMES[1]
             )],
         )],
     }
@@ -453,15 +453,15 @@ pub fn generate_test_files() -> FilesSpec {
     FilesSpec {
         files: vec![
             FileSpec {
-                mount_point: vars::FILE_TEXT_PATH.to_string(),
+                mount_point: fixtures::FILE_TEXT_PATH.to_string(),
                 file_content: FileContentSpec::Data {
-                    data: vars::FILE_TEXT_DATA.into(),
+                    data: fixtures::FILE_TEXT_DATA.into(),
                 },
             },
             FileSpec {
-                mount_point: vars::FILE_BINARY_PATH.to_string(),
+                mount_point: fixtures::FILE_BINARY_PATH.to_string(),
                 file_content: FileContentSpec::BinaryData {
-                    binary_data: vars::FILE_BINARY_DATA.into(),
+                    binary_data: fixtures::FILE_BINARY_DATA.into(),
                 },
             },
         ],

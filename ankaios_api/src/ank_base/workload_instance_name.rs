@@ -163,19 +163,19 @@ impl WorkloadInstanceNameBuilder {
 #[cfg(test)]
 mod tests {
     use super::WorkloadInstanceNameSpec;
-    use crate::test_utils::vars;
+    use crate::test_utils::fixtures;
 
     // [utest->swdd~common-workload-execution-instance-naming~1]
     #[test]
     fn utest_workload_execution_instance_name_builder() {
-        let workload_name = vars::WORKLOAD_NAMES[0];
-        let agent_name = vars::AGENT_NAMES[0];
-        let expected_hash = vars::WORKLOAD_IDS[0];
+        let workload_name = fixtures::WORKLOAD_NAMES[0];
+        let agent_name = fixtures::AGENT_NAMES[0];
+        let expected_hash = fixtures::WORKLOAD_IDS[0];
 
         let name = WorkloadInstanceNameSpec::builder()
             .agent_name(agent_name)
             .workload_name(workload_name)
-            .config(&String::from(vars::RUNTIME_CONFIGS[0]))
+            .config(&String::from(fixtures::RUNTIME_CONFIGS[0]))
             .build();
 
         assert_eq!(name.workload_name(), workload_name);

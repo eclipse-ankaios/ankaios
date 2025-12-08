@@ -110,7 +110,7 @@ mod tests {
 
     use ankaios_api::ank_base::ExecutionStateSpec;
     use ankaios_api::test_utils::{
-        generate_test_workload_named, generate_test_workload_state_with_workload_named, vars,
+        generate_test_workload_named, generate_test_workload_state_with_workload_named, fixtures,
     };
 
     use std::time::Duration;
@@ -135,7 +135,7 @@ mod tests {
 
         let generic_state_state_checker = GenericPollingStateChecker::start_checker(
             &workload,
-            vars::WORKLOAD_IDS[0].to_string(),
+            fixtures::WORKLOAD_IDS[0].to_string(),
             state_sender.clone(),
             mock_runtime_getter,
         );

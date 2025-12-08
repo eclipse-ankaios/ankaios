@@ -297,7 +297,7 @@ mod tests {
     use ankaios_api::ank_base::{CompleteStateSpec, ExecutionStateSpec, StateSpec};
     use ankaios_api::test_utils::{
         generate_test_agent_map_from_workloads, generate_test_state_from_workloads,
-        generate_test_workload_named, generate_test_workload_states_map_with_data, vars,
+        generate_test_workload_named, generate_test_workload_states_map_with_data, fixtures,
     };
 
     use serde_yaml::Value;
@@ -336,9 +336,9 @@ mod tests {
         let complete_state = CompleteStateSpec {
             desired_state: state,
             workload_states: generate_test_workload_states_map_with_data(
-                vars::AGENT_NAMES[0],
-                vars::WORKLOAD_NAMES[0],
-                vars::WORKLOAD_IDS[0],
+                fixtures::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_IDS[0],
                 ExecutionStateSpec::running(),
             ),
             agents: agent_map,
@@ -365,9 +365,9 @@ mod tests {
         let expected = CompleteStateSpec {
             desired_state: expected_state,
             workload_states: generate_test_workload_states_map_with_data(
-                vars::AGENT_NAMES[0],
-                vars::WORKLOAD_NAMES[0],
-                vars::WORKLOAD_IDS[0],
+                fixtures::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_IDS[0],
                 ExecutionStateSpec::running(),
             ),
             agents: agent_map,
@@ -418,7 +418,7 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(vars::WORKLOAD_NAMES[0])
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
                 {
                     workload_1.insert("update_strategy".into(), "AT_MOST_ONCE".into());
                 }
@@ -430,15 +430,14 @@ mod tests {
         };
 
         let res = actual.set(
-            &format!("workloads.{}.update_strategy", vars::WORKLOAD_NAMES[0]).into(),
+            &format!("workloads.{}.update_strategy", fixtures::WORKLOAD_NAMES[0]).into(),
             "AT_MOST_ONCE".into(),
         );
 
         assert!(res.is_ok());
         assert_eq!(
             actual
-                // .get(&"workloads.workload_A.update_strategy".into())
-                .get(&format!("workloads.{}.update_strategy", vars::WORKLOAD_NAMES[0]).into())
+                .get(&format!("workloads.{}.update_strategy", fixtures::WORKLOAD_NAMES[0]).into())
                 .unwrap(),
             "AT_MOST_ONCE"
         );
@@ -452,7 +451,7 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(vars::WORKLOAD_NAMES[0])
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
                 {
                     workload_1.insert("new_key".into(), "new value".into());
                 }
@@ -464,14 +463,14 @@ mod tests {
         };
 
         let res = actual.set(
-            &format!("workloads.{}.new_key", vars::WORKLOAD_NAMES[0]).into(),
+            &format!("workloads.{}.new_key", fixtures::WORKLOAD_NAMES[0]).into(),
             "new value".into(),
         );
 
         assert!(res.is_ok());
         assert_eq!(
             actual
-                .get(&format!("workloads.{}.new_key", vars::WORKLOAD_NAMES[0]).into())
+                .get(&format!("workloads.{}.new_key", fixtures::WORKLOAD_NAMES[0]).into())
                 .unwrap(),
             "new value"
         );
@@ -485,7 +484,7 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(vars::WORKLOAD_NAMES[0])
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
                 {
                     let new_entry = object::Mapping::default().entry("new_key", "new value");
                     workload_1.insert("new_map".into(), new_entry.into());
@@ -498,14 +497,14 @@ mod tests {
         };
 
         let res = actual.set(
-            &format!("workloads.{}.new_map.new_key", vars::WORKLOAD_NAMES[0]).into(),
+            &format!("workloads.{}.new_map.new_key", fixtures::WORKLOAD_NAMES[0]).into(),
             "new value".into(),
         );
 
         assert!(res.is_ok());
         assert_eq!(
             actual
-                .get(&format!("workloads.{}.new_map.new_key", vars::WORKLOAD_NAMES[0]).into())
+                .get(&format!("workloads.{}.new_map.new_key", fixtures::WORKLOAD_NAMES[0]).into())
                 .unwrap(),
             "new value"
         );
@@ -519,9 +518,8 @@ mod tests {
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
-                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(vars::WORKLOAD_NAMES[0])
+                if let Some(Value::Mapping(workload_1)) = workloads.get_mut(fixtures::WORKLOAD_NAMES[0])
                 {
-                    // WAS name
                     workload_1.remove("access_rights");
                 }
             }
@@ -532,12 +530,12 @@ mod tests {
         };
 
         let res =
-            actual.remove(&format!("workloads.{}.access_rights", vars::WORKLOAD_NAMES[0]).into());
+            actual.remove(&format!("workloads.{}.access_rights", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_ok());
         assert!(
             actual
-                .get(&format!("workloads.{}.access_rights", vars::WORKLOAD_NAMES[0]).into())
+                .get(&format!("workloads.{}.access_rights", fixtures::WORKLOAD_NAMES[0]).into())
                 .is_none()
         );
         assert_eq!(actual, expected);
@@ -554,7 +552,7 @@ mod tests {
         };
 
         let res =
-            actual.remove(&format!("workloads.{}.non_existing", vars::WORKLOAD_NAMES[0]).into());
+            actual.remove(&format!("workloads.{}.non_existing", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_ok());
         assert_eq!(actual, expected);
@@ -587,7 +585,7 @@ mod tests {
         };
 
         let res = actual
-            .remove(&format!("workloads.{}.agent.not_map.key", vars::WORKLOAD_NAMES[0]).into());
+            .remove(&format!("workloads.{}.agent.not_map.key", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_err());
         assert_eq!(actual, expected);
@@ -615,7 +613,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&format!("workloads.{}.restartPolicy", vars::WORKLOAD_NAMES[0]).into());
+        let res = data.get(&format!("workloads.{}.restartPolicy", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_some());
         assert_eq!(res.expect(""), &serde_yaml::Value::from("ALWAYS"));
@@ -627,7 +625,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&format!("workloads.{}.non_existing", vars::WORKLOAD_NAMES[0]).into());
+        let res = data.get(&format!("workloads.{}.non_existing", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_none());
     }
@@ -638,7 +636,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&format!("workloads.{}.agent.not_map", vars::WORKLOAD_NAMES[0]).into());
+        let res = data.get(&format!("workloads.{}.agent.not_map", fixtures::WORKLOAD_NAMES[0]).into());
 
         assert!(res.is_none());
     }
@@ -726,11 +724,11 @@ mod tests {
 
         use ankaios_api::CURRENT_API_VERSION;
         use ankaios_api::ank_base::ConfigHash;
-        use ankaios_api::test_utils::vars;
+        use ankaios_api::test_utils::fixtures;
 
         pub fn generate_test_complete_state_mapping() -> Mapping {
-            let agent_name = vars::AGENT_NAMES[0];
-            let config_hash: &dyn ConfigHash = &String::from(vars::RUNTIME_CONFIGS[0]);
+            let agent_name = fixtures::AGENT_NAMES[0];
+            let config_hash: &dyn ConfigHash = &String::from(fixtures::RUNTIME_CONFIGS[0]);
             Mapping::default()
                 .entry("desiredState", generate_test_state())
                 .entry(
@@ -738,7 +736,7 @@ mod tests {
                     Mapping::default().entry(
                         agent_name,
                         Mapping::default().entry(
-                            vars::WORKLOAD_NAMES[0],
+                            fixtures::WORKLOAD_NAMES[0],
                             Mapping::default().entry(
                                 config_hash.hash_config(),
                                 Mapping::default()
@@ -774,9 +772,9 @@ mod tests {
                 .entry(
                     "workloads",
                     Mapping::default().entry(
-                        vars::WORKLOAD_NAMES[0],
+                        fixtures::WORKLOAD_NAMES[0],
                         Mapping::default()
-                            .entry("agent", vars::AGENT_NAMES[0])
+                            .entry("agent", fixtures::AGENT_NAMES[0])
                             .entry(
                                 "tags",
                                 Mapping::default()
@@ -786,12 +784,12 @@ mod tests {
                             .entry(
                                 "dependencies",
                                 Mapping::default()
-                                    .entry(vars::WORKLOAD_NAMES[1], "ADD_COND_RUNNING")
-                                    .entry(vars::WORKLOAD_NAMES[2], "ADD_COND_SUCCEEDED"),
+                                    .entry(fixtures::WORKLOAD_NAMES[1], "ADD_COND_RUNNING")
+                                    .entry(fixtures::WORKLOAD_NAMES[2], "ADD_COND_SUCCEEDED"),
                             )
                             .entry("restartPolicy", "ALWAYS")
                             .entry("runtime", "runtime_A")
-                            .entry("runtimeConfig", vars::RUNTIME_CONFIGS[0])
+                            .entry("runtimeConfig", fixtures::RUNTIME_CONFIGS[0])
                             .entry(
                                 "controlInterfaceAccess",
                                 Mapping::default()
@@ -804,7 +802,7 @@ mod tests {
                                                 .entry("filterMasks", vec!["desiredState"]),
                                             Mapping::default().entry("type", "LogRule").entry(
                                                 "workloadNames",
-                                                vec![vars::WORKLOAD_NAMES[0]],
+                                                vec![fixtures::WORKLOAD_NAMES[0]],
                                             ),
                                         ],
                                     )
@@ -818,7 +816,7 @@ mod tests {
                                                     "filterMasks",
                                                     vec![format!(
                                                         "desiredState.workloads.{}",
-                                                        vars::WORKLOAD_NAMES[1]
+                                                        fixtures::WORKLOAD_NAMES[1]
                                                     )],
                                                 ),
                                         ],
@@ -834,11 +832,11 @@ mod tests {
                                 "files",
                                 vec![
                                     Mapping::default()
-                                        .entry("mountPoint", vars::FILE_TEXT_PATH)
-                                        .entry("data", vars::FILE_TEXT_DATA),
+                                        .entry("mountPoint", fixtures::FILE_TEXT_PATH)
+                                        .entry("data", fixtures::FILE_TEXT_DATA),
                                     Mapping::default()
-                                        .entry("mountPoint", vars::FILE_BINARY_PATH)
-                                        .entry("binaryData", vars::FILE_BINARY_DATA),
+                                        .entry("mountPoint", fixtures::FILE_BINARY_PATH)
+                                        .entry("binaryData", fixtures::FILE_BINARY_DATA),
                                 ],
                             ),
                     ),

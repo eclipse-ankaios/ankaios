@@ -150,14 +150,14 @@ impl From<WorkloadNamed> for AddedWorkload {
 #[cfg(test)]
 use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec};
 #[cfg(test)]
-use ankaios_api::test_utils::{generate_test_workload_state_with_agent, vars};
+use ankaios_api::test_utils::{fixtures, generate_test_workload_state_with_agent};
 #[cfg(test)]
 use common::to_server_interface;
 
 #[cfg(test)]
 fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
     HashMap::from([(
-        String::from(vars::WORKLOAD_NAMES[0]),
+        String::from(fixtures::WORKLOAD_NAMES[0]),
         DeleteCondition::DelCondNotPendingNorRunning.into(),
     )])
 }
@@ -165,9 +165,9 @@ fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
 #[cfg(test)]
 pub fn generate_test_proto_deleted_workload() -> DeletedWorkload {
     let instance_name = WorkloadInstanceNameSpec::builder()
-        .agent_name(vars::AGENT_NAMES[0])
-        .workload_name(vars::WORKLOAD_NAMES[1])
-        .config(&String::from(vars::RUNTIME_CONFIGS[0]))
+        .agent_name(fixtures::AGENT_NAMES[0])
+        .workload_name(fixtures::WORKLOAD_NAMES[1])
+        .config(&String::from(fixtures::RUNTIME_CONFIGS[0]))
         .build();
 
     DeletedWorkload {
@@ -198,8 +198,8 @@ mod tests {
         self, AddCondition, Dependencies, ExecutionStateSpec, WorkloadNamed, WorkloadState,
     };
     use ankaios_api::test_utils::{
-        generate_test_deleted_workload_with_params, generate_test_workload,
-        generate_test_workload_named, generate_test_workload_state, vars,
+        fixtures, generate_test_deleted_workload_with_params, generate_test_workload,
+        generate_test_workload_named, generate_test_workload_state,
     };
     use common::commands;
     use std::collections::HashMap;
@@ -211,8 +211,8 @@ mod tests {
     fn utest_converts_to_proto_deleted_workload() {
         let proto_workload = generate_test_proto_deleted_workload();
         let workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0].to_string(),
-            vars::WORKLOAD_NAMES[1].to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
+            fixtures::WORKLOAD_NAMES[1].to_string(),
         );
 
         assert_eq!(DeletedWorkload::from(workload), proto_workload);
@@ -222,8 +222,8 @@ mod tests {
     fn utest_converts_to_ankaios_deleted_workload() {
         let proto_workload = generate_test_proto_deleted_workload();
         let workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0].to_string(),
-            vars::WORKLOAD_NAMES[1].to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
+            fixtures::WORKLOAD_NAMES[1].to_string(),
         );
 
         assert_eq!(
@@ -237,7 +237,7 @@ mod tests {
         let mut proto_workload = generate_test_proto_deleted_workload();
         proto_workload
             .dependencies
-            .insert(vars::WORKLOAD_NAMES[0].into(), -1);
+            .insert(fixtures::WORKLOAD_NAMES[0].into(), -1);
 
         assert!(ank_base::DeletedWorkload::try_from(proto_workload).is_err());
     }
@@ -276,12 +276,12 @@ mod tests {
             workload.dependencies = Some(Dependencies {
                 dependencies: HashMap::from([
                     (
-                        String::from(vars::WORKLOAD_NAMES[0]),
+                        String::from(fixtures::WORKLOAD_NAMES[0]),
                         AddCondition::AddCondRunning.into(),
                     ),
-                    (String::from(vars::WORKLOAD_NAMES[1]), -1), // Invalid value for dependency
+                    (String::from(fixtures::WORKLOAD_NAMES[1]), -1), // Invalid value for dependency
                     (
-                        String::from(vars::WORKLOAD_NAMES[2]),
+                        String::from(fixtures::WORKLOAD_NAMES[2]),
                         AddCondition::AddCondSucceeded.into(),
                     ),
                 ]),
@@ -295,7 +295,7 @@ mod tests {
         (ankaios) => {
             commands::UpdateWorkloadState {
                 workload_states: vec![generate_test_workload_state(
-                    vars::WORKLOAD_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[0],
                     ExecutionStateSpec::running(),
                 )],
             }
@@ -303,7 +303,7 @@ mod tests {
         (grpc_api) => {
             crate::UpdateWorkloadState {
                 workload_states: vec![WorkloadState::from(generate_test_workload_state(
-                    vars::WORKLOAD_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[0],
                     ExecutionStateSpec::running(),
                 ))],
             }

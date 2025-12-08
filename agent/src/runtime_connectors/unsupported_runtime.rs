@@ -105,7 +105,7 @@ mod tests {
     use crate::runtime_connectors::{LogRequestOptions, RuntimeConnector};
 
     use ankaios_api::test_utils::{
-        generate_test_workload_named, generate_test_workload_named_with_params, vars,
+        generate_test_workload_named, generate_test_workload_named_with_params, fixtures,
     };
     use common::objects::AgentName;
 
@@ -126,7 +126,7 @@ mod tests {
     #[tokio::test]
     async fn utest_get_reusable_workloads_returns_empty_vec() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
-        let agent_name = AgentName::from(vars::AGENT_NAMES[0]);
+        let agent_name = AgentName::from(fixtures::AGENT_NAMES[0]);
 
         let result = unsupported_runtime
             .get_reusable_workloads(&agent_name)
@@ -141,8 +141,8 @@ mod tests {
     async fn utest_create_workload_returns_unsupported_error_for_matching_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
         let workload = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             TEST_RUNTIME_NAME,
         );
 
@@ -161,8 +161,8 @@ mod tests {
     async fn utest_create_workload_returns_unsupported_error_for_different_runtime() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
         let workload = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             "different_runtime",
         );
 
@@ -181,9 +181,9 @@ mod tests {
     async fn utest_get_workload_id_returns_list_error() {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
         let instance_name = WorkloadInstanceNameSpec::new(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
-            vars::WORKLOAD_IDS[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::WORKLOAD_IDS[0],
         );
 
         let result = unsupported_runtime.get_workload_id(&instance_name).await;
@@ -202,7 +202,7 @@ mod tests {
 
         let result = unsupported_runtime
             .start_checker(
-                &vars::WORKLOAD_IDS[0].to_owned(),
+                &fixtures::WORKLOAD_IDS[0].to_owned(),
                 workload,
                 mpsc::channel(1).0,
             )
@@ -223,7 +223,7 @@ mod tests {
         };
 
         let result =
-            unsupported_runtime.get_log_fetcher(vars::WORKLOAD_IDS[0].to_owned(), &options);
+            unsupported_runtime.get_log_fetcher(fixtures::WORKLOAD_IDS[0].to_owned(), &options);
 
         assert!(matches!(
             result,
@@ -237,7 +237,7 @@ mod tests {
         let unsupported_runtime = UnsupportedRuntime(TEST_RUNTIME_NAME.to_string());
 
         let result = unsupported_runtime
-            .delete_workload(&vars::WORKLOAD_IDS[0].to_owned())
+            .delete_workload(&fixtures::WORKLOAD_IDS[0].to_owned())
             .await;
 
         assert!(result.is_ok());

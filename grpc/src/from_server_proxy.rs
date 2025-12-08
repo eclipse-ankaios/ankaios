@@ -446,7 +446,7 @@ mod tests {
     use ankaios_api::test_utils::{
         generate_test_deleted_workload_with_params, generate_test_workload,
         generate_test_workload_named_with_params, generate_test_workload_state_with_agent,
-        generate_test_workload_with_params, vars,
+        generate_test_workload_with_params, fixtures,
     };
     use common::from_server_interface::{self, FromServerInterface};
 
@@ -611,12 +611,12 @@ mod tests {
     #[tokio::test]
     async fn utest_from_server_proxy_forward_from_ankaios_to_proto_update_workload_state() {
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
-            create_test_setup(vars::AGENT_NAMES[0]);
+            create_test_setup(fixtures::AGENT_NAMES[0]);
 
         let update_workload_state_result = to_manager
             .update_workload_state(vec![generate_test_workload_state_with_agent(
-                vars::WORKLOAD_NAMES[0],
-                vars::AGENT_NAMES[1], // different agent
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::AGENT_NAMES[1], // different agent
                 ExecutionStateSpec::running(),
             )])
             .await;
@@ -675,7 +675,7 @@ mod tests {
 
         let mut workload: Workload = generate_test_workload().into();
         workload.dependencies = Some(Dependencies {
-            dependencies: HashMap::from([(vars::WORKLOAD_NAMES[1].to_string(), -1)]), // Set invalid AddCondition
+            dependencies: HashMap::from([(fixtures::WORKLOAD_NAMES[1].to_string(), -1)]), // Set invalid AddCondition
         });
         let added_workload = grpc_api::AddedWorkload {
             workload: Some(workload),
@@ -823,9 +823,9 @@ mod tests {
         join!(super::distribute_workloads_to_agents(
             &agent_senders,
             vec![generate_test_workload_named_with_params(
-                vars::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
                 agent_name,
-                vars::RUNTIME_NAMES[0]
+                fixtures::RUNTIME_NAMES[0]
             )],
             vec![]
         ))
@@ -849,9 +849,9 @@ mod tests {
         join!(super::distribute_workloads_to_agents(
             &agent_senders,
             vec![generate_test_workload_named_with_params(
-                vars::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
                 "non_existing_agent",
-                vars::RUNTIME_NAMES[0]
+                fixtures::RUNTIME_NAMES[0]
             )],
             vec![]
         ))
@@ -870,7 +870,7 @@ mod tests {
         join!(super::distribute_workload_states_to_agents(
             &agent_senders,
             vec![generate_test_workload_state_with_agent(
-                vars::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
                 "other_agent",
                 ExecutionStateSpec::running()
             )],
@@ -894,8 +894,8 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
-            String::from(vars::WORKLOAD_NAMES[0]),
-            generate_test_workload_with_params(agent_name, vars::RUNTIME_NAMES[0]).into(),
+            String::from(fixtures::WORKLOAD_NAMES[0]),
+            generate_test_workload_with_params(agent_name, fixtures::RUNTIME_NAMES[0]).into(),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -945,8 +945,8 @@ mod tests {
         let (agent_2_tx, mut agent_2_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
 
         let agent_senders_map = AgentSendersMap::new();
-        agent_senders_map.insert(vars::AGENT_NAMES[0], agent_1_tx);
-        agent_senders_map.insert(vars::AGENT_NAMES[1], agent_2_tx);
+        agent_senders_map.insert(fixtures::AGENT_NAMES[0], agent_1_tx);
+        agent_senders_map.insert(fixtures::AGENT_NAMES[1], agent_2_tx);
 
         let my_request_id = "my_request_id";
 
@@ -956,14 +956,14 @@ mod tests {
                 ank_base::LogsRequest {
                     workload_names: vec![
                         WorkloadInstanceName {
-                            workload_name: vars::WORKLOAD_NAMES[0].into(),
-                            agent_name: vars::AGENT_NAMES[0].into(),
-                            id: vars::WORKLOAD_IDS[0].into(),
+                            workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                            agent_name: fixtures::AGENT_NAMES[0].into(),
+                            id: fixtures::WORKLOAD_IDS[0].into(),
                         },
                         WorkloadInstanceName {
-                            workload_name: vars::WORKLOAD_NAMES[1].into(),
-                            agent_name: vars::AGENT_NAMES[1].into(),
-                            id: vars::WORKLOAD_IDS[1].into(),
+                            workload_name: fixtures::WORKLOAD_NAMES[1].into(),
+                            agent_name: fixtures::AGENT_NAMES[1].into(),
+                            id: fixtures::WORKLOAD_IDS[1].into(),
                         },
                     ],
                     follow: Some(true),
@@ -986,7 +986,7 @@ mod tests {
                         request_id,
                         logs_request: Some(ank_base::LogsRequest{ workload_names, follow, tail, since, until }) }))
                 if request_id == my_request_id
-                   && workload_names == vec![WorkloadInstanceName{ workload_name: vars::WORKLOAD_NAMES[0].into(), agent_name: vars::AGENT_NAMES[0].into(), id: vars::WORKLOAD_IDS[0].into() }]
+                   && workload_names == vec![WorkloadInstanceName{ workload_name: fixtures::WORKLOAD_NAMES[0].into(), agent_name: fixtures::AGENT_NAMES[0].into(), id: fixtures::WORKLOAD_IDS[0].into() }]
                    && follow == Some(true) && tail == Some(10) && since.is_none() && until.is_none()
         ));
         assert!(agent_1_rx.recv().await.is_none());
@@ -997,7 +997,7 @@ mod tests {
                         request_id,
                         logs_request: Some(ank_base::LogsRequest{ workload_names, follow, tail, since, until }) }))
                 if request_id == my_request_id
-                   && workload_names == vec![WorkloadInstanceName{ workload_name: vars::WORKLOAD_NAMES[1].into(), agent_name: vars::AGENT_NAMES[1].into(), id: vars::WORKLOAD_IDS[1].into() }]
+                   && workload_names == vec![WorkloadInstanceName{ workload_name: fixtures::WORKLOAD_NAMES[1].into(), agent_name: fixtures::AGENT_NAMES[1].into(), id: fixtures::WORKLOAD_IDS[1].into() }]
                    && follow == Some(true) && tail == Some(10) && since.is_none() && until.is_none()
         ));
         assert!(agent_2_rx.recv().await.is_none());
@@ -1011,8 +1011,8 @@ mod tests {
         let (agent_2_tx, mut agent_2_rx) = mpsc::channel(common::CHANNEL_CAPACITY);
 
         let agent_senders_map = AgentSendersMap::new();
-        agent_senders_map.insert(vars::AGENT_NAMES[0], agent_1_tx);
-        agent_senders_map.insert(vars::AGENT_NAMES[1], agent_2_tx);
+        agent_senders_map.insert(fixtures::AGENT_NAMES[0], agent_1_tx);
+        agent_senders_map.insert(fixtures::AGENT_NAMES[1], agent_2_tx);
 
         let my_request_id = "my_request_id";
 
@@ -1047,8 +1047,8 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
-            String::from(vars::WORKLOAD_NAMES[0]),
-            generate_test_workload_with_params(agent_name, vars::RUNTIME_NAMES[0]).into(),
+            String::from(fixtures::WORKLOAD_NAMES[0]),
+            generate_test_workload_with_params(agent_name, fixtures::RUNTIME_NAMES[0]).into(),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -1115,17 +1115,17 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
-            String::from(vars::WORKLOAD_NAMES[0]),
-            generate_test_workload_with_params(agent_name, vars::RUNTIME_NAMES[0]).into(),
+            String::from(fixtures::WORKLOAD_NAMES[0]),
+            generate_test_workload_with_params(agent_name, fixtures::RUNTIME_NAMES[0]).into(),
         );
 
         let my_request_id = "my_request_id".to_owned();
 
         let logs_request_content = ank_base::LogsRequest {
             workload_names: vec![WorkloadInstanceName {
-                workload_name: vars::WORKLOAD_NAMES[0].into(),
+                workload_name: fixtures::WORKLOAD_NAMES[0].into(),
                 agent_name: agent_name.into(),
-                id: vars::WORKLOAD_IDS[0].into(),
+                id: fixtures::WORKLOAD_IDS[0].into(),
             }],
             follow: Some(true),
             tail: Some(10),
@@ -1168,7 +1168,7 @@ mod tests {
                     since,
                     until
                 }
-            ) if request_id == my_request_id && workload_names == vec![WorkloadInstanceNameSpec::new(agent_name, vars::WORKLOAD_NAMES[0], vars::WORKLOAD_IDS[0])] && follow && tail == 10 &&since.is_none() && until.is_none()
+            ) if request_id == my_request_id && workload_names == vec![WorkloadInstanceNameSpec::new(agent_name, fixtures::WORKLOAD_NAMES[0], fixtures::WORKLOAD_IDS[0])] && follow && tail == 10 &&since.is_none() && until.is_none()
         ));
     }
 
@@ -1180,8 +1180,8 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, Workload>::new();
         startup_workloads.insert(
-            String::from(vars::WORKLOAD_NAMES[0]),
-            generate_test_workload_with_params(agent_name, vars::RUNTIME_NAMES[0]).into(),
+            String::from(fixtures::WORKLOAD_NAMES[0]),
+            generate_test_workload_with_params(agent_name, fixtures::RUNTIME_NAMES[0]).into(),
         );
 
         let my_request_id = "my_request_id".to_owned();

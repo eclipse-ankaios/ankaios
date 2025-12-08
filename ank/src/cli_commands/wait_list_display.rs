@@ -114,24 +114,24 @@ mod tests {
 
     use ankaios_api::{
         ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec},
-        test_utils::vars,
+        test_utils::fixtures,
     };
     use std::collections::{HashMap, HashSet};
 
     #[test]
     fn update_table() {
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .agent_name(vars::AGENT_NAMES[0])
-            .config(&String::from(vars::RUNTIME_CONFIGS[0]))
-            .workload_name(vars::WORKLOAD_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
+            .config(&String::from(fixtures::RUNTIME_CONFIGS[0]))
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .build();
         let mut wait_list_display = WaitListDisplay {
             data: HashMap::from([(
                 workload_instance_name.clone(),
                 WorkloadTableRow {
-                    name: vars::WORKLOAD_NAMES[0].into(),
-                    agent: vars::AGENT_NAMES[0].into(),
-                    runtime: vars::RUNTIME_CONFIGS[0].into(),
+                    name: fixtures::WORKLOAD_NAMES[0].into(),
+                    agent: fixtures::AGENT_NAMES[0].into(),
+                    runtime: fixtures::RUNTIME_CONFIGS[0].into(),
                     execution_state: "execution_state".into(),
                     additional_info: "additional_info".into(),
                 },

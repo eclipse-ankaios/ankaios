@@ -711,7 +711,7 @@ mod tests {
         WorkloadInstanceNameSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_workload_named, generate_test_workload_state_with_workload_named, vars,
+        generate_test_workload_named, generate_test_workload_state_with_workload_named, fixtures,
     };
 
     use mockall::{lazy_static, predicate};
@@ -725,7 +725,7 @@ mod tests {
 
     lazy_static! {
         pub static ref CONTROL_INTERFACE_PATH: Option<ControlInterfacePath> = Some(
-            ControlInterfacePath::new(PathBuf::from(vars::PIPES_LOCATION))
+            ControlInterfacePath::new(PathBuf::from(fixtures::PIPES_LOCATION))
         );
     }
 
@@ -741,7 +741,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -767,13 +767,13 @@ mod tests {
             RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
             RuntimeCall::CreateWorkload(
                 new_workload.clone(),
-                Some(vars::PIPES_LOCATION.into()),
+                Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((vars::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
+                Ok((fixtures::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
             ),
             // Since we also send a delete command to exit the control loop properly, the new workload
             // will also be deleted. This also tests if the new workload id was properly stored.
-            RuntimeCall::DeleteWorkload(vars::WORKLOAD_IDS[0].to_string(), Ok(())),
+            RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
@@ -793,7 +793,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(old_workload)
             .workload_state_sender(state_change_tx)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -854,7 +854,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -884,7 +884,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(old_workload)
             .workload_state_sender(state_change_tx)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -942,7 +942,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -968,12 +968,12 @@ mod tests {
             RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
             RuntimeCall::CreateWorkload(
                 new_workload.clone(),
-                Some(vars::PIPES_LOCATION.into()),
+                Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((vars::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
+                Ok((fixtures::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
             ),
             // Delete the new updated workload to exit the infinite loop
-            RuntimeCall::DeleteWorkload(vars::WORKLOAD_IDS[0].to_string(), Ok(())),
+            RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
@@ -999,7 +999,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(old_workload)
             .workload_state_sender(state_change_tx)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1059,7 +1059,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         // Since we also send a delete command to exit the control loop properly, the new state
         // checker will also be stopped. This also tests if the new state checker was properly stored.
@@ -1080,13 +1080,13 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 new_workload.clone(),
-                Some(vars::PIPES_LOCATION.into()),
+                Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((vars::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
+                Ok((fixtures::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
             ),
             // Since we also send a delete command to exit the control loop properly, the new workload
             // will also be deleted. This also tests if the new workload id was properly stored.
-            RuntimeCall::DeleteWorkload(vars::WORKLOAD_IDS[0].to_string(), Ok(())),
+            RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
@@ -1106,7 +1106,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(old_workload)
             .workload_state_sender(state_change_tx)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1165,7 +1165,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let old_workload = generate_test_workload_named();
 
@@ -1205,7 +1205,7 @@ mod tests {
             .workload_named(old_workload)
             .workload_id(Some(OLD_WORKLOAD_ID.into()))
             .workload_state_sender(state_change_tx)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1256,7 +1256,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut mock_state_checker = StubStateChecker::new();
         mock_state_checker.panic_if_not_stopped();
@@ -1280,7 +1280,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
             .workload_state_sender(state_change_tx)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1328,7 +1328,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let runtime_mock = MockRuntimeConnector::new();
 
@@ -1343,7 +1343,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
             .workload_state_sender(state_change_tx)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -1381,7 +1381,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
@@ -1393,13 +1393,13 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 workload.clone(),
-                Some(vars::PIPES_LOCATION.into()),
+                Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((vars::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
+                Ok((fixtures::WORKLOAD_IDS[0].to_string(), new_mock_state_checker)),
             ),
             // Since we also send a delete command to exit the control loop properly, the new workload
             // will also be deleted. This also tests if the new workload id was properly stored.
-            RuntimeCall::DeleteWorkload(vars::WORKLOAD_IDS[0].to_string(), Ok(())),
+            RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
 
         workload_command_sender.create().await.unwrap();
@@ -1415,7 +1415,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload.clone())
             .workload_state_sender(state_change_tx.clone())
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1461,9 +1461,9 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -1474,15 +1474,15 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::GetWorkloadId(
                 workload.instance_name.clone(),
-                Ok(vars::WORKLOAD_IDS[0].to_string()),
+                Ok(fixtures::WORKLOAD_IDS[0].to_string()),
             ),
             RuntimeCall::StartChecker(
-                vars::WORKLOAD_IDS[0].to_string(),
+                fixtures::WORKLOAD_IDS[0].to_string(),
                 workload.clone(),
                 state_checker_workload_state_sender.clone(),
                 Ok(new_mock_state_checker),
             ),
-            RuntimeCall::DeleteWorkload(vars::WORKLOAD_IDS[0].to_string(), Ok(())),
+            RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
@@ -1491,7 +1491,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload.clone())
             .workload_state_sender(state_change_tx)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1534,9 +1534,9 @@ mod tests {
 
         let (_, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -1544,10 +1544,10 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::GetWorkloadId(
                 workload.instance_name.clone(),
-                Ok(vars::WORKLOAD_IDS[0].to_string()),
+                Ok(fixtures::WORKLOAD_IDS[0].to_string()),
             ),
             RuntimeCall::StartChecker(
-                vars::WORKLOAD_IDS[0].to_string(),
+                fixtures::WORKLOAD_IDS[0].to_string(),
                 workload.clone(),
                 state_checker_workload_state_sender.clone(),
                 Ok(StubStateChecker::new()),
@@ -1557,7 +1557,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload.clone())
             .workload_state_sender(state_change_tx)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1578,7 +1578,7 @@ mod tests {
 
         assert_eq!(
             new_control_loop_state.workload_id,
-            Some(vars::WORKLOAD_IDS[0].into())
+            Some(fixtures::WORKLOAD_IDS[0].into())
         );
         assert!(new_control_loop_state.state_checker.is_some());
 
@@ -1595,7 +1595,7 @@ mod tests {
 
         let (_, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -1610,7 +1610,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_named(workload.clone())
             .workload_state_sender(state_change_tx)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1637,9 +1637,9 @@ mod tests {
 
         let (_, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -1647,10 +1647,10 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::GetWorkloadId(
                 workload.instance_name.clone(),
-                Ok(vars::WORKLOAD_IDS[0].to_string()),
+                Ok(fixtures::WORKLOAD_IDS[0].to_string()),
             ),
             RuntimeCall::StartChecker(
-                vars::WORKLOAD_IDS[0].to_string(),
+                fixtures::WORKLOAD_IDS[0].to_string(),
                 workload.clone(),
                 state_checker_workload_state_sender.clone(),
                 Err(crate::runtime_connectors::RuntimeError::Create(
@@ -1662,7 +1662,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload.clone())
             .workload_state_sender(state_change_tx)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1680,7 +1680,7 @@ mod tests {
 
         assert_eq!(
             new_control_loop_state.workload_id,
-            Some(vars::WORKLOAD_IDS[0].into())
+            Some(fixtures::WORKLOAD_IDS[0].into())
         );
         assert!(new_control_loop_state.state_checker.is_none());
 
@@ -1703,7 +1703,7 @@ mod tests {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -1720,7 +1720,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1777,7 +1777,7 @@ mod tests {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -1792,7 +1792,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1830,7 +1830,7 @@ mod tests {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, _workload_state_forward_rx) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
@@ -1843,14 +1843,14 @@ mod tests {
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![
-            RuntimeCall::DeleteWorkload(vars::WORKLOAD_IDS[0].to_string(), Ok(())), // delete operation of the restarted workload
+            RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())), // delete operation of the restarted workload
             RuntimeCall::CreateWorkload(
                 workload.clone(),
-                Some(vars::PIPES_LOCATION.into()),
+                Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((vars::WORKLOAD_IDS[1].to_string(), new_mock_state_checker)),
+                Ok((fixtures::WORKLOAD_IDS[1].to_string(), new_mock_state_checker)),
             ),
-            RuntimeCall::DeleteWorkload(vars::WORKLOAD_IDS[1].to_string(), Ok(())),
+            RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[1].to_string(), Ok(())),
         ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
@@ -1864,7 +1864,7 @@ mod tests {
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .runtime(Box::new(runtime_mock.clone()))
             .workload_command_receiver(workload_command_receiver)
@@ -1872,7 +1872,7 @@ mod tests {
             .build()
             .unwrap();
 
-        control_loop_state.workload_id = Some(vars::WORKLOAD_IDS[0].into());
+        control_loop_state.workload_id = Some(fixtures::WORKLOAD_IDS[0].into());
         control_loop_state.state_checker = Some(old_mock_state_checker);
 
         control_loop_state
@@ -1996,8 +1996,8 @@ mod tests {
     #[test]
     fn utest_is_same_workload() {
         let current_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(vars::WORKLOAD_NAMES[0])
-            .agent_name(vars::AGENT_NAMES[0])
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
             .config(&String::from("existing config"))
             .build();
 
@@ -2007,8 +2007,8 @@ mod tests {
         ));
 
         let new_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(vars::WORKLOAD_NAMES[0])
-            .agent_name(vars::AGENT_NAMES[0])
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
             .config(&String::from("different config"))
             .build();
 
@@ -2031,23 +2031,23 @@ mod tests {
         let (_, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, _workload_state_forward_rx) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
         let workload_configs_dir = WorkloadFilesBasePath::from((
-            &PathBuf::from(vars::RUN_FOLDER),
+            &PathBuf::from(fixtures::RUN_FOLDER),
             &workload.instance_name,
         ));
 
         let expected_mount_point_mappings = HashMap::from([
             (
-                workload_configs_dir.join(vars::FILE_TEXT_PATH.trim_start_matches('/')),
-                PathBuf::from(vars::FILE_TEXT_PATH),
+                workload_configs_dir.join(fixtures::FILE_TEXT_PATH.trim_start_matches('/')),
+                PathBuf::from(fixtures::FILE_TEXT_PATH),
             ),
             (
-                workload_configs_dir.join(vars::FILE_BINARY_PATH.trim_start_matches('/')),
-                PathBuf::from(vars::FILE_BINARY_PATH),
+                workload_configs_dir.join(fixtures::FILE_BINARY_PATH.trim_start_matches('/')),
+                PathBuf::from(fixtures::FILE_BINARY_PATH),
             ),
         ]);
 
@@ -2056,7 +2056,7 @@ mod tests {
             workload.clone(),
             None,
             expected_mount_point_mappings.clone(),
-            Ok((vars::WORKLOAD_IDS[0].to_string(), StubStateChecker::new())),
+            Ok((fixtures::WORKLOAD_IDS[0].to_string(), StubStateChecker::new())),
         )]);
 
         let mock_workload_files_creator_context = MockWorkloadFilesCreator::create_files_context();
@@ -2072,7 +2072,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -2112,7 +2112,7 @@ mod tests {
         let (_, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -2132,7 +2132,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .runtime(Box::new(MockRuntimeConnector::new()))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -2178,7 +2178,7 @@ mod tests {
         let (_, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -2199,7 +2199,7 @@ mod tests {
         let control_loop_state = ControlLoopState::builder()
             .workload_named(workload.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .runtime(Box::new(runtime_mock))
             .workload_command_receiver(workload_command_receiver)
             .retry_sender(workload_command_sender2)
@@ -2250,7 +2250,7 @@ mod tests {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, mut workload_command_receiver2) =
             WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
@@ -2260,7 +2260,7 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(vec![RuntimeCall::CreateWorkload(
             workload.clone(),
-            Some(vars::PIPES_LOCATION.into()),
+            Some(fixtures::PIPES_LOCATION.into()),
             HashMap::default(),
             Err(crate::runtime_connectors::RuntimeError::Create(
                 "some create error".to_string(),
@@ -2287,7 +2287,7 @@ mod tests {
 
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
@@ -2338,7 +2338,7 @@ mod tests {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, mut workload_command_receiver2) =
             WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -2362,7 +2362,7 @@ mod tests {
             RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
             RuntimeCall::CreateWorkload(
                 new_workload.clone(),
-                Some(vars::PIPES_LOCATION.into()),
+                Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
                 Err(crate::runtime_connectors::RuntimeError::Create(
                     create_runtime_error_msg.to_owned(),
@@ -2387,7 +2387,7 @@ mod tests {
 
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(old_workload)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
@@ -2442,7 +2442,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
@@ -2453,11 +2453,11 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 workload.clone(),
-                Some(vars::PIPES_LOCATION.into()),
+                Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
-                Ok((vars::WORKLOAD_IDS[0].to_string(), StubStateChecker::new())),
+                Ok((fixtures::WORKLOAD_IDS[0].to_string(), StubStateChecker::new())),
             ),
-            RuntimeCall::DeleteWorkload(vars::WORKLOAD_IDS[0].to_string(), Ok(())),
+            RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
@@ -2481,7 +2481,7 @@ mod tests {
 
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
@@ -2519,7 +2519,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, workload_command_receiver2) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -2552,7 +2552,7 @@ mod tests {
 
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
@@ -2592,7 +2592,7 @@ mod tests {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, mut workload_command_receiver2) =
             WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mut workload = generate_test_workload_named();
         workload.workload.files = Default::default();
@@ -2604,7 +2604,7 @@ mod tests {
         runtime_mock.expect(vec![
             RuntimeCall::CreateWorkload(
                 workload.clone(),
-                Some(vars::PIPES_LOCATION.into()),
+                Some(fixtures::PIPES_LOCATION.into()),
                 HashMap::default(),
                 Err(crate::runtime_connectors::RuntimeError::Create(
                     create_runtime_error_msg.to_owned(),
@@ -2634,7 +2634,7 @@ mod tests {
 
         let mut control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
@@ -2679,7 +2679,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -2696,8 +2696,8 @@ mod tests {
 
         let control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
-            .workload_id(Some(vars::WORKLOAD_IDS[0].into()))
-            .run_folder(vars::RUN_FOLDER.into())
+            .workload_id(Some(fixtures::WORKLOAD_IDS[0].into()))
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
@@ -2742,7 +2742,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -2759,8 +2759,8 @@ mod tests {
 
         let control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
-            .workload_id(Some(vars::WORKLOAD_IDS[0].into()))
-            .run_folder(vars::RUN_FOLDER.into())
+            .workload_id(Some(fixtures::WORKLOAD_IDS[0].into()))
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
@@ -2805,7 +2805,7 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -2813,7 +2813,7 @@ mod tests {
 
         let control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
-            .run_folder(vars::RUN_FOLDER.into())
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))
@@ -2856,9 +2856,9 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
         let (workload_command_sender2, _) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(vars::TEST_CHANNEL_CAP);
+        let (state_change_tx, _state_change_rx) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload = generate_test_workload_named();
 
@@ -2875,8 +2875,8 @@ mod tests {
 
         let control_loop_state = ControlLoopState::builder()
             .workload_named(workload)
-            .workload_id(Some(vars::WORKLOAD_IDS[0].into()))
-            .run_folder(vars::RUN_FOLDER.into())
+            .workload_id(Some(fixtures::WORKLOAD_IDS[0].into()))
+            .run_folder(fixtures::RUN_FOLDER.into())
             .control_interface_path(CONTROL_INTERFACE_PATH.clone())
             .workload_state_sender(state_change_tx)
             .runtime(Box::new(runtime_mock.clone()))

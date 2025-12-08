@@ -62,25 +62,25 @@ mod tests {
 
     use ankaios_api::ank_base::{CompleteState, Workload};
     use ankaios_api::test_utils::{
-        generate_test_proto_complete_state, generate_test_workload_with_params, vars,
+        generate_test_proto_complete_state, generate_test_workload_with_params, fixtures,
     };
     use mockall::predicate::eq;
 
     fn generate_test_data() -> CompleteState {
         generate_test_proto_complete_state(&[
             (
-                vars::WORKLOAD_NAMES[0],
-                generate_test_workload_with_params(vars::AGENT_NAMES[0], vars::RUNTIME_NAMES[0])
+                fixtures::WORKLOAD_NAMES[0],
+                generate_test_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::RUNTIME_NAMES[0])
                     .into(),
             ),
             (
-                vars::WORKLOAD_NAMES[1],
-                generate_test_workload_with_params(vars::AGENT_NAMES[1], vars::RUNTIME_NAMES[0])
+                fixtures::WORKLOAD_NAMES[1],
+                generate_test_workload_with_params(fixtures::AGENT_NAMES[1], fixtures::RUNTIME_NAMES[0])
                     .into(),
             ),
             (
-                vars::WORKLOAD_NAMES[2],
-                generate_test_workload_with_params(vars::AGENT_NAMES[1], vars::RUNTIME_NAMES[0])
+                fixtures::WORKLOAD_NAMES[2],
+                generate_test_workload_with_params(fixtures::AGENT_NAMES[1], fixtures::RUNTIME_NAMES[0])
                     .into(),
             ),
         ])
@@ -101,7 +101,7 @@ mod tests {
             .with(eq(vec![]))
             .return_once(|_| Ok(test_data_clone));
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -146,12 +146,12 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![format!(
                 "desiredState.workloads.{}.runtime",
-                vars::WORKLOAD_NAMES[2]
+                fixtures::WORKLOAD_NAMES[2]
             )]))
             .return_once(|_| Ok(test_data_clone));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -160,7 +160,7 @@ mod tests {
             .get_state(
                 vec![format!(
                     "desiredState.workloads.{}.runtime",
-                    vars::WORKLOAD_NAMES[2]
+                    fixtures::WORKLOAD_NAMES[2]
                 )],
                 OutputFormat::Yaml,
             )
@@ -184,13 +184,13 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![
-                format!("desiredState.workloads.{}.runtime", vars::WORKLOAD_NAMES[0]),
-                format!("desiredState.workloads.{}.runtime", vars::WORKLOAD_NAMES[1]),
+                format!("desiredState.workloads.{}.runtime", fixtures::WORKLOAD_NAMES[0]),
+                format!("desiredState.workloads.{}.runtime", fixtures::WORKLOAD_NAMES[1]),
             ]))
             .return_once(|_| Ok(test_data_clone));
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -198,8 +198,8 @@ mod tests {
         let cmd_text = cmd
             .get_state(
                 vec![
-                    format!("desiredState.workloads.{}.runtime", vars::WORKLOAD_NAMES[0]),
-                    format!("desiredState.workloads.{}.runtime", vars::WORKLOAD_NAMES[1]),
+                    format!("desiredState.workloads.{}.runtime", fixtures::WORKLOAD_NAMES[0]),
+                    format!("desiredState.workloads.{}.runtime", fixtures::WORKLOAD_NAMES[1]),
                 ],
                 OutputFormat::Yaml,
             )
@@ -220,7 +220,7 @@ mod tests {
             .with(eq(vec!["workloadStates".to_owned()]))
             .return_once(|_| Ok(test_data_clone));
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

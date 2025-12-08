@@ -688,7 +688,7 @@ mod tests {
         generate_test_deleted_workload_with_dependencies,
         generate_test_deleted_workload_with_params, generate_test_proto_complete_state,
         generate_test_workload_named, generate_test_workload_named_with_params,
-        generate_test_workload_with_params, vars,
+        generate_test_workload_with_params, fixtures,
     };
     use common::to_server_interface::ToServerReceiver;
 
@@ -716,11 +716,11 @@ mod tests {
         }
 
         pub fn build(self) -> (ToServerReceiver, RuntimeManager, WorkloadStateReceiver) {
-            let (to_server, server_receiver) = channel(vars::TEST_CHANNEL_CAP);
-            let (wl_state_sender, wl_state_receiver) = channel(vars::TEST_CHANNEL_CAP);
+            let (to_server, server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
+            let (wl_state_sender, wl_state_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
             let runtime_manager = RuntimeManager::new(
-                vars::AGENT_NAMES[0].into(),
-                Path::new(vars::RUN_FOLDER).into(),
+                fixtures::AGENT_NAMES[0].into(),
+                Path::new(fixtures::RUN_FOLDER).into(),
                 to_server.clone(),
                 self.runtime_facade_map,
                 wl_state_sender.clone(),
@@ -746,15 +746,15 @@ mod tests {
             .returning(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let new_workload_access = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         let mut new_workload_no_access = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[1],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[1],
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[1],
         );
         new_workload_no_access.workload.control_interface_access = Default::default();
 
@@ -800,11 +800,11 @@ mod tests {
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                vars::RUNTIME_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .with_runtime(
-                vars::RUNTIME_NAMES[1],
+                fixtures::RUNTIME_NAMES[1],
                 Box::new(runtime_facade_mock_2) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -816,12 +816,12 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[1])
+                .contains_key(fixtures::WORKLOAD_NAMES[1])
         );
     }
 
@@ -840,8 +840,8 @@ mod tests {
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let workload_with_unknown_runtime = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             "unknown_runtime",
         );
         let added_workloads = vec![workload_with_unknown_runtime.clone()];
@@ -886,7 +886,7 @@ mod tests {
         let (_server_recv, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -911,9 +911,9 @@ mod tests {
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let workload = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         let added_workloads = vec![workload.clone()];
 
@@ -952,7 +952,7 @@ mod tests {
                     .workload_named
                     .instance_name
                     .workload_name()
-                    == vars::WORKLOAD_NAMES[0]
+                    == fixtures::WORKLOAD_NAMES[0]
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -961,7 +961,7 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -974,7 +974,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -1018,7 +1018,7 @@ mod tests {
         let (_server_recv, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1089,7 +1089,7 @@ mod tests {
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                vars::RUNTIME_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -1102,7 +1102,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -1125,9 +1125,9 @@ mod tests {
 
         // create workload with different config string to simulate a replace of a existing workload
         let existing_workload_with_other_config = WorkloadInstanceNameBuilder::default()
-            .workload_name(vars::WORKLOAD_NAMES[0])
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .config(&String::from("different config"))
-            .agent_name(vars::AGENT_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
             .build();
 
         let reusable_workload_state_running = ReusableWorkloadState::new(
@@ -1149,7 +1149,7 @@ mod tests {
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                vars::RUNTIME_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -1171,7 +1171,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         ); // existing workload is resumed
     }
 
@@ -1209,7 +1209,7 @@ mod tests {
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                vars::RUNTIME_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -1231,7 +1231,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         ); // existing workload is resumed
     }
 
@@ -1267,14 +1267,14 @@ mod tests {
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                vars::RUNTIME_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_owned(), MockWorkload::default()); // workload is known
+            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), MockWorkload::default()); // workload is known
 
         let expected_added_workloads: Vec<ReusableWorkload> =
             added_workloads.clone().into_reusable_workloads();
@@ -1294,7 +1294,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -1318,7 +1318,7 @@ mod tests {
         let reusable_workload_state_succeeded = ReusableWorkloadState::new(
             existing_workload.instance_name.clone(),
             ExecutionStateSpec::succeeded(),
-            Some(vars::WORKLOAD_IDS[0].to_string()),
+            Some(fixtures::WORKLOAD_IDS[0].to_string()),
         );
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
@@ -1331,7 +1331,7 @@ mod tests {
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                vars::RUNTIME_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -1339,7 +1339,7 @@ mod tests {
         let expected_new_added_workloads: Vec<ReusableWorkload> = added_workloads
             .clone()
             .into_iter()
-            .map(|w| ReusableWorkload::new(w, Some(vars::WORKLOAD_IDS[0].to_string())))
+            .map(|w| ReusableWorkload::new(w, Some(fixtures::WORKLOAD_IDS[0].to_string())))
             .collect();
         let (new_added_workloads, deleted_workloads) = runtime_manager
             .resume_and_remove_from_added_workloads(added_workloads)
@@ -1350,7 +1350,7 @@ mod tests {
         assert!(
             !runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -1362,9 +1362,9 @@ mod tests {
             .await;
 
         let existing_unneeded_workload = WorkloadInstanceNameBuilder::default()
-            .workload_name(vars::WORKLOAD_NAMES[0])
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .config(&String::from("different config"))
-            .agent_name(vars::AGENT_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
             .build();
 
         let workload_operations = vec![];
@@ -1401,7 +1401,7 @@ mod tests {
 
         let (_, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
             .with_runtime(
-                vars::RUNTIME_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -1421,9 +1421,9 @@ mod tests {
             .await;
 
         let existing_unneeded_workload = WorkloadInstanceNameBuilder::default()
-            .workload_name(vars::WORKLOAD_NAMES[0])
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .config(&String::from("different config"))
-            .agent_name(vars::AGENT_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
             .build();
 
         let workload_operations = vec![];
@@ -1457,7 +1457,7 @@ mod tests {
 
         let (_, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
             .with_runtime(
-                vars::RUNTIME_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -1467,7 +1467,7 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         runtime_manager
             .handle_server_hello(vec![], &MockWorkloadStateStore::default())
@@ -1509,7 +1509,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1555,7 +1555,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1590,9 +1590,9 @@ mod tests {
 
         // create workload with different config string to simulate a replace of a existing workload
         let existing_workload_with_other_config = WorkloadInstanceNameSpec::builder()
-            .workload_name(vars::WORKLOAD_NAMES[0])
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .config(&String::from("different config"))
-            .agent_name(vars::AGENT_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
             .build();
 
         let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(DeletedWorkload {
@@ -1640,7 +1640,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1654,7 +1654,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -1668,9 +1668,9 @@ mod tests {
         let _from_authorizer_context = setup_from_authorizer();
 
         let new_workload = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         let control_interface_info_mock = MockControlInterfaceInfo::new_context();
@@ -1680,8 +1680,8 @@ mod tests {
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let old_workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0].to_string(),
-            vars::WORKLOAD_NAMES[0].to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
         );
 
         let workload_operations = vec![WorkloadOperation::Update(
@@ -1705,7 +1705,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1718,7 +1718,7 @@ mod tests {
                 predicate::function(|workload: &Option<WorkloadNamed>| {
                     workload.is_some()
                         && workload.as_ref().unwrap().instance_name.workload_name()
-                            == vars::WORKLOAD_NAMES[0]
+                            == fixtures::WORKLOAD_NAMES[0]
                 }),
                 predicate::function(|control_interface: &Option<ControlInterfaceInfo>| {
                     control_interface.is_some()
@@ -1728,7 +1728,7 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         let added_workloads = vec![new_workload];
         let deleted_workloads = vec![old_workload];
@@ -1744,7 +1744,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -1764,14 +1764,14 @@ mod tests {
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let new_workload = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[1],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         let deleted_workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
         );
 
         let workload_operations = vec![
@@ -1808,7 +1808,7 @@ mod tests {
                     .workload_named
                     .instance_name
                     .workload_name()
-                    == vars::WORKLOAD_NAMES[1]
+                    == fixtures::WORKLOAD_NAMES[1]
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -1818,14 +1818,14 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         let added_workloads = vec![new_workload];
         let deleted_workloads = vec![deleted_workload];
@@ -1842,12 +1842,12 @@ mod tests {
         assert!(
             !runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[1])
+                .contains_key(fixtures::WORKLOAD_NAMES[1])
         );
     }
 
@@ -1866,14 +1866,14 @@ mod tests {
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let new_workload = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         let deleted_workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
         );
 
         let workload_operations = vec![WorkloadOperation::Create(ReusableWorkload::new(
@@ -1901,7 +1901,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -1919,7 +1919,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -1940,8 +1940,8 @@ mod tests {
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let old_workload = generate_test_deleted_workload_with_dependencies(
-            vars::AGENT_NAMES[0].to_owned(),
-            vars::WORKLOAD_NAMES[0].to_owned(),
+            fixtures::AGENT_NAMES[0].to_owned(),
+            fixtures::WORKLOAD_NAMES[0].to_owned(),
             Default::default(),
         );
 
@@ -1964,7 +1964,7 @@ mod tests {
         let runtime_facade_mock = MockRuntimeFacade::new();
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
-                vars::RUNTIME_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -1976,14 +1976,14 @@ mod tests {
             .withf(|workload, control_interface| {
                 workload.is_some()
                     && workload.as_ref().unwrap().instance_name.workload_name()
-                        == vars::WORKLOAD_NAMES[0]
+                        == fixtures::WORKLOAD_NAMES[0]
                     && control_interface.is_some()
             })
             .return_once(move |_, _| Ok(()));
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         let added_workloads = vec![new_workload];
         runtime_manager
@@ -1993,7 +1993,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -2040,7 +2040,7 @@ mod tests {
                     .workload_named
                     .instance_name
                     .workload_name()
-                    == vars::WORKLOAD_NAMES[0]
+                    == fixtures::WORKLOAD_NAMES[0]
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -2049,7 +2049,7 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -2063,7 +2063,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -2094,7 +2094,7 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -2109,7 +2109,7 @@ mod tests {
         assert!(
             !runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -2122,14 +2122,14 @@ mod tests {
             .await;
 
         let new_workload = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         let old_workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
         );
 
         let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(old_workload.clone())];
@@ -2149,7 +2149,7 @@ mod tests {
         let runtime_facade_mock = MockRuntimeFacade::new();
         let (_, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
             .with_runtime(
-                vars::RUNTIME_NAMES[0],
+                fixtures::RUNTIME_NAMES[0],
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
@@ -2168,7 +2168,7 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         let added_workloads = vec![new_workload];
         let deleted_workloads = vec![old_workload];
@@ -2183,7 +2183,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -2215,8 +2215,8 @@ mod tests {
         workload_mock.expect_delete().never();
 
         let new_deleted_workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
         );
 
         runtime_manager.workloads.insert(
@@ -2240,7 +2240,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -2264,12 +2264,12 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
 
-        let request_id: String = vars::REQUEST_ID.to_string();
+        let request_id: String = fixtures::REQUEST_ID.to_string();
         let complete_state = CompleteState::default();
         let expected_response = Response {
             request_id,
@@ -2284,11 +2284,11 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_string(), mock_workload);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), mock_workload);
 
         runtime_manager
             .forward_response(Response {
-                request_id: format!("{}@{}", vars::WORKLOAD_NAMES[0], vars::REQUEST_ID),
+                request_id: format!("{}@{}", fixtures::WORKLOAD_NAMES[0], fixtures::REQUEST_ID),
                 response_content: Some(ResponseContent::CompleteState(complete_state)),
             })
             .await;
@@ -2312,25 +2312,25 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
-        let request_id: String = vars::REQUEST_ID.to_string();
+        let request_id: String = fixtures::REQUEST_ID.to_string();
         let workloads = [(
-            vars::WORKLOAD_NAMES[0],
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], vars::RUNTIME_NAMES[0]).into(),
+            fixtures::WORKLOAD_NAMES[0],
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::RUNTIME_NAMES[0]).into(),
         )];
         let mut complete_state = generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
             agent_state_map: HashMap::from([(
-                vars::AGENT_NAMES[0].to_string(),
+                fixtures::AGENT_NAMES[0].to_string(),
                 ank_base::ExecutionsStatesOfWorkload {
                     wl_name_state_map: HashMap::from([(
-                        vars::WORKLOAD_NAMES[0].to_string(),
+                        fixtures::WORKLOAD_NAMES[0].to_string(),
                         ank_base::ExecutionsStatesForId {
                             id_state_map: HashMap::from([(
-                                vars::WORKLOAD_IDS[0].to_string(),
+                                fixtures::WORKLOAD_IDS[0].to_string(),
                                 ank_base::ExecutionState {
                                     additional_info: Some("".to_string()),
                                     execution_state_enum: Some(
@@ -2346,11 +2346,11 @@ mod tests {
 
         complete_state.agents = Some(ank_base::AgentMap {
             agents: HashMap::from([(
-                vars::AGENT_NAMES[0].to_owned(),
+                fixtures::AGENT_NAMES[0].to_owned(),
                 ank_base::AgentAttributes {
                     status: Some(ank_base::AgentStatus {
-                        cpu_usage: Some(ank_base::CpuUsage::from(vars::CPU_USAGE_SPEC)),
-                        free_memory: Some(ank_base::FreeMemory::from(vars::FREE_MEMORY_SPEC)),
+                        cpu_usage: Some(ank_base::CpuUsage::from(fixtures::CPU_USAGE_SPEC)),
+                        free_memory: Some(ank_base::FreeMemory::from(fixtures::FREE_MEMORY_SPEC)),
                     }),
                     ..Default::default()
                 },
@@ -2362,12 +2362,12 @@ mod tests {
             response_content: Some(ResponseContent::CompleteState(complete_state)),
         };
         let forwarded_response = Response {
-            request_id: format!("{}@{}", vars::WORKLOAD_NAMES[0], vars::REQUEST_ID),
+            request_id: format!("{}@{}", fixtures::WORKLOAD_NAMES[0], fixtures::REQUEST_ID),
             response_content: Some(ResponseContent::CompleteState(
                 generate_test_complete_state(vec![generate_test_workload_named_with_params(
-                    vars::WORKLOAD_NAMES[0],
-                    vars::AGENT_NAMES[0],
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[0],
+                    fixtures::AGENT_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                 )])
                 .into(),
             )),
@@ -2386,7 +2386,7 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_string(), mock_workload);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), mock_workload);
 
         runtime_manager.forward_response(forwarded_response).await;
     }
@@ -2409,7 +2409,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -2419,7 +2419,7 @@ mod tests {
 
         runtime_manager
             .forward_response(Response {
-                request_id: format!("{}@{}", vars::WORKLOAD_NAMES[0], vars::REQUEST_ID),
+                request_id: format!("{}@{}", fixtures::WORKLOAD_NAMES[0], fixtures::REQUEST_ID),
                 response_content: Some(ResponseContent::CompleteState(
                     generate_test_complete_state(vec![generate_test_workload_named()]).into(),
                 )),
@@ -2468,7 +2468,7 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -2481,7 +2481,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -2511,7 +2511,7 @@ mod tests {
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -2524,7 +2524,7 @@ mod tests {
         assert!(
             !runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -2537,8 +2537,8 @@ mod tests {
             .await;
 
         let deleted_workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
         );
 
         let next_workload_operations = vec![WorkloadOperation::Delete(deleted_workload)];
@@ -2566,7 +2566,7 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_owned(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), workload_mock);
 
         runtime_manager
             .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
@@ -2576,7 +2576,7 @@ mod tests {
         assert!(
             !runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -2608,7 +2608,7 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_owned(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_owned(), workload_mock);
 
         runtime_manager
             .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
@@ -2618,7 +2618,7 @@ mod tests {
         assert!(
             runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -2629,9 +2629,9 @@ mod tests {
             .await;
 
         let instance_name = WorkloadInstanceNameBuilder::default()
-            .workload_name(vars::WORKLOAD_NAMES[0])
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .config(&String::from("some config"))
-            .agent_name(vars::AGENT_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
             .build();
 
         let mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -2656,7 +2656,7 @@ mod tests {
         assert!(
             !runtime_manager
                 .workloads
-                .contains_key(vars::WORKLOAD_NAMES[0])
+                .contains_key(fixtures::WORKLOAD_NAMES[0])
         );
         assert_ne!(wl_state_msg, None);
 
@@ -2667,7 +2667,7 @@ mod tests {
 
         assert_eq!(
             actual_instance_name.workload_name(),
-            vars::WORKLOAD_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0]
         );
         assert_eq!(actual_execution_state, ExecutionStateSpec::removed());
     }
@@ -2720,8 +2720,8 @@ mod tests {
             RuntimeManagerBuilder::default().build();
         let added_workloads = vec![];
         let deleted_workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
         );
         let deleted_workloads = vec![deleted_workload.clone()];
         let workload_operations =
@@ -2750,14 +2750,14 @@ mod tests {
             RuntimeManagerBuilder::default().build();
 
         let new_workload = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         let added_workloads = vec![ReusableWorkload::new(new_workload.clone(), None)];
         let deleted_workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
         );
         let deleted_workloads = vec![deleted_workload.clone()];
         let workload_operations =
@@ -2798,7 +2798,7 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default()
                 .with_runtime(
-                    vars::RUNTIME_NAMES[0],
+                    fixtures::RUNTIME_NAMES[0],
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
@@ -2837,11 +2837,11 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         let deleted_workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
         );
         let workload_operations = vec![WorkloadOperation::Delete(deleted_workload)];
         runtime_manager
@@ -2873,11 +2873,11 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         let deleted_workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
         );
 
         let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(deleted_workload)];
@@ -2904,9 +2904,9 @@ mod tests {
             RuntimeManagerBuilder::default().build();
 
         let mut new_workload = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         new_workload.workload.control_interface_access = Default::default();
 
@@ -2918,11 +2918,11 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_string(), workload_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_mock);
 
         let deleted_workload = generate_test_deleted_workload_with_params(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
         );
 
         let workload_operations = vec![WorkloadOperation::Update(new_workload, deleted_workload)];
@@ -2973,28 +2973,28 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].to_string(), workload_1_mock);
+            .insert(fixtures::WORKLOAD_NAMES[0].to_string(), workload_1_mock);
         runtime_manager
             .workloads
-            .insert(vars::WORKLOAD_NAMES[1].to_string(), workload_2_mock);
+            .insert(fixtures::WORKLOAD_NAMES[1].to_string(), workload_2_mock);
 
         let res = runtime_manager
             .get_log_fetchers(LogsRequestSpec {
                 workload_names: vec![
                     WorkloadInstanceNameSpec::new(
-                        vars::AGENT_NAMES[0],
-                        vars::WORKLOAD_NAMES[0],
-                        vars::WORKLOAD_IDS[0],
+                        fixtures::AGENT_NAMES[0],
+                        fixtures::WORKLOAD_NAMES[0],
+                        fixtures::WORKLOAD_IDS[0],
                     ),
                     WorkloadInstanceNameSpec::new(
-                        vars::AGENT_NAMES[0],
-                        vars::WORKLOAD_NAMES[1],
-                        vars::WORKLOAD_IDS[0],
+                        fixtures::AGENT_NAMES[0],
+                        fixtures::WORKLOAD_NAMES[1],
+                        fixtures::WORKLOAD_IDS[0],
                     ),
                     WorkloadInstanceNameSpec::new(
-                        vars::AGENT_NAMES[0],
-                        vars::WORKLOAD_NAMES[2],
-                        vars::WORKLOAD_IDS[0],
+                        fixtures::AGENT_NAMES[0],
+                        fixtures::WORKLOAD_NAMES[2],
+                        fixtures::WORKLOAD_IDS[0],
                     ),
                 ],
                 follow: true,
@@ -3008,9 +3008,9 @@ mod tests {
         assert_eq!(
             &res[0].0,
             &WorkloadInstanceNameSpec::new(
-                vars::AGENT_NAMES[0],
-                vars::WORKLOAD_NAMES[0],
-                vars::WORKLOAD_IDS[0]
+                fixtures::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::WORKLOAD_IDS[0]
             )
         );
     }

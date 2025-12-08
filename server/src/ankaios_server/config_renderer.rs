@@ -226,7 +226,7 @@ mod tests {
     use ankaios_api::test_utils::{
         generate_test_config_map, generate_test_workload_named_with_params,
         generate_test_workload_named_with_runtime_config, generate_test_workload_with_params,
-        generate_test_workload_with_runtime_config, vars,
+        generate_test_workload_with_runtime_config, fixtures,
     };
 
     use std::collections::HashMap;
@@ -234,13 +234,13 @@ mod tests {
     fn generate_test_templated_workload_files() -> Vec<FileSpec> {
         vec![
             FileSpec {
-                mount_point: vars::FILE_TEXT_PATH.to_string(),
+                mount_point: fixtures::FILE_TEXT_PATH.to_string(),
                 file_content: FileContentSpec::Data {
                     data: "{{ref1.config_file}}".into(),
                 },
             },
             FileSpec {
-                mount_point: vars::FILE_BINARY_PATH.to_string(),
+                mount_point: fixtures::FILE_BINARY_PATH.to_string(),
                 file_content: FileContentSpec::BinaryData {
                     binary_data: "{{ref1.binary_file}}".into(),
                 },
@@ -256,18 +256,18 @@ mod tests {
         let templated_agent_name = "{{ref1.agent_name}}";
         let stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
             templated_agent_name,
-            vars::RUNTIME_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             templated_runtime_config,
         );
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = generate_test_config_map();
         let renderer = ConfigRenderer::default();
 
         let mut expected_workload = generate_test_workload_named_with_runtime_config(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             "some_value_1: value123\nsome_value_2: list_value_1",
         );
         expected_workload.workload.configs.configs.clear();
@@ -276,7 +276,7 @@ mod tests {
 
         assert_eq!(
             Ok(RenderedWorkloads::from([(
-                vars::WORKLOAD_NAMES[0].to_owned(),
+                fixtures::WORKLOAD_NAMES[0].to_owned(),
                 expected_workload
             )])),
             result
@@ -287,17 +287,17 @@ mod tests {
     #[test]
     fn utest_render_workloads_render_files_fields_successfully() {
         let mut stored_workload =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], vars::RUNTIME_NAMES[0]);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::RUNTIME_NAMES[0]);
         stored_workload.files.files = generate_test_templated_workload_files();
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = generate_test_config_map();
         let renderer = ConfigRenderer::default();
 
         let mut expected_workload = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         expected_workload.workload.configs.configs.clear();
 
@@ -305,7 +305,7 @@ mod tests {
 
         assert_eq!(
             Ok(RenderedWorkloads::from([(
-                vars::WORKLOAD_NAMES[0].to_owned(),
+                fixtures::WORKLOAD_NAMES[0].to_owned(),
                 expected_workload
             )])),
             result
@@ -316,15 +316,15 @@ mod tests {
     #[test]
     fn utest_render_workloads_render_files_fields_text_file_render_error() {
         let mut stored_workload =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], vars::RUNTIME_NAMES[0]);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::RUNTIME_NAMES[0]);
         stored_workload.files.files = vec![FileSpec {
-            mount_point: vars::FILE_TEXT_PATH.to_string(),
+            mount_point: fixtures::FILE_TEXT_PATH.to_string(),
             file_content: FileContentSpec::Data {
                 data: "{{invalid_ref.file_content}}".into(),
             },
         }];
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = generate_test_config_map();
         let renderer = ConfigRenderer::default();
 
@@ -339,15 +339,15 @@ mod tests {
     #[test]
     fn utest_render_workloads_render_files_fields_binary_file_render_error() {
         let mut stored_workload =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], vars::RUNTIME_NAMES[0]);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::RUNTIME_NAMES[0]);
         stored_workload.files.files = vec![FileSpec {
-            mount_point: vars::FILE_BINARY_PATH.to_string(),
+            mount_point: fixtures::FILE_BINARY_PATH.to_string(),
             file_content: FileContentSpec::BinaryData {
                 binary_data: "{{invalid_ref.binary_data}}".into(),
             },
         }];
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = generate_test_config_map();
         let renderer = ConfigRenderer::default();
 
@@ -363,12 +363,12 @@ mod tests {
     fn utest_render_workloads_fails_field_uses_config_key_instead_of_alias() {
         let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
         let stored_workload = generate_test_workload_with_runtime_config(
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             templated_runtime_config,
         );
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = generate_test_config_map();
         let renderer = ConfigRenderer::default();
 
@@ -386,20 +386,20 @@ mod tests {
         let templated_agent_name = "{{config_1.agent_name}}";
         let mut stored_workload = generate_test_workload_with_runtime_config(
             templated_agent_name,
-            vars::RUNTIME_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             templated_runtime_config,
         );
 
         stored_workload.configs.configs.clear(); // no configs assigned
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = generate_test_config_map();
         let renderer = ConfigRenderer::default();
 
         let mut expected_workload = generate_test_workload_named_with_runtime_config(
-            vars::WORKLOAD_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
             templated_agent_name,
-            vars::RUNTIME_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             templated_runtime_config,
         );
 
@@ -411,7 +411,7 @@ mod tests {
 
         assert_eq!(
             Ok(RenderedWorkloads::from([(
-                vars::WORKLOAD_NAMES[0].to_owned(),
+                fixtures::WORKLOAD_NAMES[0].to_owned(),
                 expected_workload
             )])),
             result
@@ -423,8 +423,8 @@ mod tests {
     fn utest_render_workloads_fails_workload_references_not_existing_config_key() {
         let templated_runtime_config = "config_1: {{ref1.values.value_1}}";
         let mut stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             templated_runtime_config,
         );
 
@@ -432,7 +432,7 @@ mod tests {
             configs: HashMap::from([("ref1".to_owned(), "not_existing_config_key".to_owned())]),
         };
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = generate_test_config_map();
         let renderer = ConfigRenderer::default();
         let result = renderer.render_workloads(&workloads, &configs.configs);
@@ -446,8 +446,8 @@ mod tests {
     #[test]
     fn utest_render_workloads_fails_workload_references_unused_not_existing_config_key() {
         let mut stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             "some runtime config",
         );
 
@@ -458,7 +458,7 @@ mod tests {
             )]),
         };
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = generate_test_config_map();
         let renderer = ConfigRenderer::default();
         let result = renderer.render_workloads(&workloads, &configs.configs);
@@ -473,12 +473,12 @@ mod tests {
     fn utest_render_workloads_fails_runtime_config_contains_non_existing_config() {
         let templated_runtime_config = "config_1: {{config_1.values.not_existing_key}}";
         let stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             templated_runtime_config,
         );
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = generate_test_config_map();
         let renderer = ConfigRenderer::default();
 
@@ -495,11 +495,11 @@ mod tests {
     fn utest_render_workloads_fails_agent_contains_non_existing_config() {
         let stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
             "{{config_1.not_existing_key}}",
-            vars::RUNTIME_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             "some runtime config",
         );
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = generate_test_config_map();
         let renderer = ConfigRenderer::default();
 
@@ -516,12 +516,12 @@ mod tests {
     fn utest_render_workloads_fails_workload_references_empty_configs() {
         let templated_runtime_config = "config_1: {{config_1.values.value_1}}";
         let stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             templated_runtime_config,
         );
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = HashMap::default();
         let renderer = ConfigRenderer::default();
 
@@ -540,8 +540,8 @@ mod tests {
                 {{> indent content=ref1}}"#;
 
         let mut stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             runtime_config_with_partial_template,
         );
 
@@ -549,7 +549,7 @@ mod tests {
             configs: HashMap::from([("ref1".to_owned(), "config_1".to_owned())]),
         };
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let multi_line_config_value = "value_1\nvalue_2\nvalue_3".to_string();
         let configs = HashMap::from([(
             "config_1".to_string(),
@@ -563,7 +563,7 @@ mod tests {
         assert!(render_result.is_ok());
         let rendered_workloads = render_result.unwrap();
 
-        let workload = rendered_workloads.get(vars::WORKLOAD_NAMES[0]).unwrap();
+        let workload = rendered_workloads.get(fixtures::WORKLOAD_NAMES[0]).unwrap();
 
         let expected_expanded_runtime_config = r#"
         some:
@@ -586,8 +586,8 @@ mod tests {
         const CONFIG_VALUE: &str = "value\"with\"escape\'characters\'";
 
         let mut stored_workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             "config_of_special_char_sequences: {{special_conf}}",
         );
 
@@ -595,7 +595,7 @@ mod tests {
             configs: HashMap::from([("special_conf".into(), "config_special_chars".into())]),
         };
 
-        let workloads = HashMap::from([(vars::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
+        let workloads = HashMap::from([(fixtures::WORKLOAD_NAMES[0].to_owned(), stored_workload)]);
         let configs = HashMap::from([(
             "config_special_chars".to_string(),
             ConfigItemSpec {
@@ -606,9 +606,9 @@ mod tests {
         let renderer = ConfigRenderer::default();
 
         let mut expected_workload = generate_test_workload_named_with_runtime_config(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             format!("config_of_special_char_sequences: {CONFIG_VALUE}"),
         );
         expected_workload.workload.configs.configs.clear();
@@ -617,7 +617,7 @@ mod tests {
 
         assert_eq!(
             Ok(RenderedWorkloads::from([(
-                vars::WORKLOAD_NAMES[0].to_owned(),
+                fixtures::WORKLOAD_NAMES[0].to_owned(),
                 expected_workload
             )])),
             result

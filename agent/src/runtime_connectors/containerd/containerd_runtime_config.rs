@@ -69,14 +69,14 @@ mod tests {
     use super::{ContainerdRuntimeConfig, NerdctlRunConfig};
     use crate::runtime_connectors::containerd::containerd_runtime::CONTAINERD_RUNTIME_NAME;
 
-    use ankaios_api::test_utils::{generate_test_workload_with_params, vars};
+    use ankaios_api::test_utils::{generate_test_workload_with_params, fixtures};
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
 
     #[test]
     fn utest_containerd_config_failure_missing_image() {
         let mut workload =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], CONTAINERD_RUNTIME_NAME);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], CONTAINERD_RUNTIME_NAME);
 
         workload.runtime_config = "something without an image".to_string();
 
@@ -86,7 +86,7 @@ mod tests {
     #[test]
     fn utest_containerd_config_failure_wrong_runtime() {
         let workload =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], DIFFERENT_RUNTIME_NAME);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], DIFFERENT_RUNTIME_NAME);
 
         assert!(ContainerdRuntimeConfig::try_from(&workload).is_err());
     }
@@ -94,7 +94,7 @@ mod tests {
     #[test]
     fn utest_containerd_config_success() {
         let mut workload =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], CONTAINERD_RUNTIME_NAME);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], CONTAINERD_RUNTIME_NAME);
 
         let expected_containerd_config = ContainerdRuntimeConfig {
             general_options: vec!["--version".to_string()],

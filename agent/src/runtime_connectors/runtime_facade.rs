@@ -458,7 +458,7 @@ mod tests {
     };
 
     use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec};
-    use ankaios_api::test_utils::{vars, generate_test_workload_named};
+    use ankaios_api::test_utils::{fixtures, generate_test_workload_named};
 
     // [utest->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
     #[tokio::test]
@@ -466,7 +466,7 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
 
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(vars::WORKLOAD_NAMES[0])
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .build();
 
         let workload_state = ReusableWorkloadState::new(
@@ -476,7 +476,7 @@ mod tests {
         );
 
         runtime_mock.expect(vec![RuntimeCall::GetReusableWorkloads(
-            vars::AGENT_NAMES[0].into(),
+            fixtures::AGENT_NAMES[0].into(),
             Ok(vec![workload_state]),
         )]);
 
@@ -484,12 +484,12 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            vars::RUN_FOLDER.into(),
+            fixtures::RUN_FOLDER.into(),
         ));
 
         assert_eq!(
             test_runtime_facade
-                .get_reusable_workloads(&vars::AGENT_NAMES[0].into())
+                .get_reusable_workloads(&fixtures::AGENT_NAMES[0].into())
                 .await
                 .unwrap()
                 .iter()
@@ -512,7 +512,7 @@ mod tests {
 
         let reusable_workload = ReusableWorkload::new(
             generate_test_workload_named(),
-            Some(vars::WORKLOAD_IDS[0].to_string()),
+            Some(fixtures::WORKLOAD_IDS[0].to_string()),
         );
 
         let control_interface_mock = MockControlInterface::default();
@@ -526,7 +526,7 @@ mod tests {
         control_interface_info_mock
             .expect_get_control_interface_path()
             .once()
-            .return_const(ControlInterfacePath::new(vars::PIPES_LOCATION.into()));
+            .return_const(ControlInterfacePath::new(fixtures::PIPES_LOCATION.into()));
 
         control_interface_info_mock
             .expect_get_to_server_sender()
@@ -544,7 +544,7 @@ mod tests {
             .return_once(MockAuthorizer::default);
 
         let (wl_state_sender, _wl_state_receiver) =
-            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -560,7 +560,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            vars::RUN_FOLDER.into(),
+            fixtures::RUN_FOLDER.into(),
         ));
 
         let mock_control_loop = MockWorkloadControlLoop::run_context();
@@ -593,7 +593,7 @@ mod tests {
         control_interface_info_mock
             .expect_get_control_interface_path()
             .once()
-            .return_const(ControlInterfacePath::new(vars::PIPES_LOCATION.into()));
+            .return_const(ControlInterfacePath::new(fixtures::PIPES_LOCATION.into()));
         control_interface_info_mock
             .expect_get_to_server_sender()
             .once()
@@ -603,7 +603,7 @@ mod tests {
             .once()
             .return_const(
                 WorkloadInstanceNameSpec::builder()
-                    .workload_name(vars::WORKLOAD_NAMES[0])
+                    .workload_name(fixtures::WORKLOAD_NAMES[0])
                     .build(),
             );
         control_interface_info_mock
@@ -620,7 +620,7 @@ mod tests {
         let workload = generate_test_workload_named();
 
         let (wl_state_sender, _wl_state_receiver) =
-            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mock_control_loop = MockWorkloadControlLoop::run_context();
         mock_control_loop
@@ -641,7 +641,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            vars::RUN_FOLDER.into(),
+            fixtures::RUN_FOLDER.into(),
         ));
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
@@ -668,7 +668,7 @@ mod tests {
         let workload = generate_test_workload_named();
 
         let (wl_state_sender, _wl_state_receiver) =
-            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let mock_control_loop = MockWorkloadControlLoop::run_context();
         mock_control_loop
@@ -689,7 +689,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            vars::RUN_FOLDER.into(),
+            fixtures::RUN_FOLDER.into(),
         ));
 
         let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
@@ -709,22 +709,22 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
 
         let (wl_state_sender, wl_state_receiver) =
-            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(vars::WORKLOAD_NAMES[0])
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .build();
 
         runtime_mock.expect(vec![
-            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(vars::WORKLOAD_IDS[0].to_string())),
-            RuntimeCall::DeleteWorkload(vars::WORKLOAD_IDS[0].to_string(), Ok(())),
+            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(fixtures::WORKLOAD_IDS[0].to_string())),
+            RuntimeCall::DeleteWorkload(fixtures::WORKLOAD_IDS[0].to_string(), Ok(())),
         ]);
 
         let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            vars::RUN_FOLDER.into(),
+            fixtures::RUN_FOLDER.into(),
         ));
 
         let mock_remove_dir = mock_filesystem_async::remove_dir_all_context();
@@ -755,16 +755,16 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
 
         let (wl_state_sender, wl_state_receiver) =
-            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(vars::WORKLOAD_NAMES[0])
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .build();
 
         runtime_mock.expect(vec![
-            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(vars::WORKLOAD_IDS[0].to_string())),
+            RuntimeCall::GetWorkloadId(workload_instance_name.clone(), Ok(fixtures::WORKLOAD_IDS[0].to_string())),
             RuntimeCall::DeleteWorkload(
-                vars::WORKLOAD_IDS[0].to_string(),
+                fixtures::WORKLOAD_IDS[0].to_string(),
                 Err(crate::runtime_connectors::RuntimeError::Delete(
                     "delete failed".to_owned(),
                 )),
@@ -775,7 +775,7 @@ mod tests {
             Box::new(runtime_mock.clone());
         let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
             ownable_runtime_mock,
-            vars::RUN_FOLDER.into(),
+            fixtures::RUN_FOLDER.into(),
         ));
 
         test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);

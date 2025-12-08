@@ -202,7 +202,7 @@ mod tests {
         ExecutionStateSpec, WorkloadState, WorkloadStateSpec, WorkloadStatesMap,
         WorkloadStatesMapSpec,
     };
-    use crate::test_utils::{generate_test_workload_named_with_params, vars};
+    use crate::test_utils::{generate_test_workload_named_with_params, fixtures};
     use crate::test_utils::{
         generate_test_workload_state_with_agent,
         generate_test_workload_states_map_from_workload_states,
@@ -214,18 +214,18 @@ mod tests {
     fn create_test_setup() -> WorkloadStatesMapSpec {
         generate_test_workload_states_map_from_workload_states(vec![
             generate_test_workload_state_with_agent(
-                vars::WORKLOAD_NAMES[0],
-                vars::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::AGENT_NAMES[0],
                 ExecutionStateSpec::succeeded(),
             ),
             generate_test_workload_state_with_agent(
-                vars::WORKLOAD_NAMES[1],
-                vars::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[1],
+                fixtures::AGENT_NAMES[0],
                 ExecutionStateSpec::starting(ADDITIONAL_INFO),
             ),
             generate_test_workload_state_with_agent(
-                vars::WORKLOAD_NAMES[2],
-                vars::AGENT_NAMES[1],
+                fixtures::WORKLOAD_NAMES[2],
+                fixtures::AGENT_NAMES[1],
                 ExecutionStateSpec::running(),
             ),
         ])
@@ -249,18 +249,18 @@ mod tests {
             wls_res,
             vec![
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[0],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[0],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::succeeded()
                 ),
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[1],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[1],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::starting(ADDITIONAL_INFO),
                 ),
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[2],
-                    vars::AGENT_NAMES[1],
+                    fixtures::WORKLOAD_NAMES[2],
+                    fixtures::AGENT_NAMES[1],
                     ExecutionStateSpec::running()
                 ),
             ]
@@ -273,7 +273,7 @@ mod tests {
 
         let wl_state_new = generate_test_workload_state_with_agent(
             "new_workload",
-            vars::AGENT_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::starting(ADDITIONAL_INFO),
         );
 
@@ -283,18 +283,18 @@ mod tests {
             wls_db,
             generate_test_workload_states_map_from_workload_states(vec![
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[0],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[0],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::succeeded()
                 ),
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[1],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[1],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::starting(ADDITIONAL_INFO),
                 ),
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[2],
-                    vars::AGENT_NAMES[1],
+                    fixtures::WORKLOAD_NAMES[2],
+                    fixtures::AGENT_NAMES[1],
                     ExecutionStateSpec::running()
                 ),
                 wl_state_new
@@ -307,8 +307,8 @@ mod tests {
         let mut wls_db = create_test_setup();
 
         let wl_state_2_update = generate_test_workload_state_with_agent(
-            vars::WORKLOAD_NAMES[1],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         );
 
@@ -318,14 +318,14 @@ mod tests {
             wls_db,
             generate_test_workload_states_map_from_workload_states(vec![
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[0],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[0],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::succeeded()
                 ),
                 wl_state_2_update,
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[2],
-                    vars::AGENT_NAMES[1],
+                    fixtures::WORKLOAD_NAMES[2],
+                    fixtures::AGENT_NAMES[1],
                     ExecutionStateSpec::running()
                 )
             ])
@@ -336,7 +336,7 @@ mod tests {
     fn utest_get_workload_states_excluding_agent_returns_correct() {
         let wls_db = create_test_setup();
 
-        let mut wls_res = wls_db.get_workload_state_excluding_agent(vars::AGENT_NAMES[1]);
+        let mut wls_res = wls_db.get_workload_state_excluding_agent(fixtures::AGENT_NAMES[1]);
         wls_res.sort_by(|a, b| {
             a.instance_name
                 .workload_name()
@@ -347,13 +347,13 @@ mod tests {
             wls_res,
             vec![
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[0],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[0],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::succeeded()
                 ),
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[1],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[1],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::starting(ADDITIONAL_INFO),
                 ),
             ]
@@ -364,24 +364,24 @@ mod tests {
     fn utest_mark_all_workload_state_for_agent_disconnected() {
         let mut wls_db = create_test_setup();
 
-        wls_db.agent_disconnected(vars::AGENT_NAMES[0]);
+        wls_db.agent_disconnected(fixtures::AGENT_NAMES[0]);
 
         assert_eq!(
             wls_db,
             generate_test_workload_states_map_from_workload_states(vec![
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[0],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[0],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::agent_disconnected()
                 ),
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[1],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[1],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::agent_disconnected()
                 ),
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[2],
-                    vars::AGENT_NAMES[1],
+                    fixtures::WORKLOAD_NAMES[2],
+                    fixtures::AGENT_NAMES[1],
                     ExecutionStateSpec::running()
                 ),
             ])
@@ -392,7 +392,7 @@ mod tests {
     fn utest_get_workload_state_for_agent_returns_workload_state_of_existing_agent_name() {
         let wls_db = create_test_setup();
 
-        let mut wls_res = wls_db.get_workload_state_for_agent(vars::AGENT_NAMES[0]);
+        let mut wls_res = wls_db.get_workload_state_for_agent(fixtures::AGENT_NAMES[0]);
         wls_res.sort_by(|a, b| {
             a.instance_name
                 .workload_name()
@@ -403,13 +403,13 @@ mod tests {
             wls_res,
             vec![
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[0],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[0],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::succeeded()
                 ),
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[1],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[1],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::starting(ADDITIONAL_INFO),
                 ),
             ]
@@ -430,14 +430,14 @@ mod tests {
         let mut wls_db = create_test_setup();
 
         let wl_state_1 = generate_test_workload_state_with_agent(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::removed(),
         );
 
         let wl_state_3 = generate_test_workload_state_with_agent(
-            vars::WORKLOAD_NAMES[2],
-            vars::AGENT_NAMES[1],
+            fixtures::WORKLOAD_NAMES[2],
+            fixtures::AGENT_NAMES[1],
             ExecutionStateSpec::removed(),
         );
 
@@ -447,8 +447,8 @@ mod tests {
             wls_db,
             generate_test_workload_states_map_from_workload_states(vec![
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[1],
-                    vars::AGENT_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[1],
+                    fixtures::AGENT_NAMES[0],
                     ExecutionStateSpec::starting(ADDITIONAL_INFO),
                 )
             ])
@@ -460,14 +460,14 @@ mod tests {
         let mut wls_db = WorkloadStatesMapSpec::new();
 
         let wl_state_1 = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
             "",
-            vars::RUNTIME_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
         let wl_state_3 = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[2],
-            vars::AGENT_NAMES[1],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[2],
+            fixtures::AGENT_NAMES[1],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         wls_db.initial_state(&vec![wl_state_1, wl_state_3]);
@@ -476,13 +476,13 @@ mod tests {
             wls_db,
             generate_test_workload_states_map_from_workload_states(vec![
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[0],
+                    fixtures::WORKLOAD_NAMES[0],
                     "",
                     ExecutionStateSpec::not_scheduled(),
                 ),
                 generate_test_workload_state_with_agent(
-                    vars::WORKLOAD_NAMES[2],
-                    vars::AGENT_NAMES[1],
+                    fixtures::WORKLOAD_NAMES[2],
+                    fixtures::AGENT_NAMES[1],
                     ExecutionStateSpec::initial(),
                 )
             ])
@@ -494,8 +494,8 @@ mod tests {
         let wls_db = create_test_setup();
 
         let wl_state = generate_test_workload_state_with_agent(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::succeeded(),
         );
 
@@ -511,7 +511,7 @@ mod tests {
 
         let wl_state = generate_test_workload_state_with_agent(
             "not_existing_workload",
-            vars::AGENT_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         );
 

@@ -259,7 +259,7 @@ mod tests {
     use crate::test_utils::generate_test_deleted_workload_with_params;
     use crate::test_utils::{
         generate_test_workload, generate_test_workload_named,
-        generate_test_workload_named_with_params, vars,
+        generate_test_workload_named_with_params, fixtures,
     };
 
     // one test for a failing case, other cases are tested on the caller side to not repeat test code
@@ -330,17 +330,17 @@ mod tests {
         );
 
         deleted_workload.dependencies.insert(
-            vars::WORKLOAD_NAMES[2].to_owned(),
+            fixtures::WORKLOAD_NAMES[2].to_owned(),
             DeleteCondition::DelCondNotPendingNorRunning,
         );
 
         let serialized_deleted_workload = serde_yaml::to_string(&deleted_workload).unwrap();
         let indices = [
             serialized_deleted_workload
-                .find(vars::WORKLOAD_NAMES[0])
+                .find(fixtures::WORKLOAD_NAMES[0])
                 .unwrap(),
             serialized_deleted_workload
-                .find(vars::WORKLOAD_NAMES[2])
+                .find(fixtures::WORKLOAD_NAMES[2])
                 .unwrap(),
         ];
         assert!(
@@ -427,8 +427,8 @@ mod tests {
     fn utest_workload_validate_fields_incompatible_workload_name() {
         let workload_with_wrong_name = generate_test_workload_named_with_params(
             "incompatible.workload_name",
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         assert_eq!(
@@ -445,9 +445,9 @@ mod tests {
     #[test]
     fn utest_workload_validate_fields_incompatible_agent_name() {
         let workload_with_wrong_agent_name = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
             "incompatible.agent_name",
-            vars::RUNTIME_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         assert_eq!(
@@ -464,9 +464,9 @@ mod tests {
     #[test]
     fn utest_workload_with_valid_empty_agent_name() {
         let workload_with_valid_missing_agent_name = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
             "",
-            vars::RUNTIME_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
         );
 
         assert!(

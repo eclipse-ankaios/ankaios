@@ -191,7 +191,7 @@ mod tests {
     use crate::io_utils::DEFAULT_RUN_FOLDER;
     use crate::{agent_config::ConversionErrors, cli::Arguments};
 
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
     use common::DEFAULT_SERVER_ADDRESS;
 
     use std::io::Write;
@@ -238,8 +238,8 @@ mod tests {
         ca_pem = '''{}'''
         ca_pem_content = '''{}'''
         #",
-            vars::CA_PEM_PATH,
-            vars::CRT_PEM_CONTENT
+            fixtures::CA_PEM_PATH,
+            fixtures::CRT_PEM_CONTENT
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -261,24 +261,24 @@ mod tests {
         let mut agent_config = AgentConfig::default();
         let args = Arguments {
             config_path: None,
-            agent_name: Some(vars::AGENT_NAMES[0].to_string()),
+            agent_name: Some(fixtures::AGENT_NAMES[0].to_string()),
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
             run_folder: Some(DEFAULT_RUN_FOLDER.to_string()),
             insecure: Some(false),
-            ca_pem: Some(vars::CA_PEM_PATH.to_string()),
-            crt_pem: Some(vars::CRT_PEM_PATH.to_string()),
-            key_pem: Some(vars::KEY_PEM_PATH.to_string()),
+            ca_pem: Some(fixtures::CA_PEM_PATH.to_string()),
+            crt_pem: Some(fixtures::CRT_PEM_PATH.to_string()),
+            key_pem: Some(fixtures::KEY_PEM_PATH.to_string()),
         };
 
         agent_config.update_with_args(&args);
 
-        assert_eq!(agent_config.name, vars::AGENT_NAMES[0].to_string());
+        assert_eq!(agent_config.name, fixtures::AGENT_NAMES[0].to_string());
         assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
         assert_eq!(agent_config.run_folder, DEFAULT_RUN_FOLDER.to_string());
         assert!(!agent_config.insecure);
-        assert_eq!(agent_config.ca_pem, Some(vars::CA_PEM_PATH.to_string()));
-        assert_eq!(agent_config.crt_pem, Some(vars::CRT_PEM_PATH.to_string()));
-        assert_eq!(agent_config.key_pem, Some(vars::KEY_PEM_PATH.to_string()));
+        assert_eq!(agent_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
+        assert_eq!(agent_config.crt_pem, Some(fixtures::CRT_PEM_PATH.to_string()));
+        assert_eq!(agent_config.key_pem, Some(fixtures::KEY_PEM_PATH.to_string()));
     }
 
     // [utest->swdd~agent-loads-config-file~1]
@@ -291,9 +291,9 @@ mod tests {
         crt_pem_content = '''{}'''
         key_pem_content = '''{}'''
         #",
-            vars::CA_PEM_CONTENT,
-            vars::CRT_PEM_CONTENT,
-            vars::KEY_PEM_CONTENT
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -303,7 +303,7 @@ mod tests {
             AgentConfig::from_file(PathBuf::from(tmp_config_file.path())).unwrap();
         let args = Arguments {
             config_path: None,
-            agent_name: Some(vars::AGENT_NAMES[0].to_string()),
+            agent_name: Some(fixtures::AGENT_NAMES[0].to_string()),
             server_url: Some(DEFAULT_SERVER_ADDRESS.to_string()),
             run_folder: Some(DEFAULT_RUN_FOLDER.to_string()),
             insecure: Some(false),
@@ -316,15 +316,15 @@ mod tests {
 
         assert_eq!(
             agent_config.ca_pem_content,
-            Some(vars::CA_PEM_CONTENT.to_string())
+            Some(fixtures::CA_PEM_CONTENT.to_string())
         );
         assert_eq!(
             agent_config.crt_pem_content,
-            Some(vars::CRT_PEM_CONTENT.to_string())
+            Some(fixtures::CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
             agent_config.key_pem_content,
-            Some(vars::KEY_PEM_CONTENT.to_string())
+            Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
     }
 
@@ -342,11 +342,11 @@ mod tests {
         crt_pem_content = '''{}'''
         key_pem_content = '''{}'''
         #",
-            vars::AGENT_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             DEFAULT_RUN_FOLDER,
-            vars::CA_PEM_CONTENT,
-            vars::CRT_PEM_CONTENT,
-            vars::KEY_PEM_CONTENT
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -358,21 +358,21 @@ mod tests {
 
         let agent_config = agent_config_res.unwrap();
 
-        assert_eq!(agent_config.name, vars::AGENT_NAMES[0].to_string());
+        assert_eq!(agent_config.name, fixtures::AGENT_NAMES[0].to_string());
         assert_eq!(agent_config.server_url, DEFAULT_SERVER_ADDRESS.to_string());
         assert_eq!(agent_config.run_folder, DEFAULT_RUN_FOLDER.to_string());
         assert!(agent_config.insecure);
         assert_eq!(
             agent_config.ca_pem_content,
-            Some(vars::CA_PEM_CONTENT.to_string())
+            Some(fixtures::CA_PEM_CONTENT.to_string())
         );
         assert_eq!(
             agent_config.crt_pem_content,
-            Some(vars::CRT_PEM_CONTENT.to_string())
+            Some(fixtures::CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
             agent_config.key_pem_content,
-            Some(vars::KEY_PEM_CONTENT.to_string())
+            Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
     }
 }

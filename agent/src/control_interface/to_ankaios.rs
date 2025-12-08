@@ -81,7 +81,7 @@ mod tests {
         CompleteStateRequest, CompleteStateRequestSpec, Request, RequestContent,
         RequestContentSpec, RequestSpec,
     };
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
 
     const FIELD_1: &str = "field_1";
     const FIELD_2: &str = "field_2";
@@ -91,7 +91,7 @@ mod tests {
     fn utest_convert_control_interface_proto_to_ankaios_object() {
         let proto_request = control_api::ToAnkaios {
             to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(Request {
-                request_id: vars::REQUEST_ID.into(),
+                request_id: fixtures::REQUEST_ID.into(),
                 request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                     field_mask: vec![FIELD_1.into(), FIELD_2.into()],
                 })),
@@ -99,7 +99,7 @@ mod tests {
         };
 
         let expected = ToAnkaios::Request(RequestSpec {
-            request_id: vars::REQUEST_ID.into(),
+            request_id: fixtures::REQUEST_ID.into(),
             request_content: RequestContentSpec::CompleteStateRequest(CompleteStateRequestSpec {
                 field_mask: vec![FIELD_1.into(), FIELD_2.into()],
             }),

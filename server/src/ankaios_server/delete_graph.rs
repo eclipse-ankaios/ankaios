@@ -91,7 +91,7 @@ mod tests {
         DeletedWorkload, DependenciesSpec, ExecutionStateSpec, WorkloadNamed,
     };
     use ankaios_api::test_utils::{
-        generate_test_workload_named_with_params, generate_test_workload_state_with_agent, vars,
+        generate_test_workload_named_with_params, generate_test_workload_state_with_agent, fixtures,
     };
 
     use std::collections::HashMap;
@@ -123,7 +123,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         fn generate_workload(name: &str) -> WorkloadNamed {
-            generate_test_workload_named_with_params(name, vars::AGENT_NAMES[0], "runtime_name")
+            generate_test_workload_named_with_params(name, fixtures::AGENT_NAMES[0], "runtime_name")
         }
 
         let mut workload_1 = generate_workload(WORKLOAD_NAME_1);
@@ -225,19 +225,19 @@ mod tests {
         };
 
         let instance_name_wl2 = WorkloadInstanceNameSpec::builder()
-            .agent_name(vars::AGENT_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
             .workload_name(WORKLOAD_NAME_2)
             .config(&String::from("some config"))
             .build();
 
         let instance_name_wl4 = WorkloadInstanceNameSpec::builder()
-            .agent_name(vars::AGENT_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
             .workload_name(WORKLOAD_NAME_4)
             .config(&String::from("some config"))
             .build();
 
         let instance_name_wl5 = WorkloadInstanceNameSpec::builder()
-            .agent_name(vars::AGENT_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
             .workload_name(WORKLOAD_NAME_5)
             .config(&String::from("some config"))
             .build();
@@ -305,7 +305,7 @@ mod tests {
 
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
-            vars::AGENT_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::removed(),
         )];
 
@@ -329,7 +329,7 @@ mod tests {
 
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_2,
-            vars::AGENT_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         )];
 
@@ -353,7 +353,7 @@ mod tests {
 
         let workload_states = [generate_test_workload_state_with_agent(
             WORKLOAD_NAME_3,
-            vars::AGENT_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::removed(),
         )];
 

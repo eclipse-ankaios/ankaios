@@ -57,7 +57,7 @@ mod tests {
             CompleteState, CompleteStateSpec, ExecutionStateSpec, UpdateStateSuccess,
             WorkloadStateSpec,
         },
-        test_utils::vars,
+        test_utils::fixtures,
     };
     use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
 
@@ -80,8 +80,8 @@ mod tests {
             .with(
                 eq(complete_state_update.clone()),
                 eq(vec![
-                    format!("desiredState.workloads.{}", vars::WORKLOAD_NAMES[0]),
-                    format!("desiredState.workloads.{}", vars::WORKLOAD_NAMES[1]),
+                    format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[0]),
+                    format!("desiredState.workloads.{}", fixtures::WORKLOAD_NAMES[1]),
                 ]),
             )
             .return_once(|_, _| {
@@ -90,15 +90,15 @@ mod tests {
                     deleted_workloads: vec![
                         format!(
                             "{}.{}.{}",
-                            vars::WORKLOAD_NAMES[0],
-                            vars::WORKLOAD_IDS[0],
-                            vars::AGENT_NAMES[0]
+                            fixtures::WORKLOAD_NAMES[0],
+                            fixtures::WORKLOAD_IDS[0],
+                            fixtures::AGENT_NAMES[0]
                         ),
                         format!(
                             "{}.{}.{}",
-                            vars::WORKLOAD_NAMES[1],
-                            vars::WORKLOAD_IDS[0],
-                            vars::AGENT_NAMES[0]
+                            fixtures::WORKLOAD_NAMES[1],
+                            fixtures::WORKLOAD_IDS[0],
+                            fixtures::AGENT_NAMES[0]
                         ),
                     ],
                 })
@@ -118,9 +118,9 @@ mod tests {
                         WorkloadStateSpec {
                             instance_name: format!(
                                 "{}.{}.{}",
-                                vars::WORKLOAD_NAMES[0],
-                                vars::WORKLOAD_IDS[0],
-                                vars::AGENT_NAMES[0]
+                                fixtures::WORKLOAD_NAMES[0],
+                                fixtures::WORKLOAD_IDS[0],
+                                fixtures::AGENT_NAMES[0]
                             )
                             .try_into()
                             .unwrap(),
@@ -129,9 +129,9 @@ mod tests {
                         WorkloadStateSpec {
                             instance_name: format!(
                                 "{}.{}.{}",
-                                vars::WORKLOAD_NAMES[1],
-                                vars::WORKLOAD_IDS[0],
-                                vars::AGENT_NAMES[0]
+                                fixtures::WORKLOAD_NAMES[1],
+                                fixtures::WORKLOAD_IDS[0],
+                                fixtures::AGENT_NAMES[0]
                             )
                             .try_into()
                             .unwrap(),
@@ -142,15 +142,15 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
         let delete_result = cmd
             .delete_workloads(vec![
-                vars::WORKLOAD_NAMES[0].to_string(),
-                vars::WORKLOAD_NAMES[1].to_string(),
+                fixtures::WORKLOAD_NAMES[0].to_string(),
+                fixtures::WORKLOAD_NAMES[1].to_string(),
             ])
             .await;
         assert!(delete_result.is_ok());
@@ -185,7 +185,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

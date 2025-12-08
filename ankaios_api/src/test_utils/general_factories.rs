@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::vars;
+use super::fixtures;
 use crate::{
     ank_base::{
         CompleteState, ConfigMap, DeleteCondition, DeletedWorkload, State, Workload, WorkloadMap,
@@ -26,7 +26,7 @@ use std::collections::HashMap;
 pub fn generate_test_proto_complete_state(workloads: &[(&str, Workload)]) -> CompleteState {
     CompleteState {
         desired_state: Some(State {
-            api_version: vars::API_VERSION.to_string(),
+            api_version: fixtures::API_VERSION.to_string(),
             workloads: Some(WorkloadMap {
                 workloads: workloads
                     .iter()
@@ -58,7 +58,7 @@ pub fn generate_test_proto_complete_state(workloads: &[(&str, Workload)]) -> Com
 // ## DeletedWorkload fixtures ##
 
 pub fn generate_test_deleted_workload() -> DeletedWorkload {
-    generate_test_deleted_workload_with_params(vars::AGENT_NAMES[0], vars::WORKLOAD_NAMES[0])
+    generate_test_deleted_workload_with_params(fixtures::AGENT_NAMES[0], fixtures::WORKLOAD_NAMES[0])
 }
 
 pub fn generate_test_deleted_workload_with_params(
@@ -85,7 +85,7 @@ pub fn generate_test_deleted_workload_with_dependencies(
 
 fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
     HashMap::from([(
-        String::from(vars::WORKLOAD_NAMES[0]),
+        String::from(fixtures::WORKLOAD_NAMES[0]),
         DeleteCondition::DelCondNotPendingNorRunning,
     )])
 }

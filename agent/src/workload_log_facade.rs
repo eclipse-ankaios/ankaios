@@ -187,7 +187,7 @@ mod tests {
     use crate::workload_log_facade::WorkloadLogFacade;
 
     use ankaios_api::ank_base::{LogsRequestSpec, LogsStopResponse};
-    use ankaios_api::test_utils::{generate_test_workload_instance_name_with_name, vars};
+    use ankaios_api::test_utils::{generate_test_workload_instance_name_with_name, fixtures};
     use common::to_server_interface::ToServer;
 
     use mockall::{mock, predicate};
@@ -247,7 +247,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (to_server, mut to_server_receiver) = channel(vars::TEST_CHANNEL_CAP);
+        let (to_server, mut to_server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
 
         let mock_log_fetcher_1 = MockLogFetcher::new();
         let mock_log_fetcher_2 = MockLogFetcher::new();
@@ -302,10 +302,10 @@ mod tests {
             .return_once(move |_| SubscriptionEntry::new(mock_join_handle));
 
         let workload_instance_name_1 =
-            generate_test_workload_instance_name_with_name(vars::WORKLOAD_NAMES[0]);
+            generate_test_workload_instance_name_with_name(fixtures::WORKLOAD_NAMES[0]);
 
         let workload_instance_name_2 =
-            generate_test_workload_instance_name_with_name(vars::WORKLOAD_NAMES[1]);
+            generate_test_workload_instance_name_with_name(fixtures::WORKLOAD_NAMES[1]);
 
         let logs_request = LogsRequestSpec {
             workload_names: vec![
@@ -330,7 +330,7 @@ mod tests {
             });
 
         WorkloadLogFacade::spawn_log_collection(
-            vars::REQUEST_ID.into(),
+            fixtures::REQUEST_ID.into(),
             logs_request,
             to_server,
             SynchronizedSubscriptionStore::default(),
@@ -342,11 +342,11 @@ mod tests {
 
         assert_eq!(log_responses.len(), 2);
         assert!(
-            log_responses.contains_key(&(vars::REQUEST_ID.into(), vars::WORKLOAD_NAMES[0].into()))
+            log_responses.contains_key(&(fixtures::REQUEST_ID.into(), fixtures::WORKLOAD_NAMES[0].into()))
         );
         assert_eq!(
             log_responses
-                .get(&(vars::REQUEST_ID.into(), vars::WORKLOAD_NAMES[0].into()))
+                .get(&(fixtures::REQUEST_ID.into(), fixtures::WORKLOAD_NAMES[0].into()))
                 .unwrap(),
             &vec![
                 "rec1: line1".to_string(),
@@ -355,11 +355,11 @@ mod tests {
             ]
         );
         assert!(
-            log_responses.contains_key(&(vars::REQUEST_ID.into(), vars::WORKLOAD_NAMES[1].into()))
+            log_responses.contains_key(&(fixtures::REQUEST_ID.into(), fixtures::WORKLOAD_NAMES[1].into()))
         );
         assert_eq!(
             log_responses
-                .get(&(vars::REQUEST_ID.into(), vars::WORKLOAD_NAMES[1].into()))
+                .get(&(fixtures::REQUEST_ID.into(), fixtures::WORKLOAD_NAMES[1].into()))
                 .unwrap(),
             &vec!["rec2: line1".to_string(),]
         );
@@ -393,7 +393,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (to_server, mut to_server_receiver) = channel(vars::TEST_CHANNEL_CAP);
+        let (to_server, mut to_server_receiver) = channel(fixtures::TEST_CHANNEL_CAP);
 
         let mock_log_fetcher_1 = MockLogFetcher::new();
 
@@ -419,7 +419,7 @@ mod tests {
         });
 
         let workload_instance_name_1 =
-            generate_test_workload_instance_name_with_name(vars::WORKLOAD_NAMES[0]);
+            generate_test_workload_instance_name_with_name(fixtures::WORKLOAD_NAMES[0]);
 
         let logs_request = LogsRequestSpec {
             workload_names: vec![workload_instance_name_1.clone()],
@@ -449,7 +449,7 @@ mod tests {
 
         let synchronized_subscription_store = SynchronizedSubscriptionStore::default();
         WorkloadLogFacade::spawn_log_collection(
-            vars::REQUEST_ID.into(),
+            fixtures::REQUEST_ID.into(),
             logs_request,
             to_server,
             synchronized_subscription_store.clone(),
@@ -462,7 +462,7 @@ mod tests {
         assert_eq!(
             logs_stop_response,
             Ok(Some(ToServer::LogsStopResponse(
-                vars::REQUEST_ID.into(),
+                fixtures::REQUEST_ID.into(),
                 LogsStopResponse {
                     workload_name: Some(workload_instance_name_1.into()),
                 },

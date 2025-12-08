@@ -58,7 +58,7 @@ mod tests {
         generate_test_directory_mock, mock_filesystem, prepare_agent_run_directory,
     };
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
 
     use mockall::predicate;
 
@@ -92,10 +92,10 @@ mod tests {
 
         let _directory_mock_context = generate_test_directory_mock(
             run_folder,
-            format!("{}_io", vars::AGENT_NAMES[0]).as_str(),
+            format!("{}_io", fixtures::AGENT_NAMES[0]).as_str(),
         );
 
-        assert!(prepare_agent_run_directory(run_folder, vars::AGENT_NAMES[0]).is_ok());
+        assert!(prepare_agent_run_directory(run_folder, fixtures::AGENT_NAMES[0]).is_ok());
     }
 
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
@@ -126,7 +126,7 @@ mod tests {
         set_permissions_mock_context.expect().never();
 
         assert_eq!(
-            prepare_agent_run_directory(run_folder, vars::AGENT_NAMES[0]),
+            prepare_agent_run_directory(run_folder, fixtures::AGENT_NAMES[0]),
             Err(FileSystemError::CreateDirectory(
                 Path::new("/tmp/x").as_os_str().to_os_string(),
                 std::io::ErrorKind::Other
@@ -168,7 +168,7 @@ mod tests {
             });
 
         assert_eq!(
-            prepare_agent_run_directory(run_folder, vars::AGENT_NAMES[0]),
+            prepare_agent_run_directory(run_folder, fixtures::AGENT_NAMES[0]),
             Err(FileSystemError::Permissions(
                 Path::new("/tmp/x").as_os_str().to_os_string(),
                 std::io::ErrorKind::Other,
@@ -191,10 +191,10 @@ mod tests {
 
         let _directory_mock_context = generate_test_directory_mock(
             run_folder,
-            format!("{}_io", vars::AGENT_NAMES[0]).as_str(),
+            format!("{}_io", fixtures::AGENT_NAMES[0]).as_str(),
         );
 
-        assert!(prepare_agent_run_directory(run_folder, vars::AGENT_NAMES[0]).is_ok());
+        assert!(prepare_agent_run_directory(run_folder, fixtures::AGENT_NAMES[0]).is_ok());
     }
 
     // [utest->swdd~agent-prepares-dedicated-run-folder~1]
@@ -211,7 +211,7 @@ mod tests {
             .return_const(false);
 
         assert_eq!(
-            prepare_agent_run_directory(run_folder, vars::AGENT_NAMES[0]),
+            prepare_agent_run_directory(run_folder, fixtures::AGENT_NAMES[0]),
             Err(FileSystemError::NotFoundDirectory(
                 Path::new(run_folder).as_os_str().to_os_string()
             ))

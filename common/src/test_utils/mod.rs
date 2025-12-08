@@ -15,8 +15,6 @@
 mod mockall_context_sync;
 pub use mockall_context_sync::MockAllContextSync;
 
-mod fixtures;
-
 use serde::{Serialize, Serializer};
 use std::collections::HashMap;
 

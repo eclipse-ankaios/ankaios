@@ -112,7 +112,7 @@ impl Drop for MockWorkloadStateStore {
 mod tests {
     use super::WorkloadStateStore;
     use ankaios_api::ank_base::ExecutionStateSpec;
-    use ankaios_api::test_utils::{generate_test_workload_state_with_agent, vars};
+    use ankaios_api::test_utils::{generate_test_workload_state_with_agent, fixtures};
 
     #[test]
     fn utest_update_storage_empty_storage_add_one() {
@@ -120,8 +120,8 @@ mod tests {
         assert!(storage.states_storage.is_empty());
 
         let test_update = generate_test_workload_state_with_agent(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         );
         storage.update_workload_state(test_update.clone());
@@ -146,8 +146,8 @@ mod tests {
         assert!(storage.states_storage.is_empty());
 
         let test_update = generate_test_workload_state_with_agent(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         );
         storage.update_workload_state(test_update.clone());
@@ -167,8 +167,8 @@ mod tests {
         assert!(storage.states_storage.is_empty());
 
         let test_update = generate_test_workload_state_with_agent(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             ExecutionStateSpec::running(),
         );
 
@@ -195,10 +195,10 @@ mod tests {
         let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
-        let agent_name_a = String::from(vars::AGENT_NAMES[0]);
-        let agent_name_b = String::from(vars::AGENT_NAMES[1]);
-        let workload_name_1 = String::from(vars::WORKLOAD_NAMES[0]);
-        let workload_name_2 = String::from(vars::WORKLOAD_NAMES[1]);
+        let agent_name_a = String::from(fixtures::AGENT_NAMES[0]);
+        let agent_name_b = String::from(fixtures::AGENT_NAMES[1]);
+        let workload_name_1 = String::from(fixtures::WORKLOAD_NAMES[0]);
+        let workload_name_2 = String::from(fixtures::WORKLOAD_NAMES[1]);
 
         let test_update1 = generate_test_workload_state_with_agent(
             &workload_name_1,
@@ -243,13 +243,13 @@ mod tests {
     fn utest_get_state_of_workload() {
         let mut parameter_storage = WorkloadStateStore::new();
         parameter_storage.states_storage.insert(
-            vars::WORKLOAD_NAMES[0].to_owned(),
+            fixtures::WORKLOAD_NAMES[0].to_owned(),
             ExecutionStateSpec::running(),
         );
 
         assert_eq!(
             Some(&ExecutionStateSpec::running()),
-            parameter_storage.get_state_of_workload(vars::WORKLOAD_NAMES[0])
+            parameter_storage.get_state_of_workload(fixtures::WORKLOAD_NAMES[0])
         );
     }
 
@@ -257,7 +257,7 @@ mod tests {
     fn utest_get_state_of_workload_not_existing_workload() {
         let mut parameter_storage = WorkloadStateStore::new();
         parameter_storage.states_storage.insert(
-            vars::WORKLOAD_NAMES[0].to_owned(),
+            fixtures::WORKLOAD_NAMES[0].to_owned(),
             ExecutionStateSpec::running(),
         );
 

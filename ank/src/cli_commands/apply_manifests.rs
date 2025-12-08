@@ -249,7 +249,7 @@ mod tests {
     };
     use ankaios_api::test_utils::{
         generate_test_state_from_workloads, generate_test_workload_named,
-        generate_test_workload_named_with_params, vars,
+        generate_test_workload_named_with_params, fixtures,
     };
     use common::{
         commands::UpdateWorkloadState,
@@ -289,9 +289,9 @@ mod tests {
       runtimeConfig: |
         image: docker.io/nginx:latest
         commandOptions: [\"-p\", \"8081:80\"]",
-            vars::WORKLOAD_NAMES[0],
-            vars::RUNTIME_NAMES[0],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
         ));
 
         assert!(
@@ -344,9 +344,9 @@ mod tests {
         version: 1.0
       runtimeConfig: |
         image: docker.io/nginx:latest",
-            vars::WORKLOAD_NAMES[0],
-            vars::RUNTIME_NAMES[0],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
         ));
 
         assert!(
@@ -373,9 +373,9 @@ mod tests {
           value: 1.0
       runtimeConfig: |
         image: docker.io/nginx:latest",
-            vars::WORKLOAD_NAMES[0],
-            vars::RUNTIME_NAMES[0],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
         ));
 
         let result = parse_manifest(&mut (
@@ -406,9 +406,9 @@ mod tests {
           value: 1.0
       runtimeConfig: |
         image: docker.io/nginx:latest",
-            vars::WORKLOAD_NAMES[0],
-            vars::RUNTIME_NAMES[0],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
         ));
 
         assert!(
@@ -433,9 +433,9 @@ mod tests {
         version: 1.0
       runtimeConfig: |
         image: docker.io/nginx:latest",
-            vars::WORKLOAD_NAMES[0],
-            vars::RUNTIME_NAMES[0],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
         ));
 
         let result = parse_manifest(&mut (
@@ -542,7 +542,7 @@ mod tests {
 
         assert_eq!(
             handle_agent_overwrite(
-                &vec![format!("workloads.{}", vars::WORKLOAD_NAMES[0]).into()],
+                &vec![format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into()],
                 &Some(overwritten_agent_name.to_owned()),
                 state.try_into().unwrap(),
             )
@@ -558,7 +558,7 @@ mod tests {
 
         assert_eq!(
             handle_agent_overwrite(
-                &vec![format!("workloads.{}", vars::WORKLOAD_NAMES[0]).into()],
+                &vec![format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into()],
                 &None,
                 state.clone().try_into().unwrap(),
             )
@@ -572,22 +572,22 @@ mod tests {
     fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload() {
         let state = generate_test_state_from_workloads(vec![
             generate_test_workload_named_with_params(
-                vars::WORKLOAD_NAMES[0],
-                vars::AGENT_NAMES[0],
-                vars::RUNTIME_CONFIGS[0],
+                fixtures::WORKLOAD_NAMES[0],
+                fixtures::AGENT_NAMES[0],
+                fixtures::RUNTIME_CONFIGS[0],
             ),
             generate_test_workload_named_with_params(
-                vars::WORKLOAD_NAMES[1],
-                vars::AGENT_NAMES[1],
-                vars::RUNTIME_CONFIGS[0],
+                fixtures::WORKLOAD_NAMES[1],
+                fixtures::AGENT_NAMES[1],
+                fixtures::RUNTIME_CONFIGS[0],
             ),
         ]);
 
         assert_eq!(
             handle_agent_overwrite(
                 &vec![
-                    format!("workloads.{}", vars::WORKLOAD_NAMES[0]).into(),
-                    format!("workloads.{}", vars::WORKLOAD_NAMES[1]).into()
+                    format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into(),
+                    format!("workloads.{}", fixtures::WORKLOAD_NAMES[1]).into()
                 ],
                 &None,
                 state.clone().try_into().unwrap(),
@@ -605,13 +605,13 @@ mod tests {
 
         let mut obj: Object = state.try_into().unwrap();
 
-        obj.remove(&format!("workloads.{}.agent", vars::WORKLOAD_NAMES[0]).into())
+        obj.remove(&format!("workloads.{}.agent", fixtures::WORKLOAD_NAMES[0]).into())
             .unwrap();
 
         assert_eq!(
             Err("No agent name specified -> use '--agent' option to specify!".to_string()),
             handle_agent_overwrite(
-                &vec![format!("workloads.{}", vars::WORKLOAD_NAMES[0]).into()],
+                &vec![format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into()],
                 &None,
                 obj
             )
@@ -632,12 +632,12 @@ mod tests {
 
         let mut obj: Object = state.try_into().unwrap();
 
-        obj.remove(&format!("workloads.{}.agent", vars::WORKLOAD_NAMES[0]).into())
+        obj.remove(&format!("workloads.{}.agent", fixtures::WORKLOAD_NAMES[0]).into())
             .unwrap();
 
         assert_eq!(
             handle_agent_overwrite(
-                &vec![format!("workloads.{}", vars::WORKLOAD_NAMES[0]).into()],
+                &vec![format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into()],
                 &Some("overwritten_agent_name".to_string()),
                 obj,
             )
@@ -657,7 +657,7 @@ mod tests {
         assert_eq!(
             handle_agent_overwrite(
                 &vec![
-                    format!("workloads.{}", vars::WORKLOAD_NAMES[0]).into(),
+                    format!("workloads.{}", fixtures::WORKLOAD_NAMES[0]).into(),
                     "configs.config_key".into()
                 ],
                 &cli_specified_agent_name,
@@ -688,9 +688,9 @@ mod tests {
           runtimeConfig: |
             image: docker.io/nginx:latest
             commandOptions: [\"-p\", \"8081:80\"]",
-            vars::WORKLOAD_NAMES[0],
-            vars::RUNTIME_NAMES[0],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
         ));
 
         let mut data = String::new();
@@ -703,7 +703,7 @@ mod tests {
 
         let expected_filter_masks = vec![format!(
             "desiredState.workloads.{}",
-            vars::WORKLOAD_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0]
         )];
 
         let mut manifests: Vec<InputSourcePair> =
@@ -735,9 +735,9 @@ mod tests {
           runtimeConfig: |
             image: docker.io/nginx:latest
             commandOptions: [\"-p\", \"8081:80\"]",
-            vars::WORKLOAD_NAMES[0],
-            vars::RUNTIME_NAMES[0],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
         ));
 
         let expected_complete_state_obj = CompleteStateSpec {
@@ -746,7 +746,7 @@ mod tests {
 
         let expected_filter_masks = vec![format!(
             "desiredState.workloads.{}",
-            vars::WORKLOAD_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0]
         )];
 
         let mut manifests: Vec<InputSourcePair> =
@@ -781,9 +781,9 @@ mod tests {
       runtimeConfig: |
             image: docker.io/nginx:latest
             commandOptions: [\"-p\", \"8081:80\"]",
-            vars::WORKLOAD_NAMES[0],
-            vars::RUNTIME_NAMES[0],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
         ));
 
         let mut manifest_data = String::new();
@@ -795,9 +795,9 @@ mod tests {
 
         let deleted_workload = format!(
             "{}.{}.{}",
-            vars::WORKLOAD_NAMES[1],
-            vars::WORKLOAD_IDS[1],
-            vars::AGENT_NAMES[1]
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::WORKLOAD_IDS[1],
+            fixtures::AGENT_NAMES[1]
         );
         let deleted_workload_instance_name: WorkloadInstanceNameSpec =
             deleted_workload.clone().try_into().unwrap();
@@ -809,7 +809,7 @@ mod tests {
                 eq(updated_state.clone()),
                 eq(vec![format!(
                     "desiredState.workloads.{}",
-                    vars::WORKLOAD_NAMES[0]
+                    fixtures::WORKLOAD_NAMES[0]
                 )]),
             )
             .return_once(|_, _| {
@@ -839,7 +839,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -879,9 +879,9 @@ mod tests {
           agent: {}
           runtimeConfig: \"\"
             ",
-            vars::WORKLOAD_NAMES[0],
-            vars::RUNTIME_NAMES[0],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
         ));
 
         let mut manifest_data = String::new();
@@ -894,9 +894,9 @@ mod tests {
 
         let added_workload = format!(
             "{}.{}.{}",
-            vars::WORKLOAD_NAMES[0], // Same name
-            vars::WORKLOAD_IDS[1],
-            vars::AGENT_NAMES[1]
+            fixtures::WORKLOAD_NAMES[0], // Same name
+            fixtures::WORKLOAD_IDS[1],
+            fixtures::AGENT_NAMES[1]
         );
         let added_workload_instance_name: WorkloadInstanceNameSpec =
             added_workload.clone().try_into().unwrap();
@@ -908,7 +908,7 @@ mod tests {
                 eq(updated_state.clone()),
                 eq(vec![format!(
                     "desiredState.workloads.{}",
-                    vars::WORKLOAD_NAMES[0]
+                    fixtures::WORKLOAD_NAMES[0]
                 )]),
             )
             .return_once(|_, _| {
@@ -960,7 +960,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -1025,7 +1025,7 @@ mod tests {
             .never();
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: true,
             server_connection: mock_server_connection,
         };
@@ -1072,7 +1072,7 @@ mod tests {
             .never();
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
@@ -1108,8 +1108,8 @@ mod tests {
               agent: {}
               runtimeConfig: \"\"
                 ",
-            vars::RUNTIME_NAMES[0],
-            vars::AGENT_NAMES[0]
+            fixtures::RUNTIME_NAMES[0],
+            fixtures::AGENT_NAMES[0]
         ));
 
         let mut manifest_data = String::new();
@@ -1122,8 +1122,8 @@ mod tests {
 
         let added_workload = format!(
             "simple_manifest1.{}.{}",
-            vars::WORKLOAD_IDS[1],
-            vars::AGENT_NAMES[1]
+            fixtures::WORKLOAD_IDS[1],
+            fixtures::AGENT_NAMES[1]
         );
         let added_workload_instance_name: WorkloadInstanceNameSpec =
             added_workload.clone().try_into().unwrap();
@@ -1179,7 +1179,7 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };

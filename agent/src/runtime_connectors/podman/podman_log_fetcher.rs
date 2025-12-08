@@ -139,7 +139,7 @@ mod tests {
     use crate::runtime_connectors::{
         LogRequestOptions, log_fetcher::GetOutputStreams, podman::PodmanWorkloadId,
     };
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
 
     use std::{process::Stdio, sync::Mutex};
     use tokio::io::Empty;
@@ -220,7 +220,7 @@ mod tests {
         *CAN_SPAWN.lock().unwrap() = true;
         let mut log_fetcher = PodmanLogFetcher::new(
             &PodmanWorkloadId {
-                id: vars::WORKLOAD_IDS[0].into(),
+                id: fixtures::WORKLOAD_IDS[0].into(),
             },
             &LogRequestOptions {
                 follow: false,
@@ -239,7 +239,7 @@ mod tests {
                 stdout_option: Some(_),
                 stderr_option: Some(_)
 
-            }) if cmd == "podman" && *args == vec!["logs".to_string(), vars::WORKLOAD_IDS[0].to_string()]
+            }) if cmd == "podman" && *args == vec!["logs".to_string(), fixtures::WORKLOAD_IDS[0].to_string()]
         ));
         let (child_stdout, child_stderr) = log_fetcher.get_output_streams();
         assert!(child_stdout.is_none());
@@ -252,7 +252,7 @@ mod tests {
         *CAN_SPAWN.lock().unwrap() = true;
         let mut log_fetcher = PodmanLogFetcher::new(
             &PodmanWorkloadId {
-                id: vars::WORKLOAD_IDS[0].into(),
+                id: fixtures::WORKLOAD_IDS[0].into(),
             },
             &LogRequestOptions {
                 follow: true,
@@ -270,7 +270,7 @@ mod tests {
                 args,
                 stdout_option: Some(_),
                 stderr_option: Some(_),
-            }) if cmd == "podman" && *args == vec!["logs".to_string(), "-f".to_string(), "--since".to_string(), "since".to_string(), "--until".to_string(), "until".to_string(), "--tail".to_string(), "10".to_string(), vars::WORKLOAD_IDS[0].to_string(), ]
+            }) if cmd == "podman" && *args == vec!["logs".to_string(), "-f".to_string(), "--since".to_string(), "since".to_string(), "--until".to_string(), "until".to_string(), "--tail".to_string(), "10".to_string(), fixtures::WORKLOAD_IDS[0].to_string(), ]
         ));
         let (child_stdout, child_stderr) = log_fetcher.get_output_streams();
         assert!(child_stdout.is_none());
@@ -283,7 +283,7 @@ mod tests {
         *CAN_SPAWN.lock().unwrap() = false;
         let log_fetcher = PodmanLogFetcher::new(
             &PodmanWorkloadId {
-                id: vars::WORKLOAD_IDS[0].into(),
+                id: fixtures::WORKLOAD_IDS[0].into(),
             },
             &LogRequestOptions {
                 follow: false,
@@ -305,7 +305,7 @@ mod tests {
         *CAN_KILL.lock().unwrap() = true;
         let log_fetcher = PodmanLogFetcher::new(
             &PodmanWorkloadId {
-                id: vars::WORKLOAD_IDS[0].into(),
+                id: fixtures::WORKLOAD_IDS[0].into(),
             },
             &LogRequestOptions {
                 follow: true,
@@ -328,7 +328,7 @@ mod tests {
         *CAN_KILL.lock().unwrap() = false;
         let log_fetcher = PodmanLogFetcher::new(
             &PodmanWorkloadId {
-                id: vars::WORKLOAD_IDS[0].into(),
+                id: fixtures::WORKLOAD_IDS[0].into(),
             },
             &LogRequestOptions {
                 follow: true,

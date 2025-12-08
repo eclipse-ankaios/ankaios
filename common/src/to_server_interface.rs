@@ -248,7 +248,7 @@ mod tests {
     };
     use ankaios_api::test_utils::{
         generate_test_complete_state, generate_test_workload_named, generate_test_workload_state,
-        vars,
+        fixtures,
     };
     use tokio::sync::mpsc;
 
@@ -258,10 +258,10 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_agent_hello() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
-            tx.agent_hello(vars::AGENT_NAMES[0].to_string())
+            tx.agent_hello(fixtures::AGENT_NAMES[0].to_string())
                 .await
                 .is_ok()
         );
@@ -269,7 +269,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::AgentHello(commands::AgentHello {
-                agent_name: vars::AGENT_NAMES[0].to_string()
+                agent_name: fixtures::AGENT_NAMES[0].to_string()
             })
         )
     }
@@ -278,13 +278,13 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_agent_load_status() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.agent_load_status(AgentLoadStatus {
-                agent_name: vars::AGENT_NAMES[0].to_string(),
-                cpu_usage: vars::CPU_USAGE_SPEC,
-                free_memory: vars::FREE_MEMORY_SPEC,
+                agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                cpu_usage: fixtures::CPU_USAGE_SPEC,
+                free_memory: fixtures::FREE_MEMORY_SPEC,
             })
             .await
             .is_ok()
@@ -293,9 +293,9 @@ mod tests {
         assert_eq!(
             rx.recv().await,
             Some(ToServer::AgentLoadStatus(AgentLoadStatus {
-                agent_name: vars::AGENT_NAMES[0].to_string(),
-                cpu_usage: vars::CPU_USAGE_SPEC,
-                free_memory: vars::FREE_MEMORY_SPEC,
+                agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                cpu_usage: fixtures::CPU_USAGE_SPEC,
+                free_memory: fixtures::FREE_MEMORY_SPEC,
             }))
         )
     }
@@ -304,10 +304,10 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_agent_gone() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
-            tx.agent_gone(vars::AGENT_NAMES[0].to_string())
+            tx.agent_gone(fixtures::AGENT_NAMES[0].to_string())
                 .await
                 .is_ok()
         );
@@ -315,7 +315,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::AgentGone(commands::AgentGone {
-                agent_name: vars::AGENT_NAMES[0].to_string()
+                agent_name: fixtures::AGENT_NAMES[0].to_string()
             })
         )
     }
@@ -324,13 +324,13 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_update_state() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload1 = generate_test_workload_named();
         let complete_state = generate_test_complete_state(vec![workload1]);
         assert!(
             tx.update_state(
-                vars::REQUEST_ID.to_string(),
+                fixtures::REQUEST_ID.to_string(),
                 complete_state.clone(),
                 vec![FIELD_MASK.to_string()]
             )
@@ -341,7 +341,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::Request(RequestSpec {
-                request_id: vars::REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 request_content: RequestContentSpec::UpdateStateRequest(Box::new(
                     UpdateStateRequestSpec {
                         new_state: complete_state,
@@ -356,10 +356,10 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_update_workload_state() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload_state =
-            generate_test_workload_state(vars::WORKLOAD_NAMES[0], ExecutionStateSpec::running());
+            generate_test_workload_state(fixtures::WORKLOAD_NAMES[0], ExecutionStateSpec::running());
         assert!(
             tx.update_workload_state(vec![workload_state.clone()])
                 .await
@@ -378,7 +378,7 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_request_complete_state() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let complete_state_request = CompleteStateRequestSpec {
             field_mask: vec![FIELD_MASK.to_string()],
@@ -386,7 +386,7 @@ mod tests {
         let request_content =
             RequestContentSpec::CompleteStateRequest(complete_state_request.clone());
         assert!(
-            tx.request_complete_state(vars::REQUEST_ID.to_string(), complete_state_request)
+            tx.request_complete_state(fixtures::REQUEST_ID.to_string(), complete_state_request)
                 .await
                 .is_ok()
         );
@@ -394,7 +394,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::Request(RequestSpec {
-                request_id: vars::REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 request_content
             })
         )
@@ -403,12 +403,12 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_logs_request() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let logs_request = LogsRequestSpec {
             workload_names: vec![WorkloadInstanceNameSpec::new(
-                vars::AGENT_NAMES[0],
-                vars::WORKLOAD_NAMES[0],
+                fixtures::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
                 "id",
             )],
             follow: true,
@@ -418,7 +418,7 @@ mod tests {
         };
         let request_content = RequestContentSpec::LogsRequest(logs_request.clone());
         assert!(
-            tx.logs_request(vars::REQUEST_ID.into(), logs_request.into())
+            tx.logs_request(fixtures::REQUEST_ID.into(), logs_request.into())
                 .await
                 .is_ok()
         );
@@ -426,7 +426,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::Request(RequestSpec {
-                request_id: vars::REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 request_content
             })
         )
@@ -435,11 +435,11 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_logs_cancel_request() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let request_content = RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {});
         assert!(
-            tx.logs_cancel_request(vars::REQUEST_ID.into())
+            tx.logs_cancel_request(fixtures::REQUEST_ID.into())
                 .await
                 .is_ok()
         );
@@ -447,7 +447,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::Request(RequestSpec {
-                request_id: vars::REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 request_content
             })
         )
@@ -456,13 +456,13 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_logs_response() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let logs_response = LogEntriesResponse {
             log_entries: vec![LogEntry {
                 workload_name: Some(WorkloadInstanceName {
-                    agent_name: vars::AGENT_NAMES[0].into(),
-                    workload_name: vars::WORKLOAD_NAMES[0].into(),
+                    agent_name: fixtures::AGENT_NAMES[0].into(),
+                    workload_name: fixtures::WORKLOAD_NAMES[0].into(),
                     id: "id".into(),
                 }),
                 message: "message".into(),
@@ -470,14 +470,14 @@ mod tests {
         };
 
         assert!(
-            tx.log_entries_response(vars::REQUEST_ID.into(), logs_response.clone())
+            tx.log_entries_response(fixtures::REQUEST_ID.into(), logs_response.clone())
                 .await
                 .is_ok()
         );
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::LogEntriesResponse(vars::REQUEST_ID.to_string(), logs_response)
+            ToServer::LogEntriesResponse(fixtures::REQUEST_ID.to_string(), logs_response)
         );
     }
 
@@ -485,25 +485,25 @@ mod tests {
     #[tokio::test]
     async fn utest_to_server_send_logs_stop_response() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
-            mpsc::channel(vars::TEST_CHANNEL_CAP);
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let response_content = LogsStopResponse {
             workload_name: Some(WorkloadInstanceName {
-                agent_name: vars::AGENT_NAMES[0].into(),
-                workload_name: vars::WORKLOAD_NAMES[0].into(),
+                agent_name: fixtures::AGENT_NAMES[0].into(),
+                workload_name: fixtures::WORKLOAD_NAMES[0].into(),
                 id: "id".into(),
             }),
         };
 
         assert!(
-            tx.logs_stop_response(vars::REQUEST_ID.into(), response_content.clone())
+            tx.logs_stop_response(fixtures::REQUEST_ID.into(), response_content.clone())
                 .await
                 .is_ok()
         );
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::LogsStopResponse(vars::REQUEST_ID.to_string(), response_content)
+            ToServer::LogsStopResponse(fixtures::REQUEST_ID.to_string(), response_content)
         )
     }
 }

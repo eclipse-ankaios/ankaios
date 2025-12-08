@@ -12,10 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod vars;
+pub mod fixtures;
 
-mod general_fixtures;
-pub use general_fixtures::*;
+mod general_factories;
+pub use general_factories::*;
 
-mod spec_fixtures;
-pub use spec_fixtures::*;
+mod spec_factories;
+pub use spec_factories::*;

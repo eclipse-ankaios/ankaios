@@ -124,7 +124,7 @@ mod tests {
     };
 
     use ankaios_api::ank_base::WorkloadNamed;
-    use ankaios_api::test_utils::{vars, generate_test_workload_named};
+    use ankaios_api::test_utils::{fixtures, generate_test_workload_named};
 
     use mockall::lazy_static;
     use std::path::PathBuf;
@@ -140,7 +140,7 @@ mod tests {
     lazy_static! {
         pub static ref WORKLOAD_NAMED: WorkloadNamed = generate_test_workload_named();
         pub static ref CONTROL_INTERFACE_PATH: Option<ControlInterfacePath> =
-            Some(ControlInterfacePath::new(PathBuf::from(vars::PIPES_LOCATION)));
+            Some(ControlInterfacePath::new(PathBuf::from(fixtures::PIPES_LOCATION)));
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~4]

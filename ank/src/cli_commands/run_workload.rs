@@ -78,7 +78,7 @@ mod tests {
         CompleteState, CompleteStateSpec, ExecutionStateSpec, TagsSpec, UpdateStateSuccess,
         WorkloadSpec, WorkloadStateSpec,
     };
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
     use common::{commands::UpdateWorkloadState, from_server_interface::FromServer};
 
     use mockall::predicate::eq;
@@ -96,8 +96,8 @@ mod tests {
             .await;
 
         let new_workload = WorkloadSpec {
-            agent: vars::AGENT_NAMES[0].to_owned(),
-            runtime: vars::RUNTIME_NAMES[0].to_owned(),
+            agent: fixtures::AGENT_NAMES[0].to_owned(),
+            runtime: fixtures::RUNTIME_NAMES[0].to_owned(),
             tags: TagsSpec {
                 tags: HashMap::from([("key".to_string(), "value".to_string())]),
             },
@@ -113,7 +113,7 @@ mod tests {
             .desired_state
             .workloads
             .workloads
-            .insert(vars::WORKLOAD_NAMES[0].into(), new_workload);
+            .insert(fixtures::WORKLOAD_NAMES[0].into(), new_workload);
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
@@ -127,16 +127,16 @@ mod tests {
                 eq(complete_state_update.clone()),
                 eq(vec![format!(
                     "desiredState.workloads.{}",
-                    vars::WORKLOAD_NAMES[0]
+                    fixtures::WORKLOAD_NAMES[0]
                 )]),
             )
             .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![format!(
                         "{}.{}.{}",
-                        vars::WORKLOAD_NAMES[0],
-                        vars::WORKLOAD_IDS[0],
-                        vars::AGENT_NAMES[0],
+                        fixtures::WORKLOAD_NAMES[0],
+                        fixtures::WORKLOAD_IDS[0],
+                        fixtures::AGENT_NAMES[0],
                     )],
                     deleted_workloads: vec![],
                 })
@@ -154,9 +154,9 @@ mod tests {
                     workload_states: vec![WorkloadStateSpec {
                         instance_name: format!(
                             "{}.{}.{}",
-                            vars::WORKLOAD_NAMES[0],
-                            vars::WORKLOAD_IDS[0],
-                            vars::AGENT_NAMES[0]
+                            fixtures::WORKLOAD_NAMES[0],
+                            fixtures::WORKLOAD_IDS[0],
+                            fixtures::AGENT_NAMES[0]
                         )
                         .try_into()
                         .unwrap(),
@@ -166,17 +166,17 @@ mod tests {
             });
 
         let mut cmd = CliCommands {
-            _response_timeout_ms: vars::RESPONSE_TIMEOUT_MS,
+            _response_timeout_ms: fixtures::RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
         let run_workload_result = cmd
             .run_workload(
-                vars::WORKLOAD_NAMES[0].into(),
-                vars::RUNTIME_NAMES[0].to_owned(),
+                fixtures::WORKLOAD_NAMES[0].into(),
+                fixtures::RUNTIME_NAMES[0].to_owned(),
                 test_workload_runtime_cfg,
-                vars::AGENT_NAMES[0].to_owned(),
+                fixtures::AGENT_NAMES[0].to_owned(),
                 HashMap::from([("key".to_string(), "value".to_string())]),
             )
             .await;

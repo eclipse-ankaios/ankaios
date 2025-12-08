@@ -47,11 +47,11 @@ impl From<(&PathBuf, &WorkloadInstanceNameSpec)> for WorkloadFilesBasePath {
 
 #[cfg(test)]
 pub fn generate_test_workload_files_path() -> WorkloadFilesBasePath {
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
     WorkloadFilesBasePath(PathBuf::from(format!(
         "/tmp/ankaios/{}_io/{}.123xy/files",
-        vars::AGENT_NAMES[0],
-        vars::WORKLOAD_NAMES[0]
+        fixtures::AGENT_NAMES[0],
+        fixtures::WORKLOAD_NAMES[0]
     )))
 }
 
@@ -59,24 +59,24 @@ pub fn generate_test_workload_files_path() -> WorkloadFilesBasePath {
 mod tests {
     use super::{PathBuf, WorkloadFilesBasePath};
     use ankaios_api::ank_base::WorkloadInstanceNameSpec;
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
 
     // [utest->swdd~location-of-workload-files-at-predefined-path~1]
     #[test]
     fn utest_workload_files_path_from() {
-        let agent_run_folder = format!("/tmp/ankaios/{}_io", vars::AGENT_NAMES[0]);
+        let agent_run_folder = format!("/tmp/ankaios/{}_io", fixtures::AGENT_NAMES[0]);
         let instance_name = WorkloadInstanceNameSpec::new(
-            vars::AGENT_NAMES[0],
-            vars::WORKLOAD_NAMES[0],
-            vars::WORKLOAD_IDS[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::WORKLOAD_IDS[0],
         );
         let workload_files_path =
             WorkloadFilesBasePath::from((&agent_run_folder.clone().into(), &instance_name));
         let expected = PathBuf::from(format!(
             "{}/{}.{}/files",
             agent_run_folder,
-            vars::WORKLOAD_NAMES[0],
-            vars::WORKLOAD_IDS[0]
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::WORKLOAD_IDS[0]
         ));
         assert_eq!(expected, workload_files_path.to_path_buf());
     }

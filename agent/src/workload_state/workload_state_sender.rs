@@ -80,17 +80,17 @@ mod tests {
     use crate::workload_state::WorkloadStateSenderInterface;
 
     use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadStateSpec};
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
 
     #[tokio::test]
     async fn utest_workload_state_sender_interface_report() {
         let (wl_state_tx, mut wl_state_rx) =
-            tokio::sync::mpsc::channel::<WorkloadStateSpec>(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel::<WorkloadStateSpec>(fixtures::TEST_CHANNEL_CAP);
 
         let instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(vars::WORKLOAD_NAMES[0])
-            .agent_name(vars::AGENT_NAMES[0])
-            .config(&vars::RUNTIME_CONFIGS[0].to_string())
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
+            .agent_name(fixtures::AGENT_NAMES[0])
+            .config(&fixtures::RUNTIME_CONFIGS[0].to_string())
             .build();
         let exec_state = ExecutionStateSpec::running();
 

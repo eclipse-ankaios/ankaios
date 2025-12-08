@@ -157,7 +157,7 @@ mod tests {
     };
 
     use ankaios_api::ank_base::WorkloadInstanceNameSpec;
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
     use common::from_server_interface::FromServer;
 
     use tokio::sync::mpsc;
@@ -195,9 +195,9 @@ mod tests {
         let _control_interface_task_mock = generate_test_control_interface_task_mock();
 
         let control_interface = ControlInterface::new(
-            ControlInterfacePath::new(vars::PIPES_LOCATION.into()),
+            ControlInterfacePath::new(fixtures::PIPES_LOCATION.into()),
             &WorkloadInstanceNameSpec::builder()
-                .workload_name(vars::WORKLOAD_NAMES[0])
+                .workload_name(fixtures::WORKLOAD_NAMES[0])
                 .config(&String::from(CONFIG))
                 .build(),
             mpsc::channel(1).0,
@@ -210,7 +210,7 @@ mod tests {
                 .get_api_location()
                 .as_os_str()
                 .to_string_lossy(),
-            vars::PIPES_LOCATION
+            fixtures::PIPES_LOCATION
         );
     }
 
@@ -245,9 +245,9 @@ mod tests {
         let _control_interface_task_mock = generate_test_control_interface_task_mock();
 
         let control_interface = ControlInterface::new(
-            ControlInterfacePath::new(vars::PIPES_LOCATION.into()),
+            ControlInterfacePath::new(fixtures::PIPES_LOCATION.into()),
             &WorkloadInstanceNameSpec::builder()
-                .agent_name(vars::WORKLOAD_NAMES[0])
+                .agent_name(fixtures::WORKLOAD_NAMES[0])
                 .config(&String::from(CONFIG))
                 .build(),
             mpsc::channel(1).0,

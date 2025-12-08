@@ -705,7 +705,7 @@ mod tests {
     };
     use ankaios_api::test_utils::{
         generate_test_workload_named_with_params, generate_test_workload_named_with_runtime_config,
-        generate_test_workload_with_params, generate_test_workload_with_runtime_config, vars,
+        generate_test_workload_with_params, generate_test_workload_with_runtime_config, fixtures,
     };
 
     use mockall::{Sequence, lazy_static, predicate::eq};
@@ -719,8 +719,8 @@ mod tests {
 
     fn generate_test_podman_kube_workload() -> WorkloadNamed {
         generate_test_workload_named_with_runtime_config(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             PODMAN_KUBE_RUNTIME_NAME,
             SAMPLE_RUNTIME_CONFIG,
         )
@@ -729,8 +729,8 @@ mod tests {
     lazy_static! {
         pub static ref WORKLOAD_INSTANCE_NAME: WorkloadInstanceNameSpec =
             WorkloadInstanceNameSpec::builder()
-                .agent_name(vars::AGENT_NAMES[0])
-                .workload_name(vars::WORKLOAD_NAMES[0])
+                .agent_name(fixtures::AGENT_NAMES[0])
+                .workload_name(fixtures::WORKLOAD_NAMES[0])
                 .config(&SAMPLE_RUNTIME_CONFIG.to_string())
                 .build();
         pub static ref SAMPLE_POD_LIST: Vec<String> = vec!["pod1".to_string(), "pod2".to_string()];
@@ -760,15 +760,15 @@ mod tests {
     async fn utest_get_reusable_workloads_success() {
         let workload_instance_1 = format!(
             "{}.{}.{}",
-            vars::WORKLOAD_NAMES[0],
-            vars::WORKLOAD_IDS[0],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::WORKLOAD_IDS[0],
+            fixtures::AGENT_NAMES[0]
         );
         let workload_instance_2 = format!(
             "{}.{}.{}",
-            vars::WORKLOAD_NAMES[1],
-            vars::WORKLOAD_IDS[1],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::WORKLOAD_IDS[1],
+            fixtures::AGENT_NAMES[0]
         );
 
         let mock_context = MockContext::new().await;
@@ -778,7 +778,7 @@ mod tests {
         ]));
 
         let mut workload = generate_test_workload_with_params(
-            vars::AGENT_NAMES[0].to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
         );
 
@@ -792,7 +792,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
 
         let workloads = runtime
-            .get_reusable_workloads(&vars::AGENT_NAMES[0].into())
+            .get_reusable_workloads(&fixtures::AGENT_NAMES[0].into())
             .await;
 
         let workloads = workloads.unwrap();
@@ -824,7 +824,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
 
         let workloads = runtime
-            .get_reusable_workloads(&vars::AGENT_NAMES[0].into())
+            .get_reusable_workloads(&fixtures::AGENT_NAMES[0].into())
             .await;
 
         assert!(matches!(workloads, Err(RuntimeError::Create(msg)) if msg.contains(SAMPLE_ERROR)));
@@ -833,16 +833,16 @@ mod tests {
     #[tokio::test]
     async fn utest_get_reusable_workloads_one_volume_cant_be_parsed() {
         let invalid_workload_instance =
-            format!("{}.{}", vars::WORKLOAD_IDS[0], vars::AGENT_NAMES[0]);
+            format!("{}.{}", fixtures::WORKLOAD_IDS[0], fixtures::AGENT_NAMES[0]);
         let workload_instance = format!(
             "{}.{}.{}",
-            vars::WORKLOAD_NAMES[1],
-            vars::WORKLOAD_IDS[1],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::WORKLOAD_IDS[1],
+            fixtures::AGENT_NAMES[0]
         );
 
         let mut workload =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], PODMAN_KUBE_RUNTIME_NAME);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], PODMAN_KUBE_RUNTIME_NAME);
 
         workload.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
@@ -865,7 +865,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
 
         let workloads = runtime
-            .get_reusable_workloads(&vars::AGENT_NAMES[0].into())
+            .get_reusable_workloads(&fixtures::AGENT_NAMES[0].into())
             .await;
 
         assert!(
@@ -877,13 +877,13 @@ mod tests {
     async fn utest_get_reusable_workloads_handles_to_short_volume_name() {
         let workload_instance = format!(
             "{}.{}.{}",
-            vars::WORKLOAD_NAMES[1],
-            vars::WORKLOAD_IDS[1],
-            vars::AGENT_NAMES[0]
+            fixtures::WORKLOAD_NAMES[1],
+            fixtures::WORKLOAD_IDS[1],
+            fixtures::AGENT_NAMES[0]
         );
 
         let mut workload =
-            generate_test_workload_with_params(vars::AGENT_NAMES[0], PODMAN_KUBE_RUNTIME_NAME);
+            generate_test_workload_with_params(fixtures::AGENT_NAMES[0], PODMAN_KUBE_RUNTIME_NAME);
 
         workload.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
@@ -908,7 +908,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
 
         let workloads = runtime
-            .get_reusable_workloads(&vars::AGENT_NAMES[0].into())
+            .get_reusable_workloads(&fixtures::AGENT_NAMES[0].into())
             .await;
 
         assert!(
@@ -1063,8 +1063,8 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
 
         let workload_named = generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             PODMAN_KUBE_RUNTIME_NAME,
         );
 
@@ -1522,7 +1522,7 @@ spec:
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod/test-container", "manifest": {manifest_str:?}}}"#
         );
         let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            vars::AGENT_NAMES[0].to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
         );
@@ -1552,7 +1552,7 @@ spec:
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], controlInterfaceTarget: "test-pod-test-container", "manifest": {manifest_str:?}}}"#
         );
         let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            vars::AGENT_NAMES[0].to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
         );
@@ -1580,7 +1580,7 @@ spec:
             r#"{{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], "manifest": {manifest_str:?}}}"#
         );
         let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            vars::AGENT_NAMES[0].to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
         );
@@ -1611,7 +1611,7 @@ spec:
         );
 
         let mut workload: WorkloadSpec = generate_test_workload_with_runtime_config(
-            vars::AGENT_NAMES[0].to_string(),
+            fixtures::AGENT_NAMES[0].to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
             runtime_config,
         );
@@ -2184,7 +2184,7 @@ spec:
         fn list_agent_config_volumes_returns(&self, volumes: Result<Vec<String>, String>) {
             self.list_volumes_by_name
                 .expect()
-                .with(eq(format!(".{}.config$", vars::AGENT_NAMES[0])))
+                .with(eq(format!(".{}.config$", fixtures::AGENT_NAMES[0])))
                 .once()
                 .return_const(volumes);
         }

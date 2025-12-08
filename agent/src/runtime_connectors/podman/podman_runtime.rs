@@ -303,19 +303,17 @@ mod tests {
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     use ankaios_api::ank_base::{ExecutionStateSpec, WorkloadInstanceNameSpec, WorkloadNamed};
-    use ankaios_api::test_utils::{generate_test_workload_named_with_params, vars};
+    use ankaios_api::test_utils::{fixtures, generate_test_workload_named_with_params};
     use common::objects::AgentName;
 
     use mockall::Sequence;
     use std::path::PathBuf;
     use std::str::FromStr;
 
-    const RUN_FOLDER: &str = "run_folder";
-
     fn generate_test_podman_workload() -> WorkloadNamed {
         generate_test_workload_named_with_params(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
             PODMAN_RUNTIME_NAME,
         )
     }
@@ -337,9 +335,9 @@ mod tests {
         list_workload_names_by_label_context
             .expect()
             .return_const(Ok(vec![
-                format!("container1.hash.{}", vars::AGENT_NAMES[0]),
+                format!("container1.hash.{}", fixtures::AGENT_NAMES[0]),
                 "wrongcontainername".to_string(),
-                format!("container2.hash.{}", vars::AGENT_NAMES[0]),
+                format!("container2.hash.{}", fixtures::AGENT_NAMES[0]),
             ]));
 
         let list_container_ids_by_label_context = PodmanCli::list_container_ids_by_label_context();
@@ -347,7 +345,7 @@ mod tests {
             .expect()
             .return_const(Ok(vec![format!(
                 "container1.hash.{}",
-                vars::AGENT_NAMES[0]
+                fixtures::AGENT_NAMES[0]
             )]));
 
         let list_states_by_id_context = PodmanCli::list_states_by_id_context();
@@ -361,7 +359,7 @@ mod tests {
             .return_const(Ok(Some(ExecutionStateSpec::initial())));
 
         let podman_runtime = PodmanRuntime {};
-        let agent_name = AgentName::from(vars::AGENT_NAMES[0]);
+        let agent_name = AgentName::from(fixtures::AGENT_NAMES[0]);
         let res = podman_runtime
             .get_reusable_workloads(&agent_name)
             .await
@@ -372,10 +370,10 @@ mod tests {
                 .map(|x| x.workload_state.instance_name.clone())
                 .collect::<Vec<WorkloadInstanceNameSpec>>(),
             vec![
-                format!("container1.hash.{}", vars::AGENT_NAMES[0])
+                format!("container1.hash.{}", fixtures::AGENT_NAMES[0])
                     .try_into()
                     .unwrap(),
-                format!("container2.hash.{}", vars::AGENT_NAMES[0])
+                format!("container2.hash.{}", fixtures::AGENT_NAMES[0])
                     .try_into()
                     .unwrap()
             ]
@@ -409,7 +407,7 @@ mod tests {
             .return_const(Err("Simulated error".to_string()));
 
         let podman_runtime = PodmanRuntime {};
-        let agent_name = AgentName::from(vars::AGENT_NAMES[0]);
+        let agent_name = AgentName::from(fixtures::AGENT_NAMES[0]);
 
         assert_eq!(
             podman_runtime.get_reusable_workloads(&agent_name).await,
@@ -427,21 +425,21 @@ mod tests {
         let run_context = PodmanCli::podman_run_context();
         run_context
             .expect()
-            .return_const(Ok(vars::WORKLOAD_IDS[0].into()));
+            .return_const(Ok(fixtures::WORKLOAD_IDS[0].into()));
 
         let reset_cache_context = PodmanCli::reset_ps_cache_context();
         reset_cache_context.expect().return_const(());
 
         let workload = generate_test_podman_workload();
         let (state_change_tx, _state_change_rx) =
-            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
                 workload,
                 None,
-                Some(PathBuf::from(RUN_FOLDER)),
+                Some(PathBuf::from(fixtures::RUN_FOLDER)),
                 state_change_tx,
                 Default::default(),
             )
@@ -450,7 +448,7 @@ mod tests {
         let (workload_id, _checker) = res.unwrap();
 
         // [utest->swdd~podman-create-workload-returns-workload-id~1]
-        assert_eq!(workload_id.id, vars::WORKLOAD_IDS[0].to_string());
+        assert_eq!(workload_id.id, fixtures::WORKLOAD_IDS[0].to_string());
     }
 
     // [utest->swdd~podman-create-workload-starts-existing-workload~1]
@@ -468,14 +466,14 @@ mod tests {
 
         let workload = generate_test_podman_workload();
         let (state_change_tx, _state_change_rx) =
-            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
                 workload,
-                Some(PodmanWorkloadId::from_str(vars::WORKLOAD_IDS[0]).unwrap()),
-                Some(PathBuf::from(RUN_FOLDER)),
+                Some(PodmanWorkloadId::from_str(fixtures::WORKLOAD_IDS[0]).unwrap()),
+                Some(PathBuf::from(fixtures::RUN_FOLDER)),
                 state_change_tx,
                 Default::default(),
             )
@@ -484,7 +482,7 @@ mod tests {
         let (workload_id, _checker) = res.unwrap();
 
         // [utest->swdd~podman-create-workload-returns-workload-id~1]
-        assert_eq!(workload_id.id, vars::WORKLOAD_IDS[0]);
+        assert_eq!(workload_id.id, fixtures::WORKLOAD_IDS[0]);
     }
 
     // [utest->swdd~podman-state-getter-reset-cache~1]
@@ -495,7 +493,7 @@ mod tests {
         let run_context = PodmanCli::podman_run_context();
         run_context
             .expect()
-            .return_const(Ok(vars::WORKLOAD_IDS[0].into()));
+            .return_const(Ok(fixtures::WORKLOAD_IDS[0].into()));
 
         let mut seq = Sequence::new();
 
@@ -515,14 +513,14 @@ mod tests {
 
         let workload = generate_test_podman_workload();
         let (state_change_tx, mut state_change_rx) =
-            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
                 workload,
                 None,
-                Some(PathBuf::from(RUN_FOLDER)),
+                Some(PathBuf::from(fixtures::RUN_FOLDER)),
                 state_change_tx,
                 Default::default(),
             )
@@ -546,7 +544,7 @@ mod tests {
         let state_getter = PodmanStateGetter {};
         let execution_state = state_getter
             .get_state(&PodmanWorkloadId {
-                id: vars::WORKLOAD_IDS[0].into(),
+                id: fixtures::WORKLOAD_IDS[0].into(),
             })
             .await;
 
@@ -569,14 +567,14 @@ mod tests {
 
         let workload = generate_test_podman_workload();
         let (state_change_tx, _state_change_rx) =
-            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
                 workload,
                 None,
-                Some(PathBuf::from(RUN_FOLDER)),
+                Some(PathBuf::from(fixtures::RUN_FOLDER)),
                 state_change_tx,
                 Default::default(),
             )
@@ -602,14 +600,14 @@ mod tests {
 
         let workload = generate_test_podman_workload();
         let (state_change_tx, _state_change_rx) =
-            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
                 workload,
                 None,
-                Some(PathBuf::from(RUN_FOLDER)),
+                Some(PathBuf::from(fixtures::RUN_FOLDER)),
                 state_change_tx,
                 Default::default(),
             )
@@ -626,14 +624,14 @@ mod tests {
         workload.workload.runtime_config = "broken runtime config".to_string();
 
         let (state_change_tx, _state_change_rx) =
-            tokio::sync::mpsc::channel(vars::TEST_CHANNEL_CAP);
+            tokio::sync::mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
             .create_workload(
                 workload,
                 None,
-                Some(PathBuf::from(RUN_FOLDER)),
+                Some(PathBuf::from(fixtures::RUN_FOLDER)),
                 state_change_tx,
                 Default::default(),
             )
@@ -650,9 +648,9 @@ mod tests {
         let context = PodmanCli::list_container_ids_by_label_context();
         context
             .expect()
-            .return_const(Ok(vec![vars::WORKLOAD_IDS[0].to_string()]));
+            .return_const(Ok(vec![fixtures::WORKLOAD_IDS[0].to_string()]));
 
-        let workload_name = format!("container1.hash.{}", vars::AGENT_NAMES[0])
+        let workload_name = format!("container1.hash.{}", fixtures::AGENT_NAMES[0])
             .try_into()
             .unwrap();
 
@@ -662,7 +660,7 @@ mod tests {
         assert_eq!(
             res,
             Ok(PodmanWorkloadId {
-                id: vars::WORKLOAD_IDS[0].into()
+                id: fixtures::WORKLOAD_IDS[0].into()
             })
         )
     }
@@ -674,7 +672,7 @@ mod tests {
         let context = PodmanCli::list_container_ids_by_label_context();
         context.expect().return_const(Ok(Vec::new()));
 
-        let workload_name = format!("container1.hash.{}", vars::AGENT_NAMES[0])
+        let workload_name = format!("container1.hash.{}", fixtures::AGENT_NAMES[0])
             .try_into()
             .unwrap();
 
@@ -696,7 +694,7 @@ mod tests {
         let context = PodmanCli::list_container_ids_by_label_context();
         context.expect().return_const(Err("simulated error".into()));
 
-        let workload_name = format!("container1.hash.{}", vars::AGENT_NAMES[0])
+        let workload_name = format!("container1.hash.{}", fixtures::AGENT_NAMES[0])
             .try_into()
             .unwrap();
 
@@ -717,7 +715,7 @@ mod tests {
             .return_const(Ok(Some(ExecutionStateSpec::running())));
 
         let workload_id = PodmanWorkloadId {
-            id: vars::WORKLOAD_IDS[0].into(),
+            id: fixtures::WORKLOAD_IDS[0].into(),
         };
         let checker = PodmanStateGetter {};
         let res = checker.get_state(&workload_id).await;
@@ -749,7 +747,7 @@ mod tests {
         context.expect().return_const(Err("simulated error".into()));
 
         let workload_id = PodmanWorkloadId {
-            id: vars::WORKLOAD_IDS[0].into(),
+            id: fixtures::WORKLOAD_IDS[0].into(),
         };
         let checker = PodmanStateGetter {};
         let res = checker.get_state(&workload_id).await;
@@ -768,7 +766,7 @@ mod tests {
         context.expect().return_const(Ok(()));
 
         let workload_id = PodmanWorkloadId {
-            id: vars::WORKLOAD_IDS[0].into(),
+            id: fixtures::WORKLOAD_IDS[0].into(),
         };
 
         let podman_runtime = PodmanRuntime {};
@@ -784,7 +782,7 @@ mod tests {
         context.expect().return_const(Err("simulated error".into()));
 
         let workload_id = PodmanWorkloadId {
-            id: vars::WORKLOAD_IDS[0].into(),
+            id: fixtures::WORKLOAD_IDS[0].into(),
         };
 
         let podman_runtime = PodmanRuntime {};

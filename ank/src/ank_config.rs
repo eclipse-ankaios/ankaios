@@ -301,7 +301,7 @@ mod tests {
         cli::{AnkCli, Commands, GetArgs, GetCommands},
     };
 
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
     use common::DEFAULT_SERVER_ADDRESS;
 
     use std::io::Write;
@@ -359,8 +359,8 @@ mod tests {
         ca_pem = '''{}'''
         ca_pem_content = '''{}'''
         #",
-            vars::CA_PEM_PATH,
-            vars::CRT_PEM_CONTENT
+            fixtures::CA_PEM_PATH,
+            fixtures::CRT_PEM_CONTENT
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -394,9 +394,9 @@ mod tests {
             verbose: Some(true),
             quiet: Some(true),
             no_wait: Some(true),
-            ca_pem: Some(vars::CA_PEM_PATH.to_string()),
-            crt_pem: Some(vars::CRT_PEM_PATH.to_string()),
-            key_pem: Some(vars::KEY_PEM_PATH.to_string()),
+            ca_pem: Some(fixtures::CA_PEM_PATH.to_string()),
+            crt_pem: Some(fixtures::CRT_PEM_PATH.to_string()),
+            key_pem: Some(fixtures::KEY_PEM_PATH.to_string()),
         };
 
         ank_config.update_with_args(&args);
@@ -407,9 +407,9 @@ mod tests {
         assert!(ank_config.no_wait);
         assert!(!ank_config.insecure);
         assert_eq!(ank_config.server_url, TEST_SERVER_URL.to_string());
-        assert_eq!(ank_config.ca_pem, Some(vars::CA_PEM_PATH.to_string()));
-        assert_eq!(ank_config.crt_pem, Some(vars::CRT_PEM_PATH.to_string()));
-        assert_eq!(ank_config.key_pem, Some(vars::KEY_PEM_PATH.to_string()));
+        assert_eq!(ank_config.ca_pem, Some(fixtures::CA_PEM_PATH.to_string()));
+        assert_eq!(ank_config.crt_pem, Some(fixtures::CRT_PEM_PATH.to_string()));
+        assert_eq!(ank_config.key_pem, Some(fixtures::KEY_PEM_PATH.to_string()));
     }
 
     // [utest->swdd~cli-loads-config-file~1]
@@ -423,9 +423,9 @@ mod tests {
         crt_pem_content = '''{}'''
         key_pem_content = '''{}'''
         #",
-            vars::CA_PEM_CONTENT,
-            vars::CRT_PEM_CONTENT,
-            vars::KEY_PEM_CONTENT
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -455,15 +455,15 @@ mod tests {
 
         assert_eq!(
             ank_config.ca_pem_content,
-            Some(vars::CA_PEM_CONTENT.to_string())
+            Some(fixtures::CA_PEM_CONTENT.to_string())
         );
         assert_eq!(
             ank_config.crt_pem_content,
-            Some(vars::CRT_PEM_CONTENT.to_string())
+            Some(fixtures::CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
             ank_config.key_pem_content,
-            Some(vars::KEY_PEM_CONTENT.to_string())
+            Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
     }
 
@@ -478,9 +478,9 @@ mod tests {
         crt_pem_content = '''{}'''
         key_pem_content = '''{}'''
         #",
-            vars::CA_PEM_CONTENT,
-            vars::CRT_PEM_CONTENT,
-            vars::KEY_PEM_CONTENT
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -568,9 +568,9 @@ mod tests {
         crt_pem_content = '''{}'''
         key_pem_content = '''{}'''
         #",
-            vars::CA_PEM_CONTENT,
-            vars::CRT_PEM_CONTENT,
-            vars::KEY_PEM_CONTENT
+            fixtures::CA_PEM_CONTENT,
+            fixtures::CRT_PEM_CONTENT,
+            fixtures::KEY_PEM_CONTENT
         );
 
         let mut tmp_config_file = NamedTempFile::new().unwrap();
@@ -590,15 +590,15 @@ mod tests {
         assert!(!ank_config.insecure);
         assert_eq!(
             ank_config.ca_pem_content,
-            Some(vars::CA_PEM_CONTENT.to_string())
+            Some(fixtures::CA_PEM_CONTENT.to_string())
         );
         assert_eq!(
             ank_config.crt_pem_content,
-            Some(vars::CRT_PEM_CONTENT.to_string())
+            Some(fixtures::CRT_PEM_CONTENT.to_string())
         );
         assert_eq!(
             ank_config.key_pem_content,
-            Some(vars::KEY_PEM_CONTENT.to_string())
+            Some(fixtures::KEY_PEM_CONTENT.to_string())
         );
     }
 }

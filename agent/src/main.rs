@@ -243,7 +243,7 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use crate::{AgentConfig, agent_config::DEFAULT_AGENT_CONFIG_FILE_PATH, handle_agent_config};
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
 
     use std::io::Write;
     use tempfile::NamedTempFile;
@@ -260,8 +260,8 @@ mod tests {
     fn utest_handle_agent_config_valid_config() {
         let mut tmp_config = NamedTempFile::new().expect("could not create temp file");
         let config_content = VALID_AGENT_CONFIG_TEMPLATE
-            .replace("{AGENT_NAME}", vars::AGENT_NAMES[0])
-            .replace("{RUN_FOLDER}", vars::RUN_FOLDER);
+            .replace("{AGENT_NAME}", fixtures::AGENT_NAMES[0])
+            .replace("{RUN_FOLDER}", fixtures::RUN_FOLDER);
         write!(tmp_config, "{config_content}").expect("could not write to temp file");
 
         let agent_config = handle_agent_config(
@@ -269,12 +269,12 @@ mod tests {
             DEFAULT_AGENT_CONFIG_FILE_PATH,
         );
 
-        assert_eq!(agent_config.name, vars::AGENT_NAMES[0].to_string());
+        assert_eq!(agent_config.name, fixtures::AGENT_NAMES[0].to_string());
         assert_eq!(
             agent_config.server_url,
             "https://127.0.0.1:25551".to_string()
         );
-        assert_eq!(agent_config.run_folder, vars::RUN_FOLDER.to_string());
+        assert_eq!(agent_config.run_folder, fixtures::RUN_FOLDER.to_string());
         assert!(agent_config.insecure);
     }
 
@@ -282,18 +282,18 @@ mod tests {
     fn utest_handle_agent_config_default_path() {
         let mut file = tempfile::NamedTempFile::new().expect("Failed to create file");
         let config_content = VALID_AGENT_CONFIG_TEMPLATE
-            .replace("{AGENT_NAME}", vars::AGENT_NAMES[0])
-            .replace("{RUN_FOLDER}", vars::RUN_FOLDER);
+            .replace("{AGENT_NAME}", fixtures::AGENT_NAMES[0])
+            .replace("{RUN_FOLDER}", fixtures::RUN_FOLDER);
         writeln!(file, "{config_content}").expect("Failed to write to file");
 
         let agent_config = handle_agent_config(&None, file.path().to_str().unwrap());
 
-        assert_eq!(agent_config.name, vars::AGENT_NAMES[0].to_string());
+        assert_eq!(agent_config.name, fixtures::AGENT_NAMES[0].to_string());
         assert_eq!(
             agent_config.server_url,
             "https://127.0.0.1:25551".to_string()
         );
-        assert_eq!(agent_config.run_folder, vars::RUN_FOLDER.to_string());
+        assert_eq!(agent_config.run_folder, fixtures::RUN_FOLDER.to_string());
         assert!(agent_config.insecure);
     }
 

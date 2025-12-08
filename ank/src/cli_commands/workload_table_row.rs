@@ -97,7 +97,7 @@ fn trim_and_replace_newlines(text: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::{WorkloadTableRow, WorkloadTableRowWithSpinner};
-    use ankaios_api::test_utils::vars;
+    use ankaios_api::test_utils::fixtures;
     use tabled::{Table, settings::Style};
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
@@ -128,9 +128,9 @@ mod tests {
     fn utest_additional_info_msg_without_new_lines() {
         let additional_info_msg = "some error with\nsome\nnewlines";
         let mut get_workloads_table_display = WorkloadTableRow::new(
-            vars::WORKLOAD_NAMES[0],
-            vars::AGENT_NAMES[0],
-            vars::RUNTIME_NAMES[0],
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             "running",
             additional_info_msg,
         );
