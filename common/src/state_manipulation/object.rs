@@ -133,11 +133,13 @@ impl TryInto<CompleteState> for Object {
     }
 }
 
-impl From<Object> for serde_yaml::Mapping {
-    fn from(obj: Object) -> Self {
-        match obj.data {
-            Value::Mapping(map) => map,
-            _ => Mapping::default(),
+impl TryFrom<Object> for serde_yaml::Mapping {
+    type Error = String;
+
+    fn try_from(value: Object) -> Result<Self, Self::Error> {
+        match value.data {
+            Value::Mapping(map) => Ok(map),
+            _ => Err("Object does not contain a mapping at the root".to_string()),
         }
     }
 }
@@ -466,14 +468,14 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let mapping: Mapping = object.clone().into();
+        let mapping = object.clone().try_into();
 
         let expected = match object.data {
             Value::Mapping(map) => map,
             _ => Mapping::default(),
         };
 
-        assert_eq!(mapping, expected);
+        assert_eq!(mapping, Ok(expected));
     }
 
     //[utest->swdd~common-state-manipulation-set~1]
