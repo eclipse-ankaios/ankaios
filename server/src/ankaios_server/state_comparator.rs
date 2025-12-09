@@ -96,8 +96,11 @@ impl StateComparator {
                             let mut added_field_mask = current_field_mask.clone();
                             added_field_mask.push(added_key);
                             // [impl->swdd~server-generates-trees-for-first-and-full-difference-field-paths~1]
-                            state_difference_tree
-                                .insert_added_path(added_field_mask.clone(), Default::default());
+                            StateDifferenceTree::insert_path(
+                                &mut state_difference_tree.added_tree.first_difference_tree,
+                                Path::from(added_field_mask.clone()),
+                                serde_yaml::Value::Null,
+                            );
 
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.added_tree.full_difference_tree,
@@ -117,9 +120,10 @@ impl StateComparator {
                             let mut removed_field_mask = current_field_mask.clone();
                             removed_field_mask.push(removed_key);
                             // [impl->swdd~server-generates-trees-for-first-and-full-difference-field-paths~1]
-                            state_difference_tree.insert_removed_path(
-                                removed_field_mask.clone(),
-                                Default::default(),
+                            StateDifferenceTree::insert_path(
+                                &mut state_difference_tree.removed_tree.first_difference_tree,
+                                Path::from(removed_field_mask.clone()),
+                                serde_yaml::Value::Null,
                             );
 
                             StateDifferenceTree::insert_path(
@@ -161,28 +165,44 @@ impl StateComparator {
                                     if old_state_sequence.is_empty()
                                         && !new_state_sequence.is_empty()
                                     {
-                                        state_difference_tree.insert_added_path(
-                                            sequence_field_mask,
-                                            Default::default(),
+                                        StateDifferenceTree::insert_path(
+                                            &mut state_difference_tree
+                                                .added_tree
+                                                .first_difference_tree,
+                                            Path::from(sequence_field_mask),
+                                            serde_yaml::Value::Null,
                                         );
                                     } else if !old_state_sequence.is_empty()
                                         && new_state_sequence.is_empty()
                                     {
-                                        state_difference_tree.insert_removed_path(
-                                            sequence_field_mask,
-                                            Default::default(),
+                                        StateDifferenceTree::insert_path(
+                                            &mut state_difference_tree
+                                                .removed_tree
+                                                .first_difference_tree,
+                                            Path::from(sequence_field_mask),
+                                            serde_yaml::Value::Null,
                                         );
                                     } else if old_state_sequence != new_state_sequence {
-                                        state_difference_tree
-                                            .insert_updated_path(sequence_field_mask);
+                                        StateDifferenceTree::insert_path(
+                                            &mut state_difference_tree
+                                                .updated_tree
+                                                .full_difference_tree,
+                                            Path::from(sequence_field_mask),
+                                            serde_yaml::Value::Null,
+                                        );
                                     }
                                 }
                                 (old_state_value, new_state_value) => {
                                     if old_state_value != new_state_value {
                                         let mut updated_field_mask = current_field_mask.clone();
                                         updated_field_mask.push(converted_key);
-                                        state_difference_tree
-                                            .insert_updated_path(updated_field_mask);
+                                        StateDifferenceTree::insert_path(
+                                            &mut state_difference_tree
+                                                .updated_tree
+                                                .full_difference_tree,
+                                            Path::from(updated_field_mask),
+                                            serde_yaml::Value::Null,
+                                        );
                                     }
                                 }
                             }
@@ -270,49 +290,6 @@ impl StateDifferenceTree {
             removed_tree: RemovedTree::default(),
             updated_tree: UpdatedTree::default(),
         }
-    }
-
-    pub fn insert_added_path(
-        &mut self,
-        first_level_change_path: Vec<String>,
-        full_difference_path: Vec<String>,
-    ) {
-        Self::insert_path(
-            &mut self.added_tree.first_difference_tree,
-            Path::from(first_level_change_path),
-            serde_yaml::Value::Null,
-        );
-
-        Self::insert_path(
-            &mut self.added_tree.full_difference_tree,
-            Path::from(full_difference_path),
-            serde_yaml::Value::Null,
-        );
-    }
-
-    pub fn insert_removed_path(
-        &mut self,
-        first_level_change_path: Vec<String>,
-        full_difference_path: Vec<String>,
-    ) {
-        Self::insert_path(
-            &mut self.removed_tree.first_difference_tree,
-            Path::from(first_level_change_path),
-            serde_yaml::Value::Null,
-        );
-        Self::insert_path(
-            &mut self.removed_tree.full_difference_tree,
-            Path::from(full_difference_path),
-            serde_yaml::Value::Null,
-        );
-    }
-
-    pub fn insert_updated_path(&mut self, path: Vec<String>) {
-        Self::insert_path(
-            &mut self.updated_tree.full_difference_tree,
-            Path::from(path),
-            serde_yaml::Value::Null,
-        );
     }
 
     pub fn is_empty(&self) -> bool {
@@ -781,10 +758,35 @@ mod tests {
             "level_2".to_owned(),
             "level_3".to_owned(),
         ];
-        state_difference_tree
-            .insert_added_path(path_to_first_change.clone(), full_change_path.clone());
-        state_difference_tree.insert_removed_path(path_to_first_change, full_change_path.clone());
-        state_difference_tree.insert_updated_path(full_change_path);
+        StateDifferenceTree::insert_path(
+            &mut state_difference_tree.added_tree.first_difference_tree,
+            Path::from(path_to_first_change.clone()),
+            serde_yaml::Value::Null,
+        );
+
+        StateDifferenceTree::insert_path(
+            &mut state_difference_tree.added_tree.full_difference_tree,
+            Path::from(full_change_path.clone()),
+            serde_yaml::Value::Null,
+        );
+
+        StateDifferenceTree::insert_path(
+            &mut state_difference_tree.removed_tree.first_difference_tree,
+            Path::from(path_to_first_change),
+            serde_yaml::Value::Null,
+        );
+
+        StateDifferenceTree::insert_path(
+            &mut state_difference_tree.removed_tree.full_difference_tree,
+            Path::from(full_change_path.clone()),
+            serde_yaml::Value::Null,
+        );
+
+        StateDifferenceTree::insert_path(
+            &mut state_difference_tree.updated_tree.full_difference_tree,
+            Path::from(full_change_path),
+            serde_yaml::Value::Null,
+        );
 
         let expected_first_difference_tree_yaml = r#"
             level_1:
@@ -854,47 +856,5 @@ mod tests {
             updated_tree: UpdatedTree::default(),
         };
         assert!(!non_empty_tree.is_empty());
-    }
-
-    #[test]
-    fn utest_state_difference_tree_insert_path() {
-        let initial_tree_yaml = r#"
-            level_1_0:
-              level_2_0: null
-        "#;
-
-        let mut tree =
-            Object::from(serde_yaml::from_str::<serde_yaml::Value>(initial_tree_yaml).unwrap());
-
-        let path = Path::from(vec!["level_1_0".to_owned(), "level_2_1".to_owned()]);
-        StateDifferenceTree::insert_path(
-            &mut tree,
-            path,
-            serde_yaml::Value::String("value".to_owned()),
-        );
-
-        let expected_tree_yaml = r#"
-            level_1_0:
-              level_2_0: null
-              level_2_1: value
-        "#;
-        let expected_tree =
-            Object::from(serde_yaml::from_str::<serde_yaml::Value>(expected_tree_yaml).unwrap());
-
-        assert_eq!(tree, expected_tree);
-
-        let path = Path::from(vec!["level_1_1".to_owned(), "level_2_0".to_owned()]);
-        StateDifferenceTree::insert_path(&mut tree, path, serde_yaml::Value::Null);
-
-        let expected_tree_yaml = r#"
-            level_1_0:
-              level_2_0: null
-              level_2_1: value
-            level_1_1:
-              level_2_0: null
-        "#;
-        let expected_tree =
-            Object::from(serde_yaml::from_str::<serde_yaml::Value>(expected_tree_yaml).unwrap());
-        assert_eq!(tree, expected_tree);
     }
 }

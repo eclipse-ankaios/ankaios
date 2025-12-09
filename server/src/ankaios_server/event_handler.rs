@@ -518,12 +518,13 @@ mod tests {
                 "workload_2".to_owned(),
             ]]);
 
-        state_difference_tree.insert_updated_path(vec![
-            "desiredState".to_owned(),
-            "workloads".to_owned(),
-            "workload_1".to_owned(),
-            "agent".to_owned(),
-        ]);
+        state_difference_tree.updated_tree.full_difference_tree =
+            generate_difference_tree_from_paths(&[vec![
+                "desiredState".to_owned(),
+                "workloads".to_owned(),
+                "workload_1".to_owned(),
+                "agent".to_owned(),
+            ]]);
 
         state_difference_tree.removed_tree.first_difference_tree =
             generate_difference_tree_from_paths(&[vec![
