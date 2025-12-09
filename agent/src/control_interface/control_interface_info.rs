@@ -93,28 +93,26 @@ mod tests {
     use crate::control_interface::{MockControlInterface, authorizer::MockAuthorizer};
 
     use ankaios_api::ank_base::WorkloadInstanceNameSpec;
+    use ankaios_api::test_utils::fixtures;
     use common::to_server_interface::ToServer;
 
     use std::path::{Path, PathBuf};
 
-    const WORKLOAD_1_NAME: &str = "workload1";
-    const PIPES_LOCATION: &str = "/some/path";
-
     #[test]
     fn utest_new() {
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(WORKLOAD_1_NAME)
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .build();
 
         let new_context_info = ControlInterfaceInfo::new(
-            ControlInterfacePath::new(PIPES_LOCATION.into()),
+            ControlInterfacePath::new(fixtures::PIPES_LOCATION.into()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             MockAuthorizer::default(),
         );
 
         assert_eq!(
-            Path::new(PIPES_LOCATION).to_path_buf(),
+            Path::new(fixtures::PIPES_LOCATION).to_path_buf(),
             *new_context_info.get_control_interface_path().as_path()
         );
         assert_eq!(
@@ -125,12 +123,12 @@ mod tests {
 
     #[test]
     fn utest_get_run_folder() {
-        let path = &Path::new(PIPES_LOCATION);
+        let path = &Path::new(fixtures::PIPES_LOCATION);
         let new_context_info = ControlInterfaceInfo::new(
             ControlInterfacePath::new(path.to_path_buf()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &WorkloadInstanceNameSpec::builder()
-                .workload_name(WORKLOAD_1_NAME)
+                .workload_name(fixtures::WORKLOAD_NAMES[0])
                 .build(),
             MockAuthorizer::default(),
         );
@@ -145,10 +143,10 @@ mod tests {
     fn utest_get_to_server_sender() {
         let (to_server_sender, _) = tokio::sync::mpsc::channel::<ToServer>(1);
         let new_context_info = ControlInterfaceInfo::new(
-            ControlInterfacePath::new(PIPES_LOCATION.into()),
+            ControlInterfacePath::new(fixtures::PIPES_LOCATION.into()),
             to_server_sender.clone(),
             &WorkloadInstanceNameSpec::builder()
-                .workload_name(WORKLOAD_1_NAME)
+                .workload_name(fixtures::WORKLOAD_NAMES[0])
                 .build(),
             MockAuthorizer::default(),
         );
@@ -159,9 +157,9 @@ mod tests {
     // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_has_same_configuration_true() {
-        let run_folder = Path::new(PIPES_LOCATION);
+        let run_folder = Path::new(fixtures::PIPES_LOCATION);
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(WORKLOAD_1_NAME)
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .build();
         let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);
         let mut context_info_authorizer = MockAuthorizer::default();
@@ -192,11 +190,11 @@ mod tests {
     #[test]
     fn utest_has_same_configuration_with_different_location_returns_false() {
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(WORKLOAD_1_NAME)
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .build();
 
         let context_info = ControlInterfaceInfo::new(
-            ControlInterfacePath::new(PIPES_LOCATION.into()),
+            ControlInterfacePath::new(fixtures::PIPES_LOCATION.into()),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             MockAuthorizer::default(),
@@ -214,9 +212,9 @@ mod tests {
     // [utest->swdd~agent-compares-control-interface-metadata~2]
     #[test]
     fn utest_has_same_configuration_with_different_authorizer_returns_false() {
-        let run_folder = Path::new(PIPES_LOCATION);
+        let run_folder = Path::new(fixtures::PIPES_LOCATION);
         let workload_instance_name = WorkloadInstanceNameSpec::builder()
-            .workload_name(WORKLOAD_1_NAME)
+            .workload_name(fixtures::WORKLOAD_NAMES[0])
             .build();
         let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);
         let mut context_info_authorizer = MockAuthorizer::default();

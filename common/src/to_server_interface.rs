@@ -241,35 +241,35 @@ mod tests {
         to_server_interface::{ToServer, ToServerInterface},
     };
     use ankaios_api::ank_base::{
-        CompleteStateRequestSpec, CpuUsageSpec, ExecutionStateSpec, FreeMemorySpec,
+        CompleteStateRequestSpec, ExecutionStateSpec,
         LogEntriesResponse, LogEntry, LogsCancelRequestSpec, LogsRequestSpec, LogsStopResponse,
         RequestContentSpec, RequestSpec, UpdateStateRequestSpec, WorkloadInstanceName,
         WorkloadInstanceNameSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_workload, generate_test_workload_state,
+        generate_test_complete_state, generate_test_workload_named, generate_test_workload_state,
+        fixtures,
     };
     use tokio::sync::mpsc;
 
-    const TEST_CHANNEL_CAP: usize = 5;
-    const WORKLOAD_NAME: &str = "X";
-    const AGENT_NAME: &str = "agent_A";
-    const REQUEST_ID: &str = "emkw489ejf89ml";
     const FIELD_MASK: &str = "desiredState.bla_bla";
-    const CPU_USAGE: CpuUsageSpec = CpuUsageSpec { cpu_usage: 42 };
-    const FREE_MEMORY: FreeMemorySpec = FreeMemorySpec { free_memory: 42 };
 
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_agent_hello() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        assert!(tx.agent_hello(AGENT_NAME.to_string()).await.is_ok());
+        assert!(
+            tx.agent_hello(fixtures::AGENT_NAMES[0].to_string())
+                .await
+                .is_ok()
+        );
 
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::AgentHello(commands::AgentHello {
-                agent_name: AGENT_NAME.to_string()
+                agent_name: fixtures::AGENT_NAMES[0].to_string()
             })
         )
     }
@@ -277,13 +277,14 @@ mod tests {
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_agent_load_status() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.agent_load_status(AgentLoadStatus {
-                agent_name: AGENT_NAME.to_string(),
-                cpu_usage: CPU_USAGE.clone(),
-                free_memory: FREE_MEMORY.clone(),
+                agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                cpu_usage: fixtures::CPU_USAGE_SPEC,
+                free_memory: fixtures::FREE_MEMORY_SPEC,
             })
             .await
             .is_ok()
@@ -292,9 +293,9 @@ mod tests {
         assert_eq!(
             rx.recv().await,
             Some(ToServer::AgentLoadStatus(AgentLoadStatus {
-                agent_name: AGENT_NAME.to_string(),
-                cpu_usage: CPU_USAGE.clone(),
-                free_memory: FREE_MEMORY.clone(),
+                agent_name: fixtures::AGENT_NAMES[0].to_string(),
+                cpu_usage: fixtures::CPU_USAGE_SPEC,
+                free_memory: fixtures::FREE_MEMORY_SPEC,
             }))
         )
     }
@@ -302,14 +303,19 @@ mod tests {
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_agent_gone() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        assert!(tx.agent_gone(AGENT_NAME.to_string()).await.is_ok());
+        assert!(
+            tx.agent_gone(fixtures::AGENT_NAMES[0].to_string())
+                .await
+                .is_ok()
+        );
 
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::AgentGone(commands::AgentGone {
-                agent_name: AGENT_NAME.to_string()
+                agent_name: fixtures::AGENT_NAMES[0].to_string()
             })
         )
     }
@@ -317,13 +323,14 @@ mod tests {
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_state() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let workload1 = generate_test_workload();
+        let workload1 = generate_test_workload_named();
         let complete_state = generate_test_complete_state(vec![workload1]);
         assert!(
             tx.update_state(
-                REQUEST_ID.to_string(),
+                fixtures::REQUEST_ID.to_string(),
                 complete_state.clone(),
                 vec![FIELD_MASK.to_string()]
             )
@@ -334,7 +341,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::Request(RequestSpec {
-                request_id: REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 request_content: RequestContentSpec::UpdateStateRequest(Box::new(
                     UpdateStateRequestSpec {
                         new_state: complete_state,
@@ -348,10 +355,11 @@ mod tests {
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_workload_state() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload_state =
-            generate_test_workload_state(WORKLOAD_NAME, ExecutionStateSpec::running());
+            generate_test_workload_state(fixtures::WORKLOAD_NAMES[0], ExecutionStateSpec::running());
         assert!(
             tx.update_workload_state(vec![workload_state.clone()])
                 .await
@@ -369,7 +377,8 @@ mod tests {
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_request_complete_state() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let complete_state_request = CompleteStateRequestSpec {
             field_mask: vec![FIELD_MASK.to_string()],
@@ -377,7 +386,7 @@ mod tests {
         let request_content =
             RequestContentSpec::CompleteStateRequest(complete_state_request.clone());
         assert!(
-            tx.request_complete_state(REQUEST_ID.to_string(), complete_state_request)
+            tx.request_complete_state(fixtures::REQUEST_ID.to_string(), complete_state_request)
                 .await
                 .is_ok()
         );
@@ -385,7 +394,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::Request(RequestSpec {
-                request_id: REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 request_content
             })
         )
@@ -393,12 +402,13 @@ mod tests {
 
     #[tokio::test]
     async fn utest_to_server_send_logs_request() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let logs_request = LogsRequestSpec {
             workload_names: vec![WorkloadInstanceNameSpec::new(
-                AGENT_NAME,
-                WORKLOAD_NAME,
+                fixtures::AGENT_NAMES[0],
+                fixtures::WORKLOAD_NAMES[0],
                 "id",
             )],
             follow: true,
@@ -408,7 +418,7 @@ mod tests {
         };
         let request_content = RequestContentSpec::LogsRequest(logs_request.clone());
         assert!(
-            tx.logs_request(REQUEST_ID.into(), logs_request.into())
+            tx.logs_request(fixtures::REQUEST_ID.into(), logs_request.into())
                 .await
                 .is_ok()
         );
@@ -416,7 +426,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::Request(RequestSpec {
-                request_id: REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 request_content
             })
         )
@@ -424,15 +434,20 @@ mod tests {
 
     #[tokio::test]
     async fn utest_to_server_send_logs_cancel_request() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let request_content = RequestContentSpec::LogsCancelRequest(LogsCancelRequestSpec {});
-        assert!(tx.logs_cancel_request(REQUEST_ID.into()).await.is_ok());
+        assert!(
+            tx.logs_cancel_request(fixtures::REQUEST_ID.into())
+                .await
+                .is_ok()
+        );
 
         assert_eq!(
             rx.recv().await.unwrap(),
             ToServer::Request(RequestSpec {
-                request_id: REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 request_content
             })
         )
@@ -440,13 +455,14 @@ mod tests {
 
     #[tokio::test]
     async fn utest_to_server_send_logs_response() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let logs_response = LogEntriesResponse {
             log_entries: vec![LogEntry {
                 workload_name: Some(WorkloadInstanceName {
-                    agent_name: AGENT_NAME.into(),
-                    workload_name: WORKLOAD_NAME.into(),
+                    agent_name: fixtures::AGENT_NAMES[0].into(),
+                    workload_name: fixtures::WORKLOAD_NAMES[0].into(),
                     id: "id".into(),
                 }),
                 message: "message".into(),
@@ -454,39 +470,40 @@ mod tests {
         };
 
         assert!(
-            tx.log_entries_response(REQUEST_ID.into(), logs_response.clone())
+            tx.log_entries_response(fixtures::REQUEST_ID.into(), logs_response.clone())
                 .await
                 .is_ok()
         );
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::LogEntriesResponse(REQUEST_ID.to_string(), logs_response)
+            ToServer::LogEntriesResponse(fixtures::REQUEST_ID.to_string(), logs_response)
         );
     }
 
     // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_logs_stop_response() {
-        let (tx, mut rx): (ToServerSender, ToServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let response_content = LogsStopResponse {
             workload_name: Some(WorkloadInstanceName {
-                agent_name: AGENT_NAME.into(),
-                workload_name: WORKLOAD_NAME.into(),
+                agent_name: fixtures::AGENT_NAMES[0].into(),
+                workload_name: fixtures::WORKLOAD_NAMES[0].into(),
                 id: "id".into(),
             }),
         };
 
         assert!(
-            tx.logs_stop_response(REQUEST_ID.into(), response_content.clone())
+            tx.logs_stop_response(fixtures::REQUEST_ID.into(), response_content.clone())
                 .await
                 .is_ok()
         );
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            ToServer::LogsStopResponse(REQUEST_ID.to_string(), response_content)
+            ToServer::LogsStopResponse(fixtures::REQUEST_ID.to_string(), response_content)
         )
     }
 }

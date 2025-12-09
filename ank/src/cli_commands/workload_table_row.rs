@@ -97,6 +97,7 @@ fn trim_and_replace_newlines(text: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::{WorkloadTableRow, WorkloadTableRowWithSpinner};
+    use ankaios_api::test_utils::fixtures;
     use tabled::{Table, settings::Style};
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
@@ -114,7 +115,11 @@ mod tests {
             spinner: "/",
         }];
         let mut table = Table::new(table_rows_with_spinner);
-        let expected_table = " WORKLOAD NAME   AGENT   RUNTIME     EXECUTION STATE   ADDITIONAL INFO \n workload        agent   runtime   / execution_state   additional_info ";
+        let expected_table = [
+            " WORKLOAD NAME   AGENT   RUNTIME     EXECUTION STATE   ADDITIONAL INFO ",
+            " workload        agent   runtime   / execution_state   additional_info ",
+        ]
+        .join("\n");
         assert_eq!(table.with(Style::blank()).to_string(), expected_table);
     }
 
@@ -123,9 +128,9 @@ mod tests {
     fn utest_additional_info_msg_without_new_lines() {
         let additional_info_msg = "some error with\nsome\nnewlines";
         let mut get_workloads_table_display = WorkloadTableRow::new(
-            "workload1",
-            "agent1",
-            "runtime_x",
+            fixtures::WORKLOAD_NAMES[0],
+            fixtures::AGENT_NAMES[0],
+            fixtures::RUNTIME_NAMES[0],
             "running",
             additional_info_msg,
         );

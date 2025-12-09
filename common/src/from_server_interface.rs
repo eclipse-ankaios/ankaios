@@ -306,27 +306,25 @@ mod tests {
         WorkloadInstanceName, WorkloadInstanceNameSpec,
     };
     use ankaios_api::test_utils::{
-        generate_test_complete_state, generate_test_deleted_workload, generate_test_workload,
-        generate_test_workload_state,
+        generate_test_complete_state, generate_test_deleted_workload_with_params,
+        generate_test_workload_named, generate_test_workload_state, fixtures,
     };
 
     use tokio::sync::mpsc;
 
-    const TEST_CHANNEL_CAP: usize = 5;
-    const WORKLOAD_NAME_1: &str = "X";
-    const WORKLOAD_NAME_2: &str = "Y";
-    const AGENT_NAME: &str = "agent_A";
-    const REQUEST_ID: &str = "emkw489ejf89ml";
+    const LOG_MESSAGE_1: &str = "message_1";
+    const LOG_MESSAGE_2: &str = "message_2";
 
     // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_workload() {
-        let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
-        let added_workloads = vec![generate_test_workload()];
-        let deleted_workloads = vec![generate_test_deleted_workload(
-            AGENT_NAME.to_string(),
-            WORKLOAD_NAME_1.to_string(),
+        let added_workloads = vec![generate_test_workload_named()];
+        let deleted_workloads = vec![generate_test_deleted_workload_with_params(
+            fixtures::AGENT_NAMES[0].to_string(),
+            fixtures::WORKLOAD_NAMES[0].to_string(),
         )];
         assert!(
             tx.update_workload(added_workloads.clone(), deleted_workloads.clone())
@@ -346,10 +344,11 @@ mod tests {
     // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_workload_state() {
-        let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload_state =
-            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionStateSpec::running());
+            generate_test_workload_state(fixtures::WORKLOAD_NAMES[0], ExecutionStateSpec::running());
         assert!(
             tx.update_workload_state(vec![workload_state.clone()])
                 .await
@@ -367,12 +366,13 @@ mod tests {
     // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_complete_state() {
-        let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let complete_state: CompleteState =
-            generate_test_complete_state(vec![generate_test_workload()]).into();
+            generate_test_complete_state(vec![generate_test_workload_named()]).into();
         assert!(
-            tx.complete_state(REQUEST_ID.to_string(), complete_state.clone())
+            tx.complete_state(fixtures::REQUEST_ID.to_string(), complete_state.clone())
                 .await
                 .is_ok()
         );
@@ -380,7 +380,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             FromServer::Response(Response {
-                request_id: REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::CompleteState(complete_state)),
             })
         )
@@ -389,13 +389,14 @@ mod tests {
     // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_state_success() {
-        let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let added_workloads = vec!["some_name".to_string(), "some_other_name".to_string()];
         let deleted_workloads = vec!["some_name_1".to_string(), "some_other_name_1".to_string()];
         assert!(
             tx.update_state_success(
-                REQUEST_ID.to_string(),
+                fixtures::REQUEST_ID.to_string(),
                 added_workloads.clone(),
                 deleted_workloads.clone()
             )
@@ -406,7 +407,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             FromServer::Response(Response {
-                request_id: REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
                     added_workloads,
                     deleted_workloads,
@@ -418,13 +419,14 @@ mod tests {
     // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_error() {
-        let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let error = Error {
             message: "error".to_string(),
         };
         assert!(
-            tx.error(REQUEST_ID.to_string(), error.message.clone())
+            tx.error(fixtures::REQUEST_ID.to_string(), error.message.clone())
                 .await
                 .is_ok()
         );
@@ -432,7 +434,7 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             FromServer::Response(Response {
-                request_id: REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::Error(error)),
             })
         )
@@ -440,22 +442,23 @@ mod tests {
 
     #[tokio::test]
     async fn utest_logs_request_success() {
-        let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.logs_request(
-                REQUEST_ID.to_string(),
+                fixtures::REQUEST_ID.to_string(),
                 LogsRequest {
                     workload_names: vec![
                         WorkloadInstanceName {
-                            workload_name: WORKLOAD_NAME_1.into(),
-                            agent_name: AGENT_NAME.into(),
-                            id: "1".into()
+                            workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                            agent_name: fixtures::AGENT_NAMES[0].into(),
+                            id: fixtures::WORKLOAD_IDS[0].into()
                         },
                         WorkloadInstanceName {
-                            workload_name: WORKLOAD_NAME_2.into(),
-                            agent_name: AGENT_NAME.into(),
-                            id: "2".into()
+                            workload_name: fixtures::WORKLOAD_NAMES[1].into(),
+                            agent_name: fixtures::AGENT_NAMES[0].into(),
+                            id: fixtures::WORKLOAD_IDS[1].into()
                         }
                     ],
                     follow: Some(true),
@@ -471,11 +474,19 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             FromServer::LogsRequest(
-                REQUEST_ID.into(),
+                fixtures::REQUEST_ID.into(),
                 LogsRequestSpec {
                     workload_names: vec![
-                        WorkloadInstanceNameSpec::new(AGENT_NAME, WORKLOAD_NAME_1, "1"),
-                        WorkloadInstanceNameSpec::new(AGENT_NAME, WORKLOAD_NAME_2, "2")
+                        WorkloadInstanceNameSpec::new(
+                            fixtures::AGENT_NAMES[0],
+                            fixtures::WORKLOAD_NAMES[0],
+                            fixtures::WORKLOAD_IDS[0]
+                        ),
+                        WorkloadInstanceNameSpec::new(
+                            fixtures::AGENT_NAMES[0],
+                            fixtures::WORKLOAD_NAMES[1],
+                            fixtures::WORKLOAD_IDS[1]
+                        )
                     ],
                     follow: true,
                     tail: 10,
@@ -488,16 +499,16 @@ mod tests {
 
     #[tokio::test]
     async fn utest_logs_request_fail() {
-        let (tx, _): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, _): (FromServerSender, FromServerReceiver) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.logs_request(
-                REQUEST_ID.to_string(),
+                fixtures::REQUEST_ID.to_string(),
                 LogsRequest {
                     workload_names: vec![WorkloadInstanceName {
-                        workload_name: WORKLOAD_NAME_1.into(),
-                        agent_name: AGENT_NAME.into(),
-                        id: "1".into()
+                        workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                        agent_name: fixtures::AGENT_NAMES[0].into(),
+                        id: fixtures::WORKLOAD_IDS[0].into()
                     }],
                     follow: Some(true),
                     tail: Some(10),
@@ -512,28 +523,29 @@ mod tests {
 
     #[tokio::test]
     async fn utest_logs_response_success() {
-        let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.log_entries_response(
-                REQUEST_ID.into(),
+                fixtures::REQUEST_ID.into(),
                 LogEntriesResponse {
                     log_entries: vec![
                         LogEntry {
                             workload_name: Some(WorkloadInstanceName {
-                                workload_name: WORKLOAD_NAME_1.into(),
-                                agent_name: AGENT_NAME.into(),
-                                id: "1".into()
+                                workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                                agent_name: fixtures::AGENT_NAMES[0].into(),
+                                id: fixtures::WORKLOAD_IDS[0].into()
                             }),
-                            message: "message_1".into()
+                            message: LOG_MESSAGE_1.into()
                         },
                         LogEntry {
                             workload_name: Some(WorkloadInstanceName {
-                                workload_name: WORKLOAD_NAME_2.into(),
-                                agent_name: AGENT_NAME.into(),
-                                id: "2".into()
+                                workload_name: fixtures::WORKLOAD_NAMES[1].into(),
+                                agent_name: fixtures::AGENT_NAMES[0].into(),
+                                id: fixtures::WORKLOAD_IDS[1].into()
                             }),
-                            message: "message_2".into()
+                            message: LOG_MESSAGE_2.into()
                         }
                     ]
                 }
@@ -545,24 +557,24 @@ mod tests {
         assert_eq!(
             rx.recv().await.unwrap(),
             FromServer::Response(Response {
-                request_id: REQUEST_ID.into(),
+                request_id: fixtures::REQUEST_ID.into(),
                 response_content: Some(ResponseContent::LogEntriesResponse(LogEntriesResponse {
                     log_entries: vec![
                         LogEntry {
                             workload_name: Some(WorkloadInstanceName {
-                                workload_name: WORKLOAD_NAME_1.into(),
-                                agent_name: AGENT_NAME.into(),
-                                id: "1".into()
+                                workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                                agent_name: fixtures::AGENT_NAMES[0].into(),
+                                id: fixtures::WORKLOAD_IDS[0].into()
                             }),
-                            message: "message_1".into()
+                            message: LOG_MESSAGE_1.into()
                         },
                         LogEntry {
                             workload_name: Some(WorkloadInstanceName {
-                                workload_name: WORKLOAD_NAME_2.into(),
-                                agent_name: AGENT_NAME.into(),
-                                id: "2".into()
+                                workload_name: fixtures::WORKLOAD_NAMES[1].into(),
+                                agent_name: fixtures::AGENT_NAMES[0].into(),
+                                id: fixtures::WORKLOAD_IDS[1].into()
                             }),
-                            message: "message_2".into()
+                            message: LOG_MESSAGE_2.into()
                         }
                     ]
                 }))
@@ -572,19 +584,19 @@ mod tests {
 
     #[tokio::test]
     async fn utest_logs_response_fail() {
-        let (tx, _): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, _): (FromServerSender, FromServerReceiver) = mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         assert!(
             tx.log_entries_response(
-                REQUEST_ID.into(),
+                fixtures::REQUEST_ID.into(),
                 LogEntriesResponse {
                     log_entries: vec![LogEntry {
                         workload_name: Some(WorkloadInstanceName {
-                            workload_name: WORKLOAD_NAME_1.into(),
-                            agent_name: AGENT_NAME.into(),
-                            id: "1".into()
+                            workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                            agent_name: fixtures::AGENT_NAMES[0].into(),
+                            id: fixtures::WORKLOAD_IDS[0].into()
                         }),
-                        message: "message_1".into()
+                        message: LOG_MESSAGE_1.into()
                     }]
                 }
             )
@@ -596,17 +608,18 @@ mod tests {
     // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_logs_stop_response_success() {
-        let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         let workload_instance_name = WorkloadInstanceName {
-            workload_name: WORKLOAD_NAME_1.into(),
-            agent_name: AGENT_NAME.into(),
-            id: "1".into(),
+            workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+            agent_name: fixtures::AGENT_NAMES[0].into(),
+            id: fixtures::WORKLOAD_IDS[0].into(),
         };
 
         assert!(
             tx.logs_stop_response(
-                REQUEST_ID.to_string(),
+                fixtures::REQUEST_ID.to_string(),
                 LogsStopResponse {
                     workload_name: Some(workload_instance_name.clone()),
                 }
@@ -618,7 +631,7 @@ mod tests {
         assert_eq!(
             rx.recv().await,
             Some(FromServer::Response(Response {
-                request_id: REQUEST_ID.to_string(),
+                request_id: fixtures::REQUEST_ID.to_string(),
                 response_content: Some(ResponseContent::LogsStopResponse(LogsStopResponse {
                     workload_name: Some(workload_instance_name),
                 })),
@@ -629,18 +642,19 @@ mod tests {
     // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_logs_stop_response_fail() {
-        let (tx, mut rx): (FromServerSender, FromServerReceiver) = mpsc::channel(TEST_CHANNEL_CAP);
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            mpsc::channel(fixtures::TEST_CHANNEL_CAP);
 
         rx.close();
 
         assert!(
             tx.logs_stop_response(
-                REQUEST_ID.to_string(),
+                fixtures::REQUEST_ID.to_string(),
                 LogsStopResponse {
                     workload_name: Some(WorkloadInstanceName {
-                        workload_name: WORKLOAD_NAME_1.into(),
-                        agent_name: AGENT_NAME.into(),
-                        id: "1".into(),
+                        workload_name: fixtures::WORKLOAD_NAMES[0].into(),
+                        agent_name: fixtures::AGENT_NAMES[0].into(),
+                        id: fixtures::WORKLOAD_IDS[0].into(),
                     }),
                 }
             )
