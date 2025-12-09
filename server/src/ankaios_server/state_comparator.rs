@@ -102,7 +102,7 @@ impl StateComparator {
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.added_tree.full_difference_tree,
                                 Path::from(added_field_mask),
-                                Self::copy_nested_keys_to_tree(
+                                Self::copy_tree_nodes_without_data(
                                     current_new_state_node.get(key).unwrap_or_unreachable(),
                                 ),
                             );
@@ -125,7 +125,7 @@ impl StateComparator {
                             StateDifferenceTree::insert_path(
                                 &mut state_difference_tree.removed_tree.full_difference_tree,
                                 Path::from(removed_field_mask),
-                                Self::copy_nested_keys_to_tree(
+                                Self::copy_tree_nodes_without_data(
                                     current_old_state_node.get(key).unwrap_or_unreachable(),
                                 ),
                             );
@@ -204,12 +204,12 @@ impl StateComparator {
     }
 
     // [impl->swdd~server-generates-trees-for-first-and-full-difference-field-paths~1]
-    fn copy_nested_keys_to_tree(start_node: &Value) -> Value {
+    fn copy_tree_nodes_without_data(start_node: &Value) -> Value {
         match start_node {
             Value::Mapping(map) if !map.is_empty() => {
                 let mut new_map = Mapping::new();
                 for (key, next_value) in map {
-                    let new_value = Self::copy_nested_keys_to_tree(next_value);
+                    let new_value = Self::copy_tree_nodes_without_data(next_value);
                     new_map.insert(key.clone(), new_value);
                 }
                 Value::Mapping(new_map)
