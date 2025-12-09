@@ -84,12 +84,12 @@ impl StateComparator {
         let mut current_field_mask = Vec::new();
         while let Some(task) = stack_tasks.pop() {
             match task {
-                StackTask::VisitPair(current_node, other_node) => {
-                    let current_keys: HashSet<_> = current_node.keys().collect();
-                    let other_keys: HashSet<_> = other_node.keys().collect();
+                StackTask::VisitPair(current_old_state_node, current_new_state_node) => {
+                    let keys_old_node: HashSet<_> = current_old_state_node.keys().collect();
+                    let keys_new_node: HashSet<_> = current_new_state_node.keys().collect();
 
-                    for key in &other_keys {
-                        if !current_keys.contains(key) {
+                    for key in &keys_new_node {
+                        if !keys_old_node.contains(key) {
                             let Some(added_key) = convert_key_to_string(key) else {
                                 continue;
                             };
@@ -103,14 +103,14 @@ impl StateComparator {
                                 &mut state_difference_tree.added_tree.full_difference_tree,
                                 Path::from(added_field_mask),
                                 Self::copy_nested_keys_to_tree(
-                                    other_node.get(key).unwrap_or_unreachable(),
+                                    current_new_state_node.get(key).unwrap_or_unreachable(),
                                 ),
                             );
                         }
                     }
 
-                    for key in &current_keys {
-                        if !other_keys.contains(key) {
+                    for key in &keys_old_node {
+                        if !keys_new_node.contains(key) {
                             let Some(removed_key) = convert_key_to_string(key) else {
                                 continue;
                             };
@@ -126,46 +126,61 @@ impl StateComparator {
                                 &mut state_difference_tree.removed_tree.full_difference_tree,
                                 Path::from(removed_field_mask),
                                 Self::copy_nested_keys_to_tree(
-                                    current_node.get(key).unwrap_or_unreachable(),
+                                    current_old_state_node.get(key).unwrap_or_unreachable(),
                                 ),
                             );
                         } else {
-                            let Some(key_str) = convert_key_to_string(key) else {
+                            let Some(converted_key) = convert_key_to_string(key) else {
                                 continue;
                             };
 
-                            let current_value = current_node.get(key).unwrap_or_unreachable();
-                            let other_value = other_node.get(key).unwrap_or_unreachable();
+                            let next_old_state_node =
+                                current_old_state_node.get(key).unwrap_or_unreachable();
+                            let next_new_state_node =
+                                current_new_state_node.get(key).unwrap_or_unreachable();
 
-                            match (current_value, other_value) {
-                                (Value::Mapping(current_map), Value::Mapping(other_map)) => {
+                            match (next_old_state_node, next_new_state_node) {
+                                (
+                                    Value::Mapping(next_old_state_mapping),
+                                    Value::Mapping(next_new_state_mapping),
+                                ) => {
                                     stack_tasks.push(StackTask::PopField);
-                                    stack_tasks.push(StackTask::VisitPair(current_map, other_map));
-                                    stack_tasks.push(StackTask::PushField(key_str));
+                                    stack_tasks.push(StackTask::VisitPair(
+                                        next_old_state_mapping,
+                                        next_new_state_mapping,
+                                    ));
+                                    stack_tasks.push(StackTask::PushField(converted_key));
                                 }
-                                (Value::Sequence(current_seq), Value::Sequence(other_seq)) => {
+                                (
+                                    Value::Sequence(old_state_sequence),
+                                    Value::Sequence(new_state_sequence),
+                                ) => {
                                     let mut sequence_field_mask = current_field_mask.clone();
-                                    sequence_field_mask.push(key_str);
+                                    sequence_field_mask.push(converted_key);
 
-                                    if current_seq.is_empty() && !other_seq.is_empty() {
+                                    if old_state_sequence.is_empty()
+                                        && !new_state_sequence.is_empty()
+                                    {
                                         state_difference_tree.insert_added_path(
                                             sequence_field_mask,
                                             Default::default(),
                                         );
-                                    } else if !current_seq.is_empty() && other_seq.is_empty() {
+                                    } else if !old_state_sequence.is_empty()
+                                        && new_state_sequence.is_empty()
+                                    {
                                         state_difference_tree.insert_removed_path(
                                             sequence_field_mask,
                                             Default::default(),
                                         );
-                                    } else if current_seq != other_seq {
+                                    } else if old_state_sequence != new_state_sequence {
                                         state_difference_tree
                                             .insert_updated_path(sequence_field_mask);
                                     }
                                 }
-                                (current_value, other_value) => {
-                                    if current_value != other_value {
+                                (old_state_value, new_state_value) => {
+                                    if old_state_value != new_state_value {
                                         let mut updated_field_mask = current_field_mask.clone();
-                                        updated_field_mask.push(key_str);
+                                        updated_field_mask.push(converted_key);
                                         state_difference_tree
                                             .insert_updated_path(updated_field_mask);
                                     }
