@@ -12,8 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::config_renderer::RenderedWorkloads;
 use super::cycle_check;
+use super::rendered_workloads::RenderedWorkloads;
 
 use ankaios_api::ank_base::{
     AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec, DeletedWorkload,
@@ -36,16 +36,6 @@ use mockall::automock;
 pub struct StateGenerationResult {
     pub old_desired_state: StateSpec,
     pub new_desired_state: StateSpec,
-}
-
-// [impl->swdd~server-state-triggers-validation-of-workload-fields~1]
-fn verify_workload_fields_format(workloads: &RenderedWorkloads) -> Result<(), UpdateStateError> {
-    for workload_spec in workloads.values() {
-        workload_spec
-            .verify_fields_format()
-            .map_err(UpdateStateError::ResultInvalid)?;
-    }
-    Ok(())
 }
 
 fn extract_added_and_deleted_workloads(
@@ -230,7 +220,9 @@ impl ServerState {
             .map_err(|err| UpdateStateError::ResultInvalid(err.to_string()))?;
 
         // [impl->swdd~server-state-triggers-validation-of-workload-fields~1]
-        verify_workload_fields_format(&new_rendered_workloads)?;
+        new_rendered_workloads
+            .validate()
+            .map_err(UpdateStateError::ResultInvalid)?;
 
         // [impl->swdd~server-state-compares-rendered-workloads~1]
         let added_deleted_workloads =
@@ -348,8 +340,9 @@ impl ServerState {
 mod tests {
     use super::ServerState;
     use crate::ankaios_server::{
-        config_renderer::{ConfigRenderError, MockConfigRenderer, RenderedWorkloads},
+        config_renderer::{ConfigRenderError, MockConfigRenderer},
         delete_graph::MockDeleteGraph,
+        rendered_workloads::RenderedWorkloads,
         server_state::{
             AddedDeletedWorkloads, UpdateStateError, extract_added_and_deleted_workloads,
         },
@@ -357,7 +350,8 @@ mod tests {
 
     use ankaios_api::ank_base::{
         AgentMapSpec, CompleteState, CompleteStateRequestSpec, CompleteStateSpec, DeletedWorkload,
-        StateSpec, Workload, WorkloadMapSpec, WorkloadNamed, WorkloadSpec, WorkloadStatesMapSpec,
+        StateSpec, Workload, WorkloadInstanceNameSpec, WorkloadMapSpec, WorkloadNamed,
+        WorkloadSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
     };
     use ankaios_api::test_utils::{
         generate_test_complete_state, generate_test_configs, generate_test_proto_complete_state,
@@ -376,14 +370,41 @@ mod tests {
     const RUNTIME: &str = "runtime";
 
     fn generate_rendered_workloads_from_state(state: &StateSpec) -> RenderedWorkloads {
-        state
-            .workloads
-            .workloads
-            .iter()
-            .map(|(name, wl)| {
-                (
-                    name.to_owned(),
-                    WorkloadNamed::from((name.to_owned(), wl.to_owned())),
+        RenderedWorkloads(
+            state
+                .workloads
+                .workloads
+                .iter()
+                .map(|(name, wl)| {
+                    (
+                        name.to_owned(),
+                        WorkloadNamed::from((name.to_owned(), wl.to_owned())),
+                    )
+                })
+                .collect(),
+        )
+    }
+
+    fn from_map_to_vec(value: WorkloadStatesMapSpec) -> Vec<WorkloadStateSpec> {
+        value
+            .agent_state_map
+            .into_iter()
+            .flat_map(|(agent_name, name_state_map)| {
+                name_state_map.wl_name_state_map.into_iter().flat_map(
+                    move |(wl_name, id_state_map)| {
+                        let agent_name = agent_name.clone();
+                        id_state_map
+                            .id_state_map
+                            .into_iter()
+                            .map(move |(wl_id, exec_state)| WorkloadStateSpec {
+                                instance_name: WorkloadInstanceNameSpec::new(
+                                    agent_name.clone(),
+                                    wl_name.clone(),
+                                    wl_id,
+                                ),
+                                execution_state: exec_state,
+                            })
+                    },
                 )
             })
             .collect()
@@ -496,7 +517,8 @@ mod tests {
         };
 
         let mut workload_state_map = WorkloadStatesMapSpec::default();
-        workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
+        workload_state_map
+            .process_new_states(from_map_to_vec(server_state.state.workload_states.clone()));
 
         let complete_state = server_state
             .get_complete_state_by_field_mask(
@@ -932,7 +954,7 @@ mod tests {
         mock_config_renderer
             .expect_render_workloads()
             .once()
-            .returning(|_, _| Ok(HashMap::new()));
+            .returning(|_, _| Ok(RenderedWorkloads::new()));
 
         let mut server_state = ServerState {
             delete_graph: delete_graph_mock,

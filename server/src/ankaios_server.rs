@@ -17,13 +17,14 @@ mod cycle_check;
 mod delete_graph;
 mod event_handler;
 mod log_campaign_store;
+mod rendered_workloads;
 mod request_id;
 mod server_state;
 mod state_comparator;
 
 use ankaios_api::ank_base::{
     AgentMapSpec, AgentStatusSpec, CompleteState, CompleteStateSpec, DeletedWorkload,
-    ExecutionStateSpec, LogsStopResponse, RequestContentSpec, RequestSpec, StateSpec,
+    ExecutionStateSpec, LogsStopResponse, RequestContentSpec, RequestSpec,
     WorkloadInstanceNameSpec, WorkloadStateSpec, WorkloadStatesMapSpec,
 };
 use common::state_manipulation::Path;
@@ -91,7 +92,7 @@ impl AnkaiosServer {
 
     pub async fn start(&mut self, startup_state: Option<CompleteStateSpec>) -> Result<(), String> {
         if let Some(state) = startup_state {
-            StateSpec::verify_api_version(&state.desired_state)?;
+            state.desired_state.validate_pre_rendering()?;
 
             let state_generation_result = self
                 .server_state
@@ -387,12 +388,8 @@ impl AnkaiosServer {
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
                         // [impl->swdd~update-desired-state-with-missing-version~1]
                         // [impl->swdd~server-desired-state-field-conventions~1]
-                        let updated_desired_state = &update_state_request.new_state.desired_state;
-                        if let Err(error_message) =
-                            StateSpec::verify_api_version(updated_desired_state).and_then(|_| {
-                                StateSpec::verify_configs_format(updated_desired_state)
-                            })
-                        {
+                        let new_desired_state = &update_state_request.new_state.desired_state;
+                        if let Err(error_message) = new_desired_state.validate_pre_rendering() {
                             log::warn!(
                                 "The CompleteState in the request has wrong format. {error_message} -> ignoring the request"
                             );
